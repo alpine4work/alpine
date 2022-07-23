@@ -1,0 +1,22 @@
+{
+    /* ========================================================================== *\
+     *                                  General                                   *
+    \* ========================================================================== */
+
+    "editor.insertSpaces": true,
+    "editor.tabSize": 4,
+    "editor.rulers": [100],
+    "editor.wordWrap": "off",
+    "editor.formatOnSave": true,
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+
+    /* ========================================================================== *\
+     *                                TypeScript                                  *
+    \* ========================================================================== */
+
+    "typescript.tsdk": "node_modules/typescript/lib",
+    "javascript.preferences.importModuleSpecifier": "non-relative",
+    "typescript.preferences.importModuleSpecifier": "non-relative",
+    "eslint.options": {"rulePaths": ["admin/eslint/rules"]}
+}
