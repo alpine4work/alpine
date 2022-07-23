@@ -49,6 +49,7 @@
         "noUncheckedIndexedAccess": true,
         "noPropertyAccessFromIndexSignature": false,
         "allowJs": true,
+        "skipLibCheck": true,
         "types": ["jest"]
     },
     "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
