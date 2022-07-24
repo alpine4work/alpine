@@ -33,3 +33,7 @@ yarn-error.log*
 # Playground
 /.local/*
 !/.local/README.md
+
+# Supabase
+**/supabase/.branches
+**/supabase/.temp
