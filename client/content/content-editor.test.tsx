@@ -1,0 +1,2886 @@
+import {fireEvent, render, screen} from "@testing-library/react";
+import {closeHistory} from "prosemirror-history";
+import {EditorState, TextSelection, Transaction} from "prosemirror-state";
+import {EditorView} from "prosemirror-view";
+import React, {useCallback, useState} from "react";
+import {act} from "react-dom/test-utils";
+import {ContentEditor, ContentEditorState, getEditorForTest} from "~/client/content/content-editor";
+import {ContentSchema} from "~/shared/content/content-schema";
+import {assert} from "~/shared/helpers/control/assert";
+
+function TestContentEditor() {
+    const [state, setState] = useState(() => ContentEditorState.create());
+    return <ContentEditor ariaLabel="Test" state={state} onChange={setState} />;
+}
+
+// Get the textbox `HTMLElement`.
+function getTextbox(): HTMLElement {
+    return screen.getByRole("textbox");
+}
+
+// Get the ProseMirror `EditorView`.
+function getEditor(): EditorView {
+    return getEditorForTest(getTextbox().parentNode);
+}
+
+// Get the ProseMirror document `Node`.
+function getDoc() {
+    return getEditor().state.doc;
+}
+
+// Dispatch a ProseMirror transaction. Use this to simulate a code powered
+// transformation of the document.
+function dispatch(buildTransaction: (state: EditorState) => Transaction) {
+    const editor = getEditor();
+    const transaction = buildTransaction(editor.state);
+
+    // Each of these test transactions should be a single history stack item.
+    closeHistory(transaction);
+
+    act(() => {
+        editor.dispatch(transaction);
+    });
+}
+
+// Creates a mock character `KeyboardEvent`.
+// https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent
+function charKeyboardEvent({
+    key,
+    metaKey = false,
+    shiftKey = false,
+}: {
+    key: string;
+    metaKey?: boolean;
+    shiftKey?: boolean;
+}) {
+    assert(key.length === 1 && key === key.toLowerCase());
+    return {
+        code: `Key${key.toUpperCase()}`,
+        key: shiftKey ? key.toUpperCase() : key,
+        keyCode: key.charCodeAt(0) - 32,
+        metaKey,
+        shiftKey,
+    };
+}
+
+function enterKeyboardEvent({
+    metaKey = false,
+    shiftKey = false,
+}: {
+    metaKey?: boolean;
+    shiftKey?: boolean;
+} = {}) {
+    return {
+        code: "Enter",
+        key: "Enter",
+        keyCode: 13,
+        metaKey,
+        shiftKey,
+    };
+}
+
+function backspaceKeyboardEvent({
+    metaKey = false,
+    shiftKey = false,
+}: {
+    metaKey?: boolean;
+    shiftKey?: boolean;
+} = {}) {
+    return {
+        code: "Backspace",
+        key: "Backspace",
+        keyCode: 8,
+        metaKey,
+        shiftKey,
+    };
+}
+
+function deleteKeyboardEvent({
+    metaKey = false,
+    shiftKey = false,
+}: {
+    metaKey?: boolean;
+    shiftKey?: boolean;
+} = {}) {
+    return {
+        code: "Delete",
+        key: "Delete",
+        keyCode: 46,
+        metaKey,
+        shiftKey,
+    };
+}
+
+function tabKeyboardEvent({
+    metaKey = false,
+    shiftKey = false,
+}: {
+    metaKey?: boolean;
+    shiftKey?: boolean;
+} = {}) {
+    return {
+        code: "Tab",
+        key: "Tab",
+        keyCode: 9,
+        metaKey,
+        shiftKey,
+    };
+}
+
+function pasteTextClipboardEvent(pasteText: string) {
+    return {
+        clipboardData: {
+            getData: (type: string) => {
+                return type === "text/plain" ? pasteText : null;
+            },
+        },
+    };
+}
+
+// Simulate a user typing at the end of a content editable. Unlike `dispatch()`
+// this tries really hard to look like a user actually making changes.
+async function simulateTyping(
+    text: string,
+    {
+        withinElement = getTextbox(),
+        fromStart = false,
+        eachChar = true,
+    }: {
+        withinElement?: Node;
+        fromStart?: boolean;
+        eachChar?: boolean;
+    } = {},
+) {
+    // Type each character individually like in a real browser.
+    if (eachChar && !fromStart && text.length > 1) {
+        for (const char of text.split("")) {
+            await simulateTyping(char, {withinElement, fromStart});
+        }
+        return;
+    }
+
+    const lastEditableChild = fromStart
+        ? findFirstEditableChild(withinElement)
+        : findLastEditableChild(withinElement);
+    assert(lastEditableChild?.parentNode);
+
+    if (lastEditableChild.nodeType === Node.TEXT_NODE) {
+        if (fromStart) {
+            lastEditableChild.textContent = text + lastEditableChild.textContent;
+        } else {
+            lastEditableChild.textContent += text;
+        }
+    } else {
+        lastEditableChild.parentNode.replaceChild(document.createTextNode(text), lastEditableChild);
+    }
+
+    // Wait for the mutation observer microtask
+    // https://dom.spec.whatwg.org/#queue-a-mutation-observer-compound-microtask
+    //
+    // The `await Promise.resolve()` fixes a bug in the interaction of React and
+    // Zone.js
+    await Promise.resolve(act(() => Promise.resolve()));
+}
+
+function findFirstEditableChild(node: Node): Node | null {
+    if (node.nodeType === Node.TEXT_NODE || node.nodeName === "BR") {
+        return node;
+    }
+    if (!node.firstChild) {
+        return null;
+    }
+    return findLastEditableChild(node.firstChild);
+}
+
+function findLastEditableChild(node: Node): Node | null {
+    if (node.nodeType === Node.TEXT_NODE || node.nodeName === "BR") {
+        return node;
+    }
+    if (!node.lastChild) {
+        return null;
+    }
+    return findLastEditableChild(node.lastChild);
+}
+
+test("renders an empty document", () => {
+    render(
+        <ContentEditor ariaLabel="Test" state={ContentEditorState.create()} onChange={() => {}} />,
+    );
+
+    expect(getTextbox().textContent).toEqual("");
+});
+
+test("renders an initial editor state", () => {
+    const content = ContentSchema.node("doc", {}, [
+        ContentSchema.node("paragraph", {}, [
+            ContentSchema.text("Hello "),
+            ContentSchema.text("world", [ContentSchema.mark("bold")]),
+            ContentSchema.text("!"),
+        ]),
+    ]);
+    render(
+        <ContentEditor
+            ariaLabel="Test"
+            state={ContentEditorState.create(content)}
+            onChange={() => {}}
+        />,
+    );
+
+    expect(getTextbox().textContent).toEqual("Hello world!");
+});
+
+test("rerenders with a changed document", () => {
+    const content1 = ContentSchema.node("doc", {}, [
+        ContentSchema.node("paragraph", {}, [ContentSchema.text("Hello")]),
+    ]);
+    const content2 = ContentSchema.node("doc", {}, [
+        ContentSchema.node("paragraph", {}, [
+            ContentSchema.text("Hello "),
+            ContentSchema.text("world", [ContentSchema.mark("bold")]),
+            ContentSchema.text("!"),
+        ]),
+    ]);
+
+    const onTransaction = () => {};
+
+    const {rerender} = render(
+        <ContentEditor
+            ariaLabel="Test"
+            state={ContentEditorState.create(content1)}
+            onChange={onTransaction}
+        />,
+    );
+
+    expect(getTextbox().textContent).toEqual("Hello");
+
+    rerender(
+        <ContentEditor
+            ariaLabel="Test"
+            state={ContentEditorState.create(content2)}
+            onChange={onTransaction}
+        />,
+    );
+
+    expect(getTextbox().textContent).toEqual("Hello world!");
+});
+
+test("can change content", () => {
+    render(<TestContentEditor />);
+
+    dispatch(state => state.tr.insertText("Hello"));
+
+    expect(getTextbox().textContent).toEqual("Hello");
+
+    dispatch(state => state.tr.insertText(" world!"));
+
+    expect(getTextbox().textContent).toEqual("Hello world!");
+});
+
+test("will optimistically update the DOM synchronously", () => {
+    render(<TestContentEditor />);
+
+    const editor = getEditorForTest(getTextbox().parentNode);
+    const transaction = editor.state.tr;
+    transaction.insertText("Hello world!");
+
+    expect(getTextbox().textContent).toEqual("");
+
+    act(() => {
+        editor.dispatch(transaction);
+
+        expect(getTextbox().textContent).toEqual("Hello world!");
+    });
+
+    expect(getTextbox().textContent).toEqual("Hello world!");
+});
+
+test("will revert optimistic update if it doesn't match props", () => {
+    function NoopContentEditor() {
+        const [state] = useState(() => ContentEditorState.create());
+        return (
+            <ContentEditor ariaLabel="Test" state={state} onChange={useCallback(() => {}, [])} />
+        );
+    }
+
+    render(<NoopContentEditor />);
+
+    const editor = getEditorForTest(getTextbox().parentNode);
+    const transaction = editor.state.tr;
+    transaction.insertText("Hello world!");
+
+    expect(getTextbox().textContent).toEqual("");
+
+    act(() => {
+        editor.dispatch(transaction);
+
+        expect(getTextbox().textContent).toEqual("Hello world!");
+    });
+
+    expect(getTextbox().textContent).toEqual("");
+});
+
+test("will undo on Cmd+Z", () => {
+    render(<TestContentEditor />);
+
+    const textbox = getTextbox();
+
+    dispatch(state => state.tr.insertText("Hello world!"));
+
+    expect(textbox.textContent).toEqual("Hello world!");
+
+    fireEvent.keyDown(textbox, charKeyboardEvent({key: "z", metaKey: true}));
+
+    expect(textbox.textContent).toEqual("");
+});
+
+test("will undo individual changes on Cmd+Z", () => {
+    render(<TestContentEditor />);
+
+    const textbox = getTextbox();
+
+    dispatch(state => state.tr.insertText("Hello"));
+    dispatch(state => state.tr.insertText(" world!"));
+
+    expect(textbox.textContent).toEqual("Hello world!");
+
+    fireEvent.keyDown(textbox, charKeyboardEvent({key: "z", metaKey: true}));
+
+    expect(textbox.textContent).toEqual("Hello");
+
+    fireEvent.keyDown(textbox, charKeyboardEvent({key: "z", metaKey: true}));
+
+    expect(textbox.textContent).toEqual("");
+});
+
+test("will redo on Cmd+Shift+Z", () => {
+    render(<TestContentEditor />);
+
+    const textbox = getTextbox();
+
+    dispatch(state => state.tr.insertText("Hello world!"));
+
+    expect(textbox.textContent).toEqual("Hello world!");
+
+    fireEvent.keyDown(textbox, charKeyboardEvent({key: "z", metaKey: true}));
+
+    expect(textbox.textContent).toEqual("");
+
+    fireEvent.keyDown(textbox, charKeyboardEvent({key: "z", metaKey: true, shiftKey: true}));
+
+    expect(textbox.textContent).toEqual("Hello world!");
+});
+
+test("will redo individual changes on Cmd+Shift+Z", () => {
+    render(<TestContentEditor />);
+
+    const textbox = getTextbox();
+
+    dispatch(state => state.tr.insertText("Hello"));
+    dispatch(state => state.tr.insertText(" world!"));
+
+    expect(textbox.textContent).toEqual("Hello world!");
+
+    fireEvent.keyDown(textbox, charKeyboardEvent({key: "z", metaKey: true}));
+
+    expect(textbox.textContent).toEqual("Hello");
+
+    fireEvent.keyDown(textbox, charKeyboardEvent({key: "z", metaKey: true}));
+
+    expect(textbox.textContent).toEqual("");
+
+    fireEvent.keyDown(textbox, charKeyboardEvent({key: "z", metaKey: true, shiftKey: true}));
+
+    expect(textbox.textContent).toEqual("Hello");
+
+    fireEvent.keyDown(textbox, charKeyboardEvent({key: "z", metaKey: true, shiftKey: true}));
+
+    expect(textbox.textContent).toEqual("Hello world!");
+});
+
+test("will redo on Cmd+Y", () => {
+    render(<TestContentEditor />);
+
+    const textbox = getTextbox();
+
+    dispatch(state => state.tr.insertText("Hello world!"));
+
+    expect(textbox.textContent).toEqual("Hello world!");
+
+    fireEvent.keyDown(textbox, charKeyboardEvent({key: "z", metaKey: true}));
+
+    expect(textbox.textContent).toEqual("");
+
+    fireEvent.keyDown(textbox, charKeyboardEvent({key: "y", metaKey: true}));
+
+    expect(textbox.textContent).toEqual("Hello world!");
+});
+
+test("will redo individual changes on Cmd+Y", () => {
+    render(<TestContentEditor />);
+
+    const textbox = getTextbox();
+
+    dispatch(state => state.tr.insertText("Hello"));
+    dispatch(state => state.tr.insertText(" world!"));
+
+    expect(textbox.textContent).toEqual("Hello world!");
+
+    fireEvent.keyDown(textbox, charKeyboardEvent({key: "z", metaKey: true}));
+
+    expect(textbox.textContent).toEqual("Hello");
+
+    fireEvent.keyDown(textbox, charKeyboardEvent({key: "z", metaKey: true}));
+
+    expect(textbox.textContent).toEqual("");
+
+    fireEvent.keyDown(textbox, charKeyboardEvent({key: "y", metaKey: true}));
+
+    expect(textbox.textContent).toEqual("Hello");
+
+    fireEvent.keyDown(textbox, charKeyboardEvent({key: "y", metaKey: true}));
+
+    expect(textbox.textContent).toEqual("Hello world!");
+});
+
+test("will toggle bold for selection on Cmd+B", () => {
+    render(<TestContentEditor />);
+
+    const textbox = getTextbox();
+
+    dispatch(state => state.tr.insertText("Hello world!"));
+
+    dispatch(state =>
+        state.tr.setSelection(new TextSelection(state.doc.resolve(7), state.doc.resolve(12))),
+    );
+
+    expect(textbox.querySelector("strong")).not.toBeInTheDocument();
+
+    fireEvent.keyDown(textbox, charKeyboardEvent({key: "b", metaKey: true}));
+
+    expect(textbox.querySelector("strong")).toBeInTheDocument();
+
+    fireEvent.keyDown(textbox, charKeyboardEvent({key: "b", metaKey: true}));
+
+    expect(textbox.querySelector("strong")).not.toBeInTheDocument();
+});
+
+test("will toggle italics for selection on Cmd+I", () => {
+    render(<TestContentEditor />);
+
+    const textbox = getTextbox();
+
+    dispatch(state => state.tr.insertText("Hello world!"));
+
+    dispatch(state =>
+        state.tr.setSelection(new TextSelection(state.doc.resolve(7), state.doc.resolve(12))),
+    );
+
+    expect(textbox.querySelector("em")).not.toBeInTheDocument();
+
+    fireEvent.keyDown(textbox, charKeyboardEvent({key: "i", metaKey: true}));
+
+    expect(textbox.querySelector("em")).toBeInTheDocument();
+
+    fireEvent.keyDown(textbox, charKeyboardEvent({key: "i", metaKey: true}));
+
+    expect(textbox.querySelector("em")).not.toBeInTheDocument();
+});
+
+test("will toggle strike for selection on Cmd+Shift+X", () => {
+    render(<TestContentEditor />);
+
+    const textbox = getTextbox();
+
+    dispatch(state => state.tr.insertText("Hello world!"));
+
+    dispatch(state =>
+        state.tr.setSelection(new TextSelection(state.doc.resolve(7), state.doc.resolve(12))),
+    );
+
+    expect(textbox.querySelector("del")).not.toBeInTheDocument();
+
+    fireEvent.keyDown(textbox, charKeyboardEvent({key: "x", metaKey: true, shiftKey: true}));
+
+    expect(textbox.querySelector("del")).toBeInTheDocument();
+
+    fireEvent.keyDown(textbox, charKeyboardEvent({key: "x", metaKey: true, shiftKey: true}));
+
+    expect(textbox.querySelector("del")).not.toBeInTheDocument();
+});
+
+test("will toggle inline code for selection on Cmd+Shift+K", () => {
+    render(<TestContentEditor />);
+
+    const textbox = getTextbox();
+
+    dispatch(state => state.tr.insertText("Hello world!"));
+
+    dispatch(state =>
+        state.tr.setSelection(new TextSelection(state.doc.resolve(7), state.doc.resolve(12))),
+    );
+
+    expect(textbox.querySelector("code")).not.toBeInTheDocument();
+
+    fireEvent.keyDown(textbox, charKeyboardEvent({key: "k", metaKey: true, shiftKey: true}));
+
+    expect(textbox.querySelector("code")).toBeInTheDocument();
+
+    fireEvent.keyDown(textbox, charKeyboardEvent({key: "k", metaKey: true, shiftKey: true}));
+
+    expect(textbox.querySelector("code")).not.toBeInTheDocument();
+});
+
+test("will create a heading with `#`", async () => {
+    render(<TestContentEditor />);
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+
+    await simulateTyping("# ");
+
+    expect(getDoc().toString()).toEqual("doc(heading)");
+    expect(getDoc().child(0).attrs.level).toEqual(1);
+});
+
+test("will not create a heading without a space", async () => {
+    render(<TestContentEditor />);
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+
+    await simulateTyping("#");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("#"))');
+
+    await simulateTyping(" ");
+
+    expect(getDoc().toString()).toEqual("doc(heading)");
+    expect(getDoc().child(0).attrs.level).toEqual(1);
+});
+
+test("will create a heading with `##`", async () => {
+    render(<TestContentEditor />);
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+
+    await simulateTyping("## ");
+
+    expect(getDoc().toString()).toEqual("doc(heading)");
+    expect(getDoc().child(0).attrs.level).toEqual(2);
+});
+
+test("will create a heading with `###`", async () => {
+    render(<TestContentEditor />);
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+
+    await simulateTyping("### ");
+
+    expect(getDoc().toString()).toEqual("doc(heading)");
+    expect(getDoc().child(0).attrs.level).toEqual(3);
+});
+
+test("will create a quote block with `>`", async () => {
+    render(<TestContentEditor />);
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+
+    await simulateTyping("> ");
+
+    expect(getDoc().toString()).toEqual("doc(quoteBlock(paragraph))");
+});
+
+test("will create a bullet list item with `-`", async () => {
+    render(<TestContentEditor />);
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+
+    await simulateTyping("- ");
+
+    expect(getDoc().toString()).toEqual("doc(bulletListItem(paragraph))");
+});
+
+test("will create a bullet list item with `*`", async () => {
+    render(<TestContentEditor />);
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+
+    await simulateTyping("* ");
+
+    expect(getDoc().toString()).toEqual("doc(bulletListItem(paragraph))");
+});
+
+test("will create a ordered list item with `1.`", async () => {
+    render(<TestContentEditor />);
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+
+    await simulateTyping("1. ");
+
+    expect(getDoc().toString()).toEqual("doc(orderedListItem(paragraph))");
+});
+
+test("will create a check list item with `[]`", async () => {
+    render(<TestContentEditor />);
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+
+    await simulateTyping("[] ");
+
+    expect(getDoc().toString()).toEqual("doc(checkListItem(paragraph))");
+    // eslint-disable-next-line jest-dom/prefer-checked
+    expect(getDoc().child(0).attrs.checked).toEqual(false);
+});
+
+test("will create a code block with ```", async () => {
+    render(<TestContentEditor />);
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+
+    await simulateTyping("```");
+
+    expect(getDoc().toString()).toEqual("doc(codeBlock)");
+});
+
+test("will create a divider with `---`", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("---");
+
+    expect(getDoc().toString()).toEqual("doc(divider, paragraph)");
+});
+
+test("will not create a divider in an unsupported location", async () => {
+    render(<TestContentEditor />);
+
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+
+    await simulateTyping("- ");
+
+    await simulateTyping("---");
+
+    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("—-")))');
+});
+
+test("pressing enter will create a new paragraph", () => {
+    render(<TestContentEditor />);
+
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(paragraph, paragraph)");
+});
+
+test("pressing enter multiple times will create multiple paragraphs", () => {
+    render(<TestContentEditor />);
+
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(paragraph, paragraph, paragraph)");
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(paragraph, paragraph, paragraph, paragraph)");
+});
+
+test("pressing enter after text will create a new paragraph", () => {
+    render(<TestContentEditor />);
+
+    dispatch(state => state.tr.insertText("hello"));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("hello"))');
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("hello"), paragraph)');
+
+    dispatch(state => state.tr.insertText("world"));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("hello"), paragraph("world"))');
+});
+
+test("pressing enter in an empty quote will convert to a paragraph", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("> ");
+
+    expect(getDoc().toString()).toEqual("doc(quoteBlock(paragraph))");
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+});
+
+test("pressing enter in a quote will create a new wrapped paragraph", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("> ");
+    await simulateTyping("hello");
+
+    expect(getDoc().toString()).toEqual('doc(quoteBlock(paragraph("hello")))');
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    expect(getDoc().toString()).toEqual('doc(quoteBlock(paragraph("hello"), paragraph))');
+
+    await simulateTyping("world");
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    expect(getDoc().toString()).toEqual(
+        'doc(quoteBlock(paragraph("hello"), paragraph("world"), paragraph))',
+    );
+});
+
+test("pressing enter in a quote's empty paragraph will exit the quote", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("> ");
+    await simulateTyping("hello");
+
+    expect(getDoc().toString()).toEqual('doc(quoteBlock(paragraph("hello")))');
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    expect(getDoc().toString()).toEqual('doc(quoteBlock(paragraph("hello"), paragraph))');
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    expect(getDoc().toString()).toEqual('doc(quoteBlock(paragraph("hello")), paragraph)');
+});
+
+test("pressing enter in an empty bullet list item will exit the item", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- ");
+    expect(getDoc().toString()).toEqual("doc(bulletListItem(paragraph))");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+});
+
+test("pressing enter in an empty ordered list item will exit the item", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("1. ");
+    expect(getDoc().toString()).toEqual("doc(orderedListItem(paragraph))");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+});
+
+test("pressing enter in an empty check list item will exit the item", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("[] ");
+    expect(getDoc().toString()).toEqual("doc(checkListItem(paragraph))");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+});
+
+test("pressing enter in an empty list item nested in a quote will exit out", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("> ");
+    await simulateTyping("- ");
+
+    expect(getDoc().toString()).toEqual("doc(quoteBlock(bulletListItem(paragraph)))");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    expect(getDoc().toString()).toEqual("doc(quoteBlock(paragraph))");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+});
+
+test("pressing enter after an empty heading will remove the style", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("# ");
+    expect(getDoc().toString()).toEqual("doc(heading)");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+});
+
+test("pressing backspace after an empty heading will remove the style", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("# ");
+    expect(getDoc().toString()).toEqual("doc(heading)");
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+});
+
+test("pressing backspace at the beginning of a heading will remove the style", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("# test");
+    expect(getDoc().toString()).toEqual('doc(heading("test"))');
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(1))));
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+    expect(getDoc().toString()).toEqual('doc(paragraph("test"))');
+});
+
+test("pressing backspace at the beginning of a heading that is not the first element will remove the style", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("# bar");
+    expect(getDoc().toString()).toEqual('doc(paragraph("foo"), heading("bar"))');
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(6))));
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+    expect(getDoc().toString()).toEqual('doc(paragraph("foo"), paragraph("bar"))');
+});
+
+test("pressing enter after a heading will create a paragraph", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("# ");
+    await simulateTyping("test");
+    expect(getDoc().toString()).toEqual('doc(heading("test"))');
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    expect(getDoc().toString()).toEqual('doc(heading("test"), paragraph)');
+});
+
+test("pressing enter in the end of a bullet list item will create a new one", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- ");
+    await simulateTyping("test");
+
+    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("test")))');
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test")), bulletListItem(paragraph))',
+    );
+});
+
+test("pressing enter in the end of an ordered list item will create a new one", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("1. ");
+    await simulateTyping("test");
+
+    expect(getDoc().toString()).toEqual('doc(orderedListItem(paragraph("test")))');
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(orderedListItem(paragraph("test")), orderedListItem(paragraph))',
+    );
+});
+
+test("pressing enter in the end of a check list item will create a new one", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("[] ");
+    await simulateTyping("test");
+
+    expect(getDoc().toString()).toEqual('doc(checkListItem(paragraph("test")))');
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(checkListItem(paragraph("test")), checkListItem(paragraph))',
+    );
+});
+
+test("pressing enter in the middle of a paragraph will split it", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("foobar");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foobar"))');
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(4))));
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foo"), paragraph("bar"))');
+});
+
+test("pressing enter in the middle of a heading will split it", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("# ");
+    await simulateTyping("foobar");
+
+    expect(getDoc().toString()).toEqual('doc(heading("foobar"))');
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(4))));
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(heading("foo"), heading("bar"))');
+});
+
+test("pressing enter in the middle of a quote will split it", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("> ");
+    await simulateTyping("foobar");
+
+    expect(getDoc().toString()).toEqual('doc(quoteBlock(paragraph("foobar")))');
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(5))));
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(quoteBlock(paragraph("foo"), paragraph("bar")))');
+});
+
+test("pressing enter in the middle of a bullet list item will split into two list items", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- ");
+    await simulateTyping("foobar");
+
+    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("foobar")))');
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(5))));
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("foo")), bulletListItem(paragraph("bar")))',
+    );
+});
+
+test("pressing enter in the middle of an ordered list item will split into two list items", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("1. ");
+    await simulateTyping("foobar");
+
+    expect(getDoc().toString()).toEqual('doc(orderedListItem(paragraph("foobar")))');
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(5))));
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(orderedListItem(paragraph("foo")), orderedListItem(paragraph("bar")))',
+    );
+});
+
+test("pressing enter in the middle of a check list item will split into two list items", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("[] ");
+    await simulateTyping("foobar");
+
+    expect(getDoc().toString()).toEqual('doc(checkListItem(paragraph("foobar")))');
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(5))));
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(checkListItem(paragraph("foo")), checkListItem(paragraph("bar")))',
+    );
+});
+
+test("pressing enter in an empty code block will create a new line in the block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("```");
+    expect(getDoc().toString()).toEqual("doc(codeBlock)");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    expect(getDoc().toString()).toEqual('doc(codeBlock("\\n"))');
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    expect(getDoc().toString()).toEqual('doc(codeBlock("\\n\\n"))');
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    expect(getDoc().toString()).toEqual('doc(codeBlock("\\n\\n\\n"))');
+});
+
+test("pressing enter in a non-empty code block will create a new line in the block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("```");
+    await simulateTyping("hello");
+    expect(getDoc().toString()).toEqual('doc(codeBlock("hello"))');
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    expect(getDoc().toString()).toEqual('doc(codeBlock("hello\\n"))');
+    await simulateTyping("world");
+    expect(getDoc().toString()).toEqual('doc(codeBlock("hello\\nworld"))');
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    expect(getDoc().toString()).toEqual('doc(codeBlock("hello\\nworld\\n"))');
+});
+
+test("pressing enter in the middle of a code block will add a line", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("```");
+    await simulateTyping("foobar");
+
+    expect(getDoc().toString()).toEqual('doc(codeBlock("foobar"))');
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(4))));
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(codeBlock("foo\\nbar"))');
+});
+
+test("cannot create a heading in a quote block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("> ");
+    await simulateTyping("# ");
+
+    expect(getDoc().toString()).toEqual('doc(quoteBlock(paragraph("# ")))');
+});
+
+test("cannot create a quote block in a quote block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("> ");
+    await simulateTyping("> ");
+
+    expect(getDoc().toString()).toEqual('doc(quoteBlock(paragraph("> ")))');
+});
+
+test("cannot create a code block in a quote block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("> ");
+    await simulateTyping("```");
+
+    expect(getDoc().toString()).toEqual('doc(quoteBlock(paragraph("```")))');
+});
+
+test("can create a bullet list in a quote block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("> ");
+    await simulateTyping("- ");
+
+    expect(getDoc().toString()).toEqual("doc(quoteBlock(bulletListItem(paragraph)))");
+});
+
+test("can create an ordered list in a quote block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("> ");
+    await simulateTyping("1. ");
+
+    expect(getDoc().toString()).toEqual("doc(quoteBlock(orderedListItem(paragraph)))");
+});
+
+test("can create a check list in a quote block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("> ");
+    await simulateTyping("[] ");
+
+    expect(getDoc().toString()).toEqual("doc(quoteBlock(checkListItem(paragraph)))");
+});
+
+test("cannot create a divider in a quote block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("> ");
+    await simulateTyping("---");
+
+    expect(getDoc().toString()).toEqual('doc(quoteBlock(paragraph("—-")))');
+});
+
+test("enter deletes a selection", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("foobar");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foobar"))');
+
+    dispatch(state =>
+        state.tr.setSelection(new TextSelection(state.doc.resolve(2), state.doc.resolve(5))),
+    );
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("f"), paragraph("ar"))');
+});
+
+test("deletes a selection", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("foobar");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foobar"))');
+
+    dispatch(state =>
+        state.tr.setSelection(new TextSelection(state.doc.resolve(2), state.doc.resolve(5))),
+    );
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("far"))');
+});
+
+test("deletes a selection across nodes", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("bar");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foo"), paragraph("bar"))');
+
+    dispatch(state =>
+        state.tr.setSelection(new TextSelection(state.doc.resolve(2), state.doc.resolve(7))),
+    );
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("far"))');
+});
+
+test("deletes a selection across styled nodes", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("> ");
+    await simulateTyping("bar");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foo"), quoteBlock(paragraph("bar")))');
+
+    dispatch(state =>
+        state.tr.setSelection(new TextSelection(state.doc.resolve(2), state.doc.resolve(8))),
+    );
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("far"))');
+});
+
+test("divider shortcut in an empty paragraph replaces the paragraph", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("bar");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foo"), paragraph, paragraph("bar"))');
+
+    await simulateTyping("---", {
+        withinElement: getTextbox().childNodes[1],
+    });
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foo"), divider, paragraph("bar"))');
+});
+
+test("list item shortcut from the beginning works", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("test");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("test"))');
+
+    await simulateTyping("- ", {fromStart: true});
+
+    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("test")))');
+});
+
+test("delete at the beginning of a paragraph joins with the last block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("bar");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foo"), paragraph("bar"))');
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(6))));
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foobar"))');
+});
+
+test("delete at the beginning of a list item removes the list item", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("bar");
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("foo")), bulletListItem(paragraph("bar")))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(9))));
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("foo")), paragraph("bar"))');
+});
+
+test("delete at the beginning of a list item after a paragraph converts to a paragraph", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("- bar");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foo"), bulletListItem(paragraph("bar")))');
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(7))));
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foo"), paragraph("bar"))');
+});
+
+test("delete at the beginning of a paragraph after a list item combines the two", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("bar");
+
+    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("foo")), paragraph("bar"))');
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(8))));
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("foobar")))');
+});
+
+test("delete at the beginning of a floating list item paragraph unwraps the paragraph", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("bar");
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("foo")), bulletListItem(paragraph("bar")))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(9))));
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("foo")), paragraph("bar"))');
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("foobar")))');
+});
+
+test("delete at the beginning of a floating list item paragraph inside a larger list unwraps the paragraph", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("bar");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("qux");
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("foo")), bulletListItem(paragraph("bar")), bulletListItem(paragraph("qux")))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(9))));
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("foo")), paragraph("bar"), bulletListItem(paragraph("qux")))',
+    );
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("foobar")), bulletListItem(paragraph("qux")))',
+    );
+});
+
+test("tab creates a level of indentation", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- ");
+    await simulateTyping("test 1", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    await simulateTyping("test 2", {eachChar: false});
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test 1")), bulletListItem(indent: 1, paragraph("test 2")))',
+    );
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("test 3", {eachChar: false});
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test 1")), bulletListItem(indent: 1, paragraph("test 2")), bulletListItem(indent: 1, paragraph("test 3")))',
+    );
+});
+
+test("shift-tab removes a level of indentation from first sub-item", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- ");
+    await simulateTyping("test 1", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    await simulateTyping("test 2", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("test 3", {eachChar: false});
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test 1")), bulletListItem(indent: 1, paragraph("test 2")), bulletListItem(indent: 1, paragraph("test 3")))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(12))));
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test 1")), bulletListItem(paragraph("test 2")), bulletListItem(indent: 1, paragraph("test 3")))',
+    );
+});
+
+test("shift-tab removes a level of indentation from other sub-item", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- ");
+    await simulateTyping("test 1", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    await simulateTyping("test 2", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("test 3", {eachChar: false});
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test 1")), bulletListItem(indent: 1, paragraph("test 2")), bulletListItem(indent: 1, paragraph("test 3")))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(22))));
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test 1")), bulletListItem(indent: 1, paragraph("test 2")), bulletListItem(paragraph("test 3")))',
+    );
+});
+
+test("shift-tab does not remove the first item from a list", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- ");
+    await simulateTyping("test 1", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("test 2", {eachChar: false});
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test 1")), bulletListItem(paragraph("test 2")))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(2))));
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test 1")), bulletListItem(paragraph("test 2")))',
+    );
+});
+
+test("shift-tab removes another item from a list", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- ");
+    await simulateTyping("test 1", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("test 2", {eachChar: false});
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test 1")), bulletListItem(paragraph("test 2")))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(12))));
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test 1")), bulletListItem(paragraph("test 2")))',
+    );
+});
+
+test("delete at the beginning of the first nested list item", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- ");
+    await simulateTyping("test 1", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    await simulateTyping("test 2", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("test 3", {eachChar: false});
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test 1")), bulletListItem(indent: 1, paragraph("test 2")), bulletListItem(indent: 1, paragraph("test 3")))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(12))));
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test 1")), paragraph("test 2"), bulletListItem(indent: 1, paragraph("test 3")))',
+    );
+});
+
+test("delete at the beginning of the second nested list item", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- ");
+    await simulateTyping("test 1", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    await simulateTyping("test 2", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("test 3", {eachChar: false});
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test 1")), bulletListItem(indent: 1, paragraph("test 2")), bulletListItem(indent: 1, paragraph("test 3")))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(22))));
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test 1")), bulletListItem(indent: 1, paragraph("test 2")), paragraph("test 3"))',
+    );
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test 1")), bulletListItem(indent: 1, paragraph("test 2test 3")))',
+    );
+});
+
+test("delete at the beginning of the second nested list item in a quote block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("> ");
+    await simulateTyping("- ");
+    await simulateTyping("test 1", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    await simulateTyping("test 2", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("test 3", {eachChar: false});
+
+    expect(getDoc().toString()).toEqual(
+        'doc(quoteBlock(bulletListItem(paragraph("test 1")), bulletListItem(paragraph("test 2")), bulletListItem(paragraph("test 3"))))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(23))));
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(quoteBlock(bulletListItem(paragraph("test 1")), bulletListItem(paragraph("test 2")), paragraph("test 3")))',
+    );
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(quoteBlock(bulletListItem(paragraph("test 1")), bulletListItem(paragraph("test 2test 3"))))',
+    );
+});
+
+test("enter in an empty nested list item", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- ");
+    await simulateTyping("test 1", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    await simulateTyping("test 2", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test 1")), bulletListItem(indent: 1, paragraph("test 2")), bulletListItem(indent: 1, paragraph))',
+    );
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test 1")), bulletListItem(indent: 1, paragraph("test 2")), paragraph)',
+    );
+});
+
+test("enter in an empty nested list item of different type", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- ");
+    await simulateTyping("test 1", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+    await simulateTyping("[] ");
+    await simulateTyping("test 2", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test 1")), checkListItem(paragraph("test 2")), checkListItem(paragraph))',
+    );
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test 1")), checkListItem(paragraph("test 2")), paragraph)',
+    );
+});
+
+test("enter in an empty nested list item with a following list item", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- ");
+    await simulateTyping("test 1", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    await simulateTyping("test 2", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("test 3", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("test 4", {eachChar: false});
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test 1")), bulletListItem(indent: 1, paragraph("test 2")), bulletListItem(indent: 1, paragraph("test 3")), bulletListItem(indent: 1, paragraph("test 4")))',
+    );
+
+    dispatch(state =>
+        state.tr.setSelection(new TextSelection(state.doc.resolve(22), state.doc.resolve(28))),
+    );
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test 1")), bulletListItem(indent: 1, paragraph("test 2")), bulletListItem(indent: 1, paragraph), bulletListItem(indent: 1, paragraph("test 4")))',
+    );
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test 1")), bulletListItem(indent: 1, paragraph("test 2")), paragraph, bulletListItem(indent: 1, paragraph("test 4")))',
+    );
+});
+
+test("enter with selection in a list item should create a new list item", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- foobar");
+
+    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("foobar")))');
+
+    dispatch(state =>
+        state.tr.setSelection(new TextSelection(state.doc.resolve(4), state.doc.resolve(6))),
+    );
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("fo")), bulletListItem(paragraph("ar")))',
+    );
+});
+
+test("enter with selection that starts outside a list item should not create a list item", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("- bar");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foo"), bulletListItem(paragraph("bar")))');
+
+    dispatch(state =>
+        state.tr.setSelection(new TextSelection(state.doc.resolve(3), state.doc.resolve(8))),
+    );
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("fo"), paragraph("ar"))');
+});
+
+test("enter with selection that starts outside a list item should not create a list item (doesn't depend on anchor)", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("- bar");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foo"), bulletListItem(paragraph("bar")))');
+
+    dispatch(state =>
+        state.tr.setSelection(new TextSelection(state.doc.resolve(8), state.doc.resolve(3))),
+    );
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("fo"), paragraph("ar"))');
+});
+
+test("enter with selection that starts inside a list item should create a list item", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("bar");
+
+    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("foo")), paragraph("bar"))');
+
+    dispatch(state =>
+        state.tr.setSelection(new TextSelection(state.doc.resolve(4), state.doc.resolve(9))),
+    );
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("fo")), bulletListItem(paragraph("ar")))',
+    );
+});
+
+test("enter with selection that starts inside a list item should create a list item (doesn't depend on anchor)", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("bar");
+
+    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("foo")), paragraph("bar"))');
+
+    dispatch(state =>
+        state.tr.setSelection(new TextSelection(state.doc.resolve(9), state.doc.resolve(4))),
+    );
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("fo")), bulletListItem(paragraph("ar")))',
+    );
+});
+
+test("delete when preceding list item is empty will merge into the item", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("bar");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("qux");
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("foo")), bulletListItem(paragraph("bar")), paragraph("qux"))',
+    );
+
+    dispatch(state =>
+        state.tr.setSelection(new TextSelection(state.doc.resolve(9), state.doc.resolve(12))),
+    );
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("foo")), bulletListItem(paragraph), paragraph("qux"))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(12))));
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("foo")), bulletListItem(paragraph("qux")))',
+    );
+});
+
+test("delete when preceding nested list item is empty will merge into the item", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    await simulateTyping("bar");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("qux");
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("foo")), bulletListItem(indent: 1, paragraph("bar")), paragraph("qux"))',
+    );
+
+    dispatch(state =>
+        state.tr.setSelection(new TextSelection(state.doc.resolve(9), state.doc.resolve(12))),
+    );
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("foo")), bulletListItem(indent: 1, paragraph), paragraph("qux"))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(12))));
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("foo")), bulletListItem(indent: 1, paragraph("qux")))',
+    );
+});
+
+test("tab will indent many items at once", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- ");
+    await simulateTyping("test1", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("test2", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("test3", {eachChar: false});
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test1")), bulletListItem(paragraph("test2")), bulletListItem(paragraph("test3")))',
+    );
+
+    dispatch(state =>
+        state.tr.setSelection(new TextSelection(state.doc.resolve(14), state.doc.resolve(23))),
+    );
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")), bulletListItem(indent: 1, paragraph("test3")))',
+    );
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")), bulletListItem(indent: 1, paragraph("test3")))',
+    );
+});
+
+test("shift-tab will dedent many items at once", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- ");
+    await simulateTyping("test1", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("test2", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("test3", {eachChar: false});
+
+    dispatch(state =>
+        state.tr.setSelection(new TextSelection(state.doc.resolve(14), state.doc.resolve(23))),
+    );
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")), bulletListItem(indent: 1, paragraph("test3")))',
+    );
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test1")), bulletListItem(paragraph("test2")), bulletListItem(paragraph("test3")))',
+    );
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test1")), bulletListItem(paragraph("test2")), bulletListItem(paragraph("test3")))',
+    );
+});
+
+test("will not indent if non-list item is selected", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- ");
+    await simulateTyping("test1", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("test2", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("test3", {eachChar: false});
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test1")), bulletListItem(paragraph("test2")), paragraph("test3"))',
+    );
+
+    dispatch(state =>
+        state.tr.setSelection(new TextSelection(state.doc.resolve(14), state.doc.resolve(22))),
+    );
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test1")), bulletListItem(paragraph("test2")), paragraph("test3"))',
+    );
+});
+
+test("will not dedent if non-list item is selected", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- ");
+    await simulateTyping("test1", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    await simulateTyping("test2", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("test3", {eachChar: false});
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")), paragraph("test3"))',
+    );
+
+    dispatch(state =>
+        state.tr.setSelection(new TextSelection(state.doc.resolve(14), state.doc.resolve(22))),
+    );
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")), paragraph("test3"))',
+    );
+});
+
+test("will not indent the first list item", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- ");
+    await simulateTyping("test1", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("test2", {eachChar: false});
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test1")), bulletListItem(paragraph("test2")))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(2))));
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test1")), bulletListItem(paragraph("test2")))',
+    );
+});
+
+test("will not indent a list item twice", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- ");
+    await simulateTyping("test1", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("test2", {eachChar: false});
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test1")), bulletListItem(paragraph("test2")))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(11))));
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")))',
+    );
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")))',
+    );
+});
+
+test("will indent up until one after the highest level", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- ");
+    await simulateTyping("test1", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    await simulateTyping("test2", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    await simulateTyping("test3", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    await simulateTyping("test4", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
+    await simulateTyping("test5", {eachChar: false});
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")), bulletListItem(indent: 2, paragraph("test3")), bulletListItem(indent: 3, paragraph("test4")), bulletListItem(paragraph("test5")))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(38))));
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")), bulletListItem(indent: 2, paragraph("test3")), bulletListItem(indent: 3, paragraph("test4")), bulletListItem(indent: 1, paragraph("test5")))',
+    );
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")), bulletListItem(indent: 2, paragraph("test3")), bulletListItem(indent: 3, paragraph("test4")), bulletListItem(indent: 2, paragraph("test5")))',
+    );
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")), bulletListItem(indent: 2, paragraph("test3")), bulletListItem(indent: 3, paragraph("test4")), bulletListItem(indent: 3, paragraph("test5")))',
+    );
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")), bulletListItem(indent: 2, paragraph("test3")), bulletListItem(indent: 3, paragraph("test4")), bulletListItem(indent: 4, paragraph("test5")))',
+    );
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")), bulletListItem(indent: 2, paragraph("test3")), bulletListItem(indent: 3, paragraph("test4")), bulletListItem(indent: 4, paragraph("test5")))',
+    );
+});
+
+test("will not dedent if it would detach subsequent item", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- ");
+    await simulateTyping("test1", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    await simulateTyping("test2", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    await simulateTyping("test3", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    await simulateTyping("test4", {eachChar: false});
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")), bulletListItem(indent: 2, paragraph("test3")), bulletListItem(indent: 3, paragraph("test4")))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(20))));
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")), bulletListItem(indent: 2, paragraph("test3")), bulletListItem(indent: 3, paragraph("test4")))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(29))));
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")), bulletListItem(indent: 2, paragraph("test3")), bulletListItem(indent: 2, paragraph("test4")))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(20))));
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")), bulletListItem(indent: 1, paragraph("test3")), bulletListItem(indent: 2, paragraph("test4")))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(20))));
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")), bulletListItem(indent: 1, paragraph("test3")), bulletListItem(indent: 2, paragraph("test4")))',
+    );
+});
+
+test("will not dedent the last list item in a document", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- ");
+    await simulateTyping("test1", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    await simulateTyping("test2", {eachChar: false});
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(11))));
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test1")), bulletListItem(paragraph("test2")))',
+    );
+});
+
+test("will change list item type with `-`", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("1. ");
+
+    expect(getDoc().toString()).toEqual("doc(orderedListItem(paragraph))");
+
+    await simulateTyping("- ");
+
+    expect(getDoc().toString()).toEqual("doc(bulletListItem(paragraph))");
+});
+
+test("will change list item type with `*`", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("1. ");
+
+    expect(getDoc().toString()).toEqual("doc(orderedListItem(paragraph))");
+
+    await simulateTyping("* ");
+
+    expect(getDoc().toString()).toEqual("doc(bulletListItem(paragraph))");
+});
+
+test("will change list item type with `1.`", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- ");
+
+    expect(getDoc().toString()).toEqual("doc(bulletListItem(paragraph))");
+
+    await simulateTyping("1. ");
+
+    expect(getDoc().toString()).toEqual("doc(orderedListItem(paragraph))");
+});
+
+test("will change list item type with `[]`", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- ");
+
+    expect(getDoc().toString()).toEqual("doc(bulletListItem(paragraph))");
+
+    await simulateTyping("[] ");
+
+    expect(getDoc().toString()).toEqual("doc(checkListItem(paragraph))");
+});
+
+test("will change list item type with `[ ]`", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- ");
+
+    expect(getDoc().toString()).toEqual("doc(bulletListItem(paragraph))");
+
+    await simulateTyping("[ ] ");
+
+    expect(getDoc().toString()).toEqual("doc(checkListItem(paragraph))");
+});
+
+test("will change list item type in nested item with `-`", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("1. test");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(orderedListItem(paragraph("test")), orderedListItem(indent: 1, paragraph))',
+    );
+
+    await simulateTyping("- ");
+
+    expect(getDoc().toString()).toEqual(
+        'doc(orderedListItem(paragraph("test")), bulletListItem(indent: 1, paragraph))',
+    );
+});
+
+test("will change list item type in nested item with `*`", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("1. test");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(orderedListItem(paragraph("test")), orderedListItem(indent: 1, paragraph))',
+    );
+
+    await simulateTyping("* ");
+
+    expect(getDoc().toString()).toEqual(
+        'doc(orderedListItem(paragraph("test")), bulletListItem(indent: 1, paragraph))',
+    );
+});
+
+test("will change list item type in nested item with `1.`", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- test");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test")), bulletListItem(indent: 1, paragraph))',
+    );
+
+    await simulateTyping("1. ");
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test")), orderedListItem(indent: 1, paragraph))',
+    );
+});
+
+test("will change list item type in nested item with `[]`", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- test");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test")), bulletListItem(indent: 1, paragraph))',
+    );
+
+    await simulateTyping("[] ");
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test")), checkListItem(indent: 1, paragraph))',
+    );
+});
+
+test("will change list item type in nested item with `[ ]`", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- test");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test")), bulletListItem(indent: 1, paragraph))',
+    );
+
+    await simulateTyping("[ ] ");
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test")), checkListItem(indent: 1, paragraph))',
+    );
+});
+
+test("will use smart double quotes", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping('"test"');
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("“test”"))');
+});
+
+test("will use smart single quotes", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("'test'");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("‘test’"))');
+});
+
+test("`--` becomes an em dash", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("--");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("—"))');
+});
+
+test("`...` becomes an ellipsis", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("...");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("…"))');
+});
+
+test("`->` becomes a rightwards arrow", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("->");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("→"))');
+});
+
+test("`<-` becomes a leftwards arrow", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("<-");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("←"))');
+});
+
+test("`^2` becomes a superscript two", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("^2");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("²"))');
+});
+
+test("`^3` becomes a superscript three", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("^3");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("³"))');
+});
+
+test("`^tm` becomes a trademark", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("^tm");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("™"))');
+});
+
+test("`^TM` becomes a trademark", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("^TM");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("™"))');
+});
+
+test("`:)` becomes 🙂 at the beginning of a line", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping(":)");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("🙂"))');
+});
+
+test("`:)` becomes 🙂 after a space", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("test :)");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("test 🙂"))');
+});
+
+test("`:)` becomes 🙂 but not after text", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("test:)");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("test:)"))');
+});
+
+test("`:(` becomes 😕 at the beginning of a line", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping(":(");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("😕"))');
+});
+
+test("`:(` becomes 😕 after a space", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("test :(");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("test 😕"))');
+});
+
+test("`:(` becomes 😕 but not after text", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("test:(");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("test:("))');
+});
+
+test("`;)` becomes 😉 at the beginning of a line", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping(";)");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("😉"))');
+});
+
+test("`;)` becomes 😉 after a space", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("test ;)");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("test 😉"))');
+});
+
+test("`;)` becomes 😉 but not after text", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("test;)");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("test;)"))');
+});
+
+test("`:D` becomes 😀 at the beginning of a line", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping(":D");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("😀"))');
+});
+
+test("`:D` becomes 😀 after a space", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("test :D");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("test 😀"))');
+});
+
+test("`:D` becomes 😀 but not after text", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("test:D");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("test:D"))');
+});
+
+test("`:P` becomes 😛 at the beginning of a line", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping(":P");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("😛"))');
+});
+
+test("`:P` becomes 😛 after a space", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("test :P");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("test 😛"))');
+});
+
+test("`:P` becomes 😛 but not after text", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("test:P");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("test:P"))');
+});
+
+test("`:O` becomes 😮 at the beginning of a line", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping(":O");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("😮"))');
+});
+
+test("`:O` becomes 😮 after a space", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("test :O");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("test 😮"))');
+});
+
+test("`:O` becomes 😮 but not after text", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("test:O");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("test:O"))');
+});
+
+test("`<3` becomes \u{2764}\u{FE0F} at the beginning of a line", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("<3");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("\u{2764}\u{FE0F}"))');
+});
+
+test("`<3` becomes \u{2764}\u{FE0F} after a space", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("test <3");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("test \u{2764}\u{FE0F}"))');
+});
+
+test("`<3` becomes \u{2764}\u{FE0F} but not after text", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("test<3");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("test<3"))');
+});
+
+test("`++` becomes 👍 at the beginning of a line", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("++");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("👍"))');
+});
+
+test("`++` becomes 👍 after a space", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("test ++");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("test 👍"))');
+});
+
+test("`++` becomes 👍 but not after text", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("test++");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("test++"))');
+});
+
+test("will paste normal text", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("foo");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foo"))');
+
+    fireEvent.paste(getTextbox(), pasteTextClipboardEvent("bar"));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foobar"))');
+});
+
+test("will paste a link text", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("test ");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("test "))');
+
+    fireEvent.paste(getTextbox(), pasteTextClipboardEvent("https://example.com"));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("test https://example.com"))');
+});
+
+test("when pasting a text when there's a selection we will linkify the selection", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("test");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("test"))');
+
+    dispatch(state =>
+        state.tr.setSelection(new TextSelection(state.doc.resolve(1), state.doc.resolve(5))),
+    );
+
+    fireEvent.paste(getTextbox(), pasteTextClipboardEvent("https://example.com"));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph(link("test")))');
+    expect((screen.getByRole("link") as HTMLAnchorElement).href).toEqual("https://example.com/");
+});
+
+test("delete will join with the next block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("bar");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foo"), paragraph("bar"))');
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(4))));
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foobar"))');
+});
+
+test("undo input rule when pressing cmd-z", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("->");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("→"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "z", metaKey: true}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("->"))');
+});
+
+test("Cmd-] and Cmd-[ indent/dedent", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- test1");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("test2");
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test1")), bulletListItem(paragraph("test2")))',
+    );
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "]", metaKey: true}));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")))',
+    );
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "[", metaKey: true}));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test1")), bulletListItem(paragraph("test2")))',
+    );
+});
+
+test("italicizes text with `_` at the beginning of a block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("_test_");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph(italic("test")))');
+});
+
+test("italicizes text with `_` later in the a block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("hello _world_");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("hello ", italic("world")))');
+});
+
+test("italicizes text with `_` when there are spaces in between", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("_hello world_");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph(italic("hello world")))');
+});
+
+test("does not italicize with `_` if a non-space comes before it", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("foo_bar_");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foo_bar_"))');
+});
+
+test("does not italicize with `_` if a space comes after the first bracket", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("_ test_");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("_ test_"))');
+});
+
+test("does not italicize with `_` if a space comes before the last bracket", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("_test _");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("_test _"))');
+});
+
+test("italicizes a single character with `_`", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("_x_");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph(italic("x")))');
+});
+
+test("italicizes two characters with `_`", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("_xy_");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph(italic("xy")))');
+});
+
+test("characters typed after italics with `_` are not italicized", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("_hello_ world");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph(italic("hello"), " world"))');
+});
+
+test("bolds text with `*` at the beginning of a block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("*test*");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph(bold("test")))');
+});
+
+test("bolds text with `*` later in the a block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("hello *world*");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("hello ", bold("world")))');
+});
+
+test("bolds text with `*` when there are spaces in between", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("*hello world*");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph(bold("hello world")))');
+});
+
+test("does not bold with `*` if a non-space comes before it", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("foo*bar*");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foo*bar*"))');
+});
+
+test("does not bold with `*` if a space comes after the first bracket", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("test * test*");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("test * test*"))');
+});
+
+test("does not bold with `*` if a space comes before the last bracket", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("*test *");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("*test *"))');
+});
+
+test("bolds a single character with `*`", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("*x*");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph(bold("x")))');
+});
+
+test("bolds two characters with `*`", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("*xy*");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph(bold("xy")))');
+});
+
+test("characters typed after bolded text with `*` are not bolded", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("*hello* world");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph(bold("hello"), " world"))');
+});
+
+test("strikes text with `~` at the beginning of a block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("~test~");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph(strike("test")))');
+});
+
+test("strikes text with `~` later in the a block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("hello ~world~");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("hello ", strike("world")))');
+});
+
+test("strikes text with `~` when there are spaces in between", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("~hello world~");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph(strike("hello world")))');
+});
+
+test("does not strike with `~` if a non-space comes before it", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("foo~bar~");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foo~bar~"))');
+});
+
+test("does not strike with `~` if a space comes after the first bracket", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("~ test~");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("~ test~"))');
+});
+
+test("does not strike with `~` if a space comes before the last bracket", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("~test ~");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("~test ~"))');
+});
+
+test("strikes a single character with `~`", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("~x~");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph(strike("x")))');
+});
+
+test("strikes two characters with `~`", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("~xy~");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph(strike("xy")))');
+});
+
+test("characters typed after strike with `~` are not striked", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("~hello~ world");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph(strike("hello"), " world"))');
+});
+
+test("codes text with ` at the beginning of a block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("`test`");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph(code("test")))');
+});
+
+test("codes text with ` later in the a block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("hello `world`");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("hello ", code("world")))');
+});
+
+test("codes text with ` when there are spaces in between", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("`hello world`");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph(code("hello world")))');
+});
+
+test("does not code with ` if a non-space comes before it", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("foo`bar`");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foo`bar`"))');
+});
+
+test("does not code with ` if a space comes after the first bracket", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("` test`");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("` test`"))');
+});
+
+test("does not code with ` if a space comes before the last bracket", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("`test `");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("`test `"))');
+});
+
+test("codes a single character with `", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("`x`");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph(code("x")))');
+});
+
+test("codes two characters with `", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("`xy`");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph(code("xy")))');
+});
+
+test("characters typed after coded text with ` are not coded", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("`hello` world");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph(code("hello"), " world"))');
+});
+
+test("bold mark is not ended until it is toggled off", async () => {
+    render(<TestContentEditor />);
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "b", metaKey: true}));
+    await simulateTyping("hello");
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "b", metaKey: true}));
+    await simulateTyping("world");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph(bold("hello"), "world"))');
+});
+
+test("italic mark is not ended until it is toggled off", async () => {
+    render(<TestContentEditor />);
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "i", metaKey: true}));
+    await simulateTyping("hello");
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "i", metaKey: true}));
+    await simulateTyping("world");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph(italic("hello"), "world"))');
+});
+
+test("code mark is not ended until it is toggled off", async () => {
+    render(<TestContentEditor />);
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "k", metaKey: true, shiftKey: true}));
+    await simulateTyping("hello");
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "k", metaKey: true, shiftKey: true}));
+    await simulateTyping("world");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph(code("hello"), "world"))');
+});
+
+test("strike mark is not ended until it is toggled off", async () => {
+    render(<TestContentEditor />);
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "x", metaKey: true, shiftKey: true}));
+    await simulateTyping("hello");
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "x", metaKey: true, shiftKey: true}));
+    await simulateTyping("world");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph(strike("hello"), "world"))');
+});
+
+test("shift enter creates a new line instead of a new paragraph", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({shiftKey: true}));
+    await simulateTyping("bar");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foo", break, "bar"))');
+});
+
+test("shift enter inside a list item creates a new line instead of a new paragraph", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({shiftKey: true}));
+    await simulateTyping("bar");
+
+    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("foo", break, "bar")))');
+});

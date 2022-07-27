@@ -1,0 +1,727 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`bold 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  class="ProseMirror prose"
+  contenteditable="true"
+  role="textbox"
+  translate="no"
+>
+  <p>
+    Hello 
+    <strong>
+      world
+    </strong>
+    !
+  </p>
+</div>
+`;
+
+exports[`bullet list plain 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  class="ProseMirror prose"
+  contenteditable="true"
+  role="textbox"
+  translate="no"
+>
+  <div
+    class="bullet-list-item"
+    style="margin-left:0em;padding-left:1.25em"
+  >
+    <p>
+      Hello world!
+    </p>
+  </div>
+</div>
+`;
+
+exports[`bullet list with multiple items 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  class="ProseMirror prose"
+  contenteditable="true"
+  role="textbox"
+  translate="no"
+>
+  <div
+    class="bullet-list-item"
+    style="margin-left:0em;padding-left:1.25em"
+  >
+    <p>
+      Item 1
+    </p>
+  </div>
+  <div
+    class="bullet-list-item"
+    style="margin-left:0em;padding-left:1.25em"
+  >
+    <p>
+      Item 2
+    </p>
+  </div>
+  <div
+    class="bullet-list-item"
+    style="margin-left:0em;padding-left:1.25em"
+  >
+    <p>
+      Item 3
+    </p>
+  </div>
+</div>
+`;
+
+exports[`bullet list with sub-list 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  class="ProseMirror prose"
+  contenteditable="true"
+  role="textbox"
+  translate="no"
+>
+  <div
+    class="bullet-list-item"
+    style="margin-left:0em;padding-left:1.25em"
+  >
+    <p>
+      Test
+    </p>
+  </div>
+  <div
+    class="bullet-list-item"
+    style="margin-left:1.25em;padding-left:1.25em"
+  >
+    <p>
+      Item 1
+    </p>
+  </div>
+  <div
+    class="bullet-list-item"
+    style="margin-left:1.25em;padding-left:1.25em"
+  >
+    <p>
+      Item 2
+    </p>
+  </div>
+  <div
+    class="bullet-list-item"
+    style="margin-left:1.25em;padding-left:1.25em"
+  >
+    <p>
+      Item 3
+    </p>
+  </div>
+</div>
+`;
+
+exports[`bullet list with sub-list of another type 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  class="ProseMirror prose"
+  contenteditable="true"
+  role="textbox"
+  translate="no"
+>
+  <div
+    class="bullet-list-item"
+    style="margin-left:0em;padding-left:1.25em"
+  >
+    <p>
+      Test
+    </p>
+  </div>
+  <div
+    class="ordered-list-item"
+    style="margin-left:1.25em;padding-left:1.25em"
+  >
+    <p>
+      Item 1
+    </p>
+  </div>
+  <div
+    class="ordered-list-item"
+    style="margin-left:1.25em;padding-left:1.25em"
+  >
+    <p>
+      Item 2
+    </p>
+  </div>
+  <div
+    class="ordered-list-item"
+    style="margin-left:1.25em;padding-left:1.25em"
+  >
+    <p>
+      Item 3
+    </p>
+  </div>
+</div>
+`;
+
+exports[`can put hard breaks inside list items 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  class="ProseMirror prose"
+  contenteditable="true"
+  role="textbox"
+  translate="no"
+>
+  <div
+    class="bullet-list-item"
+    style="margin-left:0em;padding-left:1.25em"
+  >
+    <p>
+      Hello…
+      <br />
+      …world!
+    </p>
+  </div>
+</div>
+`;
+
+exports[`can put hard breaks inside paragraphs 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  class="ProseMirror prose"
+  contenteditable="true"
+  role="textbox"
+  translate="no"
+>
+  <p>
+    Hello…
+    <br />
+    …world!
+  </p>
+</div>
+`;
+
+exports[`check list (checked) plain 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  class="ProseMirror prose"
+  contenteditable="true"
+  role="textbox"
+  translate="no"
+>
+  <div
+    style="margin-left:0em;padding-left:1.25em"
+  >
+    <p>
+      Hello world!
+    </p>
+  </div>
+</div>
+`;
+
+exports[`check list (unchecked) plain 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  class="ProseMirror prose"
+  contenteditable="true"
+  role="textbox"
+  translate="no"
+>
+  <div
+    style="margin-left:0em;padding-left:1.25em"
+  >
+    <p>
+      Hello world!
+    </p>
+  </div>
+</div>
+`;
+
+exports[`check list with multiple items 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  class="ProseMirror prose"
+  contenteditable="true"
+  role="textbox"
+  translate="no"
+>
+  <div
+    style="margin-left:0em;padding-left:1.25em"
+  >
+    <p>
+      Item 1
+    </p>
+  </div>
+  <div
+    style="margin-left:0em;padding-left:1.25em"
+  >
+    <p>
+      Item 2
+    </p>
+  </div>
+  <div
+    style="margin-left:0em;padding-left:1.25em"
+  >
+    <p>
+      Item 3
+    </p>
+  </div>
+</div>
+`;
+
+exports[`check list with sub-list 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  class="ProseMirror prose"
+  contenteditable="true"
+  role="textbox"
+  translate="no"
+>
+  <div
+    style="margin-left:0em;padding-left:1.25em"
+  >
+    <p>
+      Test
+    </p>
+  </div>
+  <div
+    style="margin-left:1.25em;padding-left:1.25em"
+  >
+    <p>
+      Item 1
+    </p>
+  </div>
+  <div
+    style="margin-left:1.25em;padding-left:1.25em"
+  >
+    <p>
+      Item 2
+    </p>
+  </div>
+  <div
+    style="margin-left:1.25em;padding-left:1.25em"
+  >
+    <p>
+      Item 3
+    </p>
+  </div>
+</div>
+`;
+
+exports[`check list with sub-list of another type 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  class="ProseMirror prose"
+  contenteditable="true"
+  role="textbox"
+  translate="no"
+>
+  <div
+    style="margin-left:0em;padding-left:1.25em"
+  >
+    <p>
+      Test
+    </p>
+  </div>
+  <div
+    class="ordered-list-item"
+    style="margin-left:1.25em;padding-left:1.25em"
+  >
+    <p>
+      Item 1
+    </p>
+  </div>
+  <div
+    class="ordered-list-item"
+    style="margin-left:1.25em;padding-left:1.25em"
+  >
+    <p>
+      Item 2
+    </p>
+  </div>
+  <div
+    class="ordered-list-item"
+    style="margin-left:1.25em;padding-left:1.25em"
+  >
+    <p>
+      Item 3
+    </p>
+  </div>
+</div>
+`;
+
+exports[`code 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  class="ProseMirror prose"
+  contenteditable="true"
+  role="textbox"
+  translate="no"
+>
+  <p>
+    Hello 
+    <code>
+      world
+    </code>
+    !
+  </p>
+</div>
+`;
+
+exports[`code plain 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  class="ProseMirror prose"
+  contenteditable="true"
+  role="textbox"
+  translate="no"
+>
+  <pre>
+    <code>
+      Hello world!
+    </code>
+  </pre>
+</div>
+`;
+
+exports[`divider empty 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  class="ProseMirror prose"
+  contenteditable="true"
+  role="textbox"
+  translate="no"
+>
+  <hr />
+</div>
+`;
+
+exports[`heading 1 plain 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  class="ProseMirror prose"
+  contenteditable="true"
+  role="textbox"
+  translate="no"
+>
+  <h2>
+    Hello world!
+  </h2>
+</div>
+`;
+
+exports[`heading 2 plain 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  class="ProseMirror prose"
+  contenteditable="true"
+  role="textbox"
+  translate="no"
+>
+  <h3>
+    Hello world!
+  </h3>
+</div>
+`;
+
+exports[`heading 3 plain 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  class="ProseMirror prose"
+  contenteditable="true"
+  role="textbox"
+  translate="no"
+>
+  <h4>
+    Hello world!
+  </h4>
+</div>
+`;
+
+exports[`highlight 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  class="ProseMirror prose"
+  contenteditable="true"
+  role="textbox"
+  translate="no"
+>
+  <p>
+    Hello 
+    <mark>
+      world
+    </mark>
+    !
+  </p>
+</div>
+`;
+
+exports[`italic 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  class="ProseMirror prose"
+  contenteditable="true"
+  role="textbox"
+  translate="no"
+>
+  <p>
+    Hello 
+    <em>
+      world
+    </em>
+    !
+  </p>
+</div>
+`;
+
+exports[`link (XSS vulnerability) 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  class="ProseMirror prose"
+  contenteditable="true"
+  role="textbox"
+  translate="no"
+>
+  <p>
+    Hello 
+    <a
+      href="about:blank#blocked"
+      rel="noopener noreferrer"
+      target="_blank"
+    >
+      world
+    </a>
+    !
+  </p>
+</div>
+`;
+
+exports[`link 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  class="ProseMirror prose"
+  contenteditable="true"
+  role="textbox"
+  translate="no"
+>
+  <p>
+    Hello 
+    <a
+      href="https://example.com"
+      rel="noopener noreferrer"
+      target="_blank"
+    >
+      world
+    </a>
+    !
+  </p>
+</div>
+`;
+
+exports[`ordered list plain 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  class="ProseMirror prose"
+  contenteditable="true"
+  role="textbox"
+  translate="no"
+>
+  <div
+    class="ordered-list-item"
+    style="margin-left:0em;padding-left:1.25em"
+  >
+    <p>
+      Hello world!
+    </p>
+  </div>
+</div>
+`;
+
+exports[`ordered list with multiple items 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  class="ProseMirror prose"
+  contenteditable="true"
+  role="textbox"
+  translate="no"
+>
+  <div
+    class="ordered-list-item"
+    style="margin-left:0em;padding-left:1.25em"
+  >
+    <p>
+      Item 1
+    </p>
+  </div>
+  <div
+    class="ordered-list-item"
+    style="margin-left:0em;padding-left:1.25em"
+  >
+    <p>
+      Item 2
+    </p>
+  </div>
+  <div
+    class="ordered-list-item"
+    style="margin-left:0em;padding-left:1.25em"
+  >
+    <p>
+      Item 3
+    </p>
+  </div>
+</div>
+`;
+
+exports[`ordered list with sub-list 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  class="ProseMirror prose"
+  contenteditable="true"
+  role="textbox"
+  translate="no"
+>
+  <div
+    class="ordered-list-item"
+    style="margin-left:0em;padding-left:1.25em"
+  >
+    <p>
+      Test
+    </p>
+  </div>
+  <div
+    class="ordered-list-item"
+    style="margin-left:1.25em;padding-left:1.25em"
+  >
+    <p>
+      Item 1
+    </p>
+  </div>
+  <div
+    class="ordered-list-item"
+    style="margin-left:1.25em;padding-left:1.25em"
+  >
+    <p>
+      Item 2
+    </p>
+  </div>
+  <div
+    class="ordered-list-item"
+    style="margin-left:1.25em;padding-left:1.25em"
+  >
+    <p>
+      Item 3
+    </p>
+  </div>
+</div>
+`;
+
+exports[`ordered list with sub-list of another type 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  class="ProseMirror prose"
+  contenteditable="true"
+  role="textbox"
+  translate="no"
+>
+  <div
+    class="ordered-list-item"
+    style="margin-left:0em;padding-left:1.25em"
+  >
+    <p>
+      Test
+    </p>
+  </div>
+  <div
+    style="margin-left:1.25em;padding-left:1.25em"
+  >
+    <p>
+      Item 1
+    </p>
+  </div>
+  <div
+    style="margin-left:1.25em;padding-left:1.25em"
+  >
+    <p>
+      Item 2
+    </p>
+  </div>
+  <div
+    style="margin-left:1.25em;padding-left:1.25em"
+  >
+    <p>
+      Item 3
+    </p>
+  </div>
+</div>
+`;
+
+exports[`paragraph plain 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  class="ProseMirror prose"
+  contenteditable="true"
+  role="textbox"
+  translate="no"
+>
+  <p>
+    Hello world!
+  </p>
+</div>
+`;
+
+exports[`quote plain 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  class="ProseMirror prose"
+  contenteditable="true"
+  role="textbox"
+  translate="no"
+>
+  <blockquote>
+    <p>
+      Hello world!
+    </p>
+  </blockquote>
+</div>
+`;
+
+exports[`strike 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  class="ProseMirror prose"
+  contenteditable="true"
+  role="textbox"
+  translate="no"
+>
+  <p>
+    Hello 
+    <del>
+      world
+    </del>
+    !
+  </p>
+</div>
+`;

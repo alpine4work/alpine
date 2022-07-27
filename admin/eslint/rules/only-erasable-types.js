@@ -13,7 +13,7 @@ module.exports = {
 
     create(context) {
         return {
-            [":statement"](node) {
+            ":statement"(node) {
                 const isErasableType =
                     node.type === "TSInterfaceDeclaration" ||
                     node.type === "TSTypeAliasDeclaration" ||
