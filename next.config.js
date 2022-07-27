@@ -16,4 +16,8 @@ module.exports = {
     poweredByHeader: false,
     reactStrictMode: true,
     swcMinify: true,
+
+    eslint: {
+        dirs: ["pages", "admin", "client", "server", "shared"],
+    },
 };

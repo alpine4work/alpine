@@ -209,14 +209,6 @@ module.exports = {
     },
     overrides: [
         {
-            files: ["pages/**/*.page.{ts,tsx}"],
-            rules: {
-                // Next.js uses default exports in the `./pages` directory to figure out
-                // what to render.
-                "import/no-default-export": "off",
-            },
-        },
-        {
             files: ["!**/*.{ts,tsx}"],
             // Assume plain JS files are scripts and not modules.
             parserOptions: {sourceType: "script"},
@@ -225,6 +217,24 @@ module.exports = {
                 // `require()` is ok in a JS file.
                 "@typescript-eslint/no-var-requires": "off",
                 "import/no-commonjs": "off",
+            },
+        },
+        {
+            files: ["shared/types/**/*.{ts,tsx}"],
+            rules: {
+                // Only TypeScript types may go in `shared/types`. We have this restriction to
+                // force any code in that directory to not contribute to bundle size.
+                //
+                // This is a custom eslint rules from `admin/eslint/rules`.
+                "only-erasable-types": "error",
+            },
+        },
+        {
+            files: ["pages/**/*.page.{ts,tsx}"],
+            rules: {
+                // Next.js uses default exports in the `./pages` directory to figure out
+                // what to render.
+                "import/no-default-export": "off",
             },
         },
     ],
