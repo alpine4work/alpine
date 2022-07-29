@@ -9,7 +9,7 @@ export type Id = string & {readonly _Id: never};
  *
  * [1]: https://www.crockford.com/base32.html
  */
-const BASE32_ALPHABET = "0123456789abcdefghjkmnpqrstvwxyz";
+const alphabet = "0123456789abcdefghjkmnpqrstvwxyz";
 
 /**
  * Generate a new random id using a cryptographically secure source of
@@ -30,18 +30,18 @@ export function generateId(): Id {
     let value = 0;
     let id = "";
 
-    for (let index = 0; index < bytes.length; index++) {
-        value = (value << 8) | bytes[index]!;
+    for (let i = 0; i < bytes.length; i++) {
+        value = (value << 8) | bytes[i]!;
         bits += 8;
 
         while (bits >= 5) {
-            id += BASE32_ALPHABET[(value >>> (bits - 5)) & 31];
+            id += alphabet[(value >>> (bits - 5)) & 31];
             bits -= 5;
         }
     }
 
     if (bits > 0) {
-        id += BASE32_ALPHABET[(value << (5 - bits)) & 31];
+        id += alphabet[(value << (5 - bits)) & 31];
     }
 
     return id as Id;
