@@ -1,5 +1,18 @@
 import {Node, Schema} from "prosemirror-model";
 
+/**
+ * Represents a full content doc which is represented as a ProseMirror
+ * node.
+ */
+export type Content = Node & {readonly _Content: never};
+
+/**
+ * Is this ProseMirror node content?
+ */
+export function isContent(node: Node): node is Content {
+    return node.type === ContentSchema.nodes.doc;
+}
+
 // TODO(calebmer): Handle paste with `fromDOM`! Change all our snapshot tests to
 // also make sure copy/paste is an exact copy.
 
@@ -437,4 +450,6 @@ function toDebugStringWithIndent(node: Node) {
 /**
  * An empty doc for our content schema.
  */
-export const emptyContent = ContentSchema.node("doc", {}, [ContentSchema.node("paragraph")]);
+export const emptyContent = ContentSchema.node("doc", {}, [
+    ContentSchema.node("paragraph"),
+]) as Content;
