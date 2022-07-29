@@ -15,7 +15,6 @@ import {buildKeymapPlugin} from "~/client/content/content-editor-plugin-keymap";
 import styles from "~/client/content/content-editor.module.css";
 import {isMac} from "~/client/helpers/is-mac";
 import {
-    Content,
     ContentSchema,
     emptyContent,
     startsWithAllowedProtocol,
@@ -49,7 +48,7 @@ export class ContentEditorState {
     /**
      * Creates a new state for our content editor.
      */
-    public static create(content: Content = emptyContent) {
+    public static create(content: Node = emptyContent) {
         const plugins = buildPlugins();
 
         return new ContentEditorState(
@@ -109,8 +108,8 @@ export class ContentEditorState {
      * Our state contains more information than just the document. For instance,
      * the cursor position.
      */
-    public get content(): Content {
-        return this._state.doc as Content;
+    public get doc(): Node {
+        return this._state.doc;
     }
 
     /**
