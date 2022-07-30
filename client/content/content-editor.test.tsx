@@ -1,3 +1,5 @@
+/* eslint-disable jest-dom/prefer-to-have-text-content, testing-library/no-node-access */
+
 import {fireEvent, render, screen} from "@testing-library/react";
 import {closeHistory} from "prosemirror-history";
 import {EditorState, TextSelection, Transaction} from "prosemirror-state";
@@ -617,7 +619,6 @@ test("will create a check list item with `[]`", async () => {
     await simulateTyping("[] ");
 
     expect(getDoc().toString()).toEqual("doc(checkListItem(paragraph))");
-    // eslint-disable-next-line jest-dom/prefer-checked
     expect(getDoc().child(0).attrs.checked).toEqual(false);
 });
 

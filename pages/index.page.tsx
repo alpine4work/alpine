@@ -6,7 +6,7 @@ export default function Home() {
     const [state, setState] = useState(() => ContentEditorState.create());
 
     return (
-        <div>
+        <>
             <Head>
                 <title>Cyberworlds</title>
             </Head>
@@ -19,6 +19,6 @@ export default function Home() {
                     placeholder="Type stuff here…"
                 />
             </main>
-        </div>
+        </>
     );
 }

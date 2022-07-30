@@ -191,6 +191,9 @@ function unwrap(state: ContentEditorState): EditorState {
 // TODO(calebmer): Style for node selection? You can enter into this by double
 // clicking on a list item.
 
+// TODO(calebmer): Make content editor SSR safe by rendering it as read-only on
+// the server and mounting as editable on the client after hydration.
+
 export type ContentEditorRef = {
     focus(): void;
     blur(): void;

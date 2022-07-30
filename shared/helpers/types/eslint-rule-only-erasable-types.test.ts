@@ -2,6 +2,7 @@
 
 // eslint-disable-next-line only-erasable-types
 import {generateId} from "~/shared/id/id";
+
 import type {Id} from "~/shared/id/id";
 
 // Ok
@@ -21,4 +22,7 @@ const x = 42;
 class C {}
 
 // eslint-disable-next-line only-erasable-types
-test("ok", () => {});
+test("ok", () => {
+    // eslint-disable-next-line only-erasable-types
+    expect(true).toEqual(true);
+});

@@ -5,9 +5,8 @@ module.exports = {
         schema: [],
         messages: {
             onlyErasableTypes:
-                'Only types that are erased at runtime may go in the "~/shared/types" directory.',
-            mustUseTypeImport:
-                'Imports outside of the "~/shared/types" directory must be type imports.',
+                'Only types that are erased at runtime may go in a "types" directory.',
+            mustUseTypeImport: 'Imports outside of a "types" directory must be type imports.',
         },
     },
 
@@ -17,6 +16,7 @@ module.exports = {
                 const isErasableType =
                     node.type === "TSInterfaceDeclaration" ||
                     node.type === "TSTypeAliasDeclaration" ||
+                    node.type === "TSTypeParameterDeclaration" ||
                     (node.type === "ExportNamedDeclaration" &&
                         node.declaration.type === "TSInterfaceDeclaration") ||
                     (node.type === "ExportNamedDeclaration" &&
@@ -29,7 +29,7 @@ module.exports = {
                             messageId: "onlyErasableTypes",
                         });
                     } else if (
-                        !node.source.value.startsWith("~/shared/types/") &&
+                        !node.source.value.includes("/types/") &&
                         node.importKind !== "type"
                     ) {
                         context.report({

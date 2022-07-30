@@ -1,6 +1,9 @@
 "use strict";
 
-module.exports = {
+const {createVanillaExtractPlugin} = require("@vanilla-extract/next-plugin");
+
+/** @type {import('next').NextConfig} */
+const nextConfig = {
     // Require pages to include `.page` in the extension. This serves a couple
     // purposes:
     //
@@ -19,5 +22,11 @@ module.exports = {
 
     eslint: {
         dirs: ["pages", "admin", "client", "server", "shared"],
+        // We run eslint as a part of CI. We don't need to run it again on build.
+        ignoreDuringBuilds: true,
     },
 };
+
+const withVanillaExtract = createVanillaExtractPlugin();
+
+module.exports = withVanillaExtract(nextConfig);

@@ -1,14 +1,7 @@
 "use strict";
 
 module.exports = {
-    extends: [
-        "react-app",
-        "next/core-web-vitals",
-        "plugin:jest/recommended",
-        "plugin:jest-dom/recommended",
-        "plugin:testing-library/recommended",
-        "plugin:testing-library/react",
-    ],
+    extends: ["react-app", "next/core-web-vitals"],
     plugins: ["@typescript-eslint", "jest", "jest-dom", "testing-library"],
     reportUnusedDisableDirectives: true,
     rules: {
@@ -213,24 +206,6 @@ module.exports = {
         // Could we have a better eslint rule or a custom link component and
         // re-enable this?
         "jsx-a11y/anchor-is-valid": "off",
-
-        // Avoid the describe/it style which creates a lot of indentation and is
-        // a little too prescriptive when it comes to test names.
-        "jest/consistent-test-it": ["warn", {fn: "test"}],
-
-        // It doesn’t make sense to return from a test.
-        "jest/no-test-return-statement": "warn",
-
-        // A todo test is much more semantically meaningful then a test with an
-        // empty body.
-        "jest/prefer-todo": "warn",
-
-        // Make sure the test title isn’t weird.
-        "jest/valid-title": "warn",
-
-        // A test doesn’t need an `expect()` assertion to fail.
-        "jest/expect-expect": "off",
-        "jest/no-conditional-expect": "off",
     },
     overrides: [
         {
@@ -245,7 +220,34 @@ module.exports = {
             },
         },
         {
-            files: ["shared/types/**/*.{ts,tsx}"],
+            files: ["**/*.test.*"],
+            extends: [
+                "plugin:jest/recommended",
+                "plugin:jest-dom/recommended",
+                "plugin:testing-library/react",
+            ],
+            rules: {
+                // Avoid the describe/it style which creates a lot of indentation and is
+                // a little too prescriptive when it comes to test names.
+                "jest/consistent-test-it": ["warn", {fn: "test"}],
+
+                // It doesn’t make sense to return from a test.
+                "jest/no-test-return-statement": "warn",
+
+                // A todo test is much more semantically meaningful then a test with an
+                // empty body.
+                "jest/prefer-todo": "warn",
+
+                // Make sure the test title isn’t weird.
+                "jest/valid-title": "warn",
+
+                // A test doesn’t need an `expect()` assertion to fail.
+                "jest/expect-expect": "off",
+                "jest/no-conditional-expect": "off",
+            },
+        },
+        {
+            files: ["**/types/**/*"],
             rules: {
                 // Only TypeScript types may go in `shared/types`. We have this restriction to
                 // force any code in that directory to not contribute to bundle size.
@@ -255,7 +257,7 @@ module.exports = {
             },
         },
         {
-            files: ["pages/**/*.page.{ts,tsx}"],
+            files: ["pages/**/*.page.*"],
             rules: {
                 // Next.js uses default exports in the `./pages` directory to figure out
                 // what to render.
