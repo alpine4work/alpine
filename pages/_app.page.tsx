@@ -6,7 +6,7 @@ import {IconContext} from "phosphor-react";
 import {ReactNode} from "react";
 import {AppInitialRenderContextProvider} from "~/client/helpers/react/use-is-initial-app-render";
 import {InitializeColorSchemeScript} from "~/client/ui/color-scheme";
-import {OverlaySinkContextProvider} from "~/client/ui/overlay";
+import {OverlayScopeContextProvider} from "~/client/ui/overlay";
 import {TooltipCoordinationContextProvider} from "~/client/ui/tooltip";
 import {spacing} from "~/shared/styles/spacing";
 
@@ -39,7 +39,7 @@ const decorators: Array<(children: ReactNode) => ReactNode> = [
 
     children => <AppInitialRenderContextProvider>{children}</AppInitialRenderContextProvider>,
 
-    children => <OverlaySinkContextProvider>{children}</OverlaySinkContextProvider>,
+    children => <OverlayScopeContextProvider>{children}</OverlayScopeContextProvider>,
 
     children => <TooltipCoordinationContextProvider>{children}</TooltipCoordinationContextProvider>,
 ];

@@ -38,7 +38,7 @@ export type OverlayPlacement =
  * element. Useful for rendering tooltips, menus, and upsells.
  *
  * The overlay element is rendered in the nearest parent
- * `<OverlaySinkContextProvider>`. We typically render one of these elements at
+ * `<OverlayScopeContextProvider>`. We typically render one of these elements at
  * the root of the app and in scroll views so that if we occlude an element
  * while scrolling, the overlay is also occluded.
  *
@@ -143,7 +143,7 @@ const OverlaySinkContext = createContext<{
 /**
  * Child `<Overlay>` components will be rendered inside this component.
  */
-export function OverlaySinkContextProvider({children}: {children: ReactNode}) {
+export function OverlayScopeContextProvider({children}: {children: ReactNode}) {
     const portalRef = useRef<HTMLDivElement>(null);
     const [portalElement, setPortalElement] = useState<HTMLDivElement | null>(null);
 
