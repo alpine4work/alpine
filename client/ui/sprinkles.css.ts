@@ -157,9 +157,12 @@ const colorProperties = defineProperties({
         default: {},
         light: {selector: `${lightColorSchemeSelector} &`},
         dark: {selector: `${darkColorSchemeSelector} &`},
-        hover: {selector: "&:hover"},
-        hoverLight: {selector: `${lightColorSchemeSelector} &:hover`},
-        hoverDark: {selector: `${darkColorSchemeSelector} &:hover`},
+
+        // We do not have `:hover` styles because the `:hover` selector is emulated on
+        // mobile devices. Instead use `useHover()` from `react-aria` for hover styles.
+        //
+        // For more details see:
+        // https://react-spectrum.adobe.com/blog/building-a-button-part-2.html
     },
     defaultCondition: "default",
     properties: {

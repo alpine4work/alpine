@@ -50,6 +50,11 @@ globalStyle("body", {
 });
 
 globalStyle("*", {
+    // Remove focus outline from all elements. Components should manually add a
+    // focus state using `useFocusRing()` which makes sure we don't apply a ring
+    // on mouse or touch interaction.
+    outline: "none",
+
     // Browsers add a 300ms delay to touches to detect a zoom. We can make taps
     // 300ms faster by disabling that functionality. This helps make our product
     // feel native.

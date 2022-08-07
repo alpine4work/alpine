@@ -46,7 +46,7 @@ function ColorSchemeToggleButton() {
     }
 
     return (
-        <IconButton description={description} onClick={() => toggleColorScheme()}>
+        <IconButton description={description} onPress={() => toggleColorScheme()}>
             <Sun className={hiddenIfDarkColorSchemeClassName} />
             <Moon className={hiddenIfLightColorSchemeClassName} />
         </IconButton>

@@ -1,49 +1,48 @@
 import {IconContext} from "phosphor-react";
-import {ReactNode} from "react";
+import {Ref, forwardRef, useRef} from "react";
+import {AriaButtonProps, mergeProps, useButton, useHover} from "react-aria";
+import {useMergedRef} from "~/client/ui/helpers/use-merged-ref";
 import {sprinkles} from "~/client/ui/sprinkles.css";
 import {Tooltip} from "~/client/ui/tooltip";
 import {spacing} from "~/shared/styles/spacing";
 
-// TODO(calebmer): Mobile press state
+// TODO(calebmer): Disabled styles
+
+const IconButtonForwardRef = forwardRef(IconButton);
+export {IconButtonForwardRef as IconButton};
 
 /**
  * A button represented by a single icon.
+ *
+ * There's a lot that goes into building a great button component. See the
+ * `react-aria` blog post on [press events][1].
+ *
+ * [1]: https://react-spectrum.adobe.com/blog/building-a-button-part-1.html
  */
-export function IconButton({
-    description,
-    onClick,
-    children,
-}: {
-    /**
-     * A description of what action the button will take. Typically a short
-     * sentence without punctuation.
-     */
-    description: string;
+function IconButton(
+    props: AriaButtonProps<"button"> & {
+        description: string;
+    },
+    foreignRef: Ref<HTMLButtonElement>,
+) {
+    const {description, children} = props;
+    const localRef = useRef<HTMLButtonElement>(null);
+    const {buttonProps, isPressed} = useButton({...props, "aria-label": description}, localRef);
+    const {hoverProps, isHovered} = useHover({});
 
-    /**
-     * Take the button action.
-     */
-    onClick: () => void;
-
-    /**
-     * The icon to render. It's recommended to use a `phosphor-react` component but
-     * any icon that fills the space and inherits the text color will do.
-     */
-    children: ReactNode;
-}) {
     return (
         <Tooltip placement="bottom-start" content={description}>
             <button
+                {...mergeProps(buttonProps, hoverProps)}
+                ref={useMergedRef(foreignRef, localRef)}
                 className={sprinkles({
                     width: "7",
                     height: "7",
                     padding: "1",
-                    backgroundColor: {hover: "grey-5"},
+                    backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
                     borderRadius: "full",
-                    color: "grey-70",
+                    color: isPressed ? "grey-90" : "grey-70",
                 })}
-                onClick={onClick}
-                aria-label={description}
             >
                 <IconContext.Provider
                     value={{

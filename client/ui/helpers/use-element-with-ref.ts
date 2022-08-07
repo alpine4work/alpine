@@ -1,5 +1,5 @@
 import {LegacyRef, ReactElement, Ref, cloneElement, useMemo} from "react";
-import {assignRef} from "~/client/ui/helpers/assign-ref";
+import {useMergedRef} from "~/client/ui/helpers/use-merged-ref";
 import {assert} from "~/shared/helpers/control/assert";
 
 /**
@@ -55,15 +55,7 @@ export function useElementWithRef<T>(
 
     assert(typeof elementRef !== "string", "Legacy React string refs are not supported");
 
-    const mergedRef = useMemo(() => {
-        if (elementRef === null) {
-            return ref;
-        }
-        return (value: T | null) => {
-            assignRef(ref, value);
-            assignRef(elementRef, value);
-        };
-    }, [elementRef, ref]);
+    const mergedRef = useMergedRef(elementRef, ref);
 
     return useMemo(() => {
         return cloneElement(element, {ref: mergedRef});
