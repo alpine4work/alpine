@@ -1,3 +1,7 @@
+import {useEffect, useState} from "react";
+import {scheduleException} from "~/shared/helpers/async/schedule-exception";
+import {assert} from "~/shared/helpers/control/assert";
+
 const initializeColorSchemeScript =
     'var colorScheme = localStorage.getItem("colorScheme"); var isDarkColorScheme = colorScheme === "dark" || !colorScheme && window.matchMedia("(prefers-color-scheme: dark)").matches; document.documentElement.dataset.colorScheme = isDarkColorScheme ? "dark" : "light";';
 
@@ -15,6 +19,30 @@ export function InitializeColorSchemeScript() {
     return <script dangerouslySetInnerHTML={{__html: initializeColorSchemeScript}} />;
 }
 
+export type ColorScheme = "light" | "dark";
+
+function getColorScheme(): ColorScheme | null {
+    if (typeof document === "undefined") return null;
+    return document.documentElement.dataset.colorScheme === "dark" ? "dark" : "light";
+}
+
+const colorSchemeListeners = new Set<(colorScheme: ColorScheme) => void>();
+
+function setColorScheme(colorScheme: ColorScheme) {
+    if (typeof document === "undefined") throw new Error("Can not set color scheme on the server");
+
+    document.documentElement.dataset.colorScheme = colorScheme;
+    localStorage.setItem("colorScheme", colorScheme);
+
+    for (const listener of colorSchemeListeners) {
+        try {
+            listener(colorScheme);
+        } catch (error) {
+            scheduleException(error);
+        }
+    }
+}
+
 /**
  * Switch the color scheme. If the color scheme is light, we switch to dark. If
  * the color scheme is dark, we switch to light.
@@ -23,8 +51,26 @@ export function InitializeColorSchemeScript() {
  * setting.
  */
 export function toggleColorScheme() {
-    const isDarkMode = document.documentElement.dataset.colorScheme === "dark";
-    const newColorScheme = isDarkMode ? "light" : "dark";
-    document.documentElement.dataset.colorScheme = newColorScheme;
-    localStorage.setItem("colorScheme", newColorScheme);
+    if (typeof document === "undefined")
+        throw new Error("Can not toggle color scheme on the server");
+
+    const colorScheme = getColorScheme();
+    assert(colorScheme);
+
+    setColorScheme(colorScheme === "dark" ? "light" : "dark");
+}
+
+export function useColorScheme(): ColorScheme | null {
+    const [colorScheme, setColorScheme] = useState<ColorScheme | null>(null);
+
+    useEffect(() => {
+        setColorScheme(getColorScheme());
+
+        colorSchemeListeners.add(setColorScheme);
+        return () => {
+            colorSchemeListeners.delete(setColorScheme);
+        };
+    }, []);
+
+    return colorScheme;
 }

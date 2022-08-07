@@ -16,7 +16,7 @@ import {undoInputRule} from "prosemirror-inputrules";
 import {keymap} from "prosemirror-keymap";
 import {EditorState, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
-import {isMac} from "~/client/helpers/is-mac";
+import {isMac} from "~/client/helpers/platform/is-mac";
 import {ContentSchema, maxListItemIndentation} from "~/shared/content/content-schema";
 
 type Command = (

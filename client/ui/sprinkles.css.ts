@@ -15,6 +15,8 @@ import {
     darkColorSchemeSelector,
     lightColorSchemeSelector,
 } from "~/client/ui/color-scheme.css";
+import {mapObjectValues} from "~/shared/helpers/object/map-object-values";
+import {fontScale} from "~/shared/styles/fonts";
 import {spacing} from "~/shared/styles/spacing";
 
 // TODO(calebmer): Add these styles:
@@ -45,41 +47,42 @@ const properties = defineProperties({
         pointerEvents: ["auto", "none"],
         userSelect: ["auto", "none", "text", "all"],
         borderRadius: {
-            "rounded-none": "0rem",
-            "rounded-full": "9999px",
+            none: "0rem",
+            base: "0.25rem",
+            full: "9999px",
         },
     },
 });
 
 const spacingWithPercentages = {
     ...spacing,
-    "spacing-full": "100%",
-    "spacing-1/2": "50%",
-    "spacing-1/3": "33.333333%",
-    "spacing-2/3": "66.666667%",
-    "spacing-1/4": "25%",
-    "spacing-2/4": "50%",
-    "spacing-3/4": "75%",
-    "spacing-1/5": "20%",
-    "spacing-2/5": "40%",
-    "spacing-3/5": "60%",
-    "spacing-4/5": "80%",
-    "spacing-1/6": "16.666667%",
-    "spacing-2/6": "33.333333%",
-    "spacing-3/6": "50%",
-    "spacing-4/6": "66.666667%",
-    "spacing-5/6": "83.333333%",
-    "spacing-1/12": "8.333333%",
-    "spacing-2/12": "16.666667%",
-    "spacing-3/12": "25%",
-    "spacing-4/12": "33.333333%",
-    "spacing-5/12": "41.666667%",
-    "spacing-6/12": "50%",
-    "spacing-7/12": "58.333333%",
-    "spacing-8/12": "66.666667%",
-    "spacing-9/12": "75%",
-    "spacing-10/12": "83.333333%",
-    "spacing-11/12": "91.666667%",
+    full: "100%",
+    "1/2": "50%",
+    "1/3": "33.333333%",
+    "2/3": "66.666667%",
+    "1/4": "25%",
+    "2/4": "50%",
+    "3/4": "75%",
+    "1/5": "20%",
+    "2/5": "40%",
+    "3/5": "60%",
+    "4/5": "80%",
+    "1/6": "16.666667%",
+    "2/6": "33.333333%",
+    "3/6": "50%",
+    "4/6": "66.666667%",
+    "5/6": "83.333333%",
+    "1/12": "8.333333%",
+    "2/12": "16.666667%",
+    "3/12": "25%",
+    "4/12": "33.333333%",
+    "5/12": "41.666667%",
+    "6/12": "50%",
+    "7/12": "58.333333%",
+    "8/12": "66.666667%",
+    "9/12": "75%",
+    "10/12": "83.333333%",
+    "11/12": "91.666667%",
 };
 
 export const mobileMediaQuery = "screen and (max-width: 768px)";
@@ -130,6 +133,13 @@ const responsiveProperties = defineProperties({
         height: spacingWithPercentages,
         minHeight: spacingWithPercentages,
         maxHeight: spacingWithPercentages,
+
+        // We intend for font properties to be used with the `font` shorthand. So you
+        // can say `font="sm"` and get the appropriate size, line height, and letter
+        // spacing at once.
+        fontSize: mapObjectValues(fontScale, ({fontSize}) => fontSize),
+        lineHeight: mapObjectValues(fontScale, ({lineHeight}) => lineHeight),
+        letterSpacing: mapObjectValues(fontScale, ({letterSpacing}) => letterSpacing),
     },
     shorthands: {
         padding: ["paddingTop", "paddingBottom", "paddingLeft", "paddingRight"],
@@ -138,6 +148,7 @@ const responsiveProperties = defineProperties({
         margin: ["marginTop", "marginBottom", "marginLeft", "marginRight"],
         marginX: ["marginLeft", "marginRight"],
         marginY: ["marginTop", "marginBottom"],
+        font: ["fontSize", "lineHeight", "letterSpacing"],
     },
 });
 
@@ -154,6 +165,25 @@ const colorProperties = defineProperties({
     properties: {
         color: colorSchemeVars,
         backgroundColor: {...colorSchemeVars, transparent: "transparent"},
+
+        // Default to thin 1px borders over chunky borders.
+        border: mapObjectValues(colorSchemeVars, colorSchemeVar => `solid 1px ${colorSchemeVar}`),
+        borderTop: mapObjectValues(
+            colorSchemeVars,
+            colorSchemeVar => `solid 1px ${colorSchemeVar}`,
+        ),
+        borderBottom: mapObjectValues(
+            colorSchemeVars,
+            colorSchemeVar => `solid 1px ${colorSchemeVar}`,
+        ),
+        borderLeft: mapObjectValues(
+            colorSchemeVars,
+            colorSchemeVar => `solid 1px ${colorSchemeVar}`,
+        ),
+        borderRight: mapObjectValues(
+            colorSchemeVars,
+            colorSchemeVar => `solid 1px ${colorSchemeVar}`,
+        ),
     },
 });
 

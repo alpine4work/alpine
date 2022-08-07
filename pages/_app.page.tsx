@@ -3,7 +3,11 @@ import "~/client/bootstrap/bootstrap";
 import type {AppProps} from "next/app";
 import Head from "next/head";
 import {IconContext} from "phosphor-react";
+import {ReactNode} from "react";
+import {AppInitialRenderContextProvider} from "~/client/helpers/react/use-is-initial-app-render";
 import {InitializeColorSchemeScript} from "~/client/ui/color-scheme";
+import {OverlaySinkContextProvider} from "~/client/ui/overlay";
+import {TooltipCoordinationContextProvider} from "~/client/ui/tooltip";
 import {spacing} from "~/shared/styles/spacing";
 
 export default function MyApp({Component, pageProps}: AppProps) {
@@ -12,14 +16,34 @@ export default function MyApp({Component, pageProps}: AppProps) {
             <Head>
                 <InitializeColorSchemeScript />
             </Head>
-            <IconContext.Provider
-                value={{
-                    color: "currentColor",
-                    size: spacing["spacing-5"],
-                }}
-            >
-                <Component {...pageProps} />
-            </IconContext.Provider>
+            {decorators.reduce<ReactNode>(
+                (children, decorator) => decorator(children),
+                <Component {...pageProps} />,
+            )}
         </>
     );
 }
+
+const decorators: Array<(children: ReactNode) => ReactNode> = [
+    // Set some defaults for all the icons we're going to render.
+    children => (
+        <IconContext.Provider
+            value={{
+                color: "currentColor",
+                size: spacing["5"],
+            }}
+        >
+            {children}
+        </IconContext.Provider>
+    ),
+
+    children => <AppInitialRenderContextProvider>{children}</AppInitialRenderContextProvider>,
+
+    children => <OverlaySinkContextProvider>{children}</OverlaySinkContextProvider>,
+
+    children => <TooltipCoordinationContextProvider>{children}</TooltipCoordinationContextProvider>,
+];
+
+// Reverse our decorators array so that the first decorator is the outermost
+// wrapper of our element.
+decorators.reverse();

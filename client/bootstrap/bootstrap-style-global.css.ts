@@ -8,18 +8,23 @@
 import {globalStyle} from "@vanilla-extract/css";
 import {colorSchemeVars} from "~/client/ui/color-scheme.css";
 import {mobileMediaQuery} from "~/client/ui/sprinkles.css";
+import {assert} from "~/shared/helpers/control/assert";
+import {fontScale, monospaceFontFamily, sansSerifFontFamily} from "~/shared/styles/fonts";
 import {remPx} from "~/shared/styles/spacing";
+
+// Since we use the `fontScale.base` line height as our default, let's make
+// sure the font size is 1rem.
+assert(fontScale.base.fontSize === "1rem");
 
 globalStyle(":root", {
     backgroundColor: colorSchemeVars["grey-0"],
     color: colorSchemeVars["grey-100"],
-
-    // Use system sans-serif font.
-    fontFamily:
-        'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
+    fontFamily: sansSerifFontFamily,
 
     // Change the size of 1rem based on whether we're on desktop or mobile.
     fontSize: remPx.desktop,
+    lineHeight: fontScale.base.lineHeight,
+    letterSpacing: fontScale.base.letterSpacing,
     "@media": {
         [mobileMediaQuery]: {
             fontSize: remPx.mobile,
@@ -36,6 +41,14 @@ globalStyle(":root", {
     userSelect: "none",
 });
 
+globalStyle("body", {
+    // Actually use `sm` as the default size. We want our default font to be
+    // ideal for system text not user content.
+    fontSize: fontScale.sm.fontSize,
+    lineHeight: fontScale.sm.lineHeight,
+    letterSpacing: fontScale.sm.letterSpacing,
+});
+
 globalStyle("*", {
     // Browsers add a 300ms delay to touches to detect a zoom. We can make taps
     // 300ms faster by disabling that functionality. This helps make our product
@@ -46,7 +59,5 @@ globalStyle("*", {
 });
 
 globalStyle("code, kbd, samp, pre", {
-    // Use system monospace font.
-    fontFamily:
-        'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+    fontFamily: monospaceFontFamily,
 });

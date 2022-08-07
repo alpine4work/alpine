@@ -1,31 +1,59 @@
 import {IconContext} from "phosphor-react";
 import {ReactNode} from "react";
-import {colorSchemeVars} from "~/client/ui/color-scheme.css";
 import {sprinkles} from "~/client/ui/sprinkles.css";
+import {Tooltip} from "~/client/ui/tooltip";
 import {spacing} from "~/shared/styles/spacing";
 
-export function IconButton({onClick, children}: {onClick: () => void; children: ReactNode}) {
+// TODO(calebmer): Mobile press state
+
+/**
+ * A button represented by a single icon.
+ */
+export function IconButton({
+    description,
+    onClick,
+    children,
+}: {
+    /**
+     * A description of what action the button will take. Typically a short
+     * sentence without punctuation.
+     */
+    description: string;
+
+    /**
+     * Take the button action.
+     */
+    onClick: () => void;
+
+    /**
+     * The icon to render. It's recommended to use a `phosphor-react` component but
+     * any icon that fills the space and inherits the text color will do.
+     */
+    children: ReactNode;
+}) {
     return (
-        <button
-            className={sprinkles({
-                width: "spacing-7",
-                height: "spacing-7",
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                backgroundColor: {hover: "grey-5"},
-                borderRadius: "rounded-full",
-            })}
-            onClick={onClick}
-        >
-            <IconContext.Provider
-                value={{
-                    color: colorSchemeVars["grey-70"],
-                    size: spacing["spacing-5"],
-                }}
+        <Tooltip placement="bottom-start" content={description}>
+            <button
+                className={sprinkles({
+                    width: "7",
+                    height: "7",
+                    padding: "1",
+                    backgroundColor: {hover: "grey-5"},
+                    borderRadius: "full",
+                    color: "grey-70",
+                })}
+                onClick={onClick}
+                aria-label={description}
             >
-                {children}
-            </IconContext.Provider>
-        </button>
+                <IconContext.Provider
+                    value={{
+                        color: "currentColor",
+                        size: spacing["5"],
+                    }}
+                >
+                    {children}
+                </IconContext.Provider>
+            </button>
+        </Tooltip>
     );
 }

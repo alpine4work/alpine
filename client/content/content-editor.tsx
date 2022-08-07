@@ -13,7 +13,7 @@ import {Ref, forwardRef, useImperativeHandle, useLayoutEffect, useRef, useState}
 import {buildInputRulesPlugin} from "~/client/content/content-editor-plugin-input-rules";
 import {buildKeymapPlugin} from "~/client/content/content-editor-plugin-keymap";
 import styles from "~/client/content/content-editor.module.css";
-import {isMac} from "~/client/helpers/is-mac";
+import {isMac} from "~/client/helpers/platform/is-mac";
 import {
     ContentSchema,
     emptyContent,

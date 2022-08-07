@@ -19,6 +19,10 @@ module.exports = {
         // observability tooling.
         "no-console": "warn",
 
+        // Debugger statements are useful in development but should be removed
+        // before production.
+        "no-debugger": "warn",
+
         // If you want to use `alert()` then we’d appreciate a comment
         // explaining why.
         "no-alert": "warn",
@@ -206,6 +210,19 @@ module.exports = {
         // Could we have a better eslint rule or a custom link component and
         // re-enable this?
         "jsx-a11y/anchor-is-valid": "off",
+
+        // Use the exhaustive deps lint rule on some custom hooks.
+        //
+        // Please use this sparingly! Prefer patterns where you pass in a
+        // `useCallback()` or `useMemo()` into a custom hook like
+        // (e.g. `useMyCustomHook(useCallback(() => { ... }, [...]))`) most of the
+        // time.
+        "react-hooks/exhaustive-deps": [
+            "warn",
+            {
+                additionalHooks: "^useLayoutEffectWithoutServerSideWarning$",
+            },
+        ],
     },
     overrides: [
         {
