@@ -11,9 +11,9 @@ import React, {
     useState,
 } from "react";
 import {createPortal} from "react-dom";
-import {Box} from "~/client/ui/box";
-import {useElementWithRef} from "~/client/ui/helpers/use-element-with-ref";
-import {useLifecycleRef} from "~/client/ui/helpers/use-lifecycle-ref";
+import {Box} from "~/client/design/box";
+import {useElementWithRef} from "~/client/design/helpers/use-element-with-ref";
+import {useLifecycleRef} from "~/client/design/helpers/use-lifecycle-ref";
 import {assert} from "~/shared/helpers/control/assert";
 
 /**

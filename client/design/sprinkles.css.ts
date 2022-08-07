@@ -14,10 +14,10 @@ import {
     colorSchemeVars,
     darkColorSchemeSelector,
     lightColorSchemeSelector,
-} from "~/client/ui/color-scheme.css";
+} from "~/client/design/color-scheme.css";
 import {mapObjectValues} from "~/shared/helpers/object/map-object-values";
-import {fontScale} from "~/shared/styles/fonts";
-import {spacing} from "~/shared/styles/spacing";
+import {fontScale} from "~/shared/design/fonts";
+import {spacing} from "~/shared/design/spacing";
 
 // TODO(calebmer): Add these styles:
 // - Typography styles

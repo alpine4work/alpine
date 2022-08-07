@@ -6,11 +6,11 @@
  */
 
 import {globalStyle} from "@vanilla-extract/css";
-import {colorSchemeVars} from "~/client/ui/color-scheme.css";
-import {mobileMediaQuery} from "~/client/ui/sprinkles.css";
+import {colorSchemeVars} from "~/client/design/color-scheme.css";
+import {mobileMediaQuery} from "~/client/design/sprinkles.css";
 import {assert} from "~/shared/helpers/control/assert";
-import {fontScale, monospaceFontFamily, sansSerifFontFamily} from "~/shared/styles/fonts";
-import {remPx} from "~/shared/styles/spacing";
+import {fontScale, monospaceFontFamily, sansSerifFontFamily} from "~/shared/design/fonts";
+import {remPx} from "~/shared/design/spacing";
 
 // Since we use the `fontScale.base` line height as our default, let's make
 // sure the font size is 1rem.

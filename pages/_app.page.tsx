@@ -5,10 +5,10 @@ import Head from "next/head";
 import {IconContext} from "phosphor-react";
 import {ReactNode} from "react";
 import {AppInitialRenderContextProvider} from "~/client/helpers/react/use-is-initial-app-render";
-import {InitializeColorSchemeScript} from "~/client/ui/color-scheme";
-import {OverlayScopeContextProvider} from "~/client/ui/overlay";
-import {TooltipCoordinationContextProvider} from "~/client/ui/tooltip";
-import {spacing} from "~/shared/styles/spacing";
+import {InitializeColorSchemeScript} from "~/client/design/color-scheme";
+import {OverlayScopeContextProvider} from "~/client/design/overlay";
+import {TooltipCoordinationContextProvider} from "~/client/design/tooltip";
+import {spacing} from "~/shared/design/spacing";
 
 export default function MyApp({Component, pageProps}: AppProps) {
     return (

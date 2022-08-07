@@ -1,10 +1,10 @@
 import {IconContext} from "phosphor-react";
 import {Ref, forwardRef, useRef} from "react";
 import {AriaButtonProps, mergeProps, useButton, useHover} from "react-aria";
-import {useMergedRef} from "~/client/ui/helpers/use-merged-ref";
-import {sprinkles} from "~/client/ui/sprinkles.css";
-import {Tooltip} from "~/client/ui/tooltip";
-import {spacing} from "~/shared/styles/spacing";
+import {useMergedRef} from "~/client/design/helpers/use-merged-ref";
+import {sprinkles} from "~/client/design/sprinkles.css";
+import {Tooltip} from "~/client/design/tooltip";
+import {spacing} from "~/shared/design/spacing";
 
 // TODO(calebmer): Disabled styles
 

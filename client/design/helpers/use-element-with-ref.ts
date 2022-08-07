@@ -1,5 +1,5 @@
 import {LegacyRef, ReactElement, Ref, cloneElement, useMemo} from "react";
-import {useMergedRef} from "~/client/ui/helpers/use-merged-ref";
+import {useMergedRef} from "~/client/design/helpers/use-merged-ref";
 import {assert} from "~/shared/helpers/control/assert";
 
 /**

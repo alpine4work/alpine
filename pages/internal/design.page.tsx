@@ -1,12 +1,12 @@
 import Head from "next/head";
 import {Moon, Sun} from "phosphor-react";
-import {Box} from "~/client/ui/box";
-import {toggleColorScheme, useColorScheme} from "~/client/ui/color-scheme";
+import {Box} from "~/client/design/box";
+import {toggleColorScheme, useColorScheme} from "~/client/design/color-scheme";
 import {
     hiddenIfDarkColorSchemeClassName,
     hiddenIfLightColorSchemeClassName,
-} from "~/client/ui/color-scheme.css";
-import {IconButton} from "~/client/ui/icon-button";
+} from "~/client/design/color-scheme.css";
+import {IconButton} from "~/client/design/icon-button";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 
 export default function DesignSystem() {

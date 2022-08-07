@@ -1,5 +1,5 @@
 import {keyframes, style} from "@vanilla-extract/css";
-import {spacing} from "~/shared/styles/spacing";
+import {spacing} from "~/shared/design/spacing";
 
 // On fade-in the animation moves towards the component. This makes it feel like
 // the tooltip is "pulled in" to the target.

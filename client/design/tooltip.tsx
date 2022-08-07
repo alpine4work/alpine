@@ -12,13 +12,13 @@ import {
     useState,
 } from "react";
 import {useIsMounted} from "~/client/helpers/react/use-is-mounted";
-import {Box} from "~/client/ui/box";
-import {setElementAttributesWithCleanup} from "~/client/ui/helpers/set-element-attributes-with-cleanup";
-import {useElementWithRef} from "~/client/ui/helpers/use-element-with-ref";
-import {useLifecycleRef} from "~/client/ui/helpers/use-lifecycle-ref";
-import {Overlay, OverlayPlacement} from "~/client/ui/overlay";
-import {sprinkles} from "~/client/ui/sprinkles.css";
-import {uninterruptedThoughtLimitMs} from "~/client/ui/timing-constants";
+import {Box} from "~/client/design/box";
+import {setElementAttributesWithCleanup} from "~/client/design/helpers/set-element-attributes-with-cleanup";
+import {useElementWithRef} from "~/client/design/helpers/use-element-with-ref";
+import {useLifecycleRef} from "~/client/design/helpers/use-lifecycle-ref";
+import {Overlay, OverlayPlacement} from "~/client/design/overlay";
+import {sprinkles} from "~/client/design/sprinkles.css";
+import {uninterruptedThoughtLimitMs} from "~/client/design/timing-constants";
 import {
     tooltipAnimateFadeInClassName,
     tooltipAnimateFadeOutClassName,
@@ -26,7 +26,7 @@ import {
     tooltipArrowSvgClassName,
     tooltipClassName,
     tooltipFadeAnimationDurationMs,
-} from "~/client/ui/tooltip.css";
+} from "~/client/design/tooltip.css";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule-microtask";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";

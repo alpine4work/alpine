@@ -1,5 +1,5 @@
 import {Ref, useMemo} from "react";
-import {assignRef} from "~/client/ui/helpers/assign-ref";
+import {assignRef} from "~/client/design/helpers/assign-ref";
 
 /**
  * Merge two refs together.
