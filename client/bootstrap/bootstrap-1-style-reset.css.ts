@@ -5,6 +5,10 @@
  * issues. If you want to set a style by default globally, put it in
  * `bootstrap-style-global.css.ts`.
  *
+ * It is important that this CSS file is imported before `sprinkles.css.ts`!
+ * Otherwise styles like our button background color reset will take
+ * precedence.
+ *
  * [1]: https://github.com/tailwindlabs/tailwindcss/blob/262079e1e5809d2a58e8d264d179c712e3d5d953/src/css/preflight.css#L1
  */
 

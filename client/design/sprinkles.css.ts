@@ -20,8 +20,6 @@ import {spacing} from "~/shared/design/spacing";
 import {mapObjectValues} from "~/shared/helpers/object/map-object-values";
 
 // TODO(calebmer): Add these styles:
-// - Typography styles
-// - Border styles
 // - Border radius styles
 // - Elevation styles
 // - Focus ring styles
