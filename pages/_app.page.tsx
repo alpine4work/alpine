@@ -4,7 +4,7 @@ import type {AppProps} from "next/app";
 import Head from "next/head";
 import {IconContext} from "phosphor-react";
 import {ReactNode} from "react";
-import {AppInitialRenderContextProvider} from "~/client/helpers/react/use-is-initial-app-render";
+import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use-is-initial-app-render";
 import {InitializeColorSchemeScript} from "~/client/design/color-scheme";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {TooltipCoordinationContextProvider} from "~/client/design/tooltip";

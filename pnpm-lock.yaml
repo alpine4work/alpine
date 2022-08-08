@@ -8,6 +8,7 @@ specifiers:
   '@popperjs/core': ^2.11.5
   '@testing-library/jest-dom': ^5.16.4
   '@testing-library/react': ^13.3.0
+  '@types/dedent': ^0.7.0
   '@types/jest': ^28.1.6
   '@types/node': 18.0.6
   '@types/react': 18.0.15
@@ -19,6 +20,7 @@ specifiers:
   '@vanilla-extract/next-plugin': ^2.0.2
   '@vanilla-extract/sprinkles': ^1.4.1
   classnames: ^2.3.1
+  dedent: ^0.7.0
   eslint: 8.20.0
   eslint-config-next: 12.2.3
   eslint-config-react-app: ^7.0.1
@@ -53,6 +55,7 @@ dependencies:
   '@popperjs/core': 2.11.5
   '@testing-library/jest-dom': 5.16.4
   '@testing-library/react': 13.3.0_biqbaboplfbrettd7655fr4n2y
+  '@types/dedent': 0.7.0
   '@types/jest': 28.1.6
   '@types/node': 18.0.6
   '@types/react': 18.0.15
@@ -64,6 +67,7 @@ dependencies:
   '@vanilla-extract/next-plugin': 2.0.2_next@12.2.3+webpack@5.74.0
   '@vanilla-extract/sprinkles': 1.4.1_@vanilla-extract+css@1.7.2
   classnames: 2.3.1
+  dedent: 0.7.0
   eslint: 8.20.0
   eslint-config-next: 12.2.3_he2ccbldppg44uulnyq4rwocfa
   eslint-config-react-app: 7.0.1_fnadknu2us7mato5klciyonpoi
@@ -3206,6 +3210,10 @@ packages:
     resolution: {integrity: sha512-kVzjari1s2YVi77D3w1yuvohV2idweYXMCDzqBiVNN63TcDWrIlTVOYpqVrvbbyOE/IyzBoTKF0fdnLPEORFxA==}
     dependencies:
       '@babel/types': 7.18.9
+    dev: false
+
+  /@types/dedent/0.7.0:
+    resolution: {integrity: sha512-EGlKlgMhnLt/cM4DbUSafFdrkeJoC9Mvnj0PUCU7tFmTjMjNRT957kXCx0wYm3JuEq4o4ZsS5vG+NlkM2DMd2A==}
     dev: false
 
   /@types/eslint-scope/3.7.4:

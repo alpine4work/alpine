@@ -7,20 +7,22 @@ import {
     hiddenIfLightColorSchemeClassName,
 } from "~/client/design/color-scheme.css";
 import {IconButton} from "~/client/design/icon-button";
+import {DesignPlaygroundTooltipPage} from "~/client/design/playground/design-playground-tooltip-page";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 
-export default function DesignSystem() {
+export default function DesignPlayground() {
     return (
         <>
             <Head>
-                <title>Cyberworlds Design System</title>
+                <title>Cyberworlds Design Playground</title>
             </Head>
             <main>
                 <Box padding="4">
                     <ColorSchemeToggleButton />
-                    <h1>Design System</h1>
+                    <h1>Design Playground</h1>
                     <Box width="12" height="12" backgroundColor={{dark: "grey-20"}} />
                     <Box width="12" height="12" backgroundColor="grey-10" />
+                    <DesignPlaygroundTooltipPage />
                 </Box>
             </main>
         </>

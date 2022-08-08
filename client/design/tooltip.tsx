@@ -11,7 +11,7 @@ import {
     useRef,
     useState,
 } from "react";
-import {useIsMounted} from "~/client/helpers/react/use-is-mounted";
+import {useIsMounted} from "~/client/helpers/lifecycle/use-is-mounted";
 import {Box} from "~/client/design/box";
 import {setElementAttributesWithCleanup} from "~/client/design/helpers/set-element-attributes-with-cleanup";
 import {useElementWithRef} from "~/client/design/helpers/use-element-with-ref";
