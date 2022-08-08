@@ -1,4 +1,5 @@
 import {Box} from "~/client/design/box";
+import {Button} from "~/client/design/button";
 import {OverlayPlacement} from "~/client/design/overlay";
 import {DesignPlaygroundScrollPreview} from "~/client/design/playground/helpers/design-playground-scroll-preview";
 import {Tooltip} from "~/client/design/tooltip";
@@ -8,8 +9,6 @@ import {useUrlSearchParamState} from "~/client/helpers/url/use-url-search-param-
 // TODO(calebmer): Use actual design system select element
 
 // TODO(calebmer): Use actual design system checkbox element
-
-// TODO(calebmer): Use actual design system button element
 
 const defaultOverlayPlacement: OverlayPlacement = "top";
 
@@ -89,17 +88,17 @@ export function DesignPlaygroundTooltipPage() {
                 >
                     <Box>
                         <Tooltip placement={overlayPlacement} content="Tooltip content 1">
-                            <button>Button 1</button>
+                            <Button>Button 1</Button>
                         </Tooltip>
                     </Box>
                     <Box>
                         <Tooltip placement={overlayPlacement} content="Tooltip content 2">
-                            <button>Button 2</button>
+                            <Button>Button 2</Button>
                         </Tooltip>
                     </Box>
                     <Box>
                         <Tooltip placement={overlayPlacement} content="Tooltip content 3">
-                            <button>Button 3</button>
+                            <Button>Button 3</Button>
                         </Tooltip>
                     </Box>
                 </Box>

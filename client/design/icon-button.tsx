@@ -8,6 +8,8 @@ import {spacing} from "~/shared/design/spacing";
 
 // TODO(calebmer): Disabled styles
 
+// TODO(calebmer): Other style variants
+
 const IconButtonForwardRef = forwardRef(IconButton);
 export {IconButtonForwardRef as IconButton};
 

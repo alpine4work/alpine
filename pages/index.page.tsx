@@ -15,7 +15,7 @@ export default function Home() {
                 <ContentEditor
                     state={state}
                     onChange={setState}
-                    ariaLabel="Content editor"
+                    aria-label="Content editor"
                     placeholder="Type stuff here…"
                 />
             </main>
