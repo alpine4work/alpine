@@ -277,16 +277,16 @@ export type ContentEditorProps = {
            * A label exposed to assistive technology (through `aria-label`) when
            * there is no visible label for the element.
            */
-          ariaLabel: string;
-          ariaLabelledBy?: undefined;
+          "aria-label": string;
+          "aria-labelledby"?: undefined;
       }
     | {
           /**
            * A reference to another element (through `aria-labelledby`) with a
            * visible label for this element.
            */
-          ariaLabelledBy: string;
-          ariaLabel?: undefined;
+          "aria-labelledby": string;
+          "aria-label"?: undefined;
       }
 );
 
@@ -305,8 +305,8 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
         placeholder,
         className,
         containerClassName,
-        ariaLabel,
-        ariaLabelledBy,
+        "aria-label": ariaLabel,
+        "aria-labelledby": ariaLabelledBy,
         onFocus,
         onBlur,
     } = props;

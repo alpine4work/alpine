@@ -114,7 +114,7 @@ for (const blockTestCase of blockTestCases) {
         const content = ContentSchema.node("doc", {}, [blockTestCase.build([])]);
         render(
             <ContentEditor
-                ariaLabel="Test"
+                aria-label="Test"
                 state={ContentEditorState.create(content)}
                 onChange={() => {}}
             />,
@@ -137,7 +137,7 @@ for (const blockTestCase of blockTestCases) {
         ]);
         render(
             <ContentEditor
-                ariaLabel="Test"
+                aria-label="Test"
                 state={ContentEditorState.create(content)}
                 onChange={() => {}}
             />,
@@ -162,7 +162,7 @@ for (const blockTestCase of blockTestCases) {
             ]);
             render(
                 <ContentEditor
-                    ariaLabel="Test"
+                    aria-label="Test"
                     state={ContentEditorState.create(content)}
                     onChange={() => {}}
                 />,
@@ -184,7 +184,7 @@ for (const inlineTestCase of inlineTestCases) {
         ]);
         render(
             <ContentEditor
-                ariaLabel="Test"
+                aria-label="Test"
                 state={ContentEditorState.create(content)}
                 onChange={() => {}}
             />,
@@ -198,7 +198,7 @@ for (const inlineTestCase of inlineTestCases) {
 test("heading cannot have a level lower than 1", () => {
     const {rerender} = render(
         <ContentEditor
-            ariaLabel="Test"
+            aria-label="Test"
             state={ContentEditorState.create(
                 ContentSchema.node("doc", {}, [
                     ContentSchema.node("heading", {level: 0}, [ContentSchema.text("Test")]),
@@ -212,7 +212,7 @@ test("heading cannot have a level lower than 1", () => {
 
     rerender(
         <ContentEditor
-            ariaLabel="Test"
+            aria-label="Test"
             state={ContentEditorState.create(
                 ContentSchema.node("doc", {}, [
                     ContentSchema.node("heading", {level: -42}, [ContentSchema.text("Test")]),
@@ -228,7 +228,7 @@ test("heading cannot have a level lower than 1", () => {
 test("heading cannot have a level greater than 3", () => {
     const {rerender} = render(
         <ContentEditor
-            ariaLabel="Test"
+            aria-label="Test"
             state={ContentEditorState.create(
                 ContentSchema.node("doc", {}, [
                     ContentSchema.node("heading", {level: 4}, [ContentSchema.text("Test")]),
@@ -242,7 +242,7 @@ test("heading cannot have a level greater than 3", () => {
 
     rerender(
         <ContentEditor
-            ariaLabel="Test"
+            aria-label="Test"
             state={ContentEditorState.create(
                 ContentSchema.node("doc", {}, [
                     ContentSchema.node("heading", {level: 42}, [ContentSchema.text("Test")]),
@@ -258,7 +258,7 @@ test("heading cannot have a level greater than 3", () => {
 test("heading cannot be the wrong type", () => {
     const {rerender} = render(
         <ContentEditor
-            ariaLabel="Test"
+            aria-label="Test"
             state={ContentEditorState.create(
                 ContentSchema.node("doc", {}, [
                     ContentSchema.node("heading", {level: ""}, [ContentSchema.text("Test")]),
@@ -272,7 +272,7 @@ test("heading cannot be the wrong type", () => {
 
     rerender(
         <ContentEditor
-            ariaLabel="Test"
+            aria-label="Test"
             state={ContentEditorState.create(
                 ContentSchema.node("doc", {}, [
                     ContentSchema.node("heading", {level: "secondary"}, [
@@ -288,7 +288,7 @@ test("heading cannot be the wrong type", () => {
 
     rerender(
         <ContentEditor
-            ariaLabel="Test"
+            aria-label="Test"
             state={ContentEditorState.create(
                 ContentSchema.node("doc", {}, [
                     ContentSchema.node("heading", {level: true}, [ContentSchema.text("Test")]),
@@ -304,7 +304,7 @@ test("heading cannot be the wrong type", () => {
 test("heading is converted into an integer", () => {
     render(
         <ContentEditor
-            ariaLabel="Test"
+            aria-label="Test"
             state={ContentEditorState.create(
                 ContentSchema.node("doc", {}, [
                     ContentSchema.node("heading", {level: 2.5}, [ContentSchema.text("Test")]),
@@ -320,7 +320,7 @@ test("heading is converted into an integer", () => {
 test("link with a non-HTTP scheme is blocked", () => {
     const {rerender} = render(
         <ContentEditor
-            ariaLabel="Test"
+            aria-label="Test"
             state={ContentEditorState.create(
                 ContentSchema.node("doc", {}, [
                     ContentSchema.node("paragraph", {}, [
@@ -339,7 +339,7 @@ test("link with a non-HTTP scheme is blocked", () => {
 
     rerender(
         <ContentEditor
-            ariaLabel="Test"
+            aria-label="Test"
             state={ContentEditorState.create(
                 ContentSchema.node("doc", {}, [
                     ContentSchema.node("paragraph", {}, [
@@ -359,7 +359,7 @@ test("link with a non-HTTP scheme is blocked", () => {
 
     rerender(
         <ContentEditor
-            ariaLabel="Test"
+            aria-label="Test"
             state={ContentEditorState.create(
                 ContentSchema.node("doc", {}, [
                     ContentSchema.node("paragraph", {}, [
@@ -396,7 +396,7 @@ test("bullet list with multiple items", () => {
     ]);
     render(
         <ContentEditor
-            ariaLabel="Test"
+            aria-label="Test"
             state={ContentEditorState.create(content)}
             onChange={() => {}}
         />,
@@ -425,7 +425,7 @@ test("ordered list with multiple items", () => {
     ]);
     render(
         <ContentEditor
-            ariaLabel="Test"
+            aria-label="Test"
             state={ContentEditorState.create(content)}
             onChange={() => {}}
         />,
@@ -454,7 +454,7 @@ test("check list with multiple items", () => {
     ]);
     render(
         <ContentEditor
-            ariaLabel="Test"
+            aria-label="Test"
             state={ContentEditorState.create(content)}
             onChange={() => {}}
         />,
@@ -488,7 +488,7 @@ test("bullet list with sub-list", () => {
     ]);
     render(
         <ContentEditor
-            ariaLabel="Test"
+            aria-label="Test"
             state={ContentEditorState.create(content)}
             onChange={() => {}}
         />,
@@ -522,7 +522,7 @@ test("ordered list with sub-list", () => {
     ]);
     render(
         <ContentEditor
-            ariaLabel="Test"
+            aria-label="Test"
             state={ContentEditorState.create(content)}
             onChange={() => {}}
         />,
@@ -556,7 +556,7 @@ test("check list with sub-list", () => {
     ]);
     render(
         <ContentEditor
-            ariaLabel="Test"
+            aria-label="Test"
             state={ContentEditorState.create(content)}
             onChange={() => {}}
         />,
@@ -590,7 +590,7 @@ test("bullet list with sub-list of another type", () => {
     ]);
     render(
         <ContentEditor
-            ariaLabel="Test"
+            aria-label="Test"
             state={ContentEditorState.create(content)}
             onChange={() => {}}
         />,
@@ -624,7 +624,7 @@ test("ordered list with sub-list of another type", () => {
     ]);
     render(
         <ContentEditor
-            ariaLabel="Test"
+            aria-label="Test"
             state={ContentEditorState.create(content)}
             onChange={() => {}}
         />,
@@ -658,7 +658,7 @@ test("check list with sub-list of another type", () => {
     ]);
     render(
         <ContentEditor
-            ariaLabel="Test"
+            aria-label="Test"
             state={ContentEditorState.create(content)}
             onChange={() => {}}
         />,
@@ -677,7 +677,7 @@ test("can put hard breaks inside paragraphs", () => {
     ]);
     render(
         <ContentEditor
-            ariaLabel="Test"
+            aria-label="Test"
             state={ContentEditorState.create(content)}
             onChange={() => {}}
         />,
@@ -698,7 +698,7 @@ test("can put hard breaks inside list items", () => {
     ]);
     render(
         <ContentEditor
-            ariaLabel="Test"
+            aria-label="Test"
             state={ContentEditorState.create(content)}
             onChange={() => {}}
         />,

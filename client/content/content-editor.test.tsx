@@ -12,7 +12,7 @@ import {assert} from "~/shared/helpers/control/assert";
 
 function TestContentEditor() {
     const [state, setState] = useState(() => ContentEditorState.create());
-    return <ContentEditor ariaLabel="Test" state={state} onChange={setState} />;
+    return <ContentEditor aria-label="Test" state={state} onChange={setState} />;
 }
 
 // Get the textbox `HTMLElement`.
@@ -206,7 +206,7 @@ function findLastEditableChild(node: Node): Node | null {
 
 test("renders an empty document", () => {
     render(
-        <ContentEditor ariaLabel="Test" state={ContentEditorState.create()} onChange={() => {}} />,
+        <ContentEditor aria-label="Test" state={ContentEditorState.create()} onChange={() => {}} />,
     );
 
     expect(getTextbox().textContent).toEqual("");
@@ -222,7 +222,7 @@ test("renders an initial editor state", () => {
     ]);
     render(
         <ContentEditor
-            ariaLabel="Test"
+            aria-label="Test"
             state={ContentEditorState.create(content)}
             onChange={() => {}}
         />,
@@ -247,7 +247,7 @@ test("rerenders with a changed document", () => {
 
     const {rerender} = render(
         <ContentEditor
-            ariaLabel="Test"
+            aria-label="Test"
             state={ContentEditorState.create(content1)}
             onChange={onTransaction}
         />,
@@ -257,7 +257,7 @@ test("rerenders with a changed document", () => {
 
     rerender(
         <ContentEditor
-            ariaLabel="Test"
+            aria-label="Test"
             state={ContentEditorState.create(content2)}
             onChange={onTransaction}
         />,
@@ -300,7 +300,7 @@ test("will revert optimistic update if it doesn't match props", () => {
     function NoopContentEditor() {
         const [state] = useState(() => ContentEditorState.create());
         return (
-            <ContentEditor ariaLabel="Test" state={state} onChange={useCallback(() => {}, [])} />
+            <ContentEditor aria-label="Test" state={state} onChange={useCallback(() => {}, [])} />
         );
     }
 
