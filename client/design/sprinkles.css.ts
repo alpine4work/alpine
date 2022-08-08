@@ -15,9 +15,9 @@ import {
     darkColorSchemeSelector,
     lightColorSchemeSelector,
 } from "~/client/design/color-scheme.css";
-import {mapObjectValues} from "~/shared/helpers/object/map-object-values";
 import {fontScale} from "~/shared/design/fonts";
 import {spacing} from "~/shared/design/spacing";
+import {mapObjectValues} from "~/shared/helpers/object/map-object-values";
 
 // TODO(calebmer): Add these styles:
 // - Typography styles
@@ -119,6 +119,7 @@ const responsiveProperties = defineProperties({
         ],
         alignItems: ["flex-start", "flex-end", "center", "stretch", "baseline"],
         alignSelf: ["auto", "flex-start", "flex-end", "center", "stretch", "baseline"],
+        gap: spacing,
         paddingTop: spacing,
         paddingBottom: spacing,
         paddingLeft: spacing,

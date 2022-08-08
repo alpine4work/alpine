@@ -76,26 +76,23 @@ export function DesignPlaygroundTooltipPage() {
                     Should render overlays in document body
                 </label>
             </div>
-            <hr />
             <DesignPlaygroundScrollPreview
                 // Recenter the content if we’re switching between vertical and
                 // horizontal placements.
                 key={`${overlayPlacementVertical}`}
                 shouldRenderOverlaysInDocumentBody={shouldRenderOverlaysInDocumentBody}
             >
-                <Box display="flex" flexDirection={overlayPlacementVertical ? "row" : "column"}>
-                    <Box
-                        marginRight={overlayPlacementVertical ? "4" : undefined}
-                        marginBottom={overlayPlacementVertical ? undefined : "4"}
-                    >
+                <Box
+                    display="flex"
+                    flexDirection={overlayPlacementVertical ? "row" : "column"}
+                    gap="4"
+                >
+                    <Box>
                         <Tooltip placement={overlayPlacement} content="Tooltip content 1">
                             <button>Button 1</button>
                         </Tooltip>
                     </Box>
-                    <Box
-                        marginRight={overlayPlacementVertical ? "4" : undefined}
-                        marginBottom={overlayPlacementVertical ? undefined : "4"}
-                    >
+                    <Box>
                         <Tooltip placement={overlayPlacement} content="Tooltip content 2">
                             <button>Button 2</button>
                         </Tooltip>

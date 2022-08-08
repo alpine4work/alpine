@@ -51,7 +51,7 @@ export function DesignPlaygroundScrollPreview({
             ref={scrollerRef}
             width="full"
             height="128"
-            border="grey-50"
+            border="grey-30"
             borderRadius="base"
             overflow="scroll"
         >
