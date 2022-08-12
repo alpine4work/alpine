@@ -2,12 +2,12 @@ import Head from "next/head";
 import {Moon, Sun} from "phosphor-react";
 import {Box} from "~/client/design/box";
 import {toggleColorScheme, useColorScheme} from "~/client/design/color-scheme";
+import {IconButton} from "~/client/design/icon-button";
+import {DesignPlaygroundTooltipPage} from "~/client/design/playground/design-playground-tooltip-page";
 import {
     hiddenIfDarkColorSchemeClassName,
     hiddenIfLightColorSchemeClassName,
-} from "~/client/design/color-scheme.css";
-import {IconButton} from "~/client/design/icon-button";
-import {DesignPlaygroundTooltipPage} from "~/client/design/playground/design-playground-tooltip-page";
+} from "~/shared/design/color-scheme.css";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 
 export default function DesignPlayground() {

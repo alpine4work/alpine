@@ -14,7 +14,7 @@ import {
     colorSchemeVars,
     darkColorSchemeSelector,
     lightColorSchemeSelector,
-} from "~/client/design/color-scheme.css";
+} from "~/shared/design/color-scheme.css";
 import {fontScale} from "~/shared/design/fonts";
 import {spacing} from "~/shared/design/spacing";
 import {mapObjectValues} from "~/shared/helpers/object/map-object-values";

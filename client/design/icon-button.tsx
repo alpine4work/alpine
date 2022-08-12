@@ -3,9 +3,9 @@ import {Ref, forwardRef, useRef} from "react";
 import {AriaButtonProps, mergeProps, useButton, useHover} from "react-aria";
 import {FocusRing} from "~/client/design/focus-ring";
 import {useMergedRef} from "~/client/design/helpers/use-merged-ref";
-import {sprinkles} from "~/client/design/sprinkles.css";
 import {Tooltip} from "~/client/design/tooltip";
 import {spacing} from "~/shared/design/spacing";
+import {sprinkles} from "~/shared/design/sprinkles.css";
 
 // TODO(calebmer): Disabled styles
 
