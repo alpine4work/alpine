@@ -1,5 +1,6 @@
 import {Ref, forwardRef, useRef} from "react";
 import {AriaButtonProps, mergeProps, useButton, useHover} from "react-aria";
+import {FocusRing} from "~/client/design/focus-ring";
 import {useMergedRef} from "~/client/design/helpers/use-merged-ref";
 import {sprinkles} from "~/client/design/sprinkles.css";
 
@@ -22,19 +23,21 @@ function Button(
     const {hoverProps, isHovered} = useHover({});
 
     return (
-        <button
-            {...mergeProps(buttonProps, hoverProps)}
-            ref={useMergedRef(foreignRef, localRef)}
-            className={sprinkles({
-                height: "7",
-                paddingX: "2",
-                backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
-                borderRadius: "base",
-                color: "grey-100",
-                font: "sm",
-            })}
-        >
-            {children}
-        </button>
+        <FocusRing>
+            <button
+                {...mergeProps(buttonProps, hoverProps)}
+                ref={useMergedRef(foreignRef, localRef)}
+                className={sprinkles({
+                    height: "7",
+                    paddingX: "3",
+                    backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
+                    borderRadius: "base",
+                    color: "grey-100",
+                    font: "sm",
+                })}
+            >
+                {children}
+            </button>
+        </FocusRing>
     );
 }

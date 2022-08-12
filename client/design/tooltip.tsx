@@ -11,7 +11,6 @@ import {
     useRef,
     useState,
 } from "react";
-import {useIsMounted} from "~/client/helpers/lifecycle/use-is-mounted";
 import {Box} from "~/client/design/box";
 import {setElementAttributesWithCleanup} from "~/client/design/helpers/set-element-attributes-with-cleanup";
 import {useElementWithRef} from "~/client/design/helpers/use-element-with-ref";
@@ -27,6 +26,7 @@ import {
     tooltipClassName,
     tooltipFadeAnimationDurationMs,
 } from "~/client/design/tooltip.css";
+import {useIsMounted} from "~/client/helpers/lifecycle/use-is-mounted";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule-microtask";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
@@ -142,7 +142,7 @@ export function Tooltip({
     // Controls whether the tooltip is actually visible or not. Only one tooltip
     // can be visible on screen at once and that is managed by our tooltip
     // coordination context.
-    const isVisible = tooltipSymbol === activeTooltipSymbol;
+    const visible = tooltipSymbol === activeTooltipSymbol;
 
     const [state, setState] = useState<TooltipState>(initialTooltipState);
 
@@ -172,7 +172,7 @@ export function Tooltip({
     // animation ends.
     useEffect(() => {
         if (state.isFadingIn) {
-            if (isVisible) {
+            if (visible) {
                 const timeoutId = setTimeout(() => {
                     setState(state => {
                         if (!state.isFadingIn) {
@@ -201,13 +201,13 @@ export function Tooltip({
                 // context tells us we are the only visible tooltip.
             }
         }
-    }, [state.isFadingIn, isVisible]);
+    }, [state.isFadingIn, visible]);
 
     // If we are fading out then setup a timeout to update our state when the
     // animation ends.
     useEffect(() => {
         if (state.isFadingOut) {
-            if (isVisible) {
+            if (visible) {
                 const timeoutId = setTimeout(() => {
                     setState(state => {
                         if (!state.isFadingOut) {
@@ -226,7 +226,7 @@ export function Tooltip({
                 setState(state => ({...state, isFadingOut: false}));
             }
         }
-    }, [state.isFadingOut, isVisible]);
+    }, [state.isFadingOut, visible]);
 
     // Register event handlers on our target element that control our tooltip’s
     // state.
@@ -237,7 +237,7 @@ export function Tooltip({
                 "Expected the children of `<Tooltip>` to render an element with a ref to an HTML element",
             );
 
-            assert(!isVisible || tooltipRef.current);
+            assert(!visible || tooltipRef.current);
             const tooltipElement = tooltipRef.current;
 
             function handleMouseEnter(event: MouseEvent) {
@@ -268,7 +268,7 @@ export function Tooltip({
                     if (!state.isHovered) {
                         return state;
                     } else if (!state.isFocused) {
-                        if (!isVisible) {
+                        if (!visible) {
                             return {
                                 ...state,
                                 isHovered: false,
@@ -332,7 +332,7 @@ export function Tooltip({
                     if (!state.isFocused) {
                         return state;
                     } else if (!state.isHovered) {
-                        if (!isVisible) {
+                        if (!visible) {
                             return {
                                 ...state,
                                 isFocused: false,
@@ -375,7 +375,7 @@ export function Tooltip({
                 targetElement.removeEventListener("blur", handleBlur);
             };
         },
-        [isVisible],
+        [visible],
     );
 
     const children = useElementWithRef(
@@ -384,11 +384,11 @@ export function Tooltip({
                 return actualChildren;
             } else {
                 return actualChildren({
-                    isVisible,
+                    isVisible: visible,
                     skipHoverDelay: coordinationContext.skipTooltipHoverDelay,
                 });
             }
-        }, [actualChildren, coordinationContext.skipTooltipHoverDelay, isVisible]),
+        }, [actualChildren, coordinationContext.skipTooltipHoverDelay, visible]),
         useLifecycleRef(targetLifecycleRef),
     );
 
@@ -404,7 +404,7 @@ export function Tooltip({
     return useMemo(() => {
         return (
             <Overlay
-                isVisible={isVisible}
+                visible={visible}
                 placement={placement}
                 overlay={
                     <div
@@ -457,7 +457,7 @@ export function Tooltip({
                 {children}
             </Overlay>
         );
-    }, [isVisible, placement, tooltipId, state.isFadingOut, content, children]);
+    }, [visible, placement, tooltipId, state.isFadingOut, content, children]);
 }
 
 /**

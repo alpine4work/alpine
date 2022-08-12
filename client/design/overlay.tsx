@@ -1,4 +1,4 @@
-import {createPopper} from "@popperjs/core";
+import {createPopper, Placement, Rect} from "@popperjs/core";
 import React, {
     ReactElement,
     ReactNode,
@@ -31,7 +31,8 @@ export type OverlayPlacement =
     | "right-end"
     | "left"
     | "left-start"
-    | "left-end";
+    | "left-end"
+    | "center";
 
 /**
  * Renders an element above everything else on the page relative to some anchor
@@ -50,9 +51,13 @@ export type OverlayPlacement =
  * [1]: https://popper.js.org
  */
 export function Overlay({
-    isVisible: isActuallyVisible = false,
+    visible: actuallyVisible = false,
     placement,
     overlay: actualOverlay,
+    preventOverflow = true,
+    flip = true,
+    sameWidth = false,
+    sameHeight = false,
     children,
 }: {
     /**
@@ -63,7 +68,7 @@ export function Overlay({
      * overlay to be visible immediately on page load it might flash in. To avoid
      * this, only render overlay in response to user interaction.
      */
-    isVisible?: boolean;
+    visible?: boolean;
 
     /**
      * Where should the overlay content be placed relative to the target element?
@@ -80,6 +85,38 @@ export function Overlay({
     overlay: ReactElement;
 
     /**
+     * If true, the overlay tries to stay visible within the nearest parent
+     * `<OverlayScopeContextProvider>`.
+     *
+     * Defaults to `true`.
+     */
+    preventOverflow?: boolean;
+
+    /**
+     * If true, changes the `placement` of a popper to make sure it stays visible
+     * within the nearest parent `<OverlayScopeContextProvider>`.
+     *
+     * Defaults to `true`.
+     */
+    flip?: boolean;
+
+    /**
+     * Makes the overlay width the same width as the content the overlay is
+     * attached to.
+     *
+     * Defaults to `false`.
+     */
+    sameWidth?: boolean;
+
+    /**
+     * Makes the overlay height the same height as the content the overlay is
+     * attached to.
+     *
+     * Defaults to `false`.
+     */
+    sameHeight?: boolean;
+
+    /**
      * The element our overlay content will be rendered around. Must
      * provide a ref to an HTML element or we will throw an error.
      */
@@ -90,7 +127,7 @@ export function Overlay({
 
     // Always hide overlays when we don’t yet have the portal element. This means
     // overlays can’t be rendered on the server.
-    const isVisible = overlaySink.portalElement !== null && isActuallyVisible;
+    const visible = overlaySink.portalElement !== null && actuallyVisible;
 
     const overlayRef = useRef<HTMLDivElement>(null);
 
@@ -101,13 +138,63 @@ export function Overlay({
                 "Expected the children of `<Overlay>` to render an element with a ref to an HTML element",
             );
 
-            if (!isVisible) return;
+            if (!visible) return;
 
             assert(overlayRef.current);
             const overlayElement = overlayRef.current;
 
             const popper = createPopper(targetElement, overlayElement, {
-                placement,
+                placement: placement === "center" ? "top-start" : placement,
+                modifiers: [
+                    {
+                        name: "preventOverflow",
+                        enabled: preventOverflow,
+                    },
+                    {
+                        name: "flip",
+                        enabled: flip && placement !== "center",
+                    },
+                    {
+                        name: "offset",
+                        enabled: placement === "center",
+                        options: {
+                            offset: ({reference, popper}: {reference: Rect; popper: Rect}) => {
+                                return [
+                                    reference.width / 2 - popper.width / 2,
+                                    -popper.height / 2 - reference.height / 2,
+                                ];
+                            },
+                        },
+                    },
+                    {
+                        name: "sameWidth",
+                        enabled: sameWidth,
+                        phase: "beforeWrite",
+                        requires: ["computeStyles"],
+                        fn: ({state}) => {
+                            state.styles.popper!.width = `${state.rects.reference.width}px`;
+                        },
+                        effect: ({state}) => {
+                            state.elements.popper.style.width = `${
+                                (state.elements.reference as HTMLElement).offsetWidth
+                            }px`;
+                        },
+                    },
+                    {
+                        name: "sameHeight",
+                        enabled: sameHeight,
+                        phase: "beforeWrite",
+                        requires: ["computeStyles"],
+                        fn: ({state}) => {
+                            state.styles.popper!.height = `${state.rects.reference.height}px`;
+                        },
+                        effect: ({state}) => {
+                            state.elements.popper.style.height = `${
+                                (state.elements.reference as HTMLElement).offsetHeight
+                            }px`;
+                        },
+                    },
+                ],
             });
 
             // Make sure Popper is positioned correctly. We find that sometimes after
@@ -119,7 +206,7 @@ export function Overlay({
                 popper.destroy();
             };
         },
-        [placement, isVisible],
+        [visible, placement, preventOverflow, flip, sameWidth, sameHeight],
     );
 
     const overlay = useElementWithRef(actualOverlay, overlayRef);
@@ -127,7 +214,7 @@ export function Overlay({
     return (
         <>
             {overlaySink.portalElement !== null &&
-                isVisible &&
+                visible &&
                 // This intentionally comes before `children` so that React executes
                 // `overlayRef` before `targetRef`.
                 createPortal(overlay, overlaySink.portalElement)}

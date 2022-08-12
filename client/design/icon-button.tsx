@@ -1,6 +1,7 @@
 import {IconContext} from "phosphor-react";
 import {Ref, forwardRef, useRef} from "react";
 import {AriaButtonProps, mergeProps, useButton, useHover} from "react-aria";
+import {FocusRing} from "~/client/design/focus-ring";
 import {useMergedRef} from "~/client/design/helpers/use-merged-ref";
 import {sprinkles} from "~/client/design/sprinkles.css";
 import {Tooltip} from "~/client/design/tooltip";
@@ -23,6 +24,10 @@ export {IconButtonForwardRef as IconButton};
  */
 function IconButton(
     props: AriaButtonProps<"button"> & {
+        /**
+         * A description of the action the icon button will take when pressed.
+         * Appears as a tooltip on hover and in the `aria-label`.
+         */
         description: string;
     },
     foreignRef: Ref<HTMLButtonElement>,
@@ -34,27 +39,29 @@ function IconButton(
 
     return (
         <Tooltip placement="bottom-start" content={description}>
-            <button
-                {...mergeProps(buttonProps, hoverProps)}
-                ref={useMergedRef(foreignRef, localRef)}
-                className={sprinkles({
-                    width: "7",
-                    height: "7",
-                    padding: "1",
-                    backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
-                    borderRadius: "full",
-                    color: isPressed ? "grey-90" : "grey-70",
-                })}
-            >
-                <IconContext.Provider
-                    value={{
-                        color: "currentColor",
-                        size: spacing["5"],
-                    }}
+            <FocusRing>
+                <button
+                    {...mergeProps(buttonProps, hoverProps)}
+                    ref={useMergedRef(foreignRef, localRef)}
+                    className={sprinkles({
+                        width: "7",
+                        height: "7",
+                        padding: "1",
+                        backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
+                        borderRadius: "full",
+                        color: isPressed ? "grey-90" : "grey-70",
+                    })}
                 >
-                    {children}
-                </IconContext.Provider>
-            </button>
+                    <IconContext.Provider
+                        value={{
+                            color: "currentColor",
+                            size: spacing["5"],
+                        }}
+                    >
+                        {children}
+                    </IconContext.Provider>
+                </button>
+            </FocusRing>
         </Tooltip>
     );
 }
