@@ -13,7 +13,7 @@ import {assert} from "~/shared/helpers/control/assert";
 export function buildInputRulesPlugin() {
     const rules: Array<InputRule> = [];
 
-    // “smart quotes”
+    // "smart quotes"
     rules.push(...smartQuotes);
 
     // `# `, `## `, or `### ` creates a heading

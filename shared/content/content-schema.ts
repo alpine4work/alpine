@@ -15,7 +15,7 @@ import {parseRemLengthNumber} from "~/shared/design/spacing";
 // TODO(calebmer): Handle paste with `fromDOM`! Change all our snapshot tests to
 // also make sure copy/paste is an exact copy.
 
-// TODO(calebmer): Styles for all the content things! Haven’t finished:
+// TODO(calebmer): Styles for all the content things! Haven't finished:
 //
 // - Heading (no font?)
 // - Code block
@@ -34,8 +34,8 @@ import {parseRemLengthNumber} from "~/shared/design/spacing";
 // TODO(calebmer): Rename bullet list item to unordered list item?
 
 // TODO(calebmer): Documenting what I want to do with lists. Currently lists are
-// not using `<ul>`/`<ol>` because it’s hard to get all the keyboard
-// interactions right. I’ve since decided that the accessibility and styling
+// not using `<ul>`/`<ol>` because it's hard to get all the keyboard
+// interactions right. I've since decided that the accessibility and styling
 // wins of `<ul>`/`<ol>` outweigh the difficulties in building an editor that
 // supports lists of that form.
 //
@@ -43,9 +43,9 @@ import {parseRemLengthNumber} from "~/shared/design/spacing";
 // multiple paragraphs you press enter to create a new list item and then delete
 // while will make a second paragraph in the previous list item.
 
-// TODO(calebmer): “shift+enter” should always have the exact same behavior as
-// “enter” to have an alternative in contexts where “enter” sends a message. To
-// add a line break you need to use “alt+enter”.
+// TODO(calebmer): "shift+enter" should always have the exact same behavior as
+// "enter" to have an alternative in contexts where "enter" sends a message. To
+// add a line break you need to use "alt+enter".
 
 /**
  * All the possible highlight colors for the inline style.
@@ -186,7 +186,7 @@ export const ContentSchema = new Schema({
          * Text formatted with a monospace font that is horizontally scrollable
          * (instead of letting the text wrap). Useful for code, but also useful for
          * drawing ASCII diagrams since all characters are of equal width. Text in a
-         * code block may not have inline formatting since in the future we’ll want
+         * code block may not have inline formatting since in the future we'll want
          * to add syntax highlighting.
          *
          * TODO(calebmer): Syntax highlighting for code. Allow user to pick the
@@ -206,7 +206,7 @@ export const ContentSchema = new Schema({
             toDOM: () => ["pre", ["code", 0]],
         },
 
-        // Welcome to the list items! You’ll notice that we structure them
+        // Welcome to the list items! You'll notice that we structure them
         // differently than ProseMirror recommends. Instead of the standard nested
         // `<ul>`/`<li>` HTML structure (which ProseMirror fully supports) we choose
         // to not nest list items and use plain `<div>`s. When rendering documents
@@ -215,7 +215,7 @@ export const ContentSchema = new Schema({
         // We started by trying to use `<ul>`/`<li>` but found that the there were
         // so many edge cases and the editing experience could be confusing at
         // times. Sometimes dedenting a list item would dedent all its children!
-        // Sometimes you couldn’t delete a bullet because it has children list items
+        // Sometimes you couldn't delete a bullet because it has children list items
         // attached.
         //
         // So to simplify code and the editing experience we switched to individual
@@ -318,7 +318,7 @@ export const ContentSchema = new Schema({
         /**
          * A hard line break in the document. Provides just a little bit more
          * flexibility for document spacing. For example, if you want two lines
-         * without margin between them (which you’d get with a paragraph) you’d use
+         * without margin between them (which you'd get with a paragraph) you'd use
          * a hard break.
          */
         break: {
@@ -332,13 +332,13 @@ export const ContentSchema = new Schema({
         // All of our marks are `inclusive` which means that typing before and after
         // the marked text will not inherit the style. We believe this to be an
         // optimal behavior for a text editor. When you style text we assume the
-        // user’s intent is that the styling is final. We assume that the user
+        // user's intent is that the styling is final. We assume that the user
         // prefers editing the plain text around the marked text instead of assuming
         // the user prefers extending the marked text from the front or end.
         //
-        // Another intuition here is that if you don’t use keyboard shortcuts then
+        // Another intuition here is that if you don't use keyboard shortcuts then
         // going to the styling toolbar should always be an additive experience. The
-        // editor shouldn’t do a thing that makes a non-keyboard user need to go to
+        // editor shouldn't do a thing that makes a non-keyboard user need to go to
         // the toolbar to undo it.
         //
         // This is based on my (Caleb's) own personal nits when using rich text
@@ -368,7 +368,7 @@ export const ContentSchema = new Schema({
          * two words with roughly the same meaning but different connotations and
          * strike one out which to the reader appears as you editing yourself.
          *
-         * TODO(calebmer): Screen readers don’t announce deleted content so we
+         * TODO(calebmer): Screen readers don't announce deleted content so we
          * need custom accessibility support. See:
          * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/del#Accessibility_concerns
          */
@@ -389,12 +389,12 @@ export const ContentSchema = new Schema({
 
         /**
          * Gives the writer a flexible tool for annotating their content. Highlight
-         * colors don’t have a well defined purpose, but that means a writer can
+         * colors don't have a well defined purpose, but that means a writer can
          * assign to them whatever purpose they wish. We have a highlight color for
          * red, yellow, green, blue, and purple. We exclude orange because it is too
          * close visually to red and yellow.
          *
-         * TODO(calebmer): Screen readers don’t announce marked content so we
+         * TODO(calebmer): Screen readers don't announce marked content so we
          * need custom accessibility support. See:
          * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/mark#Accessibility_concerns
          */

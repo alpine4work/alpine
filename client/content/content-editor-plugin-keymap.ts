@@ -103,7 +103,7 @@ export function buildKeymapPlugin() {
             (state, dispatch) => {
                 const {$from, $to} = state.selection;
 
-                // 1. Only create a new list item if “from” is in a list item.
+                // 1. Only create a new list item if "from" is in a list item.
                 const listItemNode = $from.node(-1);
                 if (!listItemNode || !listItemNode.type.groups.includes("listItem")) {
                     return false;
@@ -467,7 +467,7 @@ export function buildKeymapPlugin() {
     // list items can be successfully indented.
     //
     // While it is possible to create valid documents with what this command
-    // might consider “invalid” indentation we force an indent to be valid
+    // might consider "invalid" indentation we force an indent to be valid
     // when pressing tab. This helps users stay within the pit of success.
     //
     // For example, if the cursor is at `|`:
@@ -517,14 +517,14 @@ export function buildKeymapPlugin() {
                 return false;
             }
 
-            // 4. Indent each list item node by one, but don’t indent past our max
+            // 4. Indent each list item node by one, but don't indent past our max
             // indentation level.
             const newIndent = Math.min(node.attrs.indent + 1, maxListItemIndentation);
 
             const lastNodeIndent = lastNode.attrs.indent + (indented.has(node) ? 1 : 0);
 
-            // 5. Our node’s indentation must be less than or equal to the last
-            // node’s indentation. This way we’re either “attached” to the node
+            // 5. Our node's indentation must be less than or equal to the last
+            // node's indentation. This way we're either "attached" to the node
             // or assume that the last node is correctly attached to a
             // parent itself.
             if (newIndent > lastNodeIndent + 1) {
@@ -532,7 +532,7 @@ export function buildKeymapPlugin() {
                 return false;
             }
 
-            // 6. Actually update the node’s indentation attribute.
+            // 6. Actually update the node's indentation attribute.
             transaction.setNodeMarkup(pos, node.type, {
                 ...node.attrs,
                 indent: newIndent,
@@ -590,7 +590,7 @@ export function buildKeymapPlugin() {
             // If we already failed we can stop processing.
             if (failed) return false;
 
-            // 3. Don’t dedent if this list item already doesn’t have
+            // 3. Don't dedent if this list item already doesn't have
             // any indentation.
             if (node.attrs.indent === 0) {
                 failed = true;
@@ -600,9 +600,9 @@ export function buildKeymapPlugin() {
             // 4. Dedent each list item node by one.
             const newIndent = node.attrs.indent - 1;
 
-            // 5. If we have a list item after this node then our node’s
-            // indentation must be less than or equal to the next node’s
-            // indentation. This way we don’t accidentally detach our node.
+            // 5. If we have a list item after this node then our node's
+            // indentation must be less than or equal to the next node's
+            // indentation. This way we don't accidentally detach our node.
             const nextNode =
                 pos + node.content.size + 3 <= state.doc.content.size
                     ? state.doc.resolve(pos + node.content.size + 3).node()
@@ -616,7 +616,7 @@ export function buildKeymapPlugin() {
                 }
             }
 
-            // 6. Actually update the node’s indentation attribute.
+            // 6. Actually update the node's indentation attribute.
             transaction.setNodeMarkup(pos, node.type, {
                 ...node.attrs,
                 indent: newIndent,
@@ -640,7 +640,7 @@ export function buildKeymapPlugin() {
         chainCommands(
             indentCommand,
 
-            // Don’t move focus if we don’t apply a shortcut.
+            // Don't move focus if we don't apply a shortcut.
             //
             // TODO(calebmer): Kinda clearly this is pretty bad for accessibility.
             // We need to make sure `Esc` unfocuses and allows the keyboard user to
@@ -656,7 +656,7 @@ export function buildKeymapPlugin() {
         chainCommands(
             dedentCommand,
 
-            // Don’t move focus if we don’t apply a shortcut.
+            // Don't move focus if we don't apply a shortcut.
             //
             // TODO(calebmer): Kinda clearly this is pretty bad for accessibility.
             // We need to make sure `Esc` unfocuses and allows the keyboard user to

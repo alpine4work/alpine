@@ -1,4 +1,4 @@
-// ProseMirror includes some lightweight styling that’s required for it to
+// ProseMirror includes some lightweight styling that's required for it to
 // work correctly.
 import "prosemirror-view/style/prosemirror.css";
 
@@ -42,7 +42,7 @@ function buildPlugins() {
 /**
  * Represents the entire state of our `<ContentEditor>` component.
  *
- * Wraps around ProseMirror’s own `EditorState` and provides a controlled
+ * Wraps around ProseMirror's own `EditorState` and provides a controlled
  * interface to the outside world.
  */
 export class ContentEditorState {
@@ -169,7 +169,7 @@ export class ContentEditorState {
             steps,
             steps.map(() => clientId),
             {
-                // Users usually prefer this, but it isn’t done by default for reasons
+                // Users usually prefer this, but it isn't done by default for reasons
                 // of backwards compatibility.
                 mapSelectionBackward: true,
             },
@@ -180,12 +180,12 @@ export class ContentEditorState {
 }
 
 function wrap(state: EditorState): ContentEditorState {
-    // @ts-expect-error it’s ok to wrap/unwrap editor state in this file.
+    // @ts-expect-error it's ok to wrap/unwrap editor state in this file.
     return new ContentEditorState(state);
 }
 
 function unwrap(state: ContentEditorState): EditorState {
-    // @ts-expect-error it’s ok to wrap/unwrap editor state in this file.
+    // @ts-expect-error it's ok to wrap/unwrap editor state in this file.
     return state._state;
 }
 
@@ -207,16 +207,16 @@ export type ContentEditorProps = {
     /**
      * The current state of our content editor.
      *
-     * Mostly the content editor state is a wrapper around ProseMirror’s immutable
+     * Mostly the content editor state is a wrapper around ProseMirror's immutable
      * `EditorState` with some type safety and helper functions.
      */
     state: ContentEditorState;
 
     /**
-     * Fired whenever the content editor’s state changes.
+     * Fired whenever the content editor's state changes.
      *
      * Every state change will be optimistically synchronously applied to the
-     * DOM. If you don’t re-render with the new state then that optimistic
+     * DOM. If you don't re-render with the new state then that optimistic
      * update will be reverted.
      */
     onChange: (
@@ -233,9 +233,9 @@ export type ContentEditorProps = {
      * It will also switch our editor out of multiline mode for assistive
      * technologies.
      *
-     * Pressing Shift+Enter will insert a hard line break and won’t trigger this
+     * Pressing Shift+Enter will insert a hard line break and won't trigger this
      * callback. Pasting in content with multiple paragraphs also allows you to
-     * add multiple lines. So providing `onEnter` doesn’t make our editor fully
+     * add multiple lines. So providing `onEnter` doesn't make our editor fully
      * single lined.
      */
     onEnter?: () => void;
@@ -246,12 +246,12 @@ export type ContentEditorProps = {
     placeholder?: string;
 
     /**
-     * The class name we’ll apply to the content editable `<div>`.
+     * The class name we'll apply to the content editable `<div>`.
      */
     className?: string;
 
     /**
-     * The class name we’ll apply to the `<div>` containing the content editable
+     * The class name we'll apply to the `<div>` containing the content editable
      * `<div>`. We need a container `<div>` (unfortunately) to have an element to
      * mount ProseMirror editor within given the ProseMirror editor is not a React
      * component.
@@ -314,7 +314,7 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
     const hasEnterCallback = typeof props.onEnter === "function";
 
     // The props for the current React commit. We are integrating with a stateful
-    // component (ProseMirror’s `EditorView`) so we need to be able to
+    // component (ProseMirror's `EditorView`) so we need to be able to
     // imperatively access props.
     //
     // Importantly, we set this in a `useLayoutEffect` instead of render! If we
@@ -322,7 +322,7 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
     // there may be bugs.
     //
     // Please avoid using `propsRef` unless you can thoroughly reason through why
-    // it’s safe!
+    // it's safe!
     const propsRef = useRef(props);
     useLayoutEffect(() => {
         propsRef.current = props;
@@ -385,8 +385,8 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
             },
 
             dispatchTransaction(transaction) {
-                // By default, applying a transaction will clear the editor’s stored
-                // marks. We don’t want that behavior! Instead we want to preserve marks
+                // By default, applying a transaction will clear the editor's stored
+                // marks. We don't want that behavior! Instead we want to preserve marks
                 // until a user explicitly toggles them off.
                 if (editor.state.storedMarks && !transaction.storedMarksSet) {
                     transaction.setStoredMarks(editor.state.storedMarks);
@@ -402,8 +402,8 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
                 // ProseMirror preserves local DOM state when we call `updateState()`
                 // synchronously.
                 //
-                // See the “Efficient updating” section in the [editor view guide][1].
-                // If we don’t synchronously apply the transaction it is considered
+                // See the "Efficient updating" section in the [editor view guide][1].
+                // If we don't synchronously apply the transaction it is considered
                 // cancelled. A quote from the guide:
                 //
                 // > When such a transaction is canceled or modified somehow, the view
@@ -411,7 +411,7 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
                 //
                 // We update the `lastTransactionTime` state to re-run an effect below
                 // which reconciles the editor view state with the state we get from
-                // props. That way if our optimistic update is wrong we’ll fix it when
+                // props. That way if our optimistic update is wrong we'll fix it when
                 // React commits.
                 //
                 // [1]: https://prosemirror.net/docs/guide/#view
@@ -437,7 +437,7 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
     // Layout effect because the visual layout depends on the editor state prop
     // which we need to set imperatively.
     useLayoutEffect(() => {
-        // We don’t do anything with `lastTransactionTime` in this effect, but we
+        // We don't do anything with `lastTransactionTime` in this effect, but we
         // want the effect to re-run whenever it changes. We optimistically update
         // our `EditorView` state as an optimization. When React finishes committing
         // we reconcile the prop state with the `EditorView` state in this effect.
@@ -520,7 +520,7 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
     }, [ariaLabel, ariaLabelledBy, hasEnterCallback, placeholder]);
 
     // TODO(calebmer): Make this component SSR safe! All the `useLayoutEffect()`s
-    // are logging warnings on the server and they’re right.
+    // are logging warnings on the server and they're right.
     return (
         <div ref={elementRef} className={containerClassName} onFocus={onFocus} onBlur={onBlur} />
     );
@@ -547,7 +547,7 @@ export function getEditorForTest(element: unknown): EditorView {
  * convert the selected text to a link instead of replacing the text.
  */
 function handleLinkPaste(view: EditorView, event: ClipboardEvent): boolean {
-    // 1. Only perform a link paste if we’ve selected some text.
+    // 1. Only perform a link paste if we've selected some text.
     const {state} = view;
     if (state.selection.from === state.selection.to) {
         return false;
