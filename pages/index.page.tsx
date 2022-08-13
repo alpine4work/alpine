@@ -37,7 +37,7 @@ export default function Home() {
             </Head>
             <main>
                 <Box width="full" display="flex" justifyContent="center">
-                    <Box width="256">
+                    <Box width="192">
                         <h1>Content editor</h1>
                         <ContentEditor
                             state={state}

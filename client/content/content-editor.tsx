@@ -12,13 +12,14 @@ import {EditorView} from "prosemirror-view";
 import {Ref, forwardRef, useImperativeHandle, useLayoutEffect, useRef, useState} from "react";
 import {buildInputRulesPlugin} from "~/client/content/content-editor-plugin-input-rules";
 import {buildKeymapPlugin} from "~/client/content/content-editor-plugin-keymap";
-import styles from "~/client/content/content-editor.module.css";
+import {emptyContentEditorClassName} from "~/client/content/content-editor.css";
 import {isMac} from "~/client/helpers/platform/is-mac";
 import {
     ContentSchema,
     emptyContent,
     startsWithAllowedProtocol,
 } from "~/shared/content/content-schema";
+import {docClassName} from "~/shared/content/content-schema.css";
 import {assert} from "~/shared/helpers/control/assert";
 import {Id, generateId} from "~/shared/id/id";
 
@@ -460,7 +461,7 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
         assert(editorRef.current);
         const editor = editorRef.current.dom;
 
-        const classList = classNames("prose", styles.prose, className).split(" ");
+        const classList = classNames(docClassName, className).split(" ");
         editor.classList.add(...classList);
 
         return () => {
@@ -478,12 +479,12 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
 
         const showPlaceholder = shouldShowPlaceholder(state.doc);
 
-        if (showPlaceholder && !editor.dom.classList.contains(styles.empty!)) {
-            editor.dom.classList.add(styles.empty!);
+        if (showPlaceholder && !editor.dom.classList.contains(emptyContentEditorClassName)) {
+            editor.dom.classList.add(emptyContentEditorClassName);
         }
 
-        if (!showPlaceholder && editor.dom.classList.contains(styles.empty!)) {
-            editor.dom.classList.remove(styles.empty!);
+        if (!showPlaceholder && editor.dom.classList.contains(emptyContentEditorClassName)) {
+            editor.dom.classList.remove(emptyContentEditorClassName);
         }
     }
 
@@ -588,7 +589,7 @@ function isCollabPlugin(plugin: Plugin) {
  * Should we show the placeholder text for this content?
  */
 function shouldShowPlaceholder(node: Node): boolean {
-    assert(node.type === ContentSchema.nodes.doc);
+    assert(node.type.name === "doc");
     return (
         node.childCount <= 1 &&
         (!node.firstChild ||

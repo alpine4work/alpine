@@ -16,6 +16,7 @@ import {setElementAttributesWithCleanup} from "~/client/design/helpers/set-eleme
 import {useElementWithRef} from "~/client/design/helpers/use-element-with-ref";
 import {useLifecycleRef} from "~/client/design/helpers/use-lifecycle-ref";
 import {Overlay, OverlayPlacement} from "~/client/design/overlay";
+import {sprinkles} from "~/client/design/sprinkles.css";
 import {uninterruptedThoughtLimitMs} from "~/client/design/timing-constants";
 import {
     tooltipAnimateFadeInClassName,
@@ -26,7 +27,6 @@ import {
     tooltipFadeAnimationDurationMs,
 } from "~/client/design/tooltip.css";
 import {useIsMounted} from "~/client/helpers/lifecycle/use-is-mounted";
-import {sprinkles} from "~/shared/design/sprinkles.css";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule-microtask";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";

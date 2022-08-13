@@ -195,7 +195,7 @@ for (const inlineTestCase of inlineTestCases) {
     });
 }
 
-test("heading cannot have a level lower than 1", () => {
+test.only("heading cannot have a level lower than 1", () => {
     const {rerender} = render(
         <ContentEditor
             aria-label="Test"

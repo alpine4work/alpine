@@ -1,4 +1,16 @@
 import {Node, Schema} from "prosemirror-model";
+import {
+    bulletListItemClassName,
+    headingLevel1ClassName,
+    headingLevel2ClassName,
+    headingLevel3ClassName,
+    listItemClassName,
+    listItemIndentation,
+    orderedListItemClassName,
+    paragraphClassName,
+    quoteBlockClassName,
+} from "~/shared/content/content-schema.css";
+import {parseRemLengthNumber} from "~/shared/design/spacing";
 
 // TODO(calebmer): Handle paste with `fromDOM`! Change all our snapshot tests to
 // also make sure copy/paste is an exact copy.
@@ -57,10 +69,16 @@ function isHighlightColor(string: string): string is HighlightColor {
  */
 export const maxListItemIndentation = 5;
 
-function clampIndentation(indent: unknown): number {
+function clampListItemIndentation(indent: unknown): number {
     return typeof indent === "number"
         ? Math.min(Math.max(0, Math.floor(indent)), maxListItemIndentation)
         : 0;
+}
+
+function getListItemIndentationStyle(indent: unknown): string {
+    return `margin-left:${
+        parseRemLengthNumber(listItemIndentation) * clampListItemIndentation(indent)
+    }rem;padding-left:${listItemIndentation}`;
 }
 
 const allowedLinkProtocols: ReadonlySet<string> = new Set(["http", "https"]);
@@ -110,7 +128,7 @@ export const ContentSchema = new Schema({
         paragraph: {
             group: "block",
             content: "inline*",
-            toDOM: () => ["p", {}, 0],
+            toDOM: () => ["p", {class: paragraphClassName}, 0],
         },
 
         /*
@@ -137,7 +155,18 @@ export const ContentSchema = new Schema({
                     typeof unknownLevel === "number"
                         ? Math.max(Math.min(3, Math.floor(unknownLevel)), 1)
                         : 1;
-                return [`h${level + 1}`, {}, 0];
+                return [
+                    `h${level + 1}`,
+                    {
+                        class:
+                            level === 3
+                                ? headingLevel3ClassName
+                                : level === 2
+                                ? headingLevel2ClassName
+                                : headingLevel1ClassName,
+                    },
+                    0,
+                ];
             },
         },
 
@@ -150,7 +179,7 @@ export const ContentSchema = new Schema({
         quoteBlock: {
             group: "block",
             content: "(paragraph | listItem)+",
-            toDOM: () => [`blockquote`, {}, 0],
+            toDOM: () => [`blockquote`, {class: quoteBlockClassName}, 0],
         },
 
         /**
@@ -164,7 +193,7 @@ export const ContentSchema = new Schema({
          * language.
          *
          * TODO(calebmer): Some nice keyboard shortcuts for code editing. For
-         * example, “newline” on a line with indentation should preserve that
+         * example, "newline" on a line with indentation should preserve that
          * indentation. Another example, typing balanced characters (`(`, `{`, `[`)
          * should add the other side.
          */
@@ -189,14 +218,18 @@ export const ContentSchema = new Schema({
         // Sometimes you couldn’t delete a bullet because it has children list items
         // attached.
         //
-        // So to simply code and the editing experience we switched to individual
+        // So to simplify code and the editing experience we switched to individual
         // list items with an indentation attribute. What we lose is semantic HTML
         // list elements while editing and we make it possible to create a document
         // in a weird state. (e.g. Floating list items with indentation.) We find
         // this to be an acceptable tradeoff.
         //
-        // TODO(calebmer): Accessibility of list items while editing since they
-        // aren’t wrapped in semantic DOM elements.
+        // It appears that many text editors go in this direction. For example,
+        // Dropbox Paper.
+        //
+        // TODO(calebmer): Render lists with `<ul>`/`<li>` when read-only.
+        //
+        // TODO(calebmer): Copy lists as `<ul>`/`<li>` if possible.
         //
         // TODO(calebmer): Handle for drag-to-reorder with list items.
 
@@ -211,12 +244,11 @@ export const ContentSchema = new Schema({
             },
             defining: true,
             toDOM: node => {
-                const indent = clampIndentation(node.attrs.indent);
                 return [
                     "div",
                     {
-                        class: "bullet-list-item",
-                        style: `margin-left:${1.25 * indent}em;padding-left:1.25em`,
+                        class: `${listItemClassName} ${bulletListItemClassName}`,
+                        style: getListItemIndentationStyle(node.attrs.indent),
                     },
                     0,
                 ];
@@ -235,12 +267,11 @@ export const ContentSchema = new Schema({
             },
             defining: true,
             toDOM: node => {
-                const indent = clampIndentation(node.attrs.indent);
                 return [
                     "div",
                     {
-                        class: "ordered-list-item",
-                        style: `margin-left:${1.25 * indent}em;padding-left:1.25em`,
+                        class: `${listItemClassName} ${orderedListItemClassName}`,
+                        style: getListItemIndentationStyle(node.attrs.indent),
                     },
                     0,
                 ];
@@ -262,8 +293,14 @@ export const ContentSchema = new Schema({
             },
             defining: true,
             toDOM: node => {
-                const indent = clampIndentation(node.attrs.indent);
-                return ["div", {style: `margin-left:${1.25 * indent}em;padding-left:1.25em`}, 0];
+                return [
+                    "div",
+                    {
+                        class: listItemClassName,
+                        style: getListItemIndentationStyle(node.attrs.indent),
+                    },
+                    0,
+                ];
             },
             toDebugString: toDebugStringWithIndent,
         },
@@ -304,11 +341,11 @@ export const ContentSchema = new Schema({
         // editor shouldn’t do a thing that makes a non-keyboard user need to go to
         // the toolbar to undo it.
         //
-        // This is based on my (Caleb’s) own personal nits when using rich text
+        // This is based on my (Caleb's) own personal nits when using rich text
         // editors. I often find myself frustrated by the inherited styles.
 
         /**
-         * Emphasize some text to let the user know it’s important. Bolded text is
+         * Emphasize some text to let the user know it's important. Bolded text is
          * typically more eye catching than italics.
          */
         bold: {

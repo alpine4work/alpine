@@ -3093,3 +3093,177 @@ test("pressing backspace at the start of a paragraph after a quote block merges 
         'doc(quoteBlock(paragraph("foobar")), quoteBlock(paragraph("qux")))',
     );
 });
+
+test("pressing backspace at the beginning of a list item after a quote block deletes the list item", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("> foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({}));
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({}));
+    await simulateTyping("- bar");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({}));
+    await simulateTyping("qux");
+
+    expect(getDoc().toString()).toEqual(
+        'doc(quoteBlock(paragraph("foo")), bulletListItem(paragraph("bar")), bulletListItem(paragraph("qux")))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(9))));
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(quoteBlock(paragraph("foo")), paragraph("bar"), bulletListItem(paragraph("qux")))',
+    );
+});
+
+test("pressing delete in an empty paragraph deletes the paragraph", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({}));
+    await simulateTyping("- bar");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph, bulletListItem(paragraph("bar")))');
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(1))));
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("bar")))');
+});
+
+test("pressing delete in an empty heading deletes the heading", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("# foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({}));
+    await simulateTyping("- bar");
+
+    expect(getDoc().toString()).toEqual('doc(heading("foo"), bulletListItem(paragraph("bar")))');
+
+    dispatch(state =>
+        state.tr.setSelection(new TextSelection(state.doc.resolve(1), state.doc.resolve(4))),
+    );
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(heading, bulletListItem(paragraph("bar")))');
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("bar")))');
+});
+
+test("pressing delete in an empty paragraph in an empty quote block deletes the quote block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("> foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({}));
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({}));
+    await simulateTyping("- bar");
+
+    expect(getDoc().toString()).toEqual(
+        'doc(quoteBlock(paragraph("foo")), bulletListItem(paragraph("bar")))',
+    );
+
+    dispatch(state =>
+        state.tr.setSelection(new TextSelection(state.doc.resolve(2), state.doc.resolve(5))),
+    );
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(quoteBlock(paragraph), bulletListItem(paragraph("bar")))',
+    );
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("bar")))');
+});
+
+test("pressing delete in an empty paragraph in a quote block deletes the quote block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("> foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({}));
+    await simulateTyping("bar");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({}));
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({}));
+    await simulateTyping("- qux");
+
+    expect(getDoc().toString()).toEqual(
+        'doc(quoteBlock(paragraph("foo"), paragraph("bar")), bulletListItem(paragraph("qux")))',
+    );
+
+    dispatch(state =>
+        state.tr.setSelection(new TextSelection(state.doc.resolve(7), state.doc.resolve(10))),
+    );
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(quoteBlock(paragraph("foo"), paragraph), bulletListItem(paragraph("qux")))',
+    );
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(quoteBlock(paragraph("foo")), bulletListItem(paragraph("qux")))',
+    );
+});
+
+test("pressing delete at the end of a paragraph brings the next list item into the same paragraph", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({}));
+    await simulateTyping("- bar");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foo"), bulletListItem(paragraph("bar")))');
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(4))));
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foobar"))');
+});
+
+test("pressing delete at the end of a paragraph brings the next quote block into the same paragraph", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({}));
+    await simulateTyping("> bar");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({}));
+    await simulateTyping("qux");
+
+    expect(getDoc().toString()).toEqual(
+        'doc(paragraph("foo"), quoteBlock(paragraph("bar"), paragraph("qux")))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(4))));
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foobar"), quoteBlock(paragraph("qux")))');
+});
+
+test("pressing delete at the end of a paragraph in a quote block brings the next list item into the same paragraph", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("> foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({}));
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({}));
+    await simulateTyping("- bar");
+
+    expect(getDoc().toString()).toEqual(
+        'doc(quoteBlock(paragraph("foo")), bulletListItem(paragraph("bar")))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(5))));
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(quoteBlock(paragraph("foobar")))');
+});

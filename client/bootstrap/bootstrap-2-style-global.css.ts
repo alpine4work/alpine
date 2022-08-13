@@ -6,10 +6,10 @@
  */
 
 import {globalStyle} from "@vanilla-extract/css";
+import {mobileMediaQuery} from "~/client/design/sprinkles.css";
 import {colorSchemeVars} from "~/shared/design/color-scheme.css";
 import {fontScale, monospaceFontFamily, sansSerifFontFamily} from "~/shared/design/fonts";
 import {remPx} from "~/shared/design/spacing";
-import {mobileMediaQuery} from "~/shared/design/sprinkles.css";
 import {assert} from "~/shared/helpers/control/assert";
 
 // Since we use the `fontScale.base` line height as our default, let's make

@@ -61,3 +61,11 @@ export const fontScale = {
         letterSpacing: "-0.02em",
     },
 };
+
+/**
+ * Font weights at our disposal.
+ */
+export const fontWeights = {
+    normal: 400,
+    bold: 600,
+};

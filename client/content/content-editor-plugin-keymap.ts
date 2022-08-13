@@ -14,7 +14,7 @@ import {
 import {redo, undo} from "prosemirror-history";
 import {undoInputRule} from "prosemirror-inputrules";
 import {keymap} from "prosemirror-keymap";
-import {Node} from "prosemirror-model";
+import {Node, NodeRange} from "prosemirror-model";
 import {EditorState, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {isMac} from "~/client/helpers/platform/is-mac";
@@ -269,15 +269,15 @@ export function buildKeymapPlugin() {
             if (dispatch) {
                 if (lastNode.content.size > 2) {
                     let textblockNode: Node | null = lastNode;
-                    let depthToTextblockNode = 0;
+                    let depthToLastTextblockNode = 0;
                     while (textblockNode && !textblockNode.isTextblock) {
-                        depthToTextblockNode++;
+                        depthToLastTextblockNode++;
                         textblockNode = textblockNode.lastChild;
                     }
 
                     dispatch(
                         state.tr
-                            .deleteRange($from.pos - depthToTextblockNode - 2, $from.pos)
+                            .deleteRange($from.pos - depthToLastTextblockNode - 2, $from.pos)
                             .scrollIntoView(),
                     );
                 } else {
@@ -291,6 +291,53 @@ export function buildKeymapPlugin() {
                             .scrollIntoView(),
                     );
                 }
+            }
+            return true;
+        },
+
+        // If we are at the beginning of a list item and there is a preceding styled
+        // block, always delete the list item instead of merging with the above block.
+        //
+        // For example, if the cursor is at `|`:
+        //
+        // ```
+        // > foo
+        // - |bar
+        // ```
+        //
+        // Then you press backspace:
+        //
+        // ```
+        // > foo
+        // |bar
+        // ```
+        (state, dispatch) => {
+            const {$from, $to} = state.selection;
+            const node = $from.node();
+            const parentNode = $from.node($from.depth - 1);
+
+            // 1. If our cursor is at the beginning of a list item.
+            const isSelectionAtFirstOffsetOfFirstParagraphInListItem =
+                $from.pos === $to.pos &&
+                $from.parentOffset === 0 &&
+                node.type === ContentSchema.nodes.paragraph &&
+                parentNode.type.groups.includes("listItem") &&
+                parentNode.firstChild === node;
+
+            if (!isSelectionAtFirstOffsetOfFirstParagraphInListItem) return false;
+
+            // 2. Lift the list item contents outside of the list item.
+            if (dispatch) {
+                dispatch(
+                    state.tr.lift(
+                        new NodeRange(
+                            state.doc.resolve($from.pos - 1),
+                            state.doc.resolve($from.pos - 1 + parentNode.nodeSize - 2),
+                            $from.depth - 1,
+                        ),
+                        $from.depth - 2,
+                    ),
+                );
             }
             return true;
         },
@@ -311,6 +358,98 @@ export function buildKeymapPlugin() {
         // This one is simple. If there is a selection, delete it. If the
         // selection ranges a couple nodes the delete will do the right thing.
         deleteSelection,
+
+        // If delete is pressed in an empty paragraph, remove the paragraph.
+        //
+        // This feels better than `joinForward` because content immediately jumps
+        // to your cursor instead of taking smaller steps.
+        //
+        // For example, if the cursor is at `|`:
+        //
+        // ```
+        // |
+        // - bar
+        // ```
+        //
+        // Then you press delete:
+        //
+        // ```
+        // - |bar
+        // ```
+        (state, dispatch) => {
+            const {$from, $to} = state.selection;
+            const node = $from.node();
+
+            const isSelectionInEmptyTextblock =
+                $from.pos === $to.pos &&
+                $from.parentOffset === 0 &&
+                node.isTextblock &&
+                node.nodeSize === 2;
+
+            if (!isSelectionInEmptyTextblock) return false;
+
+            if (dispatch) {
+                dispatch(state.tr.deleteRange($from.pos - 1, $to.pos + 1));
+            }
+            return true;
+        },
+
+        // If delete is pressed at the end of a textblock, find the next textblock and
+        // delete everything in between.
+        //
+        // This feels better than `joinForward` because content immediately jumps to
+        // your cursor instead of taking smaller steps.
+        //
+        // For example, if the cursor is at `|`:
+        //
+        // ```
+        // foo|
+        // - bar
+        // ```
+        //
+        // Then you press delete:
+        //
+        // ```
+        // - foo|bar
+        // ```
+        (state, dispatch) => {
+            const {$from, $to} = state.selection;
+            const node = $from.node();
+
+            const isSelectionAtEndOfTextblock =
+                $from.pos === $to.pos &&
+                node.isTextblock &&
+                node.nodeSize > 2 &&
+                $from.parentOffset === node.nodeSize - 2;
+
+            if (!isSelectionAtEndOfTextblock) return false;
+
+            let nextNodeDepth = $from.depth;
+            let nextNode = state.doc.resolve($from.after(nextNodeDepth)).nodeAfter;
+            while (!nextNode && nextNodeDepth >= 0) {
+                nextNodeDepth--;
+                nextNode = state.doc.resolve($from.after(nextNodeDepth)).nodeAfter;
+            }
+
+            let nextTextblockNode: Node | null = nextNode;
+            let depthToNextTextblockNode = 0;
+            while (nextTextblockNode && !nextTextblockNode.isTextblock) {
+                depthToNextTextblockNode++;
+                nextTextblockNode = nextTextblockNode.firstChild;
+            }
+
+            if (!nextTextblockNode) return false;
+
+            if (dispatch) {
+                dispatch(
+                    state.tr.deleteRange(
+                        $from.pos,
+                        $from.pos + 2 + ($from.depth - nextNodeDepth) + depthToNextTextblockNode,
+                    ),
+                );
+            }
+            return true;
+        },
 
         // If the cursor is at the end of a block and the user presses
         // delete then join with the next block.

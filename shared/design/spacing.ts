@@ -54,12 +54,19 @@ export const spacing = {
 export type RemLength = `${number}rem`;
 
 /**
+ * Parses a length in rem units to the underlying rem value.
+ */
+export function parseRemLengthNumber(remLength: RemLength): number {
+    assert(remLength.endsWith("rem"));
+    const remLengthNumber = parseFloat(remLength.slice(0, -3));
+    assert(!isNaN(remLengthNumber));
+    return remLengthNumber;
+}
+
+/**
  * Convert a length in rem units to a number using the root font size pixel
  * value.
  */
 export function convertRemLengthToPx(remLength: RemLength, remPx: number): number {
-    assert(remLength.endsWith("rem"));
-    const remLengthNumber = parseFloat(remLength.slice(0, -3));
-    assert(!isNaN(remLengthNumber));
-    return remLengthNumber * remPx;
+    return parseRemLengthNumber(remLength) * remPx;
 }

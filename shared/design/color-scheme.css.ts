@@ -1,7 +1,7 @@
 import {assignVars, createGlobalTheme, globalStyle, style} from "@vanilla-extract/css";
 import assert from "assert";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get-or-set-default-map-value";
 import {colors} from "~/shared/design/colors";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get-or-set-default-map-value";
 
 const colorByShadeByName = new Map<string, Map<number, string>>();
 
