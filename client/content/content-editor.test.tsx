@@ -1479,6 +1479,12 @@ test("delete at the beginning of the second nested list item in a quote block", 
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
+        'doc(quoteBlock(bulletListItem(paragraph("test 1")), bulletListItem(paragraph("test 2"))), paragraph("test 3"))',
+    );
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
         'doc(quoteBlock(bulletListItem(paragraph("test 1")), bulletListItem(paragraph("test 2test 3"))))',
     );
 });
@@ -1720,6 +1726,71 @@ test("delete when preceding nested list item is empty will merge into the item",
 
     expect(getDoc().toString()).toEqual(
         'doc(bulletListItem(paragraph("foo")), bulletListItem(indent: 1, paragraph("qux")))',
+    );
+});
+
+test("delete when preceding block quote is empty will merge into the item", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("> foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("bar");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("qux");
+
+    expect(getDoc().toString()).toEqual(
+        'doc(quoteBlock(paragraph("foo"), paragraph("bar")), paragraph("qux"))',
+    );
+
+    dispatch(state =>
+        state.tr.setSelection(new TextSelection(state.doc.resolve(7), state.doc.resolve(10))),
+    );
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(quoteBlock(paragraph("foo"), paragraph), paragraph("qux"))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(10))));
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(quoteBlock(paragraph("foo"), paragraph("qux")))');
+});
+
+test("delete when preceding list item in quote block is empty will merge into the item", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("> - foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("bar");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("qux");
+
+    expect(getDoc().toString()).toEqual(
+        'doc(quoteBlock(bulletListItem(paragraph("foo")), bulletListItem(paragraph("bar"))), paragraph("qux"))',
+    );
+
+    dispatch(state =>
+        state.tr.setSelection(new TextSelection(state.doc.resolve(10), state.doc.resolve(13))),
+    );
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(quoteBlock(bulletListItem(paragraph("foo")), bulletListItem(paragraph)), paragraph("qux"))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(14))));
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(quoteBlock(bulletListItem(paragraph("foo")), bulletListItem(paragraph("qux"))))',
     );
 });
 
@@ -2884,4 +2955,141 @@ test("shift enter inside a list item creates a new line instead of a new paragra
     await simulateTyping("bar");
 
     expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("foo", break, "bar")))');
+});
+
+test("pressing enter in a quote block creates more paragraphs in the quote block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("> foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({}));
+    await simulateTyping("bar");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({}));
+    await simulateTyping("qux");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({}));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(quoteBlock(paragraph("foo"), paragraph("bar"), paragraph("qux"), paragraph))',
+    );
+});
+
+test("pressing backspace at the start of a paragraph in the middle of a quote block splits the quote block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("> foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({}));
+    await simulateTyping("bar");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({}));
+    await simulateTyping("qux");
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(7))));
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(quoteBlock(paragraph("foo")), paragraph("bar"), quoteBlock(paragraph("qux")))',
+    );
+});
+
+test("pressing backspace at the start of a paragraph at the end of a quote block removes the quote block style", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("> foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({}));
+    await simulateTyping("bar");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({}));
+    await simulateTyping("qux");
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(12))));
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(quoteBlock(paragraph("foo"), paragraph("bar")), paragraph("qux"))',
+    );
+});
+
+test("pressing backspace at the start of a paragraph at the start of a quote block removes the quote block style", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("> foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({}));
+    await simulateTyping("bar");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({}));
+    await simulateTyping("qux");
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(2))));
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(paragraph("foo"), quoteBlock(paragraph("bar"), paragraph("qux")))',
+    );
+});
+
+test("pressing backspace at the start of an empty paragraph in the middle of a quote block splits the quote block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("> foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({}));
+    await simulateTyping("bar");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({}));
+    await simulateTyping("qux");
+
+    dispatch(state =>
+        state.tr.setSelection(new TextSelection(state.doc.resolve(7), state.doc.resolve(10))),
+    );
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(quoteBlock(paragraph("foo"), paragraph, paragraph("qux")))',
+    );
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(quoteBlock(paragraph("foo")), paragraph, quoteBlock(paragraph("qux")))',
+    );
+});
+
+test("pressing backspace at the start of an empty paragraph at the end of a quote block removes the quote block style", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("> foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({}));
+    await simulateTyping("bar");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({}));
+    await simulateTyping("");
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(12))));
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(quoteBlock(paragraph("foo"), paragraph("bar")), paragraph)',
+    );
+});
+
+test("pressing backspace at the start of a paragraph after a quote block merges the quote blocks", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("> foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({}));
+    await simulateTyping("bar");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({}));
+    await simulateTyping("qux");
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(7))));
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(quoteBlock(paragraph("foo")), paragraph("bar"), quoteBlock(paragraph("qux")))',
+    );
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(quoteBlock(paragraph("foobar")), quoteBlock(paragraph("qux")))',
+    );
 });

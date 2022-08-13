@@ -14,6 +14,7 @@ import {
 import {redo, undo} from "prosemirror-history";
 import {undoInputRule} from "prosemirror-inputrules";
 import {keymap} from "prosemirror-keymap";
+import {Node} from "prosemirror-model";
 import {EditorState, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {isMac} from "~/client/helpers/platform/is-mac";
@@ -40,14 +41,14 @@ export function buildKeymapPlugin() {
             // paragraph block.
             newlineInCode,
 
-            // If “Enter” is pressed in an empty paragraph textblock which is wrapped
+            // If "Enter" is pressed in an empty paragraph textblock which is wrapped
             // in another block then remove the wrapping.
             //
-            // For example, if “Enter” is pressed in an empty quote we will convert
+            // For example, if "Enter" is pressed in an empty quote we will convert
             // it to a paragraph.
             liftEmptyBlock,
 
-            // If “Enter” is pressed in an empty non-paragraph textblock (like a
+            // If "Enter" is pressed in an empty non-paragraph textblock (like a
             // header) then we want to convert that textblock back to a paragraph.
             //
             // For example, if the cursor is at `|`:
@@ -154,59 +155,7 @@ export function buildKeymapPlugin() {
         // selection ranges a couple nodes the delete will do the right thing.
         deleteSelection,
 
-        // If we delete at the beginning of a paragraph that comes after a list
-        // then merge the paragraph with the list’s last bullet.
-        //
-        // For example, if the cursor is at `|`:
-        //
-        // ```
-        // - foo
-        // |bar
-        // ```
-        //
-        // Then you press backspace:
-        //
-        // ```
-        // - foo|bar
-        // ```
-        (state, dispatch) => {
-            const {$from, $to} = state.selection;
-
-            // 1. Cursor should be at the beginning of the paragraph.
-            if (
-                $from.pos !== $to.pos ||
-                $from.parentOffset > 0 ||
-                $from.node().type !== ContentSchema.nodes.paragraph
-            ) {
-                return false;
-            }
-
-            // 2. Paragraph should be after a list.
-            const listItemNode = state.doc.resolve($from.before()).nodeBefore;
-            if (!listItemNode || !listItemNode.type.groups.includes("listItem")) {
-                return false;
-            }
-
-            // 3. Actually perform the delete.
-            if (dispatch) {
-                if (listItemNode.content.size > 2) {
-                    dispatch(state.tr.deleteRange($from.pos - 3, $from.pos).scrollIntoView());
-                } else {
-                    // 4. If the list item is empty then our above transaction will
-                    // delete the list item styling. So detect when the list is empty
-                    // and wrap the paragraph in an identical list item before deleting.
-                    dispatch(
-                        state.tr
-                            .wrap($from.blockRange()!, [listItemNode])
-                            .deleteRange($from.pos - 5, $from.pos - 1)
-                            .scrollIntoView(),
-                    );
-                }
-            }
-            return true;
-        },
-
-        // If “Backspace” is pressed in an empty non-paragraph textblock (like a
+        // If "Backspace" is pressed in an empty non-paragraph textblock (like a
         // header) then we want to convert that textblock back to a paragraph.
         //
         // For example, if the cursor is at `|`:
@@ -226,18 +175,122 @@ export function buildKeymapPlugin() {
 
             // 1. Should be an empty non-paragraph textblock (e.g. header) and the
             // cursor should be at the beginning of the block.
-            if (
-                node.isTextblock === false ||
-                node.type === ContentSchema.nodes.paragraph ||
-                $from.pos !== $to.pos ||
-                $from.parentOffset > 0
-            ) {
-                return false;
-            }
+            const isSelectionAtFirstOffsetOfTextblock =
+                node.isTextblock &&
+                node.type !== ContentSchema.nodes.paragraph &&
+                $from.pos === $to.pos &&
+                $from.parentOffset === 0;
+
+            if (!isSelectionAtFirstOffsetOfTextblock) return false;
 
             // 2. Convert the textblock to a paragraph.
             if (dispatch) {
                 dispatch(state.tr.setBlockType($from.pos, $to.pos, ContentSchema.nodes.paragraph));
+            }
+            return true;
+        },
+
+        // If "Backspace" is pressed at the beginning of a paragraph in a quote block
+        // the remove the quote block styling and lift the paragraph out.
+        //
+        // For example if the cursor is at `|`:
+        //
+        // ```
+        // > item 1
+        // > |item 2
+        // > item 3
+        // ```
+        //
+        // Then you press backspace:
+        //
+        // ```
+        // > item 1
+        // |item 2
+        // > item 3
+        // ```
+        (state, dispatch) => {
+            const {$from, $to} = state.selection;
+            const node = $from.node();
+            const parentNode = $from.node($from.depth - 1);
+
+            // 1. Should be an empty paragraph text block in a quote block and the cursor
+            // should be at the beginning of the block.
+            const isSelectionAtFirstOffsetOfParagraphInQuoteBlock =
+                node.type === ContentSchema.nodes.paragraph &&
+                parentNode.type === ContentSchema.nodes.quoteBlock &&
+                $from.pos === $to.pos &&
+                $from.parentOffset === 0;
+
+            if (!isSelectionAtFirstOffsetOfParagraphInQuoteBlock) return false;
+
+            // 2. Lift the paragraph out of the quote block.
+            if (dispatch) {
+                dispatch(state.tr.lift($from.blockRange()!, $from.depth - 2));
+            }
+            return true;
+        },
+
+        // If we delete at the beginning of a paragraph that comes after a list
+        // (or quote block) then merge the paragraph with the list's last bullet.
+        //
+        // For example, if the cursor is at `|`:
+        //
+        // ```
+        // - foo
+        // |bar
+        // ```
+        //
+        // Then you press backspace:
+        //
+        // ```
+        // - foo|bar
+        // ```
+        (state, dispatch) => {
+            const {$from, $to} = state.selection;
+
+            // 1. Cursor should be at the beginning of the paragraph.
+            const isSelectionAtFirstOffsetOfParagraph =
+                $from.pos === $to.pos &&
+                $from.parentOffset === 0 &&
+                $from.node().type === ContentSchema.nodes.paragraph;
+
+            if (!isSelectionAtFirstOffsetOfParagraph) return false;
+
+            // 2. Paragraph should be after a list.
+            const lastNode = state.doc.resolve($from.before()).nodeBefore;
+            const isLastNodeListItemOrQuoteBlock =
+                lastNode &&
+                (lastNode.type.groups.includes("listItem") ||
+                    lastNode.type === ContentSchema.nodes.quoteBlock);
+
+            if (!isLastNodeListItemOrQuoteBlock) return false;
+
+            // 3. Actually perform the delete.
+            if (dispatch) {
+                if (lastNode.content.size > 2) {
+                    let textblockNode: Node | null = lastNode;
+                    let depthToTextblockNode = 0;
+                    while (textblockNode && !textblockNode.isTextblock) {
+                        depthToTextblockNode++;
+                        textblockNode = textblockNode.lastChild;
+                    }
+
+                    dispatch(
+                        state.tr
+                            .deleteRange($from.pos - depthToTextblockNode - 2, $from.pos)
+                            .scrollIntoView(),
+                    );
+                } else {
+                    // 4. If the list item is empty then our above transaction will
+                    // delete the list item styling. So detect when the list is empty
+                    // and wrap the paragraph in an identical list item before deleting.
+                    dispatch(
+                        state.tr
+                            .wrap($from.blockRange()!, [lastNode])
+                            .deleteRange($from.pos - 5, $from.pos - 1)
+                            .scrollIntoView(),
+                    );
+                }
             }
             return true;
         },
