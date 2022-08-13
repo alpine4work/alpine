@@ -47,7 +47,7 @@ export function buildInputRulesPlugin() {
             if (!range) return null;
             const wrapping = findWrapping(range, nodeType, {});
 
-            // 3. If there’s a valid wrapping then apply it.
+            // 3. If there's a valid wrapping then apply it.
             if (wrapping) {
                 transaction.wrap(range, wrapping);
                 return transaction;
@@ -77,13 +77,13 @@ export function buildInputRulesPlugin() {
 
             const isEndOfParent = $end.parentOffset === $end.parent.content.size;
 
-            // If you type `---|test` (where `|` is your cursor) then we don’t want to
+            // If you type `---|test` (where `|` is your cursor) then we don't want to
             // insert a divider.
             if (!isEndOfParent) {
                 return null;
             }
 
-            // Make sure we can insert a divider at this location. We can’t insert a
+            // Make sure we can insert a divider at this location. We can't insert a
             // divider in a list item or quote block for instance.
             if (
                 !$start
@@ -123,7 +123,7 @@ export function buildInputRulesPlugin() {
     // Markdown-style bracket rules
     //
     // We use `*` for bold instead of `**` which is the typical Markdown syntax.
-    // This will probably drive developers insane since it isn’t Markdown spec
+    // This will probably drive developers insane since it isn't Markdown spec
     // compliant. I know it drove me insane when I first saw it in Slack. However,
     // the set of power users is larger than the set of power users that care
     // about Markdown compatibility. A single asterisk is much more convenient

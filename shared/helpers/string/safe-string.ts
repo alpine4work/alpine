@@ -13,7 +13,7 @@ const safeStringTag = Symbol("safe");
  * its way into a safe string. Even if an attacker is able to inject an
  * arbitrary JSON value into a safe string, we are still able to reject it.
  *
- * If you’re using `dangerouslySetInnerHTML` in React then consider using a safe
+ * If you're using `dangerouslySetInnerHTML` in React then consider using a safe
  * string.
  */
 export type SafeString = {

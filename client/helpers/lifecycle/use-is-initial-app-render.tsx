@@ -21,7 +21,7 @@ export function useIsInitialAppRender(): boolean {
 
 export function AppInitialRenderContextProvider({children}: {children: ReactNode}) {
     // There should only be one `<AppInitialRenderContextProvider>` at the root of
-    // our application. Don’t nest these!
+    // our application. Don't nest these!
     const parentIsInitialAppRender = useContext(AppInitialRenderContext);
     assert(parentIsInitialAppRender === null);
 

@@ -7,7 +7,7 @@ import {RefCallback, useCallback, useRef} from "react";
  * We expect this to be useful in conjunction with `useElementWithRef()`.
  *
  * If a sub-component re-renders and the ref changes then we will cleanup the
- * old ref’s listeners and subscribe new ones without re-rendering the component
+ * old ref's listeners and subscribe new ones without re-rendering the component
  * this hook lives in. You can kind of think of this as a `useLayoutEffect()`
  * for refs.
  *

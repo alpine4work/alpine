@@ -92,7 +92,7 @@ type TooltipChildrenProps = {
 
     /**
      * When hovering over a tooltip, we have a delay before the tooltip becomes
-     * visible to make sure the user’s mouse wasn’t quickly moving over the
+     * visible to make sure the user's mouse wasn't quickly moving over the
      * tooltip. Calling this function skips that delay.
      */
     skipHoverDelay: () => void;
@@ -104,7 +104,7 @@ type TooltipChildrenProps = {
  *
  * Only one tooltip across the entire application may be visible at a time.
  *
- * Avoid using this component for critical information as tooltips don’t work
+ * Avoid using this component for critical information as tooltips don't work
  * for our mobile site.
  */
 export function Tooltip({
@@ -150,7 +150,7 @@ export function Tooltip({
     // hover/focus state.
     useEffect(() => {
         if (!state.isHovered && !state.isFocused) {
-            // We don’t want to release our tooltip from the coordination context
+            // We don't want to release our tooltip from the coordination context
             // until both its fade-in and fade-out animation have finished.
             if (!state.isFadingIn && !state.isFadingOut)
                 coordinationContext.deleteHoveredAndDeleteFocusedTooltipSymbol(tooltipSymbol);
@@ -197,7 +197,7 @@ export function Tooltip({
                     clearTimeout(timeoutId);
                 };
             } else {
-                // If we aren’t visible then we’re waiting to see if our coordination
+                // If we aren't visible then we're waiting to see if our coordination
                 // context tells us we are the only visible tooltip.
             }
         }
@@ -222,13 +222,13 @@ export function Tooltip({
                     clearTimeout(timeoutId);
                 };
             } else {
-                // If we aren’t visible there is no animation happening, so don’t wait.
+                // If we aren't visible there is no animation happening, so don't wait.
                 setState(state => ({...state, isFadingOut: false}));
             }
         }
     }, [state.isFadingOut, visible]);
 
-    // Register event handlers on our target element that control our tooltip’s
+    // Register event handlers on our target element that control our tooltip's
     // state.
     const targetLifecycleRef = useCallback(
         (targetElement: HTMLElement) => {
@@ -398,7 +398,7 @@ export function Tooltip({
     // all tooltips on the page whenever one tooltip is focused or hovered. We
     // want to minimize re-renders when that happens.
     //
-    // Ideally, there would be a way for us to “select” state from
+    // Ideally, there would be a way for us to "select" state from
     // `TooltipCoordinationContext`. We only need to re-render a tooltip if we are
     // transitioning to being visible or away from being visible.
     return useMemo(() => {
@@ -522,7 +522,7 @@ export function TooltipCoordinationContextProvider({children}: {children: ReactN
     // Discover the one currently active tooltip across the application.
     let activeTooltipSymbol: symbol | null = null;
 
-    // Don’t allow there to be an active symbol if we have some disable tooltip
+    // Don't allow there to be an active symbol if we have some disable tooltip
     // symbols.
     if (!(state.disableTooltipSymbols.size > 0)) {
         // Focused tooltips take precedence over hovered tooltips.
@@ -548,8 +548,8 @@ export function TooltipCoordinationContextProvider({children}: {children: ReactN
     const hasHoveredTooltipSymbols =
         !(state.disableTooltipSymbols.size > 0) && state.hoveredTooltipSymbols.size > 0;
 
-    // If our state transitioned to `WarmingUp` let’s run our warm up timeout and
-    // switch the state to `WarmedUp`. We don’t show tooltips while we are
+    // If our state transitioned to `WarmingUp` let's run our warm up timeout and
+    // switch the state to `WarmedUp`. We don't show tooltips while we are
     // warming up.
     useEffect(() => {
         if (state.hoveredTooltipsStatus === "WarmingUp" && hasHoveredTooltipSymbols) {
@@ -568,7 +568,7 @@ export function TooltipCoordinationContextProvider({children}: {children: ReactN
         }
     }, [hasHoveredTooltipSymbols, state.hoveredTooltipsStatus]);
 
-    // If we’re warmed up, but there’s no longer an active tooltip we want to
+    // If we're warmed up, but there's no longer an active tooltip we want to
     // transition back to our cooled down state after a timeout.
     //
     // This is a separate effect because it has an extra dependency.

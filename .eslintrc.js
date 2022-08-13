@@ -23,11 +23,11 @@ module.exports = {
         // before production.
         "no-debugger": "warn",
 
-        // If you want to use `alert()` then we’d appreciate a comment
+        // If you want to use `alert()` then we'd appreciate a comment
         // explaining why.
         "no-alert": "warn",
 
-        // If you want to use `eval()` then we’d appreciate a comment
+        // If you want to use `eval()` then we'd appreciate a comment
         // explaining why.
         "no-eval": "warn",
         "no-implied-eval": "warn",
@@ -47,7 +47,7 @@ module.exports = {
         // considered to be scripts.
         strict: ["error", "global"],
 
-        // Empty object patterns are fine as a way of saying “ignore this”.
+        // Empty object patterns are fine as a way of saying "ignore this".
         "no-empty-pattern": "off",
 
         // Blocks can be helpful for organizing code.
@@ -128,7 +128,7 @@ module.exports = {
 
         // This is a pretty important lint rule. It defines the module boundaries of
         // our system. We treat top level directories as different execution
-        // environments. We don’t want code in `client` to be evaluated in
+        // environments. We don't want code in `client` to be evaluated in
         // `server` for instance since `client` code might depend on the DOM and
         // vice-versa. The Next.js `pages` directory is where we bring `client`
         // and `server` code together to render pages.
@@ -172,7 +172,7 @@ module.exports = {
         // across files.
         "import/no-default-export": "warn",
 
-        // Always add an extension to your import if you aren’t importing a
+        // Always add an extension to your import if you aren't importing a
         // JavaScript file.
         "import/extensions": [
             "warn",
@@ -180,14 +180,14 @@ module.exports = {
             {js: "never", jsx: "never", ts: "never", tsx: "never"},
         ],
 
-        // Don’t allow importing packages that aren’t explicitly declared in our
+        // Don't allow importing packages that aren't explicitly declared in our
         // `package.json`. While technically possible to import a transitive
-        // dependency at runtime, we don’t want to implicitly depend on this
-        // behavior since we don’t control the versions of those transitive
+        // dependency at runtime, we don't want to implicitly depend on this
+        // behavior since we don't control the versions of those transitive
         // dependencies.
         "import/no-extraneous-dependencies": "error",
 
-        // Don’t import files outside of the repository.
+        // Don't import files outside of the repository.
         "import/no-absolute-path": "warn",
 
         // Only Webpack can interpret the Webpack loader syntax, but we have many
@@ -248,17 +248,17 @@ module.exports = {
                 // a little too prescriptive when it comes to test names.
                 "jest/consistent-test-it": ["warn", {fn: "test"}],
 
-                // It doesn’t make sense to return from a test.
+                // It doesn't make sense to return from a test.
                 "jest/no-test-return-statement": "warn",
 
                 // A todo test is much more semantically meaningful then a test with an
                 // empty body.
                 "jest/prefer-todo": "warn",
 
-                // Make sure the test title isn’t weird.
+                // Make sure the test title isn't weird.
                 "jest/valid-title": "warn",
 
-                // A test doesn’t need an `expect()` assertion to fail.
+                // A test doesn't need an `expect()` assertion to fail.
                 "jest/expect-expect": "off",
                 "jest/no-conditional-expect": "off",
             },

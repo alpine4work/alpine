@@ -5,7 +5,7 @@ import {Ref} from "react";
  * refs together.
  *
  * Use this sparingly! If you find yourself reaching for this function, maybe
- * rethink the pattern you’re trying to implement first.
+ * rethink the pattern you're trying to implement first.
  */
 export function assignRef<T>(ref: Ref<T>, value: T | null) {
     if (ref === null) return;

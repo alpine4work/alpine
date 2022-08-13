@@ -18,15 +18,15 @@ export function setElementAttributesWithCleanup(
     setElementAttributes(element, attributeEntries);
 
     return () => {
-        // Future enhancement: If something else changes our element’s attributes
-        // between initialization and cleanup, we want that code to “take control”
-        // of the attribute which means we shouldn’t revert back to the original
+        // Future enhancement: If something else changes our element's attributes
+        // between initialization and cleanup, we want that code to "take control"
+        // of the attribute which means we shouldn't revert back to the original
         // attribute.
         //
         // For example, if a React component also declares an attribute and the
         // value changes through React then we want to cede control to React.
         //
-        // We don’t have a case where this happens right now, though.
+        // We don't have a case where this happens right now, though.
         setElementAttributes(element, lastAttributeEntries);
     };
 }

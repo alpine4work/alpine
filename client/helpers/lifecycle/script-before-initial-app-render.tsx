@@ -16,7 +16,7 @@ import {SafeString, isSafeString} from "~/shared/helpers/string/safe-string";
  * output clean.
  *
  * This component needs to be a little more complicated than a single `<script>`
- * because Next.js uses `style-loader` in development which means we don’t get
+ * because Next.js uses `style-loader` in development which means we don't get
  * CSS until the JavaScript bundle loads. So [to avoid a flash of unstyled
  * content][1], Next.js adds `display: none` to the page until the JavaScript
  * bundle loads and adds the CSS. This script component waits for that to happen

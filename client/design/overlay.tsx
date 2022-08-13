@@ -64,7 +64,7 @@ export function Overlay({
      * Is the overlay content visible? We default to the overlay content being
      * hidden.
      *
-     * We can’t render overlay content on the server. That means if you want your
+     * We can't render overlay content on the server. That means if you want your
      * overlay to be visible immediately on page load it might flash in. To avoid
      * this, only render overlay in response to user interaction.
      */
@@ -73,7 +73,7 @@ export function Overlay({
     /**
      * Where should the overlay content be placed relative to the target element?
      *
-     * If there’s not enough space on screen for this placement, then we will flip
+     * If there's not enough space on screen for this placement, then we will flip
      * the placement along the same axis.
      */
     placement: OverlayPlacement;
@@ -125,8 +125,8 @@ export function Overlay({
     const overlaySink = useContext(OverlaySinkContext);
     assert(overlaySink);
 
-    // Always hide overlays when we don’t yet have the portal element. This means
-    // overlays can’t be rendered on the server.
+    // Always hide overlays when we don't yet have the portal element. This means
+    // overlays can't be rendered on the server.
     const visible = overlaySink.portalElement !== null && actuallyVisible;
 
     const overlayRef = useRef<HTMLDivElement>(null);
@@ -198,7 +198,7 @@ export function Overlay({
             });
 
             // Make sure Popper is positioned correctly. We find that sometimes after
-            // parameter updates (e.g. `placement` changes), Popper won’t have the
+            // parameter updates (e.g. `placement` changes), Popper won't have the
             // right position.
             popper.forceUpdate();
 

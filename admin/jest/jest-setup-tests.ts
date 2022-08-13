@@ -7,7 +7,7 @@
 import "@testing-library/jest-dom";
 
 // Pretend we are on a Mac for tests. Most of our programmers use Mac for
-// development so it’s more natural to use those platform conventions.
+// development so it's more natural to use those platform conventions.
 //
 // Learn more: https://developer.mozilla.org/en-US/docs/Web/API/NavigatorID/platform
 Object.defineProperty(navigator, "platform", {

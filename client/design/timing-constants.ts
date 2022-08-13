@@ -11,7 +11,7 @@
 export const perceivedAsInstantLimitMs = 100;
 
 /**
- * About the limit for the user’s flow of thought to stay uninterrupted, even
+ * About the limit for the user's flow of thought to stay uninterrupted, even
  * though the user will notice the delay. Normally, no special feedback is
  * necessary during delays of more than 0.1 but less than 1.0 second, but the
  * user does lose the feeling of operating directly on the data.
