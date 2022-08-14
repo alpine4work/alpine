@@ -10,6 +10,17 @@ import ReactDom from "react-dom";
 
 if (process.env.NODE_ENV === "development" && typeof window !== "undefined") {
     import("@axe-core/react").then(({default: axe}) => {
-        axe(React, ReactDom, 1000);
+        axe(React, ReactDom, 1000, {
+            rules: [
+                // We are building an app with web technology. Apps do not allow users to pinch
+                // and zoom in.
+                //
+                // We can add font scaling options for vision impaired users.
+                {
+                    id: "meta-viewport",
+                    enabled: false,
+                },
+            ],
+        });
     });
 }

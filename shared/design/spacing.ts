@@ -10,6 +10,8 @@ export const remPx = {
     mobile: 20,
 } as const;
 
+export const mobileMediaQuery = "screen and (max-width: 768px)";
+
 /**
  * Our spacing scale.
  *

@@ -4,10 +4,10 @@ import type {AppProps} from "next/app";
 import Head from "next/head";
 import {IconContext} from "phosphor-react";
 import {ReactNode} from "react";
-import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use-is-initial-app-render";
 import {InitializeColorSchemeScript} from "~/client/design/color-scheme";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {TooltipCoordinationContextProvider} from "~/client/design/tooltip";
+import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use-is-initial-app-render";
 import {spacing} from "~/shared/design/spacing";
 
 export default function MyApp({Component, pageProps}: AppProps) {
@@ -15,6 +15,10 @@ export default function MyApp({Component, pageProps}: AppProps) {
         <>
             <Head>
                 <InitializeColorSchemeScript />
+                <meta
+                    name="viewport"
+                    content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+                />
             </Head>
             {decorators.reduce<ReactNode>(
                 (children, decorator) => decorator(children),

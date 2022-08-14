@@ -1,7 +1,7 @@
 import {globalStyle, style} from "@vanilla-extract/css";
 import {colorSchemeVars} from "~/shared/design/color-scheme.css";
 import {fontScale, fontWeights} from "~/shared/design/fonts";
-import {parseRemLengthNumber, spacing} from "~/shared/design/spacing";
+import {mobileMediaQuery, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 
 const paragraphMargin = spacing["3"];
 
@@ -10,6 +10,7 @@ const headerTopMargin = spacing["8"];
 
 export const docClassName = style({
     color: colorSchemeVars["grey-100"],
+    userSelect: "auto",
 });
 
 export const paragraphClassName = style({
@@ -39,8 +40,7 @@ export const headingLevel3ClassName = style({
     marginBottom: headerBottomMargin,
 });
 
-export const quoteBlockIndentation = spacing["5"];
-
+const quoteBlockIndentation = spacing["4"];
 const quoteBlockBorderWidth = "0.1875rem";
 
 export const quoteBlockClassName = style({
@@ -50,7 +50,7 @@ export const quoteBlockClassName = style({
         "rem",
     borderLeftWidth: quoteBlockBorderWidth,
     borderColor: colorSchemeVars["grey-10"],
-    color: colorSchemeVars["grey-70"],
+    color: colorSchemeVars["grey-60"],
 });
 
 // NOTE(calebmer): Ordered lists and bullet lists use the same style for all
@@ -106,24 +106,98 @@ export const orderedListItemClassName = style({
     },
 });
 
-// Make sure the first child in our document never has top margin.
-globalStyle(`${docClassName} > *:first-child`, {
-    marginTop: 0,
-});
-globalStyle(`${docClassName} > ${quoteBlockClassName}:first-child > *:first-child`, {
-    marginTop: 0,
-});
-globalStyle(`${docClassName} > ${listItemClassName}:first-child > *:first-child`, {
-    marginTop: 0,
+const checkListItemCheckboxDesktopSize = spacing["4"];
+const checkListItemCheckboxMobileSize = spacing["5"];
+
+export const checkListItemCheckedClassName = style({
+    color: colorSchemeVars["grey-60"],
 });
 
+export const checkListItemContentClassName = style({});
+
+export const checkListItemCheckboxClassName = style({
+    position: "absolute",
+    borderRadius: "100%",
+    width: checkListItemCheckboxDesktopSize,
+    height: checkListItemCheckboxDesktopSize,
+    top: spacing["1"],
+    left:
+        parseRemLengthNumber(listItemIndentation) / 2 -
+        parseRemLengthNumber(checkListItemCheckboxDesktopSize) / 2 +
+        "rem",
+    padding: spacing["0.5"],
+    backgroundColor: "transparent",
+    color: colorSchemeVars["grey-70"],
+    borderWidth: 1,
+    borderColor: colorSchemeVars["grey-70"],
+    cursor: "default",
+    userSelect: "none",
+    selectors: {
+        [`${checkListItemCheckedClassName} > &`]: {
+            backgroundColor: colorSchemeVars["theme-50-const"],
+            color: colorSchemeVars["grey-0-const"],
+            borderColor: colorSchemeVars["theme-50-const"],
+        },
+    },
+    "@media": {
+        [mobileMediaQuery]: {
+            width: checkListItemCheckboxMobileSize,
+            height: checkListItemCheckboxMobileSize,
+            top: spacing["0.5"],
+            left:
+                parseRemLengthNumber(listItemIndentation) / 2 -
+                parseRemLengthNumber(checkListItemCheckboxMobileSize) / 2 +
+                "rem",
+            padding: spacing["1"],
+        },
+    },
+});
+
+export const checkListItemCheckboxPressedClassName = style({
+    backgroundColor: colorSchemeVars["grey-10"],
+    color: colorSchemeVars["grey-90"],
+    borderColor: colorSchemeVars["grey-90"],
+    selectors: {
+        [`${checkListItemCheckedClassName} > &`]: {
+            backgroundColor: colorSchemeVars["theme-60-const"],
+            color: colorSchemeVars["grey-0-const"],
+            borderColor: colorSchemeVars["theme-60-const"],
+        },
+    },
+});
+
+// The checkbox is a little small. Add some extra hit area to make it easier
+// to click.
+export const checkListItemCheckboxHitAreaClassName = style({
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    transform: "translate(-50%, -50%)",
+    width: spacing["6"],
+    height: spacing["6"],
+    borderRadius: "100%",
+    "@media": {
+        [mobileMediaQuery]: {
+            width: spacing["8"],
+            height: spacing["8"],
+        },
+    },
+});
+
+// Make sure the first child in our document never has top margin.
+const firstChildSelectors = [
+    `${docClassName} > *:first-child`,
+    `${docClassName} > ${quoteBlockClassName}:first-child > *:first-child`,
+    `${docClassName} > ${listItemClassName}:first-child > *:first-child`,
+    `${docClassName} > ${listItemClassName}:first-child > ${checkListItemContentClassName} > *:first-child`,
+];
+firstChildSelectors.forEach(selector => globalStyle(selector, {marginTop: 0}));
+
 // Make sure the last child in our document never has bottom margin.
-globalStyle(`${docClassName} > *:last-child`, {
-    marginBottom: 0,
-});
-globalStyle(`${docClassName} > ${quoteBlockClassName}:last-child > *:last-child`, {
-    marginBottom: 0,
-});
-globalStyle(`${docClassName} > ${listItemClassName}:last-child > *:last-child`, {
-    marginBottom: 0,
-});
+const lastChildSelectors = [
+    `${docClassName} > *:last-child`,
+    `${docClassName} > ${quoteBlockClassName}:last-child > *:last-child`,
+    `${docClassName} > ${listItemClassName}:last-child > *:last-child`,
+    `${docClassName} > ${listItemClassName}:last-child > ${checkListItemContentClassName} > *:last-child`,
+];
+lastChildSelectors.forEach(selector => globalStyle(selector, {marginBottom: 0}));

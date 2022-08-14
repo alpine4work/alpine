@@ -1,6 +1,7 @@
 import {Node, Schema} from "prosemirror-model";
 import {
     bulletListItemClassName,
+    checkListItemCheckedClassName,
     headingLevel1ClassName,
     headingLevel2ClassName,
     headingLevel3ClassName,
@@ -46,6 +47,11 @@ import {parseRemLengthNumber} from "~/shared/design/spacing";
 // TODO(calebmer): "shift+enter" should always have the exact same behavior as
 // "enter" to have an alternative in contexts where "enter" sends a message. To
 // add a line break you need to use "alt+enter".
+
+// TODO(calebmer): Consider including custom hero header images using abstract
+// line art. Like from these sets:
+// - https://creativemarket.com/kloroform/collections/1866986/Wires
+// - https://creativemarket.com/andrewpixel/5737653-1000-Abstract-Illustration-BUNDLE (geometric shapes)
 
 /**
  * All the possible highlight colors for the inline style.
@@ -178,7 +184,7 @@ export const ContentSchema = new Schema({
          */
         quoteBlock: {
             group: "block",
-            content: "(paragraph | listItem)+",
+            content: "(paragraph | simpleListItem)+",
             toDOM: () => [`blockquote`, {class: quoteBlockClassName}, 0],
         },
 
@@ -226,18 +232,18 @@ export const ContentSchema = new Schema({
         //
         // It appears that many text editors go in this direction. For example,
         // Dropbox Paper.
-        //
+
         // TODO(calebmer): Render lists with `<ul>`/`<li>` when read-only.
-        //
+
         // TODO(calebmer): Copy lists as `<ul>`/`<li>` if possible.
-        //
+
         // TODO(calebmer): Handle for drag-to-reorder with list items.
 
         /**
          * List some things in no particular order with proper indentation.
          */
         bulletListItem: {
-            group: ["block", "listItem"].join(" "),
+            group: "block listItem simpleListItem",
             content: "paragraph",
             attrs: {
                 indent: {default: 0},
@@ -261,7 +267,7 @@ export const ContentSchema = new Schema({
          * List some things with a counter with proper indentation.
          */
         orderedListItem: {
-            group: ["block", "listItem"].join(" "),
+            group: "block listItem simpleListItem",
             content: "paragraph",
             attrs: {
                 indent: {default: 0},
@@ -290,7 +296,7 @@ export const ContentSchema = new Schema({
          * ability to represent some state of some things.
          */
         checkListItem: {
-            group: ["block", "listItem"].join(" "),
+            group: "block listItem",
             content: "paragraph",
             attrs: {
                 indent: {default: 0},
@@ -302,7 +308,9 @@ export const ContentSchema = new Schema({
                 return [
                     "div",
                     {
-                        class: listItemClassName,
+                        class: node.attrs.checked
+                            ? `${listItemClassName} ${checkListItemCheckedClassName}`
+                            : listItemClassName,
                         style: getListItemIndentationStyle(indent),
                     },
                     0,

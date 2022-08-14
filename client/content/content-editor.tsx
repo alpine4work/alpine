@@ -10,9 +10,11 @@ import {EditorState, Plugin, PluginKey, Transaction} from "prosemirror-state";
 import {Step} from "prosemirror-transform";
 import {EditorView} from "prosemirror-view";
 import {Ref, forwardRef, useImperativeHandle, useLayoutEffect, useRef, useState} from "react";
+import {createContentCheckListItemNodeView} from "~/client/content/content-check-list-item-node-view";
 import {buildInputRulesPlugin} from "~/client/content/content-editor-plugin-input-rules";
 import {buildKeymapPlugin} from "~/client/content/content-editor-plugin-keymap";
 import {emptyContentEditorClassName} from "~/client/content/content-editor.css";
+import {createContentOrderedListItemNodeView} from "~/client/content/content-ordered-list-item-node-view";
 import {isMac} from "~/client/helpers/platform/is-mac";
 import {
     ContentSchema,
@@ -22,7 +24,6 @@ import {
 import {docClassName} from "~/shared/content/content-schema.css";
 import {assert} from "~/shared/helpers/control/assert";
 import {Id, generateId} from "~/shared/id/id";
-import {createContentOrderedListItemNodeView} from "~/client/content/content-ordered-list-item-node-view";
 
 declare module "prosemirror-model" {
     // Augment `NodeType` with the undocumented `groups` array.
@@ -359,6 +360,7 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
 
             nodeViews: {
                 orderedListItem: createContentOrderedListItemNodeView,
+                checkListItem: createContentCheckListItemNodeView,
             },
 
             handlePaste: handleLinkPaste,

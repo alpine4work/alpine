@@ -353,6 +353,7 @@ export function buildKeymapPlugin() {
 
     keys.set("Backspace", backspaceCommand);
     keys.set("Mod-Backspace", backspaceCommand);
+    keys.set("Shift-Backspace", backspaceCommand);
 
     const deleteCommand = chainCommands(
         // This one is simple. If there is a selection, delete it. If the

@@ -41,14 +41,6 @@ export function createContentOrderedListItemNodeView(node: Node): NodeView {
     return {
         dom,
         contentDOM: contentDom,
-        update: newNode => {
-            // Same implementation as the super-class we're overriding:
-            // https://github.com/ProseMirror/prosemirror-view/blob/facde1aea2ef79ba197e49ecab64a08a8bb14e12/src/viewdesc.ts#L795-L802
-            if (!newNode.sameMarkup(node)) return false;
-
-            node = newNode;
-            return true;
-        },
         destroy: () => {
             isDestroyed = true;
             unobserve?.();

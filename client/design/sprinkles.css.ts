@@ -16,7 +16,7 @@ import {
     lightColorSchemeSelector,
 } from "~/shared/design/color-scheme.css";
 import {fontScale, fontWeights} from "~/shared/design/fonts";
-import {spacing} from "~/shared/design/spacing";
+import {mobileMediaQuery, spacing} from "~/shared/design/spacing";
 import {mapObjectValues} from "~/shared/helpers/object/map-object-values";
 
 // TODO(calebmer): Add these styles:
@@ -82,8 +82,6 @@ const spacingWithPercentages = {
     "10/12": "83.333333%",
     "11/12": "91.666667%",
 };
-
-export const mobileMediaQuery = "screen and (max-width: 768px)";
 
 const responsiveProperties = defineProperties({
     conditions: {
