@@ -22,6 +22,7 @@ import {
 import {docClassName} from "~/shared/content/content-schema.css";
 import {assert} from "~/shared/helpers/control/assert";
 import {Id, generateId} from "~/shared/id/id";
+import {createContentOrderedListItemNodeView} from "~/client/content/content-ordered-list-item-node-view";
 
 declare module "prosemirror-model" {
     // Augment `NodeType` with the undocumented `groups` array.
@@ -355,6 +356,11 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
 
         const editor = new EditorView(elementRef.current, {
             state: unwrap(propsRef.current.state),
+
+            nodeViews: {
+                orderedListItem: createContentOrderedListItemNodeView,
+            },
+
             handlePaste: handleLinkPaste,
 
             // If we have an `onEnter` callback then we want to run that instead of

@@ -75,9 +75,9 @@ function clampListItemIndentation(indent: unknown): number {
         : 0;
 }
 
-function getListItemIndentationStyle(indent: unknown): string {
+function getListItemIndentationStyle(indentation: number): string {
     return `margin-left:${
-        parseRemLengthNumber(listItemIndentation) * clampListItemIndentation(indent)
+        parseRemLengthNumber(listItemIndentation) * indentation
     }rem;padding-left:${listItemIndentation}`;
 }
 
@@ -244,11 +244,12 @@ export const ContentSchema = new Schema({
             },
             defining: true,
             toDOM: node => {
+                const indent = clampListItemIndentation(node.attrs.indent);
                 return [
                     "div",
                     {
                         class: `${listItemClassName} ${bulletListItemClassName}`,
-                        style: getListItemIndentationStyle(node.attrs.indent),
+                        style: getListItemIndentationStyle(indent),
                     },
                     0,
                 ];
@@ -267,11 +268,15 @@ export const ContentSchema = new Schema({
             },
             defining: true,
             toDOM: node => {
+                const indent = clampListItemIndentation(node.attrs.indent);
                 return [
                     "div",
                     {
                         class: `${listItemClassName} ${orderedListItemClassName}`,
-                        style: getListItemIndentationStyle(node.attrs.indent),
+                        style: getListItemIndentationStyle(indent),
+                        "data-list-indent": indent,
+                        // Should be overridden by a custom `NodeView`.
+                        "data-list-number": 0,
                     },
                     0,
                 ];
@@ -293,11 +298,12 @@ export const ContentSchema = new Schema({
             },
             defining: true,
             toDOM: node => {
+                const indent = clampListItemIndentation(node.attrs.indent);
                 return [
                     "div",
                     {
                         class: listItemClassName,
-                        style: getListItemIndentationStyle(node.attrs.indent),
+                        style: getListItemIndentationStyle(indent),
                     },
                     0,
                 ];

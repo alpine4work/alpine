@@ -1,0 +1,244 @@
+import {DOMSerializer, Node} from "prosemirror-model";
+import {NodeView} from "prosemirror-view";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule-microtask";
+import {assert} from "~/shared/helpers/control/assert";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get-or-set-default-map-value";
+
+/**
+ * Creates a node view for an `orderedListItem`. We need a custom node view so
+ * we can use JavaScript to set the ordered list item number. We can't use CSS
+ * to set the list item number because instead of having a proper `<ul>`/`<li>`
+ * nesting structure for lists, each node is included flat in the parent.
+ *
+ * After our node is added to the DOM, we set its `data-list-number` property
+ * to the correct value. We also set the `data-list-number` property for all
+ * list items that follow.
+ *
+ * Then we have a mutation observer that watches for nodes removed above a list
+ * item. If a node is removed above a list item then we may need to renumber
+ * that list. For example, if we're merging two ordered lists together.
+ */
+export function createContentOrderedListItemNodeView(node: Node): NodeView {
+    const {dom, contentDOM: contentDom} = DOMSerializer.renderSpec(
+        document,
+        node.type.spec.toDOM!(node),
+    );
+
+    assert(dom instanceof HTMLElement);
+
+    let isDestroyed = false;
+    let unobserve: (() => void) | undefined;
+
+    // Wait until ProseMirror has updated the DOM to set our list item numbers.
+    // Since we set list item numbers by reading the DOM.
+    scheduleMicrotask(() => {
+        if (isDestroyed) return;
+        assert(dom.parentNode, "Expected node DOM to be synchronously inserted");
+        setOrderedListItemNumber(dom);
+        unobserve = observeOrderListItemSiblingMutations(dom.parentNode);
+    });
+
+    return {
+        dom,
+        contentDOM: contentDom,
+        update: newNode => {
+            // Same implementation as the super-class we're overriding:
+            // https://github.com/ProseMirror/prosemirror-view/blob/facde1aea2ef79ba197e49ecab64a08a8bb14e12/src/viewdesc.ts#L795-L802
+            if (!newNode.sameMarkup(node)) return false;
+
+            node = newNode;
+            return true;
+        },
+        destroy: () => {
+            isDestroyed = true;
+            unobserve?.();
+        },
+        ignoreMutation: mutation => {
+            // Prevent infinite recursion by telling ProseMirror to ignore the mutations to
+            // the `data-list-number` attribute that we're making.
+            return mutation.type === "attributes" && mutation.attributeName === "data-list-number";
+        },
+    };
+}
+
+function parseOrderedListItemData(element: HTMLElement): {number: number; indent: number} | null {
+    if (element.dataset.listIndent === undefined || element.dataset.listNumber === undefined)
+        return null;
+
+    const indent = parseInt(element.dataset.listIndent, 10);
+    const number = parseInt(element.dataset.listNumber, 10);
+
+    return {
+        indent: !isNaN(indent) && Number.isInteger(indent) && indent >= 0 ? indent : 0,
+        number: !isNaN(number) && Number.isInteger(number) && number >= 0 ? number : 0,
+    };
+}
+
+/**
+ * If the provided node is an ordered list item, set its `data-list-number`
+ * attribute to the correct value.
+ *
+ * If `data-list-number` changed then we also update all ordered list items
+ * that follow.
+ */
+function setOrderedListItemNumber(element: HTMLElement) {
+    const listItemData = parseOrderedListItemData(element);
+    if (!listItemData) return;
+
+    // Find the previous list item. Skipping over any list items with a nested
+    // indentation.
+    let previousListItem: {element: HTMLElement; data: {number: number; indent: number}} | null = {
+        element,
+        data: listItemData,
+    };
+    do {
+        const previousElement: ChildNode | null = previousListItem.element.previousSibling;
+        if (!previousElement || !(previousElement instanceof HTMLElement)) {
+            previousListItem = null;
+            break;
+        }
+
+        const previousListItemData = parseOrderedListItemData(previousElement);
+        if (!previousListItemData) {
+            previousListItem = null;
+            break;
+        }
+
+        previousListItem = {
+            element: previousElement,
+            data: previousListItemData,
+        };
+    } while (previousListItem.data.indent > listItemData.indent);
+
+    // If the previous list item is at a lower indentation then this is the start
+    // of our numbering for the indented list.
+    if (previousListItem?.data.indent !== listItemData.indent) {
+        previousListItem = null;
+    }
+
+    const newListItemNumber = previousListItem !== null ? previousListItem.data.number + 1 : 1;
+
+    // Our list item already has the right number. We don't need to update.
+    if (newListItemNumber === listItemData.number) return;
+
+    element.dataset.listNumber = String(newListItemNumber);
+
+    // The list items following this one may have incorrect numbers. Let's
+    // fix them.
+    resetSiblingOrderedListItemNumbers(
+        listItemData.indent,
+        element.nextSibling,
+        newListItemNumber + 1,
+    );
+}
+
+function resetSiblingOrderedListItemNumbers(
+    indent: number,
+    startNode: ChildNode | null,
+    nextListItemNumber: number,
+) {
+    let nextListItemElement: ChildNode | null = startNode;
+
+    while (nextListItemElement && nextListItemElement instanceof HTMLElement) {
+        const nextListItemData = parseOrderedListItemData(nextListItemElement);
+
+        // Non-list items end the list.
+        if (!nextListItemData) break;
+
+        // A list item at a lower indentation level ends the child list.
+        if (nextListItemData.indent < indent) break;
+
+        // A list item at a higher indentation level is nested and should be
+        // skipped.
+        if (nextListItemData.indent > indent) {
+            nextListItemElement = nextListItemElement.nextSibling;
+            continue;
+        }
+
+        // If the next list item is already numbered correctly then the rest of the
+        // sequence should also be correctly numbered so we don't need to continue.
+        if (nextListItemData.indent === nextListItemNumber) break;
+
+        nextListItemElement.dataset.listNumber = String(nextListItemNumber);
+
+        nextListItemElement = nextListItemElement.nextSibling;
+        nextListItemNumber++;
+    }
+}
+
+const orderListItemSiblingObserverByParentNode = new Map<
+    ParentNode,
+    {
+        count: number;
+        disconnect: () => void;
+    }
+>();
+
+/**
+ * Watch the provided node and when nodes are removed above an ordered list
+ * item, update the numbers for the list item.
+ */
+function observeOrderListItemSiblingMutations(parentNode: ParentNode): () => void {
+    const observer = getOrSetDefaultMapValue(
+        orderListItemSiblingObserverByParentNode,
+        parentNode,
+        () => {
+            const observer = new MutationObserver(mutations => {
+                for (const mutation of mutations) {
+                    // Only consider mutations that remove a node above an element.
+                    if (
+                        mutation.type !== "childList" ||
+                        mutation.removedNodes.length === 0 ||
+                        !mutation.nextSibling
+                    ) {
+                        continue;
+                    }
+
+                    let nextListItemElement: globalThis.Node | null = mutation.nextSibling;
+                    let currentListItemIndent: number | undefined;
+
+                    while (nextListItemElement && nextListItemElement instanceof HTMLElement) {
+                        const nextListItemData = parseOrderedListItemData(nextListItemElement);
+
+                        // Non-list items end the list.
+                        if (!nextListItemData) break;
+
+                        // The first time we see a list item at a given indentation level, reset its
+                        // number in case the deleted element changed anything.
+                        if (
+                            currentListItemIndent === undefined ||
+                            nextListItemData.indent < currentListItemIndent
+                        ) {
+                            currentListItemIndent = nextListItemData.indent;
+                            setOrderedListItemNumber(nextListItemElement);
+                        }
+
+                        // Once we reach the lowest indentation level there's no other list sequence we
+                        // may need to reset.
+                        if (currentListItemIndent === 0) break;
+
+                        nextListItemElement = nextListItemElement.nextSibling;
+                    }
+                }
+            });
+
+            observer.observe(parentNode, {childList: true});
+
+            return {
+                count: 0,
+                disconnect: () => observer.disconnect(),
+            };
+        },
+    );
+
+    observer.count++;
+
+    return () => {
+        observer.count--;
+
+        if (observer.count === 0) {
+            observer.disconnect();
+            orderListItemSiblingObserverByParentNode.delete(parentNode);
+        }
+    };
+}

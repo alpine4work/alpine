@@ -39,28 +39,23 @@ export const headingLevel3ClassName = style({
     marginBottom: headerBottomMargin,
 });
 
-export const listItemIndentation = spacing["6"];
+export const quoteBlockIndentation = spacing["5"];
 
 const quoteBlockBorderWidth = "0.1875rem";
-const bulletListItemBulletSize = "0.3125rem";
 
 export const quoteBlockClassName = style({
-    // The quote block border is aligned with the list item bullet.
-    marginLeft:
-        parseRemLengthNumber(spacing["0.5"]) +
-        (parseRemLengthNumber(bulletListItemBulletSize) -
-            parseRemLengthNumber(quoteBlockBorderWidth)) /
-            2 +
-        "rem",
     paddingLeft:
-        parseRemLengthNumber(listItemIndentation) -
-        parseRemLengthNumber(spacing["0.5"]) -
-        parseRemLengthNumber(bulletListItemBulletSize) +
+        parseRemLengthNumber(quoteBlockIndentation) -
+        parseRemLengthNumber(quoteBlockBorderWidth) +
         "rem",
     borderLeftWidth: quoteBlockBorderWidth,
     borderColor: colorSchemeVars["grey-10"],
-    color: colorSchemeVars["grey-60"],
+    color: colorSchemeVars["grey-70"],
 });
+
+export const listItemIndentation = spacing["8"];
+
+const bulletListItemBulletSize = "0.3125rem";
 
 export const listItemClassName = style({
     position: "relative",
@@ -77,7 +72,10 @@ export const bulletListItemClassName = style({
             width: bulletListItemBulletSize,
             height: bulletListItemBulletSize,
             top: "0.625rem",
-            left: spacing["0.5"],
+            left:
+                parseRemLengthNumber(listItemIndentation) / 2 -
+                parseRemLengthNumber(bulletListItemBulletSize) / 2 +
+                "rem",
         },
     },
 });
@@ -85,23 +83,36 @@ export const bulletListItemClassName = style({
 export const orderedListItemClassName = style({
     selectors: {
         "&::before": {
-            content: '"1."',
+            content: 'attr(data-list-number) "."',
             position: "absolute",
             pointerEvents: "none",
-            left: 0,
+            left: spacing["6"],
+            textAlign: "right",
+            transform: "translateX(-100%)",
             ...fontScale.base,
+            fontVariantNumeric: "tabular-nums",
         },
     },
 });
 
 // Make sure the first child in our document never has top margin.
-globalStyle(`${docClassName} > *:first-child`, {marginTop: 0});
-globalStyle(`${docClassName} > ${quoteBlockClassName}:first-child > *:first-child`, {marginTop: 0});
-globalStyle(`${docClassName} > ${listItemClassName}:first-child > *:first-child`, {marginTop: 0});
+globalStyle(`${docClassName} > *:first-child`, {
+    marginTop: 0,
+});
+globalStyle(`${docClassName} > ${quoteBlockClassName}:first-child > *:first-child`, {
+    marginTop: 0,
+});
+globalStyle(`${docClassName} > ${listItemClassName}:first-child > *:first-child`, {
+    marginTop: 0,
+});
 
 // Make sure the last child in our document never has bottom margin.
-globalStyle(`${docClassName} > *:last-child`, {marginBottom: 0});
+globalStyle(`${docClassName} > *:last-child`, {
+    marginBottom: 0,
+});
 globalStyle(`${docClassName} > ${quoteBlockClassName}:last-child > *:last-child`, {
     marginBottom: 0,
 });
-globalStyle(`${docClassName} > ${listItemClassName}:last-child > *:last-child`, {marginBottom: 0});
+globalStyle(`${docClassName} > ${listItemClassName}:last-child > *:last-child`, {
+    marginBottom: 0,
+});
