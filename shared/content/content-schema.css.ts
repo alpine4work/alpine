@@ -66,7 +66,7 @@ export const quoteBlockClassName = style({
 
 export const listItemIndentation = spacing["8"];
 
-const bulletListItemBulletSize = "0.3125rem";
+const bulletListItemBulletSize = spacing["1.5"];
 
 export const listItemClassName = style({
     position: "relative",
@@ -182,6 +182,12 @@ export const checkListItemCheckboxHitAreaClassName = style({
             height: spacing["8"],
         },
     },
+});
+
+export const dividerClassName = style({
+    marginTop: headerTopMargin,
+    marginBottom: headerTopMargin,
+    borderColor: colorSchemeVars["grey-20"],
 });
 
 // Make sure the first child in our document never has top margin.

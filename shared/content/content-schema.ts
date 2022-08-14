@@ -2,6 +2,7 @@ import {Node, Schema} from "prosemirror-model";
 import {
     bulletListItemClassName,
     checkListItemCheckedClassName,
+    dividerClassName,
     headingLevel1ClassName,
     headingLevel2ClassName,
     headingLevel3ClassName,
@@ -326,7 +327,7 @@ export const ContentSchema = new Schema({
          */
         divider: {
             group: "block",
-            toDOM: () => ["hr"],
+            toDOM: () => ["hr", {class: dividerClassName}],
         },
 
         /**
