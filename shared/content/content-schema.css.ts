@@ -5,7 +5,7 @@ import {parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 
 const paragraphMargin = spacing["3"];
 
-const headerBottomMargin = spacing["2"];
+const headerBottomMargin = spacing["1"];
 const headerTopMargin = spacing["8"];
 
 export const docClassName = style({
@@ -52,6 +52,17 @@ export const quoteBlockClassName = style({
     borderColor: colorSchemeVars["grey-10"],
     color: colorSchemeVars["grey-70"],
 });
+
+// NOTE(calebmer): Ordered lists and bullet lists use the same style for all
+// levels of indentation. For example, we don't switch to letters or roman
+// numerals for ordered lists.
+//
+// I think you end up with more polished looking docs this way. The indentation
+// is enough variation to distinguish levels, a separate affordance is
+// redundant.
+//
+// In the ordered list case, numbers are easier to understand than letters or
+// roman numerals.
 
 export const listItemIndentation = spacing["8"];
 
