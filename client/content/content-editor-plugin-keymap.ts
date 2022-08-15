@@ -14,7 +14,7 @@ import {
 import {redo, undo} from "prosemirror-history";
 import {undoInputRule} from "prosemirror-inputrules";
 import {keymap} from "prosemirror-keymap";
-import {Node, NodeRange} from "prosemirror-model";
+import {Node} from "prosemirror-model";
 import {EditorState, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {isMac} from "~/client/helpers/platform/is-mac";
@@ -191,7 +191,7 @@ export function buildKeymapPlugin() {
         },
 
         // If "Backspace" is pressed at the beginning of a paragraph in a quote block
-        // the remove the quote block styling and lift the paragraph out.
+        // or list item then remove the styling and lift the paragraph out.
         //
         // For example if the cursor is at `|`:
         //
@@ -212,12 +212,25 @@ export function buildKeymapPlugin() {
             const {$from, $to} = state.selection;
             const node = $from.node();
             const parentNode = $from.node($from.depth - 1);
+            const beforeParentNode =
+                $from.depth > 1
+                    ? state.doc.resolve($from.before($from.depth - 1)).nodeBefore
+                    : null;
 
             // 1. Should be an empty paragraph text block in a quote block and the cursor
             // should be at the beginning of the block.
             const isSelectionAtFirstOffsetOfParagraphInQuoteBlock =
                 node.type === ContentSchema.nodes.paragraph &&
-                parentNode.type === ContentSchema.nodes.quoteBlock &&
+                (parentNode.type === ContentSchema.nodes.quoteBlock ||
+                    (parentNode.type.groups.includes("listItem") &&
+                        // If the previous node is a list item and we are the first paragraph in our
+                        // list item, join with the last list item instead of removing the list item
+                        // style entirely.
+                        !(
+                            beforeParentNode &&
+                            beforeParentNode.type.groups.includes("listItem") &&
+                            parentNode.firstChild === node
+                        ))) &&
                 $from.pos === $to.pos &&
                 $from.parentOffset === 0;
 
@@ -291,53 +304,6 @@ export function buildKeymapPlugin() {
                             .scrollIntoView(),
                     );
                 }
-            }
-            return true;
-        },
-
-        // If we are at the beginning of a list item and there is a preceding styled
-        // block, always delete the list item instead of merging with the above block.
-        //
-        // For example, if the cursor is at `|`:
-        //
-        // ```
-        // > foo
-        // - |bar
-        // ```
-        //
-        // Then you press backspace:
-        //
-        // ```
-        // > foo
-        // |bar
-        // ```
-        (state, dispatch) => {
-            const {$from, $to} = state.selection;
-            const node = $from.node();
-            const parentNode = $from.node($from.depth - 1);
-
-            // 1. If our cursor is at the beginning of a list item.
-            const isSelectionAtFirstOffsetOfFirstParagraphInListItem =
-                $from.pos === $to.pos &&
-                $from.parentOffset === 0 &&
-                node.type === ContentSchema.nodes.paragraph &&
-                parentNode.type.groups.includes("listItem") &&
-                parentNode.firstChild === node;
-
-            if (!isSelectionAtFirstOffsetOfFirstParagraphInListItem) return false;
-
-            // 2. Lift the list item contents outside of the list item.
-            if (dispatch) {
-                dispatch(
-                    state.tr.lift(
-                        new NodeRange(
-                            state.doc.resolve($from.pos - 1),
-                            state.doc.resolve($from.pos - 1 + parentNode.nodeSize - 2),
-                            $from.depth - 1,
-                        ),
-                        $from.depth - 2,
-                    ),
-                );
             }
             return true;
         },

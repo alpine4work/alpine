@@ -1054,13 +1054,13 @@ test("can create an ordered list in a quote block", async () => {
     expect(getDoc().toString()).toEqual("doc(quoteBlock(orderedListItem(paragraph)))");
 });
 
-test("can create a check list in a quote block", async () => {
+test("can not create a check list in a quote block", async () => {
     render(<TestContentEditor />);
 
     await simulateTyping("> ");
     await simulateTyping("[] ");
 
-    expect(getDoc().toString()).toEqual("doc(quoteBlock(checkListItem(paragraph)))");
+    expect(getDoc().toString()).toEqual('doc(quoteBlock(paragraph("[] ")))');
 });
 
 test("cannot create a divider in a quote block", async () => {
@@ -1197,11 +1197,29 @@ test("delete at the beginning of a list item removes the list item", async () =>
         'doc(bulletListItem(paragraph("foo")), bulletListItem(paragraph("bar")))',
     );
 
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(2))));
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foo"), bulletListItem(paragraph("bar")))');
+});
+
+test("delete at the beginning of a list item after another list item merges the list items", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- foo");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("bar");
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("foo")), bulletListItem(paragraph("bar")))',
+    );
+
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(9))));
 
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
-    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("foo")), paragraph("bar"))');
+    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("foo"), paragraph("bar")))');
 });
 
 test("delete at the beginning of a list item after a paragraph converts to a paragraph", async () => {
@@ -1237,11 +1255,11 @@ test("delete at the beginning of a paragraph after a list item combines the two"
     expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("foobar")))');
 });
 
-test("delete at the beginning of a floating list item paragraph unwraps the paragraph", async () => {
+test("pressing backspace in a multi-paragraph list item lifts the paragraph out of the list item", async () => {
     render(<TestContentEditor />);
 
     await simulateTyping("- foo");
-    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({}));
     await simulateTyping("bar");
 
     expect(getDoc().toString()).toEqual(
@@ -1249,6 +1267,10 @@ test("delete at the beginning of a floating list item paragraph unwraps the para
     );
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(9))));
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("foo"), paragraph("bar")))');
 
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
@@ -1273,6 +1295,12 @@ test("delete at the beginning of a floating list item paragraph inside a larger 
     );
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(9))));
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("foo"), paragraph("bar")), bulletListItem(paragraph("qux")))',
+    );
 
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
@@ -1418,7 +1446,7 @@ test("delete at the beginning of the first nested list item", async () => {
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test 1")), paragraph("test 2"), bulletListItem(indent: 1, paragraph("test 3")))',
+        'doc(bulletListItem(paragraph("test 1"), paragraph("test 2")), bulletListItem(indent: 1, paragraph("test 3")))',
     );
 });
 
@@ -1438,6 +1466,12 @@ test("delete at the beginning of the second nested list item", async () => {
     );
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(22))));
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(bulletListItem(paragraph("test 1")), bulletListItem(indent: 1, paragraph("test 2"), paragraph("test 3")))',
+    );
 
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
@@ -1469,6 +1503,12 @@ test("delete at the beginning of the second nested list item in a quote block", 
     );
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(23))));
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(quoteBlock(bulletListItem(paragraph("test 1")), bulletListItem(paragraph("test 2"), paragraph("test 3"))))',
+    );
 
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
@@ -1516,19 +1556,18 @@ test("enter in an empty nested list item of different type", async () => {
     await simulateTyping("- ");
     await simulateTyping("test 1", {eachChar: false});
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
-    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
-    await simulateTyping("[] ");
+    await simulateTyping("1. ");
     await simulateTyping("test 2", {eachChar: false});
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test 1")), checkListItem(paragraph("test 2")), checkListItem(paragraph))',
+        'doc(bulletListItem(paragraph("test 1")), orderedListItem(paragraph("test 2")), orderedListItem(paragraph))',
     );
 
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test 1")), checkListItem(paragraph("test 2")), paragraph)',
+        'doc(bulletListItem(paragraph("test 1")), orderedListItem(paragraph("test 2")), paragraph)',
     );
 });
 

@@ -245,7 +245,7 @@ export const ContentSchema = new Schema({
          */
         bulletListItem: {
             group: "block listItem simpleListItem",
-            content: "paragraph",
+            content: "paragraph+",
             attrs: {
                 indent: {default: 0},
             },
@@ -269,7 +269,7 @@ export const ContentSchema = new Schema({
          */
         orderedListItem: {
             group: "block listItem simpleListItem",
-            content: "paragraph",
+            content: "paragraph+",
             attrs: {
                 indent: {default: 0},
             },
@@ -298,7 +298,7 @@ export const ContentSchema = new Schema({
          */
         checkListItem: {
             group: "block listItem",
-            content: "paragraph",
+            content: "paragraph+",
             attrs: {
                 indent: {default: 0},
                 checked: {default: false},
