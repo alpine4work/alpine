@@ -27,7 +27,7 @@ export function buildInputRulesPlugin() {
     rules.push(wrappingInputRule(/^\s*>\s$/, ContentSchema.nodes.quoteBlock));
 
     // `- ` or `* ` creates a bullet list item
-    rules.push(listItemInputRule(/^\s*[-*]\s$/, ContentSchema.nodes.bulletListItem));
+    rules.push(listItemInputRule(/^\s*[-*]\s$/, ContentSchema.nodes.unorderedListItem));
 
     // `1. ` creates an ordered list item
     rules.push(listItemInputRule(/^\s*1\.\s$/, ContentSchema.nodes.orderedListItem));

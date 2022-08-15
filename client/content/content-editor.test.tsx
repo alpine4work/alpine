@@ -591,7 +591,7 @@ test("will create a bullet list item with `-`", async () => {
 
     await simulateTyping("- ");
 
-    expect(getDoc().toString()).toEqual("doc(bulletListItem(paragraph))");
+    expect(getDoc().toString()).toEqual("doc(unorderedListItem(paragraph))");
 });
 
 test("will create a bullet list item with `*`", async () => {
@@ -600,7 +600,7 @@ test("will create a bullet list item with `*`", async () => {
 
     await simulateTyping("* ");
 
-    expect(getDoc().toString()).toEqual("doc(bulletListItem(paragraph))");
+    expect(getDoc().toString()).toEqual("doc(unorderedListItem(paragraph))");
 });
 
 test("will create a ordered list item with `1.`", async () => {
@@ -648,7 +648,7 @@ test("will not create a divider in an unsupported location", async () => {
 
     await simulateTyping("---");
 
-    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("—-")))');
+    expect(getDoc().toString()).toEqual('doc(unorderedListItem(paragraph("—-")))');
 });
 
 test("pressing enter will create a new paragraph", () => {
@@ -741,7 +741,7 @@ test("pressing enter in an empty bullet list item will exit the item", async () 
     render(<TestContentEditor />);
 
     await simulateTyping("- ");
-    expect(getDoc().toString()).toEqual("doc(bulletListItem(paragraph))");
+    expect(getDoc().toString()).toEqual("doc(unorderedListItem(paragraph))");
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
     expect(getDoc().toString()).toEqual("doc(paragraph)");
 });
@@ -770,7 +770,7 @@ test("pressing enter in an empty list item nested in a quote will exit out", asy
     await simulateTyping("> ");
     await simulateTyping("- ");
 
-    expect(getDoc().toString()).toEqual("doc(quoteBlock(bulletListItem(paragraph)))");
+    expect(getDoc().toString()).toEqual("doc(quoteBlock(unorderedListItem(paragraph)))");
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
     expect(getDoc().toString()).toEqual("doc(quoteBlock(paragraph))");
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
@@ -833,12 +833,12 @@ test("pressing enter in the end of a bullet list item will create a new one", as
     await simulateTyping("- ");
     await simulateTyping("test");
 
-    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("test")))');
+    expect(getDoc().toString()).toEqual('doc(unorderedListItem(paragraph("test")))');
 
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test")), bulletListItem(paragraph))',
+        'doc(unorderedListItem(paragraph("test")), unorderedListItem(paragraph))',
     );
 });
 
@@ -922,14 +922,14 @@ test("pressing enter in the middle of a bullet list item will split into two lis
     await simulateTyping("- ");
     await simulateTyping("foobar");
 
-    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("foobar")))');
+    expect(getDoc().toString()).toEqual('doc(unorderedListItem(paragraph("foobar")))');
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(5))));
 
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("foo")), bulletListItem(paragraph("bar")))',
+        'doc(unorderedListItem(paragraph("foo")), unorderedListItem(paragraph("bar")))',
     );
 });
 
@@ -1042,7 +1042,7 @@ test("can create a bullet list in a quote block", async () => {
     await simulateTyping("> ");
     await simulateTyping("- ");
 
-    expect(getDoc().toString()).toEqual("doc(quoteBlock(bulletListItem(paragraph)))");
+    expect(getDoc().toString()).toEqual("doc(quoteBlock(unorderedListItem(paragraph)))");
 });
 
 test("can create an ordered list in a quote block", async () => {
@@ -1167,7 +1167,7 @@ test("list item shortcut from the beginning works", async () => {
 
     await simulateTyping("- ", {fromStart: true});
 
-    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("test")))');
+    expect(getDoc().toString()).toEqual('doc(unorderedListItem(paragraph("test")))');
 });
 
 test("delete at the beginning of a paragraph joins with the last block", async () => {
@@ -1194,14 +1194,16 @@ test("delete at the beginning of a list item removes the list item", async () =>
     await simulateTyping("bar");
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("foo")), bulletListItem(paragraph("bar")))',
+        'doc(unorderedListItem(paragraph("foo")), unorderedListItem(paragraph("bar")))',
     );
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(2))));
 
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
-    expect(getDoc().toString()).toEqual('doc(paragraph("foo"), bulletListItem(paragraph("bar")))');
+    expect(getDoc().toString()).toEqual(
+        'doc(paragraph("foo"), unorderedListItem(paragraph("bar")))',
+    );
 });
 
 test("delete at the beginning of a list item after another list item merges the list items", async () => {
@@ -1212,14 +1214,16 @@ test("delete at the beginning of a list item after another list item merges the 
     await simulateTyping("bar");
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("foo")), bulletListItem(paragraph("bar")))',
+        'doc(unorderedListItem(paragraph("foo")), unorderedListItem(paragraph("bar")))',
     );
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(9))));
 
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
-    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("foo"), paragraph("bar")))');
+    expect(getDoc().toString()).toEqual(
+        'doc(unorderedListItem(paragraph("foo"), paragraph("bar")))',
+    );
 });
 
 test("delete at the beginning of a list item after a paragraph converts to a paragraph", async () => {
@@ -1229,7 +1233,9 @@ test("delete at the beginning of a list item after a paragraph converts to a par
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
     await simulateTyping("- bar");
 
-    expect(getDoc().toString()).toEqual('doc(paragraph("foo"), bulletListItem(paragraph("bar")))');
+    expect(getDoc().toString()).toEqual(
+        'doc(paragraph("foo"), unorderedListItem(paragraph("bar")))',
+    );
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(7))));
 
@@ -1246,13 +1252,15 @@ test("delete at the beginning of a paragraph after a list item combines the two"
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
     await simulateTyping("bar");
 
-    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("foo")), paragraph("bar"))');
+    expect(getDoc().toString()).toEqual(
+        'doc(unorderedListItem(paragraph("foo")), paragraph("bar"))',
+    );
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(8))));
 
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
-    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("foobar")))');
+    expect(getDoc().toString()).toEqual('doc(unorderedListItem(paragraph("foobar")))');
 });
 
 test("pressing backspace in a multi-paragraph list item lifts the paragraph out of the list item", async () => {
@@ -1263,22 +1271,26 @@ test("pressing backspace in a multi-paragraph list item lifts the paragraph out 
     await simulateTyping("bar");
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("foo")), bulletListItem(paragraph("bar")))',
+        'doc(unorderedListItem(paragraph("foo")), unorderedListItem(paragraph("bar")))',
     );
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(9))));
 
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
-    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("foo"), paragraph("bar")))');
+    expect(getDoc().toString()).toEqual(
+        'doc(unorderedListItem(paragraph("foo"), paragraph("bar")))',
+    );
 
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
-    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("foo")), paragraph("bar"))');
+    expect(getDoc().toString()).toEqual(
+        'doc(unorderedListItem(paragraph("foo")), paragraph("bar"))',
+    );
 
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
-    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("foobar")))');
+    expect(getDoc().toString()).toEqual('doc(unorderedListItem(paragraph("foobar")))');
 });
 
 test("delete at the beginning of a floating list item paragraph inside a larger list unwraps the paragraph", async () => {
@@ -1291,7 +1303,7 @@ test("delete at the beginning of a floating list item paragraph inside a larger 
     await simulateTyping("qux");
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("foo")), bulletListItem(paragraph("bar")), bulletListItem(paragraph("qux")))',
+        'doc(unorderedListItem(paragraph("foo")), unorderedListItem(paragraph("bar")), unorderedListItem(paragraph("qux")))',
     );
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(9))));
@@ -1299,19 +1311,19 @@ test("delete at the beginning of a floating list item paragraph inside a larger 
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("foo"), paragraph("bar")), bulletListItem(paragraph("qux")))',
+        'doc(unorderedListItem(paragraph("foo"), paragraph("bar")), unorderedListItem(paragraph("qux")))',
     );
 
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("foo")), paragraph("bar"), bulletListItem(paragraph("qux")))',
+        'doc(unorderedListItem(paragraph("foo")), paragraph("bar"), unorderedListItem(paragraph("qux")))',
     );
 
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("foobar")), bulletListItem(paragraph("qux")))',
+        'doc(unorderedListItem(paragraph("foobar")), unorderedListItem(paragraph("qux")))',
     );
 });
 
@@ -1325,14 +1337,14 @@ test("tab creates a level of indentation", async () => {
     await simulateTyping("test 2", {eachChar: false});
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test 1")), bulletListItem(indent: 1, paragraph("test 2")))',
+        'doc(unorderedListItem(paragraph("test 1")), unorderedListItem(indent: 1, paragraph("test 2")))',
     );
 
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
     await simulateTyping("test 3", {eachChar: false});
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test 1")), bulletListItem(indent: 1, paragraph("test 2")), bulletListItem(indent: 1, paragraph("test 3")))',
+        'doc(unorderedListItem(paragraph("test 1")), unorderedListItem(indent: 1, paragraph("test 2")), unorderedListItem(indent: 1, paragraph("test 3")))',
     );
 });
 
@@ -1348,7 +1360,7 @@ test("shift-tab removes a level of indentation from first sub-item", async () =>
     await simulateTyping("test 3", {eachChar: false});
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test 1")), bulletListItem(indent: 1, paragraph("test 2")), bulletListItem(indent: 1, paragraph("test 3")))',
+        'doc(unorderedListItem(paragraph("test 1")), unorderedListItem(indent: 1, paragraph("test 2")), unorderedListItem(indent: 1, paragraph("test 3")))',
     );
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(12))));
@@ -1356,7 +1368,7 @@ test("shift-tab removes a level of indentation from first sub-item", async () =>
     fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test 1")), bulletListItem(paragraph("test 2")), bulletListItem(indent: 1, paragraph("test 3")))',
+        'doc(unorderedListItem(paragraph("test 1")), unorderedListItem(paragraph("test 2")), unorderedListItem(indent: 1, paragraph("test 3")))',
     );
 });
 
@@ -1372,7 +1384,7 @@ test("shift-tab removes a level of indentation from other sub-item", async () =>
     await simulateTyping("test 3", {eachChar: false});
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test 1")), bulletListItem(indent: 1, paragraph("test 2")), bulletListItem(indent: 1, paragraph("test 3")))',
+        'doc(unorderedListItem(paragraph("test 1")), unorderedListItem(indent: 1, paragraph("test 2")), unorderedListItem(indent: 1, paragraph("test 3")))',
     );
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(22))));
@@ -1380,7 +1392,7 @@ test("shift-tab removes a level of indentation from other sub-item", async () =>
     fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test 1")), bulletListItem(indent: 1, paragraph("test 2")), bulletListItem(paragraph("test 3")))',
+        'doc(unorderedListItem(paragraph("test 1")), unorderedListItem(indent: 1, paragraph("test 2")), unorderedListItem(paragraph("test 3")))',
     );
 });
 
@@ -1393,7 +1405,7 @@ test("shift-tab does not remove the first item from a list", async () => {
     await simulateTyping("test 2", {eachChar: false});
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test 1")), bulletListItem(paragraph("test 2")))',
+        'doc(unorderedListItem(paragraph("test 1")), unorderedListItem(paragraph("test 2")))',
     );
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(2))));
@@ -1401,7 +1413,7 @@ test("shift-tab does not remove the first item from a list", async () => {
     fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test 1")), bulletListItem(paragraph("test 2")))',
+        'doc(unorderedListItem(paragraph("test 1")), unorderedListItem(paragraph("test 2")))',
     );
 });
 
@@ -1414,7 +1426,7 @@ test("shift-tab removes another item from a list", async () => {
     await simulateTyping("test 2", {eachChar: false});
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test 1")), bulletListItem(paragraph("test 2")))',
+        'doc(unorderedListItem(paragraph("test 1")), unorderedListItem(paragraph("test 2")))',
     );
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(12))));
@@ -1422,7 +1434,7 @@ test("shift-tab removes another item from a list", async () => {
     fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test 1")), bulletListItem(paragraph("test 2")))',
+        'doc(unorderedListItem(paragraph("test 1")), unorderedListItem(paragraph("test 2")))',
     );
 });
 
@@ -1438,7 +1450,7 @@ test("delete at the beginning of the first nested list item", async () => {
     await simulateTyping("test 3", {eachChar: false});
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test 1")), bulletListItem(indent: 1, paragraph("test 2")), bulletListItem(indent: 1, paragraph("test 3")))',
+        'doc(unorderedListItem(paragraph("test 1")), unorderedListItem(indent: 1, paragraph("test 2")), unorderedListItem(indent: 1, paragraph("test 3")))',
     );
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(12))));
@@ -1446,7 +1458,7 @@ test("delete at the beginning of the first nested list item", async () => {
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test 1"), paragraph("test 2")), bulletListItem(indent: 1, paragraph("test 3")))',
+        'doc(unorderedListItem(paragraph("test 1"), paragraph("test 2")), unorderedListItem(indent: 1, paragraph("test 3")))',
     );
 });
 
@@ -1462,7 +1474,7 @@ test("delete at the beginning of the second nested list item", async () => {
     await simulateTyping("test 3", {eachChar: false});
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test 1")), bulletListItem(indent: 1, paragraph("test 2")), bulletListItem(indent: 1, paragraph("test 3")))',
+        'doc(unorderedListItem(paragraph("test 1")), unorderedListItem(indent: 1, paragraph("test 2")), unorderedListItem(indent: 1, paragraph("test 3")))',
     );
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(22))));
@@ -1470,19 +1482,19 @@ test("delete at the beginning of the second nested list item", async () => {
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test 1")), bulletListItem(indent: 1, paragraph("test 2"), paragraph("test 3")))',
+        'doc(unorderedListItem(paragraph("test 1")), unorderedListItem(indent: 1, paragraph("test 2"), paragraph("test 3")))',
     );
 
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test 1")), bulletListItem(indent: 1, paragraph("test 2")), paragraph("test 3"))',
+        'doc(unorderedListItem(paragraph("test 1")), unorderedListItem(indent: 1, paragraph("test 2")), paragraph("test 3"))',
     );
 
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test 1")), bulletListItem(indent: 1, paragraph("test 2test 3")))',
+        'doc(unorderedListItem(paragraph("test 1")), unorderedListItem(indent: 1, paragraph("test 2test 3")))',
     );
 });
 
@@ -1499,7 +1511,7 @@ test("delete at the beginning of the second nested list item in a quote block", 
     await simulateTyping("test 3", {eachChar: false});
 
     expect(getDoc().toString()).toEqual(
-        'doc(quoteBlock(bulletListItem(paragraph("test 1")), bulletListItem(paragraph("test 2")), bulletListItem(paragraph("test 3"))))',
+        'doc(quoteBlock(unorderedListItem(paragraph("test 1")), unorderedListItem(paragraph("test 2")), unorderedListItem(paragraph("test 3"))))',
     );
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(23))));
@@ -1507,25 +1519,25 @@ test("delete at the beginning of the second nested list item in a quote block", 
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(quoteBlock(bulletListItem(paragraph("test 1")), bulletListItem(paragraph("test 2"), paragraph("test 3"))))',
+        'doc(quoteBlock(unorderedListItem(paragraph("test 1")), unorderedListItem(paragraph("test 2"), paragraph("test 3"))))',
     );
 
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(quoteBlock(bulletListItem(paragraph("test 1")), bulletListItem(paragraph("test 2")), paragraph("test 3")))',
+        'doc(quoteBlock(unorderedListItem(paragraph("test 1")), unorderedListItem(paragraph("test 2")), paragraph("test 3")))',
     );
 
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(quoteBlock(bulletListItem(paragraph("test 1")), bulletListItem(paragraph("test 2"))), paragraph("test 3"))',
+        'doc(quoteBlock(unorderedListItem(paragraph("test 1")), unorderedListItem(paragraph("test 2"))), paragraph("test 3"))',
     );
 
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(quoteBlock(bulletListItem(paragraph("test 1")), bulletListItem(paragraph("test 2test 3"))))',
+        'doc(quoteBlock(unorderedListItem(paragraph("test 1")), unorderedListItem(paragraph("test 2test 3"))))',
     );
 });
 
@@ -1540,13 +1552,13 @@ test("enter in an empty nested list item", async () => {
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test 1")), bulletListItem(indent: 1, paragraph("test 2")), bulletListItem(indent: 1, paragraph))',
+        'doc(unorderedListItem(paragraph("test 1")), unorderedListItem(indent: 1, paragraph("test 2")), unorderedListItem(indent: 1, paragraph))',
     );
 
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test 1")), bulletListItem(indent: 1, paragraph("test 2")), paragraph)',
+        'doc(unorderedListItem(paragraph("test 1")), unorderedListItem(indent: 1, paragraph("test 2")), paragraph)',
     );
 });
 
@@ -1561,13 +1573,13 @@ test("enter in an empty nested list item of different type", async () => {
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test 1")), orderedListItem(paragraph("test 2")), orderedListItem(paragraph))',
+        'doc(unorderedListItem(paragraph("test 1")), orderedListItem(paragraph("test 2")), orderedListItem(paragraph))',
     );
 
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test 1")), orderedListItem(paragraph("test 2")), paragraph)',
+        'doc(unorderedListItem(paragraph("test 1")), orderedListItem(paragraph("test 2")), paragraph)',
     );
 });
 
@@ -1585,7 +1597,7 @@ test("enter in an empty nested list item with a following list item", async () =
     await simulateTyping("test 4", {eachChar: false});
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test 1")), bulletListItem(indent: 1, paragraph("test 2")), bulletListItem(indent: 1, paragraph("test 3")), bulletListItem(indent: 1, paragraph("test 4")))',
+        'doc(unorderedListItem(paragraph("test 1")), unorderedListItem(indent: 1, paragraph("test 2")), unorderedListItem(indent: 1, paragraph("test 3")), unorderedListItem(indent: 1, paragraph("test 4")))',
     );
 
     dispatch(state =>
@@ -1595,13 +1607,13 @@ test("enter in an empty nested list item with a following list item", async () =
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test 1")), bulletListItem(indent: 1, paragraph("test 2")), bulletListItem(indent: 1, paragraph), bulletListItem(indent: 1, paragraph("test 4")))',
+        'doc(unorderedListItem(paragraph("test 1")), unorderedListItem(indent: 1, paragraph("test 2")), unorderedListItem(indent: 1, paragraph), unorderedListItem(indent: 1, paragraph("test 4")))',
     );
 
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test 1")), bulletListItem(indent: 1, paragraph("test 2")), paragraph, bulletListItem(indent: 1, paragraph("test 4")))',
+        'doc(unorderedListItem(paragraph("test 1")), unorderedListItem(indent: 1, paragraph("test 2")), paragraph, unorderedListItem(indent: 1, paragraph("test 4")))',
     );
 });
 
@@ -1610,7 +1622,7 @@ test("enter with selection in a list item should create a new list item", async 
 
     await simulateTyping("- foobar");
 
-    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("foobar")))');
+    expect(getDoc().toString()).toEqual('doc(unorderedListItem(paragraph("foobar")))');
 
     dispatch(state =>
         state.tr.setSelection(new TextSelection(state.doc.resolve(4), state.doc.resolve(6))),
@@ -1619,7 +1631,7 @@ test("enter with selection in a list item should create a new list item", async 
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("fo")), bulletListItem(paragraph("ar")))',
+        'doc(unorderedListItem(paragraph("fo")), unorderedListItem(paragraph("ar")))',
     );
 });
 
@@ -1630,7 +1642,9 @@ test("enter with selection that starts outside a list item should not create a l
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
     await simulateTyping("- bar");
 
-    expect(getDoc().toString()).toEqual('doc(paragraph("foo"), bulletListItem(paragraph("bar")))');
+    expect(getDoc().toString()).toEqual(
+        'doc(paragraph("foo"), unorderedListItem(paragraph("bar")))',
+    );
 
     dispatch(state =>
         state.tr.setSelection(new TextSelection(state.doc.resolve(3), state.doc.resolve(8))),
@@ -1648,7 +1662,9 @@ test("enter with selection that starts outside a list item should not create a l
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
     await simulateTyping("- bar");
 
-    expect(getDoc().toString()).toEqual('doc(paragraph("foo"), bulletListItem(paragraph("bar")))');
+    expect(getDoc().toString()).toEqual(
+        'doc(paragraph("foo"), unorderedListItem(paragraph("bar")))',
+    );
 
     dispatch(state =>
         state.tr.setSelection(new TextSelection(state.doc.resolve(8), state.doc.resolve(3))),
@@ -1667,7 +1683,9 @@ test("enter with selection that starts inside a list item should create a list i
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
     await simulateTyping("bar");
 
-    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("foo")), paragraph("bar"))');
+    expect(getDoc().toString()).toEqual(
+        'doc(unorderedListItem(paragraph("foo")), paragraph("bar"))',
+    );
 
     dispatch(state =>
         state.tr.setSelection(new TextSelection(state.doc.resolve(4), state.doc.resolve(9))),
@@ -1676,7 +1694,7 @@ test("enter with selection that starts inside a list item should create a list i
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("fo")), bulletListItem(paragraph("ar")))',
+        'doc(unorderedListItem(paragraph("fo")), unorderedListItem(paragraph("ar")))',
     );
 });
 
@@ -1688,7 +1706,9 @@ test("enter with selection that starts inside a list item should create a list i
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
     await simulateTyping("bar");
 
-    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("foo")), paragraph("bar"))');
+    expect(getDoc().toString()).toEqual(
+        'doc(unorderedListItem(paragraph("foo")), paragraph("bar"))',
+    );
 
     dispatch(state =>
         state.tr.setSelection(new TextSelection(state.doc.resolve(9), state.doc.resolve(4))),
@@ -1697,7 +1717,7 @@ test("enter with selection that starts inside a list item should create a list i
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("fo")), bulletListItem(paragraph("ar")))',
+        'doc(unorderedListItem(paragraph("fo")), unorderedListItem(paragraph("ar")))',
     );
 });
 
@@ -1712,7 +1732,7 @@ test("delete when preceding list item is empty will merge into the item", async 
     await simulateTyping("qux");
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("foo")), bulletListItem(paragraph("bar")), paragraph("qux"))',
+        'doc(unorderedListItem(paragraph("foo")), unorderedListItem(paragraph("bar")), paragraph("qux"))',
     );
 
     dispatch(state =>
@@ -1722,7 +1742,7 @@ test("delete when preceding list item is empty will merge into the item", async 
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("foo")), bulletListItem(paragraph), paragraph("qux"))',
+        'doc(unorderedListItem(paragraph("foo")), unorderedListItem(paragraph), paragraph("qux"))',
     );
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(12))));
@@ -1730,7 +1750,7 @@ test("delete when preceding list item is empty will merge into the item", async 
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("foo")), bulletListItem(paragraph("qux")))',
+        'doc(unorderedListItem(paragraph("foo")), unorderedListItem(paragraph("qux")))',
     );
 });
 
@@ -1746,7 +1766,7 @@ test("delete when preceding nested list item is empty will merge into the item",
     await simulateTyping("qux");
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("foo")), bulletListItem(indent: 1, paragraph("bar")), paragraph("qux"))',
+        'doc(unorderedListItem(paragraph("foo")), unorderedListItem(indent: 1, paragraph("bar")), paragraph("qux"))',
     );
 
     dispatch(state =>
@@ -1756,7 +1776,7 @@ test("delete when preceding nested list item is empty will merge into the item",
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("foo")), bulletListItem(indent: 1, paragraph), paragraph("qux"))',
+        'doc(unorderedListItem(paragraph("foo")), unorderedListItem(indent: 1, paragraph), paragraph("qux"))',
     );
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(12))));
@@ -1764,7 +1784,7 @@ test("delete when preceding nested list item is empty will merge into the item",
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("foo")), bulletListItem(indent: 1, paragraph("qux")))',
+        'doc(unorderedListItem(paragraph("foo")), unorderedListItem(indent: 1, paragraph("qux")))',
     );
 });
 
@@ -1811,7 +1831,7 @@ test("delete when preceding list item in quote block is empty will merge into th
     await simulateTyping("qux");
 
     expect(getDoc().toString()).toEqual(
-        'doc(quoteBlock(bulletListItem(paragraph("foo")), bulletListItem(paragraph("bar"))), paragraph("qux"))',
+        'doc(quoteBlock(unorderedListItem(paragraph("foo")), unorderedListItem(paragraph("bar"))), paragraph("qux"))',
     );
 
     dispatch(state =>
@@ -1821,7 +1841,7 @@ test("delete when preceding list item in quote block is empty will merge into th
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(quoteBlock(bulletListItem(paragraph("foo")), bulletListItem(paragraph)), paragraph("qux"))',
+        'doc(quoteBlock(unorderedListItem(paragraph("foo")), unorderedListItem(paragraph)), paragraph("qux"))',
     );
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(14))));
@@ -1829,7 +1849,7 @@ test("delete when preceding list item in quote block is empty will merge into th
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(quoteBlock(bulletListItem(paragraph("foo")), bulletListItem(paragraph("qux"))))',
+        'doc(quoteBlock(unorderedListItem(paragraph("foo")), unorderedListItem(paragraph("qux"))))',
     );
 });
 
@@ -1844,7 +1864,7 @@ test("tab will indent many items at once", async () => {
     await simulateTyping("test3", {eachChar: false});
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test1")), bulletListItem(paragraph("test2")), bulletListItem(paragraph("test3")))',
+        'doc(unorderedListItem(paragraph("test1")), unorderedListItem(paragraph("test2")), unorderedListItem(paragraph("test3")))',
     );
 
     dispatch(state =>
@@ -1854,13 +1874,13 @@ test("tab will indent many items at once", async () => {
     fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")), bulletListItem(indent: 1, paragraph("test3")))',
+        'doc(unorderedListItem(paragraph("test1")), unorderedListItem(indent: 1, paragraph("test2")), unorderedListItem(indent: 1, paragraph("test3")))',
     );
 
     fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")), bulletListItem(indent: 1, paragraph("test3")))',
+        'doc(unorderedListItem(paragraph("test1")), unorderedListItem(indent: 1, paragraph("test2")), unorderedListItem(indent: 1, paragraph("test3")))',
     );
 });
 
@@ -1881,19 +1901,19 @@ test("shift-tab will dedent many items at once", async () => {
     fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")), bulletListItem(indent: 1, paragraph("test3")))',
+        'doc(unorderedListItem(paragraph("test1")), unorderedListItem(indent: 1, paragraph("test2")), unorderedListItem(indent: 1, paragraph("test3")))',
     );
 
     fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test1")), bulletListItem(paragraph("test2")), bulletListItem(paragraph("test3")))',
+        'doc(unorderedListItem(paragraph("test1")), unorderedListItem(paragraph("test2")), unorderedListItem(paragraph("test3")))',
     );
 
     fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test1")), bulletListItem(paragraph("test2")), bulletListItem(paragraph("test3")))',
+        'doc(unorderedListItem(paragraph("test1")), unorderedListItem(paragraph("test2")), unorderedListItem(paragraph("test3")))',
     );
 });
 
@@ -1909,7 +1929,7 @@ test("will not indent if non-list item is selected", async () => {
     await simulateTyping("test3", {eachChar: false});
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test1")), bulletListItem(paragraph("test2")), paragraph("test3"))',
+        'doc(unorderedListItem(paragraph("test1")), unorderedListItem(paragraph("test2")), paragraph("test3"))',
     );
 
     dispatch(state =>
@@ -1919,7 +1939,7 @@ test("will not indent if non-list item is selected", async () => {
     fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test1")), bulletListItem(paragraph("test2")), paragraph("test3"))',
+        'doc(unorderedListItem(paragraph("test1")), unorderedListItem(paragraph("test2")), paragraph("test3"))',
     );
 });
 
@@ -1936,7 +1956,7 @@ test("will not dedent if non-list item is selected", async () => {
     await simulateTyping("test3", {eachChar: false});
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")), paragraph("test3"))',
+        'doc(unorderedListItem(paragraph("test1")), unorderedListItem(indent: 1, paragraph("test2")), paragraph("test3"))',
     );
 
     dispatch(state =>
@@ -1946,7 +1966,7 @@ test("will not dedent if non-list item is selected", async () => {
     fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")), paragraph("test3"))',
+        'doc(unorderedListItem(paragraph("test1")), unorderedListItem(indent: 1, paragraph("test2")), paragraph("test3"))',
     );
 });
 
@@ -1959,7 +1979,7 @@ test("will not indent the first list item", async () => {
     await simulateTyping("test2", {eachChar: false});
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test1")), bulletListItem(paragraph("test2")))',
+        'doc(unorderedListItem(paragraph("test1")), unorderedListItem(paragraph("test2")))',
     );
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(2))));
@@ -1967,7 +1987,7 @@ test("will not indent the first list item", async () => {
     fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test1")), bulletListItem(paragraph("test2")))',
+        'doc(unorderedListItem(paragraph("test1")), unorderedListItem(paragraph("test2")))',
     );
 });
 
@@ -1980,7 +2000,7 @@ test("will not indent a list item twice", async () => {
     await simulateTyping("test2", {eachChar: false});
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test1")), bulletListItem(paragraph("test2")))',
+        'doc(unorderedListItem(paragraph("test1")), unorderedListItem(paragraph("test2")))',
     );
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(11))));
@@ -1988,13 +2008,13 @@ test("will not indent a list item twice", async () => {
     fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")))',
+        'doc(unorderedListItem(paragraph("test1")), unorderedListItem(indent: 1, paragraph("test2")))',
     );
 
     fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")))',
+        'doc(unorderedListItem(paragraph("test1")), unorderedListItem(indent: 1, paragraph("test2")))',
     );
 });
 
@@ -2019,7 +2039,7 @@ test("will indent up until one after the highest level", async () => {
     await simulateTyping("test5", {eachChar: false});
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")), bulletListItem(indent: 2, paragraph("test3")), bulletListItem(indent: 3, paragraph("test4")), bulletListItem(paragraph("test5")))',
+        'doc(unorderedListItem(paragraph("test1")), unorderedListItem(indent: 1, paragraph("test2")), unorderedListItem(indent: 2, paragraph("test3")), unorderedListItem(indent: 3, paragraph("test4")), unorderedListItem(paragraph("test5")))',
     );
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(38))));
@@ -2027,31 +2047,31 @@ test("will indent up until one after the highest level", async () => {
     fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")), bulletListItem(indent: 2, paragraph("test3")), bulletListItem(indent: 3, paragraph("test4")), bulletListItem(indent: 1, paragraph("test5")))',
+        'doc(unorderedListItem(paragraph("test1")), unorderedListItem(indent: 1, paragraph("test2")), unorderedListItem(indent: 2, paragraph("test3")), unorderedListItem(indent: 3, paragraph("test4")), unorderedListItem(indent: 1, paragraph("test5")))',
     );
 
     fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")), bulletListItem(indent: 2, paragraph("test3")), bulletListItem(indent: 3, paragraph("test4")), bulletListItem(indent: 2, paragraph("test5")))',
+        'doc(unorderedListItem(paragraph("test1")), unorderedListItem(indent: 1, paragraph("test2")), unorderedListItem(indent: 2, paragraph("test3")), unorderedListItem(indent: 3, paragraph("test4")), unorderedListItem(indent: 2, paragraph("test5")))',
     );
 
     fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")), bulletListItem(indent: 2, paragraph("test3")), bulletListItem(indent: 3, paragraph("test4")), bulletListItem(indent: 3, paragraph("test5")))',
+        'doc(unorderedListItem(paragraph("test1")), unorderedListItem(indent: 1, paragraph("test2")), unorderedListItem(indent: 2, paragraph("test3")), unorderedListItem(indent: 3, paragraph("test4")), unorderedListItem(indent: 3, paragraph("test5")))',
     );
 
     fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")), bulletListItem(indent: 2, paragraph("test3")), bulletListItem(indent: 3, paragraph("test4")), bulletListItem(indent: 4, paragraph("test5")))',
+        'doc(unorderedListItem(paragraph("test1")), unorderedListItem(indent: 1, paragraph("test2")), unorderedListItem(indent: 2, paragraph("test3")), unorderedListItem(indent: 3, paragraph("test4")), unorderedListItem(indent: 4, paragraph("test5")))',
     );
 
     fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")), bulletListItem(indent: 2, paragraph("test3")), bulletListItem(indent: 3, paragraph("test4")), bulletListItem(indent: 4, paragraph("test5")))',
+        'doc(unorderedListItem(paragraph("test1")), unorderedListItem(indent: 1, paragraph("test2")), unorderedListItem(indent: 2, paragraph("test3")), unorderedListItem(indent: 3, paragraph("test4")), unorderedListItem(indent: 4, paragraph("test5")))',
     );
 });
 
@@ -2071,7 +2091,7 @@ test("will not dedent if it would detach subsequent item", async () => {
     await simulateTyping("test4", {eachChar: false});
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")), bulletListItem(indent: 2, paragraph("test3")), bulletListItem(indent: 3, paragraph("test4")))',
+        'doc(unorderedListItem(paragraph("test1")), unorderedListItem(indent: 1, paragraph("test2")), unorderedListItem(indent: 2, paragraph("test3")), unorderedListItem(indent: 3, paragraph("test4")))',
     );
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(20))));
@@ -2079,7 +2099,7 @@ test("will not dedent if it would detach subsequent item", async () => {
     fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")), bulletListItem(indent: 2, paragraph("test3")), bulletListItem(indent: 3, paragraph("test4")))',
+        'doc(unorderedListItem(paragraph("test1")), unorderedListItem(indent: 1, paragraph("test2")), unorderedListItem(indent: 2, paragraph("test3")), unorderedListItem(indent: 3, paragraph("test4")))',
     );
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(29))));
@@ -2087,7 +2107,7 @@ test("will not dedent if it would detach subsequent item", async () => {
     fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")), bulletListItem(indent: 2, paragraph("test3")), bulletListItem(indent: 2, paragraph("test4")))',
+        'doc(unorderedListItem(paragraph("test1")), unorderedListItem(indent: 1, paragraph("test2")), unorderedListItem(indent: 2, paragraph("test3")), unorderedListItem(indent: 2, paragraph("test4")))',
     );
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(20))));
@@ -2095,7 +2115,7 @@ test("will not dedent if it would detach subsequent item", async () => {
     fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")), bulletListItem(indent: 1, paragraph("test3")), bulletListItem(indent: 2, paragraph("test4")))',
+        'doc(unorderedListItem(paragraph("test1")), unorderedListItem(indent: 1, paragraph("test2")), unorderedListItem(indent: 1, paragraph("test3")), unorderedListItem(indent: 2, paragraph("test4")))',
     );
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(20))));
@@ -2103,7 +2123,7 @@ test("will not dedent if it would detach subsequent item", async () => {
     fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")), bulletListItem(indent: 1, paragraph("test3")), bulletListItem(indent: 2, paragraph("test4")))',
+        'doc(unorderedListItem(paragraph("test1")), unorderedListItem(indent: 1, paragraph("test2")), unorderedListItem(indent: 1, paragraph("test3")), unorderedListItem(indent: 2, paragraph("test4")))',
     );
 });
 
@@ -2117,7 +2137,7 @@ test("will not dedent the last list item in a document", async () => {
     await simulateTyping("test2", {eachChar: false});
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")))',
+        'doc(unorderedListItem(paragraph("test1")), unorderedListItem(indent: 1, paragraph("test2")))',
     );
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(11))));
@@ -2125,7 +2145,7 @@ test("will not dedent the last list item in a document", async () => {
     fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test1")), bulletListItem(paragraph("test2")))',
+        'doc(unorderedListItem(paragraph("test1")), unorderedListItem(paragraph("test2")))',
     );
 });
 
@@ -2138,7 +2158,7 @@ test("will change list item type with `-`", async () => {
 
     await simulateTyping("- ");
 
-    expect(getDoc().toString()).toEqual("doc(bulletListItem(paragraph))");
+    expect(getDoc().toString()).toEqual("doc(unorderedListItem(paragraph))");
 });
 
 test("will change list item type with `*`", async () => {
@@ -2150,7 +2170,7 @@ test("will change list item type with `*`", async () => {
 
     await simulateTyping("* ");
 
-    expect(getDoc().toString()).toEqual("doc(bulletListItem(paragraph))");
+    expect(getDoc().toString()).toEqual("doc(unorderedListItem(paragraph))");
 });
 
 test("will change list item type with `1.`", async () => {
@@ -2158,7 +2178,7 @@ test("will change list item type with `1.`", async () => {
 
     await simulateTyping("- ");
 
-    expect(getDoc().toString()).toEqual("doc(bulletListItem(paragraph))");
+    expect(getDoc().toString()).toEqual("doc(unorderedListItem(paragraph))");
 
     await simulateTyping("1. ");
 
@@ -2170,7 +2190,7 @@ test("will change list item type with `[]`", async () => {
 
     await simulateTyping("- ");
 
-    expect(getDoc().toString()).toEqual("doc(bulletListItem(paragraph))");
+    expect(getDoc().toString()).toEqual("doc(unorderedListItem(paragraph))");
 
     await simulateTyping("[] ");
 
@@ -2182,7 +2202,7 @@ test("will change list item type with `[ ]`", async () => {
 
     await simulateTyping("- ");
 
-    expect(getDoc().toString()).toEqual("doc(bulletListItem(paragraph))");
+    expect(getDoc().toString()).toEqual("doc(unorderedListItem(paragraph))");
 
     await simulateTyping("[ ] ");
 
@@ -2203,7 +2223,7 @@ test("will change list item type in nested item with `-`", async () => {
     await simulateTyping("- ");
 
     expect(getDoc().toString()).toEqual(
-        'doc(orderedListItem(paragraph("test")), bulletListItem(indent: 1, paragraph))',
+        'doc(orderedListItem(paragraph("test")), unorderedListItem(indent: 1, paragraph))',
     );
 });
 
@@ -2221,7 +2241,7 @@ test("will change list item type in nested item with `*`", async () => {
     await simulateTyping("* ");
 
     expect(getDoc().toString()).toEqual(
-        'doc(orderedListItem(paragraph("test")), bulletListItem(indent: 1, paragraph))',
+        'doc(orderedListItem(paragraph("test")), unorderedListItem(indent: 1, paragraph))',
     );
 });
 
@@ -2233,13 +2253,13 @@ test("will change list item type in nested item with `1.`", async () => {
     fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test")), bulletListItem(indent: 1, paragraph))',
+        'doc(unorderedListItem(paragraph("test")), unorderedListItem(indent: 1, paragraph))',
     );
 
     await simulateTyping("1. ");
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test")), orderedListItem(indent: 1, paragraph))',
+        'doc(unorderedListItem(paragraph("test")), orderedListItem(indent: 1, paragraph))',
     );
 });
 
@@ -2251,13 +2271,13 @@ test("will change list item type in nested item with `[]`", async () => {
     fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test")), bulletListItem(indent: 1, paragraph))',
+        'doc(unorderedListItem(paragraph("test")), unorderedListItem(indent: 1, paragraph))',
     );
 
     await simulateTyping("[] ");
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test")), checkListItem(indent: 1, paragraph))',
+        'doc(unorderedListItem(paragraph("test")), checkListItem(indent: 1, paragraph))',
     );
 });
 
@@ -2269,13 +2289,13 @@ test("will change list item type in nested item with `[ ]`", async () => {
     fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test")), bulletListItem(indent: 1, paragraph))',
+        'doc(unorderedListItem(paragraph("test")), unorderedListItem(indent: 1, paragraph))',
     );
 
     await simulateTyping("[ ] ");
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test")), checkListItem(indent: 1, paragraph))',
+        'doc(unorderedListItem(paragraph("test")), checkListItem(indent: 1, paragraph))',
     );
 });
 
@@ -2628,19 +2648,19 @@ test("Cmd-] and Cmd-[ indent/dedent", async () => {
     await simulateTyping("test2");
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test1")), bulletListItem(paragraph("test2")))',
+        'doc(unorderedListItem(paragraph("test1")), unorderedListItem(paragraph("test2")))',
     );
 
     fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "]", metaKey: true}));
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test1")), bulletListItem(indent: 1, paragraph("test2")))',
+        'doc(unorderedListItem(paragraph("test1")), unorderedListItem(indent: 1, paragraph("test2")))',
     );
 
     fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "[", metaKey: true}));
 
     expect(getDoc().toString()).toEqual(
-        'doc(bulletListItem(paragraph("test1")), bulletListItem(paragraph("test2")))',
+        'doc(unorderedListItem(paragraph("test1")), unorderedListItem(paragraph("test2")))',
     );
 });
 
@@ -2993,7 +3013,7 @@ test("shift enter inside a list item creates a new line instead of a new paragra
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent({shiftKey: true}));
     await simulateTyping("bar");
 
-    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("foo", break, "bar")))');
+    expect(getDoc().toString()).toEqual('doc(unorderedListItem(paragraph("foo", break, "bar")))');
 });
 
 test("pressing enter in a quote block creates more paragraphs in the quote block", async () => {
@@ -3144,7 +3164,7 @@ test("pressing backspace at the beginning of a list item after a quote block del
     await simulateTyping("qux");
 
     expect(getDoc().toString()).toEqual(
-        'doc(quoteBlock(paragraph("foo")), bulletListItem(paragraph("bar")), bulletListItem(paragraph("qux")))',
+        'doc(quoteBlock(paragraph("foo")), unorderedListItem(paragraph("bar")), unorderedListItem(paragraph("qux")))',
     );
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(9))));
@@ -3152,7 +3172,7 @@ test("pressing backspace at the beginning of a list item after a quote block del
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(quoteBlock(paragraph("foo")), paragraph("bar"), bulletListItem(paragraph("qux")))',
+        'doc(quoteBlock(paragraph("foo")), paragraph("bar"), unorderedListItem(paragraph("qux")))',
     );
 });
 
@@ -3163,13 +3183,13 @@ test("pressing delete in an empty paragraph deletes the paragraph", async () => 
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent({}));
     await simulateTyping("- bar");
 
-    expect(getDoc().toString()).toEqual('doc(paragraph, bulletListItem(paragraph("bar")))');
+    expect(getDoc().toString()).toEqual('doc(paragraph, unorderedListItem(paragraph("bar")))');
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(1))));
 
     fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
 
-    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("bar")))');
+    expect(getDoc().toString()).toEqual('doc(unorderedListItem(paragraph("bar")))');
 });
 
 test("pressing delete in an empty heading deletes the heading", async () => {
@@ -3179,7 +3199,7 @@ test("pressing delete in an empty heading deletes the heading", async () => {
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent({}));
     await simulateTyping("- bar");
 
-    expect(getDoc().toString()).toEqual('doc(heading("foo"), bulletListItem(paragraph("bar")))');
+    expect(getDoc().toString()).toEqual('doc(heading("foo"), unorderedListItem(paragraph("bar")))');
 
     dispatch(state =>
         state.tr.setSelection(new TextSelection(state.doc.resolve(1), state.doc.resolve(4))),
@@ -3187,11 +3207,11 @@ test("pressing delete in an empty heading deletes the heading", async () => {
 
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
-    expect(getDoc().toString()).toEqual('doc(heading, bulletListItem(paragraph("bar")))');
+    expect(getDoc().toString()).toEqual('doc(heading, unorderedListItem(paragraph("bar")))');
 
     fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
 
-    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("bar")))');
+    expect(getDoc().toString()).toEqual('doc(unorderedListItem(paragraph("bar")))');
 });
 
 test("pressing delete in an empty paragraph in an empty quote block deletes the quote block", async () => {
@@ -3203,7 +3223,7 @@ test("pressing delete in an empty paragraph in an empty quote block deletes the 
     await simulateTyping("- bar");
 
     expect(getDoc().toString()).toEqual(
-        'doc(quoteBlock(paragraph("foo")), bulletListItem(paragraph("bar")))',
+        'doc(quoteBlock(paragraph("foo")), unorderedListItem(paragraph("bar")))',
     );
 
     dispatch(state =>
@@ -3213,12 +3233,12 @@ test("pressing delete in an empty paragraph in an empty quote block deletes the 
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(quoteBlock(paragraph), bulletListItem(paragraph("bar")))',
+        'doc(quoteBlock(paragraph), unorderedListItem(paragraph("bar")))',
     );
 
     fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
 
-    expect(getDoc().toString()).toEqual('doc(bulletListItem(paragraph("bar")))');
+    expect(getDoc().toString()).toEqual('doc(unorderedListItem(paragraph("bar")))');
 });
 
 test("pressing delete in an empty paragraph in a quote block deletes the quote block", async () => {
@@ -3232,7 +3252,7 @@ test("pressing delete in an empty paragraph in a quote block deletes the quote b
     await simulateTyping("- qux");
 
     expect(getDoc().toString()).toEqual(
-        'doc(quoteBlock(paragraph("foo"), paragraph("bar")), bulletListItem(paragraph("qux")))',
+        'doc(quoteBlock(paragraph("foo"), paragraph("bar")), unorderedListItem(paragraph("qux")))',
     );
 
     dispatch(state =>
@@ -3242,13 +3262,13 @@ test("pressing delete in an empty paragraph in a quote block deletes the quote b
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(quoteBlock(paragraph("foo"), paragraph), bulletListItem(paragraph("qux")))',
+        'doc(quoteBlock(paragraph("foo"), paragraph), unorderedListItem(paragraph("qux")))',
     );
 
     fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(quoteBlock(paragraph("foo")), bulletListItem(paragraph("qux")))',
+        'doc(quoteBlock(paragraph("foo")), unorderedListItem(paragraph("qux")))',
     );
 });
 
@@ -3259,7 +3279,9 @@ test("pressing delete at the end of a paragraph brings the next list item into t
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent({}));
     await simulateTyping("- bar");
 
-    expect(getDoc().toString()).toEqual('doc(paragraph("foo"), bulletListItem(paragraph("bar")))');
+    expect(getDoc().toString()).toEqual(
+        'doc(paragraph("foo"), unorderedListItem(paragraph("bar")))',
+    );
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(4))));
 
@@ -3297,7 +3319,7 @@ test("pressing delete at the end of a paragraph in a quote block brings the next
     await simulateTyping("- bar");
 
     expect(getDoc().toString()).toEqual(
-        'doc(quoteBlock(paragraph("foo")), bulletListItem(paragraph("bar")))',
+        'doc(quoteBlock(paragraph("foo")), unorderedListItem(paragraph("bar")))',
     );
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(5))));

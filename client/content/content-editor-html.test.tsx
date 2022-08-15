@@ -44,7 +44,7 @@ const blockTestCases: Array<{
     {
         name: "bullet list",
         build: content =>
-            ContentSchema.node("bulletListItem", {}, [
+            ContentSchema.node("unorderedListItem", {}, [
                 ContentSchema.node("paragraph", {}, content),
             ]),
     },
@@ -379,17 +379,17 @@ test("link with a non-HTTP scheme is blocked", () => {
 test("bullet list with multiple items", () => {
     const content = ContentSchema.node("doc", {}, [
         ContentSchema.node(
-            "bulletListItem",
+            "unorderedListItem",
             {indent: 0},
             ContentSchema.node("paragraph", {}, ContentSchema.text("Item 1")),
         ),
         ContentSchema.node(
-            "bulletListItem",
+            "unorderedListItem",
             {indent: 0},
             ContentSchema.node("paragraph", {}, ContentSchema.text("Item 2")),
         ),
         ContentSchema.node(
-            "bulletListItem",
+            "unorderedListItem",
             {indent: 0},
             ContentSchema.node("paragraph", {}, ContentSchema.text("Item 3")),
         ),
@@ -466,22 +466,22 @@ test("check list with multiple items", () => {
 test("bullet list with sub-list", () => {
     const content = ContentSchema.node("doc", {}, [
         ContentSchema.node(
-            "bulletListItem",
+            "unorderedListItem",
             {indent: 0},
             ContentSchema.node("paragraph", {}, ContentSchema.text("Test")),
         ),
         ContentSchema.node(
-            "bulletListItem",
+            "unorderedListItem",
             {indent: 1},
             ContentSchema.node("paragraph", {}, ContentSchema.text("Item 1")),
         ),
         ContentSchema.node(
-            "bulletListItem",
+            "unorderedListItem",
             {indent: 1},
             ContentSchema.node("paragraph", {}, ContentSchema.text("Item 2")),
         ),
         ContentSchema.node(
-            "bulletListItem",
+            "unorderedListItem",
             {indent: 1},
             ContentSchema.node("paragraph", {}, ContentSchema.text("Item 3")),
         ),
@@ -568,7 +568,7 @@ test("check list with sub-list", () => {
 test("bullet list with sub-list of another type", () => {
     const content = ContentSchema.node("doc", {}, [
         ContentSchema.node(
-            "bulletListItem",
+            "unorderedListItem",
             {indent: 0},
             ContentSchema.node("paragraph", {}, ContentSchema.text("Test")),
         ),
@@ -688,7 +688,7 @@ test("can put hard breaks inside paragraphs", () => {
 
 test("can put hard breaks inside list items", () => {
     const content = ContentSchema.node("doc", {}, [
-        ContentSchema.node("bulletListItem", {}, [
+        ContentSchema.node("unorderedListItem", {}, [
             ContentSchema.node("paragraph", {}, [
                 ContentSchema.text("Hello…"),
                 ContentSchema.node("break"),

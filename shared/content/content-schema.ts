@@ -33,18 +33,6 @@ import {parseRemLengthNumber} from "~/shared/design/spacing";
 
 // TODO(calebmer): Consider getting rid of `<h3>`
 
-// TODO(calebmer): Rename bullet list item to unordered list item?
-
-// TODO(calebmer): Documenting what I want to do with lists. Currently lists are
-// not using `<ul>`/`<ol>` because it's hard to get all the keyboard
-// interactions right. I've since decided that the accessibility and styling
-// wins of `<ul>`/`<ol>` outweigh the difficulties in building an editor that
-// supports lists of that form.
-//
-// `<li>` will always contain at least one paragraph and possibly more. To get
-// multiple paragraphs you press enter to create a new list item and then delete
-// while will make a second paragraph in the previous list item.
-
 // TODO(calebmer): "shift+enter" should always have the exact same behavior as
 // "enter" to have an alternative in contexts where "enter" sends a message. To
 // add a line break you need to use "alt+enter".
@@ -195,15 +183,14 @@ export const ContentSchema = new Schema({
          * drawing ASCII diagrams since all characters are of equal width. Text in a
          * code block may not have inline formatting since in the future we'll want
          * to add syntax highlighting.
-         *
-         * TODO(calebmer): Syntax highlighting for code. Allow user to pick the
-         * language.
-         *
-         * TODO(calebmer): Some nice keyboard shortcuts for code editing. For
-         * example, "newline" on a line with indentation should preserve that
-         * indentation. Another example, typing balanced characters (`(`, `{`, `[`)
-         * should add the other side.
          */
+        // TODO(calebmer): Syntax highlighting for code. Allow user to pick the
+        // language.
+
+        // TODO(calebmer): Some nice keyboard shortcuts for code editing. For
+        // example, "newline" on a line with indentation should preserve that
+        // indentation. Another example, typing balanced characters (`(`, `{`, `[`)
+        // should add the other side.
         codeBlock: {
             group: "block",
             content: "text*",
@@ -243,7 +230,7 @@ export const ContentSchema = new Schema({
         /**
          * List some things in no particular order with proper indentation.
          */
-        bulletListItem: {
+        unorderedListItem: {
             group: "block listItem simpleListItem",
             content: "paragraph+",
             attrs: {
@@ -382,11 +369,10 @@ export const ContentSchema = new Schema({
          * original text for the reader. Also great for writing jokes where you put
          * two words with roughly the same meaning but different connotations and
          * strike one out which to the reader appears as you editing yourself.
-         *
-         * TODO(calebmer): Screen readers don't announce deleted content so we
-         * need custom accessibility support. See:
-         * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/del#Accessibility_concerns
          */
+        // TODO(calebmer): Screen readers don't announce deleted content so we
+        // need custom accessibility support. See:
+        // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/del#Accessibility_concerns
         strike: {
             inclusive: false,
             toDOM: () => ["del", 0],
@@ -408,11 +394,10 @@ export const ContentSchema = new Schema({
          * assign to them whatever purpose they wish. We have a highlight color for
          * red, yellow, green, blue, and purple. We exclude orange because it is too
          * close visually to red and yellow.
-         *
-         * TODO(calebmer): Screen readers don't announce marked content so we
-         * need custom accessibility support. See:
-         * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/mark#Accessibility_concerns
          */
+        // TODO(calebmer): Screen readers don't announce marked content so we
+        // need custom accessibility support. See:
+        // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/mark#Accessibility_concerns
         highlight: {
             attrs: {
                 color: {},
@@ -437,10 +422,9 @@ export const ContentSchema = new Schema({
 
         /**
          * This is the web! You just gotta have them links.
-         *
-         * TODO(calebmer): If linking to an internal URL we should load it directly
-         * instead of opening in a new tab.
          */
+        // TODO(calebmer): If linking to an internal URL we should load it directly
+        // instead of opening in a new tab.
         link: {
             attrs: {
                 url: {},
