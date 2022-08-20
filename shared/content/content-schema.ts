@@ -416,9 +416,6 @@ export const ContentSchema = new Schema({
          * two words with roughly the same meaning but different connotations and
          * strike one out which to the reader appears as you editing yourself.
          */
-        // TODO(calebmer): Screen readers don't announce deleted content so we
-        // need custom accessibility support. See:
-        // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/del#Accessibility_concerns
         strike: {
             inclusive: false,
             toDOM: () => ["del", {class: strikeClassName}, 0],
@@ -443,9 +440,6 @@ export const ContentSchema = new Schema({
          * red, yellow, green, blue, and purple. We exclude orange because it is too
          * close visually to red and yellow.
          */
-        // TODO(calebmer): Screen readers don't announce marked content so we
-        // need custom accessibility support. See:
-        // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/mark#Accessibility_concerns
         highlight: {
             attrs: {
                 color: {},
