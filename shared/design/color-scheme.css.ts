@@ -16,6 +16,11 @@ export const darkColorSchemeSelector = ":root[data-color-scheme=dark]";
  */
 export const lightColorSchemeSelector = ":root:not([data-color-scheme=dark])";
 
+// Make sure browser UI is using the right styles. For example, text selection
+// color changes on MacOS with the color scheme.
+globalStyle(":root", {colorScheme: "light"});
+globalStyle(darkColorSchemeSelector, {colorScheme: "dark"});
+
 export const hiddenIfDarkColorSchemeClassName = style({
     selectors: {
         [`${darkColorSchemeSelector} &`]: {

@@ -1,7 +1,7 @@
 import {globalStyle, style} from "@vanilla-extract/css";
 import {colorSchemeVars} from "~/shared/design/color-scheme.css";
-import {fontScale, fontWeights} from "~/shared/design/fonts";
-import {mobileMediaQuery, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
+import {fontScale, fontWeights, monospaceFontFamily} from "~/shared/design/fonts";
+import {mobileMediaQuery, parseRemLengthNumber, remPx, spacing} from "~/shared/design/spacing";
 
 const paragraphMargin = spacing["3"];
 
@@ -185,6 +185,37 @@ export const dividerClassName = style({
     marginTop: headerTopMargin,
     marginBottom: headerTopMargin,
     borderColor: colorSchemeVars["grey-20"],
+});
+
+export const boldClassName = style({
+    fontWeight: fontWeights.bold,
+});
+
+export const italicClassName = style({
+    fontStyle: "italic",
+});
+
+export const strikeClassName = style({
+    textDecorationLine: "line-through",
+    textDecorationThickness: 1,
+});
+
+export const codeClassName = style({
+    fontFamily: monospaceFontFamily,
+    fontSize: `${(remPx.desktop - 1) / remPx.desktop}em`,
+    // The line height isn't `fontScale.base.lineHeight` because I've observed that
+    // it grows the paragraph container as a whole to a larger height than
+    // `fontScale.base.lineHeight`. But 1em seems to inherit the block element's
+    // line height?
+    lineHeight: "1em",
+    backgroundColor: colorSchemeVars["grey-5"],
+    wordWrap: "break-word",
+    boxDecorationBreak: "clone",
+    paddingTop: spacing["0.5"],
+    paddingBottom: spacing["0.5"],
+    paddingLeft: spacing["1"],
+    paddingRight: spacing["1"],
+    borderRadius: spacing["1"],
 });
 
 // Make sure the first child in our document never has top margin.

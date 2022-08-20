@@ -1,16 +1,20 @@
 import {Node, Schema} from "prosemirror-model";
 import {
+    boldClassName,
     bulletListItemClassName,
     checkListItemCheckedClassName,
+    codeClassName,
     dividerClassName,
     headingLevel1ClassName,
     headingLevel2ClassName,
     headingLevel3ClassName,
+    italicClassName,
     listItemClassName,
     listItemIndentation,
     orderedListItemClassName,
     paragraphClassName,
     quoteBlockClassName,
+    strikeClassName,
 } from "~/shared/content/content-schema.css";
 import {parseRemLengthNumber} from "~/shared/design/spacing";
 
@@ -352,7 +356,7 @@ export const ContentSchema = new Schema({
          */
         bold: {
             inclusive: false,
-            toDOM: () => ["strong", 0],
+            toDOM: () => ["strong", {class: boldClassName}, 0],
         },
 
         /**
@@ -361,7 +365,7 @@ export const ContentSchema = new Schema({
          */
         italic: {
             inclusive: false,
-            toDOM: () => ["em", 0],
+            toDOM: () => ["em", {class: italicClassName}, 0],
         },
 
         /**
@@ -375,7 +379,7 @@ export const ContentSchema = new Schema({
         // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/del#Accessibility_concerns
         strike: {
             inclusive: false,
-            toDOM: () => ["del", 0],
+            toDOM: () => ["del", {class: strikeClassName}, 0],
         },
 
         /**
@@ -385,7 +389,7 @@ export const ContentSchema = new Schema({
          */
         code: {
             inclusive: false,
-            toDOM: () => ["code", 0],
+            toDOM: () => ["code", {class: codeClassName}, 0],
         },
 
         /**
