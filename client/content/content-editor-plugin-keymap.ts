@@ -34,112 +34,113 @@ export function buildKeymapPlugin() {
     keys.set("Mod-shift-z", redo);
     keys.set("Mod-y", redo); // https://en.wikipedia.org/wiki/Control-Y
 
-    keys.set(
-        "Enter",
-        chainCommands(
-            // When in code enter creates a new line instead of creating a
-            // paragraph block.
-            newlineInCode,
+    const enterCommand: Command = chainCommands(
+        // When in code enter creates a new line instead of creating a
+        // paragraph block.
+        newlineInCode,
 
-            // If "Enter" is pressed in an empty paragraph textblock which is wrapped
-            // in another block then remove the wrapping.
-            //
-            // For example, if "Enter" is pressed in an empty quote we will convert
-            // it to a paragraph.
-            liftEmptyBlock,
+        // If "Enter" is pressed in an empty paragraph textblock which is wrapped
+        // in another block then remove the wrapping.
+        //
+        // For example, if "Enter" is pressed in an empty quote we will convert
+        // it to a paragraph.
+        liftEmptyBlock,
 
-            // If "Enter" is pressed in an empty non-paragraph textblock (like a
-            // header) then we want to convert that textblock back to a paragraph.
-            //
-            // For example, if the cursor is at `|`:
-            //
-            // ```
-            // # |
-            // ```
-            //
-            // Then you press enter:
-            //
-            // ```
-            // |
-            // ```
-            (state, dispatch) => {
-                const {$from, $to} = state.selection;
-                const node = $from.node();
+        // If "Enter" is pressed in an empty non-paragraph textblock (like a
+        // header) then we want to convert that textblock back to a paragraph.
+        //
+        // For example, if the cursor is at `|`:
+        //
+        // ```
+        // # |
+        // ```
+        //
+        // Then you press enter:
+        //
+        // ```
+        // |
+        // ```
+        (state, dispatch) => {
+            const {$from, $to} = state.selection;
+            const node = $from.node();
 
-                // 1. Should be an empty non-paragraph textblock (e.g. header).
-                if (
-                    node.isTextblock === false ||
-                    node.content.size > 0 ||
-                    node.type === ContentSchema.nodes.paragraph
-                ) {
-                    return false;
-                }
+            // 1. Should be an empty non-paragraph textblock (e.g. header).
+            if (
+                node.isTextblock === false ||
+                node.content.size > 0 ||
+                node.type === ContentSchema.nodes.paragraph
+            ) {
+                return false;
+            }
 
-                // 2. Convert the textblock to a paragraph.
-                if (dispatch) {
-                    dispatch(
-                        state.tr.setBlockType($from.pos, $to.pos, ContentSchema.nodes.paragraph),
-                    );
-                }
-                return true;
-            },
+            // 2. Convert the textblock to a paragraph.
+            if (dispatch) {
+                dispatch(state.tr.setBlockType($from.pos, $to.pos, ContentSchema.nodes.paragraph));
+            }
+            return true;
+        },
 
-            // When pressing enter in a list item we should create a new list item.
-            // The most basic version of this creates a new list item at the end
-            // of the current one.
-            //
-            // For example, if the cursor is at `|`:
-            //
-            // ```
-            // - test|
-            // ```
-            //
-            // Then you press enter:
-            //
-            // ```
-            // - test
-            // - |
-            // ```
-            (state, dispatch) => {
-                const {$from, $to} = state.selection;
+        // When pressing enter in a list item we should create a new list item.
+        // The most basic version of this creates a new list item at the end
+        // of the current one.
+        //
+        // For example, if the cursor is at `|`:
+        //
+        // ```
+        // - test|
+        // ```
+        //
+        // Then you press enter:
+        //
+        // ```
+        // - test
+        // - |
+        // ```
+        (state, dispatch) => {
+            const {$from, $to} = state.selection;
 
-                // 1. Only create a new list item if "from" is in a list item.
-                const listItemNode = $from.node(-1);
-                if (!listItemNode || !listItemNode.type.groups.includes("listItem")) {
-                    return false;
-                }
+            // 1. Only create a new list item if "from" is in a list item.
+            const listItemNode = $from.node(-1);
+            if (!listItemNode || !listItemNode.type.groups.includes("listItem")) {
+                return false;
+            }
 
-                // 2. Inherit only indentation from the current list item.
-                const types = [
-                    {
-                        type: listItemNode.type,
-                        attrs: {indent: listItemNode.attrs.indent},
-                    },
-                ];
+            // 2. Inherit only indentation from the current list item.
+            const types = [
+                {
+                    type: listItemNode.type,
+                    attrs: {indent: listItemNode.attrs.indent},
+                },
+            ];
 
-                // 3. Delete the current selection when creating a list item.
-                if (dispatch) {
-                    dispatch(
-                        state.tr
-                            .delete($from.pos, $to.pos)
-                            .split($from.pos, 2, types)
-                            .scrollIntoView(),
-                    );
-                }
-                return true;
-            },
+            // 3. Delete the current selection when creating a list item.
+            if (dispatch) {
+                dispatch(
+                    state.tr.delete($from.pos, $to.pos).split($from.pos, 2, types).scrollIntoView(),
+                );
+            }
+            return true;
+        },
 
-            // Create a new node by splitting the current block at the cursor. If the
-            // cursor is at the end of the block this will simply create a new block.
-            // If the cursor is in the middle of the block it will split the block
-            // in two.
-            splitBlock,
-        ),
+        // Create a new node by splitting the current block at the cursor. If the
+        // cursor is at the end of the block this will simply create a new block.
+        // If the cursor is in the middle of the block it will split the block
+        // in two.
+        splitBlock,
     );
 
-    // Pressing shift+enter creates a hard break (aka a new line). You can use
-    // shift+enter to create a list item with multiple lines, for instance.
-    const shiftEnterCommand: Command = (state, dispatch) => {
+    // Enter and Shift-Enter do the same thing. That's because in some contexts
+    // enter will send a message being composed by the content editor. If the
+    // user wants to insert more lines, they can use Shift-Enter to avoid
+    // sending the message.
+    //
+    // To insert single lines you may use Alt-Enter or Ctrl-Enter.
+    keys.set("Enter", enterCommand);
+    keys.set("Shift-Enter", enterCommand);
+
+    // Pressing alt+enter creates a hard break (aka a new line). You can use
+    // alt+enter to create a list item with multiple lines, for instance.
+    const altEnterCommand: Command = (state, dispatch) => {
         if (dispatch) {
             dispatch(
                 state.tr.replaceSelectionWith(ContentSchema.nodes.break.create()).scrollIntoView(),
@@ -148,7 +149,8 @@ export function buildKeymapPlugin() {
         return true;
     };
 
-    keys.set("Shift-Enter", shiftEnterCommand);
+    keys.set("Alt-Enter", altEnterCommand);
+    keys.set("Ctrl-Enter", altEnterCommand);
 
     const backspaceCommand: Command = chainCommands(
         // This one is simple. If there is a selection, delete it. If the
@@ -652,7 +654,6 @@ export function buildKeymapPlugin() {
         keys.set("Alt-Delete", deleteCommand);
         keys.set("Ctrl-h", backspaceCommand);
         keys.set("Ctrl-d", deleteCommand);
-        keys.set("Ctrl-Enter", shiftEnterCommand);
     }
 
     // TODO(calebmer): Cmd+K to add a link to text. We need to build the link

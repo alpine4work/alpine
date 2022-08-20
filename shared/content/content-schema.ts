@@ -24,23 +24,8 @@ import {parseRemLengthNumber} from "~/shared/design/spacing";
 
 // TODO(calebmer): Styles for all the content things! Haven't finished:
 //
-// - Heading (no font?)
 // - Code block
-// - Unordered list
-// - Ordered list
-// - Check list
-// - Strike
-// - Inline code
 // - Highlight
-// - Link
-// - Quote block
-// - Divider
-
-// TODO(calebmer): Consider getting rid of `<h3>`
-
-// TODO(calebmer): "shift+enter" should always have the exact same behavior as
-// "enter" to have an alternative in contexts where "enter" sends a message. To
-// add a line break you need to use "alt+enter".
 
 // TODO(calebmer): Consider including custom hero header images using abstract
 // line art. Like from these sets:

@@ -143,6 +143,10 @@ export const checkListItemCheckboxContainerClassName = style({
     },
 });
 
+// TODO(calebmer): Come back to this when we design task check boxes. Also add
+// a nice animation or something when checked. I'm a little skeptical a circle
+// is the right design. Checkboxes are typically squares. See:
+// http://danieldelaney.net/checkboxes/
 export const checkListItemCheckboxClassName = style({
     borderRadius: "100%",
     width: checkListItemCheckboxDesktopSize,
@@ -173,7 +177,7 @@ export const checkListItemCheckboxPressedClassName = style({
     color: colorSchemeVars["grey-90"],
     borderColor: colorSchemeVars["grey-90"],
     selectors: {
-        [`${checkListItemCheckedClassName} > &`]: {
+        [`${checkListItemCheckedClassName} &`]: {
             backgroundColor: colorSchemeVars["theme-60-const"],
             color: colorSchemeVars["grey-0-const"],
             borderColor: colorSchemeVars["theme-60-const"],
@@ -219,6 +223,8 @@ export const codeClassName = style({
 });
 
 export const linkClassName = style({
+    // Links use a pointer cursor. See:
+    // https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
     cursor: "pointer",
     color: colorSchemeVars["theme-60"],
     textDecorationLine: "underline",
