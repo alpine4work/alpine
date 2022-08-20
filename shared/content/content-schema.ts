@@ -9,6 +9,7 @@ import {
     headingLevel2ClassName,
     headingLevel3ClassName,
     italicClassName,
+    linkClassName,
     listItemClassName,
     listItemIndentation,
     orderedListItemClassName,
@@ -429,6 +430,8 @@ export const ContentSchema = new Schema({
          */
         // TODO(calebmer): If linking to an internal URL we should load it directly
         // instead of opening in a new tab.
+
+        // TODO(calebmer): On select or hover show URL in an overlay?
         link: {
             attrs: {
                 url: {},
@@ -448,6 +451,7 @@ export const ContentSchema = new Schema({
                 return [
                     "a",
                     {
+                        class: linkClassName,
                         // Open link in a new tab.
                         target: "_blank",
                         // Important security measure. See:

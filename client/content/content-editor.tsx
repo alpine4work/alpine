@@ -24,6 +24,7 @@ import {
 import {docClassName} from "~/shared/content/content-schema.css";
 import {assert} from "~/shared/helpers/control/assert";
 import {Id, generateId} from "~/shared/id/id";
+import {createContentLinkNodeView} from "~/client/content/create-content-link-node-view";
 
 declare module "prosemirror-model" {
     // Augment `NodeType` with the undocumented `groups` array.
@@ -361,6 +362,7 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
             nodeViews: {
                 orderedListItem: createContentOrderedListItemNodeView,
                 checkListItem: createContentCheckListItemNodeView,
+                link: createContentLinkNodeView,
             },
 
             handlePaste: handleLinkPaste,

@@ -218,6 +218,13 @@ export const codeClassName = style({
     borderRadius: spacing["1"],
 });
 
+export const linkClassName = style({
+    cursor: "pointer",
+    color: colorSchemeVars["theme-60"],
+    textDecorationLine: "underline",
+    textDecorationThickness: 1,
+});
+
 // Make sure the first child in our document never has top margin.
 const firstChildSelectors = [
     `${docClassName} > *:first-child`,

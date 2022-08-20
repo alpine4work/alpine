@@ -50,6 +50,9 @@ function IconButton(
                         backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
                         borderRadius: "full",
                         color: isPressed ? "grey-90" : "grey-70",
+                        // You may notice our button doesn't have a pointer cursor. See:
+                        // https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
+                        cursor: "default",
                     })}
                 >
                     <IconContext.Provider
