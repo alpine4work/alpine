@@ -48,6 +48,7 @@
         "strict": true,
         "noUncheckedIndexedAccess": true,
         "noPropertyAccessFromIndexSignature": false,
+        "noImplicitOverride": true,
         "allowJs": true,
         "skipLibCheck": true,
         "types": ["jest"]

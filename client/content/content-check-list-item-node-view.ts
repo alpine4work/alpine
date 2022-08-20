@@ -28,6 +28,8 @@ export function createContentCheckListItemNodeView(
     dom.appendChild(contentDom);
     contentDom.className = checkListItemContentClassName;
 
+    let isPointerDownAndNotPointerOut = false;
+
     checkboxContainerDom.addEventListener("pointerdown", event => {
         if (event.button !== 0) return;
 
@@ -37,12 +39,15 @@ export function createContentCheckListItemNodeView(
         event.preventDefault();
         event.stopPropagation();
 
+        isPointerDownAndNotPointerOut = true;
         checkboxDom.classList.add(checkListItemCheckboxPressedClassName);
     });
 
     checkboxContainerDom.addEventListener("pointerup", event => {
         if (event.button !== 0) return;
 
+        if (!isPointerDownAndNotPointerOut) return;
+        isPointerDownAndNotPointerOut = false;
         checkboxDom.classList.remove(checkListItemCheckboxPressedClassName);
 
         view.dispatch(
@@ -56,6 +61,7 @@ export function createContentCheckListItemNodeView(
     // If the user presses and moves their pointer off of the element then the
     // `pointerout` event is fired.
     checkboxContainerDom.addEventListener("pointerout", () => {
+        isPointerDownAndNotPointerOut = false;
         checkboxDom.classList.remove(checkListItemCheckboxPressedClassName);
     });
 

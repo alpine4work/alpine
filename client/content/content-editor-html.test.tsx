@@ -1,7 +1,7 @@
-import {render, screen} from "@testing-library/react";
+import {fireEvent, render, screen} from "@testing-library/react";
 import {Mark, Node} from "prosemirror-model";
-import React from "react";
-import {ContentEditor, ContentEditorState} from "~/client/content/content-editor";
+import React, {useState} from "react";
+import {ContentEditor, ContentEditorState, getEditorForTest} from "~/client/content/content-editor";
 import {ContentSchema} from "~/shared/content/content-schema";
 
 const blockTestCases: Array<{
@@ -77,6 +77,7 @@ const blockTestCases: Array<{
 
 const inlineTestCases: Array<{
     name: string;
+    disableClipboardTests?: boolean;
     build: () => Mark;
 }> = [
     {
@@ -101,10 +102,11 @@ const inlineTestCases: Array<{
     },
     {
         name: "link",
-        build: () => ContentSchema.mark("link", {url: "https://example.com"}),
+        build: () => ContentSchema.mark("link", {url: "https://example.com/"}),
     },
     {
         name: "link (XSS vulnerability)",
+        disableClipboardTests: true,
         build: () => ContentSchema.mark("link", {url: "javascript:alert('XSS')"}), // eslint-disable-line no-script-url
     },
 ];
@@ -125,6 +127,8 @@ for (const blockTestCase of blockTestCases) {
         if (blockTestCase.disableContentTests) {
             expect(screen.getByRole("textbox")).toMatchSnapshot();
         }
+
+        expectClipboardRoundtripToWork();
     });
 
     if (blockTestCase.disableContentTests) {
@@ -145,6 +149,8 @@ for (const blockTestCase of blockTestCases) {
 
         expect(screen.getByRole("textbox")).toHaveTextContent("Hello world!");
         expect(screen.getByRole("textbox")).toMatchSnapshot();
+
+        expectClipboardRoundtripToWork();
     });
 
     if (blockTestCase.disableInlineTests) {
@@ -169,6 +175,10 @@ for (const blockTestCase of blockTestCases) {
             );
 
             expect(screen.getByRole("textbox")).toHaveTextContent("Hello world!");
+
+            if (!inlineTestCase.disableClipboardTests) {
+                expectClipboardRoundtripToWork();
+            }
         });
     }
 }
@@ -192,10 +202,54 @@ for (const inlineTestCase of inlineTestCases) {
 
         expect(screen.getByRole("textbox")).toHaveTextContent("Hello world!");
         expect(screen.getByRole("textbox")).toMatchSnapshot();
+
+        if (!inlineTestCase.disableClipboardTests) {
+            expectClipboardRoundtripToWork();
+        }
     });
 }
 
-test.only("heading cannot have a level lower than 1", () => {
+function expectClipboardRoundtripToWork() {
+    // eslint-disable-next-line testing-library/no-node-access
+    const editor = getEditorForTest(screen.getByRole("textbox").parentNode);
+
+    const copiedDoc = editor.state.doc;
+    const copiedFragment = editor.props.clipboardSerializer!.serializeFragment(copiedDoc.content);
+    const copiedElement = document.createElement("div");
+    copiedElement.appendChild(copiedFragment);
+    const copiedHtml = copiedElement.innerHTML;
+
+    expect(copiedElement).toMatchSnapshot("clipboard");
+
+    function TestContentEditor() {
+        const [state, setState] = useState(() => ContentEditorState.create());
+        return <ContentEditor aria-label="Test" state={state} onChange={setState} />;
+    }
+
+    const {container, unmount} = render(<TestContentEditor />);
+
+    // eslint-disable-next-line testing-library/no-node-access
+    fireEvent.paste(container.firstElementChild!.firstElementChild!, {
+        clipboardData: {
+            getData: (type: string) => {
+                return type === "text/html" ? copiedHtml : null;
+            },
+        },
+    });
+
+    // eslint-disable-next-line testing-library/no-node-access
+    const pastedDoc = getEditorForTest(container.firstElementChild!).state.doc;
+
+    expect(pastedDoc.toString()).toEqual(copiedDoc.toString());
+
+    // The string representation of a doc doesn't include all attributes. So do a
+    // full JSON equality test as well.
+    expect(pastedDoc.toJSON()).toEqual(copiedDoc.toJSON());
+
+    unmount();
+}
+
+test("heading cannot have a level lower than 1", () => {
     const {rerender} = render(
         <ContentEditor
             aria-label="Test"
@@ -403,6 +457,8 @@ test("bullet list with multiple items", () => {
     );
 
     expect(screen.getByRole("textbox")).toMatchSnapshot();
+
+    expectClipboardRoundtripToWork();
 });
 
 test("ordered list with multiple items", () => {
@@ -432,6 +488,8 @@ test("ordered list with multiple items", () => {
     );
 
     expect(screen.getByRole("textbox")).toMatchSnapshot();
+
+    expectClipboardRoundtripToWork();
 });
 
 test("check list with multiple items", () => {
@@ -461,6 +519,8 @@ test("check list with multiple items", () => {
     );
 
     expect(screen.getByRole("textbox")).toMatchSnapshot();
+
+    expectClipboardRoundtripToWork();
 });
 
 test("bullet list with sub-list", () => {
@@ -495,6 +555,8 @@ test("bullet list with sub-list", () => {
     );
 
     expect(screen.getByRole("textbox")).toMatchSnapshot();
+
+    expectClipboardRoundtripToWork();
 });
 
 test("ordered list with sub-list", () => {
@@ -529,6 +591,8 @@ test("ordered list with sub-list", () => {
     );
 
     expect(screen.getByRole("textbox")).toMatchSnapshot();
+
+    expectClipboardRoundtripToWork();
 });
 
 test("check list with sub-list", () => {
@@ -563,6 +627,8 @@ test("check list with sub-list", () => {
     );
 
     expect(screen.getByRole("textbox")).toMatchSnapshot();
+
+    expectClipboardRoundtripToWork();
 });
 
 test("bullet list with sub-list of another type", () => {
@@ -597,6 +663,8 @@ test("bullet list with sub-list of another type", () => {
     );
 
     expect(screen.getByRole("textbox")).toMatchSnapshot();
+
+    expectClipboardRoundtripToWork();
 });
 
 test("ordered list with sub-list of another type", () => {
@@ -631,6 +699,8 @@ test("ordered list with sub-list of another type", () => {
     );
 
     expect(screen.getByRole("textbox")).toMatchSnapshot();
+
+    expectClipboardRoundtripToWork();
 });
 
 test("check list with sub-list of another type", () => {
@@ -665,6 +735,8 @@ test("check list with sub-list of another type", () => {
     );
 
     expect(screen.getByRole("textbox")).toMatchSnapshot();
+
+    expectClipboardRoundtripToWork();
 });
 
 test("can put hard breaks inside paragraphs", () => {
@@ -684,6 +756,8 @@ test("can put hard breaks inside paragraphs", () => {
     );
 
     expect(screen.getByRole("textbox")).toMatchSnapshot();
+
+    expectClipboardRoundtripToWork();
 });
 
 test("can put hard breaks inside list items", () => {
@@ -705,4 +779,26 @@ test("can put hard breaks inside list items", () => {
     );
 
     expect(screen.getByRole("textbox")).toMatchSnapshot();
+
+    expectClipboardRoundtripToWork();
+});
+
+test("can put multiple paragraphs inside list items", () => {
+    const content = ContentSchema.node("doc", {}, [
+        ContentSchema.node("unorderedListItem", {}, [
+            ContentSchema.node("paragraph", {}, [ContentSchema.text("Hello…")]),
+            ContentSchema.node("paragraph", {}, [ContentSchema.text("…world!")]),
+        ]),
+    ]);
+    render(
+        <ContentEditor
+            aria-label="Test"
+            state={ContentEditorState.create(content)}
+            onChange={() => {}}
+        />,
+    );
+
+    expect(screen.getByRole("textbox")).toMatchSnapshot();
+
+    expectClipboardRoundtripToWork();
 });

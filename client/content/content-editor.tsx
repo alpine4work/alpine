@@ -5,16 +5,19 @@ import "prosemirror-view/style/prosemirror.css";
 import classNames from "classnames";
 import {collab, getVersion, receiveTransaction, sendableSteps} from "prosemirror-collab";
 import {history} from "prosemirror-history";
-import {Node} from "prosemirror-model";
+import {Node, Slice} from "prosemirror-model";
 import {EditorState, Plugin, PluginKey, Transaction} from "prosemirror-state";
 import {Step} from "prosemirror-transform";
 import {EditorView} from "prosemirror-view";
 import {Ref, forwardRef, useImperativeHandle, useLayoutEffect, useRef, useState} from "react";
 import {createContentCheckListItemNodeView} from "~/client/content/content-check-list-item-node-view";
+import {ContentDomClipboardSerializer} from "~/client/content/content-dom-clipboard-serializer";
+import {ContentDomParser} from "~/client/content/content-dom-parser";
 import {buildInputRulesPlugin} from "~/client/content/content-editor-plugin-input-rules";
 import {buildKeymapPlugin} from "~/client/content/content-editor-plugin-keymap";
 import {emptyContentEditorClassName} from "~/client/content/content-editor.css";
 import {createContentOrderedListItemNodeView} from "~/client/content/content-ordered-list-item-node-view";
+import {createContentLinkNodeView} from "~/client/content/create-content-link-node-view";
 import {isMac} from "~/client/helpers/platform/is-mac";
 import {
     ContentSchema,
@@ -24,7 +27,6 @@ import {
 import {docClassName} from "~/shared/content/content-schema.css";
 import {assert} from "~/shared/helpers/control/assert";
 import {Id, generateId} from "~/shared/id/id";
-import {createContentLinkNodeView} from "~/client/content/create-content-link-node-view";
 
 declare module "prosemirror-model" {
     // Augment `NodeType` with the undocumented `groups` array.
@@ -359,13 +361,29 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
         const editor = new EditorView(elementRef.current, {
             state: unwrap(propsRef.current.state),
 
+            domParser: ContentDomParser.fromSchema(ContentSchema),
+            clipboardSerializer: ContentDomClipboardSerializer.fromSchema(ContentSchema),
+
             nodeViews: {
                 orderedListItem: createContentOrderedListItemNodeView,
                 checkListItem: createContentCheckListItemNodeView,
                 link: createContentLinkNodeView,
             },
 
-            handlePaste: handleLinkPaste,
+            handlePaste,
+
+            // // When ProseMirror parses the DOM for pasting, it [creates a slice with
+            // // `Slice.maxOpen()`][1]. This excludes any block styles within the slice when
+            // // the slice is pasted. We'd like those styles to be included (if the content
+            // // is not just a single paragraph) while pasting so create a new slice with no
+            // // open/end depths.
+            // //
+            // // [1]: https://github.com/ProseMirror/prosemirror-model/blob/26c634ffff8ad6544fda12ed70c99f12a65959f3/src/from_dom.ts#L207
+            // transformPasted: slice =>
+            //     slice.content.childCount === 1 &&
+            //     slice.content.firstChild!.type === ContentSchema.nodes.paragraph
+            //         ? slice
+            //         : new Slice(slice.content, 0, 0),
 
             // If we have an `onEnter` callback then we want to run that instead of
             // letting ProseMirror handle an enter key press.
@@ -550,6 +568,24 @@ export function getEditorForTest(element: unknown): EditorView {
 
     assert(editor instanceof EditorView);
     return editor;
+}
+
+function handlePaste(view: EditorView, event: ClipboardEvent, slice: Slice): boolean {
+    if (handleLinkPaste(view, event)) return true;
+
+    // If we're pasting into an empty paragraph at the top level, then paste the
+    // entire slice content instead of the content determined by `Slice.maxOpen()`.
+    if (
+        view.state.selection.$from.depth === 1 &&
+        view.state.selection.$from.node().type === ContentSchema.nodes.paragraph &&
+        view.state.selection.$from.node().nodeSize === 2 &&
+        view.state.selection.$from.pos === view.state.selection.$to.pos
+    ) {
+        view.dispatch(view.state.tr.replaceSelection(new Slice(slice.content, 0, 0)));
+        return true;
+    }
+
+    return false;
 }
 
 /**

@@ -1,4 +1,4 @@
-import {Node, Schema} from "prosemirror-model";
+import {Node, ParseRule, Schema} from "prosemirror-model";
 import {
     boldClassName,
     bulletListItemClassName,
@@ -18,9 +18,7 @@ import {
     strikeClassName,
 } from "~/shared/content/content-schema.css";
 import {parseRemLengthNumber} from "~/shared/design/spacing";
-
-// TODO(calebmer): Handle paste with `fromDOM`! Change all our snapshot tests to
-// also make sure copy/paste is an exact copy.
+import {assert} from "~/shared/helpers/control/assert";
 
 // TODO(calebmer): Styles for all the content things! Haven't finished:
 //
@@ -36,11 +34,11 @@ import {parseRemLengthNumber} from "~/shared/design/spacing";
  * All the possible highlight colors for the inline style.
  */
 export enum HighlightColor {
-    Red = "Red",
-    Yellow = "Yellow",
-    Green = "Green",
-    Blue = "Blue",
-    Purple = "Purple",
+    Red = "red",
+    Yellow = "yellow",
+    Green = "green",
+    Blue = "blue",
+    Purple = "purple",
 }
 
 const highlightColorSet: ReadonlySet<HighlightColor> = new Set(Object.values(HighlightColor));
@@ -54,7 +52,7 @@ function isHighlightColor(string: string): string is HighlightColor {
  */
 export const maxListItemIndentation = 5;
 
-function clampListItemIndentation(indent: unknown): number {
+export function clampListItemIndentation(indent: unknown): number {
     return typeof indent === "number"
         ? Math.min(Math.max(0, Math.floor(indent)), maxListItemIndentation)
         : 0;
@@ -114,6 +112,7 @@ export const ContentSchema = new Schema({
             group: "block",
             content: "inline*",
             toDOM: () => ["p", {class: paragraphClassName}, 0],
+            parseDOM: [{tag: "p"}, {tag: "div"}],
         },
 
         /*
@@ -153,6 +152,12 @@ export const ContentSchema = new Schema({
                     0,
                 ];
             },
+            parseDOM: [
+                {tag: "h1", attrs: {level: 1}},
+                {tag: "h2", attrs: {level: 1}},
+                {tag: "h3", attrs: {level: 2}},
+                {tag: "h4", attrs: {level: 3}},
+            ],
         },
 
         /**
@@ -165,6 +170,7 @@ export const ContentSchema = new Schema({
             group: "block",
             content: "(paragraph | simpleListItem)+",
             toDOM: () => [`blockquote`, {class: quoteBlockClassName}, 0],
+            parseDOM: [{tag: "blockquote"}],
         },
 
         /**
@@ -188,6 +194,7 @@ export const ContentSchema = new Schema({
             defining: true,
             code: true,
             toDOM: () => ["pre", ["code", 0]],
+            parseDOM: [{tag: "pre"}],
         },
 
         // Welcome to the list items! You'll notice that we structure them
@@ -213,8 +220,6 @@ export const ContentSchema = new Schema({
 
         // TODO(calebmer): Render lists with `<ul>`/`<li>` when read-only.
 
-        // TODO(calebmer): Copy lists as `<ul>`/`<li>` if possible.
-
         // TODO(calebmer): Handle for drag-to-reorder with list items.
 
         /**
@@ -238,6 +243,7 @@ export const ContentSchema = new Schema({
                     0,
                 ];
             },
+            parseDOM: [createListItemParseRule("ul")],
             toDebugString: toDebugStringWithIndent,
         },
 
@@ -265,6 +271,7 @@ export const ContentSchema = new Schema({
                     0,
                 ];
             },
+            parseDOM: [createListItemParseRule("ol")],
             toDebugString: toDebugStringWithIndent,
         },
 
@@ -294,6 +301,35 @@ export const ContentSchema = new Schema({
                     0,
                 ];
             },
+            parseDOM: [
+                (() => {
+                    const parseRule = createListItemParseRule("ul");
+
+                    const {priority, getAttrs} = parseRule;
+                    assert(priority && getAttrs);
+
+                    return {
+                        ...parseRule,
+                        priority: priority + 1,
+                        getAttrs: node => {
+                            const attrs = getAttrs(node);
+                            if (!attrs) return false;
+
+                            if (!(node instanceof HTMLElement)) return false;
+
+                            if (
+                                node.firstElementChild &&
+                                node.firstElementChild instanceof HTMLInputElement &&
+                                node.firstElementChild.type === "checkbox"
+                            ) {
+                                return {...attrs, checked: node.firstElementChild.checked};
+                            }
+
+                            return false;
+                        },
+                    };
+                })(),
+            ],
             toDebugString: toDebugStringWithIndent,
         },
 
@@ -305,6 +341,7 @@ export const ContentSchema = new Schema({
         divider: {
             group: "block",
             toDOM: () => ["hr", {class: dividerClassName}],
+            parseDOM: [{tag: "hr"}],
         },
 
         /**
@@ -318,6 +355,7 @@ export const ContentSchema = new Schema({
             group: "inline",
             selectable: false,
             toDOM: () => ["br"],
+            parseDOM: [{tag: "br"}],
         },
     },
     marks: {
@@ -343,6 +381,23 @@ export const ContentSchema = new Schema({
         bold: {
             inclusive: false,
             toDOM: () => ["strong", {class: boldClassName}, 0],
+            parseDOM: [
+                {tag: "strong"},
+                {
+                    tag: "b",
+                    getAttrs: node => {
+                        if (typeof node === "string") return {};
+
+                        // Google Docs appears to wrap some content in a
+                        // `<b style="font-weight: normal">` element? So detect this case and don't
+                        // mark content like this as bold.
+                        if (node.style.fontWeight === "normal") return false;
+
+                        return {};
+                    },
+                },
+                {style: "font-weight=bold"},
+            ],
         },
 
         /**
@@ -352,6 +407,7 @@ export const ContentSchema = new Schema({
         italic: {
             inclusive: false,
             toDOM: () => ["em", {class: italicClassName}, 0],
+            parseDOM: [{tag: "em"}, {tag: "i"}, {style: "font-style=italic"}],
         },
 
         /**
@@ -366,6 +422,7 @@ export const ContentSchema = new Schema({
         strike: {
             inclusive: false,
             toDOM: () => ["del", {class: strikeClassName}, 0],
+            parseDOM: [{tag: "del"}],
         },
 
         /**
@@ -376,6 +433,7 @@ export const ContentSchema = new Schema({
         code: {
             inclusive: false,
             toDOM: () => ["code", {class: codeClassName}, 0],
+            parseDOM: [{tag: "code"}],
         },
 
         /**
@@ -406,8 +464,26 @@ export const ContentSchema = new Schema({
                 // eslint-disable-next-line @typescript-eslint/no-unused-expressions
                 color;
 
-                return ["mark", 0];
+                return ["mark", {"data-highlight-color": color}, 0];
             },
+            parseDOM: [
+                {
+                    tag: "mark",
+                    getAttrs: node => {
+                        const attrs: {[key: string]: unknown} = {};
+
+                        if (
+                            node instanceof HTMLElement &&
+                            node.dataset.highlightColor &&
+                            isHighlightColor(node.dataset.highlightColor)
+                        ) {
+                            attrs.color = node.dataset.highlightColor;
+                        }
+
+                        return attrs;
+                    },
+                },
+            ],
         },
 
         /**
@@ -447,6 +523,15 @@ export const ContentSchema = new Schema({
                     0,
                 ];
             },
+            parseDOM: [
+                {
+                    tag: "a",
+                    getAttrs: node => {
+                        if (!(node instanceof HTMLAnchorElement)) return false;
+                        return {url: node.href};
+                    },
+                },
+            ],
         },
     },
 });
@@ -461,6 +546,40 @@ function toDebugStringWithIndent(node: Node) {
     node.forEach(childNode => args.push(childNode.toString()));
 
     return args.length === 0 ? `${node.type.name}` : `${node.type.name}(${args.join(", ")})`;
+}
+
+function createListItemParseRule(firstListParentTagName: "ul" | "ol"): ParseRule {
+    return {
+        tag: "li",
+        priority: 50,
+        getAttrs: node => {
+            if (typeof node === "string") return false;
+
+            let parentNode = node.parentElement;
+            let indent = -1;
+            let isFirstListParent = true;
+
+            while (parentNode !== null) {
+                if (
+                    isFirstListParent &&
+                    parentNode.tagName === firstListParentTagName.toUpperCase()
+                ) {
+                    indent++;
+                    isFirstListParent = false;
+                } else if (parentNode.tagName === "UL" || parentNode.tagName === "OL") {
+                    if (isFirstListParent) {
+                        break;
+                    }
+                    indent++;
+                }
+
+                parentNode = parentNode.parentElement;
+            }
+
+            if (indent < 0) return false;
+            return {indent};
+        },
+    };
 }
 
 /**

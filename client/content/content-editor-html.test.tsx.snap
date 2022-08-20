@@ -4,11 +4,27 @@ exports[`bold 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror prose"
+  class="ProseMirror content-schema_docClassName__neu0lc0"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
+  <p
+    class="content-schema_paragraphClassName__neu0lc1"
+  >
+    Hello 
+    <strong
+      class="content-schema_boldClassName__neu0lcf"
+    >
+      world
+    </strong>
+    !
+  </p>
+</div>
+`;
+
+exports[`bold: clipboard 1`] = `
+<div>
   <p>
     Hello 
     <strong>
@@ -19,23 +35,149 @@ exports[`bold 1`] = `
 </div>
 `;
 
+exports[`bullet list bold: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <p>
+        Hello 
+        <strong>
+          world
+        </strong>
+        !
+      </p>
+    </li>
+  </ul>
+</div>
+`;
+
+exports[`bullet list code: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <p>
+        Hello 
+        <code>
+          world
+        </code>
+        !
+      </p>
+    </li>
+  </ul>
+</div>
+`;
+
+exports[`bullet list empty: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <p />
+    </li>
+  </ul>
+</div>
+`;
+
+exports[`bullet list highlight: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <p>
+        Hello 
+        <mark
+          data-highlight-color="green"
+        >
+          world
+        </mark>
+        !
+      </p>
+    </li>
+  </ul>
+</div>
+`;
+
+exports[`bullet list italic: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <p>
+        Hello 
+        <em>
+          world
+        </em>
+        !
+      </p>
+    </li>
+  </ul>
+</div>
+`;
+
+exports[`bullet list link: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <p>
+        Hello 
+        <a
+          href="https://example.com/"
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          world
+        </a>
+        !
+      </p>
+    </li>
+  </ul>
+</div>
+`;
+
 exports[`bullet list plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror prose"
+  class="ProseMirror content-schema_docClassName__neu0lc0"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <div
-    class="bullet-list-item"
-    style="margin-left:0em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6 content-schema_bulletListItemClassName__neu0lc7"
+    style="margin-left:0rem;padding-left:2rem"
   >
-    <p>
+    <p
+      class="content-schema_paragraphClassName__neu0lc1"
+    >
       Hello world!
     </p>
   </div>
+</div>
+`;
+
+exports[`bullet list plain: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <p>
+        Hello world!
+      </p>
+    </li>
+  </ul>
+</div>
+`;
+
+exports[`bullet list strike: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <p>
+        Hello 
+        <del>
+          world
+        </del>
+        !
+      </p>
+    </li>
+  </ul>
 </div>
 `;
 
@@ -43,35 +185,63 @@ exports[`bullet list with multiple items 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror prose"
+  class="ProseMirror content-schema_docClassName__neu0lc0"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <div
-    class="bullet-list-item"
-    style="margin-left:0em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6 content-schema_bulletListItemClassName__neu0lc7"
+    style="margin-left:0rem;padding-left:2rem"
   >
-    <p>
+    <p
+      class="content-schema_paragraphClassName__neu0lc1"
+    >
       Item 1
     </p>
   </div>
   <div
-    class="bullet-list-item"
-    style="margin-left:0em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6 content-schema_bulletListItemClassName__neu0lc7"
+    style="margin-left:0rem;padding-left:2rem"
   >
-    <p>
+    <p
+      class="content-schema_paragraphClassName__neu0lc1"
+    >
       Item 2
     </p>
   </div>
   <div
-    class="bullet-list-item"
-    style="margin-left:0em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6 content-schema_bulletListItemClassName__neu0lc7"
+    style="margin-left:0rem;padding-left:2rem"
   >
-    <p>
+    <p
+      class="content-schema_paragraphClassName__neu0lc1"
+    >
       Item 3
     </p>
   </div>
+</div>
+`;
+
+exports[`bullet list with multiple items: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <p>
+        Item 1
+      </p>
+    </li>
+    <li>
+      <p>
+        Item 2
+      </p>
+    </li>
+    <li>
+      <p>
+        Item 3
+      </p>
+    </li>
+  </ul>
 </div>
 `;
 
@@ -79,40 +249,48 @@ exports[`bullet list with sub-list 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror prose"
+  class="ProseMirror content-schema_docClassName__neu0lc0"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <div
-    class="bullet-list-item"
-    style="margin-left:0em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6 content-schema_bulletListItemClassName__neu0lc7"
+    style="margin-left:0rem;padding-left:2rem"
   >
-    <p>
+    <p
+      class="content-schema_paragraphClassName__neu0lc1"
+    >
       Test
     </p>
   </div>
   <div
-    class="bullet-list-item"
-    style="margin-left:1.25em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6 content-schema_bulletListItemClassName__neu0lc7"
+    style="margin-left:2rem;padding-left:2rem"
   >
-    <p>
+    <p
+      class="content-schema_paragraphClassName__neu0lc1"
+    >
       Item 1
     </p>
   </div>
   <div
-    class="bullet-list-item"
-    style="margin-left:1.25em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6 content-schema_bulletListItemClassName__neu0lc7"
+    style="margin-left:2rem;padding-left:2rem"
   >
-    <p>
+    <p
+      class="content-schema_paragraphClassName__neu0lc1"
+    >
       Item 2
     </p>
   </div>
   <div
-    class="bullet-list-item"
-    style="margin-left:1.25em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6 content-schema_bulletListItemClassName__neu0lc7"
+    style="margin-left:2rem;padding-left:2rem"
   >
-    <p>
+    <p
+      class="content-schema_paragraphClassName__neu0lc1"
+    >
       Item 3
     </p>
   </div>
@@ -123,43 +301,115 @@ exports[`bullet list with sub-list of another type 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror prose"
+  class="ProseMirror content-schema_docClassName__neu0lc0"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <div
-    class="bullet-list-item"
-    style="margin-left:0em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6 content-schema_bulletListItemClassName__neu0lc7"
+    style="margin-left:0rem;padding-left:2rem"
   >
-    <p>
+    <p
+      class="content-schema_paragraphClassName__neu0lc1"
+    >
       Test
     </p>
   </div>
   <div
-    class="ordered-list-item"
-    style="margin-left:1.25em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6 content-schema_orderedListItemClassName__neu0lc8"
+    data-list-indent="1"
+    data-list-number="0"
+    style="margin-left:2rem;padding-left:2rem"
   >
-    <p>
+    <p
+      class="content-schema_paragraphClassName__neu0lc1"
+    >
       Item 1
     </p>
   </div>
   <div
-    class="ordered-list-item"
-    style="margin-left:1.25em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6 content-schema_orderedListItemClassName__neu0lc8"
+    data-list-indent="1"
+    data-list-number="0"
+    style="margin-left:2rem;padding-left:2rem"
   >
-    <p>
+    <p
+      class="content-schema_paragraphClassName__neu0lc1"
+    >
       Item 2
     </p>
   </div>
   <div
-    class="ordered-list-item"
-    style="margin-left:1.25em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6 content-schema_orderedListItemClassName__neu0lc8"
+    data-list-indent="1"
+    data-list-number="0"
+    style="margin-left:2rem;padding-left:2rem"
   >
-    <p>
+    <p
+      class="content-schema_paragraphClassName__neu0lc1"
+    >
       Item 3
     </p>
   </div>
+</div>
+`;
+
+exports[`bullet list with sub-list of another type: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <p>
+        Test
+      </p>
+    </li>
+    <ol>
+      <li>
+        <p>
+          Item 1
+        </p>
+      </li>
+      <li>
+        <p>
+          Item 2
+        </p>
+      </li>
+      <li>
+        <p>
+          Item 3
+        </p>
+      </li>
+    </ol>
+  </ul>
+</div>
+`;
+
+exports[`bullet list with sub-list: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <p>
+        Test
+      </p>
+    </li>
+    <ul>
+      <li>
+        <p>
+          Item 1
+        </p>
+      </li>
+      <li>
+        <p>
+          Item 2
+        </p>
+      </li>
+      <li>
+        <p>
+          Item 3
+        </p>
+      </li>
+    </ul>
+  </ul>
 </div>
 `;
 
@@ -167,16 +417,18 @@ exports[`can put hard breaks inside list items 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror prose"
+  class="ProseMirror content-schema_docClassName__neu0lc0"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <div
-    class="bullet-list-item"
-    style="margin-left:0em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6 content-schema_bulletListItemClassName__neu0lc7"
+    style="margin-left:0rem;padding-left:2rem"
   >
-    <p>
+    <p
+      class="content-schema_paragraphClassName__neu0lc1"
+    >
       Hello…
       <br />
       …world!
@@ -185,15 +437,41 @@ exports[`can put hard breaks inside list items 1`] = `
 </div>
 `;
 
+exports[`can put hard breaks inside list items: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <p>
+        Hello…
+        <br />
+        …world!
+      </p>
+    </li>
+  </ul>
+</div>
+`;
+
 exports[`can put hard breaks inside paragraphs 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror prose"
+  class="ProseMirror content-schema_docClassName__neu0lc0"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
+  <p
+    class="content-schema_paragraphClassName__neu0lc1"
+  >
+    Hello…
+    <br />
+    …world!
+  </p>
+</div>
+`;
+
+exports[`can put hard breaks inside paragraphs: clipboard 1`] = `
+<div>
   <p>
     Hello…
     <br />
@@ -202,22 +480,383 @@ exports[`can put hard breaks inside paragraphs 1`] = `
 </div>
 `;
 
-exports[`check list (checked) plain 1`] = `
+exports[`can put multiple paragraphs inside list items 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror prose"
+  class="ProseMirror content-schema_docClassName__neu0lc0"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <div
-    style="margin-left:0em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6 content-schema_bulletListItemClassName__neu0lc7"
+    style="margin-left:0rem;padding-left:2rem"
   >
-    <p>
-      Hello world!
+    <p
+      class="content-schema_paragraphClassName__neu0lc1"
+    >
+      Hello…
+    </p>
+    <p
+      class="content-schema_paragraphClassName__neu0lc1"
+    >
+      …world!
     </p>
   </div>
+</div>
+`;
+
+exports[`can put multiple paragraphs inside list items: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <p>
+        Hello…
+      </p>
+      <p>
+        …world!
+      </p>
+    </li>
+  </ul>
+</div>
+`;
+
+exports[`check list (checked) bold: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <input
+        checked=""
+        disabled=""
+        type="checkbox"
+      />
+      <p>
+        Hello 
+        <strong>
+          world
+        </strong>
+        !
+      </p>
+    </li>
+  </ul>
+</div>
+`;
+
+exports[`check list (checked) code: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <input
+        checked=""
+        disabled=""
+        type="checkbox"
+      />
+      <p>
+        Hello 
+        <code>
+          world
+        </code>
+        !
+      </p>
+    </li>
+  </ul>
+</div>
+`;
+
+exports[`check list (checked) empty: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <input
+        checked=""
+        disabled=""
+        type="checkbox"
+      />
+      <p />
+    </li>
+  </ul>
+</div>
+`;
+
+exports[`check list (checked) highlight: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <input
+        checked=""
+        disabled=""
+        type="checkbox"
+      />
+      <p>
+        Hello 
+        <mark
+          data-highlight-color="green"
+        >
+          world
+        </mark>
+        !
+      </p>
+    </li>
+  </ul>
+</div>
+`;
+
+exports[`check list (checked) italic: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <input
+        checked=""
+        disabled=""
+        type="checkbox"
+      />
+      <p>
+        Hello 
+        <em>
+          world
+        </em>
+        !
+      </p>
+    </li>
+  </ul>
+</div>
+`;
+
+exports[`check list (checked) link: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <input
+        checked=""
+        disabled=""
+        type="checkbox"
+      />
+      <p>
+        Hello 
+        <a
+          href="https://example.com/"
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          world
+        </a>
+        !
+      </p>
+    </li>
+  </ul>
+</div>
+`;
+
+exports[`check list (checked) plain 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  class="ProseMirror content-schema_docClassName__neu0lc0"
+  contenteditable="true"
+  role="textbox"
+  translate="no"
+>
+  <div
+    class="content-schema_listItemClassName__neu0lc6 content-schema_checkListItemCheckedClassName__neu0lc9"
+    style="margin-left:0rem;padding-left:2rem"
+  >
+    <div
+      class="content-schema_checkListItemCheckboxContainerClassName__neu0lcb"
+    >
+      <div
+        class="content-schema_checkListItemCheckboxClassName__neu0lcc"
+      >
+        <svg
+          height="100%"
+          viewBox="0 0 256 256"
+          width="100%"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <rect
+            fill="none"
+            height="256"
+            width="256"
+          />
+          <polyline
+            fill="none"
+            points="216 72 104 184 48 128"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="24"
+          />
+        </svg>
+      </div>
+    </div>
+    <div
+      class="content-schema_checkListItemContentClassName__neu0lca"
+    >
+      <p
+        class="content-schema_paragraphClassName__neu0lc1"
+      >
+        Hello world!
+      </p>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`check list (checked) plain: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <input
+        checked=""
+        disabled=""
+        type="checkbox"
+      />
+      <p>
+        Hello world!
+      </p>
+    </li>
+  </ul>
+</div>
+`;
+
+exports[`check list (checked) strike: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <input
+        checked=""
+        disabled=""
+        type="checkbox"
+      />
+      <p>
+        Hello 
+        <del>
+          world
+        </del>
+        !
+      </p>
+    </li>
+  </ul>
+</div>
+`;
+
+exports[`check list (unchecked) bold: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <input
+        disabled=""
+        type="checkbox"
+      />
+      <p>
+        Hello 
+        <strong>
+          world
+        </strong>
+        !
+      </p>
+    </li>
+  </ul>
+</div>
+`;
+
+exports[`check list (unchecked) code: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <input
+        disabled=""
+        type="checkbox"
+      />
+      <p>
+        Hello 
+        <code>
+          world
+        </code>
+        !
+      </p>
+    </li>
+  </ul>
+</div>
+`;
+
+exports[`check list (unchecked) empty: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <input
+        disabled=""
+        type="checkbox"
+      />
+      <p />
+    </li>
+  </ul>
+</div>
+`;
+
+exports[`check list (unchecked) highlight: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <input
+        disabled=""
+        type="checkbox"
+      />
+      <p>
+        Hello 
+        <mark
+          data-highlight-color="green"
+        >
+          world
+        </mark>
+        !
+      </p>
+    </li>
+  </ul>
+</div>
+`;
+
+exports[`check list (unchecked) italic: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <input
+        disabled=""
+        type="checkbox"
+      />
+      <p>
+        Hello 
+        <em>
+          world
+        </em>
+        !
+      </p>
+    </li>
+  </ul>
+</div>
+`;
+
+exports[`check list (unchecked) link: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <input
+        disabled=""
+        type="checkbox"
+      />
+      <p>
+        Hello 
+        <a
+          href="https://example.com/"
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          world
+        </a>
+        !
+      </p>
+    </li>
+  </ul>
 </div>
 `;
 
@@ -225,18 +864,89 @@ exports[`check list (unchecked) plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror prose"
+  class="ProseMirror content-schema_docClassName__neu0lc0"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <div
-    style="margin-left:0em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6"
+    style="margin-left:0rem;padding-left:2rem"
   >
-    <p>
-      Hello world!
-    </p>
+    <div
+      class="content-schema_checkListItemCheckboxContainerClassName__neu0lcb"
+    >
+      <div
+        class="content-schema_checkListItemCheckboxClassName__neu0lcc"
+      >
+        <svg
+          height="100%"
+          viewBox="0 0 256 256"
+          width="100%"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <rect
+            fill="none"
+            height="256"
+            width="256"
+          />
+          <polyline
+            fill="none"
+            points="216 72 104 184 48 128"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="24"
+          />
+        </svg>
+      </div>
+    </div>
+    <div
+      class="content-schema_checkListItemContentClassName__neu0lca"
+    >
+      <p
+        class="content-schema_paragraphClassName__neu0lc1"
+      >
+        Hello world!
+      </p>
+    </div>
   </div>
+</div>
+`;
+
+exports[`check list (unchecked) plain: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <input
+        disabled=""
+        type="checkbox"
+      />
+      <p>
+        Hello world!
+      </p>
+    </li>
+  </ul>
+</div>
+`;
+
+exports[`check list (unchecked) strike: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <input
+        disabled=""
+        type="checkbox"
+      />
+      <p>
+        Hello 
+        <del>
+          world
+        </del>
+        !
+      </p>
+    </li>
+  </ul>
 </div>
 `;
 
@@ -244,32 +954,173 @@ exports[`check list with multiple items 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror prose"
+  class="ProseMirror content-schema_docClassName__neu0lc0"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <div
-    style="margin-left:0em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6 content-schema_checkListItemCheckedClassName__neu0lc9"
+    style="margin-left:0rem;padding-left:2rem"
   >
-    <p>
-      Item 1
-    </p>
+    <div
+      class="content-schema_checkListItemCheckboxContainerClassName__neu0lcb"
+    >
+      <div
+        class="content-schema_checkListItemCheckboxClassName__neu0lcc"
+      >
+        <svg
+          height="100%"
+          viewBox="0 0 256 256"
+          width="100%"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <rect
+            fill="none"
+            height="256"
+            width="256"
+          />
+          <polyline
+            fill="none"
+            points="216 72 104 184 48 128"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="24"
+          />
+        </svg>
+      </div>
+    </div>
+    <div
+      class="content-schema_checkListItemContentClassName__neu0lca"
+    >
+      <p
+        class="content-schema_paragraphClassName__neu0lc1"
+      >
+        Item 1
+      </p>
+    </div>
   </div>
   <div
-    style="margin-left:0em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6"
+    style="margin-left:0rem;padding-left:2rem"
   >
-    <p>
-      Item 2
-    </p>
+    <div
+      class="content-schema_checkListItemCheckboxContainerClassName__neu0lcb"
+    >
+      <div
+        class="content-schema_checkListItemCheckboxClassName__neu0lcc"
+      >
+        <svg
+          height="100%"
+          viewBox="0 0 256 256"
+          width="100%"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <rect
+            fill="none"
+            height="256"
+            width="256"
+          />
+          <polyline
+            fill="none"
+            points="216 72 104 184 48 128"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="24"
+          />
+        </svg>
+      </div>
+    </div>
+    <div
+      class="content-schema_checkListItemContentClassName__neu0lca"
+    >
+      <p
+        class="content-schema_paragraphClassName__neu0lc1"
+      >
+        Item 2
+      </p>
+    </div>
   </div>
   <div
-    style="margin-left:0em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6 content-schema_checkListItemCheckedClassName__neu0lc9"
+    style="margin-left:0rem;padding-left:2rem"
   >
-    <p>
-      Item 3
-    </p>
+    <div
+      class="content-schema_checkListItemCheckboxContainerClassName__neu0lcb"
+    >
+      <div
+        class="content-schema_checkListItemCheckboxClassName__neu0lcc"
+      >
+        <svg
+          height="100%"
+          viewBox="0 0 256 256"
+          width="100%"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <rect
+            fill="none"
+            height="256"
+            width="256"
+          />
+          <polyline
+            fill="none"
+            points="216 72 104 184 48 128"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="24"
+          />
+        </svg>
+      </div>
+    </div>
+    <div
+      class="content-schema_checkListItemContentClassName__neu0lca"
+    >
+      <p
+        class="content-schema_paragraphClassName__neu0lc1"
+      >
+        Item 3
+      </p>
+    </div>
   </div>
+</div>
+`;
+
+exports[`check list with multiple items: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <input
+        checked=""
+        disabled=""
+        type="checkbox"
+      />
+      <p>
+        Item 1
+      </p>
+    </li>
+    <li>
+      <input
+        disabled=""
+        type="checkbox"
+      />
+      <p>
+        Item 2
+      </p>
+    </li>
+    <li>
+      <input
+        checked=""
+        disabled=""
+        type="checkbox"
+      />
+      <p>
+        Item 3
+      </p>
+    </li>
+  </ul>
 </div>
 `;
 
@@ -277,38 +1128,178 @@ exports[`check list with sub-list 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror prose"
+  class="ProseMirror content-schema_docClassName__neu0lc0"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <div
-    style="margin-left:0em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6 content-schema_checkListItemCheckedClassName__neu0lc9"
+    style="margin-left:0rem;padding-left:2rem"
   >
-    <p>
-      Test
-    </p>
+    <div
+      class="content-schema_checkListItemCheckboxContainerClassName__neu0lcb"
+    >
+      <div
+        class="content-schema_checkListItemCheckboxClassName__neu0lcc"
+      >
+        <svg
+          height="100%"
+          viewBox="0 0 256 256"
+          width="100%"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <rect
+            fill="none"
+            height="256"
+            width="256"
+          />
+          <polyline
+            fill="none"
+            points="216 72 104 184 48 128"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="24"
+          />
+        </svg>
+      </div>
+    </div>
+    <div
+      class="content-schema_checkListItemContentClassName__neu0lca"
+    >
+      <p
+        class="content-schema_paragraphClassName__neu0lc1"
+      >
+        Test
+      </p>
+    </div>
   </div>
   <div
-    style="margin-left:1.25em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6 content-schema_checkListItemCheckedClassName__neu0lc9"
+    style="margin-left:2rem;padding-left:2rem"
   >
-    <p>
-      Item 1
-    </p>
+    <div
+      class="content-schema_checkListItemCheckboxContainerClassName__neu0lcb"
+    >
+      <div
+        class="content-schema_checkListItemCheckboxClassName__neu0lcc"
+      >
+        <svg
+          height="100%"
+          viewBox="0 0 256 256"
+          width="100%"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <rect
+            fill="none"
+            height="256"
+            width="256"
+          />
+          <polyline
+            fill="none"
+            points="216 72 104 184 48 128"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="24"
+          />
+        </svg>
+      </div>
+    </div>
+    <div
+      class="content-schema_checkListItemContentClassName__neu0lca"
+    >
+      <p
+        class="content-schema_paragraphClassName__neu0lc1"
+      >
+        Item 1
+      </p>
+    </div>
   </div>
   <div
-    style="margin-left:1.25em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6"
+    style="margin-left:2rem;padding-left:2rem"
   >
-    <p>
-      Item 2
-    </p>
+    <div
+      class="content-schema_checkListItemCheckboxContainerClassName__neu0lcb"
+    >
+      <div
+        class="content-schema_checkListItemCheckboxClassName__neu0lcc"
+      >
+        <svg
+          height="100%"
+          viewBox="0 0 256 256"
+          width="100%"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <rect
+            fill="none"
+            height="256"
+            width="256"
+          />
+          <polyline
+            fill="none"
+            points="216 72 104 184 48 128"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="24"
+          />
+        </svg>
+      </div>
+    </div>
+    <div
+      class="content-schema_checkListItemContentClassName__neu0lca"
+    >
+      <p
+        class="content-schema_paragraphClassName__neu0lc1"
+      >
+        Item 2
+      </p>
+    </div>
   </div>
   <div
-    style="margin-left:1.25em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6 content-schema_checkListItemCheckedClassName__neu0lc9"
+    style="margin-left:2rem;padding-left:2rem"
   >
-    <p>
-      Item 3
-    </p>
+    <div
+      class="content-schema_checkListItemCheckboxContainerClassName__neu0lcb"
+    >
+      <div
+        class="content-schema_checkListItemCheckboxClassName__neu0lcc"
+      >
+        <svg
+          height="100%"
+          viewBox="0 0 256 256"
+          width="100%"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <rect
+            fill="none"
+            height="256"
+            width="256"
+          />
+          <polyline
+            fill="none"
+            points="216 72 104 184 48 128"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="24"
+          />
+        </svg>
+      </div>
+    </div>
+    <div
+      class="content-schema_checkListItemContentClassName__neu0lca"
+    >
+      <p
+        class="content-schema_paragraphClassName__neu0lc1"
+      >
+        Item 3
+      </p>
+    </div>
   </div>
 </div>
 `;
@@ -317,42 +1308,171 @@ exports[`check list with sub-list of another type 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror prose"
+  class="ProseMirror content-schema_docClassName__neu0lc0"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <div
-    style="margin-left:0em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6 content-schema_checkListItemCheckedClassName__neu0lc9"
+    style="margin-left:0rem;padding-left:2rem"
   >
-    <p>
-      Test
-    </p>
+    <div
+      class="content-schema_checkListItemCheckboxContainerClassName__neu0lcb"
+    >
+      <div
+        class="content-schema_checkListItemCheckboxClassName__neu0lcc"
+      >
+        <svg
+          height="100%"
+          viewBox="0 0 256 256"
+          width="100%"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <rect
+            fill="none"
+            height="256"
+            width="256"
+          />
+          <polyline
+            fill="none"
+            points="216 72 104 184 48 128"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="24"
+          />
+        </svg>
+      </div>
+    </div>
+    <div
+      class="content-schema_checkListItemContentClassName__neu0lca"
+    >
+      <p
+        class="content-schema_paragraphClassName__neu0lc1"
+      >
+        Test
+      </p>
+    </div>
   </div>
   <div
-    class="ordered-list-item"
-    style="margin-left:1.25em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6 content-schema_orderedListItemClassName__neu0lc8"
+    data-list-indent="1"
+    data-list-number="0"
+    style="margin-left:2rem;padding-left:2rem"
   >
-    <p>
+    <p
+      class="content-schema_paragraphClassName__neu0lc1"
+    >
       Item 1
     </p>
   </div>
   <div
-    class="ordered-list-item"
-    style="margin-left:1.25em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6 content-schema_orderedListItemClassName__neu0lc8"
+    data-list-indent="1"
+    data-list-number="0"
+    style="margin-left:2rem;padding-left:2rem"
   >
-    <p>
+    <p
+      class="content-schema_paragraphClassName__neu0lc1"
+    >
       Item 2
     </p>
   </div>
   <div
-    class="ordered-list-item"
-    style="margin-left:1.25em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6 content-schema_orderedListItemClassName__neu0lc8"
+    data-list-indent="1"
+    data-list-number="0"
+    style="margin-left:2rem;padding-left:2rem"
   >
-    <p>
+    <p
+      class="content-schema_paragraphClassName__neu0lc1"
+    >
       Item 3
     </p>
   </div>
+</div>
+`;
+
+exports[`check list with sub-list of another type: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <input
+        checked=""
+        disabled=""
+        type="checkbox"
+      />
+      <p>
+        Test
+      </p>
+    </li>
+    <ol>
+      <li>
+        <p>
+          Item 1
+        </p>
+      </li>
+      <li>
+        <p>
+          Item 2
+        </p>
+      </li>
+      <li>
+        <p>
+          Item 3
+        </p>
+      </li>
+    </ol>
+  </ul>
+</div>
+`;
+
+exports[`check list with sub-list: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <input
+        checked=""
+        disabled=""
+        type="checkbox"
+      />
+      <p>
+        Test
+      </p>
+    </li>
+    <ul>
+      <li>
+        <input
+          checked=""
+          disabled=""
+          type="checkbox"
+        />
+        <p>
+          Item 1
+        </p>
+      </li>
+      <li>
+        <input
+          disabled=""
+          type="checkbox"
+        />
+        <p>
+          Item 2
+        </p>
+      </li>
+      <li>
+        <input
+          checked=""
+          disabled=""
+          type="checkbox"
+        />
+        <p>
+          Item 3
+        </p>
+      </li>
+    </ul>
+  </ul>
 </div>
 `;
 
@@ -360,14 +1480,18 @@ exports[`code 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror prose"
+  class="ProseMirror content-schema_docClassName__neu0lc0"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
-  <p>
+  <p
+    class="content-schema_paragraphClassName__neu0lc1"
+  >
     Hello 
-    <code>
+    <code
+      class="content-schema_codeClassName__neu0lci"
+    >
       world
     </code>
     !
@@ -375,11 +1499,19 @@ exports[`code 1`] = `
 </div>
 `;
 
+exports[`code empty: clipboard 1`] = `
+<div>
+  <pre>
+    <code />
+  </pre>
+</div>
+`;
+
 exports[`code plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror prose"
+  class="ProseMirror content-schema_docClassName__neu0lc0"
   contenteditable="true"
   role="textbox"
   translate="no"
@@ -392,16 +1524,118 @@ exports[`code plain 1`] = `
 </div>
 `;
 
+exports[`code plain: clipboard 1`] = `
+<div>
+  <pre>
+    <code>
+      Hello world!
+    </code>
+  </pre>
+</div>
+`;
+
+exports[`code: clipboard 1`] = `
+<div>
+  <p>
+    Hello 
+    <code>
+      world
+    </code>
+    !
+  </p>
+</div>
+`;
+
 exports[`divider empty 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror prose"
+  class="ProseMirror content-schema_docClassName__neu0lc0"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
+  <hr
+    class="content-schema_dividerClassName__neu0lce"
+  />
+</div>
+`;
+
+exports[`divider empty: clipboard 1`] = `
+<div>
   <hr />
+</div>
+`;
+
+exports[`heading 1 bold: clipboard 1`] = `
+<div>
+  <h2>
+    Hello 
+    <strong>
+      world
+    </strong>
+    !
+  </h2>
+</div>
+`;
+
+exports[`heading 1 code: clipboard 1`] = `
+<div>
+  <h2>
+    Hello 
+    <code>
+      world
+    </code>
+    !
+  </h2>
+</div>
+`;
+
+exports[`heading 1 empty: clipboard 1`] = `
+<div>
+  <h2 />
+</div>
+`;
+
+exports[`heading 1 highlight: clipboard 1`] = `
+<div>
+  <h2>
+    Hello 
+    <mark
+      data-highlight-color="green"
+    >
+      world
+    </mark>
+    !
+  </h2>
+</div>
+`;
+
+exports[`heading 1 italic: clipboard 1`] = `
+<div>
+  <h2>
+    Hello 
+    <em>
+      world
+    </em>
+    !
+  </h2>
+</div>
+`;
+
+exports[`heading 1 link: clipboard 1`] = `
+<div>
+  <h2>
+    Hello 
+    <a
+      href="https://example.com/"
+      rel="noopener noreferrer"
+      target="_blank"
+    >
+      world
+    </a>
+    !
+  </h2>
 </div>
 `;
 
@@ -409,14 +1643,108 @@ exports[`heading 1 plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror prose"
+  class="ProseMirror content-schema_docClassName__neu0lc0"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
+  <h2
+    class="content-schema_headingLevel1ClassName__neu0lc2"
+  >
+    Hello world!
+  </h2>
+</div>
+`;
+
+exports[`heading 1 plain: clipboard 1`] = `
+<div>
   <h2>
     Hello world!
   </h2>
+</div>
+`;
+
+exports[`heading 1 strike: clipboard 1`] = `
+<div>
+  <h2>
+    Hello 
+    <del>
+      world
+    </del>
+    !
+  </h2>
+</div>
+`;
+
+exports[`heading 2 bold: clipboard 1`] = `
+<div>
+  <h3>
+    Hello 
+    <strong>
+      world
+    </strong>
+    !
+  </h3>
+</div>
+`;
+
+exports[`heading 2 code: clipboard 1`] = `
+<div>
+  <h3>
+    Hello 
+    <code>
+      world
+    </code>
+    !
+  </h3>
+</div>
+`;
+
+exports[`heading 2 empty: clipboard 1`] = `
+<div>
+  <h3 />
+</div>
+`;
+
+exports[`heading 2 highlight: clipboard 1`] = `
+<div>
+  <h3>
+    Hello 
+    <mark
+      data-highlight-color="green"
+    >
+      world
+    </mark>
+    !
+  </h3>
+</div>
+`;
+
+exports[`heading 2 italic: clipboard 1`] = `
+<div>
+  <h3>
+    Hello 
+    <em>
+      world
+    </em>
+    !
+  </h3>
+</div>
+`;
+
+exports[`heading 2 link: clipboard 1`] = `
+<div>
+  <h3>
+    Hello 
+    <a
+      href="https://example.com/"
+      rel="noopener noreferrer"
+      target="_blank"
+    >
+      world
+    </a>
+    !
+  </h3>
 </div>
 `;
 
@@ -424,14 +1752,108 @@ exports[`heading 2 plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror prose"
+  class="ProseMirror content-schema_docClassName__neu0lc0"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
+  <h3
+    class="content-schema_headingLevel2ClassName__neu0lc3"
+  >
+    Hello world!
+  </h3>
+</div>
+`;
+
+exports[`heading 2 plain: clipboard 1`] = `
+<div>
   <h3>
     Hello world!
   </h3>
+</div>
+`;
+
+exports[`heading 2 strike: clipboard 1`] = `
+<div>
+  <h3>
+    Hello 
+    <del>
+      world
+    </del>
+    !
+  </h3>
+</div>
+`;
+
+exports[`heading 3 bold: clipboard 1`] = `
+<div>
+  <h4>
+    Hello 
+    <strong>
+      world
+    </strong>
+    !
+  </h4>
+</div>
+`;
+
+exports[`heading 3 code: clipboard 1`] = `
+<div>
+  <h4>
+    Hello 
+    <code>
+      world
+    </code>
+    !
+  </h4>
+</div>
+`;
+
+exports[`heading 3 empty: clipboard 1`] = `
+<div>
+  <h4 />
+</div>
+`;
+
+exports[`heading 3 highlight: clipboard 1`] = `
+<div>
+  <h4>
+    Hello 
+    <mark
+      data-highlight-color="green"
+    >
+      world
+    </mark>
+    !
+  </h4>
+</div>
+`;
+
+exports[`heading 3 italic: clipboard 1`] = `
+<div>
+  <h4>
+    Hello 
+    <em>
+      world
+    </em>
+    !
+  </h4>
+</div>
+`;
+
+exports[`heading 3 link: clipboard 1`] = `
+<div>
+  <h4>
+    Hello 
+    <a
+      href="https://example.com/"
+      rel="noopener noreferrer"
+      target="_blank"
+    >
+      world
+    </a>
+    !
+  </h4>
 </div>
 `;
 
@@ -439,13 +1861,35 @@ exports[`heading 3 plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror prose"
+  class="ProseMirror content-schema_docClassName__neu0lc0"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
+  <h4
+    class="content-schema_headingLevel3ClassName__neu0lc4"
+  >
+    Hello world!
+  </h4>
+</div>
+`;
+
+exports[`heading 3 plain: clipboard 1`] = `
+<div>
   <h4>
     Hello world!
+  </h4>
+</div>
+`;
+
+exports[`heading 3 strike: clipboard 1`] = `
+<div>
+  <h4>
+    Hello 
+    <del>
+      world
+    </del>
+    !
   </h4>
 </div>
 `;
@@ -454,14 +1898,32 @@ exports[`highlight 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror prose"
+  class="ProseMirror content-schema_docClassName__neu0lc0"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
+  <p
+    class="content-schema_paragraphClassName__neu0lc1"
+  >
+    Hello 
+    <mark
+      data-highlight-color="green"
+    >
+      world
+    </mark>
+    !
+  </p>
+</div>
+`;
+
+exports[`highlight: clipboard 1`] = `
+<div>
   <p>
     Hello 
-    <mark>
+    <mark
+      data-highlight-color="green"
+    >
       world
     </mark>
     !
@@ -473,11 +1935,27 @@ exports[`italic 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror prose"
+  class="ProseMirror content-schema_docClassName__neu0lc0"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
+  <p
+    class="content-schema_paragraphClassName__neu0lc1"
+  >
+    Hello 
+    <em
+      class="content-schema_italicClassName__neu0lcg"
+    >
+      world
+    </em>
+    !
+  </p>
+</div>
+`;
+
+exports[`italic: clipboard 1`] = `
+<div>
   <p>
     Hello 
     <em>
@@ -492,14 +1970,17 @@ exports[`link (XSS vulnerability) 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror prose"
+  class="ProseMirror content-schema_docClassName__neu0lc0"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
-  <p>
+  <p
+    class="content-schema_paragraphClassName__neu0lc1"
+  >
     Hello 
     <a
+      class="content-schema_linkClassName__neu0lcj"
       href="about:blank#blocked"
       rel="noopener noreferrer"
       target="_blank"
@@ -515,15 +1996,18 @@ exports[`link 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror prose"
+  class="ProseMirror content-schema_docClassName__neu0lc0"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
-  <p>
+  <p
+    class="content-schema_paragraphClassName__neu0lc1"
+  >
     Hello 
     <a
-      href="https://example.com"
+      class="content-schema_linkClassName__neu0lcj"
+      href="https://example.com/"
       rel="noopener noreferrer"
       target="_blank"
     >
@@ -534,23 +2018,167 @@ exports[`link 1`] = `
 </div>
 `;
 
+exports[`link: clipboard 1`] = `
+<div>
+  <p>
+    Hello 
+    <a
+      href="https://example.com/"
+      rel="noopener noreferrer"
+      target="_blank"
+    >
+      world
+    </a>
+    !
+  </p>
+</div>
+`;
+
+exports[`ordered list bold: clipboard 1`] = `
+<div>
+  <ol>
+    <li>
+      <p>
+        Hello 
+        <strong>
+          world
+        </strong>
+        !
+      </p>
+    </li>
+  </ol>
+</div>
+`;
+
+exports[`ordered list code: clipboard 1`] = `
+<div>
+  <ol>
+    <li>
+      <p>
+        Hello 
+        <code>
+          world
+        </code>
+        !
+      </p>
+    </li>
+  </ol>
+</div>
+`;
+
+exports[`ordered list empty: clipboard 1`] = `
+<div>
+  <ol>
+    <li>
+      <p />
+    </li>
+  </ol>
+</div>
+`;
+
+exports[`ordered list highlight: clipboard 1`] = `
+<div>
+  <ol>
+    <li>
+      <p>
+        Hello 
+        <mark
+          data-highlight-color="green"
+        >
+          world
+        </mark>
+        !
+      </p>
+    </li>
+  </ol>
+</div>
+`;
+
+exports[`ordered list italic: clipboard 1`] = `
+<div>
+  <ol>
+    <li>
+      <p>
+        Hello 
+        <em>
+          world
+        </em>
+        !
+      </p>
+    </li>
+  </ol>
+</div>
+`;
+
+exports[`ordered list link: clipboard 1`] = `
+<div>
+  <ol>
+    <li>
+      <p>
+        Hello 
+        <a
+          href="https://example.com/"
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          world
+        </a>
+        !
+      </p>
+    </li>
+  </ol>
+</div>
+`;
+
 exports[`ordered list plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror prose"
+  class="ProseMirror content-schema_docClassName__neu0lc0"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <div
-    class="ordered-list-item"
-    style="margin-left:0em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6 content-schema_orderedListItemClassName__neu0lc8"
+    data-list-indent="0"
+    data-list-number="0"
+    style="margin-left:0rem;padding-left:2rem"
   >
-    <p>
+    <p
+      class="content-schema_paragraphClassName__neu0lc1"
+    >
       Hello world!
     </p>
   </div>
+</div>
+`;
+
+exports[`ordered list plain: clipboard 1`] = `
+<div>
+  <ol>
+    <li>
+      <p>
+        Hello world!
+      </p>
+    </li>
+  </ol>
+</div>
+`;
+
+exports[`ordered list strike: clipboard 1`] = `
+<div>
+  <ol>
+    <li>
+      <p>
+        Hello 
+        <del>
+          world
+        </del>
+        !
+      </p>
+    </li>
+  </ol>
 </div>
 `;
 
@@ -558,35 +2186,69 @@ exports[`ordered list with multiple items 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror prose"
+  class="ProseMirror content-schema_docClassName__neu0lc0"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <div
-    class="ordered-list-item"
-    style="margin-left:0em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6 content-schema_orderedListItemClassName__neu0lc8"
+    data-list-indent="0"
+    data-list-number="0"
+    style="margin-left:0rem;padding-left:2rem"
   >
-    <p>
+    <p
+      class="content-schema_paragraphClassName__neu0lc1"
+    >
       Item 1
     </p>
   </div>
   <div
-    class="ordered-list-item"
-    style="margin-left:0em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6 content-schema_orderedListItemClassName__neu0lc8"
+    data-list-indent="0"
+    data-list-number="0"
+    style="margin-left:0rem;padding-left:2rem"
   >
-    <p>
+    <p
+      class="content-schema_paragraphClassName__neu0lc1"
+    >
       Item 2
     </p>
   </div>
   <div
-    class="ordered-list-item"
-    style="margin-left:0em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6 content-schema_orderedListItemClassName__neu0lc8"
+    data-list-indent="0"
+    data-list-number="0"
+    style="margin-left:0rem;padding-left:2rem"
   >
-    <p>
+    <p
+      class="content-schema_paragraphClassName__neu0lc1"
+    >
       Item 3
     </p>
   </div>
+</div>
+`;
+
+exports[`ordered list with multiple items: clipboard 1`] = `
+<div>
+  <ol>
+    <li>
+      <p>
+        Item 1
+      </p>
+    </li>
+    <li>
+      <p>
+        Item 2
+      </p>
+    </li>
+    <li>
+      <p>
+        Item 3
+      </p>
+    </li>
+  </ol>
 </div>
 `;
 
@@ -594,40 +2256,56 @@ exports[`ordered list with sub-list 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror prose"
+  class="ProseMirror content-schema_docClassName__neu0lc0"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <div
-    class="ordered-list-item"
-    style="margin-left:0em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6 content-schema_orderedListItemClassName__neu0lc8"
+    data-list-indent="0"
+    data-list-number="0"
+    style="margin-left:0rem;padding-left:2rem"
   >
-    <p>
+    <p
+      class="content-schema_paragraphClassName__neu0lc1"
+    >
       Test
     </p>
   </div>
   <div
-    class="ordered-list-item"
-    style="margin-left:1.25em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6 content-schema_orderedListItemClassName__neu0lc8"
+    data-list-indent="1"
+    data-list-number="0"
+    style="margin-left:2rem;padding-left:2rem"
   >
-    <p>
+    <p
+      class="content-schema_paragraphClassName__neu0lc1"
+    >
       Item 1
     </p>
   </div>
   <div
-    class="ordered-list-item"
-    style="margin-left:1.25em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6 content-schema_orderedListItemClassName__neu0lc8"
+    data-list-indent="1"
+    data-list-number="0"
+    style="margin-left:2rem;padding-left:2rem"
   >
-    <p>
+    <p
+      class="content-schema_paragraphClassName__neu0lc1"
+    >
       Item 2
     </p>
   </div>
   <div
-    class="ordered-list-item"
-    style="margin-left:1.25em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6 content-schema_orderedListItemClassName__neu0lc8"
+    data-list-indent="1"
+    data-list-number="0"
+    style="margin-left:2rem;padding-left:2rem"
   >
-    <p>
+    <p
+      class="content-schema_paragraphClassName__neu0lc1"
+    >
       Item 3
     </p>
   </div>
@@ -638,40 +2316,293 @@ exports[`ordered list with sub-list of another type 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror prose"
+  class="ProseMirror content-schema_docClassName__neu0lc0"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <div
-    class="ordered-list-item"
-    style="margin-left:0em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6 content-schema_orderedListItemClassName__neu0lc8"
+    data-list-indent="0"
+    data-list-number="0"
+    style="margin-left:0rem;padding-left:2rem"
   >
-    <p>
+    <p
+      class="content-schema_paragraphClassName__neu0lc1"
+    >
       Test
     </p>
   </div>
   <div
-    style="margin-left:1.25em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6 content-schema_checkListItemCheckedClassName__neu0lc9"
+    style="margin-left:2rem;padding-left:2rem"
   >
-    <p>
-      Item 1
-    </p>
+    <div
+      class="content-schema_checkListItemCheckboxContainerClassName__neu0lcb"
+    >
+      <div
+        class="content-schema_checkListItemCheckboxClassName__neu0lcc"
+      >
+        <svg
+          height="100%"
+          viewBox="0 0 256 256"
+          width="100%"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <rect
+            fill="none"
+            height="256"
+            width="256"
+          />
+          <polyline
+            fill="none"
+            points="216 72 104 184 48 128"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="24"
+          />
+        </svg>
+      </div>
+    </div>
+    <div
+      class="content-schema_checkListItemContentClassName__neu0lca"
+    >
+      <p
+        class="content-schema_paragraphClassName__neu0lc1"
+      >
+        Item 1
+      </p>
+    </div>
   </div>
   <div
-    style="margin-left:1.25em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6"
+    style="margin-left:2rem;padding-left:2rem"
   >
-    <p>
-      Item 2
-    </p>
+    <div
+      class="content-schema_checkListItemCheckboxContainerClassName__neu0lcb"
+    >
+      <div
+        class="content-schema_checkListItemCheckboxClassName__neu0lcc"
+      >
+        <svg
+          height="100%"
+          viewBox="0 0 256 256"
+          width="100%"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <rect
+            fill="none"
+            height="256"
+            width="256"
+          />
+          <polyline
+            fill="none"
+            points="216 72 104 184 48 128"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="24"
+          />
+        </svg>
+      </div>
+    </div>
+    <div
+      class="content-schema_checkListItemContentClassName__neu0lca"
+    >
+      <p
+        class="content-schema_paragraphClassName__neu0lc1"
+      >
+        Item 2
+      </p>
+    </div>
   </div>
   <div
-    style="margin-left:1.25em;padding-left:1.25em"
+    class="content-schema_listItemClassName__neu0lc6 content-schema_checkListItemCheckedClassName__neu0lc9"
+    style="margin-left:2rem;padding-left:2rem"
   >
-    <p>
-      Item 3
-    </p>
+    <div
+      class="content-schema_checkListItemCheckboxContainerClassName__neu0lcb"
+    >
+      <div
+        class="content-schema_checkListItemCheckboxClassName__neu0lcc"
+      >
+        <svg
+          height="100%"
+          viewBox="0 0 256 256"
+          width="100%"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <rect
+            fill="none"
+            height="256"
+            width="256"
+          />
+          <polyline
+            fill="none"
+            points="216 72 104 184 48 128"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="24"
+          />
+        </svg>
+      </div>
+    </div>
+    <div
+      class="content-schema_checkListItemContentClassName__neu0lca"
+    >
+      <p
+        class="content-schema_paragraphClassName__neu0lc1"
+      >
+        Item 3
+      </p>
+    </div>
   </div>
+</div>
+`;
+
+exports[`ordered list with sub-list of another type: clipboard 1`] = `
+<div>
+  <ol>
+    <li>
+      <p>
+        Test
+      </p>
+    </li>
+    <ul>
+      <li>
+        <input
+          checked=""
+          disabled=""
+          type="checkbox"
+        />
+        <p>
+          Item 1
+        </p>
+      </li>
+      <li>
+        <input
+          disabled=""
+          type="checkbox"
+        />
+        <p>
+          Item 2
+        </p>
+      </li>
+      <li>
+        <input
+          checked=""
+          disabled=""
+          type="checkbox"
+        />
+        <p>
+          Item 3
+        </p>
+      </li>
+    </ul>
+  </ol>
+</div>
+`;
+
+exports[`ordered list with sub-list: clipboard 1`] = `
+<div>
+  <ol>
+    <li>
+      <p>
+        Test
+      </p>
+    </li>
+    <ol>
+      <li>
+        <p>
+          Item 1
+        </p>
+      </li>
+      <li>
+        <p>
+          Item 2
+        </p>
+      </li>
+      <li>
+        <p>
+          Item 3
+        </p>
+      </li>
+    </ol>
+  </ol>
+</div>
+`;
+
+exports[`paragraph bold: clipboard 1`] = `
+<div>
+  <p>
+    Hello 
+    <strong>
+      world
+    </strong>
+    !
+  </p>
+</div>
+`;
+
+exports[`paragraph code: clipboard 1`] = `
+<div>
+  <p>
+    Hello 
+    <code>
+      world
+    </code>
+    !
+  </p>
+</div>
+`;
+
+exports[`paragraph empty: clipboard 1`] = `
+<div>
+  <p />
+</div>
+`;
+
+exports[`paragraph highlight: clipboard 1`] = `
+<div>
+  <p>
+    Hello 
+    <mark
+      data-highlight-color="green"
+    >
+      world
+    </mark>
+    !
+  </p>
+</div>
+`;
+
+exports[`paragraph italic: clipboard 1`] = `
+<div>
+  <p>
+    Hello 
+    <em>
+      world
+    </em>
+    !
+  </p>
+</div>
+`;
+
+exports[`paragraph link: clipboard 1`] = `
+<div>
+  <p>
+    Hello 
+    <a
+      href="https://example.com/"
+      rel="noopener noreferrer"
+      target="_blank"
+    >
+      world
+    </a>
+    !
+  </p>
 </div>
 `;
 
@@ -679,14 +2610,120 @@ exports[`paragraph plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror prose"
+  class="ProseMirror content-schema_docClassName__neu0lc0"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
+  <p
+    class="content-schema_paragraphClassName__neu0lc1"
+  >
+    Hello world!
+  </p>
+</div>
+`;
+
+exports[`paragraph plain: clipboard 1`] = `
+<div>
   <p>
     Hello world!
   </p>
+</div>
+`;
+
+exports[`paragraph strike: clipboard 1`] = `
+<div>
+  <p>
+    Hello 
+    <del>
+      world
+    </del>
+    !
+  </p>
+</div>
+`;
+
+exports[`quote bold: clipboard 1`] = `
+<div>
+  <blockquote>
+    <p>
+      Hello 
+      <strong>
+        world
+      </strong>
+      !
+    </p>
+  </blockquote>
+</div>
+`;
+
+exports[`quote code: clipboard 1`] = `
+<div>
+  <blockquote>
+    <p>
+      Hello 
+      <code>
+        world
+      </code>
+      !
+    </p>
+  </blockquote>
+</div>
+`;
+
+exports[`quote empty: clipboard 1`] = `
+<div>
+  <blockquote>
+    <p />
+  </blockquote>
+</div>
+`;
+
+exports[`quote highlight: clipboard 1`] = `
+<div>
+  <blockquote>
+    <p>
+      Hello 
+      <mark
+        data-highlight-color="green"
+      >
+        world
+      </mark>
+      !
+    </p>
+  </blockquote>
+</div>
+`;
+
+exports[`quote italic: clipboard 1`] = `
+<div>
+  <blockquote>
+    <p>
+      Hello 
+      <em>
+        world
+      </em>
+      !
+    </p>
+  </blockquote>
+</div>
+`;
+
+exports[`quote link: clipboard 1`] = `
+<div>
+  <blockquote>
+    <p>
+      Hello 
+      <a
+        href="https://example.com/"
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        world
+      </a>
+      !
+    </p>
+  </blockquote>
 </div>
 `;
 
@@ -694,14 +2731,42 @@ exports[`quote plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror prose"
+  class="ProseMirror content-schema_docClassName__neu0lc0"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
+  <blockquote
+    class="content-schema_quoteBlockClassName__neu0lc5"
+  >
+    <p
+      class="content-schema_paragraphClassName__neu0lc1"
+    >
+      Hello world!
+    </p>
+  </blockquote>
+</div>
+`;
+
+exports[`quote plain: clipboard 1`] = `
+<div>
   <blockquote>
     <p>
       Hello world!
+    </p>
+  </blockquote>
+</div>
+`;
+
+exports[`quote strike: clipboard 1`] = `
+<div>
+  <blockquote>
+    <p>
+      Hello 
+      <del>
+        world
+      </del>
+      !
     </p>
   </blockquote>
 </div>
@@ -711,11 +2776,27 @@ exports[`strike 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror prose"
+  class="ProseMirror content-schema_docClassName__neu0lc0"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
+  <p
+    class="content-schema_paragraphClassName__neu0lc1"
+  >
+    Hello 
+    <del
+      class="content-schema_strikeClassName__neu0lch"
+    >
+      world
+    </del>
+    !
+  </p>
+</div>
+`;
+
+exports[`strike: clipboard 1`] = `
+<div>
   <p>
     Hello 
     <del>
