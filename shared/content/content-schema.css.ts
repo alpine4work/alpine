@@ -115,25 +115,45 @@ export const checkListItemCheckedClassName = style({
 
 export const checkListItemContentClassName = style({});
 
-export const checkListItemCheckboxClassName = style({
+// The checkbox is a little small. Add some extra hit area to make it easier
+// to click.
+export const checkListItemCheckboxContainerClassName = style({
     position: "absolute",
+    top: 0,
+    left:
+        parseRemLengthNumber(listItemIndentation) / 2 -
+        (parseRemLengthNumber(checkListItemCheckboxDesktopSize) +
+            parseRemLengthNumber(spacing["1"]) * 2) /
+            2 +
+        "rem",
+    borderRadius: "100%",
+    padding: spacing["1"],
+    cursor: "default",
+    userSelect: "none",
+    "@media": {
+        [mobileMediaQuery]: {
+            top: `-${spacing["0.5"]}`,
+            left:
+                parseRemLengthNumber(listItemIndentation) / 2 -
+                (parseRemLengthNumber(checkListItemCheckboxMobileSize) +
+                    parseRemLengthNumber(spacing["1"]) * 2) /
+                    2 +
+                "rem",
+        },
+    },
+});
+
+export const checkListItemCheckboxClassName = style({
     borderRadius: "100%",
     width: checkListItemCheckboxDesktopSize,
     height: checkListItemCheckboxDesktopSize,
-    top: spacing["1"],
-    left:
-        parseRemLengthNumber(listItemIndentation) / 2 -
-        parseRemLengthNumber(checkListItemCheckboxDesktopSize) / 2 +
-        "rem",
     padding: spacing["0.5"],
     backgroundColor: "transparent",
     color: colorSchemeVars["grey-70"],
     borderWidth: 1,
     borderColor: colorSchemeVars["grey-70"],
-    cursor: "default",
-    userSelect: "none",
     selectors: {
-        [`${checkListItemCheckedClassName} > &`]: {
+        [`${checkListItemCheckedClassName} &`]: {
             backgroundColor: colorSchemeVars["theme-50-const"],
             color: colorSchemeVars["grey-0-const"],
             borderColor: colorSchemeVars["theme-50-const"],
@@ -143,11 +163,6 @@ export const checkListItemCheckboxClassName = style({
         [mobileMediaQuery]: {
             width: checkListItemCheckboxMobileSize,
             height: checkListItemCheckboxMobileSize,
-            top: spacing["0.5"],
-            left:
-                parseRemLengthNumber(listItemIndentation) / 2 -
-                parseRemLengthNumber(checkListItemCheckboxMobileSize) / 2 +
-                "rem",
             padding: spacing["1"],
         },
     },
@@ -162,24 +177,6 @@ export const checkListItemCheckboxPressedClassName = style({
             backgroundColor: colorSchemeVars["theme-60-const"],
             color: colorSchemeVars["grey-0-const"],
             borderColor: colorSchemeVars["theme-60-const"],
-        },
-    },
-});
-
-// The checkbox is a little small. Add some extra hit area to make it easier
-// to click.
-export const checkListItemCheckboxHitAreaClassName = style({
-    position: "absolute",
-    top: "50%",
-    left: "50%",
-    transform: "translate(-50%, -50%)",
-    width: spacing["6"],
-    height: spacing["6"],
-    borderRadius: "100%",
-    "@media": {
-        [mobileMediaQuery]: {
-            width: spacing["8"],
-            height: spacing["8"],
         },
     },
 });

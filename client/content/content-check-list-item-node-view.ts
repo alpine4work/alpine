@@ -3,7 +3,7 @@ import {DOMSerializer, Node} from "prosemirror-model";
 import {EditorView, NodeView} from "prosemirror-view";
 import {
     checkListItemCheckboxClassName,
-    checkListItemCheckboxHitAreaClassName,
+    checkListItemCheckboxContainerClassName,
     checkListItemCheckboxPressedClassName,
     checkListItemContentClassName,
 } from "~/shared/content/content-schema.css";
@@ -15,20 +15,20 @@ export function createContentCheckListItemNodeView(
 ): NodeView {
     const {dom} = DOMSerializer.renderSpec(document, node.type.spec.toDOM!(node));
 
+    const checkboxContainerDom = document.createElement("div");
+    dom.appendChild(checkboxContainerDom);
+    checkboxContainerDom.className = checkListItemCheckboxContainerClassName;
+
     const checkboxDom = document.createElement("div");
-    dom.appendChild(checkboxDom);
+    checkboxContainerDom.appendChild(checkboxDom);
     checkboxDom.className = checkListItemCheckboxClassName;
     checkboxDom.innerHTML = checkIconSvg;
-
-    const checkboxHitAreaDom = document.createElement("div");
-    checkboxDom.appendChild(checkboxHitAreaDom);
-    checkboxHitAreaDom.className = checkListItemCheckboxHitAreaClassName;
 
     const contentDom = document.createElement("div");
     dom.appendChild(contentDom);
     contentDom.className = checkListItemContentClassName;
 
-    checkboxDom.addEventListener("pointerdown", event => {
+    checkboxContainerDom.addEventListener("pointerdown", event => {
         if (event.button !== 0) return;
 
         // We don't want to select surrounding text when double clicking this element.
@@ -40,7 +40,7 @@ export function createContentCheckListItemNodeView(
         checkboxDom.classList.add(checkListItemCheckboxPressedClassName);
     });
 
-    checkboxDom.addEventListener("pointerup", event => {
+    checkboxContainerDom.addEventListener("pointerup", event => {
         if (event.button !== 0) return;
 
         checkboxDom.classList.remove(checkListItemCheckboxPressedClassName);
@@ -55,7 +55,7 @@ export function createContentCheckListItemNodeView(
 
     // If the user presses and moves their pointer off of the element then the
     // `pointerout` event is fired.
-    checkboxDom.addEventListener("pointerout", () => {
+    checkboxContainerDom.addEventListener("pointerout", () => {
         checkboxDom.classList.remove(checkListItemCheckboxPressedClassName);
     });
 
