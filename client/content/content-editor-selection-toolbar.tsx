@@ -211,6 +211,7 @@ function ContentEditorSelectionToolbar({viewRef}: {viewRef: RefObject<EditorView
                 <Link />
             </ContentEditorSelectionToolbarIconButton>
             <ContentEditorSelectionToolbarIconButton
+                dividerRight
                 description="Highlight"
                 // TODO(calebmer): Actually implement highlight keyboard shortcut
                 keyboardShortcut={isMac ? "⌘+Shift+H" : "Ctrl+Shift+H"}
@@ -222,8 +223,8 @@ function ContentEditorSelectionToolbar({viewRef}: {viewRef: RefObject<EditorView
             >
                 <Palette />
             </ContentEditorSelectionToolbarIconButton>
-            <ContentEditorSelectionToolbarDivider />
             <ContentEditorSelectionToolbarIconButton
+                dividerLeft
                 description="Bulleted list"
                 keyboardShortcut="- Hello"
                 viewRef={viewRef}
@@ -248,6 +249,7 @@ function ContentEditorSelectionToolbar({viewRef}: {viewRef: RefObject<EditorView
                 <ListNumbers />
             </ContentEditorSelectionToolbarIconButton>
             <ContentEditorSelectionToolbarIconButton
+                dividerRight
                 description="Check list"
                 keyboardShortcut="[ ] Hello"
                 viewRef={viewRef}
@@ -259,8 +261,8 @@ function ContentEditorSelectionToolbar({viewRef}: {viewRef: RefObject<EditorView
             >
                 <ListChecks />
             </ContentEditorSelectionToolbarIconButton>
-            <ContentEditorSelectionToolbarDivider />
             <ContentEditorSelectionToolbarIconButton
+                dividerLeft
                 description="Heading 1"
                 keyboardShortcut="# Hello"
                 viewRef={viewRef}
@@ -292,12 +294,16 @@ function ContentEditorSelectionToolbar({viewRef}: {viewRef: RefObject<EditorView
 }
 
 function ContentEditorSelectionToolbarIconButton({
+    dividerLeft,
+    dividerRight,
     description,
     keyboardShortcut,
     viewRef,
     command,
     children,
 }: {
+    dividerLeft?: boolean;
+    dividerRight?: boolean;
     description: string;
     keyboardShortcut: string;
     viewRef: RefObject<EditorView | null>;
@@ -353,37 +359,36 @@ function ContentEditorSelectionToolbarIconButton({
             >
                 <div
                     className={sprinkles({
-                        padding: "1",
-                        borderRadius: "base",
-                        color: isPressed ? "grey-100" : "grey-80",
-                        backgroundColor: {
-                            light: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
-                            dark: isPressed ? "grey-20" : isHovered ? "grey-10" : undefined,
-                        },
+                        // We implement dividers in this funky way so that as the mouse scrubs left and
+                        // right over our toolbar the tooltips immediately disappear/reappear because
+                        // there is no gap in between the hovered elements.
+                        paddingRight: dividerRight ? "1" : undefined,
+                        borderRight: dividerRight ? {light: "grey-10", dark: "grey-20"} : undefined,
+                        paddingLeft: dividerLeft ? "1" : undefined,
                     })}
                 >
-                    <IconContext.Provider
-                        value={{
-                            color: "currentColor",
-                            size: spacing["4"],
-                        }}
+                    <div
+                        className={sprinkles({
+                            padding: "1",
+                            borderRadius: "base",
+                            color: isPressed ? "grey-100" : "grey-80",
+                            backgroundColor: {
+                                light: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
+                                dark: isPressed ? "grey-20" : isHovered ? "grey-10" : undefined,
+                            },
+                        })}
                     >
-                        {children}
-                    </IconContext.Provider>
+                        <IconContext.Provider
+                            value={{
+                                color: "currentColor",
+                                size: spacing["4"],
+                            }}
+                        >
+                            {children}
+                        </IconContext.Provider>
+                    </div>
                 </div>
             </div>
         </Tooltip>
-    );
-}
-
-function ContentEditorSelectionToolbarDivider() {
-    return (
-        <Box
-            width="px"
-            alignSelf="stretch"
-            backgroundColor={{light: "grey-10", dark: "grey-20"}}
-            marginX="1"
-            marginY="1"
-        />
     );
 }
