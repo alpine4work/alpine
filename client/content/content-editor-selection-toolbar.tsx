@@ -170,7 +170,7 @@ function ContentEditorSelectionToolbar({viewRef}: {viewRef: RefObject<EditorView
     return (
         <Box
             display="flex"
-            padding="1"
+            paddingX="1"
             borderRadius="base"
             backgroundColor={{light: "grey-0", dark: "grey-5"}}
             boxShadow="elevation-20"
@@ -225,7 +225,7 @@ function ContentEditorSelectionToolbar({viewRef}: {viewRef: RefObject<EditorView
             <ContentEditorSelectionToolbarDivider />
             <ContentEditorSelectionToolbarIconButton
                 description="Bulleted list"
-                keyboardShortcut="* or -"
+                keyboardShortcut="- Hello"
                 viewRef={viewRef}
                 // TODO(calebmer): Selecting multiple paragraphs should convert into multiple
                 // list items.
@@ -237,7 +237,7 @@ function ContentEditorSelectionToolbar({viewRef}: {viewRef: RefObject<EditorView
             </ContentEditorSelectionToolbarIconButton>
             <ContentEditorSelectionToolbarIconButton
                 description="Numbered list"
-                keyboardShortcut="1."
+                keyboardShortcut="1. Hello"
                 viewRef={viewRef}
                 // TODO(calebmer): Selecting multiple paragraphs should convert into multiple
                 // list items.
@@ -249,7 +249,7 @@ function ContentEditorSelectionToolbar({viewRef}: {viewRef: RefObject<EditorView
             </ContentEditorSelectionToolbarIconButton>
             <ContentEditorSelectionToolbarIconButton
                 description="Check list"
-                keyboardShortcut="[ ]"
+                keyboardShortcut="[ ] Hello"
                 viewRef={viewRef}
                 // TODO(calebmer): Selecting multiple paragraphs should convert into multiple
                 // list items.
@@ -262,7 +262,7 @@ function ContentEditorSelectionToolbar({viewRef}: {viewRef: RefObject<EditorView
             <ContentEditorSelectionToolbarDivider />
             <ContentEditorSelectionToolbarIconButton
                 description="Heading 1"
-                keyboardShortcut="#"
+                keyboardShortcut="# Hello"
                 viewRef={viewRef}
                 // TODO(calebmer): Toggle heading if already on
                 command={setBlockType(ContentSchema.nodes.heading, {level: 1})}
@@ -271,7 +271,7 @@ function ContentEditorSelectionToolbar({viewRef}: {viewRef: RefObject<EditorView
             </ContentEditorSelectionToolbarIconButton>
             <ContentEditorSelectionToolbarIconButton
                 description="Heading 2"
-                keyboardShortcut="##"
+                keyboardShortcut="## Hello"
                 viewRef={viewRef}
                 // TODO(calebmer): Toggle heading if already on
                 command={setBlockType(ContentSchema.nodes.heading, {level: 2})}
@@ -280,7 +280,7 @@ function ContentEditorSelectionToolbar({viewRef}: {viewRef: RefObject<EditorView
             </ContentEditorSelectionToolbarIconButton>
             <ContentEditorSelectionToolbarIconButton
                 description="Heading 3"
-                keyboardShortcut="###"
+                keyboardShortcut="### Hello"
                 viewRef={viewRef}
                 // TODO(calebmer): Toggle heading if already on
                 command={setBlockType(ContentSchema.nodes.heading, {level: 3})}
@@ -327,7 +327,7 @@ function ContentEditorSelectionToolbarIconButton({
         <Tooltip
             placement="top"
             content={
-                <Box padding="0.5">
+                <Box>
                     {description}
                     <Box color="grey-60" style={{marginTop: "-0.125rem"}}>
                         {keyboardShortcut}
@@ -345,26 +345,32 @@ function ContentEditorSelectionToolbarIconButton({
                 // button is not reachable in tab order.
                 tabIndex={undefined}
                 className={sprinkles({
-                    padding: "1",
-                    borderRadius: "base",
-                    color: isPressed ? "grey-100" : "grey-80",
-                    backgroundColor: {
-                        light: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
-                        dark: isPressed ? "grey-20" : isHovered ? "grey-10" : undefined,
-                    },
+                    paddingY: "1",
                     // You may notice our button doesn't have a pointer cursor. See:
                     // https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
                     cursor: "default",
                 })}
             >
-                <IconContext.Provider
-                    value={{
-                        color: "currentColor",
-                        size: spacing["4"],
-                    }}
+                <div
+                    className={sprinkles({
+                        padding: "1",
+                        borderRadius: "base",
+                        color: isPressed ? "grey-100" : "grey-80",
+                        backgroundColor: {
+                            light: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
+                            dark: isPressed ? "grey-20" : isHovered ? "grey-10" : undefined,
+                        },
+                    })}
                 >
-                    {children}
-                </IconContext.Provider>
+                    <IconContext.Provider
+                        value={{
+                            color: "currentColor",
+                            size: spacing["4"],
+                        }}
+                    >
+                        {children}
+                    </IconContext.Provider>
+                </div>
             </div>
         </Tooltip>
     );

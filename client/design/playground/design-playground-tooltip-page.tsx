@@ -10,7 +10,7 @@ import {useUrlSearchParamState} from "~/client/helpers/url/use-url-search-param-
 
 // TODO(calebmer): Use actual design system checkbox element
 
-const defaultOverlayPlacement: OverlayPlacement = "top";
+const defaultOverlayPlacement: OverlayPlacement = "bottom-start";
 
 const allOverlayPlacements: ReadonlySet<OverlayPlacement> = new Set([
     "top",

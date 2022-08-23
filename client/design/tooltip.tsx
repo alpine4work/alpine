@@ -23,6 +23,7 @@ import {
     tooltipFadeAnimationDurationMs,
 } from "~/client/design/tooltip.css";
 import {useIsMounted} from "~/client/helpers/lifecycle/use-is-mounted";
+import {tooltipBoxShadow} from "~/shared/design/elevation";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule-microtask";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
@@ -400,7 +401,7 @@ export function Tooltip({
             <Overlay
                 visible={visible}
                 placement={placement}
-                offsetAway="2"
+                offsetAway="1.5"
                 overlay={
                     <div
                         ref={tooltipRef}
@@ -409,18 +410,18 @@ export function Tooltip({
                         className={tooltipAnimateContainerClassName}
                     >
                         <Box
-                            paddingX="1"
-                            paddingY="0"
+                            paddingX="1.5"
+                            paddingY="0.5"
                             font="sm"
                             color="grey-100"
                             backgroundColor={{light: "grey-0", dark: "grey-10"}}
                             borderRadius="base"
-                            boxShadow="elevation-5"
                             className={
                                 state.isFadingOut
                                     ? tooltipAnimateFadeOutClassName
                                     : tooltipAnimateFadeInClassName
                             }
+                            style={{boxShadow: tooltipBoxShadow}}
                         >
                             {content}
                         </Box>
