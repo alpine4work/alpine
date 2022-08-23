@@ -1,4 +1,5 @@
 import {
+    MutableRefObject,
     ReactElement,
     ReactNode,
     createContext,
@@ -10,6 +11,7 @@ import {
     useRef,
     useState,
 } from "react";
+import {useFocusVisible} from "react-aria";
 import {Box} from "~/client/design/box";
 import {setElementAttributesWithCleanup} from "~/client/design/helpers/set-element-attributes-with-cleanup";
 import {useElementWithRef} from "~/client/design/helpers/use-element-with-ref";
@@ -24,7 +26,6 @@ import {
 } from "~/client/design/tooltip.css";
 import {useIsMounted} from "~/client/helpers/lifecycle/use-is-mounted";
 import {tooltipBoxShadow} from "~/shared/design/elevation";
-import {scheduleMicrotask} from "~/shared/helpers/async/schedule-microtask";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 
@@ -128,6 +129,12 @@ export function Tooltip({
 }) {
     const isMounted = useIsMounted();
 
+    const {isFocusVisible} = useFocusVisible({
+        // When `isTextInput` is true only "Tab" and "Escape" keys put us in visible
+        // focus mode.
+        isTextInput: true,
+    });
+
     const tooltipId = useId();
     const tooltipRef = useRef<HTMLDivElement>(null);
     const tooltipSymbol = useMemo(() => Symbol(), []);
@@ -135,6 +142,7 @@ export function Tooltip({
     const activeTooltipSymbol = useContext(TooltipCoordinationActiveSymbolContext);
     const coordinationContext = useContext(TooltipCoordinationContext);
     assert(coordinationContext !== null);
+    const {tooltipSymbolThatIsFadingOutNextAnimationFrameRef} = coordinationContext;
 
     // Controls whether the tooltip is actually visible or not. Only one tooltip
     // can be visible on screen at once and that is managed by our tooltip
@@ -240,6 +248,12 @@ export function Tooltip({
             function handleMouseEnter(event: MouseEvent) {
                 if (event.target !== targetElement) return;
 
+                // Only fade in if there is not a tooltip that wants to immediately fade out
+                // next frame.
+                const isFadingIn =
+                    tooltipSymbolThatIsFadingOutNextAnimationFrameRef.current === null;
+                tooltipSymbolThatIsFadingOutNextAnimationFrameRef.current = null;
+
                 setState(state => {
                     if (state.isHovered) {
                         return state;
@@ -247,7 +261,7 @@ export function Tooltip({
                         return {
                             ...state,
                             isHovered: true,
-                            isFadingIn: true,
+                            isFadingIn,
                             isFadingOut: false,
                         };
                     } else if (state.isFocused) {
@@ -261,97 +275,132 @@ export function Tooltip({
             function handleMouseLeave(event: MouseEvent) {
                 if (event.target !== targetElement) return;
 
-                setState(state => {
-                    if (!state.isHovered) {
-                        return state;
-                    } else if (!state.isFocused) {
-                        if (!visible) {
-                            return {
-                                ...state,
-                                isHovered: false,
-                                isFadingIn: false,
-                                isFadingOut: false,
-                            };
-                        } else if (!state.isFadingIn) {
-                            return {
-                                ...state,
-                                isHovered: false,
-                                isFadingIn: false,
-                                isFadingOut: true,
-                            };
-                        } else {
+                const updateState = ({isFadingOut}: {isFadingOut: boolean}) => {
+                    setState(state => {
+                        if (!state.isHovered) {
+                            return state;
+                        } else if (!state.isFocused) {
+                            if (!visible) {
+                                return {
+                                    ...state,
+                                    isHovered: false,
+                                    isFadingIn: false,
+                                    isFadingOut: false,
+                                };
+                            } else if (!state.isFadingIn) {
+                                return {
+                                    ...state,
+                                    isHovered: false,
+                                    isFadingIn: false,
+                                    isFadingOut,
+                                };
+                            } else {
+                                return {...state, isHovered: false};
+                            }
+                        } else if (state.isFocused) {
                             return {...state, isHovered: false};
+                        } else {
+                            throw exhaustive(state);
                         }
-                    } else if (state.isFocused) {
-                        return {...state, isHovered: false};
-                    } else {
-                        throw exhaustive(state);
-                    }
-                });
+                    });
+                };
+
+                // Record that we are going to fade out this tooltip next animation frame. If
+                // another tooltip wants to be visible in the next animation frame we want to
+                // skip our animation.
+                if (tooltipSymbolThatIsFadingOutNextAnimationFrameRef.current === null) {
+                    tooltipSymbolThatIsFadingOutNextAnimationFrameRef.current = tooltipSymbol;
+                    requestAnimationFrame(() => {
+                        updateState({
+                            isFadingOut:
+                                tooltipSymbolThatIsFadingOutNextAnimationFrameRef.current ===
+                                tooltipSymbol,
+                        });
+                        tooltipSymbolThatIsFadingOutNextAnimationFrameRef.current = null;
+                    });
+                } else {
+                    updateState({isFadingOut: true});
+                }
             }
 
             function handleFocus(event: FocusEvent) {
                 if (event.target !== targetElement) return;
 
-                // This depends on the `focus-visible` JS polyfill being installed on
-                // the page. Even if the `:focus-visible` pseudo-class is supported in
-                // the browser.
-                //
-                // Wait a microtask for the `focus-visible` polyfill to run. If this
-                // focus is a result of a keyboard interaction (vs a mouse interaction)
-                // then the focus visible class will have been added to the element.
-                scheduleMicrotask(() => {
-                    if (targetElement.hasAttribute("data-focus-visible")) {
-                        setState(state => {
-                            if (state.isFocused) {
-                                return state;
-                            } else if (!state.isHovered && !state.isFocused) {
-                                return {
-                                    ...state,
-                                    isFocused: true,
-                                    isFadingIn: true,
-                                    isFadingOut: false,
-                                };
-                            } else if (state.isHovered) {
-                                return {...state, isFocused: true};
-                            } else {
-                                throw exhaustive(state);
-                            }
-                        });
-                    }
-                });
+                if (isFocusVisible) {
+                    // Only fade in if there is not a tooltip that wants to immediately fade out
+                    // next frame.
+                    const isFadingIn =
+                        tooltipSymbolThatIsFadingOutNextAnimationFrameRef.current === null;
+                    tooltipSymbolThatIsFadingOutNextAnimationFrameRef.current = null;
+
+                    setState(state => {
+                        if (state.isFocused) {
+                            return state;
+                        } else if (!state.isHovered && !state.isFocused) {
+                            return {
+                                ...state,
+                                isFocused: true,
+                                isFadingIn,
+                                isFadingOut: false,
+                            };
+                        } else if (state.isHovered) {
+                            return {...state, isFocused: true};
+                        } else {
+                            throw exhaustive(state);
+                        }
+                    });
+                }
             }
 
             function handleBlur(event: FocusEvent) {
                 if (event.target !== targetElement) return;
 
-                setState(state => {
-                    if (!state.isFocused) {
-                        return state;
-                    } else if (!state.isHovered) {
-                        if (!visible) {
-                            return {
-                                ...state,
-                                isFocused: false,
-                                isFadingIn: false,
-                                isFadingOut: false,
-                            };
-                        } else if (!state.isFadingIn) {
-                            return {
-                                ...state,
-                                isFocused: false,
-                                isFadingIn: false,
-                                isFadingOut: true,
-                            };
-                        } else {
+                const updateState = ({isFadingOut}: {isFadingOut: boolean}) => {
+                    setState(state => {
+                        if (!state.isFocused) {
+                            return state;
+                        } else if (!state.isHovered) {
+                            if (!visible) {
+                                return {
+                                    ...state,
+                                    isFocused: false,
+                                    isFadingIn: false,
+                                    isFadingOut: false,
+                                };
+                            } else if (!state.isFadingIn) {
+                                return {
+                                    ...state,
+                                    isFocused: false,
+                                    isFadingIn: false,
+                                    isFadingOut,
+                                };
+                            } else {
+                                return {...state, isFocused: false};
+                            }
+                        } else if (state.isHovered) {
                             return {...state, isFocused: false};
+                        } else {
+                            throw exhaustive(state);
                         }
-                    } else if (state.isHovered) {
-                        return {...state, isFocused: false};
-                    } else {
-                        throw exhaustive(state);
-                    }
-                });
+                    });
+                };
+
+                // Record that we are going to fade out this tooltip next animation frame. If
+                // another tooltip wants to be visible in the next animation frame we want to
+                // skip our animation.
+                if (tooltipSymbolThatIsFadingOutNextAnimationFrameRef.current === null) {
+                    tooltipSymbolThatIsFadingOutNextAnimationFrameRef.current = tooltipSymbol;
+                    requestAnimationFrame(() => {
+                        updateState({
+                            isFadingOut:
+                                tooltipSymbolThatIsFadingOutNextAnimationFrameRef.current ===
+                                tooltipSymbol,
+                        });
+                        tooltipSymbolThatIsFadingOutNextAnimationFrameRef.current = null;
+                    });
+                } else {
+                    updateState({isFadingOut: true});
+                }
             }
 
             const cleanupAttributes = setElementAttributesWithCleanup(targetElement, {
@@ -372,7 +421,7 @@ export function Tooltip({
                 targetElement.removeEventListener("blur", handleBlur);
             };
         },
-        [visible],
+        [tooltipSymbolThatIsFadingOutNextAnimationFrameRef, isFocusVisible, tooltipSymbol, visible],
     );
 
     const children = useElementWithRef(
@@ -401,7 +450,7 @@ export function Tooltip({
             <Overlay
                 visible={visible}
                 placement={placement}
-                offsetAway="1.5"
+                offsetAway="2"
                 overlay={
                     <div
                         ref={tooltipRef}
@@ -419,7 +468,9 @@ export function Tooltip({
                             className={
                                 state.isFadingOut
                                     ? tooltipAnimateFadeOutClassName
-                                    : tooltipAnimateFadeInClassName
+                                    : state.isFadingIn
+                                    ? tooltipAnimateFadeInClassName
+                                    : undefined
                             }
                             style={{boxShadow: tooltipBoxShadow}}
                         >
@@ -431,7 +482,7 @@ export function Tooltip({
                 {children}
             </Overlay>
         );
-    }, [visible, placement, tooltipId, state.isFadingOut, content, children]);
+    }, [visible, placement, tooltipId, state.isFadingOut, state.isFadingIn, content, children]);
 }
 
 /**
@@ -459,6 +510,7 @@ export function useShouldDisableTooltips(shouldDisableTooltips: boolean = true) 
 const TooltipCoordinationActiveSymbolContext = createContext<symbol | null>(null);
 
 type TooltipCoordinationContext = {
+    readonly tooltipSymbolThatIsFadingOutNextAnimationFrameRef: MutableRefObject<symbol | null>;
     readonly addHoveredAndAddFocusedTooltipSymbol: (symbol: symbol) => void;
     readonly addHoveredAndDeleteFocusedTooltipSymbol: (symbol: symbol) => void;
     readonly deleteHoveredAndAddFocusedTooltipSymbol: (symbol: symbol) => void;
@@ -563,6 +615,8 @@ export function TooltipCoordinationContextProvider({children}: {children: ReactN
         }
     }, [hasActiveTooltipSymbol, state.hoveredTooltipsStatus]);
 
+    const tooltipSymbolThatIsFadingOutNextAnimationFrameRef = useRef<symbol | null>(null);
+
     const context = useMemo((): TooltipCoordinationContext => {
         const addHoveredTooltipSymbolUpdater = (
             state: TooltipCoordinationContextState,
@@ -620,6 +674,7 @@ export function TooltipCoordinationContextProvider({children}: {children: ReactN
         };
 
         return {
+            tooltipSymbolThatIsFadingOutNextAnimationFrameRef,
             addHoveredAndAddFocusedTooltipSymbol: tooltipSymbol => {
                 setState(state => {
                     state = addHoveredTooltipSymbolUpdater(state, tooltipSymbol);
