@@ -53,66 +53,6 @@ export const tooltipFadeAnimationDurationMs = 200;
 // TODO(calebmer): Make this a constant somewhere in `shared/styles`.
 const tooltipFadeInOutTimingFunction = "cubic-bezier(0.4, 0, 0.2, 1)";
 
-export const tooltipClassName = style({
-    selectors: {
-        "&[data-popper-placement^=top]": {
-            paddingBottom: spacing["3"],
-        },
-        "&[data-popper-placement^=bottom]": {
-            paddingTop: spacing["3"],
-        },
-        "&[data-popper-placement^=left]": {
-            paddingRight: spacing["3"],
-        },
-        "&[data-popper-placement^=right]": {
-            paddingLeft: spacing["3"],
-        },
-    },
-});
-
-export const tooltipArrowClassName = style({
-    selectors: {
-        [`${tooltipClassName}[data-popper-placement^=top] &`]: {
-            paddingLeft: spacing["2"],
-            paddingRight: spacing["2"],
-            paddingBottom: spacing["1"],
-            bottom: `-${spacing["3"]}`,
-        },
-        [`${tooltipClassName}[data-popper-placement^=bottom] &`]: {
-            paddingLeft: spacing["2"],
-            paddingRight: spacing["2"],
-            paddingTop: spacing["1"],
-            top: `-${spacing["3"]}`,
-        },
-        [`${tooltipClassName}[data-popper-placement^=left] &`]: {
-            paddingTop: spacing["2"],
-            paddingBottom: spacing["2"],
-            paddingRight: spacing["1"],
-            right: `-${spacing["3"]}`,
-        },
-        [`${tooltipClassName}[data-popper-placement^=right] &`]: {
-            paddingTop: spacing["2"],
-            paddingBottom: spacing["2"],
-            paddingLeft: spacing["1"],
-            left: `-${spacing["3"]}`,
-        },
-    },
-});
-
-export const tooltipArrowSvgClassName = style({
-    selectors: {
-        [`${tooltipClassName}[data-popper-placement^=top] &`]: {
-            transform: "rotate(180deg)",
-        },
-        [`${tooltipClassName}[data-popper-placement^=left] &`]: {
-            transform: "rotate(90deg)",
-        },
-        [`${tooltipClassName}[data-popper-placement^=right] &`]: {
-            transform: "rotate(-90deg)",
-        },
-    },
-});
-
 // We use this instead of `tooltipClassName` for other overlays that want to
 // use the animation. If this becomes a common animation, we should figure out
 // a better abstraction.

@@ -1,4 +1,3 @@
-import classNames from "classnames";
 import {
     ReactElement,
     ReactNode,
@@ -16,15 +15,11 @@ import {setElementAttributesWithCleanup} from "~/client/design/helpers/set-eleme
 import {useElementWithRef} from "~/client/design/helpers/use-element-with-ref";
 import {useLifecycleRef} from "~/client/design/helpers/use-lifecycle-ref";
 import {Overlay, OverlayPlacement} from "~/client/design/overlay";
-import {sprinkles} from "~/client/design/sprinkles.css";
 import {uninterruptedThoughtLimitMs} from "~/client/design/timing-constants";
 import {
     tooltipAnimateContainerClassName,
     tooltipAnimateFadeInClassName,
     tooltipAnimateFadeOutClassName,
-    tooltipArrowClassName,
-    tooltipArrowSvgClassName,
-    tooltipClassName,
     tooltipFadeAnimationDurationMs,
 } from "~/client/design/tooltip.css";
 import {useIsMounted} from "~/client/helpers/lifecycle/use-is-mounted";
@@ -393,8 +388,6 @@ export function Tooltip({
         useLifecycleRef(targetLifecycleRef),
     );
 
-    // TODO(calebmer): Tweak tooltip styles when we know the elevation system
-
     // Memoizing here because `TooltipCoordinationContext` forces us to re-render
     // all tooltips on the page whenever one tooltip is focused or hovered. We
     // want to minimize re-renders when that happens.
@@ -407,51 +400,30 @@ export function Tooltip({
             <Overlay
                 visible={visible}
                 placement={placement}
+                offsetAway="2"
                 overlay={
                     <div
                         ref={tooltipRef}
                         id={tooltipId}
                         role="tooltip"
-                        className={`${tooltipClassName} ${tooltipAnimateContainerClassName}`}
+                        className={tooltipAnimateContainerClassName}
                     >
-                        <div
+                        <Box
+                            paddingX="1"
+                            paddingY="0"
+                            font="sm"
+                            color="grey-100"
+                            backgroundColor={{light: "grey-0", dark: "grey-10"}}
+                            borderRadius="base"
+                            boxShadow="elevation-5"
                             className={
                                 state.isFadingOut
                                     ? tooltipAnimateFadeOutClassName
                                     : tooltipAnimateFadeInClassName
                             }
                         >
-                            <Box
-                                paddingX="1"
-                                paddingY="0"
-                                font="sm"
-                                color="grey-100"
-                                backgroundColor="grey-10"
-                                borderRadius="base"
-                            >
-                                {content}
-                            </Box>
-                            <div
-                                className={tooltipArrowClassName}
-                                style={{position: "absolute"}}
-                                data-popper-arrow
-                            >
-                                <svg
-                                    className={classNames(
-                                        tooltipArrowSvgClassName,
-                                        sprinkles({
-                                            width: "2",
-                                            height: "2",
-                                            color: "grey-10",
-                                        }),
-                                    )}
-                                    fill="currentColor"
-                                    viewBox="0 0 600 600"
-                                >
-                                    <polygon points="300,80 600,600 0,600" />
-                                </svg>
-                            </div>
-                        </div>
+                            {content}
+                        </Box>
                     </div>
                 }
             >

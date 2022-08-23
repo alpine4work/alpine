@@ -1,29 +1,18 @@
-// Our elevation system was derived from the Atlassian design system's
-// elevation tokens.
-// https://bitbucket.org/atlassian/atlassian-frontend-mirror/src/26522ba48f433282e5c966bfe7adb3b1ff315a43/design-system/theme/src/elevation.tsx#lines-20:65
+// We get our elevation values from TailwindCSS
+// https://tailwindcss.com/docs/box-shadow
 
 /**
  * CSS box shadows used to simulate elevation in our product.
  */
 export const elevation = {
-    // Inline dialogs
-    "elevation-20": {
-        light: "0 4px 8px -2px rgba(0, 0, 0, 0.25), 0 0 1px rgba(0, 0, 0, 0.31)",
-        dark: "0 4px 8px -2px rgba(0, 0, 0, 0.85), 0 0 1px rgba(0, 0, 0, 0.81)",
-    },
-    // Modals
-    "elevation-30": {
-        light: "0 8px 16px -4px rgba(0, 0, 0, 0.25), 0 0 1px rgba(0, 0, 0, 0.31)",
-        dark: "0 8px 16px -4px rgba(0, 0, 0, 0.85), 0 0 1px rgba(0, 0, 0, 0.81)",
-    },
-    // Panels
-    "elevation-40": {
-        light: "0 12px 24px -6px rgba(0, 0, 0, 0.25), 0 0 1px rgba(0, 0, 0, 0.31)",
-        dark: "0 12px 24px -6px rgba(0, 0, 0, 0.85), 0 0 1px rgba(0, 0, 0, 0.81)",
-    },
-    // Notifications
-    "elevation-50": {
-        light: "0 20px 32px -8px rgba(0, 0, 0, 0.25), 0 0 1px rgba(0, 0, 0, 0.31)",
-        dark: "0 20px 32px -8px rgba(0, 0, 0, 0.85), 0 0 1px rgba(0, 0, 0, 0.81)",
-    },
+    "elevation-5": "0 1px 2px 0 rgb(0 0 0 / 0.05), 0 0 1px rgb(0 0 0 / 0.2)",
+    "elevation-10":
+        "0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1), 0 0 1px rgb(0 0 0 / 0.2)",
+    "elevation-20":
+        "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1), 0 0 1px rgb(0 0 0 / 0.2)",
+    "elevation-30":
+        "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1), 0 0 1px rgb(0 0 0 / 0.2)",
+    "elevation-40":
+        "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1), 0 0 1px rgb(0 0 0 / 0.2)",
+    "elevation-50": "0 25px 50px -12px rgb(0 0 0 / 0.25), 0 0 1px rgb(0 0 0 / 0.2)",
 } as const;

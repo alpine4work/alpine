@@ -329,7 +329,9 @@ function ContentEditorSelectionToolbarIconButton({
             content={
                 <Box padding="0.5">
                     {description}
-                    <Box color="grey-60">{keyboardShortcut}</Box>
+                    <Box color="grey-60" style={{marginTop: "-0.125rem"}}>
+                        {keyboardShortcut}
+                    </Box>
                 </Box>
             }
         >

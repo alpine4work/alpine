@@ -13,9 +13,9 @@ import {createSprinkles, defineProperties} from "@vanilla-extract/sprinkles";
 import {
     colorSchemeVars,
     darkColorSchemeSelector,
-    elevationVars,
     lightColorSchemeSelector,
 } from "~/shared/design/color-scheme.css";
+import {elevation} from "~/shared/design/elevation";
 import {fontScale, fontWeights} from "~/shared/design/fonts";
 import {mobilePlatformMediaQuery, spacing} from "~/shared/design/spacing";
 import {mapObjectValues} from "~/shared/helpers/object/map-object-values";
@@ -50,7 +50,7 @@ const properties = defineProperties({
             base: "0.25rem",
             full: "9999px",
         },
-        boxShadow: elevationVars,
+        boxShadow: elevation,
     },
 });
 

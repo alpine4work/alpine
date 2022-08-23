@@ -37,6 +37,20 @@ export default function DesignPlayground() {
                             width="32"
                             height="32"
                             borderRadius="base"
+                            boxShadow="elevation-5"
+                        />
+                        <Box
+                            backgroundColor={{light: "grey-0", dark: "grey-10"}}
+                            width="32"
+                            height="32"
+                            borderRadius="base"
+                            boxShadow="elevation-10"
+                        />
+                        <Box
+                            backgroundColor={{light: "grey-0", dark: "grey-10"}}
+                            width="32"
+                            height="32"
+                            borderRadius="base"
                             boxShadow="elevation-20"
                         />
                         <Box
