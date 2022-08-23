@@ -48,7 +48,7 @@ const tooltipFadeOutRightKeyframes = keyframes({
 });
 
 // TODO(calebmer): Make this a constant somewhere in `shared/styles`.
-export const tooltipFadeAnimationDurationMs = 150;
+export const tooltipFadeAnimationDurationMs = 200;
 
 // TODO(calebmer): Make this a constant somewhere in `shared/styles`.
 const tooltipFadeInOutTimingFunction = "cubic-bezier(0.4, 0, 0.2, 1)";
@@ -113,18 +113,23 @@ export const tooltipArrowSvgClassName = style({
     },
 });
 
+// We use this instead of `tooltipClassName` for other overlays that want to
+// use the animation. If this becomes a common animation, we should figure out
+// a better abstraction.
+export const tooltipAnimateContainerClassName = style({});
+
 export const tooltipAnimateFadeInClassName = style({
     selectors: {
-        [`${tooltipClassName}[data-popper-placement^=top] &`]: {
+        [`${tooltipAnimateContainerClassName}[data-popper-placement^=top] &`]: {
             animation: `${tooltipFadeInTopKeyframes} ${tooltipFadeAnimationDurationMs}ms ${tooltipFadeInOutTimingFunction} forwards`,
         },
-        [`${tooltipClassName}[data-popper-placement^=bottom] &`]: {
+        [`${tooltipAnimateContainerClassName}[data-popper-placement^=bottom] &`]: {
             animation: `${tooltipFadeInBottomKeyframes} ${tooltipFadeAnimationDurationMs}ms ${tooltipFadeInOutTimingFunction} forwards`,
         },
-        [`${tooltipClassName}[data-popper-placement^=left] &`]: {
+        [`${tooltipAnimateContainerClassName}[data-popper-placement^=left] &`]: {
             animation: `${tooltipFadeInLeftKeyframes} ${tooltipFadeAnimationDurationMs}ms ${tooltipFadeInOutTimingFunction} forwards`,
         },
-        [`${tooltipClassName}[data-popper-placement^=right] &`]: {
+        [`${tooltipAnimateContainerClassName}[data-popper-placement^=right] &`]: {
             animation: `${tooltipFadeInRightKeyframes} ${tooltipFadeAnimationDurationMs}ms ${tooltipFadeInOutTimingFunction} forwards`,
         },
     },
@@ -132,16 +137,16 @@ export const tooltipAnimateFadeInClassName = style({
 
 export const tooltipAnimateFadeOutClassName = style({
     selectors: {
-        [`${tooltipClassName}[data-popper-placement^=top] &`]: {
+        [`${tooltipAnimateContainerClassName}[data-popper-placement^=top] &`]: {
             animation: `${tooltipFadeOutTopKeyframes} ${tooltipFadeAnimationDurationMs}ms ${tooltipFadeInOutTimingFunction} forwards`,
         },
-        [`${tooltipClassName}[data-popper-placement^=bottom] &`]: {
+        [`${tooltipAnimateContainerClassName}[data-popper-placement^=bottom] &`]: {
             animation: `${tooltipFadeOutBottomKeyframes} ${tooltipFadeAnimationDurationMs}ms ${tooltipFadeInOutTimingFunction} forwards`,
         },
-        [`${tooltipClassName}[data-popper-placement^=left] &`]: {
+        [`${tooltipAnimateContainerClassName}[data-popper-placement^=left] &`]: {
             animation: `${tooltipFadeOutLeftKeyframes} ${tooltipFadeAnimationDurationMs}ms ${tooltipFadeInOutTimingFunction} forwards`,
         },
-        [`${tooltipClassName}[data-popper-placement^=right] &`]: {
+        [`${tooltipAnimateContainerClassName}[data-popper-placement^=right] &`]: {
             animation: `${tooltipFadeOutRightKeyframes} ${tooltipFadeAnimationDurationMs}ms ${tooltipFadeInOutTimingFunction} forwards`,
         },
     },

@@ -7,16 +7,22 @@ export {BoxForwardRef as Box};
 function Box(
     {
         children,
+        className,
         style,
         ...props
     }: Sprinkles & {
         children?: ReactNode;
+        className?: string;
         style?: CSSProperties;
     },
     ref: Ref<HTMLDivElement>,
 ) {
     return (
-        <div ref={ref} className={sprinkles(props)} style={style}>
+        <div
+            ref={ref}
+            className={className ? `${className} ${sprinkles(props)}` : sprinkles(props)}
+            style={style}
+        >
             {children}
         </div>
     );

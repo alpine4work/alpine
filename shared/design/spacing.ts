@@ -5,12 +5,14 @@ import {assert} from "~/shared/helpers/control/assert";
  *
  * Mobile is 1.25x the size of desktop.
  */
-export const remPx = {
+export const remPxByPlatform = {
     desktop: 16,
     mobile: 20,
 } as const;
 
-export const mobileMediaQuery = "screen and (max-width: 768px)";
+export const mobilePlatformMediaQuery = "screen and (max-width: 768px)";
+
+export type Spacing = keyof typeof spacing;
 
 /**
  * Our spacing scale.
@@ -28,6 +30,7 @@ export const mobileMediaQuery = "screen and (max-width: 768px)";
  * the platform scale.
  */
 export const spacing = {
+    px: "1px",
     "0": "0rem",
     "0.5": "0.125rem",
     "1": "0.25rem",

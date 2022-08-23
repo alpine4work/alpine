@@ -8,7 +8,7 @@
 import {globalStyle} from "@vanilla-extract/css";
 import {colorSchemeVars} from "~/shared/design/color-scheme.css";
 import {fontScale, monospaceFontFamily, sansSerifFontFamily} from "~/shared/design/fonts";
-import {mobileMediaQuery, remPx} from "~/shared/design/spacing";
+import {mobilePlatformMediaQuery, remPxByPlatform} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
 
 // Since we use the `fontScale.base` line height as our default, let's make
@@ -21,12 +21,12 @@ globalStyle(":root", {
     fontFamily: sansSerifFontFamily,
 
     // Change the size of 1rem based on whether we're on desktop or mobile.
-    fontSize: remPx.desktop,
+    fontSize: remPxByPlatform.desktop,
     lineHeight: fontScale.base.lineHeight,
     letterSpacing: fontScale.base.letterSpacing,
     "@media": {
-        [mobileMediaQuery]: {
-            fontSize: remPx.mobile,
+        [mobilePlatformMediaQuery]: {
+            fontSize: remPxByPlatform.mobile,
         },
     },
 

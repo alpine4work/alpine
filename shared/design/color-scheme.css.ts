@@ -1,7 +1,9 @@
 import {assignVars, createGlobalTheme, globalStyle, style} from "@vanilla-extract/css";
 import assert from "assert";
 import {colors} from "~/shared/design/colors";
+import {elevation} from "~/shared/design/elevation";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get-or-set-default-map-value";
+import {mapObjectValues} from "~/shared/helpers/object/map-object-values";
 
 /**
  * The color scheme which identifies whether we are in dark mode.
@@ -125,3 +127,19 @@ export const colorSchemeVars = {
     ...constantColors,
     ...themeColorSchemeVars,
 };
+
+/**
+ * Box shadow variables that change based on whether we're in light mode or
+ * dark mode.
+ */
+export const elevationVars = createGlobalTheme(
+    ":root",
+    mapObjectValues(elevation, ({light}): string => light),
+);
+
+globalStyle(darkColorSchemeSelector, {
+    vars: assignVars(
+        elevationVars,
+        mapObjectValues(elevation, ({dark}) => dark),
+    ),
+});

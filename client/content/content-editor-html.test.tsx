@@ -1,7 +1,11 @@
 import {fireEvent, render, screen} from "@testing-library/react";
 import {Mark, Node} from "prosemirror-model";
 import React, {useState} from "react";
-import {ContentEditor, ContentEditorState, getEditorForTest} from "~/client/content/content-editor";
+import {
+    ContentEditor,
+    ContentEditorState,
+    getEditorViewForTest,
+} from "~/client/content/content-editor";
 import {ContentSchema} from "~/shared/content/content-schema";
 
 const blockTestCases: Array<{
@@ -211,7 +215,7 @@ for (const inlineTestCase of inlineTestCases) {
 
 function expectClipboardRoundtripToWork() {
     // eslint-disable-next-line testing-library/no-node-access
-    const editor = getEditorForTest(screen.getByRole("textbox").parentNode);
+    const editor = getEditorViewForTest(screen.getByRole("textbox").parentNode);
 
     const copiedDoc = editor.state.doc;
     const copiedFragment = editor.props.clipboardSerializer!.serializeFragment(copiedDoc.content);
@@ -238,7 +242,7 @@ function expectClipboardRoundtripToWork() {
     });
 
     // eslint-disable-next-line testing-library/no-node-access
-    const pastedDoc = getEditorForTest(container.firstElementChild!).state.doc;
+    const pastedDoc = getEditorViewForTest(container.firstElementChild!).state.doc;
 
     expect(pastedDoc.toString()).toEqual(copiedDoc.toString());
 

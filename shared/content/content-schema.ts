@@ -112,7 +112,19 @@ export const ContentSchema = new Schema({
             group: "block",
             content: "inline*",
             toDOM: () => ["p", {class: paragraphClassName}, 0],
-            parseDOM: [{tag: "p"}, {tag: "div"}],
+            parseDOM: [
+                {tag: "p"},
+                {
+                    tag: "div",
+                    getAttrs: node => {
+                        // If this is a wrapper `<div>` with `<p>` tags inside, then we want to use our
+                        // `<p>` rule to parse the DOM instead of our `<div>` rule.
+                        if (!(node instanceof HTMLElement)) return {};
+                        if (node.querySelector("p")) return false;
+                        return {};
+                    },
+                },
+            ],
         },
 
         /*

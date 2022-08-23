@@ -15,6 +15,7 @@ import {ContentDomClipboardSerializer} from "~/client/content/content-dom-clipbo
 import {ContentDomParser} from "~/client/content/content-dom-parser";
 import {buildInputRulesPlugin} from "~/client/content/content-editor-plugin-input-rules";
 import {buildKeymapPlugin} from "~/client/content/content-editor-plugin-keymap";
+import {ContentEditorSelectionToolbarManager} from "~/client/content/content-editor-selection-toolbar";
 import {emptyContentEditorClassName} from "~/client/content/content-editor.css";
 import {createContentOrderedListItemNodeView} from "~/client/content/content-ordered-list-item-node-view";
 import {createContentLinkNodeView} from "~/client/content/create-content-link-node-view";
@@ -46,6 +47,8 @@ function buildPlugins() {
 
 /**
  * Represents the entire state of our `<ContentEditor>` component.
+ *
+ * We have a wrapper to require the user of certain plugins.
  *
  * Wraps around ProseMirror's own `EditorState` and provides a controlled
  * interface to the outside world.
@@ -334,16 +337,16 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
     });
 
     const elementRef = useRef<HTMLDivElement>(null);
-    const editorRef = useRef<EditorView>();
+    const viewRef = useRef<EditorView | null>(null);
 
     useImperativeHandle(
         ref,
         () => ({
             focus: () => {
-                (editorRef.current?.dom as HTMLDivElement).focus();
+                (viewRef.current?.dom as HTMLDivElement).focus();
             },
             blur: () => {
-                (editorRef.current?.dom as HTMLDivElement).blur();
+                (viewRef.current?.dom as HTMLDivElement).blur();
             },
         }),
         [],
@@ -358,7 +361,7 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
     useLayoutEffect(() => {
         assert(elementRef.current);
 
-        const editor = new EditorView(elementRef.current, {
+        const view = new EditorView(elementRef.current, {
             state: unwrap(propsRef.current.state),
 
             domParser: ContentDomParser.fromSchema(ContentSchema),
@@ -371,19 +374,6 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
             },
 
             handlePaste,
-
-            // // When ProseMirror parses the DOM for pasting, it [creates a slice with
-            // // `Slice.maxOpen()`][1]. This excludes any block styles within the slice when
-            // // the slice is pasted. We'd like those styles to be included (if the content
-            // // is not just a single paragraph) while pasting so create a new slice with no
-            // // open/end depths.
-            // //
-            // // [1]: https://github.com/ProseMirror/prosemirror-model/blob/26c634ffff8ad6544fda12ed70c99f12a65959f3/src/from_dom.ts#L207
-            // transformPasted: slice =>
-            //     slice.content.childCount === 1 &&
-            //     slice.content.firstChild!.type === ContentSchema.nodes.paragraph
-            //         ? slice
-            //         : new Slice(slice.content, 0, 0),
 
             // If we have an `onEnter` callback then we want to run that instead of
             // letting ProseMirror handle an enter key press.
@@ -416,11 +406,11 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
                 // By default, applying a transaction will clear the editor's stored
                 // marks. We don't want that behavior! Instead we want to preserve marks
                 // until a user explicitly toggles them off.
-                if (editor.state.storedMarks && !transaction.storedMarksSet) {
-                    transaction.setStoredMarks(editor.state.storedMarks);
+                if (view.state.storedMarks && !transaction.storedMarksSet) {
+                    transaction.setStoredMarks(view.state.storedMarks);
                 }
 
-                const newState = editor.state.apply(transaction);
+                const newState = view.state.apply(transaction);
 
                 // Always calls the handler from the last React commit. By using a ref
                 // we can avoid destroying and recreating an editor.
@@ -443,19 +433,19 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
                 // React commits.
                 //
                 // [1]: https://prosemirror.net/docs/guide/#view
-                editor.updateState(newState);
+                view.updateState(newState);
                 updateEditorEmptyClass(newState);
                 setLastTransactionTime(transaction.time);
             },
         });
 
         // Stash the editor view instance on the DOM node for debugging and tests.
-        (elementRef.current as any)[internalEditorKey] = editor;
+        (elementRef.current as any)[internalEditorViewKey] = view;
 
-        editorRef.current = editor;
+        viewRef.current = view;
 
         return () => {
-            editor.destroy();
+            view.destroy();
         };
     }, []);
 
@@ -475,9 +465,9 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
 
         const actualState = unwrap(state);
 
-        assert(editorRef.current);
-        if (editorRef.current.state !== actualState) {
-            editorRef.current.updateState(actualState);
+        assert(viewRef.current);
+        if (viewRef.current.state !== actualState) {
+            viewRef.current.updateState(actualState);
         }
 
         updateEditorEmptyClass(actualState);
@@ -486,14 +476,14 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
     // Apply `className`s from our `className` prop. Take care to make sure class
     // names added by ProseMirror or other effects continue to be applied.
     useLayoutEffect(() => {
-        assert(editorRef.current);
-        const editor = editorRef.current.dom;
+        assert(viewRef.current);
+        const editorElement = viewRef.current.dom;
 
         const classList = classNames(docClassName, className).split(" ");
-        editor.classList.add(...classList);
+        editorElement.classList.add(...classList);
 
         return () => {
-            editor.classList.remove(...classList);
+            editorElement.classList.remove(...classList);
         };
     }, [className]);
 
@@ -502,72 +492,81 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
      * removes the class when the editor document is not empty.
      */
     function updateEditorEmptyClass(state: EditorState) {
-        assert(editorRef.current);
-        const editor = editorRef.current;
+        assert(viewRef.current);
+        const editorElement = viewRef.current.dom;
 
         const showPlaceholder = shouldShowPlaceholder(state.doc);
 
-        if (showPlaceholder && !editor.dom.classList.contains(emptyContentEditorClassName)) {
-            editor.dom.classList.add(emptyContentEditorClassName);
+        if (showPlaceholder && !editorElement.classList.contains(emptyContentEditorClassName)) {
+            editorElement.classList.add(emptyContentEditorClassName);
         }
 
-        if (!showPlaceholder && editor.dom.classList.contains(emptyContentEditorClassName)) {
-            editor.dom.classList.remove(emptyContentEditorClassName);
+        if (!showPlaceholder && editorElement.classList.contains(emptyContentEditorClassName)) {
+            editorElement.classList.remove(emptyContentEditorClassName);
         }
     }
 
     // Keep various attributes on the editor element up to date.
     useLayoutEffect(() => {
-        assert(editorRef.current);
-        const editor = editorRef.current.dom;
+        assert(viewRef.current);
+        const editorElement = viewRef.current.dom;
 
         // Set the role for assistive technologies. For documentation see:
         // https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/textbox_role
-        editor.setAttribute("role", "textbox");
-        editor.setAttribute("aria-multiline", hasEnterCallback ? "false" : "true");
+        editorElement.setAttribute("role", "textbox");
+        editorElement.setAttribute("aria-multiline", hasEnterCallback ? "false" : "true");
 
         if (ariaLabel) {
-            editor.setAttribute("aria-label", ariaLabel);
+            editorElement.setAttribute("aria-label", ariaLabel);
         } else {
-            editor.removeAttribute("aria-label");
+            editorElement.removeAttribute("aria-label");
         }
 
         if (ariaLabelledBy) {
-            editor.setAttribute("aria-labelledby", ariaLabelledBy);
+            editorElement.setAttribute("aria-labelledby", ariaLabelledBy);
         } else {
-            editor.removeAttribute("aria-labelledby");
+            editorElement.removeAttribute("aria-labelledby");
         }
 
         // Our `content-editor.module.css` file uses the `aria-placeholder`
         // attribute to render placeholder text.
         if (placeholder) {
-            editor.setAttribute("aria-placeholder", placeholder);
+            editorElement.setAttribute("aria-placeholder", placeholder);
         } else {
-            editor.removeAttribute("aria-placeholder");
+            editorElement.removeAttribute("aria-placeholder");
         }
     }, [ariaLabel, ariaLabelledBy, hasEnterCallback, placeholder]);
 
     // TODO(calebmer): Make this component SSR safe! All the `useLayoutEffect()`s
     // are logging warnings on the server and they're right.
     return (
-        <div ref={elementRef} className={containerClassName} onFocus={onFocus} onBlur={onBlur} />
+        <>
+            <div
+                ref={elementRef}
+                className={containerClassName}
+                onFocus={onFocus}
+                onBlur={onBlur}
+            />
+            <ContentEditorSelectionToolbarManager state={unwrap(state)} viewRef={viewRef} />
+        </>
     );
 }
 
 // Inspired by [React internal keys][1].
 //
 // [1]: https://github.com/facebook/react/blob/80c4dea0d1da0012977c6c4b2ac7a8bd37154d50/packages/react-dom/src/client/ReactDOMComponentTree.js#L34-L41
-const internalEditorKey = `__prosemirrorEditor$${Math.random().toString(36).slice(2)}`;
+const internalEditorViewKey = `__prosemirrorEditorView$${Math.random().toString(36).slice(2)}`;
 
-export function getEditorForTest(element: unknown): EditorView {
+export function getEditorViewForTest(element: unknown): EditorView {
     assert(process.env.NODE_ENV === "test");
     assert(typeof element === "object" && element !== null);
 
-    const editor =
-        (element as any)[internalEditorKey] ?? (element as any).parentNode?.[internalEditorKey];
+    const editorView =
+        (element as any)[internalEditorViewKey] ??
+        (element as any).parentNode?.[internalEditorViewKey];
 
-    assert(editor instanceof EditorView);
-    return editor;
+    assert(editorView instanceof EditorView);
+    return editorView;
 }
 
 function handlePaste(view: EditorView, event: ClipboardEvent, slice: Slice): boolean {

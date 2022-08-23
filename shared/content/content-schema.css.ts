@@ -1,7 +1,12 @@
 import {globalStyle, style} from "@vanilla-extract/css";
 import {colorSchemeVars} from "~/shared/design/color-scheme.css";
 import {fontScale, fontWeights, monospaceFontFamily} from "~/shared/design/fonts";
-import {mobileMediaQuery, parseRemLengthNumber, remPx, spacing} from "~/shared/design/spacing";
+import {
+    mobilePlatformMediaQuery,
+    parseRemLengthNumber,
+    remPxByPlatform,
+    spacing,
+} from "~/shared/design/spacing";
 
 const paragraphMargin = spacing["3"];
 
@@ -131,7 +136,7 @@ export const checkListItemCheckboxContainerClassName = style({
     cursor: "default",
     userSelect: "none",
     "@media": {
-        [mobileMediaQuery]: {
+        [mobilePlatformMediaQuery]: {
             top: `-${spacing["0.5"]}`,
             left:
                 parseRemLengthNumber(listItemIndentation) / 2 -
@@ -164,7 +169,7 @@ export const checkListItemCheckboxClassName = style({
         },
     },
     "@media": {
-        [mobileMediaQuery]: {
+        [mobilePlatformMediaQuery]: {
             width: checkListItemCheckboxMobileSize,
             height: checkListItemCheckboxMobileSize,
             padding: spacing["1"],
@@ -206,7 +211,7 @@ export const strikeClassName = style({
 
 export const codeClassName = style({
     fontFamily: monospaceFontFamily,
-    fontSize: `${(remPx.desktop - 1) / remPx.desktop}em`,
+    fontSize: `${(remPxByPlatform.desktop - 1) / remPxByPlatform.desktop}em`,
     // The line height isn't `fontScale.base.lineHeight` because I've observed that
     // it grows the paragraph container as a whole to a larger height than
     // `fontScale.base.lineHeight`. But 1em seems to inherit the block element's

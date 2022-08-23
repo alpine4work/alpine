@@ -6,7 +6,11 @@ import {EditorState, TextSelection, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import React, {useCallback, useState} from "react";
 import {act} from "react-dom/test-utils";
-import {ContentEditor, ContentEditorState, getEditorForTest} from "~/client/content/content-editor";
+import {
+    ContentEditor,
+    ContentEditorState,
+    getEditorViewForTest,
+} from "~/client/content/content-editor";
 import {ContentSchema} from "~/shared/content/content-schema";
 import {assert} from "~/shared/helpers/control/assert";
 
@@ -22,7 +26,7 @@ function getTextbox(): HTMLElement {
 
 // Get the ProseMirror `EditorView`.
 function getEditor(): EditorView {
-    return getEditorForTest(getTextbox().parentNode);
+    return getEditorViewForTest(getTextbox().parentNode);
 }
 
 // Get the ProseMirror document `Node`.
@@ -294,7 +298,7 @@ test("can change content", () => {
 test("will optimistically update the DOM synchronously", () => {
     render(<TestContentEditor />);
 
-    const editor = getEditorForTest(getTextbox().parentNode);
+    const editor = getEditorViewForTest(getTextbox().parentNode);
     const transaction = editor.state.tr;
     transaction.insertText("Hello world!");
 
@@ -319,7 +323,7 @@ test("will revert optimistic update if it doesn't match props", () => {
 
     render(<NoopContentEditor />);
 
-    const editor = getEditorForTest(getTextbox().parentNode);
+    const editor = getEditorViewForTest(getTextbox().parentNode);
     const transaction = editor.state.tr;
     transaction.insertText("Hello world!");
 

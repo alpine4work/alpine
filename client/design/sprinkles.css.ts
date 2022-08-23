@@ -13,10 +13,11 @@ import {createSprinkles, defineProperties} from "@vanilla-extract/sprinkles";
 import {
     colorSchemeVars,
     darkColorSchemeSelector,
+    elevationVars,
     lightColorSchemeSelector,
 } from "~/shared/design/color-scheme.css";
 import {fontScale, fontWeights} from "~/shared/design/fonts";
-import {mobileMediaQuery, spacing} from "~/shared/design/spacing";
+import {mobilePlatformMediaQuery, spacing} from "~/shared/design/spacing";
 import {mapObjectValues} from "~/shared/helpers/object/map-object-values";
 
 // TODO(calebmer): Add these styles:
@@ -49,6 +50,7 @@ const properties = defineProperties({
             base: "0.25rem",
             full: "9999px",
         },
+        boxShadow: elevationVars,
     },
 });
 
@@ -85,7 +87,7 @@ const spacingWithPercentages = {
 
 const responsiveProperties = defineProperties({
     conditions: {
-        mobile: {"@media": mobileMediaQuery},
+        mobile: {"@media": mobilePlatformMediaQuery},
         desktop: {},
     },
     defaultCondition: "desktop",

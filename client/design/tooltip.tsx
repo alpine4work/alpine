@@ -19,6 +19,7 @@ import {Overlay, OverlayPlacement} from "~/client/design/overlay";
 import {sprinkles} from "~/client/design/sprinkles.css";
 import {uninterruptedThoughtLimitMs} from "~/client/design/timing-constants";
 import {
+    tooltipAnimateContainerClassName,
     tooltipAnimateFadeInClassName,
     tooltipAnimateFadeOutClassName,
     tooltipArrowClassName,
@@ -411,7 +412,7 @@ export function Tooltip({
                         ref={tooltipRef}
                         id={tooltipId}
                         role="tooltip"
-                        className={tooltipClassName}
+                        className={`${tooltipClassName} ${tooltipAnimateContainerClassName}`}
                     >
                         <div
                             className={
