@@ -55,7 +55,7 @@ export function ContentEditorSelectionToolbarManager({
     // milliseconds as it animates away.
     //
     // When `shouldShow` is false, `showState.isShowing` will be true for a couple
-    // milliseconds and `showState.pos` will be the last selection position.
+    // milliseconds and `showState.selectionPos` will be the last selection position.
     const [showState, setShowState] = useState<{isShowing: true; pos: number} | {isShowing: false}>(
         shouldShow ? {isShowing: true, pos: state.selection.from} : {isShowing: false},
     );
@@ -92,6 +92,7 @@ export function ContentEditorSelectionToolbarManager({
 
     return (
         <ContentEditorSelectionToolbarOverlay
+            state={state}
             viewRef={viewRef}
             pos={showState.pos}
             shouldAnimateOut={!shouldShow}
@@ -100,32 +101,43 @@ export function ContentEditorSelectionToolbarManager({
 }
 
 function ContentEditorSelectionToolbarOverlay({
+    state,
     viewRef,
     pos,
     shouldAnimateOut,
 }: {
+    state: EditorState;
     viewRef: RefObject<EditorView | null>;
     pos: number;
     shouldAnimateOut: boolean;
 }) {
     const overlayRef = useRef<OverlayRef>(null);
-    const toolbarRef = useRef<HTMLDivElement>(null);
+    const targetRef = useRef<HTMLDivElement>(null);
 
     useLayoutEffect(() => {
         let isCancelled = false;
+
+        // We want this effect to run whenever the underlying doc changes too.
+        //
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        state.doc;
 
         const run = () => {
             if (isCancelled) return;
 
             assert(viewRef.current);
             assert(overlayRef.current);
-            assert(toolbarRef.current);
+            assert(targetRef.current);
+            assert(targetRef.current.offsetParent);
 
+            // `coords` are relative to the viewport, so get our offset parent's viewport
+            // rect so we can correctly position our selection target in the offset parent.
             const coords = viewRef.current.coordsAtPos(pos);
+            const offsetParentRect = targetRef.current.offsetParent.getBoundingClientRect();
 
-            toolbarRef.current.style.top = `${coords.top}px`;
-            toolbarRef.current.style.height = `${coords.bottom - coords.top}px`;
-            toolbarRef.current.style.left = `${coords.left}px`;
+            targetRef.current.style.top = `${coords.top - offsetParentRect.top}px`;
+            targetRef.current.style.height = `${coords.bottom - coords.top}px`;
+            targetRef.current.style.left = `${coords.left - offsetParentRect.left}px`;
 
             overlayRef.current.forceUpdateOverlay();
         };
@@ -138,7 +150,7 @@ function ContentEditorSelectionToolbarOverlay({
         return () => {
             isCancelled = true;
         };
-    }, [pos, viewRef]);
+    }, [pos, state.doc, viewRef]);
 
     return (
         <Overlay
@@ -162,7 +174,7 @@ function ContentEditorSelectionToolbarOverlay({
                 </Box>
             }
         >
-            <Box ref={toolbarRef} width="0" position="absolute" pointerEvents="none" />
+            <Box ref={targetRef} width="0" position="absolute" pointerEvents="none" />
         </Overlay>
     );
 }
