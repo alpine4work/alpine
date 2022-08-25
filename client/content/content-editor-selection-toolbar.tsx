@@ -13,7 +13,8 @@ import {
     TextItalic,
     TextStrikethrough,
 } from "phosphor-react";
-import {setBlockType, toggleMark, wrapIn} from "prosemirror-commands";
+import {toggleMark, wrapIn} from "prosemirror-commands";
+import {Attrs, NodeType} from "prosemirror-model";
 import {Command, EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {ReactNode, RefObject, useEffect, useLayoutEffect, useRef, useState} from "react";
@@ -266,8 +267,7 @@ function ContentEditorSelectionToolbar({viewRef}: {viewRef: RefObject<EditorView
                 description="Heading 1"
                 keyboardShortcut="# Hello"
                 viewRef={viewRef}
-                // TODO(calebmer): Toggle heading if already on
-                command={setBlockType(ContentSchema.nodes.heading, {level: 1})}
+                command={toggleBlockType(ContentSchema.nodes.heading, {level: 1})}
             >
                 <TextHOne />
             </ContentEditorSelectionToolbarIconButton>
@@ -275,8 +275,7 @@ function ContentEditorSelectionToolbar({viewRef}: {viewRef: RefObject<EditorView
                 description="Heading 2"
                 keyboardShortcut="## Hello"
                 viewRef={viewRef}
-                // TODO(calebmer): Toggle heading if already on
-                command={setBlockType(ContentSchema.nodes.heading, {level: 2})}
+                command={toggleBlockType(ContentSchema.nodes.heading, {level: 2})}
             >
                 <TextHTwo />
             </ContentEditorSelectionToolbarIconButton>
@@ -284,8 +283,7 @@ function ContentEditorSelectionToolbar({viewRef}: {viewRef: RefObject<EditorView
                 description="Heading 3"
                 keyboardShortcut="### Hello"
                 viewRef={viewRef}
-                // TODO(calebmer): Toggle heading if already on
-                command={setBlockType(ContentSchema.nodes.heading, {level: 3})}
+                command={toggleBlockType(ContentSchema.nodes.heading, {level: 3})}
             >
                 <TextHThree />
             </ContentEditorSelectionToolbarIconButton>
@@ -391,4 +389,36 @@ function ContentEditorSelectionToolbarIconButton({
             </div>
         </Tooltip>
     );
+}
+
+function toggleBlockType(nodeType: NodeType, attrs: Attrs | null = null): Command {
+    return (state, dispatch) => {
+        let hasBlockTypeAlready = false;
+
+        state.doc.nodesBetween(state.selection.from, state.selection.to, (node, pos) => {
+            if (hasBlockTypeAlready) return false;
+            if (node.isTextblock && node.hasMarkup(nodeType, attrs)) hasBlockTypeAlready = true;
+        });
+
+        if (dispatch) {
+            if (hasBlockTypeAlready) {
+                dispatch(
+                    state.tr
+                        .setBlockType(
+                            state.selection.from,
+                            state.selection.to,
+                            ContentSchema.nodes.paragraph,
+                        )
+                        .scrollIntoView(),
+                );
+            } else {
+                dispatch(
+                    state.tr
+                        .setBlockType(state.selection.from, state.selection.to, nodeType, attrs)
+                        .scrollIntoView(),
+                );
+            }
+        }
+        return true;
+    };
 }
