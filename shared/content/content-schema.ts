@@ -8,6 +8,7 @@ import {
     headingLevel1ClassName,
     headingLevel2ClassName,
     headingLevel3ClassName,
+    highlightClassNameByColor,
     italicClassName,
     linkClassName,
     listItemClassName,
@@ -17,35 +18,18 @@ import {
     quoteBlockClassName,
     strikeClassName,
 } from "~/shared/content/content-schema.css";
+import {HighlightColor, isHighlightColor} from "~/shared/content/highlight-color";
 import {parseRemLengthNumber} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
 
 // TODO(calebmer): Styles for all the content things! Haven't finished:
 //
 // - Code block
-// - Highlight
 
 // TODO(calebmer): Consider including custom hero header images using abstract
 // line art. Like from these sets:
 // - https://creativemarket.com/kloroform/collections/1866986/Wires
 // - https://creativemarket.com/andrewpixel/5737653-1000-Abstract-Illustration-BUNDLE (geometric shapes)
-
-/**
- * All the possible highlight colors for the inline style.
- */
-export enum HighlightColor {
-    Red = "red",
-    Yellow = "yellow",
-    Green = "green",
-    Blue = "blue",
-    Purple = "purple",
-}
-
-const highlightColorSet: ReadonlySet<HighlightColor> = new Set(Object.values(HighlightColor));
-
-function isHighlightColor(string: string): string is HighlightColor {
-    return highlightColorSet.has(string as any);
-}
 
 /**
  * The maximum level of indentation for a list item.
@@ -462,15 +446,18 @@ export const ContentSchema = new Schema({
                 const color: HighlightColor =
                     typeof unknownColor === "string" && isHighlightColor(unknownColor)
                         ? unknownColor
-                        : HighlightColor.Yellow;
+                        : HighlightColor.Orange;
 
-                // TODO(calebmer): Do something with the highlight color! Also test
-                // that logic.
-                //
-                // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-                color;
+                console.log({highlightClassNameByColor, color});
 
-                return ["mark", {"data-highlight-color": color}, 0];
+                return [
+                    "mark",
+                    {
+                        class: highlightClassNameByColor[color],
+                        "data-highlight-color": color,
+                    },
+                    0,
+                ];
             },
             parseDOM: [
                 {

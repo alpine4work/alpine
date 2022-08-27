@@ -28,24 +28,28 @@ import {
     useState,
 } from "react";
 import {mergeProps, useButton} from "react-aria";
+import {ContentEditorHighlightColorSelector} from "~/client/content/content-editor-highlight-color-selector";
 import {Box} from "~/client/design/box";
 import {useLifecycleRef} from "~/client/design/helpers/use-lifecycle-ref";
+import {useOutsidePress} from "~/client/design/helpers/use-outside-press";
 import {Overlay, OverlayRef} from "~/client/design/overlay";
+import {OverlayAnimated} from "~/client/design/overlay-animated";
+import {
+    overlayAnimateContainerClassName,
+    overlayAnimateFadeInClassName,
+    overlayAnimateFadeOutClassName,
+    overlayFadeAnimationDurationMs,
+} from "~/client/design/overlay-animated.css";
 import {sprinkles} from "~/client/design/sprinkles.css";
 import {uninterruptedThoughtLimitMs} from "~/client/design/timing-constants";
 import {Tooltip, TooltipRef} from "~/client/design/tooltip";
-import {
-    tooltipAnimateContainerClassName,
-    tooltipAnimateFadeInClassName,
-    tooltipAnimateFadeOutClassName,
-} from "~/client/design/tooltip.css";
 import {isMac} from "~/client/helpers/platform/is-mac";
 import {ContentSchema} from "~/shared/content/content-schema";
 import {spacing} from "~/shared/design/spacing";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule-microtask";
 import {assert} from "~/shared/helpers/control/assert";
 
-export function ContentEditorSelectionToolbarManager({
+export function ContentEditorSelectionToolbar({
     state,
     viewRef,
 }: {
@@ -66,6 +70,10 @@ export function ContentEditorSelectionToolbarManager({
     //
     // When `shouldShow` is false, `showState.isShowing` will be true for a couple
     // milliseconds and `showState.selectionPos` will be the last selection position.
+    //
+    // NOTE(calebmer): This component was written before `<OverlayAnimated>`. It
+    // has a bit of delay before the animation begins so it isn't quite feature
+    // compatible but consider consolidating someday.
     const [showState, setShowState] = useState<{isShowing: true; pos: number} | {isShowing: false}>(
         shouldShow ? {isShowing: true, pos: state.selection.from} : {isShowing: false},
     );
@@ -78,7 +86,7 @@ export function ContentEditorSelectionToolbarManager({
         if (shouldShow && !showState.isShowing) {
             const timeoutId = setTimeout(() => {
                 setShowState({isShowing: true, pos: state.selection.from});
-            }, uninterruptedThoughtLimitMs / 2);
+            }, overlayFadeAnimationDurationMs);
 
             return () => {
                 clearTimeout(timeoutId);
@@ -86,6 +94,9 @@ export function ContentEditorSelectionToolbarManager({
         }
     }, [shouldShow, showState.isShowing, state.selection.from]);
 
+    // Keep the toolbar mounted for a bit before unmounting. This way if the user
+    // is quickly clicking around they don't have to wait again for the delay that
+    // shows the toolbar.
     useEffect(() => {
         if (!shouldShow && showState.isShowing) {
             const timeoutId = setTimeout(() => {
@@ -105,7 +116,7 @@ export function ContentEditorSelectionToolbarManager({
             state={state}
             viewRef={viewRef}
             pos={showState.pos}
-            shouldAnimateOut={!shouldShow}
+            isFadingOut={!shouldShow}
         />
     );
 }
@@ -114,12 +125,12 @@ function ContentEditorSelectionToolbarOverlay({
     state,
     viewRef,
     pos,
-    shouldAnimateOut,
+    isFadingOut,
 }: {
     state: EditorState;
     viewRef: RefObject<EditorView | null>;
     pos: number;
-    shouldAnimateOut: boolean;
+    isFadingOut: boolean;
 }) {
     const overlayRef = useRef<OverlayRef>(null);
     const targetRef = useRef<HTMLDivElement>(null);
@@ -183,24 +194,32 @@ function ContentEditorSelectionToolbarOverlay({
             ref={overlayRef}
             visible={true}
             placement="top-start"
-            offsetAway="3"
+            // Since we position the overlay based on the start of the selection we can't
+            // flip down or else we might cover selection content.
+            canFlip={false}
+            offset="3"
             offsetAlong="-5"
-            flip={false}
             overlay={
-                <Box className={tooltipAnimateContainerClassName}>
+                <div className={overlayAnimateContainerClassName}>
                     <Box
+                        display="flex"
+                        paddingX="1"
+                        borderRadius="base"
+                        backgroundColor={{light: "grey-0", dark: "grey-5"}}
+                        boxShadow="elevation-20"
                         className={
-                            shouldAnimateOut
-                                ? tooltipAnimateFadeOutClassName
-                                : tooltipAnimateFadeInClassName
+                            isFadingOut
+                                ? overlayAnimateFadeOutClassName
+                                : overlayAnimateFadeInClassName
                         }
                     >
-                        <ContentEditorSelectionToolbar
+                        <ContentEditorSelectionToolbarButtons
                             viewRef={viewRef}
                             sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
+                            isFadingOut={isFadingOut}
                         />
                     </Box>
-                </Box>
+                </div>
             }
         >
             <Box ref={targetRef} width="0" position="absolute" pointerEvents="none" />
@@ -208,22 +227,18 @@ function ContentEditorSelectionToolbarOverlay({
     );
 }
 
-function ContentEditorSelectionToolbar({
+function ContentEditorSelectionToolbarButtons({
     viewRef,
     sharedTooltipLifecycleRef,
+    isFadingOut,
 }: {
     viewRef: RefObject<EditorView | null>;
     sharedTooltipLifecycleRef: (tooltipRef: TooltipRef) => () => void;
+    isFadingOut: boolean;
 }) {
     return (
-        <Box
-            display="flex"
-            paddingX="1"
-            borderRadius="base"
-            backgroundColor={{light: "grey-0", dark: "grey-5"}}
-            boxShadow="elevation-20"
-        >
-            <ContentEditorSelectionToolbarIconButton
+        <>
+            <ContentEditorSelectionToolbarButton
                 description="Bold"
                 keyboardShortcut={isMac ? "⌘+B" : "Ctrl+B"}
                 viewRef={viewRef}
@@ -231,8 +246,8 @@ function ContentEditorSelectionToolbar({
                 command={toggleMark(ContentSchema.marks.bold)}
             >
                 <TextBolder />
-            </ContentEditorSelectionToolbarIconButton>
-            <ContentEditorSelectionToolbarIconButton
+            </ContentEditorSelectionToolbarButton>
+            <ContentEditorSelectionToolbarButton
                 description="Italicize"
                 keyboardShortcut={isMac ? "⌘+I" : "Ctrl+I"}
                 viewRef={viewRef}
@@ -240,8 +255,8 @@ function ContentEditorSelectionToolbar({
                 command={toggleMark(ContentSchema.marks.italic)}
             >
                 <TextItalic />
-            </ContentEditorSelectionToolbarIconButton>
-            <ContentEditorSelectionToolbarIconButton
+            </ContentEditorSelectionToolbarButton>
+            <ContentEditorSelectionToolbarButton
                 description="Strikethrough"
                 keyboardShortcut={isMac ? "⌘+Shift+X" : "Ctrl+Shift+X"}
                 viewRef={viewRef}
@@ -249,8 +264,8 @@ function ContentEditorSelectionToolbar({
                 command={toggleMark(ContentSchema.marks.strike)}
             >
                 <TextStrikethrough />
-            </ContentEditorSelectionToolbarIconButton>
-            <ContentEditorSelectionToolbarIconButton
+            </ContentEditorSelectionToolbarButton>
+            <ContentEditorSelectionToolbarButton
                 description="Link"
                 keyboardShortcut={isMac ? "⌘+K" : "Ctrl+K"}
                 viewRef={viewRef}
@@ -261,22 +276,13 @@ function ContentEditorSelectionToolbar({
                 }}
             >
                 <Link />
-            </ContentEditorSelectionToolbarIconButton>
-            <ContentEditorSelectionToolbarIconButton
-                dividerRight
-                description="Highlight"
-                // TODO(calebmer): Actually implement highlight keyboard shortcut
-                keyboardShortcut={isMac ? "⌘+Shift+H" : "Ctrl+Shift+H"}
+            </ContentEditorSelectionToolbarButton>
+            <ContentEditorSelectionToolbarHighlightButton
                 viewRef={viewRef}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
-                command={() => {
-                    // TODO(calebmer): Implement
-                    return false;
-                }}
-            >
-                <Palette />
-            </ContentEditorSelectionToolbarIconButton>
-            <ContentEditorSelectionToolbarIconButton
+                isFadingOut={isFadingOut}
+            />
+            <ContentEditorSelectionToolbarButton
                 dividerLeft
                 description="Bulleted list"
                 keyboardShortcut="- Hello"
@@ -285,8 +291,8 @@ function ContentEditorSelectionToolbar({
                 command={toggleListItems(ContentSchema.nodes.unorderedListItem)}
             >
                 <ListBullets />
-            </ContentEditorSelectionToolbarIconButton>
-            <ContentEditorSelectionToolbarIconButton
+            </ContentEditorSelectionToolbarButton>
+            <ContentEditorSelectionToolbarButton
                 description="Numbered list"
                 keyboardShortcut="1. Hello"
                 viewRef={viewRef}
@@ -294,8 +300,8 @@ function ContentEditorSelectionToolbar({
                 command={toggleListItems(ContentSchema.nodes.orderedListItem)}
             >
                 <ListNumbers />
-            </ContentEditorSelectionToolbarIconButton>
-            <ContentEditorSelectionToolbarIconButton
+            </ContentEditorSelectionToolbarButton>
+            <ContentEditorSelectionToolbarButton
                 dividerRight
                 description="Check list"
                 keyboardShortcut="[ ] Hello"
@@ -304,8 +310,8 @@ function ContentEditorSelectionToolbar({
                 command={toggleListItems(ContentSchema.nodes.checkListItem)}
             >
                 <ListChecks />
-            </ContentEditorSelectionToolbarIconButton>
-            <ContentEditorSelectionToolbarIconButton
+            </ContentEditorSelectionToolbarButton>
+            <ContentEditorSelectionToolbarButton
                 dividerLeft
                 description="Heading 1"
                 keyboardShortcut="# Hello"
@@ -314,8 +320,8 @@ function ContentEditorSelectionToolbar({
                 command={toggleBlockType(ContentSchema.nodes.heading, {level: 1})}
             >
                 <TextHOne />
-            </ContentEditorSelectionToolbarIconButton>
-            <ContentEditorSelectionToolbarIconButton
+            </ContentEditorSelectionToolbarButton>
+            <ContentEditorSelectionToolbarButton
                 description="Heading 2"
                 keyboardShortcut="## Hello"
                 viewRef={viewRef}
@@ -323,8 +329,8 @@ function ContentEditorSelectionToolbar({
                 command={toggleBlockType(ContentSchema.nodes.heading, {level: 2})}
             >
                 <TextHTwo />
-            </ContentEditorSelectionToolbarIconButton>
-            <ContentEditorSelectionToolbarIconButton
+            </ContentEditorSelectionToolbarButton>
+            <ContentEditorSelectionToolbarButton
                 description="Heading 3"
                 keyboardShortcut="### Hello"
                 viewRef={viewRef}
@@ -332,29 +338,31 @@ function ContentEditorSelectionToolbar({
                 command={toggleBlockType(ContentSchema.nodes.heading, {level: 3})}
             >
                 <TextHThree />
-            </ContentEditorSelectionToolbarIconButton>
-        </Box>
+            </ContentEditorSelectionToolbarButton>
+        </>
     );
 }
 
-function ContentEditorSelectionToolbarIconButton({
-    dividerLeft,
-    dividerRight,
+function ContentEditorSelectionToolbarButton({
     description,
     keyboardShortcut,
     viewRef,
     sharedTooltipLifecycleRef,
     command,
     children,
+    dividerLeft,
+    dividerRight,
+    isTooltipDisabled,
 }: {
-    dividerLeft?: boolean;
-    dividerRight?: boolean;
     description: string;
     keyboardShortcut: string;
     viewRef: RefObject<EditorView | null>;
     sharedTooltipLifecycleRef: (tooltipRef: TooltipRef) => () => void;
     command: Command;
     children: ReactNode;
+    dividerLeft?: boolean;
+    dividerRight?: boolean;
+    isTooltipDisabled?: boolean;
 }) {
     const onPress = () => {
         const view = viewRef.current;
@@ -378,7 +386,10 @@ function ContentEditorSelectionToolbarIconButton({
     return (
         <Tooltip
             ref={useLifecycleRef(sharedTooltipLifecycleRef)}
+            disabled={isTooltipDisabled}
             placement="top"
+            // Don't allow flipping the tooltip down into selection content.
+            canFlip={false}
             content={
                 <Box>
                     {description}
@@ -404,26 +415,25 @@ function ContentEditorSelectionToolbarIconButton({
                     cursor: "default",
                 })}
             >
-                <div
-                    className={sprinkles({
-                        // We implement dividers in this funky way so that as the mouse scrubs left and
-                        // right over our toolbar the tooltips immediately disappear/reappear because
-                        // there is no gap in between the hovered elements.
-                        paddingRight: dividerRight ? "1" : undefined,
-                        borderRight: dividerRight ? {light: "grey-10", dark: "grey-20"} : undefined,
-                        paddingLeft: dividerLeft ? "1" : undefined,
-                    })}
+                <Box
+                    // We implement dividers in this funky way so that as the mouse scrubs left and
+                    // right over our toolbar the tooltips immediately disappear/reappear because
+                    // there is no gap in between the hovered elements.
+                    paddingRight={dividerRight ? "1" : undefined}
+                    borderRight={dividerRight ? {light: "grey-10", dark: "grey-20"} : undefined}
+                    paddingLeft={dividerLeft ? "1" : undefined}
                 >
-                    <div
-                        className={sprinkles({
-                            padding: "1",
-                            borderRadius: "base",
-                            color: isPressed ? "grey-100" : "grey-80",
-                            backgroundColor: {
-                                light: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
-                                dark: isPressed ? "grey-20" : isHovered ? "grey-10" : undefined,
-                            },
-                        })}
+                    <Box
+                        padding="1"
+                        borderRadius="base"
+                        color={isPressed ? "grey-100" : "grey-80"}
+                        backgroundColor={
+                            isPressed
+                                ? {light: "grey-10", dark: "grey-20"}
+                                : isHovered
+                                ? {light: "grey-5", dark: "grey-10"}
+                                : undefined
+                        }
                     >
                         <IconContext.Provider
                             value={{
@@ -433,10 +443,101 @@ function ContentEditorSelectionToolbarIconButton({
                         >
                             {children}
                         </IconContext.Provider>
-                    </div>
-                </div>
+                    </Box>
+                </Box>
             </div>
         </Tooltip>
+    );
+}
+
+function ContentEditorSelectionToolbarHighlightButton({
+    viewRef,
+    sharedTooltipLifecycleRef,
+    isFadingOut,
+}: {
+    viewRef: RefObject<EditorView | null>;
+    sharedTooltipLifecycleRef: (tooltipRef: TooltipRef) => () => void;
+    isFadingOut: boolean;
+}) {
+    const [_isColorSelectorOpen, setIsColorSelectorOpen] = useState(false);
+    const isColorSelectorOpen = _isColorSelectorOpen && !isFadingOut;
+    if (_isColorSelectorOpen !== isColorSelectorOpen) setIsColorSelectorOpen(isColorSelectorOpen);
+
+    const wasJustClosedByOverlayRef = useRef(false);
+
+    return (
+        <OverlayAnimated
+            visible={isColorSelectorOpen}
+            placement="top"
+            canFlip={false}
+            offset="1.5"
+            overlay={
+                <Box
+                    ref={useOutsidePress(() => {
+                        setIsColorSelectorOpen(false);
+                        wasJustClosedByOverlayRef.current = true;
+                        setTimeout(() => {
+                            wasJustClosedByOverlayRef.current = false;
+                        }, 0);
+                    })}
+                >
+                    <ContentEditorHighlightColorSelector
+                        isFocusable={false}
+                        onSelectHighlightColor={highlightColor => {
+                            const view = viewRef.current;
+                            assert(view);
+                            const {state, dispatch} = view;
+
+                            if (highlightColor) {
+                                dispatch(
+                                    state.tr.addMark(
+                                        state.selection.from,
+                                        state.selection.to,
+                                        ContentSchema.mark("highlight", {
+                                            color: highlightColor,
+                                        }),
+                                    ),
+                                );
+                            } else {
+                                dispatch(
+                                    state.tr.removeMark(
+                                        state.selection.from,
+                                        state.selection.to,
+                                        ContentSchema.marks.highlight,
+                                    ),
+                                );
+                            }
+
+                            setIsColorSelectorOpen(false);
+                        }}
+                    />
+                </Box>
+            }
+        >
+            <Box>
+                <ContentEditorSelectionToolbarButton
+                    dividerRight
+                    description="Highlight"
+                    // TODO(calebmer): Actually implement highlight keyboard shortcut
+                    keyboardShortcut={isMac ? "⌘+Shift+H" : "Ctrl+Shift+H"}
+                    isTooltipDisabled={isColorSelectorOpen}
+                    viewRef={viewRef}
+                    sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
+                    command={() => {
+                        // If the user clicks on this button to close the highlight color overlay then
+                        // this `command` will run after the `useOutsidePress()` above which closes the
+                        // overlay. We want the overlay to stay closed so we need to coordinate with
+                        // a ref.
+                        if (!wasJustClosedByOverlayRef.current) {
+                            setIsColorSelectorOpen(!isColorSelectorOpen);
+                        }
+                        return false;
+                    }}
+                >
+                    <Palette />
+                </ContentEditorSelectionToolbarButton>
+            </Box>
+        </OverlayAnimated>
     );
 }
 

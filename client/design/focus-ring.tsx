@@ -13,7 +13,9 @@ import {Box} from "~/client/design/box";
 import {useElementWithRef} from "~/client/design/helpers/use-element-with-ref";
 import {useLifecycleRef} from "~/client/design/helpers/use-lifecycle-ref";
 import {useMergedRef} from "~/client/design/helpers/use-merged-ref";
+import {useSpacingPx} from "~/client/design/helpers/use-spacing-px";
 import {Overlay} from "~/client/design/overlay";
+import {Spacing} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
 
 const FocusRingForwardRef = forwardRef(FocusRing);
@@ -27,7 +29,25 @@ export {FocusRingForwardRef as FocusRing};
  *
  * [1]: https://discord.com/blog/how-discord-implemented-app-wide-keyboard-navigation
  */
-function FocusRing({children}: {children: ReactElement}, foreignRef: Ref<HTMLElement>) {
+function FocusRing(
+    {
+        offset = "0.5",
+        children,
+    }: {
+        /**
+         * How far away to position the focus ring from the focusable element.
+         *
+         * Defaults to `0.5`.
+         */
+        offset?: Spacing;
+
+        /**
+         * The focusable element we draw a ring around.
+         */
+        children: ReactElement;
+    },
+    foreignRef: Ref<HTMLElement>,
+) {
     const [isFocused, setIsFocused] = useState(false);
     const ringStylesRef = useRef<FocusRingBoxRingStyles | null>(null);
 
@@ -82,7 +102,7 @@ function FocusRing({children}: {children: ReactElement}, foreignRef: Ref<HTMLEle
             sameHeight={true}
             overlay={
                 <Box pointerEvents="none">
-                    <FocusRingBox ringStylesRef={ringStylesRef} />
+                    <FocusRingBox offset={offset} ringStylesRef={ringStylesRef} />
                 </Box>
             }
         >
@@ -101,11 +121,21 @@ type FocusRingBoxRingStyles = {
     borderBottomRightRadius: number | string;
 };
 
-function FocusRingBox({ringStylesRef}: {ringStylesRef: RefObject<FocusRingBoxRingStyles | null>}) {
+function FocusRingBox({
+    offset,
+    ringStylesRef,
+}: {
+    offset: Spacing;
+    ringStylesRef: RefObject<FocusRingBoxRingStyles | null>;
+}) {
     const ringRef = useRef<HTMLDivElement>(null);
 
     const ringWidthPx = 2;
-    const ringOffsetPx = 2;
+    const ringOffsetPx = useSpacingPx(offset);
+
+    // Overlay must be focused to render so we know we're on the client and
+    // `window` should exist.
+    assert(ringOffsetPx !== null);
 
     useLayoutEffect(() => {
         assert(ringRef.current && ringStylesRef.current);
@@ -166,7 +196,7 @@ function FocusRingBox({ringStylesRef}: {ringStylesRef: RefObject<FocusRingBoxRin
             ringRef.current.style.borderBottomRightRadius =
                 ringStylesRef.current.borderBottomRightRadius;
         }
-    }, [ringStylesRef]);
+    }, [ringOffsetPx, ringStylesRef]);
 
     return (
         <Box

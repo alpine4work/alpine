@@ -20,17 +20,18 @@ import {setElementAttributesWithCleanup} from "~/client/design/helpers/set-eleme
 import {useElementWithRef} from "~/client/design/helpers/use-element-with-ref";
 import {useLifecycleRef} from "~/client/design/helpers/use-lifecycle-ref";
 import {Overlay, OverlayPlacement, OverlayRef} from "~/client/design/overlay";
-import {uninterruptedThoughtLimitMs} from "~/client/design/timing-constants";
 import {
-    tooltipAnimateContainerClassName,
-    tooltipAnimateFadeInClassName,
-    tooltipAnimateFadeOutClassName,
-    tooltipFadeAnimationDurationMs,
-} from "~/client/design/tooltip.css";
+    overlayAnimateContainerClassName,
+    overlayAnimateFadeInClassName,
+    overlayAnimateFadeOutClassName,
+    overlayFadeAnimationDurationMs,
+} from "~/client/design/overlay-animated.css";
+import {uninterruptedThoughtLimitMs} from "~/client/design/timing-constants";
 import {useIsMounted} from "~/client/helpers/lifecycle/use-is-mounted";
 import {tooltipBoxShadow} from "~/shared/design/elevation";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {isDeepEqual} from "~/shared/helpers/control/is-deep-equal";
 
 type TooltipState =
     // Tooltip is definitely not visible.
@@ -121,7 +122,10 @@ export {TooltipForwardRef as Tooltip};
 function Tooltip(
     {
         content,
+        disabled = false,
         placement = "top",
+        canFlip = true,
+        visibleWhenFocusWithin = false,
         children: actualChildren,
     }: {
         /**
@@ -130,10 +134,34 @@ function Tooltip(
         content: ReactNode;
 
         /**
+         * If true the tooltip won't open even if the target element is hovered or
+         * focused.
+         *
+         * If the tooltip is opened and `disabled` changes to true then we will
+         * immediately hide the tooltip without animation.
+         */
+        disabled?: boolean;
+
+        /**
          * Where should the tooltip content be placed relative to the target element?
          * Defaults to `top`.
          */
         placement?: OverlayPlacement;
+
+        /**
+         * If true, changes the `placement` of a popper to make sure it stays visible
+         * within the nearest parent `<OverlayScopeContextProvider>`.
+         *
+         * Defaults to `true`.
+         */
+        canFlip?: boolean;
+
+        /**
+         * Do we show the tooltip if a child has focus?
+         *
+         * Defaults to `false`.
+         */
+        visibleWhenFocusWithin?: boolean;
 
         /**
          * The element our tooltip content will be rendered to point to. Must provide
@@ -178,9 +206,14 @@ function Tooltip(
     // Controls whether the tooltip is actually visible or not. Only one tooltip
     // can be visible on screen at once and that is managed by our tooltip
     // coordination context.
-    const visible = tooltipSymbol === activeTooltipSymbol;
+    const visible = !disabled && tooltipSymbol === activeTooltipSymbol;
 
-    const [state, setState] = useState<TooltipState>(initialTooltipState);
+    const [_state, setState] = useState<TooltipState>(initialTooltipState);
+
+    // If the tooltip is disabled, immediately reset to the initial tooltip state.
+    const state =
+        disabled && !isDeepEqual(_state, initialTooltipState) ? initialTooltipState : _state;
+    if (state !== _state) setState(state);
 
     // Manage our tooltip symbol in the tooltip coordination context based on our
     // hover/focus state.
@@ -227,7 +260,7 @@ function Tooltip(
                             throw exhaustive(state);
                         }
                     });
-                }, tooltipFadeAnimationDurationMs);
+                }, overlayFadeAnimationDurationMs);
 
                 return () => {
                     clearTimeout(timeoutId);
@@ -252,7 +285,7 @@ function Tooltip(
                             return {...state, isFadingOut: false};
                         }
                     });
-                }, tooltipFadeAnimationDurationMs);
+                }, overlayFadeAnimationDurationMs);
 
                 return () => {
                     clearTimeout(timeoutId);
@@ -270,8 +303,11 @@ function Tooltip(
         (targetElement: HTMLElement) => {
             assert(
                 targetElement instanceof HTMLElement,
-                "Expected the children of `<Tooltip>` to render an element with a ref to an HTML element",
+                "Expected the children of a `<Tooltip>` component to render an element with a ref to an HTML element",
             );
+
+            // Don't attach handlers when we're disabled.
+            if (disabled) return;
 
             assert(!visible || tooltipRef.current);
             const tooltipElement = tooltipRef.current;
@@ -354,8 +390,8 @@ function Tooltip(
                 }
             }
 
-            function handleFocus(event: FocusEvent) {
-                if (event.target !== targetElement) return;
+            function handleFocusIn(event: FocusEvent) {
+                if (!visibleWhenFocusWithin && event.target !== targetElement) return;
 
                 if (isFocusVisible) {
                     // Only fade in if there is not a tooltip that wants to immediately fade out
@@ -383,8 +419,8 @@ function Tooltip(
                 }
             }
 
-            function handleBlur(event: FocusEvent) {
-                if (event.target !== targetElement) return;
+            function handleFocusOut(event: FocusEvent) {
+                if (!visibleWhenFocusWithin && event.target !== targetElement) return;
 
                 const updateState = ({isFadingOut}: {isFadingOut: boolean}) => {
                     setState(state => {
@@ -440,19 +476,29 @@ function Tooltip(
 
             targetElement.addEventListener("mouseenter", handleMouseEnter);
             targetElement.addEventListener("mouseleave", handleMouseLeave);
-            targetElement.addEventListener("focus", handleFocus);
-            targetElement.addEventListener("blur", handleBlur);
+
+            // We use `focusin`/`focusout` instead of `focus`/`blur` because the latter
+            // events don't bubble.
+            targetElement.addEventListener("focusin", handleFocusIn);
+            targetElement.addEventListener("focusout", handleFocusOut);
 
             return () => {
                 cleanupAttributes();
 
                 targetElement.removeEventListener("mouseenter", handleMouseEnter);
                 targetElement.removeEventListener("mouseleave", handleMouseLeave);
-                targetElement.removeEventListener("focus", handleFocus);
-                targetElement.removeEventListener("blur", handleBlur);
+                targetElement.removeEventListener("focusin", handleFocusIn);
+                targetElement.removeEventListener("focusout", handleFocusOut);
             };
         },
-        [tooltipSymbolThatIsFadingOutNextAnimationFrameRef, isFocusVisible, tooltipSymbol, visible],
+        [
+            disabled,
+            visible,
+            tooltipSymbolThatIsFadingOutNextAnimationFrameRef,
+            tooltipSymbol,
+            visibleWhenFocusWithin,
+            isFocusVisible,
+        ],
     );
 
     const children = useElementWithRef(
@@ -482,13 +528,14 @@ function Tooltip(
                 ref={overlayRef}
                 visible={visible}
                 placement={placement}
-                offsetAway="2"
+                canFlip={canFlip}
+                offset="1.5"
                 overlay={
                     <div
                         ref={tooltipRef}
                         id={tooltipId}
                         role="tooltip"
-                        className={tooltipAnimateContainerClassName}
+                        className={overlayAnimateContainerClassName}
                     >
                         <Box
                             paddingX="1.5"
@@ -499,9 +546,9 @@ function Tooltip(
                             borderRadius="base"
                             className={
                                 state.isFadingOut
-                                    ? tooltipAnimateFadeOutClassName
+                                    ? overlayAnimateFadeOutClassName
                                     : state.isFadingIn
-                                    ? tooltipAnimateFadeInClassName
+                                    ? overlayAnimateFadeInClassName
                                     : undefined
                             }
                             style={{boxShadow: tooltipBoxShadow}}
@@ -514,7 +561,16 @@ function Tooltip(
                 {children}
             </Overlay>
         );
-    }, [visible, placement, tooltipId, state.isFadingOut, state.isFadingIn, content, children]);
+    }, [
+        visible,
+        placement,
+        canFlip,
+        tooltipId,
+        state.isFadingOut,
+        state.isFadingIn,
+        content,
+        children,
+    ]);
 }
 
 /**

@@ -15,9 +15,9 @@ import React, {
 } from "react";
 import {createPortal} from "react-dom";
 import {Box} from "~/client/design/box";
-import {getRemPx} from "~/client/design/helpers/get-rem-px";
 import {useElementWithRef} from "~/client/design/helpers/use-element-with-ref";
 import {useLifecycleRef} from "~/client/design/helpers/use-lifecycle-ref";
+import {getRemPxWithoutListening} from "~/client/design/helpers/use-rem-px";
 import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
 
@@ -49,6 +49,88 @@ export type OverlayRef = {
 const OverlayForwardRef = forwardRef(Overlay);
 export {OverlayForwardRef as Overlay};
 
+export type OverlayProps = {
+    /**
+     * Is the overlay content visible? We default to the overlay content being
+     * hidden.
+     *
+     * We can't render overlay content on the server. That means if you want your
+     * overlay to be visible immediately on page load it might flash in. To avoid
+     * this, only render overlay in response to user interaction.
+     */
+    visible?: boolean;
+
+    /**
+     * Where should the overlay content be placed relative to the target element?
+     *
+     * If there's not enough space on screen for this placement, then we will canFlip
+     * the placement along the same axis.
+     */
+    placement: OverlayPlacement;
+
+    /**
+     * The overlay element to be positioned relative to the target element. Must
+     * provide a ref to an HTML element or we will throw an error.
+     */
+    overlay: ReactElement;
+
+    /**
+     * How far away the offset should be from the reference.
+     *
+     * See the [demo][1] here.
+     *
+     * [1]: https://popper.js.org/docs/v2/modifiers/offset/#demo
+     */
+    offset?: Spacing;
+
+    /**
+     * How far the offset should move along the reference.
+     *
+     * See the [demo][1] here.
+     *
+     * [1]: https://popper.js.org/docs/v2/modifiers/offset/#demo
+     */
+    offsetAlong?: Spacing | `-${Spacing}`;
+
+    /**
+     * If true, the overlay tries to stay visible within the nearest parent
+     * `<OverlayScopeContextProvider>`.
+     *
+     * Defaults to `true`.
+     */
+    preventOverflow?: boolean;
+
+    /**
+     * If true, changes the `placement` of a popper to make sure it stays visible
+     * within the nearest parent `<OverlayScopeContextProvider>`.
+     *
+     * Defaults to `true`.
+     */
+    canFlip?: boolean;
+
+    /**
+     * Makes the overlay width the same width as the content the overlay is
+     * attached to.
+     *
+     * Defaults to `false`.
+     */
+    sameWidth?: boolean;
+
+    /**
+     * Makes the overlay height the same height as the content the overlay is
+     * attached to.
+     *
+     * Defaults to `false`.
+     */
+    sameHeight?: boolean;
+
+    /**
+     * The element our overlay content will be rendered around. Must
+     * provide a ref to an HTML element or we will throw an error.
+     */
+    children: ReactElement;
+};
+
 /**
  * Renders an element above everything else on the page relative to some anchor
  * element. Useful for rendering tooltips, menus, and upsells.
@@ -70,94 +152,14 @@ function Overlay(
         visible: actuallyVisible = false,
         placement,
         overlay: actualOverlay,
-        offsetAway,
+        offset,
         offsetAlong,
         preventOverflow = true,
-        flip = true,
+        canFlip = true,
         sameWidth = false,
         sameHeight = false,
         children,
-    }: {
-        /**
-         * Is the overlay content visible? We default to the overlay content being
-         * hidden.
-         *
-         * We can't render overlay content on the server. That means if you want your
-         * overlay to be visible immediately on page load it might flash in. To avoid
-         * this, only render overlay in response to user interaction.
-         */
-        visible?: boolean;
-
-        /**
-         * Where should the overlay content be placed relative to the target element?
-         *
-         * If there's not enough space on screen for this placement, then we will flip
-         * the placement along the same axis.
-         */
-        placement: OverlayPlacement;
-
-        /**
-         * The overlay element to be positioned relative to the target element. Must
-         * provide a ref to an HTML element or we will throw an error.
-         */
-        overlay: ReactElement;
-
-        /**
-         * How far away the offset should be from the reference.
-         *
-         * See the [demo][1] here.
-         *
-         * [1]: https://popper.js.org/docs/v2/modifiers/offset/#demo
-         */
-        offsetAway?: Spacing;
-
-        /**
-         * How far the offset should move along the reference.
-         *
-         * See the [demo][1] here.
-         *
-         * [1]: https://popper.js.org/docs/v2/modifiers/offset/#demo
-         */
-        offsetAlong?: Spacing | `-${Spacing}`;
-
-        /**
-         * If true, the overlay tries to stay visible within the nearest parent
-         * `<OverlayScopeContextProvider>`.
-         *
-         * Defaults to `true`.
-         */
-        preventOverflow?: boolean;
-
-        /**
-         * If true, changes the `placement` of a popper to make sure it stays visible
-         * within the nearest parent `<OverlayScopeContextProvider>`.
-         *
-         * Defaults to `true`.
-         */
-        flip?: boolean;
-
-        /**
-         * Makes the overlay width the same width as the content the overlay is
-         * attached to.
-         *
-         * Defaults to `false`.
-         */
-        sameWidth?: boolean;
-
-        /**
-         * Makes the overlay height the same height as the content the overlay is
-         * attached to.
-         *
-         * Defaults to `false`.
-         */
-        sameHeight?: boolean;
-
-        /**
-         * The element our overlay content will be rendered around. Must
-         * provide a ref to an HTML element or we will throw an error.
-         */
-        children: ReactElement;
-    },
+    }: OverlayProps,
     ref: Ref<OverlayRef>,
 ) {
     const overlaySink = useContext(OverlaySinkContext);
@@ -184,15 +186,20 @@ function Overlay(
         (targetElement: HTMLElement) => {
             assert(
                 targetElement instanceof HTMLElement,
-                "Expected the children of `<Overlay>` to render an element with a ref to an HTML element",
+                "Expected the children of an `<Overlay>` component to render an element with a ref to an HTML element",
             );
 
             if (!visible) return;
 
-            assert(overlayRef.current);
+            assert(
+                overlayRef.current && overlayRef.current instanceof HTMLElement,
+                "Expected the overlay prop of an `<Overlay>` component to render an element with a ref to an HTML element",
+            );
             const overlayElement = overlayRef.current;
 
-            const remPx = getRemPx();
+            // Getting the value of 1rem without subscribing so that all our `<Overlay>`
+            // components don't need to re-render after the initial render.
+            const remPx = getRemPxWithoutListening();
 
             const popper = createPopper(targetElement, overlayElement, {
                 placement: placement === "center" ? "top-start" : placement,
@@ -203,7 +210,7 @@ function Overlay(
                     },
                     {
                         name: "flip",
-                        enabled: flip && placement !== "center",
+                        enabled: canFlip && placement !== "center",
                     },
                     // When placing in the center, add a custom offset modifier that positions the
                     // overlay on top of the element underneath.
@@ -242,9 +249,7 @@ function Overlay(
                                                     remPx,
                                                 )
                                           : 0,
-                                      offsetAway
-                                          ? convertRemLengthToPx(spacing[offsetAway], remPx)
-                                          : 0,
+                                      offset ? convertRemLengthToPx(spacing[offset], remPx) : 0,
                                   ],
                               },
                           },
@@ -291,7 +296,7 @@ function Overlay(
                 popper.destroy();
             };
         },
-        [visible, placement, preventOverflow, flip, offsetAway, offsetAlong, sameWidth, sameHeight],
+        [visible, placement, preventOverflow, canFlip, offset, offsetAlong, sameWidth, sameHeight],
     );
 
     const overlay = useElementWithRef(actualOverlay, overlayRef);

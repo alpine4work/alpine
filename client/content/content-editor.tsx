@@ -15,7 +15,7 @@ import {ContentDomClipboardSerializer} from "~/client/content/content-dom-clipbo
 import {ContentDomParser} from "~/client/content/content-dom-parser";
 import {buildInputRulesPlugin} from "~/client/content/content-editor-plugin-input-rules";
 import {buildKeymapPlugin} from "~/client/content/content-editor-plugin-keymap";
-import {ContentEditorSelectionToolbarManager} from "~/client/content/content-editor-selection-toolbar";
+import {ContentEditorSelectionToolbar} from "~/client/content/content-editor-selection-toolbar";
 import {emptyContentEditorClassName} from "~/client/content/content-editor.css";
 import {createContentOrderedListItemNodeView} from "~/client/content/content-ordered-list-item-node-view";
 import {createContentLinkNodeView} from "~/client/content/create-content-link-node-view";
@@ -547,7 +547,7 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
                 onFocus={onFocus}
                 onBlur={onBlur}
             />
-            <ContentEditorSelectionToolbarManager state={unwrap(state)} viewRef={viewRef} />
+            <ContentEditorSelectionToolbar state={unwrap(state)} viewRef={viewRef} />
         </>
     );
 }

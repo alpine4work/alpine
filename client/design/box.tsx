@@ -1,29 +1,31 @@
-import {CSSProperties, ReactNode, Ref, forwardRef} from "react";
+import {DetailedHTMLProps, HTMLAttributes, Ref, createElement, forwardRef} from "react";
 import {Sprinkles, sprinkles} from "~/client/design/sprinkles.css";
 
 const BoxForwardRef = forwardRef(Box);
 export {BoxForwardRef as Box};
 
 function Box(
-    {
-        children,
-        className,
-        style,
-        ...props
-    }: Sprinkles & {
-        children?: ReactNode;
-        className?: string;
-        style?: CSSProperties;
-    },
+    props: Sprinkles & Omit<HTMLAttributes<HTMLDivElement>, keyof Sprinkles>,
     ref: Ref<HTMLDivElement>,
 ) {
-    return (
-        <div
-            ref={ref}
-            className={className ? `${className} ${sprinkles(props)}` : sprinkles(props)}
-            style={style}
-        >
-            {children}
-        </div>
-    );
+    const sprinklesProps: Sprinkles = {};
+    const divProps: DetailedHTMLProps<HTMLAttributes<HTMLDivElement>, HTMLDivElement> = {};
+
+    for (const [key, value] of Object.entries(props)) {
+        if (sprinkles.properties.has(key as any)) {
+            (sprinklesProps as any)[key] = value;
+        } else {
+            (divProps as any)[key] = value;
+        }
+    }
+
+    const sprinklesClassName = sprinkles(sprinklesProps);
+
+    divProps.ref = ref;
+
+    divProps.className = divProps.className
+        ? `${divProps.className} ${sprinklesClassName}`
+        : sprinklesClassName;
+
+    return createElement("div", divProps);
 }

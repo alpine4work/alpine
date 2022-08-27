@@ -1,0 +1,33 @@
+import {Color} from "~/shared/design/colors";
+
+/**
+ * All the possible highlight colors for the inline style.
+ */
+export enum HighlightColor {
+    Red = "red",
+    // TODO(calebmer): Reconsider using orange instead of yellow. Some thoughts:
+    // - Comment styling might use yellow.
+    // - White text on `yellow-10` is inaccessible (we can change `yellow-10`).
+    // - We could call orange yellow to users. In light mode it looks like yellow.
+    Orange = "orange",
+    Green = "green",
+    Blue = "blue",
+    Purple = "purple",
+}
+
+const highlightColorSet: ReadonlySet<HighlightColor> = new Set(Object.values(HighlightColor));
+
+export function isHighlightColor(string: string): string is HighlightColor {
+    return highlightColorSet.has(string as any);
+}
+
+// TODO(calebmer): Talk to Yasmin about these colors. Are they working well?
+// They're a little bright in dark mode maybe? By the 10s also don't look
+// great idk.
+export const colorByHighlightColor: {readonly [K in HighlightColor]: Color} = {
+    [HighlightColor.Red]: "red-20",
+    [HighlightColor.Orange]: "orange-20",
+    [HighlightColor.Green]: "green-20",
+    [HighlightColor.Blue]: "indigo-20",
+    [HighlightColor.Purple]: "purple-20",
+};

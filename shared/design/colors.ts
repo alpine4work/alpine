@@ -1,3 +1,5 @@
+export type Color = keyof typeof colors;
+
 /**
  * Our color pallette.
  *

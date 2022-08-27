@@ -1,4 +1,5 @@
 import {globalStyle, style} from "@vanilla-extract/css";
+import {colorByHighlightColor} from "~/shared/content/highlight-color";
 import {colorSchemeVars} from "~/shared/design/color-scheme.css";
 import {fontScale, fontWeights, monospaceFontFamily} from "~/shared/design/fonts";
 import {
@@ -7,6 +8,7 @@ import {
     remPxByPlatform,
     spacing,
 } from "~/shared/design/spacing";
+import {mapObjectValues} from "~/shared/helpers/object/map-object-values";
 
 const paragraphMargin = spacing["3"];
 
@@ -226,6 +228,13 @@ export const codeClassName = style({
     paddingRight: spacing["1"],
     borderRadius: spacing["1"],
 });
+
+export const highlightClassNameByColor = mapObjectValues(colorByHighlightColor, color =>
+    style({
+        color: "inherit",
+        backgroundColor: colorSchemeVars[color],
+    }),
+);
 
 export const linkClassName = style({
     // Links use a pointer cursor. See:

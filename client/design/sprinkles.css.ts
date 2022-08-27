@@ -47,6 +47,7 @@ const properties = defineProperties({
         userSelect: ["auto", "none", "text", "all"],
         borderRadius: {
             none: "0rem",
+            sm: "0.125rem",
             base: "0.25rem",
             full: "9999px",
         },
