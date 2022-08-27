@@ -30,7 +30,6 @@ export type Spacing = keyof typeof spacing;
  * the platform scale.
  */
 export const spacing = {
-    px: "1px",
     "0": "0rem",
     "0.5": "0.125rem",
     "1": "0.25rem",

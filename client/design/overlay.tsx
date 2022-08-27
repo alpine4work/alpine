@@ -43,7 +43,7 @@ export type OverlayRef = {
     /**
      * Force the overlay to update its position.
      */
-    forceUpdateOverlay(): void;
+    forceUpdateOverlayPosition(): void;
 };
 
 const OverlayForwardRef = forwardRef(Overlay);
@@ -173,7 +173,7 @@ function Overlay(
     useImperativeHandle(
         ref,
         () => ({
-            forceUpdateOverlay: () => {
+            forceUpdateOverlayPosition: () => {
                 popperRef.current?.forceUpdate();
             },
         }),

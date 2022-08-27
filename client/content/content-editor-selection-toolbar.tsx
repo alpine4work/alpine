@@ -17,13 +17,22 @@ import {toggleMark, wrapIn} from "prosemirror-commands";
 import {Attrs, NodeType} from "prosemirror-model";
 import {Command, EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
-import {ReactNode, RefObject, useEffect, useLayoutEffect, useRef, useState} from "react";
+import {
+    ReactNode,
+    RefObject,
+    useCallback,
+    useEffect,
+    useLayoutEffect,
+    useRef,
+    useState,
+} from "react";
 import {mergeProps, useButton} from "react-aria";
 import {Box} from "~/client/design/box";
+import {useLifecycleRef} from "~/client/design/helpers/use-lifecycle-ref";
 import {Overlay, OverlayRef} from "~/client/design/overlay";
 import {sprinkles} from "~/client/design/sprinkles.css";
 import {uninterruptedThoughtLimitMs} from "~/client/design/timing-constants";
-import {Tooltip} from "~/client/design/tooltip";
+import {Tooltip, TooltipRef} from "~/client/design/tooltip";
 import {
     tooltipAnimateContainerClassName,
     tooltipAnimateFadeInClassName,
@@ -114,6 +123,13 @@ function ContentEditorSelectionToolbarOverlay({
     const overlayRef = useRef<OverlayRef>(null);
     const targetRef = useRef<HTMLDivElement>(null);
 
+    const tooltipRefs = useRef<Set<TooltipRef>>(new Set());
+
+    const sharedTooltipLifecycleRef = useCallback((tooltipRef: TooltipRef) => {
+        tooltipRefs.current.add(tooltipRef);
+        return () => tooltipRefs.current.delete(tooltipRef);
+    }, []);
+
     useLayoutEffect(() => {
         let isCancelled = false;
 
@@ -139,7 +155,13 @@ function ContentEditorSelectionToolbarOverlay({
             targetRef.current.style.height = `${coords.bottom - coords.top}px`;
             targetRef.current.style.left = `${coords.left - offsetParentRect.left}px`;
 
-            overlayRef.current.forceUpdateOverlay();
+            overlayRef.current.forceUpdateOverlayPosition();
+
+            // Update the tooltip position with the overlay position in case there is an
+            // open tooltip.
+            for (const tooltipRef of tooltipRefs.current) {
+                tooltipRef.forceUpdateTooltipPosition();
+            }
         };
 
         // In React, child component effects run before parent component effects. So
@@ -169,7 +191,10 @@ function ContentEditorSelectionToolbarOverlay({
                                 : tooltipAnimateFadeInClassName
                         }
                     >
-                        <ContentEditorSelectionToolbar viewRef={viewRef} />
+                        <ContentEditorSelectionToolbar
+                            viewRef={viewRef}
+                            sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
+                        />
                     </Box>
                 </Box>
             }
@@ -179,7 +204,13 @@ function ContentEditorSelectionToolbarOverlay({
     );
 }
 
-function ContentEditorSelectionToolbar({viewRef}: {viewRef: RefObject<EditorView | null>}) {
+function ContentEditorSelectionToolbar({
+    viewRef,
+    sharedTooltipLifecycleRef,
+}: {
+    viewRef: RefObject<EditorView | null>;
+    sharedTooltipLifecycleRef: (tooltipRef: TooltipRef) => () => void;
+}) {
     return (
         <Box
             display="flex"
@@ -192,6 +223,7 @@ function ContentEditorSelectionToolbar({viewRef}: {viewRef: RefObject<EditorView
                 description="Bold"
                 keyboardShortcut={isMac ? "⌘+B" : "Ctrl+B"}
                 viewRef={viewRef}
+                sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                 command={toggleMark(ContentSchema.marks.bold)}
             >
                 <TextBolder />
@@ -200,6 +232,7 @@ function ContentEditorSelectionToolbar({viewRef}: {viewRef: RefObject<EditorView
                 description="Italicize"
                 keyboardShortcut={isMac ? "⌘+I" : "Ctrl+I"}
                 viewRef={viewRef}
+                sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                 command={toggleMark(ContentSchema.marks.italic)}
             >
                 <TextItalic />
@@ -208,6 +241,7 @@ function ContentEditorSelectionToolbar({viewRef}: {viewRef: RefObject<EditorView
                 description="Strikethrough"
                 keyboardShortcut={isMac ? "⌘+Shift+X" : "Ctrl+Shift+X"}
                 viewRef={viewRef}
+                sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                 command={toggleMark(ContentSchema.marks.strike)}
             >
                 <TextStrikethrough />
@@ -216,6 +250,7 @@ function ContentEditorSelectionToolbar({viewRef}: {viewRef: RefObject<EditorView
                 description="Link"
                 keyboardShortcut={isMac ? "⌘+K" : "Ctrl+K"}
                 viewRef={viewRef}
+                sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                 command={() => {
                     // TODO(calebmer): Implement
                     return false;
@@ -229,6 +264,7 @@ function ContentEditorSelectionToolbar({viewRef}: {viewRef: RefObject<EditorView
                 // TODO(calebmer): Actually implement highlight keyboard shortcut
                 keyboardShortcut={isMac ? "⌘+Shift+H" : "Ctrl+Shift+H"}
                 viewRef={viewRef}
+                sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                 command={() => {
                     // TODO(calebmer): Implement
                     return false;
@@ -241,6 +277,7 @@ function ContentEditorSelectionToolbar({viewRef}: {viewRef: RefObject<EditorView
                 description="Bulleted list"
                 keyboardShortcut="- Hello"
                 viewRef={viewRef}
+                sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                 // TODO(calebmer): Selecting multiple paragraphs should convert into multiple
                 // list items.
 
@@ -253,6 +290,7 @@ function ContentEditorSelectionToolbar({viewRef}: {viewRef: RefObject<EditorView
                 description="Numbered list"
                 keyboardShortcut="1. Hello"
                 viewRef={viewRef}
+                sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                 // TODO(calebmer): Selecting multiple paragraphs should convert into multiple
                 // list items.
 
@@ -266,6 +304,7 @@ function ContentEditorSelectionToolbar({viewRef}: {viewRef: RefObject<EditorView
                 description="Check list"
                 keyboardShortcut="[ ] Hello"
                 viewRef={viewRef}
+                sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                 // TODO(calebmer): Selecting multiple paragraphs should convert into multiple
                 // list items.
 
@@ -279,6 +318,7 @@ function ContentEditorSelectionToolbar({viewRef}: {viewRef: RefObject<EditorView
                 description="Heading 1"
                 keyboardShortcut="# Hello"
                 viewRef={viewRef}
+                sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                 command={toggleBlockType(ContentSchema.nodes.heading, {level: 1})}
             >
                 <TextHOne />
@@ -287,6 +327,7 @@ function ContentEditorSelectionToolbar({viewRef}: {viewRef: RefObject<EditorView
                 description="Heading 2"
                 keyboardShortcut="## Hello"
                 viewRef={viewRef}
+                sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                 command={toggleBlockType(ContentSchema.nodes.heading, {level: 2})}
             >
                 <TextHTwo />
@@ -295,6 +336,7 @@ function ContentEditorSelectionToolbar({viewRef}: {viewRef: RefObject<EditorView
                 description="Heading 3"
                 keyboardShortcut="### Hello"
                 viewRef={viewRef}
+                sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                 command={toggleBlockType(ContentSchema.nodes.heading, {level: 3})}
             >
                 <TextHThree />
@@ -309,6 +351,7 @@ function ContentEditorSelectionToolbarIconButton({
     description,
     keyboardShortcut,
     viewRef,
+    sharedTooltipLifecycleRef,
     command,
     children,
 }: {
@@ -317,6 +360,7 @@ function ContentEditorSelectionToolbarIconButton({
     description: string;
     keyboardShortcut: string;
     viewRef: RefObject<EditorView | null>;
+    sharedTooltipLifecycleRef: (tooltipRef: TooltipRef) => () => void;
     command: Command;
     children: ReactNode;
 }) {
@@ -341,6 +385,7 @@ function ContentEditorSelectionToolbarIconButton({
 
     return (
         <Tooltip
+            ref={useLifecycleRef(sharedTooltipLifecycleRef)}
             placement="top"
             content={
                 <Box>
@@ -405,32 +450,61 @@ function ContentEditorSelectionToolbarIconButton({
 
 function toggleBlockType(nodeType: NodeType, attrs: Attrs | null = null): Command {
     return (state, dispatch) => {
-        let hasBlockTypeAlready = false;
+        let canAnyNodeBecomeBlockType = false;
+        let isEveryNodeAlreadyBlockType: boolean | undefined;
 
         state.doc.nodesBetween(state.selection.from, state.selection.to, (node, pos) => {
-            if (hasBlockTypeAlready) return false;
-            if (node.isTextblock && node.hasMarkup(nodeType, attrs)) hasBlockTypeAlready = true;
+            // If we have found one node that can become our block type we don't need to
+            // keep iterating.
+            if (canAnyNodeBecomeBlockType) return false;
+
+            // Ignore nodes that aren't text blocks.
+            if (!node.isTextblock) return;
+
+            if (node.hasMarkup(nodeType, attrs)) {
+                if (isEveryNodeAlreadyBlockType === undefined) isEveryNodeAlreadyBlockType = true;
+                return;
+            }
+
+            // If we see one node that doesn't match the block type, set to false.
+            isEveryNodeAlreadyBlockType = false;
+
+            if (node.type === nodeType) {
+                canAnyNodeBecomeBlockType = true;
+            } else {
+                const $pos = state.doc.resolve(pos);
+                const index = $pos.index();
+                if ($pos.parent.canReplaceWith(index, index + 1, nodeType)) {
+                    canAnyNodeBecomeBlockType = true;
+                }
+            }
         });
 
-        if (dispatch) {
-            if (hasBlockTypeAlready) {
-                dispatch(
-                    state.tr
-                        .setBlockType(
-                            state.selection.from,
-                            state.selection.to,
-                            ContentSchema.nodes.paragraph,
-                        )
-                        .scrollIntoView(),
-                );
-            } else {
-                dispatch(
-                    state.tr
-                        .setBlockType(state.selection.from, state.selection.to, nodeType, attrs)
-                        .scrollIntoView(),
-                );
-            }
+        // If there were no nodes then this variable is false.
+        if (isEveryNodeAlreadyBlockType === undefined) isEveryNodeAlreadyBlockType = false;
+
+        if (isEveryNodeAlreadyBlockType) {
+            dispatch?.(
+                state.tr
+                    .setBlockType(
+                        state.selection.from,
+                        state.selection.to,
+                        ContentSchema.nodes.paragraph,
+                    )
+                    .scrollIntoView(),
+            );
+            return true;
         }
-        return true;
+
+        if (canAnyNodeBecomeBlockType) {
+            dispatch?.(
+                state.tr
+                    .setBlockType(state.selection.from, state.selection.to, nodeType, attrs)
+                    .scrollIntoView(),
+            );
+            return true;
+        }
+
+        return false;
     };
 }

@@ -2,11 +2,14 @@ import {
     MutableRefObject,
     ReactElement,
     ReactNode,
+    Ref,
     createContext,
+    forwardRef,
     useCallback,
     useContext,
     useEffect,
     useId,
+    useImperativeHandle,
     useMemo,
     useRef,
     useState,
@@ -16,7 +19,7 @@ import {Box} from "~/client/design/box";
 import {setElementAttributesWithCleanup} from "~/client/design/helpers/set-element-attributes-with-cleanup";
 import {useElementWithRef} from "~/client/design/helpers/use-element-with-ref";
 import {useLifecycleRef} from "~/client/design/helpers/use-lifecycle-ref";
-import {Overlay, OverlayPlacement} from "~/client/design/overlay";
+import {Overlay, OverlayPlacement, OverlayRef} from "~/client/design/overlay";
 import {uninterruptedThoughtLimitMs} from "~/client/design/timing-constants";
 import {
     tooltipAnimateContainerClassName,
@@ -96,6 +99,16 @@ type TooltipChildrenProps = {
     skipHoverDelay: () => void;
 };
 
+export type TooltipRef = {
+    /**
+     * Force the tooltip to update its position.
+     */
+    forceUpdateTooltipPosition(): void;
+};
+
+const TooltipForwardRef = forwardRef(Tooltip);
+export {TooltipForwardRef as Tooltip};
+
 /**
  * Renders some descriptive, non-interactive, information pointing to a target
  * element when a user is about to interact with that element.
@@ -105,28 +118,43 @@ type TooltipChildrenProps = {
  * Avoid using this component for critical information as tooltips don't work
  * for our mobile site.
  */
-export function Tooltip({
-    content,
-    placement = "top",
-    children: actualChildren,
-}: {
-    /**
-     * The contents of the tooltip. We expect this to be text most of the time.
-     */
-    content: ReactNode;
+function Tooltip(
+    {
+        content,
+        placement = "top",
+        children: actualChildren,
+    }: {
+        /**
+         * The contents of the tooltip. We expect this to be text most of the time.
+         */
+        content: ReactNode;
 
-    /**
-     * Where should the tooltip content be placed relative to the target element?
-     * Defaults to `top`.
-     */
-    placement?: OverlayPlacement;
+        /**
+         * Where should the tooltip content be placed relative to the target element?
+         * Defaults to `top`.
+         */
+        placement?: OverlayPlacement;
 
-    /**
-     * The element our tooltip content will be rendered to point to. Must provide
-     * a ref to an HTML element or we will throw an error.
-     */
-    children: ReactElement | ((props: TooltipChildrenProps) => ReactElement);
-}) {
+        /**
+         * The element our tooltip content will be rendered to point to. Must provide
+         * a ref to an HTML element or we will throw an error.
+         */
+        children: ReactElement | ((props: TooltipChildrenProps) => ReactElement);
+    },
+    ref: Ref<TooltipRef>,
+) {
+    const overlayRef = useRef<OverlayRef>(null);
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            forceUpdateTooltipPosition: () => {
+                overlayRef.current?.forceUpdateOverlayPosition();
+            },
+        }),
+        [],
+    );
+
     const isMounted = useIsMounted();
 
     const {isFocusVisible} = useFocusVisible({
@@ -448,6 +476,7 @@ export function Tooltip({
     return useMemo(() => {
         return (
             <Overlay
+                ref={overlayRef}
                 visible={visible}
                 placement={placement}
                 offsetAway="2"
