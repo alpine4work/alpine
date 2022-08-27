@@ -161,7 +161,7 @@ function Overlay(
     ref: Ref<OverlayRef>,
 ) {
     const overlaySink = useContext(OverlaySinkContext);
-    assert(overlaySink);
+    assert(overlaySink, "Expected a parent `<OverlayScopeContextProvider>` component");
 
     // Always hide overlays when we don't yet have the portal element. This means
     // overlays can't be rendered on the server.

@@ -61,3 +61,15 @@ if (!Range.prototype.getBoundingClientRect) {
 } else {
     throw new Error("Yay! jsdom supports this now, we can remove our polyfill");
 }
+
+// Polyfill: https://developer.mozilla.org/en-US/docs/Web/API/Window/matchMedia
+if (!window.matchMedia) {
+    window.matchMedia = jest.fn().mockImplementation(query => ({
+        matches: false,
+        media: query,
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+    }));
+} else {
+    throw new Error("Yay! jsdom supports this now, we can remove our polyfill");
+}

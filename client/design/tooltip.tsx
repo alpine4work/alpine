@@ -169,7 +169,10 @@ function Tooltip(
 
     const activeTooltipSymbol = useContext(TooltipCoordinationActiveSymbolContext);
     const coordinationContext = useContext(TooltipCoordinationContext);
-    assert(coordinationContext !== null);
+    assert(
+        coordinationContext !== null,
+        "Expected a parent `<TooltipCoordinationContextProvider>` component",
+    );
     const {tooltipSymbolThatIsFadingOutNextAnimationFrameRef} = coordinationContext;
 
     // Controls whether the tooltip is actually visible or not. Only one tooltip

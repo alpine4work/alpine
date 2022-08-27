@@ -145,6 +145,9 @@ function ContentEditorSelectionToolbarOverlay({
             assert(viewRef.current);
             assert(overlayRef.current);
             assert(targetRef.current);
+
+            // jsdom doesn't care about layout so this property doesn't exist.
+            if (typeof jest !== "undefined" && !targetRef.current.offsetParent) return;
             assert(targetRef.current.offsetParent);
 
             // `coords` are relative to the viewport, so get our offset parent's viewport
