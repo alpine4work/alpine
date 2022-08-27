@@ -10,6 +10,9 @@ import {TooltipCoordinationContextProvider} from "~/client/design/tooltip";
 import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use-is-initial-app-render";
 import {spacing} from "~/shared/design/spacing";
 
+// TODO(calebmer): Aggressively show error dialog if unhandled error occurs.
+// Like Next.js in dev. Maybe it should be dismissable? Like Next.js.
+
 export default function MyApp({Component, pageProps}: AppProps) {
     return (
         <>
