@@ -20,7 +20,6 @@ import {findWrapping} from "prosemirror-transform";
 import {EditorView} from "prosemirror-view";
 import {ReactNode, RefObject, useCallback, useEffect, useRef, useState} from "react";
 import {FocusScope, mergeProps, useButton} from "react-aria";
-import {ContentEditorRef} from "~/client/content/content-editor";
 import {ContentEditorCursorTracker} from "~/client/content/content-editor-cursor-tracker";
 import {ContentEditorHighlightSelector} from "~/client/content/content-editor-highlight-selector";
 import {ContentEditorLinkInput} from "~/client/content/content-editor-link-input";
