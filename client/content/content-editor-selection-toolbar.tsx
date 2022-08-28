@@ -493,7 +493,6 @@ function ContentEditorSelectionToolbarLinkButton({
     onLinkInputOpen: () => void;
     onLinkInputClose: () => void;
 }) {
-    const inputRef = useRef<ContentEditorRef>(null);
     const wasJustClosedByOverlayRef = useRef(false);
 
     return (
@@ -512,13 +511,17 @@ function ContentEditorSelectionToolbarLinkButton({
                         }, 0);
                     })}
                 >
-                    <FocusScope contain restoreFocus autoFocus>
+                    {!isLinkInputOpen ? (
                         <ContentEditorLinkInput
-                            ref={inputRef}
                             viewRef={viewRef}
+                            isDisabled={true}
                             onClose={onLinkInputClose}
                         />
-                    </FocusScope>
+                    ) : (
+                        <FocusScope contain restoreFocus autoFocus>
+                            <ContentEditorLinkInput viewRef={viewRef} onClose={onLinkInputClose} />
+                        </FocusScope>
+                    )}
                 </Box>
             }
         >

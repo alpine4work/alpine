@@ -1,0 +1,50 @@
+diff --git a/dist/index.cjs b/dist/index.cjs
+index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..0ae2e8b32429af645d09276ec9e39cd2cdb05175 100644
+--- a/dist/index.cjs
++++ b/dist/index.cjs
+@@ -3888,6 +3888,20 @@ handlers.focus = function (view) {
+     view.dom.classList.add("ProseMirror-focused");
+     view.domObserver.start();
+     view.focused = true;
++
++    // When focus is returned to the view, always serialize our selection from
++    // state back to the DOM. Otherwise we're seeing Chrome sometimes reset the
++    // selection.
++    //
++    // To reproduce the bug which caused us to add this in Chrome:
++    //
++    // 1. Highlight some text
++    // 2. Open the link input
++    // 3. Hit escape to close the link input
++    //
++    // Without this, Chrome restores focus to the beginning of the editor.
++    selectionToDOM(view);
++
+     setTimeout(function () {
+       if (view.docView && view.hasFocus() && !view.domObserver.currentSelection.eq(view.domSelection())) selectionToDOM(view);
+     }, 20);
+diff --git a/dist/index.js b/dist/index.js
+index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..6e262f2ed5efdb2ebc0936c70ffdaea210674b7a 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -3460,6 +3460,20 @@ handlers.focus = view => {
+         view.dom.classList.add("ProseMirror-focused");
+         view.domObserver.start();
+         view.focused = true;
++
++        // When focus is returned to the view, always serialize our selection from
++        // state back to the DOM. Otherwise we're seeing Chrome sometimes reset the
++        // selection.
++        //
++        // To reproduce the bug which caused us to add this in Chrome:
++        //
++        // 1. Highlight some text
++        // 2. Open the link input
++        // 3. Hit escape to close the link input
++        //
++        // Without this, Chrome restores focus to the beginning of the editor.
++        selectionToDOM(view);
++
+         setTimeout(() => {
+             if (view.docView && view.hasFocus() && !view.domObserver.currentSelection.eq(view.domSelection()))
+                 selectionToDOM(view);

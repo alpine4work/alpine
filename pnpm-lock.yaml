@@ -1,5 +1,10 @@
 lockfileVersion: 5.4
 
+patchedDependencies:
+  prosemirror-view@1.27.2:
+    hash: jcawbabvrnkvntr42xpvsf5n7y
+    path: admin/patches/prosemirror-view@1.27.2.patch
+
 specifiers:
   '@axe-core/react': ^4.4.3
   '@babel/core': ^7.18.9
@@ -43,7 +48,7 @@ specifiers:
   prosemirror-model: ^1.18.1
   prosemirror-state: ^1.4.1
   prosemirror-transform: ^1.6.0
-  prosemirror-view: ^1.27.0
+  prosemirror-view: 1.27.2
   react: 18.2.0
   react-aria: ^3.18.0
   react-dom: 18.2.0
@@ -93,7 +98,7 @@ dependencies:
   prosemirror-model: 1.18.1
   prosemirror-state: 1.4.1
   prosemirror-transform: 1.6.0
-  prosemirror-view: 1.27.0
+  prosemirror-view: 1.27.2_jcawbabvrnkvntr42xpvsf5n7y
   react: 18.2.0
   react-aria: 3.18.0_biqbaboplfbrettd7655fr4n2y
   react-dom: 18.2.0_react@18.2.0
@@ -6799,13 +6804,20 @@ packages:
       prosemirror-model: 1.18.1
     dev: false
 
-  /prosemirror-view/1.27.0:
-    resolution: {integrity: sha512-yNCQW5eiPkrMgjOT5Xa/ItIvcM7JBG7ikZKaHo26hdBW5OLNnIWGZ0BV6/OiBk742teLybLVNPCpYUcW405Ckg==}
+  /prosemirror-transform/1.7.0:
+    resolution: {integrity: sha512-O4T697Cqilw06Zvc3Wm+e237R6eZtJL/xGMliCi+Uo8VL6qHk6afz1qq0zNjT3eZMuYwnP8ZS0+YxX/tfcE9TQ==}
+    dependencies:
+      prosemirror-model: 1.18.1
+    dev: false
+
+  /prosemirror-view/1.27.2_jcawbabvrnkvntr42xpvsf5n7y:
+    resolution: {integrity: sha512-RE2GLUaYXUyrpUl58vHoznZ3wKAj7z8f1ZZolivljwwOe1yiSzsEsuJPZmm3mpBXRgHGk7LWh5v+uhdDXAbjkA==}
     dependencies:
       prosemirror-model: 1.18.1
       prosemirror-state: 1.4.1
-      prosemirror-transform: 1.6.0
+      prosemirror-transform: 1.7.0
     dev: false
+    patched: true
 
   /psl/1.9.0:
     resolution: {integrity: sha512-E/ZsdU4HLs/68gYzgGTkMicWTLPdAftJLfJFlLUAAKZGkStNU72sZjT66SnMDVOfOWY/YAoiD7Jxa9iHvngcag==}

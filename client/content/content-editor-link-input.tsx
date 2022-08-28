@@ -1,7 +1,7 @@
 import {Link, X} from "phosphor-react";
 import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
-import {Ref, RefObject, forwardRef, useEffect, useImperativeHandle, useRef, useState} from "react";
+import {RefObject, useEffect, useRef, useState} from "react";
 import {FocusScope, useButton, useHover} from "react-aria";
 import {ContentEditorCursorTracker} from "~/client/content/content-editor-cursor-tracker";
 import {Box} from "~/client/design/box";
@@ -20,35 +20,19 @@ import {assert} from "~/shared/helpers/control/assert";
 // TODO(calebmer): Render the selection in the content editor in light grey if
 // focus is in the link input. So the user doesn't lose context.
 
-export type ContentEditorLinkInputRef = {
-    focus(options?: FocusOptions): void;
-};
-
-export const ContentEditorLinkInput = forwardRef(function ContentEditorLinkInput(
-    {
-        viewRef,
-        onClose,
-    }: {
-        viewRef: RefObject<EditorView | null>;
-        onClose: () => void;
-    },
-    ref: Ref<ContentEditorLinkInputRef>,
-) {
+export function ContentEditorLinkInput({
+    viewRef,
+    isDisabled = false,
+    onClose,
+}: {
+    viewRef: RefObject<EditorView | null>;
+    isDisabled?: boolean;
+    onClose: () => void;
+}) {
     const inputRef = useRef<HTMLInputElement>(null);
 
     // TODO(calebmer): Pre-populate state with the URL if it exists in our selection.
     const [url, setUrl] = useState("");
-
-    useImperativeHandle(
-        ref,
-        () => ({
-            focus: options => {
-                assert(inputRef.current);
-                inputRef.current.focus(options);
-            },
-        }),
-        [],
-    );
 
     const save = () => {
         assert(viewRef.current);
@@ -117,6 +101,7 @@ export const ContentEditorLinkInput = forwardRef(function ContentEditorLinkInput
                     backgroundColor: "transparent",
                 })}
                 placeholder="https://example.com"
+                disabled={isDisabled}
                 value={url}
                 onChange={event => setUrl(event.currentTarget.value)}
                 onKeyDown={event => {
@@ -126,19 +111,26 @@ export const ContentEditorLinkInput = forwardRef(function ContentEditorLinkInput
                     }
                 }}
             />
-            <ContentEditorLinkInputClearButton onPress={clear} />
-            <ContentEditorLinkInputDoneButton onPress={save} />
+            <ContentEditorLinkInputClearButton isDisabled={isDisabled} onPress={clear} />
+            <ContentEditorLinkInputDoneButton isDisabled={isDisabled} onPress={save} />
         </Box>
     );
-});
+}
 
-function ContentEditorLinkInputClearButton({onPress}: {onPress: () => void}) {
+function ContentEditorLinkInputClearButton({
+    isDisabled,
+    onPress,
+}: {
+    isDisabled: boolean;
+    onPress: () => void;
+}) {
     const buttonRef = useRef<HTMLButtonElement>(null);
 
     const description = "Clear";
 
     const {buttonProps, isPressed} = useButton(
         {
+            isDisabled,
             "aria-label": description,
             onPress,
         },
@@ -182,10 +174,16 @@ function ContentEditorLinkInputClearButton({onPress}: {onPress: () => void}) {
     );
 }
 
-function ContentEditorLinkInputDoneButton({onPress}: {onPress: () => void}) {
+function ContentEditorLinkInputDoneButton({
+    isDisabled,
+    onPress,
+}: {
+    isDisabled: boolean;
+    onPress: () => void;
+}) {
     const buttonRef = useRef<HTMLButtonElement>(null);
 
-    const {buttonProps, isPressed} = useButton({onPress}, buttonRef);
+    const {buttonProps, isPressed} = useButton({isDisabled, onPress}, buttonRef);
     const {hoverProps, isHovered} = useHover({});
 
     return (
@@ -228,7 +226,6 @@ export function ContentEditorLinkToolbar({
     onClose: () => void;
 }) {
     const overlayRef = useRef<OverlayRef>(null);
-    const inputRef = useRef<ContentEditorLinkInputRef>(null);
 
     const pos = useConstant(state.selection.from);
 
@@ -257,11 +254,6 @@ export function ContentEditorLinkToolbar({
         }
     });
 
-    useEffect(() => {
-        assert(inputRef.current);
-        inputRef.current.focus({preventScroll: true});
-    }, []);
-
     return (
         <OverlayAnimated
             ref={overlayRef}
@@ -279,13 +271,17 @@ export function ContentEditorLinkToolbar({
             canFlip={false}
             overlay={
                 <Box ref={useOutsidePress(onClose)}>
-                    <FocusScope contain restoreFocus autoFocus>
+                    {isClosing ? (
                         <ContentEditorLinkInput
-                            ref={inputRef}
                             viewRef={viewRef}
+                            isDisabled={true}
                             onClose={onClose}
                         />
-                    </FocusScope>
+                    ) : (
+                        <FocusScope contain restoreFocus autoFocus>
+                            <ContentEditorLinkInput viewRef={viewRef} onClose={onClose} />
+                        </FocusScope>
+                    )}
                 </Box>
             }
         >
