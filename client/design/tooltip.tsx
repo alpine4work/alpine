@@ -1,3 +1,4 @@
+import {isFocusVisible} from "@react-aria/interactions";
 import {
     MutableRefObject,
     ReactElement,
@@ -14,7 +15,6 @@ import {
     useRef,
     useState,
 } from "react";
-import {useFocusVisible} from "react-aria";
 import {Box} from "~/client/design/box";
 import {setElementAttributesWithCleanup} from "~/client/design/helpers/set-element-attributes-with-cleanup";
 import {useElementWithRef} from "~/client/design/helpers/use-element-with-ref";
@@ -185,12 +185,6 @@ function Tooltip(
 
     const isMounted = useIsMounted();
 
-    const {isFocusVisible} = useFocusVisible({
-        // When `isTextInput` is true only "Tab" and "Escape" keys put us in visible
-        // focus mode.
-        isTextInput: true,
-    });
-
     const tooltipId = useId();
     const tooltipRef = useRef<HTMLDivElement>(null);
     const tooltipSymbol = useMemo(() => Symbol(), []);
@@ -207,6 +201,7 @@ function Tooltip(
     // can be visible on screen at once and that is managed by our tooltip
     // coordination context.
     const visible = !disabled && tooltipSymbol === activeTooltipSymbol;
+    const hasActiveTooltipSymbol = activeTooltipSymbol !== null;
 
     const [_state, setState] = useState<TooltipState>(initialTooltipState);
 
@@ -375,7 +370,10 @@ function Tooltip(
                 // Record that we are going to fade out this tooltip next animation frame. If
                 // another tooltip wants to be visible in the next animation frame we want to
                 // skip our animation.
-                if (tooltipSymbolThatIsFadingOutNextAnimationFrameRef.current === null) {
+                if (
+                    hasActiveTooltipSymbol &&
+                    tooltipSymbolThatIsFadingOutNextAnimationFrameRef.current === null
+                ) {
                     tooltipSymbolThatIsFadingOutNextAnimationFrameRef.current = tooltipSymbol;
                     requestAnimationFrame(() => {
                         updateState({
@@ -393,7 +391,7 @@ function Tooltip(
             function handleFocusIn(event: FocusEvent) {
                 if (!visibleWhenFocusWithin && event.target !== targetElement) return;
 
-                if (isFocusVisible) {
+                if (isFocusVisible()) {
                     // Only fade in if there is not a tooltip that wants to immediately fade out
                     // next frame.
                     const isFadingIn =
@@ -455,7 +453,10 @@ function Tooltip(
                 // Record that we are going to fade out this tooltip next animation frame. If
                 // another tooltip wants to be visible in the next animation frame we want to
                 // skip our animation.
-                if (tooltipSymbolThatIsFadingOutNextAnimationFrameRef.current === null) {
+                if (
+                    hasActiveTooltipSymbol &&
+                    tooltipSymbolThatIsFadingOutNextAnimationFrameRef.current === null
+                ) {
                     tooltipSymbolThatIsFadingOutNextAnimationFrameRef.current = tooltipSymbol;
                     requestAnimationFrame(() => {
                         updateState({
@@ -495,9 +496,9 @@ function Tooltip(
             disabled,
             visible,
             tooltipSymbolThatIsFadingOutNextAnimationFrameRef,
+            hasActiveTooltipSymbol,
             tooltipSymbol,
             visibleWhenFocusWithin,
-            isFocusVisible,
         ],
     );
 
