@@ -65,3 +65,7 @@ globalStyle("*", {
 globalStyle("code, kbd, samp, pre", {
     fontFamily: monospaceFontFamily,
 });
+
+globalStyle("::placeholder", {
+    color: colorSchemeVars["grey-40"],
+});

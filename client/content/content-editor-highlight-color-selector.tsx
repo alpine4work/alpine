@@ -40,11 +40,13 @@ type ContentEditorHighlightColorSelectorRef = {
 export const ContentEditorHighlightColorSelector = forwardRef(
     function ContentEditorHighlightColorSelector(
         {
+            viewRef,
             isFocusable,
-            onSelectHighlightColor,
+            onClose,
         }: {
+            viewRef: RefObject<EditorView | null>;
             isFocusable: boolean;
-            onSelectHighlightColor: (highlightColor: HighlightColor | null) => void;
+            onClose: () => void;
         },
         ref: Ref<ContentEditorHighlightColorSelectorRef>,
     ) {
@@ -62,6 +64,31 @@ export const ContentEditorHighlightColorSelector = forwardRef(
             }),
             [lastFocusedIndex],
         );
+
+        const selectHighlightColor = (highlightColor: HighlightColor | null) => {
+            assert(viewRef.current);
+            const {state, dispatch} = viewRef.current;
+
+            if (highlightColor) {
+                dispatch(
+                    state.tr.addMark(
+                        state.selection.from,
+                        state.selection.to,
+                        ContentSchema.mark("highlight", {
+                            color: highlightColor,
+                        }),
+                    ),
+                );
+            } else {
+                dispatch(
+                    state.tr.removeMark(
+                        state.selection.from,
+                        state.selection.to,
+                        ContentSchema.marks.highlight,
+                    ),
+                );
+            }
+        };
 
         return (
             <Box
@@ -115,7 +142,7 @@ export const ContentEditorHighlightColorSelector = forwardRef(
                 <ContentEditorHighlightColorSelectorButton
                     description="Red"
                     highlightColor={HighlightColor.Red}
-                    onSelectHighlightColor={onSelectHighlightColor}
+                    onSelectHighlightColor={selectHighlightColor}
                     isFocusable={isFocusable}
                     buttonRef={useCallback(ref => (buttonRefs.current[0] = ref), [])}
                     wasLastFocused={lastFocusedIndex === 0}
@@ -124,7 +151,7 @@ export const ContentEditorHighlightColorSelector = forwardRef(
                 <ContentEditorHighlightColorSelectorButton
                     description="Orange"
                     highlightColor={HighlightColor.Orange}
-                    onSelectHighlightColor={onSelectHighlightColor}
+                    onSelectHighlightColor={selectHighlightColor}
                     isFocusable={isFocusable}
                     buttonRef={useCallback(ref => (buttonRefs.current[1] = ref), [])}
                     wasLastFocused={lastFocusedIndex === 1}
@@ -133,7 +160,7 @@ export const ContentEditorHighlightColorSelector = forwardRef(
                 <ContentEditorHighlightColorSelectorButton
                     description="Green"
                     highlightColor={HighlightColor.Green}
-                    onSelectHighlightColor={onSelectHighlightColor}
+                    onSelectHighlightColor={selectHighlightColor}
                     isFocusable={isFocusable}
                     buttonRef={useCallback(ref => (buttonRefs.current[2] = ref), [])}
                     wasLastFocused={lastFocusedIndex === 2}
@@ -142,7 +169,7 @@ export const ContentEditorHighlightColorSelector = forwardRef(
                 <ContentEditorHighlightColorSelectorButton
                     description="Blue"
                     highlightColor={HighlightColor.Blue}
-                    onSelectHighlightColor={onSelectHighlightColor}
+                    onSelectHighlightColor={selectHighlightColor}
                     isFocusable={isFocusable}
                     buttonRef={useCallback(ref => (buttonRefs.current[3] = ref), [])}
                     wasLastFocused={lastFocusedIndex === 3}
@@ -152,7 +179,7 @@ export const ContentEditorHighlightColorSelector = forwardRef(
                     dividerRight
                     description="Purple"
                     highlightColor={HighlightColor.Purple}
-                    onSelectHighlightColor={onSelectHighlightColor}
+                    onSelectHighlightColor={selectHighlightColor}
                     isFocusable={isFocusable}
                     buttonRef={useCallback(ref => (buttonRefs.current[4] = ref), [])}
                     wasLastFocused={lastFocusedIndex === 4}
@@ -162,7 +189,7 @@ export const ContentEditorHighlightColorSelector = forwardRef(
                     dividerLeft
                     description="Clear"
                     highlightColor={null}
-                    onSelectHighlightColor={onSelectHighlightColor}
+                    onSelectHighlightColor={selectHighlightColor}
                     isFocusable={isFocusable}
                     buttonRef={useCallback(ref => (buttonRefs.current[5] = ref), [])}
                     wasLastFocused={lastFocusedIndex === 5}
@@ -344,19 +371,23 @@ export function ContentEditorKeyboardHighlightColorSelector({
                         });
                     }}
                     onKeyDown={event => {
-                        if (event.key === "Escape") {
-                            onClose();
+                        switch (event.key) {
+                            case "Escape":
+                                onClose();
+                                break;
+                            // If our keyboard color selector has focus you can't escape. Must hit escape
+                            // or click out to get out.
+                            case "Tab":
+                                event.preventDefault();
+                                break;
                         }
                     }}
                 >
                     <ContentEditorHighlightColorSelector
                         ref={selectorRef}
+                        viewRef={viewRef}
                         isFocusable={!isClosing}
-                        onSelectHighlightColor={highlightColor => {
-                            assert(viewRef.current);
-                            selectHighlightColor(viewRef.current, highlightColor);
-                            onClose();
-                        }}
+                        onClose={onClose}
                     />
                 </Box>
             }
@@ -369,28 +400,4 @@ export function ContentEditorKeyboardHighlightColorSelector({
             />
         </OverlayAnimated>
     );
-}
-
-export function selectHighlightColor(view: EditorView, highlightColor: HighlightColor | null) {
-    const {state, dispatch} = view;
-
-    if (highlightColor) {
-        dispatch(
-            state.tr.addMark(
-                state.selection.from,
-                state.selection.to,
-                ContentSchema.mark("highlight", {
-                    color: highlightColor,
-                }),
-            ),
-        );
-    } else {
-        dispatch(
-            state.tr.removeMark(
-                state.selection.from,
-                state.selection.to,
-                ContentSchema.marks.highlight,
-            ),
-        );
-    }
 }

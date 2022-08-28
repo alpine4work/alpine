@@ -416,6 +416,19 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
                     transaction.setStoredMarks(view.state.storedMarks);
                 }
 
+                // Don't let the browser reset the editor's selection after a focus event.
+                //
+                // To reproduce this behavior in Chrome:
+                //
+                // 1. Highlight some text
+                // 2. Open the link input
+                // 3. Hit escape to close the link input
+                //
+                // Without this branch, Chrome restores focus to the beginning of the editor.
+                if (hadFocusThisAnimationFrame && !transaction.selection.eq(view.state.selection)) {
+                    transaction.setSelection(view.state.selection);
+                }
+
                 const newState = view.state.apply(transaction);
 
                 // Always calls the handler from the last React commit. By using a ref
@@ -455,6 +468,14 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
         (elementRef.current as any)[internalEditorViewKey] = view;
 
         viewRef.current = view;
+
+        let hadFocusThisAnimationFrame = false;
+        view.dom.addEventListener("focus", () => {
+            hadFocusThisAnimationFrame = true;
+            requestAnimationFrame(() => {
+                hadFocusThisAnimationFrame = false;
+            });
+        });
 
         return () => {
             view.destroy();

@@ -19,12 +19,11 @@ import {Command, EditorState, Transaction} from "prosemirror-state";
 import {findWrapping} from "prosemirror-transform";
 import {EditorView} from "prosemirror-view";
 import {ReactNode, RefObject, useCallback, useEffect, useRef, useState} from "react";
-import {mergeProps, useButton} from "react-aria";
+import {FocusScope, mergeProps, useButton} from "react-aria";
+import {ContentEditorRef} from "~/client/content/content-editor";
 import {ContentEditorCursorTracker} from "~/client/content/content-editor-cursor-tracker";
-import {
-    ContentEditorHighlightColorSelector,
-    selectHighlightColor,
-} from "~/client/content/content-editor-highlight-color-selector";
+import {ContentEditorHighlightColorSelector} from "~/client/content/content-editor-highlight-color-selector";
+import {ContentEditorLinkInput} from "~/client/content/content-editor-link-input";
 import {Box} from "~/client/design/box";
 import {useLifecycleRef} from "~/client/design/helpers/use-lifecycle-ref";
 import {useOutsidePress} from "~/client/design/helpers/use-outside-press";
@@ -44,6 +43,9 @@ import {isMac} from "~/client/helpers/platform/is-mac";
 import {ContentSchema} from "~/shared/content/content-schema";
 import {spacing} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
+
+// TODO(calebmer): Show a style as activated if it is applied. (e.g. Bold,
+// italic, etc.)
 
 export function ContentEditorSelectionToolbar({
     state,
@@ -82,14 +84,23 @@ export function ContentEditorSelectionToolbar({
     // NOTE(calebmer): This component was written before `<OverlayAnimated>`. It
     // has a bit of delay before the animation begins so it isn't quite feature
     // compatible but consider consolidating someday.
-    const [showState, setShowState] = useState<{isShowing: true; pos: number} | {isShowing: false}>(
-        {isShowing: false},
-    );
+    const [showState, setShowState] = useState<
+        {isShowing: true; pos: number; isLinkInputOpen: boolean} | {isShowing: false}
+    >({isShowing: false});
 
     // Update our show state whenever the selection changes while the toolbar
     // is open.
     if (shouldShow && showState.isShowing && showState.pos !== state.selection.from) {
-        setShowState({isShowing: true, pos: state.selection.from});
+        setShowState(prevState =>
+            prevState.isShowing
+                ? {
+                      ...prevState,
+                      pos: state.selection.from,
+                      // Close the link input when the selection changes.
+                      isLinkInputOpen: false,
+                  }
+                : prevState,
+        );
     }
 
     useEffect(() => {
@@ -103,7 +114,11 @@ export function ContentEditorSelectionToolbar({
             hasSelectionChangedSinceMount
         ) {
             const timeoutId = setTimeout(() => {
-                setShowState({isShowing: true, pos: state.selection.from});
+                setShowState({
+                    isShowing: true,
+                    pos: state.selection.from,
+                    isLinkInputOpen: false,
+                });
             }, overlayFadeAnimationDurationMs);
 
             return () => {
@@ -112,11 +127,18 @@ export function ContentEditorSelectionToolbar({
         }
     }, [hasSelectionChangedSinceMount, shouldShow, showState.isShowing, state.selection.from]);
 
+    const isFadingOut =
+        !shouldShow &&
+        showState.isShowing &&
+        // If the link input is open then our interaction modality switches to
+        // keyboard. Don't close the toolbar when this happens.
+        !showState.isLinkInputOpen;
+
     // Keep the toolbar mounted for a bit before unmounting. This way if the user
     // is quickly clicking around they don't have to wait again for the delay that
     // shows the toolbar.
     useEffect(() => {
-        if (!shouldShow && showState.isShowing) {
+        if (isFadingOut) {
             const timeoutId = setTimeout(() => {
                 setShowState({isShowing: false});
             }, uninterruptedThoughtLimitMs);
@@ -125,7 +147,7 @@ export function ContentEditorSelectionToolbar({
                 clearTimeout(timeoutId);
             };
         }
-    }, [showState, shouldShow]);
+    }, [showState, shouldShow, isFadingOut]);
 
     if (!showState.isShowing) return null;
 
@@ -134,7 +156,18 @@ export function ContentEditorSelectionToolbar({
             state={state}
             viewRef={viewRef}
             pos={showState.pos}
-            isFadingOut={!shouldShow}
+            isFadingOut={isFadingOut}
+            isLinkInputOpen={showState.isLinkInputOpen}
+            onLinkInputOpen={() =>
+                setShowState(prevState =>
+                    prevState.isShowing ? {...prevState, isLinkInputOpen: true} : prevState,
+                )
+            }
+            onLinkInputClose={() =>
+                setShowState(prevState =>
+                    prevState.isShowing ? {...prevState, isLinkInputOpen: false} : prevState,
+                )
+            }
         />
     );
 }
@@ -144,11 +177,17 @@ function ContentEditorSelectionToolbarOverlay({
     viewRef,
     pos,
     isFadingOut,
+    isLinkInputOpen,
+    onLinkInputOpen,
+    onLinkInputClose,
 }: {
     state: EditorState;
     viewRef: RefObject<EditorView | null>;
     pos: number;
     isFadingOut: boolean;
+    isLinkInputOpen: boolean;
+    onLinkInputOpen: () => void;
+    onLinkInputClose: () => void;
 }) {
     const overlayRef = useRef<OverlayRef>(null);
     const tooltipRefs = useRef<Set<TooltipRef>>(new Set());
@@ -186,6 +225,9 @@ function ContentEditorSelectionToolbarOverlay({
                             viewRef={viewRef}
                             sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                             isFadingOut={isFadingOut}
+                            isLinkInputOpen={isLinkInputOpen}
+                            onLinkInputOpen={onLinkInputOpen}
+                            onLinkInputClose={onLinkInputClose}
                         />
                     </Box>
                 </div>
@@ -215,10 +257,16 @@ function ContentEditorSelectionToolbarButtons({
     viewRef,
     sharedTooltipLifecycleRef,
     isFadingOut,
+    isLinkInputOpen,
+    onLinkInputOpen,
+    onLinkInputClose,
 }: {
     viewRef: RefObject<EditorView | null>;
     sharedTooltipLifecycleRef: (tooltipRef: TooltipRef) => () => void;
     isFadingOut: boolean;
+    isLinkInputOpen: boolean;
+    onLinkInputOpen: () => void;
+    onLinkInputClose: () => void;
 }) {
     return (
         <>
@@ -249,22 +297,18 @@ function ContentEditorSelectionToolbarButtons({
             >
                 <TextStrikethrough />
             </ContentEditorSelectionToolbarButton>
-            <ContentEditorSelectionToolbarButton
-                description="Link"
-                keyboardShortcut={isMac ? "⌘+K" : "Ctrl+K"}
+            <ContentEditorSelectionToolbarLinkButton
                 viewRef={viewRef}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
-                command={() => {
-                    // TODO(calebmer): Implement
-                    return false;
-                }}
-            >
-                <Link />
-            </ContentEditorSelectionToolbarButton>
+                isToolbarFadingOut={isFadingOut}
+                isLinkInputOpen={isLinkInputOpen}
+                onLinkInputOpen={onLinkInputOpen}
+                onLinkInputClose={onLinkInputClose}
+            />
             <ContentEditorSelectionToolbarHighlightButton
                 viewRef={viewRef}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
-                isFadingOut={isFadingOut}
+                isToolbarFadingOut={isFadingOut}
             />
             <ContentEditorSelectionToolbarButton
                 dividerLeft
@@ -336,7 +380,7 @@ function ContentEditorSelectionToolbarButton({
     children,
     dividerLeft,
     dividerRight,
-    isTooltipDisabled,
+    hasOpenOverlay,
 }: {
     description: string;
     keyboardShortcut: string;
@@ -346,7 +390,7 @@ function ContentEditorSelectionToolbarButton({
     children: ReactNode;
     dividerLeft?: boolean;
     dividerRight?: boolean;
-    isTooltipDisabled?: boolean;
+    hasOpenOverlay?: boolean;
 }) {
     const onPress = () => {
         const view = viewRef.current;
@@ -370,7 +414,7 @@ function ContentEditorSelectionToolbarButton({
     return (
         <Tooltip
             ref={useLifecycleRef(sharedTooltipLifecycleRef)}
-            disabled={isTooltipDisabled}
+            disabled={hasOpenOverlay}
             placement="top"
             // Don't allow flipping the tooltip down into selection content.
             canFlip={false}
@@ -410,9 +454,9 @@ function ContentEditorSelectionToolbarButton({
                     <Box
                         padding="1"
                         borderRadius="base"
-                        color={isPressed ? "grey-100" : "grey-80"}
+                        color={isPressed || hasOpenOverlay ? "grey-100" : "grey-80"}
                         backgroundColor={
-                            isPressed
+                            isPressed || hasOpenOverlay
                                 ? {light: "grey-10", dark: "grey-20"}
                                 : isHovered
                                 ? {light: "grey-5", dark: "grey-10"}
@@ -434,55 +478,56 @@ function ContentEditorSelectionToolbarButton({
     );
 }
 
-function ContentEditorSelectionToolbarHighlightButton({
+function ContentEditorSelectionToolbarLinkButton({
     viewRef,
     sharedTooltipLifecycleRef,
-    isFadingOut,
+    isToolbarFadingOut,
+    isLinkInputOpen,
+    onLinkInputOpen,
+    onLinkInputClose,
 }: {
     viewRef: RefObject<EditorView | null>;
     sharedTooltipLifecycleRef: (tooltipRef: TooltipRef) => () => void;
-    isFadingOut: boolean;
+    isToolbarFadingOut: boolean;
+    isLinkInputOpen: boolean;
+    onLinkInputOpen: () => void;
+    onLinkInputClose: () => void;
 }) {
-    const [_isColorSelectorOpen, setIsColorSelectorOpen] = useState(false);
-    const isColorSelectorOpen = _isColorSelectorOpen && !isFadingOut;
-    if (_isColorSelectorOpen !== isColorSelectorOpen) setIsColorSelectorOpen(isColorSelectorOpen);
-
+    const inputRef = useRef<ContentEditorRef>(null);
     const wasJustClosedByOverlayRef = useRef(false);
 
     return (
         <OverlayAnimated
-            visible={isColorSelectorOpen}
+            visible={isLinkInputOpen && !isToolbarFadingOut}
             placement="top"
             canFlip={false}
             offset="1.5"
             overlay={
                 <Box
                     ref={useOutsidePress(() => {
-                        setIsColorSelectorOpen(false);
+                        onLinkInputClose();
                         wasJustClosedByOverlayRef.current = true;
                         setTimeout(() => {
                             wasJustClosedByOverlayRef.current = false;
                         }, 0);
                     })}
                 >
-                    <ContentEditorHighlightColorSelector
-                        isFocusable={false}
-                        onSelectHighlightColor={highlightColor => {
-                            assert(viewRef.current);
-                            selectHighlightColor(viewRef.current, highlightColor);
-                            setIsColorSelectorOpen(false);
-                        }}
-                    />
+                    <FocusScope contain restoreFocus autoFocus>
+                        <ContentEditorLinkInput
+                            ref={inputRef}
+                            viewRef={viewRef}
+                            onClose={onLinkInputClose}
+                        />
+                    </FocusScope>
                 </Box>
             }
         >
             <Box>
                 <ContentEditorSelectionToolbarButton
-                    dividerRight
-                    description="Highlight"
-                    // TODO(calebmer): Actually implement highlight keyboard shortcut
-                    keyboardShortcut={isMac ? "⌘+Shift+H" : "Ctrl+Shift+H"}
-                    isTooltipDisabled={isColorSelectorOpen}
+                    description="Link"
+                    // TODO(calebmer): Actually implement the keyboard shortcut
+                    keyboardShortcut={isMac ? "⌘+K" : "Ctrl+K"}
+                    hasOpenOverlay={isLinkInputOpen}
                     viewRef={viewRef}
                     sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                     command={() => {
@@ -491,7 +536,76 @@ function ContentEditorSelectionToolbarHighlightButton({
                         // overlay. We want the overlay to stay closed so we need to coordinate with
                         // a ref.
                         if (!wasJustClosedByOverlayRef.current) {
-                            setIsColorSelectorOpen(!isColorSelectorOpen);
+                            if (isLinkInputOpen) {
+                                onLinkInputClose();
+                            } else {
+                                onLinkInputOpen();
+                            }
+                        }
+                        return false;
+                    }}
+                >
+                    <Link />
+                </ContentEditorSelectionToolbarButton>
+            </Box>
+        </OverlayAnimated>
+    );
+}
+
+function ContentEditorSelectionToolbarHighlightButton({
+    viewRef,
+    sharedTooltipLifecycleRef,
+    isToolbarFadingOut,
+}: {
+    viewRef: RefObject<EditorView | null>;
+    sharedTooltipLifecycleRef: (tooltipRef: TooltipRef) => () => void;
+    isToolbarFadingOut: boolean;
+}) {
+    const [_isOpen, setIsOpen] = useState(false);
+    const isOpen = _isOpen && !isToolbarFadingOut;
+    if (_isOpen !== isOpen) setIsOpen(isOpen);
+
+    const wasJustClosedByOverlayRef = useRef(false);
+
+    return (
+        <OverlayAnimated
+            visible={isOpen}
+            placement="top"
+            canFlip={false}
+            offset="1.5"
+            overlay={
+                <Box
+                    ref={useOutsidePress(() => {
+                        setIsOpen(false);
+                        wasJustClosedByOverlayRef.current = true;
+                        setTimeout(() => {
+                            wasJustClosedByOverlayRef.current = false;
+                        }, 0);
+                    })}
+                >
+                    <ContentEditorHighlightColorSelector
+                        viewRef={viewRef}
+                        isFocusable={false}
+                        onClose={() => setIsOpen(false)}
+                    />
+                </Box>
+            }
+        >
+            <Box>
+                <ContentEditorSelectionToolbarButton
+                    dividerRight
+                    description="Highlight"
+                    keyboardShortcut={isMac ? "⌘+Shift+H" : "Ctrl+Shift+H"}
+                    hasOpenOverlay={isOpen}
+                    viewRef={viewRef}
+                    sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
+                    command={() => {
+                        // If the user clicks on this button to close the highlight color overlay then
+                        // this `command` will run after the `useOutsidePress()` above which closes the
+                        // overlay. We want the overlay to stay closed so we need to coordinate with
+                        // a ref.
+                        if (!wasJustClosedByOverlayRef.current) {
+                            setIsOpen(!isOpen);
                         }
                         return false;
                     }}
