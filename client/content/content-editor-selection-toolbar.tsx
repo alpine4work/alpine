@@ -18,17 +18,13 @@ import {Attrs, NodeType} from "prosemirror-model";
 import {Command, EditorState, Transaction} from "prosemirror-state";
 import {findWrapping} from "prosemirror-transform";
 import {EditorView} from "prosemirror-view";
-import {
-    ReactNode,
-    RefObject,
-    useCallback,
-    useEffect,
-    useLayoutEffect,
-    useRef,
-    useState,
-} from "react";
+import {ReactNode, RefObject, useCallback, useEffect, useRef, useState} from "react";
 import {mergeProps, useButton} from "react-aria";
-import {ContentEditorHighlightColorSelector} from "~/client/content/content-editor-highlight-color-selector";
+import {ContentEditorCursorTracker} from "~/client/content/content-editor-cursor-tracker";
+import {
+    ContentEditorHighlightColorSelector,
+    selectHighlightColor,
+} from "~/client/content/content-editor-highlight-color-selector";
 import {Box} from "~/client/design/box";
 import {useLifecycleRef} from "~/client/design/helpers/use-lifecycle-ref";
 import {useOutsidePress} from "~/client/design/helpers/use-outside-press";
@@ -43,10 +39,10 @@ import {
 import {sprinkles} from "~/client/design/sprinkles.css";
 import {uninterruptedThoughtLimitMs} from "~/client/design/timing-constants";
 import {Tooltip, TooltipRef} from "~/client/design/tooltip";
+import {useConstant} from "~/client/helpers/lifecycle/use-constant";
 import {isMac} from "~/client/helpers/platform/is-mac";
 import {ContentSchema} from "~/shared/content/content-schema";
 import {spacing} from "~/shared/design/spacing";
-import {scheduleMicrotask} from "~/shared/helpers/async/schedule-microtask";
 import {assert} from "~/shared/helpers/control/assert";
 
 export function ContentEditorSelectionToolbar({
@@ -65,6 +61,18 @@ export function ContentEditorSelectionToolbar({
         // Make sure some characters are selected before showing the selection toolbar.
         state.selection.from !== state.selection.to;
 
+    const initialSelection = useConstant(() => state.selection);
+    const [hasSelectionChangedSinceMount, setHasSelectionChangedSinceMount] = useState(false);
+
+    useEffect(() => {
+        if (
+            state.selection.from !== initialSelection.from ||
+            state.selection.to !== initialSelection.to
+        ) {
+            setHasSelectionChangedSinceMount(true);
+        }
+    }, [initialSelection.from, initialSelection.to, state.selection.from, state.selection.to]);
+
     // Once we should no longer show the toolbar, we still show it for a couple
     // milliseconds as it animates away.
     //
@@ -75,15 +83,25 @@ export function ContentEditorSelectionToolbar({
     // has a bit of delay before the animation begins so it isn't quite feature
     // compatible but consider consolidating someday.
     const [showState, setShowState] = useState<{isShowing: true; pos: number} | {isShowing: false}>(
-        shouldShow ? {isShowing: true, pos: state.selection.from} : {isShowing: false},
+        {isShowing: false},
     );
 
+    // Update our show state whenever the selection changes while the toolbar
+    // is open.
     if (shouldShow && showState.isShowing && showState.pos !== state.selection.from) {
         setShowState({isShowing: true, pos: state.selection.from});
     }
 
     useEffect(() => {
-        if (shouldShow && !showState.isShowing) {
+        if (
+            shouldShow &&
+            !showState.isShowing &&
+            // Don't show the toolbar until the user has interacted with the editor.
+            //
+            // This defends against the case where we had a highlight toolbar opened but
+            // then the user closed it and the regular toolbar wants to immediately open.
+            hasSelectionChangedSinceMount
+        ) {
             const timeoutId = setTimeout(() => {
                 setShowState({isShowing: true, pos: state.selection.from});
             }, overlayFadeAnimationDurationMs);
@@ -92,7 +110,7 @@ export function ContentEditorSelectionToolbar({
                 clearTimeout(timeoutId);
             };
         }
-    }, [shouldShow, showState.isShowing, state.selection.from]);
+    }, [hasSelectionChangedSinceMount, shouldShow, showState.isShowing, state.selection.from]);
 
     // Keep the toolbar mounted for a bit before unmounting. This way if the user
     // is quickly clicking around they don't have to wait again for the delay that
@@ -133,61 +151,12 @@ function ContentEditorSelectionToolbarOverlay({
     isFadingOut: boolean;
 }) {
     const overlayRef = useRef<OverlayRef>(null);
-    const targetRef = useRef<HTMLDivElement>(null);
-
     const tooltipRefs = useRef<Set<TooltipRef>>(new Set());
 
     const sharedTooltipLifecycleRef = useCallback((tooltipRef: TooltipRef) => {
         tooltipRefs.current.add(tooltipRef);
         return () => tooltipRefs.current.delete(tooltipRef);
     }, []);
-
-    useLayoutEffect(() => {
-        let isCancelled = false;
-
-        // We want this effect to run whenever the underlying doc changes too.
-        //
-        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-        state.doc;
-
-        const run = () => {
-            if (isCancelled) return;
-
-            assert(viewRef.current);
-            assert(overlayRef.current);
-            assert(targetRef.current);
-
-            // jsdom doesn't care about layout so this property doesn't exist.
-            if (typeof jest !== "undefined" && !targetRef.current.offsetParent) return;
-            assert(targetRef.current.offsetParent);
-
-            // `coords` are relative to the viewport, so get our offset parent's viewport
-            // rect so we can correctly position our selection target in the offset parent.
-            const coords = viewRef.current.coordsAtPos(pos);
-            const offsetParentRect = targetRef.current.offsetParent.getBoundingClientRect();
-
-            targetRef.current.style.top = `${coords.top - offsetParentRect.top}px`;
-            targetRef.current.style.height = `${coords.bottom - coords.top}px`;
-            targetRef.current.style.left = `${coords.left - offsetParentRect.left}px`;
-
-            overlayRef.current.forceUpdateOverlayPosition();
-
-            // Update the tooltip position with the overlay position in case there is an
-            // open tooltip.
-            for (const tooltipRef of tooltipRefs.current) {
-                tooltipRef.forceUpdateTooltipPosition();
-            }
-        };
-
-        // In React, child component effects run before parent component effects. So
-        // `viewRef` is assigned after our effect runs. By scheduling a microtask we
-        // wait until our parent's effect runs.
-        scheduleMicrotask(run);
-
-        return () => {
-            isCancelled = true;
-        };
-    }, [pos, state.doc, viewRef]);
 
     return (
         <Overlay
@@ -222,7 +191,22 @@ function ContentEditorSelectionToolbarOverlay({
                 </div>
             }
         >
-            <Box ref={targetRef} width="0" position="absolute" pointerEvents="none" />
+            <ContentEditorCursorTracker
+                state={state}
+                viewRef={viewRef}
+                pos={pos}
+                // TODO(calebmer): Is there a better way to keep overlay positions
+                // automatically up to date?
+                onUpdatePosition={() => {
+                    overlayRef.current?.forceUpdateOverlayPosition();
+
+                    // Update the tooltip position with the overlay position in case there is an
+                    // open tooltip.
+                    for (const tooltipRef of tooltipRefs.current) {
+                        tooltipRef.forceUpdateTooltipPosition();
+                    }
+                }}
+            />
         </Overlay>
     );
 }
@@ -484,30 +468,8 @@ function ContentEditorSelectionToolbarHighlightButton({
                     <ContentEditorHighlightColorSelector
                         isFocusable={false}
                         onSelectHighlightColor={highlightColor => {
-                            const view = viewRef.current;
-                            assert(view);
-                            const {state, dispatch} = view;
-
-                            if (highlightColor) {
-                                dispatch(
-                                    state.tr.addMark(
-                                        state.selection.from,
-                                        state.selection.to,
-                                        ContentSchema.mark("highlight", {
-                                            color: highlightColor,
-                                        }),
-                                    ),
-                                );
-                            } else {
-                                dispatch(
-                                    state.tr.removeMark(
-                                        state.selection.from,
-                                        state.selection.to,
-                                        ContentSchema.marks.highlight,
-                                    ),
-                                );
-                            }
-
+                            assert(viewRef.current);
+                            selectHighlightColor(viewRef.current, highlightColor);
                             setIsColorSelectorOpen(false);
                         }}
                     />

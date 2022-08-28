@@ -26,6 +26,8 @@ type Command = (
     view?: EditorView,
 ) => boolean;
 
+export const openKeyboardHighlightColorSelectorMetaKey = "openKeyboardHighlightColorSelector";
+
 export function buildKeymapPlugin() {
     const keys = new Map<string, Command>();
 
@@ -643,6 +645,17 @@ export function buildKeymapPlugin() {
     keys.set("Mod-i", toggleMark(ContentSchema.marks.italic));
     keys.set("Mod-shift-x", toggleMark(ContentSchema.marks.strike));
     keys.set("Mod-shift-k", toggleMark(ContentSchema.marks.code));
+
+    // Open keyboard highlight color selector
+    keys.set("Mod-shift-h", (state, dispatch) => {
+        // Only open highlight color selector if we're selecting some text.
+        if (state.selection.from === state.selection.to) {
+            return false;
+        }
+
+        dispatch?.(state.tr.setMeta(openKeyboardHighlightColorSelectorMetaKey, true));
+        return true;
+    });
 
     // Based on the [ProseMirror base MacOS keybinding][1] map and the [MacOS
     // keyboard shortcut][2] documentation.

@@ -448,8 +448,6 @@ export const ContentSchema = new Schema({
                         ? unknownColor
                         : HighlightColor.Orange;
 
-                console.log({highlightClassNameByColor, color});
-
                 return [
                     "mark",
                     {

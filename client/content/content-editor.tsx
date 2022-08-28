@@ -13,8 +13,12 @@ import {Ref, forwardRef, useImperativeHandle, useLayoutEffect, useRef, useState}
 import {createContentCheckListItemNodeView} from "~/client/content/content-check-list-item-node-view";
 import {ContentDomClipboardSerializer} from "~/client/content/content-dom-clipboard-serializer";
 import {ContentDomParser} from "~/client/content/content-dom-parser";
+import {ContentEditorKeyboardHighlightColorSelector} from "~/client/content/content-editor-highlight-color-selector";
 import {buildInputRulesPlugin} from "~/client/content/content-editor-plugin-input-rules";
-import {buildKeymapPlugin} from "~/client/content/content-editor-plugin-keymap";
+import {
+    buildKeymapPlugin,
+    openKeyboardHighlightColorSelectorMetaKey,
+} from "~/client/content/content-editor-plugin-keymap";
 import {ContentEditorSelectionToolbar} from "~/client/content/content-editor-selection-toolbar";
 import {emptyContentEditorClassName} from "~/client/content/content-editor.css";
 import {createContentOrderedListItemNodeView} from "~/client/content/content-ordered-list-item-node-view";
@@ -353,6 +357,8 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
     );
 
     const [lastTransactionTime, setLastTransactionTime] = useState(Date.now());
+    const [isKeyboardHighlightColorSelectorOpen, setIsKeyboardHighlightColorSelectorOpen] =
+        useState(false);
 
     // Effect which initializes and destroys a ProseMirror editor view.
     //
@@ -436,6 +442,12 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
                 view.updateState(newState);
                 updateEditorEmptyClass(newState);
                 setLastTransactionTime(transaction.time);
+
+                // Open the keyboard highlight color selector regardless of whether our parent
+                // component acknowledges the new state from this transaction.
+                if (transaction.getMeta(openKeyboardHighlightColorSelectorMetaKey)) {
+                    setIsKeyboardHighlightColorSelectorOpen(true);
+                }
             },
         });
 
@@ -547,7 +559,15 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
                 onFocus={onFocus}
                 onBlur={onBlur}
             />
-            <ContentEditorSelectionToolbar state={unwrap(state)} viewRef={viewRef} />
+            {isKeyboardHighlightColorSelectorOpen ? (
+                <ContentEditorKeyboardHighlightColorSelector
+                    state={unwrap(state)}
+                    viewRef={viewRef}
+                    onClose={() => setIsKeyboardHighlightColorSelectorOpen(false)}
+                />
+            ) : (
+                <ContentEditorSelectionToolbar state={unwrap(state)} viewRef={viewRef} />
+            )}
         </>
     );
 }
