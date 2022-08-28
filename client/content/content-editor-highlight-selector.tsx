@@ -27,7 +27,7 @@ import {HighlightColor, colorByHighlightColor} from "~/shared/content/highlight-
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule-microtask";
 import {assert} from "~/shared/helpers/control/assert";
 
-type ContentEditorHighlightColorSelectorRef = {
+type ContentEditorHighlightSelectorRef = {
     focus(options?: FocusOptions): void;
 };
 
@@ -37,170 +37,168 @@ type ContentEditorHighlightColorSelectorRef = {
  * This component implements the toolbar role:
  * https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/toolbar_role
  */
-export const ContentEditorHighlightColorSelector = forwardRef(
-    function ContentEditorHighlightColorSelector(
-        {
-            viewRef,
-            isFocusable,
-            onClose,
-        }: {
-            viewRef: RefObject<EditorView | null>;
-            isFocusable: boolean;
-            onClose: () => void;
-        },
-        ref: Ref<ContentEditorHighlightColorSelectorRef>,
-    ) {
-        const buttonRefs = useRef<Array<HTMLDivElement | null>>([]);
-        const [lastFocusedIndex, setLastFocusedIndex] = useState(0);
-
-        useImperativeHandle(
-            ref,
-            () => ({
-                focus: options => {
-                    const buttonElement = buttonRefs.current[lastFocusedIndex];
-                    assert(buttonElement);
-                    buttonElement.focus(options);
-                },
-            }),
-            [lastFocusedIndex],
-        );
-
-        const selectHighlightColor = (highlightColor: HighlightColor | null) => {
-            assert(viewRef.current);
-            const {state, dispatch} = viewRef.current;
-
-            if (highlightColor) {
-                dispatch(
-                    state.tr.addMark(
-                        state.selection.from,
-                        state.selection.to,
-                        ContentSchema.mark("highlight", {
-                            color: highlightColor,
-                        }),
-                    ),
-                );
-            } else {
-                dispatch(
-                    state.tr.removeMark(
-                        state.selection.from,
-                        state.selection.to,
-                        ContentSchema.marks.highlight,
-                    ),
-                );
-            }
-        };
-
-        return (
-            <Box
-                display="flex"
-                paddingX="1"
-                borderRadius="base"
-                backgroundColor={{light: "grey-0", dark: "grey-5"}}
-                boxShadow="elevation-20"
-                role="toolbar"
-                aria-label="Highlight color selector"
-                aria-orientation="horizontal"
-                onKeyDown={event => {
-                    switch (event.key) {
-                        case "ArrowLeft": {
-                            event.preventDefault();
-                            const buttonElement =
-                                buttonRefs.current[
-                                    lastFocusedIndex !== 0
-                                        ? lastFocusedIndex - 1
-                                        : buttonRefs.current.length - 1
-                                ];
-                            assert(buttonElement);
-                            buttonElement.focus();
-                            break;
-                        }
-                        case "ArrowRight": {
-                            const buttonElement =
-                                buttonRefs.current[
-                                    lastFocusedIndex !== buttonRefs.current.length - 1
-                                        ? lastFocusedIndex + 1
-                                        : 0
-                                ];
-                            assert(buttonElement);
-                            buttonElement.focus();
-                            break;
-                        }
-                        case "Home": {
-                            const buttonElement = buttonRefs.current[0];
-                            assert(buttonElement);
-                            buttonElement.focus();
-                            break;
-                        }
-                        case "End": {
-                            const buttonElement = buttonRefs.current[buttonRefs.current.length - 1];
-                            assert(buttonElement);
-                            buttonElement.focus();
-                        }
-                    }
-                }}
-            >
-                <ContentEditorHighlightColorSelectorButton
-                    description="Red"
-                    highlightColor={HighlightColor.Red}
-                    onSelectHighlightColor={selectHighlightColor}
-                    isFocusable={isFocusable}
-                    buttonRef={useCallback(ref => (buttonRefs.current[0] = ref), [])}
-                    wasLastFocused={lastFocusedIndex === 0}
-                    onFocus={() => setLastFocusedIndex(0)}
-                />
-                <ContentEditorHighlightColorSelectorButton
-                    description="Orange"
-                    highlightColor={HighlightColor.Orange}
-                    onSelectHighlightColor={selectHighlightColor}
-                    isFocusable={isFocusable}
-                    buttonRef={useCallback(ref => (buttonRefs.current[1] = ref), [])}
-                    wasLastFocused={lastFocusedIndex === 1}
-                    onFocus={() => setLastFocusedIndex(1)}
-                />
-                <ContentEditorHighlightColorSelectorButton
-                    description="Green"
-                    highlightColor={HighlightColor.Green}
-                    onSelectHighlightColor={selectHighlightColor}
-                    isFocusable={isFocusable}
-                    buttonRef={useCallback(ref => (buttonRefs.current[2] = ref), [])}
-                    wasLastFocused={lastFocusedIndex === 2}
-                    onFocus={() => setLastFocusedIndex(2)}
-                />
-                <ContentEditorHighlightColorSelectorButton
-                    description="Blue"
-                    highlightColor={HighlightColor.Blue}
-                    onSelectHighlightColor={selectHighlightColor}
-                    isFocusable={isFocusable}
-                    buttonRef={useCallback(ref => (buttonRefs.current[3] = ref), [])}
-                    wasLastFocused={lastFocusedIndex === 3}
-                    onFocus={() => setLastFocusedIndex(3)}
-                />
-                <ContentEditorHighlightColorSelectorButton
-                    dividerRight
-                    description="Purple"
-                    highlightColor={HighlightColor.Purple}
-                    onSelectHighlightColor={selectHighlightColor}
-                    isFocusable={isFocusable}
-                    buttonRef={useCallback(ref => (buttonRefs.current[4] = ref), [])}
-                    wasLastFocused={lastFocusedIndex === 4}
-                    onFocus={() => setLastFocusedIndex(4)}
-                />
-                <ContentEditorHighlightColorSelectorButton
-                    dividerLeft
-                    description="Clear"
-                    highlightColor={null}
-                    onSelectHighlightColor={selectHighlightColor}
-                    isFocusable={isFocusable}
-                    buttonRef={useCallback(ref => (buttonRefs.current[5] = ref), [])}
-                    wasLastFocused={lastFocusedIndex === 5}
-                    onFocus={() => setLastFocusedIndex(5)}
-                />
-            </Box>
-        );
+export const ContentEditorHighlightSelector = forwardRef(function ContentEditorHighlightSelector(
+    {
+        viewRef,
+        isFocusable,
+        onClose,
+    }: {
+        viewRef: RefObject<EditorView | null>;
+        isFocusable: boolean;
+        onClose: () => void;
     },
-);
+    ref: Ref<ContentEditorHighlightSelectorRef>,
+) {
+    const buttonRefs = useRef<Array<HTMLDivElement | null>>([]);
+    const [lastFocusedIndex, setLastFocusedIndex] = useState(0);
 
-function ContentEditorHighlightColorSelectorButton({
+    useImperativeHandle(
+        ref,
+        () => ({
+            focus: options => {
+                const buttonElement = buttonRefs.current[lastFocusedIndex];
+                assert(buttonElement);
+                buttonElement.focus(options);
+            },
+        }),
+        [lastFocusedIndex],
+    );
+
+    const selectHighlightColor = (highlightColor: HighlightColor | null) => {
+        assert(viewRef.current);
+        const {state, dispatch} = viewRef.current;
+
+        if (highlightColor) {
+            dispatch(
+                state.tr.addMark(
+                    state.selection.from,
+                    state.selection.to,
+                    ContentSchema.mark("highlight", {
+                        color: highlightColor,
+                    }),
+                ),
+            );
+        } else {
+            dispatch(
+                state.tr.removeMark(
+                    state.selection.from,
+                    state.selection.to,
+                    ContentSchema.marks.highlight,
+                ),
+            );
+        }
+    };
+
+    return (
+        <Box
+            display="flex"
+            paddingX="1"
+            borderRadius="base"
+            backgroundColor={{light: "grey-0", dark: "grey-5"}}
+            boxShadow="elevation-20"
+            role="toolbar"
+            aria-label="Highlight color selector"
+            aria-orientation="horizontal"
+            onKeyDown={event => {
+                switch (event.key) {
+                    case "ArrowLeft": {
+                        event.preventDefault();
+                        const buttonElement =
+                            buttonRefs.current[
+                                lastFocusedIndex !== 0
+                                    ? lastFocusedIndex - 1
+                                    : buttonRefs.current.length - 1
+                            ];
+                        assert(buttonElement);
+                        buttonElement.focus();
+                        break;
+                    }
+                    case "ArrowRight": {
+                        const buttonElement =
+                            buttonRefs.current[
+                                lastFocusedIndex !== buttonRefs.current.length - 1
+                                    ? lastFocusedIndex + 1
+                                    : 0
+                            ];
+                        assert(buttonElement);
+                        buttonElement.focus();
+                        break;
+                    }
+                    case "Home": {
+                        const buttonElement = buttonRefs.current[0];
+                        assert(buttonElement);
+                        buttonElement.focus();
+                        break;
+                    }
+                    case "End": {
+                        const buttonElement = buttonRefs.current[buttonRefs.current.length - 1];
+                        assert(buttonElement);
+                        buttonElement.focus();
+                    }
+                }
+            }}
+        >
+            <ContentEditorHighlightSelectorButton
+                description="Red"
+                highlightColor={HighlightColor.Red}
+                onSelectHighlightColor={selectHighlightColor}
+                isFocusable={isFocusable}
+                buttonRef={useCallback(ref => (buttonRefs.current[0] = ref), [])}
+                wasLastFocused={lastFocusedIndex === 0}
+                onFocus={() => setLastFocusedIndex(0)}
+            />
+            <ContentEditorHighlightSelectorButton
+                description="Orange"
+                highlightColor={HighlightColor.Orange}
+                onSelectHighlightColor={selectHighlightColor}
+                isFocusable={isFocusable}
+                buttonRef={useCallback(ref => (buttonRefs.current[1] = ref), [])}
+                wasLastFocused={lastFocusedIndex === 1}
+                onFocus={() => setLastFocusedIndex(1)}
+            />
+            <ContentEditorHighlightSelectorButton
+                description="Green"
+                highlightColor={HighlightColor.Green}
+                onSelectHighlightColor={selectHighlightColor}
+                isFocusable={isFocusable}
+                buttonRef={useCallback(ref => (buttonRefs.current[2] = ref), [])}
+                wasLastFocused={lastFocusedIndex === 2}
+                onFocus={() => setLastFocusedIndex(2)}
+            />
+            <ContentEditorHighlightSelectorButton
+                description="Blue"
+                highlightColor={HighlightColor.Blue}
+                onSelectHighlightColor={selectHighlightColor}
+                isFocusable={isFocusable}
+                buttonRef={useCallback(ref => (buttonRefs.current[3] = ref), [])}
+                wasLastFocused={lastFocusedIndex === 3}
+                onFocus={() => setLastFocusedIndex(3)}
+            />
+            <ContentEditorHighlightSelectorButton
+                dividerRight
+                description="Purple"
+                highlightColor={HighlightColor.Purple}
+                onSelectHighlightColor={selectHighlightColor}
+                isFocusable={isFocusable}
+                buttonRef={useCallback(ref => (buttonRefs.current[4] = ref), [])}
+                wasLastFocused={lastFocusedIndex === 4}
+                onFocus={() => setLastFocusedIndex(4)}
+            />
+            <ContentEditorHighlightSelectorButton
+                dividerLeft
+                description="Clear"
+                highlightColor={null}
+                onSelectHighlightColor={selectHighlightColor}
+                isFocusable={isFocusable}
+                buttonRef={useCallback(ref => (buttonRefs.current[5] = ref), [])}
+                wasLastFocused={lastFocusedIndex === 5}
+                onFocus={() => setLastFocusedIndex(5)}
+            />
+        </Box>
+    );
+});
+
+function ContentEditorHighlightSelectorButton({
     description,
     highlightColor,
     onSelectHighlightColor,
@@ -292,7 +290,7 @@ function ContentEditorHighlightColorSelectorButton({
     );
 }
 
-export function ContentEditorKeyboardHighlightColorSelector({
+export function ContentEditorHighlightToolbar({
     state,
     viewRef,
     onClose: _onClose,
@@ -302,7 +300,7 @@ export function ContentEditorKeyboardHighlightColorSelector({
     onClose: () => void;
 }) {
     const overlayRef = useRef<OverlayRef>(null);
-    const selectorRef = useRef<ContentEditorHighlightColorSelectorRef>(null);
+    const selectorRef = useRef<ContentEditorHighlightSelectorRef>(null);
 
     const pos = useConstant(state.selection.from);
 
@@ -383,7 +381,7 @@ export function ContentEditorKeyboardHighlightColorSelector({
                         }
                     }}
                 >
-                    <ContentEditorHighlightColorSelector
+                    <ContentEditorHighlightSelector
                         ref={selectorRef}
                         viewRef={viewRef}
                         isFocusable={!isClosing}

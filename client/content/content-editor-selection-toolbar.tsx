@@ -22,7 +22,7 @@ import {ReactNode, RefObject, useCallback, useEffect, useRef, useState} from "re
 import {FocusScope, mergeProps, useButton} from "react-aria";
 import {ContentEditorRef} from "~/client/content/content-editor";
 import {ContentEditorCursorTracker} from "~/client/content/content-editor-cursor-tracker";
-import {ContentEditorHighlightColorSelector} from "~/client/content/content-editor-highlight-color-selector";
+import {ContentEditorHighlightSelector} from "~/client/content/content-editor-highlight-selector";
 import {ContentEditorLinkInput} from "~/client/content/content-editor-link-input";
 import {Box} from "~/client/design/box";
 import {useLifecycleRef} from "~/client/design/helpers/use-lifecycle-ref";
@@ -583,7 +583,7 @@ function ContentEditorSelectionToolbarHighlightButton({
                         }, 0);
                     })}
                 >
-                    <ContentEditorHighlightColorSelector
+                    <ContentEditorHighlightSelector
                         viewRef={viewRef}
                         isFocusable={false}
                         onClose={() => setIsOpen(false)}
