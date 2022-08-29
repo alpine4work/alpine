@@ -243,6 +243,10 @@ export const linkClassName = style({
     color: colorSchemeVars["theme-60"],
     textDecorationLine: "underline",
     textDecorationThickness: 1,
+    // Remove gaps in links underline in iOS 8+ and Safari 8+.
+    // Adobe Spectrum does this and I trust them:
+    // https://github.com/adobe/spectrum-css/blob/0623bc93472afe3df13702531e119b62ad5291f2/components/link/index.css#L51-L52
+    WebkitTextDecorationSkip: "objects",
 });
 
 // Make sure the first child in our document never has top margin.
