@@ -63,12 +63,14 @@ export function ContentEditorFloater({
     viewRef,
     floaterState,
     setFloaterState,
+    isFocused,
     lastSelectionChangeTransactionTime,
 }: {
     state: EditorState;
     viewRef: RefObject<EditorView | null>;
     floaterState: ContentEditorFloaterState;
     setFloaterState: (floaterState: ContentEditorFloaterState) => void;
+    isFocused: boolean;
     lastSelectionChangeTransactionTime: number | null;
 }) {
     switch (floaterState.type) {
@@ -77,6 +79,7 @@ export function ContentEditorFloater({
                 <ContentEditorPointerToolbar
                     state={state}
                     viewRef={viewRef}
+                    isFocused={isFocused}
                     lastSelectionChangeTransactionTime={lastSelectionChangeTransactionTime}
                 />
             );

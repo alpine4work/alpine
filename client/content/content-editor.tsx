@@ -363,6 +363,8 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
         [],
     );
 
+    const [isFocused, setIsFocused] = useState(false);
+
     const [{lastTransactionTime, lastSelectionChangeTransactionTime}, setTransactionTimes] =
         useState<{
             lastTransactionTime: number | null;
@@ -612,12 +614,16 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
         const currentDecorations = view.someProp("decorations");
 
         const handleFocus = () => {
+            setIsFocused(true);
+
             viewElement.classList.remove(hideSelectionWhileUnfocusedClassName);
 
             view.setProps({decorations: currentDecorations});
         };
 
         const handleBlur = () => {
+            setIsFocused(false);
+
             viewElement.classList.add(hideSelectionWhileUnfocusedClassName);
 
             view.setProps({
@@ -665,6 +671,7 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
                 viewRef={viewRef}
                 floaterState={floaterState}
                 setFloaterState={setFloaterState}
+                isFocused={isFocused}
                 lastSelectionChangeTransactionTime={lastSelectionChangeTransactionTime}
             />
         </>

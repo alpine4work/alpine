@@ -49,15 +49,18 @@ import {assert} from "~/shared/helpers/control/assert";
 export function ContentEditorPointerToolbar({
     state,
     viewRef,
+    isFocused,
     lastSelectionChangeTransactionTime,
 }: {
     state: EditorState;
     viewRef: RefObject<EditorView | null>;
+    isFocused: boolean;
     lastSelectionChangeTransactionTime: number | null;
 }) {
     const interactionModality = useInteractionModality();
 
     const shouldShow =
+        isFocused &&
         // The toolbar overlay is intended for pointer use only. You can use keyboard
         // shortcuts to accomplish everything in the toolbar.
         interactionModality === "pointer" &&
