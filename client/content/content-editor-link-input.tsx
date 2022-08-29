@@ -14,51 +14,35 @@ import {assert} from "~/shared/helpers/control/assert";
 // focus is in the link input. So the user doesn't lose context.
 
 export function ContentEditorLinkInput({
-    viewRef,
+    initialUrl = "",
     isDisabled = false,
+    onSave: _onSave,
+    onClear,
     onClose,
 }: {
-    viewRef: RefObject<EditorView | null>;
+    initialUrl?: string;
     isDisabled?: boolean;
+    onSave: (url: string) => void;
+    onClear: () => void;
     onClose: () => void;
 }) {
     const inputRef = useRef<HTMLInputElement>(null);
 
     // TODO(calebmer): Pre-populate state with the URL if it exists in our selection.
-    const [url, setUrl] = useState("");
+    const [url, setUrl] = useState(initialUrl);
 
-    const save = () => {
-        assert(viewRef.current);
-        const {state, dispatch} = viewRef.current;
-
+    const onSave = () => {
         // If the URL the user typed does not have a protocol then add `https://`.
         const finalUrl = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(url) ? url : `https://${url}`;
 
-        // TODO(calebmer): Exclude spaces from the selection when adding a link style?
-        // Should we do this for highlights too?
-        dispatch(
-            state.tr.addMark(
-                state.selection.from,
-                state.selection.to,
-                ContentSchema.mark("link", {url: finalUrl}),
-            ),
-        );
-
-        onClose();
-    };
-
-    const clear = () => {
-        // TODO(calebmer): If we are pre-populating state with the URL then it makes
-        // sense to clear when the user clicks the X button.
-
-        onClose();
+        _onSave(finalUrl);
     };
 
     return (
         <Box
             display="flex"
             alignItems="center"
-            paddingRight="1"
+            paddingRight="1.5"
             height="8"
             width="64"
             borderRadius="base"
@@ -89,6 +73,7 @@ export function ContentEditorLinkInput({
                     flex: 1,
                     height: "full",
                     paddingLeft: "8",
+                    paddingRight: "1",
                     font: "sm",
                     color: "grey-100",
                     backgroundColor: "transparent",
@@ -100,12 +85,12 @@ export function ContentEditorLinkInput({
                 onKeyDown={event => {
                     if (event.key === "Enter") {
                         event.preventDefault();
-                        save();
+                        onSave();
                     }
                 }}
             />
-            <ContentEditorLinkInputClearButton isDisabled={isDisabled} onPress={clear} />
-            <ContentEditorLinkInputDoneButton isDisabled={isDisabled} onPress={save} />
+            <ContentEditorLinkInputClearButton isDisabled={isDisabled} onPress={() => onClear()} />
+            <ContentEditorLinkInputSaveButton isDisabled={isDisabled} onPress={() => onSave()} />
         </Box>
     );
 }
@@ -167,7 +152,7 @@ function ContentEditorLinkInputClearButton({
     );
 }
 
-function ContentEditorLinkInputDoneButton({
+function ContentEditorLinkInputSaveButton({
     isDisabled,
     onPress,
 }: {
@@ -201,10 +186,53 @@ function ContentEditorLinkInputDoneButton({
                                 : undefined,
                         })}
                     >
-                        Done
+                        Save
                     </button>
                 </FocusRing>
             </Box>
         </Box>
+    );
+}
+
+export function ContentEditorSelectionLinkInput({
+    viewRef,
+    isDisabled,
+    onClose,
+}: {
+    viewRef: RefObject<EditorView | null>;
+    isDisabled?: boolean;
+    onClose: () => void;
+}) {
+    const save = (url: string) => {
+        assert(viewRef.current);
+        const {state, dispatch} = viewRef.current;
+
+        // TODO(calebmer): Exclude spaces from the selection when adding a link style?
+        // Should we do this for highlights too?
+        dispatch(
+            state.tr.addMark(
+                state.selection.from,
+                state.selection.to,
+                ContentSchema.mark("link", {url}),
+            ),
+        );
+
+        onClose();
+    };
+
+    const clear = () => {
+        // TODO(calebmer): If we are pre-populating state with the URL then it makes
+        // sense to clear when the user clicks the X button.
+
+        onClose();
+    };
+
+    return (
+        <ContentEditorLinkInput
+            isDisabled={isDisabled}
+            onSave={save}
+            onClear={clear}
+            onClose={onClose}
+        />
     );
 }

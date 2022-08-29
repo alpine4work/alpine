@@ -26,7 +26,10 @@ import {
     overlayAnimateFadeOutClassName,
     overlayFadeAnimationDurationMs,
 } from "~/client/design/overlay-animated.css";
-import {uninterruptedThoughtLimitMs} from "~/client/design/timing-constants";
+import {
+    presentExtraContextAfterDelayMs,
+    uninterruptedThoughtLimitMs,
+} from "~/client/design/timing-constants";
 import {useIsMounted} from "~/client/helpers/lifecycle/use-is-mounted";
 import {tooltipBoxShadow} from "~/shared/design/elevation";
 import {assert} from "~/shared/helpers/control/assert";
@@ -668,17 +671,17 @@ export function TooltipCoordinationContextProvider({children}: {children: ReactN
     // warming up.
     useEffect(() => {
         if (state.hoveredTooltipsStatus === "WarmingUp" && hasHoveredTooltipSymbols) {
-            const timeoutID = setTimeout(() => {
+            const timeoutId = setTimeout(() => {
                 setState(oldState => {
                     return {
                         ...oldState,
                         hoveredTooltipsStatus: "WarmedUp",
                     };
                 });
-            }, uninterruptedThoughtLimitMs);
+            }, presentExtraContextAfterDelayMs);
 
             return () => {
-                clearTimeout(timeoutID);
+                clearTimeout(timeoutId);
             };
         }
     }, [hasHoveredTooltipSymbols, state.hoveredTooltipsStatus]);
@@ -689,7 +692,7 @@ export function TooltipCoordinationContextProvider({children}: {children: ReactN
     // This is a separate effect because it has an extra dependency.
     useEffect(() => {
         if (state.hoveredTooltipsStatus === "WarmedUp" && !hasActiveTooltipSymbol) {
-            const timeoutID = setTimeout(() => {
+            const timeoutId = setTimeout(() => {
                 setState(oldState => {
                     return {
                         ...oldState,
@@ -699,7 +702,7 @@ export function TooltipCoordinationContextProvider({children}: {children: ReactN
             }, uninterruptedThoughtLimitMs);
 
             return () => {
-                clearTimeout(timeoutID);
+                clearTimeout(timeoutId);
             };
         }
     }, [hasActiveTooltipSymbol, state.hoveredTooltipsStatus]);

@@ -22,7 +22,7 @@ import {ReactNode, RefObject, useCallback, useEffect, useRef, useState} from "re
 import {FocusScope, mergeProps, useButton} from "react-aria";
 import {ContentEditorCursorTracker} from "~/client/content/content-editor-cursor-tracker";
 import {ContentEditorHighlightSelector} from "~/client/content/content-editor-highlight-selector";
-import {ContentEditorLinkInput} from "~/client/content/content-editor-link-input";
+import {ContentEditorSelectionLinkInput} from "~/client/content/content-editor-link-input";
 import {Box} from "~/client/design/box";
 import {useLifecycleRef} from "~/client/design/helpers/use-lifecycle-ref";
 import {useOutsidePress} from "~/client/design/helpers/use-outside-press";
@@ -511,14 +511,17 @@ function ContentEditorPointerToolbarLinkButton({
                     })}
                 >
                     {!isLinkInputOpen ? (
-                        <ContentEditorLinkInput
+                        <ContentEditorSelectionLinkInput
                             viewRef={viewRef}
                             isDisabled={true}
                             onClose={onLinkInputClose}
                         />
                     ) : (
                         <FocusScope contain restoreFocus autoFocus>
-                            <ContentEditorLinkInput viewRef={viewRef} onClose={onLinkInputClose} />
+                            <ContentEditorSelectionLinkInput
+                                viewRef={viewRef}
+                                onClose={onLinkInputClose}
+                            />
                         </FocusScope>
                     )}
                 </Box>

@@ -24,6 +24,17 @@ export const perceivedAsInstantLimitMs = 100;
 export const uninterruptedThoughtLimitMs = 1000;
 
 /**
+ * Time it takes before we present extra context to the user if the user has
+ * not taken another action.
+ *
+ * This delay is used for tooltips among other things. If the user hovers over
+ * a button for this amount of time, we present a tooltip. If the user's mouse
+ * is quickly moving around then we don't present a tooltip because the user is
+ * taking quick action and doesn't appear to need extra context.
+ */
+export const presentExtraContextAfterDelayMs = uninterruptedThoughtLimitMs;
+
+/**
  * Estimated milliseconds a below average typist would take to type a longer
  * than average word.
  *

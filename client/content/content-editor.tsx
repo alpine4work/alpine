@@ -17,7 +17,7 @@ import {
     ContentEditorFloater,
     initialContentEditorFloaterState,
 } from "~/client/content/content-editor-floater";
-import {createContentEditorLinkNodeViewConstructor} from "~/client/content/content-editor-link-node-view";
+import {createContentEditorMarkNodeViewConstructor} from "~/client/content/content-editor-link-node-view";
 import {createContentEditorOrderedListItemNodeView} from "~/client/content/content-editor-ordered-list-item-node-view";
 import {buildInputRulesPlugin} from "~/client/content/content-editor-plugin-input-rules";
 import {
@@ -378,9 +378,29 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
             nodeViews: {
                 orderedListItem: createContentEditorOrderedListItemNodeView,
                 checkListItem: createContentEditorCheckListItemNodeView,
-                link: createContentEditorLinkNodeViewConstructor({
-                    onPreviewShow: pos => setFloaterState({type: "PointerLink", pos}),
-                    onPreviewHide: () => setFloaterState(initialContentEditorFloaterState),
+            },
+
+            markViews: {
+                link: createContentEditorMarkNodeViewConstructor({
+                    onPointerEnterAfterDelay: ({mark, range}) =>
+                        setFloaterState({
+                            type: "PointerLink",
+                            mark,
+                            range,
+                            hasPointerLeftMark: false,
+                        }),
+                    onPointerEnter: mark =>
+                        setFloaterState(floaterState =>
+                            floaterState.type === "PointerLink" && floaterState.mark === mark
+                                ? {...floaterState, hasPointerLeftMark: false}
+                                : floaterState,
+                        ),
+                    onPointerLeave: mark =>
+                        setFloaterState(floaterState =>
+                            floaterState.type === "PointerLink" && floaterState.mark === mark
+                                ? {...floaterState, hasPointerLeftMark: true}
+                                : floaterState,
+                        ),
                 }),
             },
 
