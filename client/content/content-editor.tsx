@@ -363,7 +363,15 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
         [],
     );
 
-    const [lastTransactionTime, setLastTransactionTime] = useState(Date.now());
+    const [{lastTransactionTime, lastSelectionChangeTransactionTime}, setTransactionTimes] =
+        useState<{
+            lastTransactionTime: number | null;
+            lastSelectionChangeTransactionTime: number | null;
+        }>({
+            lastTransactionTime: null,
+            lastSelectionChangeTransactionTime: null,
+        });
+
     const [floaterState, setFloaterState] = useState(initialContentEditorFloaterState);
 
     // Effect which initializes and destroys a ProseMirror editor view.
@@ -438,14 +446,16 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
             },
 
             dispatchTransaction(transaction) {
+                const oldState = view.state;
+
                 // By default, applying a transaction will clear the editor's stored
                 // marks. We don't want that behavior! Instead we want to preserve marks
                 // until a user explicitly toggles them off.
-                if (view.state.storedMarks && !transaction.storedMarksSet) {
-                    transaction.setStoredMarks(view.state.storedMarks);
+                if (oldState.storedMarks && !transaction.storedMarksSet) {
+                    transaction.setStoredMarks(oldState.storedMarks);
                 }
 
-                const newState = view.state.apply(transaction);
+                const newState = oldState.apply(transaction);
 
                 // Always calls the handler from the last React commit. By using a ref
                 // we can avoid destroying and recreating an editor.
@@ -470,7 +480,13 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
                 // [1]: https://prosemirror.net/docs/guide/#view
                 view.updateState(newState);
                 updateEditorEmptyClass(newState);
-                setLastTransactionTime(transaction.time);
+
+                setTransactionTimes(transactionTimes => ({
+                    lastTransactionTime: transaction.time,
+                    lastSelectionChangeTransactionTime: !oldState.selection.eq(newState.selection)
+                        ? transaction.time
+                        : transactionTimes.lastSelectionChangeTransactionTime,
+                }));
 
                 // Open our special toolbars regardless of whether our parent
                 // component acknowledges the new state from this transaction.
@@ -649,6 +665,7 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
                 viewRef={viewRef}
                 floaterState={floaterState}
                 setFloaterState={setFloaterState}
+                lastSelectionChangeTransactionTime={lastSelectionChangeTransactionTime}
             />
         </>
     );

@@ -77,6 +77,8 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
                 ),
             );
         }
+
+        onClose();
     };
 
     return (

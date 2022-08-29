@@ -63,15 +63,23 @@ export function ContentEditorFloater({
     viewRef,
     floaterState,
     setFloaterState,
+    lastSelectionChangeTransactionTime,
 }: {
     state: EditorState;
     viewRef: RefObject<EditorView | null>;
     floaterState: ContentEditorFloaterState;
     setFloaterState: (floaterState: ContentEditorFloaterState) => void;
+    lastSelectionChangeTransactionTime: number | null;
 }) {
     switch (floaterState.type) {
         case "PointerToolbar": {
-            return <ContentEditorPointerToolbar state={state} viewRef={viewRef} />;
+            return (
+                <ContentEditorPointerToolbar
+                    state={state}
+                    viewRef={viewRef}
+                    lastSelectionChangeTransactionTime={lastSelectionChangeTransactionTime}
+                />
+            );
         }
         case "KeyboardHighlight": {
             return (

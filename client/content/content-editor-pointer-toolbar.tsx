@@ -49,9 +49,11 @@ import {assert} from "~/shared/helpers/control/assert";
 export function ContentEditorPointerToolbar({
     state,
     viewRef,
+    lastSelectionChangeTransactionTime,
 }: {
     state: EditorState;
     viewRef: RefObject<EditorView | null>;
+    lastSelectionChangeTransactionTime: number | null;
 }) {
     const interactionModality = useInteractionModality();
 
@@ -63,7 +65,26 @@ export function ContentEditorPointerToolbar({
         state.selection.from !== state.selection.to;
 
     const initialSelection = useConstant(() => state.selection);
-    const [hasSelectionChangedSinceMount, setHasSelectionChangedSinceMount] = useState(false);
+
+    const [hasSelectionChangedSinceMount, setHasSelectionChangedSinceMount] = useState(() => {
+        // If the selection changed right before our component mounted then treat it as
+        // if the selection changed after our component mounted.
+        //
+        // Specifically, if the selection changed but we were waiting on an
+        // `<OverlayAnimated>` animation to finish, we want our toolbar to open.
+        //
+        // For example, say you hover over a link. When you double click on a word to
+        // select it then after the link's floater closes (because it uses
+        // `useOutsidePress(onClose)`) we want the toolbar to open.
+        if (
+            lastSelectionChangeTransactionTime !== null &&
+            lastSelectionChangeTransactionTime > Date.now() - overlayFadeAnimationDurationMs * 2
+        ) {
+            return true;
+        }
+
+        return false;
+    });
 
     useEffect(() => {
         if (
