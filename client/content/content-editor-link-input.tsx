@@ -10,9 +10,6 @@ import {ContentSchema} from "~/shared/content/content-schema";
 import {spacing} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
 
-// TODO(calebmer): Render the selection in the content editor in light grey if
-// focus is in the link input. So the user doesn't lose context.
-
 export function ContentEditorLinkInput({
     initialUrl = "",
     isDisabled = false,

@@ -1,4 +1,5 @@
-import {style} from "@vanilla-extract/css";
+import {globalStyle, style} from "@vanilla-extract/css";
+import {colorSchemeVars} from "~/shared/design/color-scheme.css";
 
 export const emptyContentEditorClassName = style({});
 
@@ -24,3 +25,18 @@ export const emptyContentEditorClassName = style({});
 //     pointer-events: none;
 //     color: theme("colors.gray.300");
 // }
+
+export const hideSelectionWhileUnfocusedClassName = style({
+    caretColor: "transparent",
+});
+
+globalStyle(`${hideSelectionWhileUnfocusedClassName} *::selection`, {background: "transparent"});
+globalStyle(`${hideSelectionWhileUnfocusedClassName} *::-moz-selection`, {
+    background: "transparent",
+});
+
+export const unfocusedSelectionClassName = style({
+    backgroundColor: colorSchemeVars["grey-10"],
+    // Make sure the background covers the entire line-height with an `inline-block` display type.
+    display: "inline-block",
+});

@@ -8,7 +8,7 @@ import {history} from "prosemirror-history";
 import {Node, Slice} from "prosemirror-model";
 import {EditorState, Plugin, PluginKey, Transaction} from "prosemirror-state";
 import {Step} from "prosemirror-transform";
-import {EditorView} from "prosemirror-view";
+import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
 import {Ref, forwardRef, useImperativeHandle, useLayoutEffect, useRef, useState} from "react";
 import {createContentEditorCheckListItemNodeView} from "~/client/content/content-editor-check-list-item-node-view";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/content-editor-dom-clipboard-serializer";
@@ -25,7 +25,11 @@ import {
     openKeyboardHighlightFloaterMetaKey,
     openKeyboardLinkFloaterMetaKey,
 } from "~/client/content/content-editor-plugin-keymap";
-import {emptyContentEditorClassName} from "~/client/content/content-editor.css";
+import {
+    emptyContentEditorClassName,
+    hideSelectionWhileUnfocusedClassName,
+    unfocusedSelectionClassName,
+} from "~/client/content/content-editor.css";
 import {isMac} from "~/client/helpers/platform/is-mac";
 import {
     ContentSchema,
@@ -517,13 +521,13 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
     // names added by ProseMirror or other effects continue to be applied.
     useLayoutEffect(() => {
         assert(viewRef.current);
-        const editorElement = viewRef.current.dom;
+        const viewElement = viewRef.current.dom;
 
         const classList = classNames(docClassName, className).split(" ");
-        editorElement.classList.add(...classList);
+        viewElement.classList.add(...classList);
 
         return () => {
-            editorElement.classList.remove(...classList);
+            viewElement.classList.remove(...classList);
         };
     }, [className]);
 
@@ -533,49 +537,104 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
      */
     function updateEditorEmptyClass(state: EditorState) {
         assert(viewRef.current);
-        const editorElement = viewRef.current.dom;
+        const viewElement = viewRef.current.dom;
 
         const showPlaceholder = shouldShowPlaceholder(state.doc);
 
-        if (showPlaceholder && !editorElement.classList.contains(emptyContentEditorClassName)) {
-            editorElement.classList.add(emptyContentEditorClassName);
+        if (showPlaceholder && !viewElement.classList.contains(emptyContentEditorClassName)) {
+            viewElement.classList.add(emptyContentEditorClassName);
         }
 
-        if (!showPlaceholder && editorElement.classList.contains(emptyContentEditorClassName)) {
-            editorElement.classList.remove(emptyContentEditorClassName);
+        if (!showPlaceholder && viewElement.classList.contains(emptyContentEditorClassName)) {
+            viewElement.classList.remove(emptyContentEditorClassName);
         }
     }
 
     // Keep various attributes on the editor element up to date.
     useLayoutEffect(() => {
         assert(viewRef.current);
-        const editorElement = viewRef.current.dom;
+        const viewElement = viewRef.current.dom;
 
         // Set the role for assistive technologies. For documentation see:
         // https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/textbox_role
-        editorElement.setAttribute("role", "textbox");
-        editorElement.setAttribute("aria-multiline", hasEnterCallback ? "false" : "true");
+        viewElement.setAttribute("role", "textbox");
+        viewElement.setAttribute("aria-multiline", hasEnterCallback ? "false" : "true");
 
         if (ariaLabel) {
-            editorElement.setAttribute("aria-label", ariaLabel);
+            viewElement.setAttribute("aria-label", ariaLabel);
         } else {
-            editorElement.removeAttribute("aria-label");
+            viewElement.removeAttribute("aria-label");
         }
 
         if (ariaLabelledBy) {
-            editorElement.setAttribute("aria-labelledby", ariaLabelledBy);
+            viewElement.setAttribute("aria-labelledby", ariaLabelledBy);
         } else {
-            editorElement.removeAttribute("aria-labelledby");
+            viewElement.removeAttribute("aria-labelledby");
         }
 
         // Our `content-editor.module.css` file uses the `aria-placeholder`
         // attribute to render placeholder text.
         if (placeholder) {
-            editorElement.setAttribute("aria-placeholder", placeholder);
+            viewElement.setAttribute("aria-placeholder", placeholder);
         } else {
-            editorElement.removeAttribute("aria-placeholder");
+            viewElement.removeAttribute("aria-placeholder");
         }
     }, [ariaLabel, ariaLabelledBy, hasEnterCallback, placeholder]);
+
+    // When the content editor is unfocused give the editor's text selection a
+    // light grey background. That way the user can see what will be selected when
+    // they focus the editor back.
+    //
+    // This is important for the link and highlight floater which gives the user's
+    // keyboard focus to another element that's still targeting the content editor.
+    // So the user needs to see what content their link/highlight will apply to.
+    useLayoutEffect(() => {
+        assert(viewRef.current);
+        const view = viewRef.current;
+        const viewElement = view.dom;
+
+        const currentDecorations = view.someProp("decorations");
+
+        const handleFocus = () => {
+            viewElement.classList.remove(hideSelectionWhileUnfocusedClassName);
+
+            view.setProps({decorations: currentDecorations});
+        };
+
+        const handleBlur = () => {
+            viewElement.classList.add(hideSelectionWhileUnfocusedClassName);
+
+            view.setProps({
+                decorations: state => {
+                    const decorationSet =
+                        currentDecorations?.(state) ?? DecorationSet.create(state.doc, []);
+
+                    // NOTE(calebmer): There's probably a safe way to merge `DecorationSource`s if
+                    // we ever use a different implementation than `DecorationSet`.
+                    assert(decorationSet instanceof DecorationSet);
+
+                    return decorationSet.add(state.doc, [
+                        Decoration.inline(state.selection.from, state.selection.to, {
+                            class: unfocusedSelectionClassName,
+                        }),
+                    ]);
+                },
+            });
+        };
+
+        if (document.activeElement === viewElement) {
+            handleFocus();
+        } else {
+            handleBlur();
+        }
+
+        viewElement.addEventListener("focus", handleFocus);
+        viewElement.addEventListener("blur", handleBlur);
+        return () => {
+            viewElement.addEventListener("focus", handleFocus);
+            viewElement.addEventListener("blur", handleBlur);
+        };
+    }, []);
 
     return (
         <>

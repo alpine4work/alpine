@@ -170,7 +170,7 @@ function ContentEditorKeyboardHighlightFloater({
             visible={!isClosing}
             disableAnimation={!isClosing}
             placement="top-start"
-            offset="1.5"
+            offset="3"
             offsetAlong="-5"
             canFlip={false}
             overlay={
@@ -269,7 +269,7 @@ function ContentEditorKeyboardLinkFloater({
             visible={!isClosing}
             disableAnimation={!isClosing}
             placement="top-start"
-            offset="1.5"
+            offset="3"
             offsetAlong="-5"
             canFlip={false}
             overlay={
@@ -385,6 +385,8 @@ function ContentEditorPointerLinkFloater({
             // existing toolbar.
             visible={!isClosing}
             placement="top-start"
+            // This floater is closer to the cursor than the others because it doesn't have
+            // a visual text selection indication for what it's targeting.
             offset="1.5"
             offsetAlong="-5"
             canFlip={false}
