@@ -200,7 +200,6 @@ globalStyle("textarea", {
 globalStyle("input::placeholder, textarea::placeholder", {
     // Reset the default placeholder opacity in Firefox. (https://github.com/tailwindlabs/tailwindcss/issues/3300)
     opacity: 1,
-    // TODO: color: theme('colors.gray.400', #9ca3af); /* 2 */
 });
 
 globalStyle("img, svg, video, canvas, audio, iframe, embed, object", {

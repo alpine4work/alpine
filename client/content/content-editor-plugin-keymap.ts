@@ -681,11 +681,5 @@ export function buildKeymapPlugin() {
         keys.set("Ctrl-d", deleteCommand);
     }
 
-    // TODO(calebmer): Cmd+K to add a link to text. We need to build the link
-    // dialog for this.
-
-    // TODO(calebmer): Cmd+Shift+H to add a highlight to text. We need to build
-    // the highlight selection dialog for this.
-
     return keymap(Object.fromEntries(keys));
 }

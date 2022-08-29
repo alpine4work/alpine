@@ -530,7 +530,6 @@ function ContentEditorPointerToolbarLinkButton({
             <Box>
                 <ContentEditorPointerToolbarButton
                     description="Link"
-                    // TODO(calebmer): Actually implement the keyboard shortcut
                     keyboardShortcut={isMac ? "⌘+K" : "Ctrl+K"}
                     hasOpenOverlay={isLinkInputOpen}
                     viewRef={viewRef}

@@ -577,8 +577,6 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
         }
     }, [ariaLabel, ariaLabelledBy, hasEnterCallback, placeholder]);
 
-    // TODO(calebmer): Make this component SSR safe! All the `useLayoutEffect()`s
-    // are logging warnings on the server and they're right.
     return (
         <>
             <div
