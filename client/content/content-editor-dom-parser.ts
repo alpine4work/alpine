@@ -12,11 +12,11 @@ declare module "prosemirror-model" {
 /**
  * `DOMParser` but with better support for parsing list items into our schema.
  */
-export class ContentDomParser extends DOMParser {
+export class ContentEditorDomParser extends DOMParser {
     static override fromSchema(schema: Schema) {
         return (
-            schema.cached.contentDomParser ||
-            (schema.cached.contentDomParser = new ContentDomParser(
+            schema.cached.contentEditorDomParser ||
+            (schema.cached.contentEditorDomParser = new ContentEditorDomParser(
                 schema,
                 DOMParser.schemaRules(schema),
             ))

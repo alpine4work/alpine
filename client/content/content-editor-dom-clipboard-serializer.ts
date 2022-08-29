@@ -24,14 +24,15 @@ declare module "prosemirror-model" {
  * `DOMSerializer` but with better support for serializing nested lists
  * to HTML.
  */
-export class ContentDomClipboardSerializer extends DOMSerializer {
-    static override fromSchema(schema: Schema): ContentDomClipboardSerializer {
+export class ContentEditorDomClipboardSerializer extends DOMSerializer {
+    static override fromSchema(schema: Schema): ContentEditorDomClipboardSerializer {
         return (
-            schema.cached.contentDomClipboardSerializer ||
-            (schema.cached.contentDomClipboardSerializer = new ContentDomClipboardSerializer(
-                this.nodesFromSchema(schema),
-                this.marksFromSchema(schema),
-            ))
+            schema.cached.contentEditorDomClipboardSerializer ||
+            (schema.cached.contentEditorDomClipboardSerializer =
+                new ContentEditorDomClipboardSerializer(
+                    this.nodesFromSchema(schema),
+                    this.marksFromSchema(schema),
+                ))
         );
     }
 

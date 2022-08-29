@@ -10,21 +10,22 @@ import {EditorState, Plugin, PluginKey, Transaction} from "prosemirror-state";
 import {Step} from "prosemirror-transform";
 import {EditorView} from "prosemirror-view";
 import {Ref, forwardRef, useImperativeHandle, useLayoutEffect, useRef, useState} from "react";
-import {createContentCheckListItemNodeView} from "~/client/content/content-check-list-item-node-view";
-import {ContentDomClipboardSerializer} from "~/client/content/content-dom-clipboard-serializer";
-import {ContentDomParser} from "~/client/content/content-dom-parser";
-import {ContentEditorHighlightToolbar} from "~/client/content/content-editor-highlight-selector";
-import {ContentEditorLinkToolbar} from "~/client/content/content-editor-link-input";
+import {createContentEditorCheckListItemNodeView} from "~/client/content/content-editor-check-list-item-node-view";
+import {ContentEditorDomClipboardSerializer} from "~/client/content/content-editor-dom-clipboard-serializer";
+import {ContentEditorDomParser} from "~/client/content/content-editor-dom-parser";
+import {
+    ContentEditorFloater,
+    initialContentEditorFloaterState,
+} from "~/client/content/content-editor-floater";
+import {createContentEditorLinkNodeViewConstructor} from "~/client/content/content-editor-link-node-view";
+import {createContentEditorOrderedListItemNodeView} from "~/client/content/content-editor-ordered-list-item-node-view";
 import {buildInputRulesPlugin} from "~/client/content/content-editor-plugin-input-rules";
 import {
     buildKeymapPlugin,
-    openHighlightToolbarMetaKey,
-    openLinkToolbarMetaKey,
+    openKeyboardHighlightFloaterMetaKey,
+    openKeyboardLinkFloaterMetaKey,
 } from "~/client/content/content-editor-plugin-keymap";
-import {ContentEditorSelectionToolbar} from "~/client/content/content-editor-selection-toolbar";
 import {emptyContentEditorClassName} from "~/client/content/content-editor.css";
-import {createContentOrderedListItemNodeView} from "~/client/content/content-ordered-list-item-node-view";
-import {createContentLinkNodeView} from "~/client/content/create-content-link-node-view";
 import {isMac} from "~/client/helpers/platform/is-mac";
 import {
     ContentSchema,
@@ -359,7 +360,7 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
     );
 
     const [lastTransactionTime, setLastTransactionTime] = useState(Date.now());
-    const [toolbarType, setToolbarType] = useState<"Highlight" | "Link" | null>(null);
+    const [floaterState, setFloaterState] = useState(initialContentEditorFloaterState);
 
     // Effect which initializes and destroys a ProseMirror editor view.
     //
@@ -371,13 +372,16 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
         const view = new EditorView(elementRef.current, {
             state: unwrap(propsRef.current.state),
 
-            domParser: ContentDomParser.fromSchema(ContentSchema),
-            clipboardSerializer: ContentDomClipboardSerializer.fromSchema(ContentSchema),
+            domParser: ContentEditorDomParser.fromSchema(ContentSchema),
+            clipboardSerializer: ContentEditorDomClipboardSerializer.fromSchema(ContentSchema),
 
             nodeViews: {
-                orderedListItem: createContentOrderedListItemNodeView,
-                checkListItem: createContentCheckListItemNodeView,
-                link: createContentLinkNodeView,
+                orderedListItem: createContentEditorOrderedListItemNodeView,
+                checkListItem: createContentEditorCheckListItemNodeView,
+                link: createContentEditorLinkNodeViewConstructor({
+                    onPreviewShow: pos => setFloaterState({type: "PointerLink", pos}),
+                    onPreviewHide: () => setFloaterState(initialContentEditorFloaterState),
+                }),
             },
 
             handlePaste,
@@ -446,11 +450,11 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
 
                 // Open our special toolbars regardless of whether our parent
                 // component acknowledges the new state from this transaction.
-                if (transaction.getMeta(openHighlightToolbarMetaKey)) {
-                    setToolbarType("Highlight");
+                if (transaction.getMeta(openKeyboardHighlightFloaterMetaKey)) {
+                    setFloaterState({type: "KeyboardHighlight"});
                 }
-                if (transaction.getMeta(openLinkToolbarMetaKey)) {
-                    setToolbarType("Link");
+                if (transaction.getMeta(openKeyboardLinkFloaterMetaKey)) {
+                    setFloaterState({type: "KeyboardLink"});
                 }
             },
         });
@@ -563,21 +567,12 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
                 onFocus={onFocus}
                 onBlur={onBlur}
             />
-            {toolbarType === "Highlight" ? (
-                <ContentEditorHighlightToolbar
-                    state={unwrap(state)}
-                    viewRef={viewRef}
-                    onClose={() => setToolbarType(null)}
-                />
-            ) : toolbarType === "Link" ? (
-                <ContentEditorLinkToolbar
-                    state={unwrap(state)}
-                    viewRef={viewRef}
-                    onClose={() => setToolbarType(null)}
-                />
-            ) : (
-                <ContentEditorSelectionToolbar state={unwrap(state)} viewRef={viewRef} />
-            )}
+            <ContentEditorFloater
+                state={unwrap(state)}
+                viewRef={viewRef}
+                floaterState={floaterState}
+                setFloaterState={setFloaterState}
+            />
         </>
     );
 }

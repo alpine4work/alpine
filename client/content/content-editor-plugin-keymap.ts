@@ -26,8 +26,8 @@ type Command = (
     view?: EditorView,
 ) => boolean;
 
-export const openHighlightToolbarMetaKey = "openHighlightToolbar";
-export const openLinkToolbarMetaKey = "openLinkToolbar";
+export const openKeyboardHighlightFloaterMetaKey = "openKeyboardHighlightFloater";
+export const openKeyboardLinkFloaterMetaKey = "openKeyboardLinkFloater";
 
 export function buildKeymapPlugin() {
     const keys = new Map<string, Command>();
@@ -654,7 +654,7 @@ export function buildKeymapPlugin() {
             return false;
         }
 
-        dispatch?.(state.tr.setMeta(openHighlightToolbarMetaKey, true));
+        dispatch?.(state.tr.setMeta(openKeyboardHighlightFloaterMetaKey, true));
         return true;
     });
 
@@ -665,7 +665,7 @@ export function buildKeymapPlugin() {
             return false;
         }
 
-        dispatch?.(state.tr.setMeta(openLinkToolbarMetaKey, true));
+        dispatch?.(state.tr.setMeta(openKeyboardLinkFloaterMetaKey, true));
         return true;
     });
 

@@ -46,7 +46,7 @@ import {assert} from "~/shared/helpers/control/assert";
 // TODO(calebmer): Show a style as activated if it is applied. (e.g. Bold,
 // italic, etc.)
 
-export function ContentEditorSelectionToolbar({
+export function ContentEditorPointerToolbar({
     state,
     viewRef,
 }: {
@@ -151,7 +151,7 @@ export function ContentEditorSelectionToolbar({
     if (!showState.isShowing) return null;
 
     return (
-        <ContentEditorSelectionToolbarOverlay
+        <ContentEditorPointerToolbarOverlay
             state={state}
             viewRef={viewRef}
             pos={showState.pos}
@@ -171,7 +171,7 @@ export function ContentEditorSelectionToolbar({
     );
 }
 
-function ContentEditorSelectionToolbarOverlay({
+function ContentEditorPointerToolbarOverlay({
     state,
     viewRef,
     pos,
@@ -220,7 +220,7 @@ function ContentEditorSelectionToolbarOverlay({
                                 : overlayAnimateFadeInClassName
                         }
                     >
-                        <ContentEditorSelectionToolbarButtons
+                        <ContentEditorPointerToolbarButtons
                             viewRef={viewRef}
                             sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                             isFadingOut={isFadingOut}
@@ -252,7 +252,7 @@ function ContentEditorSelectionToolbarOverlay({
     );
 }
 
-function ContentEditorSelectionToolbarButtons({
+function ContentEditorPointerToolbarButtons({
     viewRef,
     sharedTooltipLifecycleRef,
     isFadingOut,
@@ -269,7 +269,7 @@ function ContentEditorSelectionToolbarButtons({
 }) {
     return (
         <>
-            <ContentEditorSelectionToolbarButton
+            <ContentEditorPointerToolbarButton
                 description="Bold"
                 keyboardShortcut={isMac ? "⌘+B" : "Ctrl+B"}
                 viewRef={viewRef}
@@ -277,8 +277,8 @@ function ContentEditorSelectionToolbarButtons({
                 command={toggleMark(ContentSchema.marks.bold)}
             >
                 <TextBolder />
-            </ContentEditorSelectionToolbarButton>
-            <ContentEditorSelectionToolbarButton
+            </ContentEditorPointerToolbarButton>
+            <ContentEditorPointerToolbarButton
                 description="Italicize"
                 keyboardShortcut={isMac ? "⌘+I" : "Ctrl+I"}
                 viewRef={viewRef}
@@ -286,8 +286,8 @@ function ContentEditorSelectionToolbarButtons({
                 command={toggleMark(ContentSchema.marks.italic)}
             >
                 <TextItalic />
-            </ContentEditorSelectionToolbarButton>
-            <ContentEditorSelectionToolbarButton
+            </ContentEditorPointerToolbarButton>
+            <ContentEditorPointerToolbarButton
                 description="Strikethrough"
                 keyboardShortcut={isMac ? "⌘+Shift+X" : "Ctrl+Shift+X"}
                 viewRef={viewRef}
@@ -295,8 +295,8 @@ function ContentEditorSelectionToolbarButtons({
                 command={toggleMark(ContentSchema.marks.strike)}
             >
                 <TextStrikethrough />
-            </ContentEditorSelectionToolbarButton>
-            <ContentEditorSelectionToolbarLinkButton
+            </ContentEditorPointerToolbarButton>
+            <ContentEditorPointerToolbarLinkButton
                 viewRef={viewRef}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                 isToolbarFadingOut={isFadingOut}
@@ -304,12 +304,12 @@ function ContentEditorSelectionToolbarButtons({
                 onLinkInputOpen={onLinkInputOpen}
                 onLinkInputClose={onLinkInputClose}
             />
-            <ContentEditorSelectionToolbarHighlightButton
+            <ContentEditorPointerToolbarHighlightButton
                 viewRef={viewRef}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                 isToolbarFadingOut={isFadingOut}
             />
-            <ContentEditorSelectionToolbarButton
+            <ContentEditorPointerToolbarButton
                 dividerLeft
                 description="Bulleted list"
                 keyboardShortcut="- Hello"
@@ -318,8 +318,8 @@ function ContentEditorSelectionToolbarButtons({
                 command={toggleListItems(ContentSchema.nodes.unorderedListItem)}
             >
                 <ListBullets />
-            </ContentEditorSelectionToolbarButton>
-            <ContentEditorSelectionToolbarButton
+            </ContentEditorPointerToolbarButton>
+            <ContentEditorPointerToolbarButton
                 description="Numbered list"
                 keyboardShortcut="1. Hello"
                 viewRef={viewRef}
@@ -327,8 +327,8 @@ function ContentEditorSelectionToolbarButtons({
                 command={toggleListItems(ContentSchema.nodes.orderedListItem)}
             >
                 <ListNumbers />
-            </ContentEditorSelectionToolbarButton>
-            <ContentEditorSelectionToolbarButton
+            </ContentEditorPointerToolbarButton>
+            <ContentEditorPointerToolbarButton
                 dividerRight
                 description="Check list"
                 keyboardShortcut="[ ] Hello"
@@ -337,8 +337,8 @@ function ContentEditorSelectionToolbarButtons({
                 command={toggleListItems(ContentSchema.nodes.checkListItem)}
             >
                 <ListChecks />
-            </ContentEditorSelectionToolbarButton>
-            <ContentEditorSelectionToolbarButton
+            </ContentEditorPointerToolbarButton>
+            <ContentEditorPointerToolbarButton
                 dividerLeft
                 description="Heading 1"
                 keyboardShortcut="# Hello"
@@ -347,8 +347,8 @@ function ContentEditorSelectionToolbarButtons({
                 command={toggleBlockType(ContentSchema.nodes.heading, {level: 1})}
             >
                 <TextHOne />
-            </ContentEditorSelectionToolbarButton>
-            <ContentEditorSelectionToolbarButton
+            </ContentEditorPointerToolbarButton>
+            <ContentEditorPointerToolbarButton
                 description="Heading 2"
                 keyboardShortcut="## Hello"
                 viewRef={viewRef}
@@ -356,8 +356,8 @@ function ContentEditorSelectionToolbarButtons({
                 command={toggleBlockType(ContentSchema.nodes.heading, {level: 2})}
             >
                 <TextHTwo />
-            </ContentEditorSelectionToolbarButton>
-            <ContentEditorSelectionToolbarButton
+            </ContentEditorPointerToolbarButton>
+            <ContentEditorPointerToolbarButton
                 description="Heading 3"
                 keyboardShortcut="### Hello"
                 viewRef={viewRef}
@@ -365,12 +365,12 @@ function ContentEditorSelectionToolbarButtons({
                 command={toggleBlockType(ContentSchema.nodes.heading, {level: 3})}
             >
                 <TextHThree />
-            </ContentEditorSelectionToolbarButton>
+            </ContentEditorPointerToolbarButton>
         </>
     );
 }
 
-function ContentEditorSelectionToolbarButton({
+function ContentEditorPointerToolbarButton({
     description,
     keyboardShortcut,
     viewRef,
@@ -477,7 +477,7 @@ function ContentEditorSelectionToolbarButton({
     );
 }
 
-function ContentEditorSelectionToolbarLinkButton({
+function ContentEditorPointerToolbarLinkButton({
     viewRef,
     sharedTooltipLifecycleRef,
     isToolbarFadingOut,
@@ -525,7 +525,7 @@ function ContentEditorSelectionToolbarLinkButton({
             }
         >
             <Box>
-                <ContentEditorSelectionToolbarButton
+                <ContentEditorPointerToolbarButton
                     description="Link"
                     // TODO(calebmer): Actually implement the keyboard shortcut
                     keyboardShortcut={isMac ? "⌘+K" : "Ctrl+K"}
@@ -548,13 +548,13 @@ function ContentEditorSelectionToolbarLinkButton({
                     }}
                 >
                     <Link />
-                </ContentEditorSelectionToolbarButton>
+                </ContentEditorPointerToolbarButton>
             </Box>
         </OverlayAnimated>
     );
 }
 
-function ContentEditorSelectionToolbarHighlightButton({
+function ContentEditorPointerToolbarHighlightButton({
     viewRef,
     sharedTooltipLifecycleRef,
     isToolbarFadingOut,
@@ -594,7 +594,7 @@ function ContentEditorSelectionToolbarHighlightButton({
             }
         >
             <Box>
-                <ContentEditorSelectionToolbarButton
+                <ContentEditorPointerToolbarButton
                     dividerRight
                     description="Highlight"
                     keyboardShortcut={isMac ? "⌘+Shift+H" : "Ctrl+Shift+H"}
@@ -613,7 +613,7 @@ function ContentEditorSelectionToolbarHighlightButton({
                     }}
                 >
                     <Palette />
-                </ContentEditorSelectionToolbarButton>
+                </ContentEditorPointerToolbarButton>
             </Box>
         </OverlayAnimated>
     );

@@ -18,7 +18,7 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get-or-set-default-m
  * item. If a node is removed above a list item then we may need to renumber
  * that list. For example, if we're merging two ordered lists together.
  */
-export function createContentOrderedListItemNodeView(node: Node): NodeView {
+export function createContentEditorOrderedListItemNodeView(node: Node): NodeView {
     const {dom, contentDOM: contentDom} = DOMSerializer.renderSpec(
         document,
         node.type.spec.toDOM!(node),

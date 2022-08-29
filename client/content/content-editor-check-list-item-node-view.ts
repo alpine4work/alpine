@@ -8,7 +8,7 @@ import {
     checkListItemContentClassName,
 } from "~/shared/content/content-schema.css";
 
-export function createContentCheckListItemNodeView(
+export function createContentEditorCheckListItemNodeView(
     node: Node,
     view: EditorView,
     getPos: () => number,

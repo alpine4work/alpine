@@ -1,18 +1,11 @@
 import {Link, X} from "phosphor-react";
-import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
-import {RefObject, useEffect, useRef, useState} from "react";
-import {FocusScope, useButton, useHover} from "react-aria";
-import {ContentEditorCursorTracker} from "~/client/content/content-editor-cursor-tracker";
+import {RefObject, useRef, useState} from "react";
+import {useButton, useHover} from "react-aria";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus-ring";
-import {useOutsidePress} from "~/client/design/helpers/use-outside-press";
-import {OverlayRef} from "~/client/design/overlay";
-import {OverlayAnimated} from "~/client/design/overlay-animated";
-import {overlayFadeAnimationDurationMs} from "~/client/design/overlay-animated.css";
 import {sprinkles} from "~/client/design/sprinkles.css";
 import {Tooltip} from "~/client/design/tooltip";
-import {useConstant} from "~/client/helpers/lifecycle/use-constant";
 import {ContentSchema} from "~/shared/content/content-schema";
 import {spacing} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
@@ -213,84 +206,5 @@ function ContentEditorLinkInputDoneButton({
                 </FocusRing>
             </Box>
         </Box>
-    );
-}
-
-export function ContentEditorLinkToolbar({
-    state,
-    viewRef,
-    onClose: _onClose,
-}: {
-    state: EditorState;
-    viewRef: RefObject<EditorView | null>;
-    onClose: () => void;
-}) {
-    const overlayRef = useRef<OverlayRef>(null);
-
-    const pos = useConstant(state.selection.from);
-
-    const [isClosing, setIsClosing] = useState(false);
-
-    const onClose = () => {
-        assert(viewRef.current);
-        viewRef.current.focus();
-        setIsClosing(true);
-    };
-
-    useEffect(() => {
-        if (isClosing) {
-            const timeoutId = setTimeout(() => {
-                _onClose();
-            }, overlayFadeAnimationDurationMs);
-            return () => {
-                clearTimeout(timeoutId);
-            };
-        }
-    }, [isClosing, _onClose]);
-
-    useEffect(() => {
-        if (state.selection.from !== pos) {
-            onClose();
-        }
-    });
-
-    return (
-        <OverlayAnimated
-            ref={overlayRef}
-            // We don't animate in because the overlay appears in direct response to a user
-            // input (keyboard shortcut). But we do animate out because closing is less
-            // intentional.
-            //
-            // Also it looks a little better to not animate when replacing a possibly
-            // existing toolbar.
-            visible={!isClosing}
-            disableAnimation={!isClosing}
-            placement="top-start"
-            offset="3"
-            offsetAlong="-5"
-            canFlip={false}
-            overlay={
-                <Box ref={useOutsidePress(onClose)}>
-                    {isClosing ? (
-                        <ContentEditorLinkInput
-                            viewRef={viewRef}
-                            isDisabled={true}
-                            onClose={onClose}
-                        />
-                    ) : (
-                        <FocusScope contain restoreFocus autoFocus>
-                            <ContentEditorLinkInput viewRef={viewRef} onClose={onClose} />
-                        </FocusScope>
-                    )}
-                </Box>
-            }
-        >
-            <ContentEditorCursorTracker
-                state={state}
-                viewRef={viewRef}
-                pos={pos}
-                onUpdatePosition={() => overlayRef.current?.forceUpdateOverlayPosition()}
-            />
-        </OverlayAnimated>
     );
 }
