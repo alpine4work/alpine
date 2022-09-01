@@ -69,6 +69,15 @@ export function createContentEditorMarkNodeViewConstructor({
                 }
             }
 
+            // Find the first node in a sequence to have our mark. In case some text in the
+            // middle of the link is bolded.
+            while (index > 0) {
+                const previousNode = $pos.parent.child(index - 1);
+                if (!mark.isInSet(previousNode.marks)) break;
+                index = index - 1;
+                node = previousNode;
+            }
+
             onPointerEnter(mark);
 
             pointerEnterDelayTimeoutId = setTimeout(() => {

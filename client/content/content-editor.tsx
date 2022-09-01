@@ -405,13 +405,13 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
                         }),
                     onPointerEnter: mark =>
                         setFloaterState(floaterState =>
-                            floaterState.type === "PointerLink" && floaterState.mark === mark
+                            floaterState.type === "PointerLink" && floaterState.mark.eq(mark)
                                 ? {...floaterState, hasPointerLeftMark: false}
                                 : floaterState,
                         ),
                     onPointerLeave: mark =>
                         setFloaterState(floaterState =>
-                            floaterState.type === "PointerLink" && floaterState.mark === mark
+                            floaterState.type === "PointerLink" && floaterState.mark.eq(mark)
                                 ? {...floaterState, hasPointerLeftMark: true}
                                 : floaterState,
                         ),
