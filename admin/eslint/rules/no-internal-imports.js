@@ -1,0 +1,73 @@
+"use strict";
+
+const path = require("path");
+
+const repoDir = path.resolve(__dirname, "../../..");
+
+module.exports = {
+    meta: {
+        schema: [],
+        messages: {
+            noInternalImport:
+                'Can only import from an "internal" directory from within the directory or the parent directory.',
+        },
+    },
+
+    create(context) {
+        const ourPath = `./${path.relative(repoDir, context.getFilename())}`;
+
+        return {
+            ImportDeclaration(node) {
+                if (
+                    !node.source.value.startsWith("./") &&
+                    !node.source.value.startsWith("../") &&
+                    !node.source.value.startsWith("~/")
+                ) {
+                    return;
+                }
+
+                const importPath = node.source.value.startsWith("~/")
+                    ? `./${node.source.value.slice(2)}`
+                    : `./${path.relative(path.dirname(ourPath), node.source.value)}`;
+
+                const internalPathSegment = "/internal/";
+                let pathStartIndex = 0;
+                let pathInternalIndex = importPath.indexOf(internalPathSegment);
+
+                while (pathInternalIndex !== -1) {
+                    // Reject an import: `~/foo/internal/bar`
+                    // From: `~/qux/buz`
+                    if (
+                        ourPath.slice(pathStartIndex, pathInternalIndex) !==
+                        importPath.slice(pathStartIndex, pathInternalIndex)
+                    ) {
+                        context.report({
+                            node: node.source,
+                            messageId: "noInternalImport",
+                        });
+                        break;
+                    }
+
+                    // Reject an import: `~/foo/internal/bar`
+                    // From: `~/foo/qux/buz`
+                    if (
+                        ourPath.slice(
+                            pathInternalIndex,
+                            pathInternalIndex + internalPathSegment.length,
+                        ) !== internalPathSegment &&
+                        ourPath.indexOf("/", pathInternalIndex + 1) !== -1
+                    ) {
+                        context.report({
+                            node: node.source,
+                            messageId: "noInternalImport",
+                        });
+                        break;
+                    }
+
+                    pathStartIndex = pathInternalIndex + internalPathSegment.length;
+                    pathInternalIndex = importPath.indexOf(internalPathSegment, pathStartIndex);
+                }
+            },
+        };
+    },
+};

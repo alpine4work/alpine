@@ -7,6 +7,6 @@
  * we import in the correct order.
  */
 
-import "~/client/bootstrap/bootstrap-1-style-reset.css";
-import "~/client/bootstrap/bootstrap-2-style-global.css";
-import "~/client/bootstrap/bootstrap-axe";
+import "~/client/bootstrap/internal/bootstrap-1-style-reset.css";
+import "~/client/bootstrap/internal/bootstrap-2-style-global.css";
+import "~/client/bootstrap/internal/bootstrap-axe";

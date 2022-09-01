@@ -4,16 +4,16 @@ import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {RefObject, useCallback, useEffect, useRef, useState} from "react";
 import {FocusScope} from "react-aria";
-import {ContentEditorCursorTracker} from "~/client/content/content-editor-cursor-tracker";
+import {ContentEditorCursorTracker} from "~/client/content/internal/content-editor-cursor-tracker";
 import {
     ContentEditorHighlightSelector,
     ContentEditorHighlightSelectorRef,
-} from "~/client/content/content-editor-highlight-selector";
+} from "~/client/content/internal/content-editor-highlight-selector";
 import {
     ContentEditorLinkInput,
     ContentEditorSelectionLinkInput,
-} from "~/client/content/content-editor-link-input";
-import {ContentEditorPointerToolbar} from "~/client/content/content-editor-pointer-toolbar";
+} from "~/client/content/internal/content-editor-link-input";
+import {ContentEditorPointerToolbar} from "~/client/content/internal/content-editor-pointer-toolbar";
 import {Box} from "~/client/design/box";
 import {useOutsidePress} from "~/client/design/helpers/use-outside-press";
 import {OverlayRef} from "~/client/design/overlay";

@@ -10,6 +10,7 @@ module.exports = {
         // TODO(calebmer): Consider putting these in a plugin instead of a custom
         // rules directory to simplify things.
         "sort-imports-by-source": "warn",
+        "no-internal-imports": "error",
 
         // Sort imports within an import declaration alphabetically. We want to sort
         // import declarations by their module specifier.

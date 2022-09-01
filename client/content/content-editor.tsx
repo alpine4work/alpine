@@ -10,26 +10,26 @@ import {EditorState, Plugin, PluginKey, Transaction} from "prosemirror-state";
 import {Step} from "prosemirror-transform";
 import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
 import {Ref, forwardRef, useImperativeHandle, useLayoutEffect, useRef, useState} from "react";
-import {createContentEditorCheckListItemNodeView} from "~/client/content/content-editor-check-list-item-node-view";
-import {ContentEditorDomClipboardSerializer} from "~/client/content/content-editor-dom-clipboard-serializer";
-import {ContentEditorDomParser} from "~/client/content/content-editor-dom-parser";
-import {
-    ContentEditorFloater,
-    initialContentEditorFloaterState,
-} from "~/client/content/content-editor-floater";
-import {createContentEditorMarkNodeViewConstructor} from "~/client/content/content-editor-link-node-view";
-import {createContentEditorOrderedListItemNodeView} from "~/client/content/content-editor-ordered-list-item-node-view";
-import {buildInputRulesPlugin} from "~/client/content/content-editor-plugin-input-rules";
-import {
-    buildKeymapPlugin,
-    openKeyboardHighlightFloaterMetaKey,
-    openKeyboardLinkFloaterMetaKey,
-} from "~/client/content/content-editor-plugin-keymap";
 import {
     emptyContentEditorClassName,
     hideSelectionWhileUnfocusedClassName,
     unfocusedSelectionClassName,
 } from "~/client/content/content-editor.css";
+import {createContentEditorCheckListItemNodeView} from "~/client/content/internal/content-editor-check-list-item-node-view";
+import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content-editor-dom-clipboard-serializer";
+import {ContentEditorDomParser} from "~/client/content/internal/content-editor-dom-parser";
+import {
+    ContentEditorFloater,
+    initialContentEditorFloaterState,
+} from "~/client/content/internal/content-editor-floater";
+import {createContentEditorMarkNodeViewConstructor} from "~/client/content/internal/content-editor-link-node-view";
+import {createContentEditorOrderedListItemNodeView} from "~/client/content/internal/content-editor-ordered-list-item-node-view";
+import {buildInputRulesPlugin} from "~/client/content/internal/content-editor-plugin-input-rules";
+import {
+    buildKeymapPlugin,
+    openKeyboardHighlightFloaterMetaKey,
+    openKeyboardLinkFloaterMetaKey,
+} from "~/client/content/internal/content-editor-plugin-keymap";
 import {isMac} from "~/client/helpers/platform/is-mac";
 import {
     ContentSchema,
