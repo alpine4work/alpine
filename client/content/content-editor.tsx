@@ -30,6 +30,7 @@ import {
     openKeyboardHighlightFloaterMetaKey,
     openKeyboardLinkFloaterMetaKey,
 } from "~/client/content/internal/content-editor-plugin-keymap";
+import {trimSpacesFromRange} from "~/client/content/internal/content-editor-prosemirror-helpers";
 import {isMac} from "~/client/helpers/platform/is-mac";
 import {
     ContentSchema,
@@ -39,7 +40,6 @@ import {
 import {docClassName} from "~/shared/content/content-schema.css";
 import {assert} from "~/shared/helpers/control/assert";
 import {Id, generateId} from "~/shared/id/id";
-import {trimSpacesFromRange} from "~/client/content/internal/content-editor-prosemirror-helpers";
 
 // TODO(calebmer): Implement touch toolbar for mobile.
 
