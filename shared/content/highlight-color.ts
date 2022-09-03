@@ -21,9 +21,6 @@ export function isHighlightColor(string: string): string is HighlightColor {
     return highlightColorSet.has(string as any);
 }
 
-// TODO(calebmer): Talk to Yasmin about these colors. Are they working well?
-// They're a little bright in dark mode maybe? By the 10s also don't look
-// great idk.
 export const colorByHighlightColor: {readonly [K in HighlightColor]: Color} = {
     [HighlightColor.Red]: "red-20",
     [HighlightColor.Orange]: "orange-20",

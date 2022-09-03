@@ -22,10 +22,6 @@ import {HighlightColor, isHighlightColor} from "~/shared/content/highlight-color
 import {parseRemLengthNumber} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
 
-// TODO(calebmer): Styles for all the content things! Haven't finished:
-//
-// - Code block
-
 // TODO(calebmer): Consider including custom hero header images using abstract
 // line art. Like from these sets:
 // - https://creativemarket.com/kloroform/collections/1866986/Wires
@@ -176,6 +172,8 @@ export const ContentSchema = new Schema({
          * code block may not have inline formatting since in the future we'll want
          * to add syntax highlighting.
          */
+        // TODO(calebmer): Implement styling for code blocks.
+
         // TODO(calebmer): Syntax highlighting for code. Allow user to pick the
         // language.
 

@@ -294,8 +294,6 @@ function ContentEditorPointerToolbarOverlay({
                 state={state}
                 viewRef={viewRef}
                 pos={pos}
-                // TODO(calebmer): Is there a better way to keep overlay positions
-                // automatically up to date?
                 onUpdatePosition={() => {
                     overlayRef.current?.forceUpdateOverlayPosition();
 

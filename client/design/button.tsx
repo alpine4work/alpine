@@ -4,9 +4,7 @@ import {FocusRing} from "~/client/design/focus-ring";
 import {useMergedRef} from "~/client/design/helpers/use-merged-ref";
 import {sprinkles} from "~/client/design/sprinkles.css";
 
-// TODO(calebmer): Disabled styles
-
-// TODO(calebmer): Other style variants
+// TODO(calebmer): Disabled styles and other style variants
 
 const ButtonForwardRef = forwardRef(Button);
 export {ButtonForwardRef as Button};

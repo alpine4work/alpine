@@ -7,9 +7,7 @@ import {sprinkles} from "~/client/design/sprinkles.css";
 import {Tooltip} from "~/client/design/tooltip";
 import {spacing} from "~/shared/design/spacing";
 
-// TODO(calebmer): Disabled styles
-
-// TODO(calebmer): Other style variants
+// TODO(calebmer): Disabled styles and other style variants
 
 const IconButtonForwardRef = forwardRef(IconButton);
 export {IconButtonForwardRef as IconButton};

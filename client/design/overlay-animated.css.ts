@@ -47,10 +47,8 @@ const overlayFadeOutRightKeyframes = keyframes({
     to: {opacity: 0, transform: `translateX(${spacing["1"]})`},
 });
 
-// TODO(calebmer): Make this a constant somewhere in `shared/styles`.
 export const overlayFadeAnimationDurationMs = 200;
 
-// TODO(calebmer): Make this a constant somewhere in `shared/styles`.
 const overlayFadeInOutTimingFunction = "cubic-bezier(0.4, 0, 0.2, 1)";
 
 // We use this instead of `overlayClassName` for other overlays that want to
