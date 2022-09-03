@@ -90,6 +90,8 @@ export const ContentSchema = new Schema({
             // Try to parse as a `heading`. If we can't (because it's the first position in
             // a document) then parse as a title.
             parseDOM: [
+                {tag: "p", priority: 40},
+                {tag: "div", priority: 40},
                 {tag: "h1", priority: 40},
                 {tag: "h2", priority: 40},
                 {tag: "h3", priority: 40},
@@ -115,9 +117,10 @@ export const ContentSchema = new Schema({
             content: "inline*",
             toDOM: () => ["p", {class: paragraphClassName}, 0],
             parseDOM: [
-                {tag: "p"},
+                {tag: "p", priority: 50},
                 {
                     tag: "div",
+                    priority: 50,
                     getAttrs: node => {
                         // If this is a wrapper `<div>` with `<p>` tags inside, then we want to use our
                         // `<p>` rule to parse the DOM instead of our `<div>` rule.
