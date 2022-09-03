@@ -654,6 +654,14 @@ export function buildKeymapPlugin() {
             return false;
         }
 
+        let isHighlightSupported = false;
+        state.doc.nodesBetween(state.selection.from, state.selection.to, node => {
+            if (!node.inlineContent) return;
+            isHighlightSupported ||= node.type.allowsMarkType(ContentSchema.marks.highlight);
+        });
+
+        if (!isHighlightSupported) return false;
+
         dispatch?.(state.tr.setMeta(openKeyboardHighlightFloaterMetaKey, true));
         return true;
     });
@@ -664,6 +672,14 @@ export function buildKeymapPlugin() {
         if (state.selection.from === state.selection.to) {
             return false;
         }
+
+        let isLinkSupported = false;
+        state.doc.nodesBetween(state.selection.from, state.selection.to, node => {
+            if (!node.inlineContent) return;
+            isLinkSupported ||= node.type.allowsMarkType(ContentSchema.marks.link);
+        });
+
+        if (!isLinkSupported) return false;
 
         dispatch?.(state.tr.setMeta(openKeyboardLinkFloaterMetaKey, true));
         return true;

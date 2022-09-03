@@ -60,7 +60,7 @@ export const fontScale = {
         lineHeight: "6.5rem",
         letterSpacing: "-0.02em",
     },
-};
+} as const;
 
 /**
  * Font weights at our disposal.

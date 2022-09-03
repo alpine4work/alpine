@@ -19,7 +19,8 @@ import {
     useState,
 } from "react";
 import {
-    emptyContentEditorClassName,
+    emptyBodyClassName,
+    emptyTitleClassName,
     hideSelectionWhileUnfocusedClassName,
     unfocusedSelectionClassName,
 } from "~/client/content/content-editor.css";
@@ -566,14 +567,20 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
         assert(viewRef.current);
         const viewElement = viewRef.current.dom;
 
-        const showPlaceholder = shouldShowPlaceholder(state.doc);
-
-        if (showPlaceholder && !viewElement.classList.contains(emptyContentEditorClassName)) {
-            viewElement.classList.add(emptyContentEditorClassName);
+        const addEmptyTitleClassName = isTitleEmpty(state.doc);
+        if (addEmptyTitleClassName && !viewElement.classList.contains(emptyTitleClassName)) {
+            viewElement.classList.add(emptyTitleClassName);
+        }
+        if (!addEmptyTitleClassName && viewElement.classList.contains(emptyTitleClassName)) {
+            viewElement.classList.remove(emptyTitleClassName);
         }
 
-        if (!showPlaceholder && viewElement.classList.contains(emptyContentEditorClassName)) {
-            viewElement.classList.remove(emptyContentEditorClassName);
+        const addEmptyBodyClassName = isBodyEmpty(state.doc);
+        if (addEmptyBodyClassName && !viewElement.classList.contains(emptyBodyClassName)) {
+            viewElement.classList.add(emptyBodyClassName);
+        }
+        if (!addEmptyBodyClassName && viewElement.classList.contains(emptyBodyClassName)) {
+            viewElement.classList.remove(emptyBodyClassName);
         }
     }
 
@@ -788,15 +795,17 @@ function isCollabPlugin(plugin: Plugin) {
     return plugin.spec.key === collabPluginKey;
 }
 
-/**
- * Should we show the placeholder text for this content?
- */
-function shouldShowPlaceholder(node: Node): boolean {
-    assert(node.type.name === "doc");
+function isTitleEmpty(node: Node): boolean {
+    assert(node.type === ContentSchema.nodes.doc);
+    const firstChildNode = node.child(0);
+    return firstChildNode.type === ContentSchema.nodes.title && firstChildNode.content.size === 0;
+}
+
+function isBodyEmpty(node: Node): boolean {
+    assert(node.type === ContentSchema.nodes.doc);
+    if (node.childCount !== 2) return false;
+    const secondChildNode = node.child(1);
     return (
-        node.childCount <= 1 &&
-        (!node.firstChild ||
-            (node.firstChild.type === ContentSchema.nodes.paragraph &&
-                node.firstChild.content.size <= 0))
+        secondChildNode.type === ContentSchema.nodes.paragraph && secondChildNode.content.size === 0
     );
 }

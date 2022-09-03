@@ -12,10 +12,11 @@ import {mapObjectValues} from "~/shared/helpers/object/map-object-values";
 
 const paragraphMargin = spacing["3"];
 
-const headerBottomMargin = spacing["1"];
+export const headerBottomMargin = spacing["1"];
 const headerTopMargin = spacing["8"];
 
 export const docClassName = style({
+    position: "relative",
     color: colorSchemeVars["grey-100"],
     userSelect: "auto",
 });

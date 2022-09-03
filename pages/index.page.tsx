@@ -37,7 +37,7 @@ export default function Home() {
                                 setState(state);
                             }}
                             aria-label="Content editor"
-                            placeholder="Type stuff here…"
+                            placeholder="Share your ideas…"
                         />
                     </Box>
                 </Box>

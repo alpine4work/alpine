@@ -69,7 +69,11 @@ export function ContentEditorPointerToolbar({
         // shortcuts to accomplish everything in the toolbar.
         interactionModality === "pointer" &&
         // Make sure some characters are selected before showing the selection toolbar.
-        state.selection.from !== state.selection.to;
+        state.selection.from !== state.selection.to &&
+        // Don't show the toolbar if the selection overlaps with the title. The title
+        // can only be at the beginning of a document so checking whether
+        // `selection.from` is in the title is sufficient for detecting overlap.
+        state.selection.$from.parent.type !== ContentSchema.nodes.title;
 
     const initialSelection = useConstant(() => state.selection);
 

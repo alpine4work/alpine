@@ -1,30 +1,35 @@
 import {globalStyle, style} from "@vanilla-extract/css";
+import {headerBottomMargin, titleClassName} from "~/shared/content/content-schema.css";
 import {colorSchemeVars} from "~/shared/design/color-scheme.css";
+import {fontScale, fontWeights} from "~/shared/design/fonts";
+import {parseRemLengthNumber} from "~/shared/design/spacing";
 
-export const emptyContentEditorClassName = style({});
+export const emptyTitleClassName = style({});
 
-// TODO(calebmer): Port this
+globalStyle(`${emptyTitleClassName}[aria-placeholder] > ${titleClassName}::before`, {
+    content: "Untitled",
+    position: "absolute",
+    top: 0,
+    left: 0,
+    pointerEvents: "none",
+    color: colorSchemeVars["grey-20"],
+    ...fontScale["2xl"],
+    fontWeight: fontWeights.bold,
+});
 
-// .empty[aria-placeholder] {
-//     position: relative;
-// }
+export const emptyBodyClassName = style({});
 
-// .empty[aria-placeholder] > p:first-child {
-//     position: relative;
-//     z-index: 2;
-// }
-
-// .empty[aria-placeholder]::before {
-//     content: attr(aria-placeholder);
-//     position: absolute;
-//     left: 0;
-//     right: 0;
-//     padding-left: inherit;
-//     padding-right: inherit;
-//     z-index: 1;
-//     pointer-events: none;
-//     color: theme("colors.gray.300");
-// }
+globalStyle(`${emptyBodyClassName}[aria-placeholder]::before`, {
+    content: "attr(aria-placeholder)",
+    position: "absolute",
+    top: `${
+        parseRemLengthNumber(fontScale["2xl"].lineHeight) + parseRemLengthNumber(headerBottomMargin)
+    }rem`,
+    left: 0,
+    pointerEvents: "none",
+    color: colorSchemeVars["grey-30"],
+    ...fontScale.base,
+});
 
 export const hideSelectionWhileUnfocusedClassName = style({
     caretColor: "transparent",
