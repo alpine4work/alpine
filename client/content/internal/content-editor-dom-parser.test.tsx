@@ -86,7 +86,7 @@ test("will copy/paste nested list HTML", async () => {
     render(<TestContentEditor />);
 
     const html =
-        '<ul><li><p class="content-schema_paragraphClassName__neu0lc1">Item 1</p></li><ul><li><p class="content-schema_paragraphClassName__neu0lc1">Item 1.1</p></li><ul><li><p class="content-schema_paragraphClassName__neu0lc1">Item 1.1.1</p></li><ol><li><p class="content-schema_paragraphClassName__neu0lc1">Item 1.1.1</p></li></ol></ul></ul></ul><ol><li><p class="content-schema_paragraphClassName__neu0lc1">Item 2</p></li><ol><li><p class="content-schema_paragraphClassName__neu0lc1">Item 2.1</p></li><ul><li><p class="content-schema_paragraphClassName__neu0lc1">Item 2.1.1</p></li><li><p class="content-schema_paragraphClassName__neu0lc1">Item 2.1.2</p></li></ul><ol><li><p class="content-schema_paragraphClassName__neu0lc1">Item 2.1.3</p></li></ol></ol></ol>';
+        "<ul><li><p>Item 1</p></li><ul><li><p>Item 1.1</p></li><ul><li><p>Item 1.1.1</p></li><ol><li><p>Item 1.1.1</p></li></ol></ul></ul></ul><ol><li><p>Item 2</p></li><ol><li><p>Item 2.1</p></li><ul><li><p>Item 2.1.1</p></li><li><p>Item 2.1.2</p></li></ul><ol><li><p>Item 2.1.3</p></li></ol></ol></ol>";
 
     fireEvent.paste(getTextbox(), pasteHtmlTextClipboardEvent(html));
 

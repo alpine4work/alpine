@@ -70,6 +70,10 @@ test("shows the toolbar when a range of content is selected", () => {
         />,
     );
 
+    act(() => {
+        getTextbox().focus();
+    });
+
     expect(screen.queryByLabelText("Bold")).not.toBeInTheDocument();
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(4))));
@@ -102,6 +106,10 @@ test("shows the toolbar when there's a pointer interaction modality", () => {
         />,
     );
 
+    act(() => {
+        getTextbox().focus();
+    });
+
     expect(screen.queryByLabelText("Bold")).not.toBeInTheDocument();
 
     dispatch(state =>
@@ -122,6 +130,47 @@ test("shows the toolbar when there's a pointer interaction modality", () => {
     expect(screen.getByLabelText("Bold")).toBeInTheDocument();
 });
 
+test("shows the toolbar when the editor is focused", () => {
+    setInteractionModality("pointer");
+
+    render(
+        <TestContentEditor
+            initialContent={ContentSchema.node("doc", {}, [
+                ContentSchema.node("paragraph", {}, [ContentSchema.text("foo")]),
+                ContentSchema.node("paragraph", {}, [ContentSchema.text("bar")]),
+                ContentSchema.node("paragraph", {}, [ContentSchema.text("qux")]),
+            ])}
+        />,
+    );
+
+    expect(screen.queryByLabelText("Bold")).not.toBeInTheDocument();
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(4))));
+    act(() => {
+        jest.runOnlyPendingTimers();
+    });
+
+    expect(screen.queryByLabelText("Bold")).not.toBeInTheDocument();
+
+    dispatch(state =>
+        state.tr.setSelection(new TextSelection(state.doc.resolve(4), state.doc.resolve(13))),
+    );
+    act(() => {
+        jest.runOnlyPendingTimers();
+    });
+
+    expect(screen.queryByLabelText("Bold")).not.toBeInTheDocument();
+
+    act(() => {
+        getTextbox().focus();
+    });
+    act(() => {
+        jest.runOnlyPendingTimers();
+    });
+
+    expect(screen.getByLabelText("Bold")).toBeInTheDocument();
+});
+
 test("toggles headings on", () => {
     setInteractionModality("pointer");
 
@@ -134,6 +183,10 @@ test("toggles headings on", () => {
             ])}
         />,
     );
+
+    act(() => {
+        getTextbox().focus();
+    });
 
     dispatch(state =>
         state.tr.setSelection(new TextSelection(state.doc.resolve(4), state.doc.resolve(13))),
@@ -167,6 +220,10 @@ test("toggles headings off", () => {
             ])}
         />,
     );
+
+    act(() => {
+        getTextbox().focus();
+    });
 
     dispatch(state =>
         state.tr.setSelection(new TextSelection(state.doc.resolve(4), state.doc.resolve(13))),
@@ -213,6 +270,10 @@ test("toggles headings on when there's already a heading of that level", () => {
         />,
     );
 
+    act(() => {
+        getTextbox().focus();
+    });
+
     dispatch(state =>
         state.tr.setSelection(new TextSelection(state.doc.resolve(4), state.doc.resolve(13))),
     );
@@ -246,6 +307,10 @@ test("converts headings of another level", () => {
         />,
     );
 
+    act(() => {
+        getTextbox().focus();
+    });
+
     dispatch(state =>
         state.tr.setSelection(new TextSelection(state.doc.resolve(4), state.doc.resolve(13))),
     );
@@ -278,6 +343,10 @@ test("toggles list on", () => {
             ])}
         />,
     );
+
+    act(() => {
+        getTextbox().focus();
+    });
 
     dispatch(state =>
         state.tr.setSelection(new TextSelection(state.doc.resolve(4), state.doc.resolve(13))),
@@ -317,6 +386,10 @@ test("toggles list off", () => {
             ])}
         />,
     );
+
+    act(() => {
+        getTextbox().focus();
+    });
 
     dispatch(state =>
         state.tr.setSelection(new TextSelection(state.doc.resolve(4), state.doc.resolve(13))),
@@ -371,6 +444,10 @@ test("toggles list on even when there's already a list item of that type", () =>
         />,
     );
 
+    act(() => {
+        getTextbox().focus();
+    });
+
     dispatch(state =>
         state.tr.setSelection(new TextSelection(state.doc.resolve(4), state.doc.resolve(15))),
     );
@@ -411,6 +488,10 @@ test("toggles list on even when there's already a list item of a different type"
             ])}
         />,
     );
+
+    act(() => {
+        getTextbox().focus();
+    });
 
     dispatch(state =>
         state.tr.setSelection(new TextSelection(state.doc.resolve(4), state.doc.resolve(15))),
@@ -456,6 +537,10 @@ test("toggles list on even when the entire list is a different type with some in
             ])}
         />,
     );
+
+    act(() => {
+        getTextbox().focus();
+    });
 
     dispatch(state =>
         state.tr.setSelection(new TextSelection(state.doc.resolve(5), state.doc.resolve(17))),
