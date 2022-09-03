@@ -3,6 +3,7 @@ import {Mark} from "prosemirror-model";
 import {EditorView} from "prosemirror-view";
 import {RefObject, useRef, useState} from "react";
 import {useButton, useHover} from "react-aria";
+import {trimSpacesFromRange} from "~/client/content/internal/content-editor-prosemirror-helpers";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus-ring";
 import {sprinkles} from "~/client/design/sprinkles.css";
@@ -39,6 +40,8 @@ export function ContentEditorLinkInput({
         // If the URL the user typed does not have a protocol then add `https://`.
         const finalUrl = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(url) ? url : `https://${url}`;
 
+        // NOTE(calebmer): We don't trim spaces the range here in case the user is
+        // updating an existing URL.
         dispatch(
             state.tr.addMark(range.from, range.to, ContentSchema.mark("link", {url: finalUrl})),
         );

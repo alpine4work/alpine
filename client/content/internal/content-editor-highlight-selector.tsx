@@ -11,6 +11,7 @@ import {
     useState,
 } from "react";
 import {useHover, usePress} from "react-aria";
+import {trimSpacesFromRange} from "~/client/content/internal/content-editor-prosemirror-helpers";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus-ring";
 import {Tooltip} from "~/client/design/tooltip";
@@ -62,10 +63,11 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
         const {state, dispatch} = viewRef.current;
 
         if (highlightColor && (!mark || mark.attrs.color !== highlightColor)) {
+            const range = trimSpacesFromRange(state.doc, state.selection);
             dispatch(
                 state.tr.addMark(
-                    state.selection.from,
-                    state.selection.to,
+                    range.from,
+                    range.to,
                     ContentSchema.mark("highlight", {
                         color: highlightColor,
                     }),

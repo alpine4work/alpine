@@ -26,6 +26,7 @@ import {
     createToggleListItemsCommand,
     createToggleMarkCommand,
     getMarksSpanningAcrossEntireRange,
+    trimSpacesFromRange,
 } from "~/client/content/internal/content-editor-prosemirror-helpers";
 import {Box} from "~/client/design/box";
 import {useLifecycleRef} from "~/client/design/helpers/use-lifecycle-ref";
@@ -587,6 +588,11 @@ function ContentEditorPointerToolbarLinkButton({
 }) {
     const wasJustClosedByOverlayRef = useRef(false);
 
+    const range = useMemo(
+        () => trimSpacesFromRange(state.doc, state.selection),
+        [state.doc, state.selection],
+    );
+
     return (
         <OverlayAnimated
             visible={isLinkInputOpen && !isToolbarFadingOut}
@@ -606,7 +612,7 @@ function ContentEditorPointerToolbarLinkButton({
                     {!isLinkInputOpen ? (
                         <ContentEditorLinkInput
                             viewRef={viewRef}
-                            range={state.selection}
+                            range={range}
                             mark={activeLinkMark}
                             isDisabled={true}
                             onClose={onLinkInputClose}
@@ -615,7 +621,7 @@ function ContentEditorPointerToolbarLinkButton({
                         <FocusScope contain restoreFocus autoFocus>
                             <ContentEditorLinkInput
                                 viewRef={viewRef}
-                                range={state.selection}
+                                range={range}
                                 mark={activeLinkMark}
                                 onClose={onLinkInputClose}
                             />

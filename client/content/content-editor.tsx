@@ -39,6 +39,7 @@ import {
 import {docClassName} from "~/shared/content/content-schema.css";
 import {assert} from "~/shared/helpers/control/assert";
 import {Id, generateId} from "~/shared/id/id";
+import {trimSpacesFromRange} from "~/client/content/internal/content-editor-prosemirror-helpers";
 
 // TODO(calebmer): Implement touch toolbar for mobile.
 
@@ -734,13 +735,8 @@ function handleLinkPaste(view: EditorView, event: ClipboardEvent): boolean {
 
     // 3. Instead of replacing the selected text with the replaced text we instead
     // add a link mark to the selection.
-    view.dispatch(
-        state.tr.addMark(
-            state.selection.from,
-            state.selection.to,
-            ContentSchema.mark("link", {url}),
-        ),
-    );
+    const range = trimSpacesFromRange(state.doc, state.selection);
+    view.dispatch(state.tr.addMark(range.from, range.to, ContentSchema.mark("link", {url})));
     return true;
 }
 

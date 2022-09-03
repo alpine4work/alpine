@@ -11,7 +11,10 @@ import {
 } from "~/client/content/internal/content-editor-highlight-selector";
 import {ContentEditorLinkInput} from "~/client/content/internal/content-editor-link-input";
 import {ContentEditorPointerToolbar} from "~/client/content/internal/content-editor-pointer-toolbar";
-import {getMarksSpanningAcrossEntireRange} from "~/client/content/internal/content-editor-prosemirror-helpers";
+import {
+    getMarksSpanningAcrossEntireRange,
+    trimSpacesFromRange,
+} from "~/client/content/internal/content-editor-prosemirror-helpers";
 import {Box} from "~/client/design/box";
 import {useOutsidePress} from "~/client/design/helpers/use-outside-press";
 import {OverlayRef} from "~/client/design/overlay";
@@ -130,7 +133,7 @@ function ContentEditorKeyboardHighlightFloater({
     const overlayRef = useRef<OverlayRef>(null);
     const selectorRef = useRef<ContentEditorHighlightSelectorRef>(null);
 
-    const range = useConstant(state.selection);
+    const range = useConstant(() => trimSpacesFromRange(state.doc, state.selection));
 
     const mark = useMemo(
         () =>
@@ -142,11 +145,11 @@ function ContentEditorKeyboardHighlightFloater({
 
     const [isClosing, setIsClosing] = useState(false);
 
-    const onClose = () => {
+    const onClose = useCallback(() => {
         assert(viewRef.current);
         viewRef.current.focus();
         setIsClosing(true);
-    };
+    }, [viewRef]);
 
     useEffect(() => {
         if (isClosing) {
@@ -160,10 +163,12 @@ function ContentEditorKeyboardHighlightFloater({
     }, [isClosing, _onClose]);
 
     useEffect(() => {
-        if (state.selection.from !== range.from || state.selection.to !== range.to) {
+        const trimmedSelectionRange = trimSpacesFromRange(state.doc, state.selection);
+
+        if (trimmedSelectionRange.from !== range.from || trimmedSelectionRange.to !== range.to) {
             onClose();
         }
-    });
+    }, [onClose, range.from, range.to, state.doc, state.selection]);
 
     useEffect(() => {
         assert(selectorRef.current);
@@ -248,7 +253,7 @@ function ContentEditorKeyboardLinkFloater({
 }) {
     const overlayRef = useRef<OverlayRef>(null);
 
-    const range = useConstant(state.selection);
+    const range = useConstant(() => trimSpacesFromRange(state.doc, state.selection));
 
     const mark = useMemo(
         () =>
@@ -260,11 +265,11 @@ function ContentEditorKeyboardLinkFloater({
 
     const [isClosing, setIsClosing] = useState(false);
 
-    const onClose = () => {
+    const onClose = useCallback(() => {
         assert(viewRef.current);
         viewRef.current.focus();
         setIsClosing(true);
-    };
+    }, [viewRef]);
 
     useEffect(() => {
         if (isClosing) {
@@ -278,10 +283,12 @@ function ContentEditorKeyboardLinkFloater({
     }, [isClosing, _onClose]);
 
     useEffect(() => {
-        if (state.selection.from !== range.from || state.selection.to !== range.to) {
+        const trimmedSelectionRange = trimSpacesFromRange(state.doc, state.selection);
+
+        if (trimmedSelectionRange.from !== range.from || trimmedSelectionRange.to !== range.to) {
             onClose();
         }
-    });
+    }, [onClose, range.from, range.to, state.doc, state.selection]);
 
     return (
         <OverlayAnimated

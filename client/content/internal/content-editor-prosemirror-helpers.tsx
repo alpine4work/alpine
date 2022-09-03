@@ -14,6 +14,8 @@ export function getMarksSpanningAcrossEntireRange(
     parentNode: Node,
     range: {from: number; to: number},
 ): ReadonlyArray<Mark> {
+    range = trimSpacesFromRange(parentNode, range);
+
     const previousInlineNodes: Array<{node: Node; $pos: ResolvedPos}> = [];
     let marks: Array<Mark> | null = null;
 
@@ -127,16 +129,36 @@ export function createToggleMarkCommand(mark: Mark): Command {
             return true;
         }
 
-        // TODO(calebmer): Exclude spaces when adding mark type?
         if (doesAnyNodeAllowMarkType) {
-            dispatch?.(
-                state.tr.addMark(state.selection.from, state.selection.to, mark).scrollIntoView(),
-            );
+            const range = trimSpacesFromRange(state.doc, state.selection);
+            dispatch?.(state.tr.addMark(range.from, range.to, mark).scrollIntoView());
             return true;
         }
 
         return changedStoredMarks;
     };
+}
+
+/**
+ * Returns the provided range but any space characters at the beginning or end
+ * have been removed.
+ */
+export function trimSpacesFromRange(
+    parentNode: Node,
+    range: {from: number; to: number},
+): {from: number; to: number} {
+    let {from, to} = range;
+    const $from = parentNode.resolve(range.from);
+    const $to = parentNode.resolve(range.to);
+    const firstNode = $from.nodeAfter;
+    const lastNode = $to.nodeBefore;
+    const spaceStart = firstNode && firstNode.isText ? /^\s*/.exec(firstNode.text!)![0]!.length : 0;
+    const spaceEnd = lastNode && lastNode.isText ? /\s*$/.exec(lastNode.text!)![0]!.length : 0;
+    if (from + spaceStart < to) {
+        from += spaceStart;
+        to -= spaceEnd;
+    }
+    return {from, to};
 }
 
 /**
