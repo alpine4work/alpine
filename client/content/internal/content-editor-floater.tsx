@@ -2,18 +2,16 @@ import {setInteractionModality, useHover} from "@react-aria/interactions";
 import {Mark} from "prosemirror-model";
 import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
-import {RefObject, useCallback, useEffect, useRef, useState} from "react";
+import {RefObject, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {FocusScope} from "react-aria";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content-editor-cursor-tracker";
 import {
     ContentEditorHighlightSelector,
     ContentEditorHighlightSelectorRef,
 } from "~/client/content/internal/content-editor-highlight-selector";
-import {
-    ContentEditorLinkInput,
-    ContentEditorSelectionLinkInput,
-} from "~/client/content/internal/content-editor-link-input";
+import {ContentEditorLinkInput} from "~/client/content/internal/content-editor-link-input";
 import {ContentEditorPointerToolbar} from "~/client/content/internal/content-editor-pointer-toolbar";
+import {getMarksSpanningAcrossEntireRange} from "~/client/content/internal/content-editor-prosemirror-helpers";
 import {Box} from "~/client/design/box";
 import {useOutsidePress} from "~/client/design/helpers/use-outside-press";
 import {OverlayRef} from "~/client/design/overlay";
@@ -132,7 +130,15 @@ function ContentEditorKeyboardHighlightFloater({
     const overlayRef = useRef<OverlayRef>(null);
     const selectorRef = useRef<ContentEditorHighlightSelectorRef>(null);
 
-    const pos = useConstant(state.selection.from);
+    const range = useConstant(state.selection);
+
+    const mark = useMemo(
+        () =>
+            getMarksSpanningAcrossEntireRange(state.doc, range).find(
+                mark => mark.type === ContentSchema.marks.highlight,
+            ) ?? null,
+        [range, state.doc],
+    );
 
     const [isClosing, setIsClosing] = useState(false);
 
@@ -154,7 +160,7 @@ function ContentEditorKeyboardHighlightFloater({
     }, [isClosing, _onClose]);
 
     useEffect(() => {
-        if (state.selection.from !== pos) {
+        if (state.selection.from !== range.from || state.selection.to !== range.to) {
             onClose();
         }
     });
@@ -214,6 +220,7 @@ function ContentEditorKeyboardHighlightFloater({
                     <ContentEditorHighlightSelector
                         ref={selectorRef}
                         viewRef={viewRef}
+                        mark={mark}
                         isFocusable={!isClosing}
                         onClose={onClose}
                     />
@@ -223,7 +230,7 @@ function ContentEditorKeyboardHighlightFloater({
             <ContentEditorCursorTracker
                 state={state}
                 viewRef={viewRef}
-                pos={pos}
+                pos={range.from}
                 onUpdatePosition={() => overlayRef.current?.forceUpdateOverlayPosition()}
             />
         </OverlayAnimated>
@@ -241,7 +248,15 @@ function ContentEditorKeyboardLinkFloater({
 }) {
     const overlayRef = useRef<OverlayRef>(null);
 
-    const pos = useConstant(state.selection.from);
+    const range = useConstant(state.selection);
+
+    const mark = useMemo(
+        () =>
+            getMarksSpanningAcrossEntireRange(state.doc, range).find(
+                mark => mark.type === ContentSchema.marks.link,
+            ) ?? null,
+        [range, state.doc],
+    );
 
     const [isClosing, setIsClosing] = useState(false);
 
@@ -263,7 +278,7 @@ function ContentEditorKeyboardLinkFloater({
     }, [isClosing, _onClose]);
 
     useEffect(() => {
-        if (state.selection.from !== pos) {
+        if (state.selection.from !== range.from || state.selection.to !== range.to) {
             onClose();
         }
     });
@@ -286,14 +301,21 @@ function ContentEditorKeyboardLinkFloater({
             overlay={
                 <Box ref={useOutsidePress(onClose)}>
                     {isClosing ? (
-                        <ContentEditorSelectionLinkInput
+                        <ContentEditorLinkInput
                             viewRef={viewRef}
+                            range={range}
+                            mark={mark}
                             isDisabled={true}
                             onClose={onClose}
                         />
                     ) : (
                         <FocusScope contain restoreFocus autoFocus>
-                            <ContentEditorSelectionLinkInput viewRef={viewRef} onClose={onClose} />
+                            <ContentEditorLinkInput
+                                viewRef={viewRef}
+                                range={range}
+                                mark={mark}
+                                onClose={onClose}
+                            />
                         </FocusScope>
                     )}
                 </Box>
@@ -302,7 +324,7 @@ function ContentEditorKeyboardLinkFloater({
             <ContentEditorCursorTracker
                 state={state}
                 viewRef={viewRef}
-                pos={pos}
+                pos={range.from}
                 onUpdatePosition={() => overlayRef.current?.forceUpdateOverlayPosition()}
             />
         </OverlayAnimated>
@@ -329,10 +351,8 @@ function ContentEditorPointerLinkFloater({
     const [isClosing, setIsClosing] = useState(false);
 
     const onClose = useCallback(() => {
-        assert(viewRef.current);
-        viewRef.current.focus();
         setIsClosing(true);
-    }, [viewRef]);
+    }, []);
 
     useEffect(() => {
         if (isClosing) {
@@ -404,26 +424,10 @@ function ContentEditorPointerLinkFloater({
             overlay={
                 <Box {...hoverProps} ref={useOutsidePress(onClose)}>
                     <ContentEditorLinkInput
-                        initialUrl={mark.attrs.url ?? ""}
+                        viewRef={viewRef}
+                        range={range}
+                        mark={mark}
                         isDisabled={isClosing}
-                        onSave={url => {
-                            assert(viewRef.current);
-                            const {state, dispatch} = viewRef.current;
-
-                            dispatch(
-                                state.tr.addMark(
-                                    range.from,
-                                    range.to,
-                                    ContentSchema.mark("link", {url}),
-                                ),
-                            );
-                        }}
-                        onClear={() => {
-                            assert(viewRef.current);
-                            const {state, dispatch} = viewRef.current;
-
-                            dispatch(state.tr.removeMark(range.from, range.to, mark));
-                        }}
                         onClose={onClose}
                     />
                 </Box>

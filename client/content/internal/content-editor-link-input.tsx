@@ -1,4 +1,5 @@
 import {Link, X} from "phosphor-react";
+import {Mark} from "prosemirror-model";
 import {EditorView} from "prosemirror-view";
 import {RefObject, useRef, useState} from "react";
 import {useButton, useHover} from "react-aria";
@@ -11,28 +12,47 @@ import {spacing} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
 
 export function ContentEditorLinkInput({
-    initialUrl = "",
+    viewRef,
+    range,
+    mark,
     isDisabled = false,
-    onSave: _onSave,
-    onClear,
     onClose,
 }: {
-    initialUrl?: string;
+    viewRef: RefObject<EditorView | null>;
+    range: {from: number; to: number};
+    mark: Mark | null;
     isDisabled?: boolean;
-    onSave: (url: string) => void;
-    onClear: () => void;
     onClose: () => void;
 }) {
     const inputRef = useRef<HTMLInputElement>(null);
+    const [url, setUrl] = useState(mark?.attrs.url ?? "");
 
-    // TODO(calebmer): Pre-populate state with the URL if it exists in our selection.
-    const [url, setUrl] = useState(initialUrl);
+    const save = () => {
+        if (url === "") {
+            clear();
+            return;
+        }
 
-    const onSave = () => {
+        assert(viewRef.current);
+        const {state, dispatch} = viewRef.current;
+
         // If the URL the user typed does not have a protocol then add `https://`.
         const finalUrl = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(url) ? url : `https://${url}`;
 
-        _onSave(finalUrl);
+        dispatch(
+            state.tr.addMark(range.from, range.to, ContentSchema.mark("link", {url: finalUrl})),
+        );
+
+        onClose();
+    };
+
+    const clear = () => {
+        assert(viewRef.current);
+        const {state, dispatch} = viewRef.current;
+
+        dispatch(state.tr.removeMark(range.from, range.to, mark));
+
+        onClose();
     };
 
     return (
@@ -82,12 +102,12 @@ export function ContentEditorLinkInput({
                 onKeyDown={event => {
                     if (event.key === "Enter") {
                         event.preventDefault();
-                        onSave();
+                        save();
                     }
                 }}
             />
-            <ContentEditorLinkInputClearButton isDisabled={isDisabled} onPress={() => onClear()} />
-            <ContentEditorLinkInputSaveButton isDisabled={isDisabled} onPress={() => onSave()} />
+            <ContentEditorLinkInputClearButton isDisabled={isDisabled} onPress={() => clear()} />
+            <ContentEditorLinkInputSaveButton isDisabled={isDisabled} onPress={() => save()} />
         </Box>
     );
 }
@@ -188,48 +208,5 @@ function ContentEditorLinkInputSaveButton({
                 </FocusRing>
             </Box>
         </Box>
-    );
-}
-
-export function ContentEditorSelectionLinkInput({
-    viewRef,
-    isDisabled,
-    onClose,
-}: {
-    viewRef: RefObject<EditorView | null>;
-    isDisabled?: boolean;
-    onClose: () => void;
-}) {
-    const save = (url: string) => {
-        assert(viewRef.current);
-        const {state, dispatch} = viewRef.current;
-
-        // TODO(calebmer): Exclude spaces from the selection when adding a link style?
-        // Should we do this for highlights too?
-        dispatch(
-            state.tr.addMark(
-                state.selection.from,
-                state.selection.to,
-                ContentSchema.mark("link", {url}),
-            ),
-        );
-
-        onClose();
-    };
-
-    const clear = () => {
-        // TODO(calebmer): If we are pre-populating state with the URL then it makes
-        // sense to clear when the user clicks the X button.
-
-        onClose();
-    };
-
-    return (
-        <ContentEditorLinkInput
-            isDisabled={isDisabled}
-            onSave={save}
-            onClear={clear}
-            onClose={onClose}
-        />
     );
 }

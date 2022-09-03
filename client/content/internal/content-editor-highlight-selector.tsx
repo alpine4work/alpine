@@ -1,3 +1,4 @@
+import {Mark} from "prosemirror-model";
 import {EditorView} from "prosemirror-view";
 import {
     Ref,
@@ -30,10 +31,12 @@ export type ContentEditorHighlightSelectorRef = {
 export const ContentEditorHighlightSelector = forwardRef(function ContentEditorHighlightSelector(
     {
         viewRef,
+        mark,
         isFocusable,
         onClose,
     }: {
         viewRef: RefObject<EditorView | null>;
+        mark: Mark | null;
         isFocusable: boolean;
         onClose: () => void;
     },
@@ -58,7 +61,7 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
         assert(viewRef.current);
         const {state, dispatch} = viewRef.current;
 
-        if (highlightColor) {
+        if (highlightColor && (!mark || mark.attrs.color !== highlightColor)) {
             dispatch(
                 state.tr.addMark(
                     state.selection.from,
@@ -134,6 +137,7 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
                 description="Red"
                 highlightColor={HighlightColor.Red}
                 onSelectHighlightColor={selectHighlightColor}
+                mark={mark}
                 isFocusable={isFocusable}
                 buttonRef={useCallback(ref => (buttonRefs.current[0] = ref), [])}
                 wasLastFocused={lastFocusedIndex === 0}
@@ -143,6 +147,7 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
                 description="Orange"
                 highlightColor={HighlightColor.Orange}
                 onSelectHighlightColor={selectHighlightColor}
+                mark={mark}
                 isFocusable={isFocusable}
                 buttonRef={useCallback(ref => (buttonRefs.current[1] = ref), [])}
                 wasLastFocused={lastFocusedIndex === 1}
@@ -152,6 +157,7 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
                 description="Green"
                 highlightColor={HighlightColor.Green}
                 onSelectHighlightColor={selectHighlightColor}
+                mark={mark}
                 isFocusable={isFocusable}
                 buttonRef={useCallback(ref => (buttonRefs.current[2] = ref), [])}
                 wasLastFocused={lastFocusedIndex === 2}
@@ -161,6 +167,7 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
                 description="Blue"
                 highlightColor={HighlightColor.Blue}
                 onSelectHighlightColor={selectHighlightColor}
+                mark={mark}
                 isFocusable={isFocusable}
                 buttonRef={useCallback(ref => (buttonRefs.current[3] = ref), [])}
                 wasLastFocused={lastFocusedIndex === 3}
@@ -171,6 +178,7 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
                 description="Purple"
                 highlightColor={HighlightColor.Purple}
                 onSelectHighlightColor={selectHighlightColor}
+                mark={mark}
                 isFocusable={isFocusable}
                 buttonRef={useCallback(ref => (buttonRefs.current[4] = ref), [])}
                 wasLastFocused={lastFocusedIndex === 4}
@@ -181,6 +189,7 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
                 description="Clear"
                 highlightColor={null}
                 onSelectHighlightColor={selectHighlightColor}
+                mark={mark}
                 isFocusable={isFocusable}
                 buttonRef={useCallback(ref => (buttonRefs.current[5] = ref), [])}
                 wasLastFocused={lastFocusedIndex === 5}
@@ -194,6 +203,7 @@ function ContentEditorHighlightSelectorButton({
     description,
     highlightColor,
     onSelectHighlightColor,
+    mark,
     isFocusable,
     buttonRef,
     wasLastFocused,
@@ -204,6 +214,7 @@ function ContentEditorHighlightSelectorButton({
     description: string;
     highlightColor: HighlightColor | null;
     onSelectHighlightColor: (highlightColor: HighlightColor | null) => void;
+    mark: Mark | null;
     isFocusable: boolean;
     buttonRef: RefCallback<HTMLDivElement>;
     wasLastFocused: boolean;
@@ -216,6 +227,8 @@ function ContentEditorHighlightSelectorButton({
     const {pressProps, isPressed} = usePress({
         onPress: () => onSelectHighlightColor(highlightColor),
     });
+
+    const isActive = highlightColor !== null && mark?.attrs.color === highlightColor;
 
     return (
         <Tooltip
@@ -249,7 +262,7 @@ function ContentEditorHighlightSelectorButton({
                             padding="1"
                             borderRadius="base"
                             backgroundColor={
-                                isPressed
+                                isPressed || isActive
                                     ? {light: "grey-10", dark: "grey-20"}
                                     : isHovered
                                     ? {light: "grey-5", dark: "grey-10"}

@@ -4,7 +4,7 @@ exports[`bold 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-schema_docClassName__neu0lc0"
+  class="ProseMirror content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv1"
   contenteditable="true"
   role="textbox"
   translate="no"
@@ -135,7 +135,7 @@ exports[`bullet list plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-schema_docClassName__neu0lc0"
+  class="ProseMirror content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv1"
   contenteditable="true"
   role="textbox"
   translate="no"
@@ -185,7 +185,7 @@ exports[`bullet list with multiple items 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-schema_docClassName__neu0lc0"
+  class="ProseMirror content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv1"
   contenteditable="true"
   role="textbox"
   translate="no"
@@ -249,7 +249,7 @@ exports[`bullet list with sub-list 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-schema_docClassName__neu0lc0"
+  class="ProseMirror content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv1"
   contenteditable="true"
   role="textbox"
   translate="no"
@@ -301,7 +301,7 @@ exports[`bullet list with sub-list of another type 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-schema_docClassName__neu0lc0"
+  class="ProseMirror content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv1"
   contenteditable="true"
   role="textbox"
   translate="no"
@@ -417,7 +417,7 @@ exports[`can put hard breaks inside list items 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-schema_docClassName__neu0lc0"
+  class="ProseMirror content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv1"
   contenteditable="true"
   role="textbox"
   translate="no"
@@ -455,7 +455,7 @@ exports[`can put hard breaks inside paragraphs 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-schema_docClassName__neu0lc0"
+  class="ProseMirror content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv1"
   contenteditable="true"
   role="textbox"
   translate="no"
@@ -484,7 +484,7 @@ exports[`can put multiple paragraphs inside list items 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-schema_docClassName__neu0lc0"
+  class="ProseMirror content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv1"
   contenteditable="true"
   role="textbox"
   translate="no"
@@ -652,7 +652,7 @@ exports[`check list (checked) plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-schema_docClassName__neu0lc0"
+  class="ProseMirror content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv1"
   contenteditable="true"
   role="textbox"
   translate="no"
@@ -864,7 +864,7 @@ exports[`check list (unchecked) plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-schema_docClassName__neu0lc0"
+  class="ProseMirror content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv1"
   contenteditable="true"
   role="textbox"
   translate="no"
@@ -954,7 +954,7 @@ exports[`check list with multiple items 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-schema_docClassName__neu0lc0"
+  class="ProseMirror content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv1"
   contenteditable="true"
   role="textbox"
   translate="no"
@@ -1128,7 +1128,7 @@ exports[`check list with sub-list 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-schema_docClassName__neu0lc0"
+  class="ProseMirror content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv1"
   contenteditable="true"
   role="textbox"
   translate="no"
@@ -1308,7 +1308,7 @@ exports[`check list with sub-list of another type 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-schema_docClassName__neu0lc0"
+  class="ProseMirror content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv1"
   contenteditable="true"
   role="textbox"
   translate="no"
@@ -1480,7 +1480,7 @@ exports[`code 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-schema_docClassName__neu0lc0"
+  class="ProseMirror content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv1"
   contenteditable="true"
   role="textbox"
   translate="no"
@@ -1511,7 +1511,7 @@ exports[`code plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-schema_docClassName__neu0lc0"
+  class="ProseMirror content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv1"
   contenteditable="true"
   role="textbox"
   translate="no"
@@ -1550,13 +1550,14 @@ exports[`divider empty 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-schema_docClassName__neu0lc0"
+  class="ProseMirror content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv1"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <hr
-    class="content-schema_dividerClassName__neu0lce"
+    class="content-schema_dividerClassName__neu0lce ProseMirror-selectednode"
+    draggable="true"
   />
 </div>
 `;
@@ -1643,7 +1644,7 @@ exports[`heading 1 plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-schema_docClassName__neu0lc0"
+  class="ProseMirror content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv1"
   contenteditable="true"
   role="textbox"
   translate="no"
@@ -1752,7 +1753,7 @@ exports[`heading 2 plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-schema_docClassName__neu0lc0"
+  class="ProseMirror content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv1"
   contenteditable="true"
   role="textbox"
   translate="no"
@@ -1861,7 +1862,7 @@ exports[`heading 3 plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-schema_docClassName__neu0lc0"
+  class="ProseMirror content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv1"
   contenteditable="true"
   role="textbox"
   translate="no"
@@ -1898,7 +1899,7 @@ exports[`highlight 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-schema_docClassName__neu0lc0"
+  class="ProseMirror content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv1"
   contenteditable="true"
   role="textbox"
   translate="no"
@@ -1908,6 +1909,7 @@ exports[`highlight 1`] = `
   >
     Hello 
     <mark
+      class="content-schema_highlightClassNameByColor__neu0lcl"
       data-highlight-color="green"
     >
       world
@@ -1935,7 +1937,7 @@ exports[`italic 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-schema_docClassName__neu0lc0"
+  class="ProseMirror content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv1"
   contenteditable="true"
   role="textbox"
   translate="no"
@@ -1970,7 +1972,7 @@ exports[`link (XSS vulnerability) 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-schema_docClassName__neu0lc0"
+  class="ProseMirror content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv1"
   contenteditable="true"
   role="textbox"
   translate="no"
@@ -1980,7 +1982,7 @@ exports[`link (XSS vulnerability) 1`] = `
   >
     Hello 
     <a
-      class="content-schema_linkClassName__neu0lcj"
+      class="content-schema_linkClassName__neu0lco"
       href="about:blank#blocked"
       rel="noopener noreferrer"
       target="_blank"
@@ -1996,7 +1998,7 @@ exports[`link 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-schema_docClassName__neu0lc0"
+  class="ProseMirror content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv1"
   contenteditable="true"
   role="textbox"
   translate="no"
@@ -2006,7 +2008,7 @@ exports[`link 1`] = `
   >
     Hello 
     <a
-      class="content-schema_linkClassName__neu0lcj"
+      class="content-schema_linkClassName__neu0lco"
       href="https://example.com/"
       rel="noopener noreferrer"
       target="_blank"
@@ -2134,7 +2136,7 @@ exports[`ordered list plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-schema_docClassName__neu0lc0"
+  class="ProseMirror content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv1"
   contenteditable="true"
   role="textbox"
   translate="no"
@@ -2186,7 +2188,7 @@ exports[`ordered list with multiple items 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-schema_docClassName__neu0lc0"
+  class="ProseMirror content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv1"
   contenteditable="true"
   role="textbox"
   translate="no"
@@ -2256,7 +2258,7 @@ exports[`ordered list with sub-list 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-schema_docClassName__neu0lc0"
+  class="ProseMirror content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv1"
   contenteditable="true"
   role="textbox"
   translate="no"
@@ -2316,7 +2318,7 @@ exports[`ordered list with sub-list of another type 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-schema_docClassName__neu0lc0"
+  class="ProseMirror content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv1"
   contenteditable="true"
   role="textbox"
   translate="no"
@@ -2610,7 +2612,7 @@ exports[`paragraph plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-schema_docClassName__neu0lc0"
+  class="ProseMirror content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv1"
   contenteditable="true"
   role="textbox"
   translate="no"
@@ -2731,7 +2733,7 @@ exports[`quote plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-schema_docClassName__neu0lc0"
+  class="ProseMirror content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv1"
   contenteditable="true"
   role="textbox"
   translate="no"
@@ -2776,7 +2778,7 @@ exports[`strike 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-schema_docClassName__neu0lc0"
+  class="ProseMirror content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv1"
   contenteditable="true"
   role="textbox"
   translate="no"

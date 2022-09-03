@@ -32,7 +32,7 @@ export const uninterruptedThoughtLimitMs = 1000;
  * is quickly moving around then we don't present a tooltip because the user is
  * taking quick action and doesn't appear to need extra context.
  */
-export const presentExtraContextAfterDelayMs = uninterruptedThoughtLimitMs;
+export const presentExtraContextAfterDelayMs = 500;
 
 /**
  * Estimated milliseconds a below average typist would take to type a longer

@@ -96,7 +96,7 @@ const constantColors = Object.fromEntries(
 /**
  * Color variables that are set to some user determined theme value.
  */
-// TODO(calebmer): Allow switching theme color vars based on space settings.
+// TODO(calebmer): Allow switching theme color vars based on workspace settings.
 const themeColorSchemeVars = createGlobalTheme(":root", {
     "theme-5": baseColorSchemeVars["indigo-5"],
     "theme-10": baseColorSchemeVars["indigo-10"],

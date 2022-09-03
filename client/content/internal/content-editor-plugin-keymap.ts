@@ -9,7 +9,6 @@ import {
     selectNodeBackward,
     selectNodeForward,
     splitBlock,
-    toggleMark,
 } from "prosemirror-commands";
 import {redo, undo} from "prosemirror-history";
 import {undoInputRule} from "prosemirror-inputrules";
@@ -17,6 +16,7 @@ import {keymap} from "prosemirror-keymap";
 import {Node} from "prosemirror-model";
 import {EditorState, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
+import {createToggleMarkCommand} from "~/client/content/internal/content-editor-prosemirror-helpers";
 import {isMac} from "~/client/helpers/platform/is-mac";
 import {ContentSchema, maxListItemIndentation} from "~/shared/content/content-schema";
 
@@ -642,10 +642,10 @@ export function buildKeymapPlugin() {
     keys.set("Mod-a", selectAll);
 
     // Toggle inline formats
-    keys.set("Mod-b", toggleMark(ContentSchema.marks.bold));
-    keys.set("Mod-i", toggleMark(ContentSchema.marks.italic));
-    keys.set("Mod-shift-x", toggleMark(ContentSchema.marks.strike));
-    keys.set("Mod-shift-k", toggleMark(ContentSchema.marks.code));
+    keys.set("Mod-b", createToggleMarkCommand(ContentSchema.mark("bold")));
+    keys.set("Mod-i", createToggleMarkCommand(ContentSchema.mark("italic")));
+    keys.set("Mod-shift-x", createToggleMarkCommand(ContentSchema.mark("strike")));
+    keys.set("Mod-shift-k", createToggleMarkCommand(ContentSchema.mark("code")));
 
     // Highlight overlay
     keys.set("Mod-shift-h", (state, dispatch) => {

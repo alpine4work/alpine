@@ -13,16 +13,20 @@ import {
     TextItalic,
     TextStrikethrough,
 } from "phosphor-react";
-import {toggleMark} from "prosemirror-commands";
-import {Attrs, NodeType} from "prosemirror-model";
-import {Command, EditorState, Transaction} from "prosemirror-state";
-import {findWrapping} from "prosemirror-transform";
+import {Mark} from "prosemirror-model";
+import {Command, EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
-import {ReactNode, RefObject, useCallback, useEffect, useRef, useState} from "react";
+import {ReactNode, RefObject, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {FocusScope, mergeProps, useButton} from "react-aria";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content-editor-cursor-tracker";
 import {ContentEditorHighlightSelector} from "~/client/content/internal/content-editor-highlight-selector";
-import {ContentEditorSelectionLinkInput} from "~/client/content/internal/content-editor-link-input";
+import {ContentEditorLinkInput} from "~/client/content/internal/content-editor-link-input";
+import {
+    createToggleBlockTypeCommand,
+    createToggleListItemsCommand,
+    createToggleMarkCommand,
+    getMarksSpanningAcrossEntireRange,
+} from "~/client/content/internal/content-editor-prosemirror-helpers";
 import {Box} from "~/client/design/box";
 import {useLifecycleRef} from "~/client/design/helpers/use-lifecycle-ref";
 import {useOutsidePress} from "~/client/design/helpers/use-outside-press";
@@ -42,9 +46,6 @@ import {isMac} from "~/client/helpers/platform/is-mac";
 import {ContentSchema} from "~/shared/content/content-schema";
 import {spacing} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
-
-// TODO(calebmer): Show a style as activated if it is applied. (e.g. Bold,
-// italic, etc.)
 
 export function ContentEditorPointerToolbar({
     state,
@@ -108,7 +109,13 @@ export function ContentEditorPointerToolbar({
     // has a bit of delay before the animation begins so it isn't quite feature
     // compatible but consider consolidating someday.
     const [showState, setShowState] = useState<
-        {isShowing: true; pos: number; isLinkInputOpen: boolean} | {isShowing: false}
+        | {
+              isShowing: true;
+              pos: number;
+              animation: "FadingIn" | "FadingOut" | null;
+              isLinkInputOpen: boolean;
+          }
+        | {isShowing: false; animation?: undefined}
     >({isShowing: false});
 
     // Update our show state whenever the selection changes while the toolbar
@@ -119,11 +126,25 @@ export function ContentEditorPointerToolbar({
                 ? {
                       ...prevState,
                       pos: state.selection.from,
+                      animation:
+                          prevState.animation === "FadingOut" ? "FadingIn" : prevState.animation,
                       // Close the link input when the selection changes.
                       isLinkInputOpen: false,
                   }
                 : prevState,
         );
+    }
+
+    // If we should stop showing then start the fade out animation.
+    if (
+        !shouldShow &&
+        showState.isShowing &&
+        !showState.animation &&
+        // If the link input is open then our interaction modality switches to
+        // keyboard. Don't close the toolbar when this happens.
+        !showState.isLinkInputOpen
+    ) {
+        setShowState({...showState, animation: "FadingOut"});
     }
 
     useEffect(() => {
@@ -140,6 +161,7 @@ export function ContentEditorPointerToolbar({
                 setShowState({
                     isShowing: true,
                     pos: state.selection.from,
+                    animation: "FadingIn",
                     isLinkInputOpen: false,
                 });
             }, overlayFadeAnimationDurationMs);
@@ -150,18 +172,24 @@ export function ContentEditorPointerToolbar({
         }
     }, [hasSelectionChangedSinceMount, shouldShow, showState.isShowing, state.selection.from]);
 
-    const isFadingOut =
-        !shouldShow &&
-        showState.isShowing &&
-        // If the link input is open then our interaction modality switches to
-        // keyboard. Don't close the toolbar when this happens.
-        !showState.isLinkInputOpen;
+    useEffect(() => {
+        if (showState.isShowing && showState.animation === "FadingIn") {
+            const timeoutId = setTimeout(() => {
+                setShowState(showState =>
+                    showState.isShowing ? {...showState, animation: null} : showState,
+                );
+            }, overlayFadeAnimationDurationMs);
+            return () => {
+                clearTimeout(timeoutId);
+            };
+        }
+    }, [showState.animation, showState.isShowing]);
 
     // Keep the toolbar mounted for a bit before unmounting. This way if the user
     // is quickly clicking around they don't have to wait again for the delay that
     // shows the toolbar.
     useEffect(() => {
-        if (isFadingOut) {
+        if (showState.isShowing && showState.animation === "FadingOut") {
             const timeoutId = setTimeout(() => {
                 setShowState({isShowing: false});
             }, uninterruptedThoughtLimitMs);
@@ -170,7 +198,7 @@ export function ContentEditorPointerToolbar({
                 clearTimeout(timeoutId);
             };
         }
-    }, [showState, shouldShow, isFadingOut]);
+    }, [showState.isShowing, showState.animation]);
 
     if (!showState.isShowing) return null;
 
@@ -179,7 +207,7 @@ export function ContentEditorPointerToolbar({
             state={state}
             viewRef={viewRef}
             pos={showState.pos}
-            isFadingOut={isFadingOut}
+            animation={showState.animation}
             isLinkInputOpen={showState.isLinkInputOpen}
             onLinkInputOpen={() =>
                 setShowState(prevState =>
@@ -199,7 +227,7 @@ function ContentEditorPointerToolbarOverlay({
     state,
     viewRef,
     pos,
-    isFadingOut,
+    animation,
     isLinkInputOpen,
     onLinkInputOpen,
     onLinkInputClose,
@@ -207,7 +235,7 @@ function ContentEditorPointerToolbarOverlay({
     state: EditorState;
     viewRef: RefObject<EditorView | null>;
     pos: number;
-    isFadingOut: boolean;
+    animation: "FadingIn" | "FadingOut" | null;
     isLinkInputOpen: boolean;
     onLinkInputOpen: () => void;
     onLinkInputClose: () => void;
@@ -234,20 +262,25 @@ function ContentEditorPointerToolbarOverlay({
                 <div className={overlayAnimateContainerClassName}>
                     <Box
                         display="flex"
-                        paddingX="1"
+                        paddingLeft="1"
+                        paddingRight="0.5"
                         borderRadius="base"
                         backgroundColor={{light: "grey-0", dark: "grey-5"}}
                         boxShadow="elevation-20"
                         className={
-                            isFadingOut
+                            animation === "FadingIn"
+                                ? overlayAnimateFadeInClassName
+                                : animation === "FadingOut"
                                 ? overlayAnimateFadeOutClassName
-                                : overlayAnimateFadeInClassName
+                                : undefined
                         }
+                        style={{marginLeft: -1, marginRight: -1}}
                     >
                         <ContentEditorPointerToolbarButtons
+                            state={state}
                             viewRef={viewRef}
                             sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
-                            isFadingOut={isFadingOut}
+                            isFadingOut={animation === "FadingOut"}
                             isLinkInputOpen={isLinkInputOpen}
                             onLinkInputOpen={onLinkInputOpen}
                             onLinkInputClose={onLinkInputClose}
@@ -277,6 +310,7 @@ function ContentEditorPointerToolbarOverlay({
 }
 
 function ContentEditorPointerToolbarButtons({
+    state,
     viewRef,
     sharedTooltipLifecycleRef,
     isFadingOut,
@@ -284,6 +318,7 @@ function ContentEditorPointerToolbarButtons({
     onLinkInputOpen,
     onLinkInputClose,
 }: {
+    state: EditorState;
     viewRef: RefObject<EditorView | null>;
     sharedTooltipLifecycleRef: (tooltipRef: TooltipRef) => () => void;
     isFadingOut: boolean;
@@ -291,6 +326,22 @@ function ContentEditorPointerToolbarButtons({
     onLinkInputOpen: () => void;
     onLinkInputClose: () => void;
 }) {
+    const {isBold, isItalic, isStrike, activeLinkMark, activeHighlightMark} = useMemo(() => {
+        const marks = getMarksSpanningAcrossEntireRange(state.doc, state.selection);
+
+        const activeLinkMark = marks.find(mark => mark.type === ContentSchema.marks.link) ?? null;
+        const activeHighlightMark =
+            marks.find(mark => mark.type === ContentSchema.marks.highlight) ?? null;
+
+        return {
+            isBold: ContentSchema.mark("bold").isInSet(marks),
+            isItalic: ContentSchema.mark("italic").isInSet(marks),
+            isStrike: ContentSchema.mark("strike").isInSet(marks),
+            activeLinkMark,
+            activeHighlightMark,
+        };
+    }, [state.doc, state.selection]);
+
     return (
         <>
             <ContentEditorPointerToolbarButton
@@ -298,7 +349,8 @@ function ContentEditorPointerToolbarButtons({
                 keyboardShortcut={isMac ? "⌘+B" : "Ctrl+B"}
                 viewRef={viewRef}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
-                command={toggleMark(ContentSchema.marks.bold)}
+                isActive={isBold}
+                command={createToggleMarkCommand(ContentSchema.mark("bold"))}
             >
                 <TextBolder />
             </ContentEditorPointerToolbarButton>
@@ -307,7 +359,8 @@ function ContentEditorPointerToolbarButtons({
                 keyboardShortcut={isMac ? "⌘+I" : "Ctrl+I"}
                 viewRef={viewRef}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
-                command={toggleMark(ContentSchema.marks.italic)}
+                isActive={isItalic}
+                command={createToggleMarkCommand(ContentSchema.mark("italic"))}
             >
                 <TextItalic />
             </ContentEditorPointerToolbarButton>
@@ -316,14 +369,17 @@ function ContentEditorPointerToolbarButtons({
                 keyboardShortcut={isMac ? "⌘+Shift+X" : "Ctrl+Shift+X"}
                 viewRef={viewRef}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
-                command={toggleMark(ContentSchema.marks.strike)}
+                isActive={isStrike}
+                command={createToggleMarkCommand(ContentSchema.mark("strike"))}
             >
                 <TextStrikethrough />
             </ContentEditorPointerToolbarButton>
             <ContentEditorPointerToolbarLinkButton
+                state={state}
                 viewRef={viewRef}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                 isToolbarFadingOut={isFadingOut}
+                activeLinkMark={activeLinkMark}
                 isLinkInputOpen={isLinkInputOpen}
                 onLinkInputOpen={onLinkInputOpen}
                 onLinkInputClose={onLinkInputClose}
@@ -332,6 +388,7 @@ function ContentEditorPointerToolbarButtons({
                 viewRef={viewRef}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                 isToolbarFadingOut={isFadingOut}
+                activeHighlightMark={activeHighlightMark}
             />
             <ContentEditorPointerToolbarButton
                 dividerLeft
@@ -339,7 +396,8 @@ function ContentEditorPointerToolbarButtons({
                 keyboardShortcut="- Hello"
                 viewRef={viewRef}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
-                command={toggleListItems(ContentSchema.nodes.unorderedListItem)}
+                isActive={false}
+                command={createToggleListItemsCommand(ContentSchema.nodes.unorderedListItem)}
             >
                 <ListBullets />
             </ContentEditorPointerToolbarButton>
@@ -348,7 +406,8 @@ function ContentEditorPointerToolbarButtons({
                 keyboardShortcut="1. Hello"
                 viewRef={viewRef}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
-                command={toggleListItems(ContentSchema.nodes.orderedListItem)}
+                isActive={false}
+                command={createToggleListItemsCommand(ContentSchema.nodes.orderedListItem)}
             >
                 <ListNumbers />
             </ContentEditorPointerToolbarButton>
@@ -358,7 +417,8 @@ function ContentEditorPointerToolbarButtons({
                 keyboardShortcut="[ ] Hello"
                 viewRef={viewRef}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
-                command={toggleListItems(ContentSchema.nodes.checkListItem)}
+                isActive={false}
+                command={createToggleListItemsCommand(ContentSchema.nodes.checkListItem)}
             >
                 <ListChecks />
             </ContentEditorPointerToolbarButton>
@@ -368,7 +428,8 @@ function ContentEditorPointerToolbarButtons({
                 keyboardShortcut="# Hello"
                 viewRef={viewRef}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
-                command={toggleBlockType(ContentSchema.nodes.heading, {level: 1})}
+                isActive={false}
+                command={createToggleBlockTypeCommand(ContentSchema.nodes.heading, {level: 1})}
             >
                 <TextHOne />
             </ContentEditorPointerToolbarButton>
@@ -377,7 +438,8 @@ function ContentEditorPointerToolbarButtons({
                 keyboardShortcut="## Hello"
                 viewRef={viewRef}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
-                command={toggleBlockType(ContentSchema.nodes.heading, {level: 2})}
+                isActive={false}
+                command={createToggleBlockTypeCommand(ContentSchema.nodes.heading, {level: 2})}
             >
                 <TextHTwo />
             </ContentEditorPointerToolbarButton>
@@ -386,7 +448,8 @@ function ContentEditorPointerToolbarButtons({
                 keyboardShortcut="### Hello"
                 viewRef={viewRef}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
-                command={toggleBlockType(ContentSchema.nodes.heading, {level: 3})}
+                isActive={false}
+                command={createToggleBlockTypeCommand(ContentSchema.nodes.heading, {level: 3})}
             >
                 <TextHThree />
             </ContentEditorPointerToolbarButton>
@@ -399,21 +462,23 @@ function ContentEditorPointerToolbarButton({
     keyboardShortcut,
     viewRef,
     sharedTooltipLifecycleRef,
+    isActive,
+    isTooltipDisabled,
     command,
     children,
     dividerLeft,
     dividerRight,
-    hasOpenOverlay,
 }: {
     description: string;
     keyboardShortcut: string;
     viewRef: RefObject<EditorView | null>;
     sharedTooltipLifecycleRef: (tooltipRef: TooltipRef) => () => void;
+    isActive: boolean;
+    isTooltipDisabled?: boolean;
     command: Command;
     children: ReactNode;
     dividerLeft?: boolean;
     dividerRight?: boolean;
-    hasOpenOverlay?: boolean;
 }) {
     const onPress = () => {
         const view = viewRef.current;
@@ -437,7 +502,7 @@ function ContentEditorPointerToolbarButton({
     return (
         <Tooltip
             ref={useLifecycleRef(sharedTooltipLifecycleRef)}
-            disabled={hasOpenOverlay}
+            disabled={isTooltipDisabled}
             placement="top"
             // Don't allow flipping the tooltip down into selection content.
             canFlip={false}
@@ -470,16 +535,16 @@ function ContentEditorPointerToolbarButton({
                     // We implement dividers in this funky way so that as the mouse scrubs left and
                     // right over our toolbar the tooltips immediately disappear/reappear because
                     // there is no gap in between the hovered elements.
-                    paddingRight={dividerRight ? "1" : undefined}
+                    paddingRight={dividerRight ? "1" : "0.5"}
                     borderRight={dividerRight ? {light: "grey-10", dark: "grey-20"} : undefined}
                     paddingLeft={dividerLeft ? "1" : undefined}
                 >
                     <Box
                         padding="1"
                         borderRadius="base"
-                        color={isPressed || hasOpenOverlay ? "grey-100" : "grey-80"}
+                        color={isPressed || isActive ? "grey-100" : "grey-80"}
                         backgroundColor={
-                            isPressed || hasOpenOverlay
+                            isPressed || isActive
                                 ? {light: "grey-10", dark: "grey-20"}
                                 : isHovered
                                 ? {light: "grey-5", dark: "grey-10"}
@@ -502,16 +567,20 @@ function ContentEditorPointerToolbarButton({
 }
 
 function ContentEditorPointerToolbarLinkButton({
+    state,
     viewRef,
     sharedTooltipLifecycleRef,
     isToolbarFadingOut,
+    activeLinkMark,
     isLinkInputOpen,
     onLinkInputOpen,
     onLinkInputClose,
 }: {
+    state: EditorState;
     viewRef: RefObject<EditorView | null>;
     sharedTooltipLifecycleRef: (tooltipRef: TooltipRef) => () => void;
     isToolbarFadingOut: boolean;
+    activeLinkMark: Mark | null;
     isLinkInputOpen: boolean;
     onLinkInputOpen: () => void;
     onLinkInputClose: () => void;
@@ -535,15 +604,19 @@ function ContentEditorPointerToolbarLinkButton({
                     })}
                 >
                     {!isLinkInputOpen ? (
-                        <ContentEditorSelectionLinkInput
+                        <ContentEditorLinkInput
                             viewRef={viewRef}
+                            range={state.selection}
+                            mark={activeLinkMark}
                             isDisabled={true}
                             onClose={onLinkInputClose}
                         />
                     ) : (
                         <FocusScope contain restoreFocus autoFocus>
-                            <ContentEditorSelectionLinkInput
+                            <ContentEditorLinkInput
                                 viewRef={viewRef}
+                                range={state.selection}
+                                mark={activeLinkMark}
                                 onClose={onLinkInputClose}
                             />
                         </FocusScope>
@@ -555,7 +628,8 @@ function ContentEditorPointerToolbarLinkButton({
                 <ContentEditorPointerToolbarButton
                     description="Link"
                     keyboardShortcut={isMac ? "⌘+K" : "Ctrl+K"}
-                    hasOpenOverlay={isLinkInputOpen}
+                    isActive={isLinkInputOpen || !!activeLinkMark}
+                    isTooltipDisabled={isLinkInputOpen}
                     viewRef={viewRef}
                     sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                     command={() => {
@@ -584,10 +658,12 @@ function ContentEditorPointerToolbarHighlightButton({
     viewRef,
     sharedTooltipLifecycleRef,
     isToolbarFadingOut,
+    activeHighlightMark,
 }: {
     viewRef: RefObject<EditorView | null>;
     sharedTooltipLifecycleRef: (tooltipRef: TooltipRef) => () => void;
     isToolbarFadingOut: boolean;
+    activeHighlightMark: Mark | null;
 }) {
     const [_isOpen, setIsOpen] = useState(false);
     const isOpen = _isOpen && !isToolbarFadingOut;
@@ -613,6 +689,7 @@ function ContentEditorPointerToolbarHighlightButton({
                 >
                     <ContentEditorHighlightSelector
                         viewRef={viewRef}
+                        mark={activeHighlightMark}
                         isFocusable={false}
                         onClose={() => setIsOpen(false)}
                     />
@@ -624,10 +701,27 @@ function ContentEditorPointerToolbarHighlightButton({
                     dividerRight
                     description="Highlight"
                     keyboardShortcut={isMac ? "⌘+Shift+H" : "Ctrl+Shift+H"}
-                    hasOpenOverlay={isOpen}
+                    isActive={isOpen || !!activeHighlightMark}
+                    isTooltipDisabled={isOpen}
                     viewRef={viewRef}
                     sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                     command={() => {
+                        assert(viewRef.current);
+                        const {state, dispatch} = viewRef.current;
+
+                        // Clicking the highlight button when there is an active highlight mark removes
+                        // the highlight. Because the button is rendered in the activated style.
+                        if (activeHighlightMark) {
+                            dispatch(
+                                state.tr.removeMark(
+                                    state.selection.from,
+                                    state.selection.to,
+                                    ContentSchema.marks.highlight,
+                                ),
+                            );
+                            return true;
+                        }
+
                         // If the user clicks on this button to close the highlight color overlay then
                         // this `command` will run after the `useOutsidePress()` above which closes the
                         // overlay. We want the overlay to stay closed so we need to coordinate with
@@ -643,124 +737,4 @@ function ContentEditorPointerToolbarHighlightButton({
             </Box>
         </OverlayAnimated>
     );
-}
-
-function toggleBlockType(nodeType: NodeType, attrs: Attrs | null = null): Command {
-    return (state, dispatch) => {
-        let canAnyNodeBecomeBlockType = false;
-        let isEveryNodeAlreadyBlockType: boolean | undefined;
-
-        state.doc.nodesBetween(state.selection.from, state.selection.to, (node, pos) => {
-            // If we have found one node that can become our block type we don't need to
-            // keep iterating.
-            if (canAnyNodeBecomeBlockType) return false;
-
-            // Ignore nodes that aren't text blocks.
-            if (!node.isTextblock) return;
-
-            if (node.hasMarkup(nodeType, attrs)) {
-                if (isEveryNodeAlreadyBlockType === undefined) isEveryNodeAlreadyBlockType = true;
-                return;
-            }
-
-            // If we see one node that doesn't match the block type, set to false.
-            isEveryNodeAlreadyBlockType = false;
-
-            if (node.type === nodeType) {
-                canAnyNodeBecomeBlockType = true;
-            } else {
-                const $pos = state.doc.resolve(pos);
-                const index = $pos.index();
-                if ($pos.parent.canReplaceWith(index, index + 1, nodeType)) {
-                    canAnyNodeBecomeBlockType = true;
-                }
-            }
-        });
-
-        // If there were no nodes then this variable is false.
-        if (isEveryNodeAlreadyBlockType === undefined) isEveryNodeAlreadyBlockType = false;
-
-        if (isEveryNodeAlreadyBlockType) {
-            dispatch?.(
-                state.tr
-                    .setBlockType(
-                        state.selection.from,
-                        state.selection.to,
-                        ContentSchema.nodes.paragraph,
-                    )
-                    .scrollIntoView(),
-            );
-            return true;
-        }
-
-        if (canAnyNodeBecomeBlockType) {
-            dispatch?.(
-                state.tr
-                    .setBlockType(state.selection.from, state.selection.to, nodeType, attrs)
-                    .scrollIntoView(),
-            );
-            return true;
-        }
-
-        return false;
-    };
-}
-
-function toggleListItems(nodeType: NodeType): Command {
-    assert(nodeType.groups.includes("listItem"));
-
-    return (state, dispatch) => {
-        const toggleOnTransforms: Array<(transaction: Transaction) => Transaction> = [];
-        const toggleOffTransforms: Array<(transaction: Transaction) => Transaction> = [];
-
-        state.doc.nodesBetween(state.selection.from, state.selection.to, (node, pos) => {
-            const $pos = state.doc.resolve(pos);
-            const range = $pos.blockRange(state.doc.resolve(pos + node.nodeSize));
-
-            if (range) {
-                // If this node is already the list item node type, we want to remove the
-                // list item style if all other nodes are also of the list item type.
-                if (node.type === nodeType) {
-                    const $contentPos = state.doc.resolve(pos + 1);
-                    const contentRange = $contentPos.blockRange(
-                        state.doc.resolve(pos + node.nodeSize - 1),
-                    );
-                    assert(contentRange);
-                    toggleOffTransforms.push(tr => tr.lift(contentRange, $contentPos.depth - 1));
-                }
-                // If the node is another list item node type then we want to keep the node as
-                // a list item but switch it to our list item node type.
-                else if (node.type.groups.includes("listItem")) {
-                    toggleOnTransforms.push(tr =>
-                        tr.setNodeMarkup(pos, nodeType, {indent: node.attrs.indent}),
-                    );
-                }
-                // If the node is a text block (paragraph probably) then wrap it in a list item
-                // if possible.
-                else if (node.isTextblock) {
-                    const wrapping = findWrapping(range, nodeType);
-                    if (wrapping) {
-                        toggleOnTransforms.push(tr => tr.wrap(range, wrapping));
-                    }
-                }
-            }
-        });
-
-        if (toggleOnTransforms.length === 0 && toggleOffTransforms.length === 0) {
-            return false;
-        }
-
-        dispatch?.(
-            // If there are some non-list nodes that can be toggled on then we're toggling
-            // on. Otherwise toggle off by lifting list items.
-            (toggleOnTransforms.length > 0 ? toggleOnTransforms : toggleOffTransforms)
-                // We `reduceRight()` and apply our transforms in reverse because they affect
-                // the doc in ascending `pos` order. So each transform may adjust the positions
-                // in the doc after the content it changes. By applying in reverse order each
-                // transform won't affect the next transforms position.
-                .reduceRight((tr, transform) => transform(tr), state.tr)
-                .scrollIntoView(),
-        );
-        return true;
-    };
 }

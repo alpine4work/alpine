@@ -40,6 +40,8 @@ import {docClassName} from "~/shared/content/content-schema.css";
 import {assert} from "~/shared/helpers/control/assert";
 import {Id, generateId} from "~/shared/id/id";
 
+// TODO(calebmer): Implement touch toolbar for mobile.
+
 declare module "prosemirror-model" {
     // Augment `NodeType` with the undocumented `groups` array.
     interface NodeType {

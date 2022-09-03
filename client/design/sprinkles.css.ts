@@ -20,11 +20,6 @@ import {fontScale, fontWeights} from "~/shared/design/fonts";
 import {mobilePlatformMediaQuery, spacing} from "~/shared/design/spacing";
 import {mapObjectValues} from "~/shared/helpers/object/map-object-values";
 
-// TODO(calebmer): Add these styles:
-// - Border radius styles
-// - Elevation styles
-// - Focus ring styles
-
 const properties = defineProperties({
     properties: {
         overflow: ["auto", "hidden", "visible", "scroll"],
