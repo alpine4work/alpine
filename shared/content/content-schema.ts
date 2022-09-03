@@ -17,6 +17,7 @@ import {
     paragraphClassName,
     quoteBlockClassName,
     strikeClassName,
+    titleClassName,
 } from "~/shared/content/content-schema.css";
 import {HighlightColor, isHighlightColor} from "~/shared/content/highlight-color";
 import {parseRemLengthNumber} from "~/shared/design/spacing";
@@ -74,7 +75,24 @@ export const ContentSchema = new Schema({
          * Document root, every ProseMirror schema requires this.
          */
         doc: {
-            content: "block+",
+            content: "title block+",
+        },
+
+        /**
+         * Every document comes with a required title.
+         *
+         * The title must be plain text since we extract the title from the
+         * document and render it in other places.
+         *
+         * Since there is only one title node and it's required, the title node also
+         * contains some other attributes that are global to the document. Like the
+         * cover image.
+         */
+        title: {
+            content: "text*",
+            marks: "",
+            toDOM: () => ["h1", {class: titleClassName}, 0],
+            // TODO(calebmer): Parse DOM?
         },
 
         /**
@@ -572,4 +590,7 @@ function createListItemParseRule(firstListParentTagName: "ul" | "ol"): ParseRule
 /**
  * An empty doc for our content schema.
  */
-export const emptyContent = ContentSchema.node("doc", {}, [ContentSchema.node("paragraph")]);
+export const emptyContent = ContentSchema.node("doc", {}, [
+    ContentSchema.node("title"),
+    ContentSchema.node("paragraph"),
+]);

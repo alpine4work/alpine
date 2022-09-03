@@ -26,6 +26,12 @@ export const paragraphClassName = style({
     marginBottom: paragraphMargin,
 });
 
+export const titleClassName = style({
+    ...fontScale["2xl"],
+    fontWeight: fontWeights.bold,
+    marginBottom: headerBottomMargin,
+});
+
 export const headingLevel1ClassName = style({
     ...fontScale.xl,
     fontWeight: fontWeights.bold,
