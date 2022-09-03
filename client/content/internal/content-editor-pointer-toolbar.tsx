@@ -22,6 +22,8 @@ import {ContentEditorCursorTracker} from "~/client/content/internal/content-edit
 import {ContentEditorHighlightSelector} from "~/client/content/internal/content-editor-highlight-selector";
 import {ContentEditorLinkInput} from "~/client/content/internal/content-editor-link-input";
 import {
+    areAllNodesBlockType,
+    areAllNodesListItemType,
     createToggleBlockTypeCommand,
     createToggleListItemsCommand,
     createToggleMarkCommand,
@@ -395,7 +397,15 @@ function ContentEditorPointerToolbarButtons({
                 keyboardShortcut="- Hello"
                 viewRef={viewRef}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
-                isActive={false}
+                isActive={useMemo(
+                    () =>
+                        areAllNodesListItemType(
+                            state.doc,
+                            state.selection,
+                            ContentSchema.nodes.unorderedListItem,
+                        ),
+                    [state.doc, state.selection],
+                )}
                 command={createToggleListItemsCommand(ContentSchema.nodes.unorderedListItem)}
             >
                 <ListBullets />
@@ -405,7 +415,15 @@ function ContentEditorPointerToolbarButtons({
                 keyboardShortcut="1. Hello"
                 viewRef={viewRef}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
-                isActive={false}
+                isActive={useMemo(
+                    () =>
+                        areAllNodesListItemType(
+                            state.doc,
+                            state.selection,
+                            ContentSchema.nodes.orderedListItem,
+                        ),
+                    [state.doc, state.selection],
+                )}
                 command={createToggleListItemsCommand(ContentSchema.nodes.orderedListItem)}
             >
                 <ListNumbers />
@@ -416,7 +434,15 @@ function ContentEditorPointerToolbarButtons({
                 keyboardShortcut="[ ] Hello"
                 viewRef={viewRef}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
-                isActive={false}
+                isActive={useMemo(
+                    () =>
+                        areAllNodesListItemType(
+                            state.doc,
+                            state.selection,
+                            ContentSchema.nodes.checkListItem,
+                        ),
+                    [state.doc, state.selection],
+                )}
                 command={createToggleListItemsCommand(ContentSchema.nodes.checkListItem)}
             >
                 <ListChecks />
@@ -427,7 +453,16 @@ function ContentEditorPointerToolbarButtons({
                 keyboardShortcut="# Hello"
                 viewRef={viewRef}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
-                isActive={false}
+                isActive={useMemo(
+                    () =>
+                        areAllNodesBlockType(
+                            state.doc,
+                            state.selection,
+                            ContentSchema.nodes.heading,
+                            {level: 1},
+                        ),
+                    [state.doc, state.selection],
+                )}
                 command={createToggleBlockTypeCommand(ContentSchema.nodes.heading, {level: 1})}
             >
                 <TextHOne />
@@ -437,7 +472,16 @@ function ContentEditorPointerToolbarButtons({
                 keyboardShortcut="## Hello"
                 viewRef={viewRef}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
-                isActive={false}
+                isActive={useMemo(
+                    () =>
+                        areAllNodesBlockType(
+                            state.doc,
+                            state.selection,
+                            ContentSchema.nodes.heading,
+                            {level: 2},
+                        ),
+                    [state.doc, state.selection],
+                )}
                 command={createToggleBlockTypeCommand(ContentSchema.nodes.heading, {level: 2})}
             >
                 <TextHTwo />
@@ -447,7 +491,16 @@ function ContentEditorPointerToolbarButtons({
                 keyboardShortcut="### Hello"
                 viewRef={viewRef}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
-                isActive={false}
+                isActive={useMemo(
+                    () =>
+                        areAllNodesBlockType(
+                            state.doc,
+                            state.selection,
+                            ContentSchema.nodes.heading,
+                            {level: 3},
+                        ),
+                    [state.doc, state.selection],
+                )}
                 command={createToggleBlockTypeCommand(ContentSchema.nodes.heading, {level: 3})}
             >
                 <TextHThree />

@@ -234,6 +234,35 @@ export function createToggleBlockTypeCommand(
 }
 
 /**
+ * Are all nodes the provided block type?
+ *
+ * If true then we expect `createToggleBlockTypeCommand()` to toggle the block
+ * type off.
+ */
+export function areAllNodesBlockType(
+    parentNode: Node,
+    range: {from: number; to: number},
+    nodeType: NodeType,
+    attrs: Attrs | null = null,
+): boolean {
+    let areAllNodesBlockType: boolean | undefined;
+
+    parentNode.nodesBetween(range.from, range.to, node => {
+        if (areAllNodesBlockType === false) return false;
+        if (!node.isTextblock) return;
+
+        if (node.hasMarkup(nodeType, attrs)) {
+            areAllNodesBlockType = true;
+            return;
+        }
+
+        areAllNodesBlockType = false;
+    });
+
+    return areAllNodesBlockType ?? false;
+}
+
+/**
  * Creates a command that toggles list items on and off for the `EditorState`
  * selection.
  *
@@ -301,4 +330,42 @@ export function createToggleListItemsCommand(nodeType: NodeType): Command {
         );
         return true;
     };
+}
+
+/**
+ * Are all nodes the provided list item type?
+ *
+ * If true then we expect `createToggleListItemsCommand()` to toggle the block
+ * type off.
+ */
+export function areAllNodesListItemType(
+    parentNode: Node,
+    range: {from: number; to: number},
+    nodeType: NodeType,
+) {
+    assert(nodeType.groups.includes("listItem"));
+
+    let areAllNodesListItemType: boolean | undefined;
+
+    parentNode.nodesBetween(range.from, range.to, (node, pos) => {
+        if (areAllNodesListItemType === false) return false;
+
+        const $pos = parentNode.resolve(pos);
+        const blockRange = $pos.blockRange(parentNode.resolve(pos + node.nodeSize));
+
+        if (blockRange) {
+            if (node.type === nodeType) {
+                areAllNodesListItemType = true;
+            } else if (node.type.groups.includes("listItem")) {
+                areAllNodesListItemType = false;
+            } else if (node.isTextblock) {
+                const wrapping = findWrapping(blockRange, nodeType);
+                if (wrapping) {
+                    areAllNodesListItemType = false;
+                }
+            }
+        }
+    });
+
+    return areAllNodesListItemType ?? false;
 }
