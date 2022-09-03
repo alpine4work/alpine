@@ -29,6 +29,7 @@
         "@typescript-eslint/parser": "^5.30.7",
         "@vanilla-extract/babel-plugin": "^1.1.7",
         "@vanilla-extract/css": "^1.7.2",
+        "@vanilla-extract/dynamic": "^2.0.2",
         "@vanilla-extract/next-plugin": "^2.0.2",
         "@vanilla-extract/sprinkles": "^1.4.1",
         "babel-jest": "^28.1.3",

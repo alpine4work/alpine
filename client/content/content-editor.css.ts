@@ -1,16 +1,27 @@
 import {globalStyle, style} from "@vanilla-extract/css";
-import {headerBottomMargin, titleClassName} from "~/shared/content/content-schema.css";
+import {
+    paragraphMargin,
+    titleClassName,
+    titlePaddingTop,
+} from "~/shared/content/content-schema.css";
 import {colorSchemeVars} from "~/shared/design/color-scheme.css";
 import {fontScale, fontWeights} from "~/shared/design/fonts";
-import {parseRemLengthNumber} from "~/shared/design/spacing";
+import {parseRemLengthNumber, spacing} from "~/shared/design/spacing";
+
+export const containerClassName = style({
+    height: "100%",
+});
 
 export const emptyTitleClassName = style({});
 
 globalStyle(`${emptyTitleClassName}[aria-placeholder] > ${titleClassName}::before`, {
     content: "Untitled",
     position: "absolute",
-    top: 0,
-    left: 0,
+    top: titlePaddingTop,
+    left: "50%",
+    transform: "translateX(-50%)",
+    width: "100%",
+    maxWidth: spacing["192"],
     pointerEvents: "none",
     color: colorSchemeVars["grey-20"],
     ...fontScale["2xl"],
@@ -23,9 +34,16 @@ globalStyle(`${emptyBodyClassName}[aria-placeholder]::before`, {
     content: "attr(aria-placeholder)",
     position: "absolute",
     top: `${
-        parseRemLengthNumber(fontScale["2xl"].lineHeight) + parseRemLengthNumber(headerBottomMargin)
+        parseRemLengthNumber(titlePaddingTop) +
+        parseRemLengthNumber(fontScale["2xl"].lineHeight) +
+        parseRemLengthNumber(paragraphMargin)
     }rem`,
-    left: 0,
+    left: "50%",
+    transform: "translateX(-50%)",
+    width: "100%",
+    maxWidth: spacing["192"],
+    marginLeft: "auto",
+    marginRight: "auto",
     pointerEvents: "none",
     color: colorSchemeVars["grey-30"],
     ...fontScale.base,

@@ -19,6 +19,7 @@ import {
     useState,
 } from "react";
 import {
+    containerClassName,
     emptyBodyClassName,
     emptyTitleClassName,
     hideSelectionWhileUnfocusedClassName,
@@ -334,7 +335,7 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
         state,
         placeholder,
         className,
-        containerClassName,
+        containerClassName: customContainerClassName,
         "aria-label": ariaLabel,
         "aria-labelledby": ariaLabelledBy,
         onFocus,
@@ -705,7 +706,7 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
         <>
             <div
                 ref={elementRef}
-                className={containerClassName}
+                className={classNames(containerClassName, customContainerClassName)}
                 onFocus={onFocus}
                 onBlur={onBlur}
             />
@@ -796,13 +797,13 @@ function isCollabPlugin(plugin: Plugin) {
 }
 
 function isTitleEmpty(node: Node): boolean {
-    assert(node.type === ContentSchema.nodes.doc);
+    assert(node.type.name === "doc");
     const firstChildNode = node.child(0);
     return firstChildNode.type === ContentSchema.nodes.title && firstChildNode.content.size === 0;
 }
 
 function isBodyEmpty(node: Node): boolean {
-    assert(node.type === ContentSchema.nodes.doc);
+    assert(node.type.name === "doc");
     if (node.childCount !== 2) return false;
     const secondChildNode = node.child(1);
     return (

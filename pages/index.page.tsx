@@ -1,7 +1,7 @@
 import Head from "next/head";
 import {useEffect, useState} from "react";
 import {ContentEditor, ContentEditorState} from "~/client/content/content-editor";
-import {Box} from "~/client/design/box";
+import {sprinkles} from "~/client/design/sprinkles.css";
 import {ContentSchema} from "~/shared/content/content-schema";
 
 export default function Home() {
@@ -23,24 +23,20 @@ export default function Home() {
             <Head>
                 <title>Cyberworlds</title>
             </Head>
-            <main>
-                <Box width="full" display="flex" justifyContent="center">
-                    <Box width="full" maxWidth="192">
-                        <h1>Content editor</h1>
-                        <ContentEditor
-                            state={state}
-                            onChange={state => {
-                                localStorage.setItem(
-                                    "indexContentJson",
-                                    JSON.stringify(state.doc.toJSON()),
-                                );
-                                setState(state);
-                            }}
-                            aria-label="Content editor"
-                            placeholder="Share your ideas…"
-                        />
-                    </Box>
-                </Box>
+            <main className={sprinkles({height: "full"})}>
+                <ContentEditor
+                    state={state}
+                    onChange={state => {
+                        localStorage.setItem(
+                            "indexContentJson",
+                            JSON.stringify(state.doc.toJSON()),
+                        );
+                        setState(state);
+                    }}
+                    aria-label="Content editor"
+                    placeholder="Share your ideas…"
+                    className={sprinkles({paddingBottom: "24"})}
+                />
             </main>
         </>
     );

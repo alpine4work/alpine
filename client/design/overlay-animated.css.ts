@@ -57,6 +57,7 @@ const overlayFadeInOutTimingFunction = "cubic-bezier(0.4, 0, 0.2, 1)";
 export const overlayAnimateContainerClassName = style({});
 
 export const overlayAnimateFadeInClassName = style({
+    pointerEvents: "none",
     selectors: {
         [`${overlayAnimateContainerClassName}[data-popper-placement^=top] &`]: {
             animation: `${overlayFadeInTopKeyframes} ${overlayFadeAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`,
@@ -74,6 +75,7 @@ export const overlayAnimateFadeInClassName = style({
 });
 
 export const overlayAnimateFadeOutClassName = style({
+    pointerEvents: "none",
     selectors: {
         [`${overlayAnimateContainerClassName}[data-popper-placement^=top] &`]: {
             animation: `${overlayFadeOutTopKeyframes} ${overlayFadeAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`,

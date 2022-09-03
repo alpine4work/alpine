@@ -24,6 +24,7 @@ specifiers:
   '@typescript-eslint/parser': ^5.30.7
   '@vanilla-extract/babel-plugin': ^1.1.7
   '@vanilla-extract/css': ^1.7.2
+  '@vanilla-extract/dynamic': ^2.0.2
   '@vanilla-extract/next-plugin': ^2.0.2
   '@vanilla-extract/sprinkles': ^1.4.1
   babel-jest: ^28.1.3
@@ -74,6 +75,7 @@ dependencies:
   '@typescript-eslint/parser': 5.30.7_he2ccbldppg44uulnyq4rwocfa
   '@vanilla-extract/babel-plugin': 1.1.7
   '@vanilla-extract/css': 1.7.2
+  '@vanilla-extract/dynamic': 2.0.2
   '@vanilla-extract/next-plugin': 2.0.2_next@12.2.3+webpack@5.74.0
   '@vanilla-extract/sprinkles': 1.4.1_@vanilla-extract+css@1.7.2
   babel-jest: 28.1.3_@babel+core@7.18.9
@@ -3575,6 +3577,12 @@ packages:
       escape-string-regexp: 4.0.0
       media-query-parser: 2.0.2
       outdent: 0.8.0
+    dev: false
+
+  /@vanilla-extract/dynamic/2.0.2:
+    resolution: {integrity: sha512-U4nKaEQ8Kuz+exXEr51DUpyaOuzo24/S/k1YbDPQR06cYcNjQqvwFRnwWtZ+9ImocqM1wTKtzrdUgSTtLGIwAg==}
+    dependencies:
+      '@vanilla-extract/private': 1.0.3
     dev: false
 
   /@vanilla-extract/integration/5.0.0:

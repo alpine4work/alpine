@@ -1,4 +1,4 @@
-import {globalStyle, style} from "@vanilla-extract/css";
+import {createVar, globalStyle, style} from "@vanilla-extract/css";
 import {colorByHighlightColor} from "~/shared/content/highlight-color";
 import {colorSchemeVars} from "~/shared/design/color-scheme.css";
 import {fontScale, fontWeights, monospaceFontFamily} from "~/shared/design/fonts";
@@ -10,54 +10,69 @@ import {
 } from "~/shared/design/spacing";
 import {mapObjectValues} from "~/shared/helpers/object/map-object-values";
 
-const paragraphMargin = spacing["3"];
-
-export const headerBottomMargin = spacing["1"];
+export const paragraphMargin = spacing["3"];
 const headerTopMargin = spacing["8"];
 
 export const docClassName = style({
     position: "relative",
+    minHeight: "100%",
     color: colorSchemeVars["grey-100"],
     userSelect: "auto",
 });
 
-export const paragraphClassName = style({
-    ...fontScale.base,
-    marginTop: headerBottomMargin,
+const blockStyles = {
+    width: "100%",
+    maxWidth: spacing["192"],
+    marginLeft: "auto",
+    marginRight: "auto",
+};
+
+export const titlePaddingTop = spacing["32"];
+
+export const titleClassName = style({
+    ...blockStyles,
+    ...fontScale["2xl"],
+    fontWeight: fontWeights.bold,
+    paddingTop: titlePaddingTop,
     marginBottom: paragraphMargin,
 });
 
-export const titleClassName = style({
-    ...fontScale["2xl"],
-    fontWeight: fontWeights.bold,
-    marginBottom: headerBottomMargin,
+export const paragraphClassName = style({
+    ...blockStyles,
+    ...fontScale.base,
+    marginTop: paragraphMargin,
+    marginBottom: paragraphMargin,
 });
 
 export const headingLevel1ClassName = style({
+    ...blockStyles,
     ...fontScale.xl,
     fontWeight: fontWeights.bold,
     marginTop: headerTopMargin,
-    marginBottom: headerBottomMargin,
+    marginBottom: paragraphMargin,
 });
 
 export const headingLevel2ClassName = style({
+    ...blockStyles,
     ...fontScale.lg,
     fontWeight: fontWeights.bold,
     marginTop: headerTopMargin,
-    marginBottom: headerBottomMargin,
+    marginBottom: paragraphMargin,
 });
 
 export const headingLevel3ClassName = style({
+    ...blockStyles,
     ...fontScale.base,
     fontWeight: fontWeights.bold,
     marginTop: headerTopMargin,
-    marginBottom: headerBottomMargin,
+    marginBottom: paragraphMargin,
 });
 
 const quoteBlockIndentation = spacing["4"];
 const quoteBlockBorderWidth = "0.1875rem";
 
 export const quoteBlockClassName = style({
+    ...blockStyles,
     paddingLeft:
         parseRemLengthNumber(quoteBlockIndentation) -
         parseRemLengthNumber(quoteBlockBorderWidth) +
@@ -78,12 +93,15 @@ export const quoteBlockClassName = style({
 // In the ordered list case, numbers are easier to understand than letters or
 // roman numerals.
 
-export const listItemIndentation = spacing["8"];
+const listItemIndentation = spacing["8"];
+export const listItemIndentationVar = createVar();
 
 const bulletListItemBulletSize = spacing["1.5"];
 
 export const listItemClassName = style({
+    ...blockStyles,
     position: "relative",
+    paddingLeft: `calc((${listItemIndentationVar} + 1) * ${listItemIndentation})`,
 });
 
 export const bulletListItemClassName = style({
@@ -97,10 +115,10 @@ export const bulletListItemClassName = style({
             width: bulletListItemBulletSize,
             height: bulletListItemBulletSize,
             top: "0.625rem",
-            left:
+            left: `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${
                 parseRemLengthNumber(listItemIndentation) / 2 -
-                parseRemLengthNumber(bulletListItemBulletSize) / 2 +
-                "rem",
+                parseRemLengthNumber(bulletListItemBulletSize) / 2
+            }rem)`,
         },
     },
 });
@@ -111,7 +129,8 @@ export const orderedListItemClassName = style({
             content: 'attr(data-list-number) "."',
             position: "absolute",
             pointerEvents: "none",
-            left: spacing["6"],
+            top: 0,
+            left: `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${spacing["6"]})`,
             textAlign: "right",
             transform: "translateX(-100%)",
             ...fontScale.base,
@@ -134,12 +153,12 @@ export const checkListItemContentClassName = style({});
 export const checkListItemCheckboxContainerClassName = style({
     position: "absolute",
     top: 0,
-    left:
+    left: `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${
         parseRemLengthNumber(listItemIndentation) / 2 -
         (parseRemLengthNumber(checkListItemCheckboxDesktopSize) +
             parseRemLengthNumber(spacing["1"]) * 2) /
-            2 +
-        "rem",
+            2
+    }rem)`,
     borderRadius: "100%",
     padding: spacing["1"],
     cursor: "default",
@@ -147,12 +166,12 @@ export const checkListItemCheckboxContainerClassName = style({
     "@media": {
         [mobilePlatformMediaQuery]: {
             top: `-${spacing["0.5"]}`,
-            left:
+            left: `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${
                 parseRemLengthNumber(listItemIndentation) / 2 -
                 (parseRemLengthNumber(checkListItemCheckboxMobileSize) +
                     parseRemLengthNumber(spacing["1"]) * 2) /
-                    2 +
-                "rem",
+                    2
+            }rem)`,
         },
     },
 });
@@ -200,6 +219,7 @@ export const checkListItemCheckboxPressedClassName = style({
 });
 
 export const dividerClassName = style({
+    ...blockStyles,
     marginTop: headerTopMargin,
     marginBottom: headerTopMargin,
     borderColor: colorSchemeVars["grey-20"],

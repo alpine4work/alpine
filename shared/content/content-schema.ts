@@ -1,3 +1,5 @@
+import {assignInlineVars} from "@vanilla-extract/dynamic";
+import classNames from "classnames";
 import {Node, ParseRule, Schema} from "prosemirror-model";
 import {
     boldClassName,
@@ -12,7 +14,7 @@ import {
     italicClassName,
     linkClassName,
     listItemClassName,
-    listItemIndentation,
+    listItemIndentationVar,
     orderedListItemClassName,
     paragraphClassName,
     quoteBlockClassName,
@@ -20,7 +22,6 @@ import {
     titleClassName,
 } from "~/shared/content/content-schema.css";
 import {HighlightColor, isHighlightColor} from "~/shared/content/highlight-color";
-import {parseRemLengthNumber} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
 
 // TODO(calebmer): Consider including custom hero header images using abstract
@@ -37,12 +38,6 @@ export function clampListItemIndentation(indent: unknown): number {
     return typeof indent === "number"
         ? Math.min(Math.max(0, Math.floor(indent)), maxListItemIndentation)
         : 0;
-}
-
-function getListItemIndentationStyle(indentation: number): string {
-    return `margin-left:${
-        parseRemLengthNumber(listItemIndentation) * indentation
-    }rem;padding-left:${listItemIndentation}`;
 }
 
 const allowedLinkProtocols: ReadonlySet<string> = new Set(["http", "https"]);
@@ -92,7 +87,16 @@ export const ContentSchema = new Schema({
             content: "text*",
             marks: "",
             toDOM: () => ["h1", {class: titleClassName}, 0],
-            // TODO(calebmer): Parse DOM?
+            // Try to parse as a `heading`. If we can't (because it's the first position in
+            // a document) then parse as a title.
+            parseDOM: [
+                {tag: "h1", priority: 40},
+                {tag: "h2", priority: 40},
+                {tag: "h3", priority: 40},
+                {tag: "h4", priority: 40},
+                {tag: "h5", priority: 40},
+                {tag: "h6", priority: 40},
+            ],
         },
 
         /**
@@ -163,10 +167,12 @@ export const ContentSchema = new Schema({
                 ];
             },
             parseDOM: [
-                {tag: "h1", attrs: {level: 1}},
-                {tag: "h2", attrs: {level: 1}},
-                {tag: "h3", attrs: {level: 2}},
-                {tag: "h4", attrs: {level: 3}},
+                {tag: "h1", priority: 50, attrs: {level: 1}},
+                {tag: "h2", priority: 50, attrs: {level: 1}},
+                {tag: "h3", priority: 50, attrs: {level: 2}},
+                {tag: "h4", priority: 50, attrs: {level: 3}},
+                {tag: "h5", priority: 50, attrs: {level: 3}},
+                {tag: "h6", priority: 50, attrs: {level: 3}},
             ],
         },
 
@@ -249,8 +255,8 @@ export const ContentSchema = new Schema({
                 return [
                     "div",
                     {
-                        class: `${listItemClassName} ${bulletListItemClassName}`,
-                        style: getListItemIndentationStyle(indent),
+                        class: classNames(listItemClassName, bulletListItemClassName),
+                        style: assignInlineVars({[listItemIndentationVar]: indent.toString()}),
                     },
                     0,
                 ];
@@ -274,8 +280,8 @@ export const ContentSchema = new Schema({
                 return [
                     "div",
                     {
-                        class: `${listItemClassName} ${orderedListItemClassName}`,
-                        style: getListItemIndentationStyle(indent),
+                        class: classNames(listItemClassName, orderedListItemClassName),
+                        style: assignInlineVars({[listItemIndentationVar]: indent.toString()}),
                         "data-list-indent": indent,
                         // Should be overridden by a custom `NodeView`.
                         "data-list-number": 0,
@@ -305,10 +311,10 @@ export const ContentSchema = new Schema({
                 return [
                     "div",
                     {
-                        class: node.attrs.checked
-                            ? `${listItemClassName} ${checkListItemCheckedClassName}`
-                            : listItemClassName,
-                        style: getListItemIndentationStyle(indent),
+                        class: classNames(listItemClassName, {
+                            [checkListItemCheckedClassName]: node.attrs.checked,
+                        }),
+                        style: assignInlineVars({[listItemIndentationVar]: indent.toString()}),
                     },
                     0,
                 ];

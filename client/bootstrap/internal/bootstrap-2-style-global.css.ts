@@ -48,6 +48,10 @@ globalStyle("body", {
     letterSpacing: fontScale.sm.letterSpacing,
 });
 
+globalStyle("html, body, #__next", {
+    height: "100%",
+});
+
 globalStyle("*", {
     // Remove focus outline from all elements. Components should manually add a
     // focus state using `useFocusRing()` which makes sure we don't apply a ring
