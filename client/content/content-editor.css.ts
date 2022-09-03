@@ -60,8 +60,19 @@ globalStyle(`${hideSelectionWhileUnfocusedClassName} *::-moz-selection`, {
 
 export const unfocusedSelectionClassName = style({
     backgroundColor: colorSchemeVars["grey-10"],
-    // Make sure the background covers the entire line-height with an `inline-block` display type.
-    display: "inline-block",
+    // Really careful padding to try and get our background color height to match
+    // the height of the operating system text selection. Only tested on MacOS so
+    // far. Maybe there's a better way?
+    paddingTop: `calc(${
+        (parseRemLengthNumber(fontScale.base.lineHeight) -
+            parseRemLengthNumber(fontScale.base.fontSize)) /
+        2
+    }rem - 2px)`,
+    paddingBottom: `calc(${
+        (parseRemLengthNumber(fontScale.base.lineHeight) -
+            parseRemLengthNumber(fontScale.base.fontSize)) /
+        2
+    }rem - 1px)`,
 });
 
 // We use our `<FocusRing>` class for highlighting a selected node.
