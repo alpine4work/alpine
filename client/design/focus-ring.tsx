@@ -1,3 +1,4 @@
+import {Instance, Rect, createPopper} from "@popperjs/core";
 import {
     ReactElement,
     Ref,
@@ -31,7 +32,7 @@ export {FocusRingForwardRef as FocusRing};
  */
 function FocusRing(
     {
-        offset = "0.5",
+        offset,
         children,
     }: {
         /**
@@ -49,7 +50,7 @@ function FocusRing(
     foreignRef: Ref<HTMLElement>,
 ) {
     const [isFocused, setIsFocused] = useState(false);
-    const ringStylesRef = useRef<FocusRingBoxRingStyles | null>(null);
+    const targetRef = useRef<HTMLElement | null>(null);
 
     const {isFocusVisible} = useFocusVisible({
         // When `isTextInput` is true only "Tab" and "Escape" keys put us in visible
@@ -58,20 +59,7 @@ function FocusRing(
     });
 
     const targetLifecycleRef = useCallback((targetElement: HTMLElement) => {
-        ringStylesRef.current = {
-            borderTopLeftRadius: parseBorderRadius(
-                getComputedStyle(targetElement).borderTopLeftRadius,
-            ),
-            borderTopRightRadius: parseBorderRadius(
-                getComputedStyle(targetElement).borderTopRightRadius,
-            ),
-            borderBottomLeftRadius: parseBorderRadius(
-                getComputedStyle(targetElement).borderBottomLeftRadius,
-            ),
-            borderBottomRightRadius: parseBorderRadius(
-                getComputedStyle(targetElement).borderBottomRightRadius,
-            ),
-        };
+        targetRef.current = targetElement;
 
         const handleFocus = (event: FocusEvent) => {
             if (event.target === event.currentTarget) {
@@ -102,7 +90,7 @@ function FocusRing(
             sameHeight={true}
             overlay={
                 <Box pointerEvents="none">
-                    <FocusRingBox offset={offset} ringStylesRef={ringStylesRef} />
+                    <FocusRingBox offset={offset} targetRef={targetRef} />
                 </Box>
             }
         >
@@ -114,19 +102,103 @@ function FocusRing(
     );
 }
 
-type FocusRingBoxRingStyles = {
-    borderTopLeftRadius: number | string;
-    borderTopRightRadius: number | string;
-    borderBottomLeftRadius: number | string;
-    borderBottomRightRadius: number | string;
-};
+/**
+ * A `<FocusRing>` but always visible and instead of targeting a React child it
+ * targets a DOM node.
+ */
+export function FocusRingPortal({offset, element}: {offset?: Spacing; element: HTMLElement}) {
+    const ringRef = useRef<HTMLDivElement>(null);
+    const popperRef = useRef<Instance | null>(null);
+
+    useLayoutEffect(() => {
+        assert(ringRef.current);
+
+        const popper = createPopper(element, ringRef.current, {
+            placement: "top-start",
+            modifiers: [
+                {
+                    name: "preventOverflow",
+                    enabled: false,
+                },
+                {
+                    name: "flip",
+                    enabled: false,
+                },
+                {
+                    name: "offset",
+                    enabled: true,
+                    options: {
+                        offset: ({reference, popper}: {reference: Rect; popper: Rect}) => {
+                            return [
+                                reference.width / 2 - popper.width / 2,
+                                -popper.height / 2 - reference.height / 2,
+                            ];
+                        },
+                    },
+                },
+                {
+                    name: "sameWidth",
+                    enabled: true,
+                    phase: "beforeWrite",
+                    requires: ["computeStyles"],
+                    fn: ({state}) => {
+                        state.styles.popper!.width = `${state.rects.reference.width}px`;
+                    },
+                    effect: ({state}) => {
+                        state.elements.popper.style.width = `${
+                            (state.elements.reference as HTMLElement).offsetWidth
+                        }px`;
+                    },
+                },
+                {
+                    name: "sameHeight",
+                    enabled: true,
+                    phase: "beforeWrite",
+                    requires: ["computeStyles"],
+                    fn: ({state}) => {
+                        state.styles.popper!.height = `${state.rects.reference.height}px`;
+                    },
+                    effect: ({state}) => {
+                        state.elements.popper.style.height = `${
+                            (state.elements.reference as HTMLElement).offsetHeight
+                        }px`;
+                    },
+                },
+            ],
+        });
+
+        popperRef.current = popper;
+
+        return () => {
+            popperRef.current = null;
+            popper.destroy();
+        };
+    }, [element]);
+
+    // Update popper every React re-render.
+    useLayoutEffect(() => {
+        assert(popperRef.current);
+        popperRef.current.forceUpdate();
+    });
+
+    const targetRef = useRef(element);
+    useLayoutEffect(() => {
+        targetRef.current = element;
+    });
+
+    return (
+        <Box ref={ringRef} pointerEvents="none">
+            <FocusRingBox offset={offset} targetRef={targetRef} />
+        </Box>
+    );
+}
 
 function FocusRingBox({
-    offset,
-    ringStylesRef,
+    offset = "0.5",
+    targetRef,
 }: {
-    offset: Spacing;
-    ringStylesRef: RefObject<FocusRingBoxRingStyles | null>;
+    offset?: Spacing;
+    targetRef: RefObject<HTMLElement | null>;
 }) {
     const ringRef = useRef<HTMLDivElement>(null);
 
@@ -138,7 +210,16 @@ function FocusRingBox({
     assert(ringOffsetPx !== null);
 
     useLayoutEffect(() => {
-        assert(ringRef.current && ringStylesRef.current);
+        assert(ringRef.current && targetRef.current);
+
+        const targetStyle = getComputedStyle(targetRef.current);
+
+        const ringStyle = {
+            borderTopLeftRadius: parseBorderRadius(targetStyle.borderTopLeftRadius),
+            borderTopRightRadius: parseBorderRadius(targetStyle.borderTopRightRadius),
+            borderBottomLeftRadius: parseBorderRadius(targetStyle.borderBottomLeftRadius),
+            borderBottomRightRadius: parseBorderRadius(targetStyle.borderBottomRightRadius),
+        };
 
         // Tweak border radius because of our ring offset. Using formula:
         //
@@ -163,40 +244,38 @@ function FocusRingBox({
         // Formula is from:
         // https://twitter.com/joshwcomeau/status/1349782080021028865?lang=en
 
-        if (typeof ringStylesRef.current.borderTopLeftRadius === "number") {
+        if (typeof ringStyle.borderTopLeftRadius === "number") {
             ringRef.current.style.borderTopLeftRadius = `${
-                ringStylesRef.current.borderTopLeftRadius + ringOffsetPx + ringWidthPx
+                ringStyle.borderTopLeftRadius + ringOffsetPx + ringWidthPx
             }px`;
         } else {
-            ringRef.current.style.borderTopLeftRadius = ringStylesRef.current.borderTopLeftRadius;
+            ringRef.current.style.borderTopLeftRadius = ringStyle.borderTopLeftRadius;
         }
 
-        if (typeof ringStylesRef.current.borderTopRightRadius === "number") {
+        if (typeof ringStyle.borderTopRightRadius === "number") {
             ringRef.current.style.borderTopRightRadius = `${
-                ringStylesRef.current.borderTopRightRadius + ringOffsetPx + ringWidthPx
+                ringStyle.borderTopRightRadius + ringOffsetPx + ringWidthPx
             }px`;
         } else {
-            ringRef.current.style.borderTopRightRadius = ringStylesRef.current.borderTopRightRadius;
+            ringRef.current.style.borderTopRightRadius = ringStyle.borderTopRightRadius;
         }
 
-        if (typeof ringStylesRef.current.borderBottomLeftRadius === "number") {
+        if (typeof ringStyle.borderBottomLeftRadius === "number") {
             ringRef.current.style.borderBottomLeftRadius = `${
-                ringStylesRef.current.borderBottomLeftRadius + ringOffsetPx + ringWidthPx
+                ringStyle.borderBottomLeftRadius + ringOffsetPx + ringWidthPx
             }px`;
         } else {
-            ringRef.current.style.borderBottomLeftRadius =
-                ringStylesRef.current.borderBottomLeftRadius;
+            ringRef.current.style.borderBottomLeftRadius = ringStyle.borderBottomLeftRadius;
         }
 
-        if (typeof ringStylesRef.current.borderBottomRightRadius === "number") {
+        if (typeof ringStyle.borderBottomRightRadius === "number") {
             ringRef.current.style.borderBottomRightRadius = `${
-                ringStylesRef.current.borderBottomRightRadius + ringOffsetPx + ringWidthPx
+                ringStyle.borderBottomRightRadius + ringOffsetPx + ringWidthPx
             }px`;
         } else {
-            ringRef.current.style.borderBottomRightRadius =
-                ringStylesRef.current.borderBottomRightRadius;
+            ringRef.current.style.borderBottomRightRadius = ringStyle.borderBottomRightRadius;
         }
-    }, [ringOffsetPx, ringStylesRef]);
+    }, [ringOffsetPx, targetRef]);
 
     return (
         <Box

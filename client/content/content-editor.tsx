@@ -9,7 +9,15 @@ import {Node, Slice} from "prosemirror-model";
 import {EditorState, Plugin, PluginKey, Transaction} from "prosemirror-state";
 import {Step} from "prosemirror-transform";
 import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
-import {Ref, forwardRef, useImperativeHandle, useLayoutEffect, useRef, useState} from "react";
+import {
+    Ref,
+    forwardRef,
+    useEffect,
+    useImperativeHandle,
+    useLayoutEffect,
+    useRef,
+    useState,
+} from "react";
 import {
     emptyContentEditorClassName,
     hideSelectionWhileUnfocusedClassName,
@@ -31,6 +39,7 @@ import {
     openKeyboardLinkFloaterMetaKey,
 } from "~/client/content/internal/content-editor-plugin-keymap";
 import {trimSpacesFromRange} from "~/client/content/internal/content-editor-prosemirror-helpers";
+import {FocusRingPortal} from "~/client/design/focus-ring";
 import {isMac} from "~/client/helpers/platform/is-mac";
 import {
     ContentSchema,
@@ -210,9 +219,6 @@ function unwrap(state: ContentEditorState): EditorState {
     // @ts-expect-error it's ok to wrap/unwrap editor state in this file.
     return state._state;
 }
-
-// TODO(calebmer): Style for node selection? You can enter into this by double
-// clicking on a list item.
 
 // TODO(calebmer): Make content editor SSR safe by rendering it as read-only on
 // the server and mounting as editable on the client after hydration.
@@ -661,6 +667,33 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
         };
     }, []);
 
+    // Keep track of the element ProseMirror marks as selected with the
+    // `ProseMirror-selectednode` CSS class so that we can render our own custom
+    // ring around it.
+    //
+    // TODO(calebmer): Test that the selected element ring moves when
+    // collaboratively editing.
+    const [selectedNodeElement, setSelectedNodeElement] = useState<HTMLElement | null>(null);
+    useEffect(() => {
+        // We don't do anything with `lastTransactionTime` in this effect, but we
+        // want the effect to re-run whenever it changes. We optimistically update
+        // our `EditorView` state as an optimization. When React finishes committing
+        // we reconcile the prop state with the `EditorView` state in this effect.
+        //
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        lastTransactionTime;
+
+        assert(viewRef.current);
+        const selectedNodeElement = viewRef.current.dom.getElementsByClassName(
+            "ProseMirror-selectednode",
+        )[0];
+        if (selectedNodeElement instanceof HTMLElement) {
+            setSelectedNodeElement(selectedNodeElement);
+        } else {
+            setSelectedNodeElement(null);
+        }
+    }, [lastTransactionTime]);
+
     return (
         <>
             <div
@@ -677,6 +710,7 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
                 isFocused={isFocused}
                 lastSelectionChangeTransactionTime={lastSelectionChangeTransactionTime}
             />
+            {selectedNodeElement && <FocusRingPortal element={selectedNodeElement} />}
         </>
     );
 }

@@ -40,3 +40,8 @@ export const unfocusedSelectionClassName = style({
     // Make sure the background covers the entire line-height with an `inline-block` display type.
     display: "inline-block",
 });
+
+// We use our `<FocusRing>` class for highlighting a selected node.
+globalStyle(".ProseMirror-selectednode", {
+    outline: "none",
+});
