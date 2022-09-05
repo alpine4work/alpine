@@ -1,6 +1,11 @@
 /**
  * Ids in our system are 128 bits of randomness encoded in 26 base-32
  * characters.
+ *
+ * They carry the same information as a [UUID][1] but with a more compact
+ * encoding.
+ *
+ * [1]: https://en.wikipedia.org/wiki/Universally_unique_identifier
  */
 export type Id = string & {readonly _Id: never};
 
