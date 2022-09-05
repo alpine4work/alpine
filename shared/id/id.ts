@@ -16,6 +16,39 @@ export type Id = string & {readonly _Id: never};
  */
 const alphabet = "0123456789abcdefghjkmnpqrstvwxyz";
 
+let alphabetSet: Set<string>;
+
+/**
+ * The length of an ID.
+ */
+export const idLength = 26;
+
+/**
+ * The maximum `Id` string we can generate. The 26 characters that make up an
+ * ID can store 130 bits of information but we want to limit ourselves to 128
+ * bits. That way we can represent the `Id` as an integer.
+ */
+export const maxId = "zzzzzzzzzzzzzzzzzzzzzzzzzw" as Id;
+
+/**
+ * Is the provided string a valid `Id`?
+ */
+export function isId(string: string): string is Id {
+    if (string.length !== idLength) return false;
+
+    // Lazily initialize the alphabet set.
+    if (!alphabetSet) alphabetSet = new Set(alphabet);
+
+    for (let index = 0; index < string.length; index++) {
+        const char = string[index]!;
+        if (!alphabetSet.has(char)) return false;
+    }
+
+    if (string > maxId) return false;
+
+    return true;
+}
+
 /**
  * Generate a new random id using a cryptographically secure source of
  * randomness.
