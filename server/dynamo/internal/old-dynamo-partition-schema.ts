@@ -7,8 +7,8 @@ import {
     DynamoPartitionRangeDescription,
     DynamoPartitionRangeSchema,
     DynamoPartitionRangeSchemaConfig,
-} from "~/server/dynamo/internal/dynamo-partition-range-schema";
-import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo-table-schema";
+} from "~/server/dynamo/internal/old-dynamo-partition-range-schema";
+import {DynamoTableSchema} from "~/server/dynamo/internal/old-dynamo-table-schema";
 import {assert} from "~/shared/helpers/control/assert";
 import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order-key";
 import {quote} from "~/shared/helpers/string/quote";

@@ -3,7 +3,7 @@ import {
     DynamoKeyAttributeSchemaDescription,
     DynamoKeyAttributeSchemaType,
 } from "~/server/dynamo/internal/dynamo-key-attribute-schema";
-import {DynamoPartitionSchema} from "~/server/dynamo/internal/dynamo-partition-schema";
+import {DynamoPartitionSchema} from "~/server/dynamo/internal/old-dynamo-partition-schema";
 import {OrderKey} from "~/shared/helpers/sort/order-key";
 import {quote} from "~/shared/helpers/string/quote";
 

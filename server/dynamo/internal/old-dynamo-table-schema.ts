@@ -9,7 +9,7 @@ import {
     DynamoPartitionDescription,
     DynamoPartitionSchema,
     DynamoPartitionSchemaConfig,
-} from "~/server/dynamo/internal/dynamo-partition-schema";
+} from "~/server/dynamo/internal/old-dynamo-partition-schema";
 import {repoDirectoryPath} from "~/server/helpers/repo-directory-path";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule-microtask";
 import {assert} from "~/shared/helpers/control/assert";
