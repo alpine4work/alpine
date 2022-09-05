@@ -18,6 +18,7 @@ export const docClassName = style({
     minHeight: "100%",
     color: colorSchemeVars["grey-100"],
     userSelect: "auto",
+    cursor: "text",
 });
 
 const blockStyles = {
@@ -27,7 +28,7 @@ const blockStyles = {
     marginRight: "auto",
 };
 
-export const titlePaddingTop = spacing["32"];
+export const titlePaddingTop = spacing["24"];
 
 export const titleClassName = style({
     ...blockStyles,

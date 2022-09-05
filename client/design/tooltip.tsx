@@ -535,10 +535,11 @@ function Tooltip(
                 canFlip={canFlip}
                 offset="1.5"
                 overlay={
-                    <div
+                    <Box
                         ref={tooltipRef}
                         id={tooltipId}
                         role="tooltip"
+                        pointerEvents="none"
                         className={overlayAnimateContainerClassName}
                     >
                         <Box
@@ -559,7 +560,7 @@ function Tooltip(
                         >
                             {content}
                         </Box>
-                    </div>
+                    </Box>
                 }
             >
                 {children}

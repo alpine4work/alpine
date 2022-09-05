@@ -145,7 +145,7 @@ module.exports = {
                     {
                         target: "./client",
                         from: "./",
-                        except: ["./node_modules", "./client", "./shared"],
+                        except: ["./node_modules", "./client", "./public", "./shared"],
                     },
                     {
                         target: "./server",
@@ -158,7 +158,7 @@ module.exports = {
                         // NOTE: `./pages` is not configured to import from itself. The
                         // design here is only Next.js should import pages since adding
                         // files to the pages directory may influence routing.
-                        except: ["./node_modules", "./shared", "./client", "./server"],
+                        except: ["./node_modules", "./shared", "./client", "./public", "./server"],
                     },
                     {
                         target: "./integration",

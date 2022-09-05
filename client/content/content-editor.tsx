@@ -675,13 +675,8 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
         };
     }, []);
 
-    // Keep track of the element ProseMirror marks as selected with the
-    // `ProseMirror-selectednode` CSS class so that we can render our own custom
-    // ring around it.
-    //
-    // TODO(calebmer): Test that the selected element ring moves when
-    // collaboratively editing.
     const [selectedNodeElement, setSelectedNodeElement] = useState<HTMLElement | null>(null);
+
     useEffect(() => {
         // We don't do anything with `lastTransactionTime` in this effect, but we
         // want the effect to re-run whenever it changes. We optimistically update
@@ -692,7 +687,15 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
         lastTransactionTime;
 
         assert(viewRef.current);
-        const selectedNodeElement = viewRef.current.dom.getElementsByClassName(
+        const viewElement = viewRef.current.dom;
+
+        // Keep track of the element ProseMirror marks as selected with the
+        // `ProseMirror-selectednode` CSS class so that we can render our own custom
+        // ring around it.
+        //
+        // TODO(calebmer): Test that the selected element ring moves when
+        // collaboratively editing.
+        const selectedNodeElement = viewElement.getElementsByClassName(
             "ProseMirror-selectednode",
         )[0];
         if (selectedNodeElement instanceof HTMLElement) {
