@@ -1,0 +1,214 @@
+import {assert} from "~/shared/helpers/control/assert";
+import {
+    DateString,
+    deserializeDateString,
+    isDateString,
+    serializeDateString,
+} from "~/shared/helpers/date/date-string";
+import {
+    ElenFloat,
+    decodeElenFloatIfPossible,
+    encodeElenFloat,
+} from "~/shared/helpers/number/elen-float";
+import {
+    ElenInteger,
+    decodeElenIntegerIfPossible,
+    encodeElenInteger,
+} from "~/shared/helpers/number/elen-integer";
+import {OrderKey, isOrderKey} from "~/shared/helpers/sort/order-key";
+import {Id, isId} from "~/shared/id/id";
+
+/**
+ * An attribute of a DynamoDB key is an ASCII string excluding the `#`
+ * character and any characters with a smaller character code.
+ *
+ * To form a DynamoDB key, we concatenate attributes together with the `#`
+ * character. So we don't allow it in key attributes since we use it as a
+ * separator.
+ */
+export type DynamoKeyAttribute =
+    | (string & {readonly _DynamoKeyAttribute: never})
+
+    // We include some opaque types we know to be safe DynamoDB key attributes.
+    // This allows us to safely skip a validation call for these types.
+
+    // An ID in our system is comprised of numbers and letters. This makes it a
+    // valid DynamoDB key attribute.
+    | Id
+
+    // An [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) string is comprised of
+    // characters that are safe for a DynamoDB key attribute.
+    | DateString
+
+    // An `ElenInteger` is only digits and the `-` and `=` characters. Both of
+    // which are larger than `#`. This makes the type a valid DynamoDB key
+    // attribute.
+    | ElenInteger
+
+    // An `ElenFloat` is only digits and the `-` and `=` characters. Both of
+    // which are larger than `#`. This makes the type a valid DynamoDB key
+    // attribute.
+    | ElenFloat
+
+    // An `OrderKey` is only alphanumeric characters. This makes the type a valid
+    // DynamoDB key attribute.
+    | OrderKey;
+
+/**
+ * The separator character between attributes in a DynamoDB key.
+ *
+ * We chose the `#` character because it is the smallest ASCII character that
+ * looks like a separator. And because it is uncommon in string formats. `_` is
+ * not a good choice because it has a greater character code than uppercase
+ * letters and numbers. `-` is not a good choice because it is a part of common
+ * string formats like the date format [ISO 8601][1].
+ *
+ * The separator needs a small character code so that DynamoDB keys with
+ * multiple attributes have the correct [lexicographic order][2].
+ *
+ * Say we have two compound keys. One is `["AB", "F"]` and the other is
+ * `["ABC", "E"]`. We want `["AB", "F"]` to be sorted before `["ABC", "E"]`
+ * because the first attribute is smaller (`"AB" < "ABC"`).
+ *
+ * If we concatenate with no separator then `"ABCE" < "ABF"` which is wrong. If
+ * we concatenate with the `_` separator we also get `"ABC_E" < "AB_F"`. This
+ * is because `"C" < "_"` since `_` has a higher character code than uppercase
+ * letters. With `#` we get `"AB#F" < "ABC#E"` which is the result we want
+ * because `"#" < "C"`.
+ *
+ * All characters in a key attribute must have a greater character code than
+ * our separator (`#`) so that when one key attribute is shorter than the other
+ * we're comparing, the shorter attribute is ordered first.
+ *
+ * [1]: https://en.wikipedia.org/wiki/ISO_8601
+ * [2]: https://en.wikipedia.org/wiki/Lexicographic_order
+ * [3]: https://observablehq.com/@dgreensp/implementing-fractional-indexing
+ */
+export const dynamoKeySeparator = "#";
+
+/**
+ * The minimum character code is one more than our key separator (`#`).
+ */
+export const dynamoKeyAttributeMinCharCode = dynamoKeySeparator.charCodeAt(0) + 1;
+
+/**
+ * The maximum character code is the maximum [ASCII character][1] `~`.
+ *
+ * [1]: https://en.wikipedia.org/wiki/ASCII
+ */
+export const dynamoKeyAttributeMaxCharCode = "~".charCodeAt(0);
+
+/**
+ * Is our string a valid DynamoDB key attribute?
+ */
+export function isDynamoKeyAttribute(string: string): string is DynamoKeyAttribute {
+    // Require key attributes to be non-empty. This restriction may not be
+    // necessary and can be removed in the future.
+    //
+    // It is nice aesthetically so you never get DynamoDB keys that look
+    // like `a##b#`.
+    if (string.length === 0) return false;
+
+    for (let index = 0; index < string.length; index++) {
+        const charCode = string.charCodeAt(index);
+
+        if (charCode < dynamoKeyAttributeMinCharCode || charCode > dynamoKeyAttributeMaxCharCode)
+            return false;
+    }
+
+    return true;
+}
+
+/**
+ * An attribute of a DynamoDB key.
+ *
+ * All DynamoDB key attributes must have a string encoding with a lexicographic
+ * order that's the same as their underlying value. That's because all key
+ * attributes will be concatenated together into one key string that DynamoDB
+ * will use to sort records.
+ */
+export class DynamoKeyAttributeSchema<Value> {
+    /**
+     * IDs are fully random and have no useful order.
+     */
+    public static id = new DynamoKeyAttributeSchema<Id>({
+        serialize: value => value,
+        deserialize: keyAttribute => {
+            assert(isId(keyAttribute));
+            return keyAttribute;
+        },
+    });
+
+    /**
+     * Dates are serialized to [ISO 8601][1].
+     *
+     * [1]: https://en.wikipedia.org/wiki/ISO_8601
+     */
+    public static date = new DynamoKeyAttributeSchema<Date>({
+        serialize: serializeDateString,
+        deserialize: keyAttribute => {
+            assert(isDateString(keyAttribute));
+            return deserializeDateString(keyAttribute);
+        },
+    });
+
+    /**
+     * Integers are serialized to an `ElenInteger`.
+     */
+    public static integer = new DynamoKeyAttributeSchema<number>({
+        serialize: encodeElenInteger,
+        deserialize: keyAttribute => {
+            const value = decodeElenIntegerIfPossible(keyAttribute);
+            assert(value !== null);
+            return value;
+        },
+    });
+
+    /**
+     * Floats are serialized to an `ElenFloat`.
+     *
+     * The representation of an `ElenFloat` is less efficient for integers than
+     * `ElenInteger`. So if you're using integers please prefer `ElenInteger`.
+     */
+    public static float = new DynamoKeyAttributeSchema<number>({
+        serialize: encodeElenFloat,
+        deserialize: keyAttribute => {
+            const value = decodeElenFloatIfPossible(keyAttribute);
+            assert(value !== null);
+            return value;
+        },
+    });
+
+    /**
+     * `OrderKey`s have a natural lexicographic order.
+     */
+    public static orderKey = new DynamoKeyAttributeSchema<OrderKey>({
+        serialize: value => value,
+        deserialize: keyAttribute => {
+            assert(isOrderKey(keyAttribute));
+            return keyAttribute;
+        },
+    });
+
+    /**
+     * Serializes the attribute value into a DynamoDB key attribute.
+     */
+    public readonly serialize: (value: Value) => DynamoKeyAttribute;
+
+    /**
+     * Deserializes the DynamoDB key attribute into our attribute value. Throws if
+     * the DynamoDB key attribute is incorrectly formatted.
+     */
+    public readonly deserialize: (keyAttribute: DynamoKeyAttribute) => Value;
+
+    private constructor({
+        serialize,
+        deserialize,
+    }: {
+        serialize: (value: Value) => DynamoKeyAttribute;
+        deserialize: (keyAttribute: DynamoKeyAttribute) => Value;
+    }) {
+        this.serialize = serialize;
+        this.deserialize = deserialize;
+    }
+}
