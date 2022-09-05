@@ -1,3 +1,4 @@
+import areDatesEqual from "date-fns/isEqual";
 import {isPlainObject} from "~/shared/helpers/object/is-plain-object";
 
 /**
@@ -10,6 +11,7 @@ import {isPlainObject} from "~/shared/helpers/object/is-plain-object";
  * - Arrays
  * - Maps
  * - Sets
+ * - Dates
  *
  * For numbers, `+0` and `-0` are considered equal. `NaN` is also considered to
  * equal `NaN`.
@@ -64,6 +66,9 @@ function areObjectsDeeplyEqual(
 
         if (object1 instanceof Set && object2 instanceof Set)
             return areSetsDeeplyEqual(object1, object2);
+
+        if (object1 instanceof Date && object2 instanceof Date)
+            return areDatesEqual(object1, object2);
 
         return false;
     }
