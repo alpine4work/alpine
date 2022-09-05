@@ -2,7 +2,7 @@ import {
     dynamoKeyAttributeMaxCharCode,
     dynamoKeyAttributeMinCharCode,
     isDynamoKeyAttribute,
-} from "~/server/dynamo/dynamo-key-attribute-schema";
+} from "~/server/dynamo/internal/dynamo-key-attribute-schema";
 
 test("key attributes can be a reasonable set of ASCII characters", () => {
     const chars = [];

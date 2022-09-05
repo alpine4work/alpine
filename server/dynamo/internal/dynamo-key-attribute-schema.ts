@@ -16,6 +16,7 @@ import {
     encodeElenInteger,
 } from "~/shared/helpers/number/elen-integer";
 import {OrderKey, isOrderKey} from "~/shared/helpers/sort/order-key";
+import {quote} from "~/shared/helpers/string/quote";
 import {Id, isId} from "~/shared/id/id";
 
 /**
@@ -120,6 +121,16 @@ export function isDynamoKeyAttribute(string: string): string is DynamoKeyAttribu
 }
 
 /**
+ * Extract the value type from a `DynamoKeyAttributeSchema`.
+ */
+export type DynamoKeyAttributeSchemaType<Schema extends DynamoKeyAttributeSchema<any>> =
+    Schema extends DynamoKeyAttributeSchema<infer Value> ? Value : never;
+
+export type DynamoKeyAttributeSchemaDescription = {
+    readonly typeName: string;
+};
+
+/**
  * An attribute of a DynamoDB key.
  *
  * All DynamoDB key attributes must have a string encoding with a lexicographic
@@ -132,6 +143,7 @@ export class DynamoKeyAttributeSchema<Value> {
      * IDs are fully random and have no useful order.
      */
     public static id = new DynamoKeyAttributeSchema<Id>({
+        typeName: "Id",
         serialize: value => value,
         deserialize: keyAttribute => {
             assert(isId(keyAttribute));
@@ -145,6 +157,7 @@ export class DynamoKeyAttributeSchema<Value> {
      * [1]: https://en.wikipedia.org/wiki/ISO_8601
      */
     public static date = new DynamoKeyAttributeSchema<Date>({
+        typeName: "Date",
         serialize: serializeDateString,
         deserialize: keyAttribute => {
             assert(isDateString(keyAttribute));
@@ -156,6 +169,7 @@ export class DynamoKeyAttributeSchema<Value> {
      * Integers are serialized to an `ElenInteger`.
      */
     public static integer = new DynamoKeyAttributeSchema<number>({
+        typeName: "Integer",
         serialize: encodeElenInteger,
         deserialize: keyAttribute => {
             const value = decodeElenIntegerIfPossible(keyAttribute);
@@ -171,6 +185,7 @@ export class DynamoKeyAttributeSchema<Value> {
      * `ElenInteger`. So if you're using integers please prefer `ElenInteger`.
      */
     public static float = new DynamoKeyAttributeSchema<number>({
+        typeName: "Float",
         serialize: encodeElenFloat,
         deserialize: keyAttribute => {
             const value = decodeElenFloatIfPossible(keyAttribute);
@@ -183,12 +198,15 @@ export class DynamoKeyAttributeSchema<Value> {
      * `OrderKey`s have a natural lexicographic order.
      */
     public static orderKey = new DynamoKeyAttributeSchema<OrderKey>({
+        typeName: "OrderKey",
         serialize: value => value,
         deserialize: keyAttribute => {
             assert(isOrderKey(keyAttribute));
             return keyAttribute;
         },
     });
+
+    public readonly typeName: string;
 
     /**
      * Serializes the attribute value into a DynamoDB key attribute.
@@ -202,13 +220,27 @@ export class DynamoKeyAttributeSchema<Value> {
     public readonly deserialize: (keyAttribute: DynamoKeyAttribute) => Value;
 
     private constructor({
+        typeName,
         serialize,
         deserialize,
     }: {
+        typeName: string;
         serialize: (value: Value) => DynamoKeyAttribute;
         deserialize: (keyAttribute: DynamoKeyAttribute) => Value;
     }) {
+        this.typeName = typeName;
         this.serialize = serialize;
         this.deserialize = deserialize;
+    }
+
+    public getDescription(): DynamoKeyAttributeSchemaDescription {
+        return {typeName: this.typeName};
+    }
+
+    public checkAgainstDescription(currentDescription: DynamoKeyAttributeSchemaDescription) {
+        if (this.typeName !== currentDescription.typeName)
+            throw new Error(
+                quote`Key attribute type mismatch, the type in the database is ${currentDescription.typeName} but the type in the schema is ${this.typeName}`,
+            );
     }
 }
