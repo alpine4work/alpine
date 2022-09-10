@@ -16,7 +16,6 @@ import {
     encodeElenInteger,
 } from "~/shared/helpers/number/elen-integer";
 import {OrderKey, isOrderKey} from "~/shared/helpers/sort/order-key";
-import {quote} from "~/shared/helpers/string/quote";
 import {Id, isId} from "~/shared/id/id";
 
 /**
@@ -126,9 +125,7 @@ export function isDynamoKeyAttribute(string: string): string is DynamoKeyAttribu
 export type DynamoKeyAttributeSchemaType<Schema extends DynamoKeyAttributeSchema<any>> =
     Schema extends DynamoKeyAttributeSchema<infer Value> ? Value : never;
 
-export type DynamoKeyAttributeSchemaDescription = {
-    readonly typeName: string;
-};
+const dynamoKeyAttributeSchemaNames = new Set<string>();
 
 /**
  * An attribute of a DynamoDB key.
@@ -143,7 +140,7 @@ export class DynamoKeyAttributeSchema<Value> {
      * IDs are fully random and have no useful order.
      */
     public static id = new DynamoKeyAttributeSchema<Id>({
-        typeName: "Id",
+        name: "Id",
         serialize: value => value,
         deserialize: keyAttribute => {
             assert(isId(keyAttribute));
@@ -157,7 +154,7 @@ export class DynamoKeyAttributeSchema<Value> {
      * [1]: https://en.wikipedia.org/wiki/ISO_8601
      */
     public static date = new DynamoKeyAttributeSchema<Date>({
-        typeName: "Date",
+        name: "Date",
         serialize: serializeDateString,
         deserialize: keyAttribute => {
             assert(isDateString(keyAttribute));
@@ -169,7 +166,7 @@ export class DynamoKeyAttributeSchema<Value> {
      * Integers are serialized to an `ElenInteger`.
      */
     public static integer = new DynamoKeyAttributeSchema<number>({
-        typeName: "Integer",
+        name: "Integer",
         serialize: encodeElenInteger,
         deserialize: keyAttribute => {
             const value = decodeElenIntegerIfPossible(keyAttribute);
@@ -185,7 +182,7 @@ export class DynamoKeyAttributeSchema<Value> {
      * `ElenInteger`. So if you're using integers please prefer `ElenInteger`.
      */
     public static float = new DynamoKeyAttributeSchema<number>({
-        typeName: "Float",
+        name: "Float",
         serialize: encodeElenFloat,
         deserialize: keyAttribute => {
             const value = decodeElenFloatIfPossible(keyAttribute);
@@ -198,7 +195,7 @@ export class DynamoKeyAttributeSchema<Value> {
      * `OrderKey`s have a natural lexicographic order.
      */
     public static orderKey = new DynamoKeyAttributeSchema<OrderKey>({
-        typeName: "OrderKey",
+        name: "OrderKey",
         serialize: value => value,
         deserialize: keyAttribute => {
             assert(isOrderKey(keyAttribute));
@@ -206,7 +203,7 @@ export class DynamoKeyAttributeSchema<Value> {
         },
     });
 
-    public readonly typeName: string;
+    public readonly name: string;
 
     /**
      * Serializes the attribute value into a DynamoDB key attribute.
@@ -220,27 +217,104 @@ export class DynamoKeyAttributeSchema<Value> {
     public readonly deserialize: (keyAttribute: DynamoKeyAttribute) => Value;
 
     private constructor({
-        typeName,
+        name,
         serialize,
         deserialize,
     }: {
-        typeName: string;
+        name: string;
         serialize: (value: Value) => DynamoKeyAttribute;
         deserialize: (keyAttribute: DynamoKeyAttribute) => Value;
     }) {
-        this.typeName = typeName;
+        assert(
+            !dynamoKeyAttributeSchemaNames.has(name),
+            "Key attribute schema names must be unique",
+        );
+        dynamoKeyAttributeSchemaNames.add(name);
+
+        this.name = name;
         this.serialize = serialize;
         this.deserialize = deserialize;
     }
 
-    public getDescription(): DynamoKeyAttributeSchemaDescription {
-        return {typeName: this.typeName};
+    private _reverseSchema: DynamoKeyAttributeSchema<Value> | null = null;
+
+    /**
+     * Order our values in reverse.
+     *
+     * Does this by serializing the value into a hexadecimal string with reverse
+     * byte order from the input string.
+     */
+    public reverse(): DynamoKeyAttributeSchema<Value> {
+        if (!this._reverseSchema) {
+            this._reverseSchema = new DynamoKeyAttributeSchema<Value>({
+                name: `Reverse(${this.name})`,
+                serialize: value => {
+                    const keyAttribute = this.serialize(value);
+                    return serializeReversedDynamoKeyAttribute(keyAttribute);
+                },
+                deserialize: reversedKeyAttribute => {
+                    const keyAttribute =
+                        deserializeReversedDynamoKeyAttribute(reversedKeyAttribute);
+                    return this.deserialize(keyAttribute);
+                },
+            });
+        }
+        return this._reverseSchema;
+    }
+}
+
+/**
+ * Reverses a DynamoDB key attribute.
+ *
+ * The reversed format is a hexadecimal encoding of the input string where
+ * every character is reversed. We also append a value larger than any other
+ * character to the end so that short strings are sorted last.
+ */
+export function serializeReversedDynamoKeyAttribute(
+    keyAttribute: DynamoKeyAttribute,
+): DynamoKeyAttribute {
+    const bytes = new Uint8Array(keyAttribute.length + 1);
+
+    for (let index = 0; index < keyAttribute.length; index++) {
+        const reversedCharCode = 126 - keyAttribute.charCodeAt(index);
+        bytes[index] = reversedCharCode;
     }
 
-    public checkAgainstDescription(currentDescription: DynamoKeyAttributeSchemaDescription) {
-        if (this.typeName !== currentDescription.typeName)
-            throw new Error(
-                quote`Key attribute type mismatch, the type in the database is ${currentDescription.typeName} but the type in the schema is ${this.typeName}`,
-            );
+    // As the last byte, add an integer larger than any other. This way shorter
+    // strings will short after longer strings.
+    bytes[keyAttribute.length] = 127;
+
+    // Convert our bytes into hexadecimal which will maintain the byte
+    // order lexicographically.
+    const reversedKeyAttribute = Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join(
+        "",
+    );
+    return reversedKeyAttribute as DynamoKeyAttribute;
+}
+
+/**
+ * Deserializes our reversed DynamoDB key attribute serialization format.
+ */
+export function deserializeReversedDynamoKeyAttribute(
+    reversedKeyAttribute: DynamoKeyAttribute,
+): DynamoKeyAttribute {
+    // Hexadecimal string should be non-empty, only contain valid characters, with
+    // an even number of characters.
+    assert(/^[0-9a-f]+$/.test(reversedKeyAttribute));
+    assert(reversedKeyAttribute.length % 2 === 0);
+
+    const bytes = Uint8Array.from(
+        reversedKeyAttribute.match(/.{2}/g)!.map(byte => parseInt(byte, 16)),
+    );
+
+    assert(bytes[bytes.length - 1] === 127);
+
+    let chars = [];
+
+    for (let index = 0; index < bytes.length - 1; index++) {
+        const charCode = 126 - bytes[index]!;
+        chars.push(String.fromCharCode(charCode));
     }
+
+    return chars.join("") as DynamoKeyAttribute;
 }

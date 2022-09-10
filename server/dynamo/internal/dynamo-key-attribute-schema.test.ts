@@ -1,8 +1,12 @@
 import {
+    deserializeReversedDynamoKeyAttribute,
     dynamoKeyAttributeMaxCharCode,
     dynamoKeyAttributeMinCharCode,
     isDynamoKeyAttribute,
+    serializeReversedDynamoKeyAttribute,
 } from "~/server/dynamo/internal/dynamo-key-attribute-schema";
+import {assert} from "~/shared/helpers/control/assert";
+import {defaultCompareStrings} from "~/shared/helpers/string/default-compare-strings";
 
 test("key attributes can be a reasonable set of ASCII characters", () => {
     const chars = [];
@@ -110,4 +114,46 @@ test("key attributes can be a reasonable set of ASCII characters", () => {
         "}",
         "~",
     ]);
+});
+
+test("can serialize and deserialize a reversed key attribute", () => {
+    function generateRandomDynamoKeyAttribute() {
+        const length = Math.floor(Math.random() * 100) + 1;
+        const chars = [];
+
+        for (let index = 0; index < length; index++) {
+            const charCode =
+                Math.floor(
+                    Math.random() * (dynamoKeyAttributeMaxCharCode - dynamoKeyAttributeMinCharCode),
+                ) + dynamoKeyAttributeMinCharCode;
+
+            chars.push(String.fromCharCode(charCode));
+        }
+
+        const string = chars.join("");
+        assert(isDynamoKeyAttribute(string));
+        return string;
+    }
+
+    const strings = [];
+
+    for (let i = 0; i < 10_000; i++) {
+        strings.push(generateRandomDynamoKeyAttribute());
+    }
+
+    const sortedStrings = Array.from(strings).sort(defaultCompareStrings).reverse();
+
+    const reversedStringsSortedBeforeSerialization = sortedStrings.map(
+        serializeReversedDynamoKeyAttribute,
+    );
+    const reversedStringsSortedAfterSerialization = strings
+        .map(serializeReversedDynamoKeyAttribute)
+        .sort();
+
+    expect(
+        reversedStringsSortedBeforeSerialization.map(deserializeReversedDynamoKeyAttribute),
+    ).toEqual(sortedStrings);
+    expect(reversedStringsSortedAfterSerialization).toEqual(
+        reversedStringsSortedBeforeSerialization,
+    );
 });
