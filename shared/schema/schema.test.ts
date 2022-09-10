@@ -1,0 +1,677 @@
+import {assert} from "~/shared/helpers/control/assert";
+import {Schema, SchemaDeserializationError} from "~/shared/schema/schema";
+
+function validate<Value>(schema: Schema<Value>, value: unknown): boolean {
+    try {
+        schema.deserialize(value as any);
+        return true;
+    } catch (error) {
+        if (error instanceof SchemaDeserializationError) {
+            return false;
+        } else {
+            throw error;
+        }
+    }
+}
+
+const maxSafeInteger = Number.MAX_SAFE_INTEGER;
+const unsafeInteger = Number.MAX_SAFE_INTEGER * 2;
+assert(Number.isInteger(unsafeInteger));
+
+class Test1 {
+    a = 1;
+    c = 3;
+}
+
+(Test1.prototype as any).b = 2;
+
+class Test2 {
+    constructor(properties: {[key: string]: unknown}) {
+        Object.assign(this, properties);
+    }
+}
+
+test("float works for all numbers", () => {
+    const schema = Schema.float;
+
+    expect(validate(schema, undefined)).toEqual(false);
+    expect(validate(schema, null)).toEqual(false);
+    expect(validate(schema, 0)).toEqual(true);
+    expect(validate(schema, 1)).toEqual(true);
+    expect(validate(schema, -1)).toEqual(true);
+    expect(validate(schema, 42)).toEqual(true);
+    expect(validate(schema, -42)).toEqual(true);
+    expect(validate(schema, 3.1415)).toEqual(true);
+    expect(validate(schema, -3.1415)).toEqual(true);
+    expect(validate(schema, Infinity)).toEqual(true);
+    expect(validate(schema, NaN)).toEqual(true);
+    expect(validate(schema, maxSafeInteger)).toEqual(true);
+    expect(validate(schema, unsafeInteger)).toEqual(true);
+    expect(validate(schema, true)).toEqual(false);
+    expect(validate(schema, false)).toEqual(false);
+    expect(validate(schema, "")).toEqual(false);
+    expect(validate(schema, "foo")).toEqual(false);
+    expect(validate(schema, "fooBar")).toEqual(false);
+    expect(validate(schema, "fooBar2")).toEqual(false);
+    expect(validate(schema, "8px")).toEqual(false);
+    expect(validate(schema, "Hello, world!")).toEqual(false);
+    expect(validate(schema, [])).toEqual(false);
+    expect(validate(schema, [1, 2, 3])).toEqual(false);
+    expect(validate(schema, [1, "foo", 3])).toEqual(false);
+    expect(validate(schema, {})).toEqual(false);
+    expect(validate(schema, {a: 1, c: 3})).toEqual(false);
+    expect(validate(schema, {a: 1, b: 2, c: 3})).toEqual(false);
+    expect(validate(schema, {a: 1, b: "foo", c: 3})).toEqual(false);
+    expect(validate(schema, new Test1())).toEqual(false);
+});
+
+test("integer works for safe integers", () => {
+    const schema = Schema.integer;
+
+    expect(validate(schema, undefined)).toEqual(false);
+    expect(validate(schema, null)).toEqual(false);
+    expect(validate(schema, 0)).toEqual(true);
+    expect(validate(schema, 1)).toEqual(true);
+    expect(validate(schema, -1)).toEqual(true);
+    expect(validate(schema, 42)).toEqual(true);
+    expect(validate(schema, -42)).toEqual(true);
+    expect(validate(schema, 3.1415)).toEqual(false);
+    expect(validate(schema, -3.1415)).toEqual(false);
+    expect(validate(schema, Infinity)).toEqual(false);
+    expect(validate(schema, NaN)).toEqual(false);
+    expect(validate(schema, maxSafeInteger)).toEqual(true);
+    expect(validate(schema, unsafeInteger)).toEqual(false);
+    expect(validate(schema, true)).toEqual(false);
+    expect(validate(schema, false)).toEqual(false);
+    expect(validate(schema, "")).toEqual(false);
+    expect(validate(schema, "foo")).toEqual(false);
+    expect(validate(schema, "fooBar")).toEqual(false);
+    expect(validate(schema, "fooBar2")).toEqual(false);
+    expect(validate(schema, "8px")).toEqual(false);
+    expect(validate(schema, "Hello, world!")).toEqual(false);
+    expect(validate(schema, [])).toEqual(false);
+    expect(validate(schema, [1, 2, 3])).toEqual(false);
+    expect(validate(schema, [1, "foo", 3])).toEqual(false);
+    expect(validate(schema, {})).toEqual(false);
+    expect(validate(schema, {a: 1, c: 3})).toEqual(false);
+    expect(validate(schema, {a: 1, b: 2, c: 3})).toEqual(false);
+    expect(validate(schema, {a: 1, b: "foo", c: 3})).toEqual(false);
+    expect(validate(schema, new Test1())).toEqual(false);
+});
+
+test("nullable includes null", () => {
+    const schema = Schema.integer.nullable();
+
+    expect(validate(schema, undefined)).toEqual(false);
+    expect(validate(schema, null)).toEqual(true);
+    expect(validate(schema, 0)).toEqual(true);
+    expect(validate(schema, 1)).toEqual(true);
+    expect(validate(schema, -1)).toEqual(true);
+    expect(validate(schema, 42)).toEqual(true);
+    expect(validate(schema, -42)).toEqual(true);
+    expect(validate(schema, 3.1415)).toEqual(false);
+    expect(validate(schema, -3.1415)).toEqual(false);
+    expect(validate(schema, Infinity)).toEqual(false);
+    expect(validate(schema, NaN)).toEqual(false);
+    expect(validate(schema, maxSafeInteger)).toEqual(true);
+    expect(validate(schema, unsafeInteger)).toEqual(false);
+    expect(validate(schema, true)).toEqual(false);
+    expect(validate(schema, false)).toEqual(false);
+    expect(validate(schema, "")).toEqual(false);
+    expect(validate(schema, "foo")).toEqual(false);
+    expect(validate(schema, "fooBar")).toEqual(false);
+    expect(validate(schema, "fooBar2")).toEqual(false);
+    expect(validate(schema, "8px")).toEqual(false);
+    expect(validate(schema, "Hello, world!")).toEqual(false);
+    expect(validate(schema, [])).toEqual(false);
+    expect(validate(schema, [1, 2, 3])).toEqual(false);
+    expect(validate(schema, [1, "foo", 3])).toEqual(false);
+    expect(validate(schema, {})).toEqual(false);
+    expect(validate(schema, {a: 1, c: 3})).toEqual(false);
+    expect(validate(schema, {a: 1, b: 2, c: 3})).toEqual(false);
+    expect(validate(schema, {a: 1, b: "foo", c: 3})).toEqual(false);
+    expect(validate(schema, new Test1())).toEqual(false);
+});
+
+test("optional includes undefined", () => {
+    const schema = Schema.object({p: Schema.integer.optional()});
+
+    expect(validate(schema, {p: undefined})).toEqual(true);
+    expect(validate(schema, {p: null})).toEqual(false);
+    expect(validate(schema, {p: 0})).toEqual(true);
+    expect(validate(schema, {p: 1})).toEqual(true);
+    expect(validate(schema, {p: -1})).toEqual(true);
+    expect(validate(schema, {p: 42})).toEqual(true);
+    expect(validate(schema, {p: -42})).toEqual(true);
+    expect(validate(schema, {p: 3.1415})).toEqual(false);
+    expect(validate(schema, {p: -3.1415})).toEqual(false);
+    expect(validate(schema, {p: Infinity})).toEqual(false);
+    expect(validate(schema, {p: NaN})).toEqual(false);
+    expect(validate(schema, {p: maxSafeInteger})).toEqual(true);
+    expect(validate(schema, {p: unsafeInteger})).toEqual(false);
+    expect(validate(schema, {p: true})).toEqual(false);
+    expect(validate(schema, {p: false})).toEqual(false);
+    expect(validate(schema, {p: ""})).toEqual(false);
+    expect(validate(schema, {p: "foo"})).toEqual(false);
+    expect(validate(schema, {p: "fooBar"})).toEqual(false);
+    expect(validate(schema, {p: "fooBar2"})).toEqual(false);
+    expect(validate(schema, {p: "8px"})).toEqual(false);
+    expect(validate(schema, {p: "Hello, world!"})).toEqual(false);
+    expect(validate(schema, {p: []})).toEqual(false);
+    expect(validate(schema, {p: [1, 2, 3]})).toEqual(false);
+    expect(validate(schema, {p: [1, "foo", 3]})).toEqual(false);
+    expect(validate(schema, {p: {}})).toEqual(false);
+    expect(validate(schema, {p: {a: 1, c: 3}})).toEqual(false);
+    expect(validate(schema, {p: {a: 1, b: 2, c: 3}})).toEqual(false);
+    expect(validate(schema, {p: {a: 1, b: "foo", c: 3}})).toEqual(false);
+    expect(validate(schema, {p: new Test1()})).toEqual(false);
+});
+
+test("boolean works for booleans", () => {
+    const schema = Schema.boolean;
+
+    expect(validate(schema, undefined)).toEqual(false);
+    expect(validate(schema, null)).toEqual(false);
+    expect(validate(schema, 0)).toEqual(false);
+    expect(validate(schema, 1)).toEqual(false);
+    expect(validate(schema, -1)).toEqual(false);
+    expect(validate(schema, 42)).toEqual(false);
+    expect(validate(schema, -42)).toEqual(false);
+    expect(validate(schema, 3.1415)).toEqual(false);
+    expect(validate(schema, -3.1415)).toEqual(false);
+    expect(validate(schema, Infinity)).toEqual(false);
+    expect(validate(schema, NaN)).toEqual(false);
+    expect(validate(schema, maxSafeInteger)).toEqual(false);
+    expect(validate(schema, unsafeInteger)).toEqual(false);
+    expect(validate(schema, true)).toEqual(true);
+    expect(validate(schema, false)).toEqual(true);
+    expect(validate(schema, "")).toEqual(false);
+    expect(validate(schema, "foo")).toEqual(false);
+    expect(validate(schema, "fooBar")).toEqual(false);
+    expect(validate(schema, "fooBar2")).toEqual(false);
+    expect(validate(schema, "8px")).toEqual(false);
+    expect(validate(schema, "Hello, world!")).toEqual(false);
+    expect(validate(schema, [])).toEqual(false);
+    expect(validate(schema, [1, 2, 3])).toEqual(false);
+    expect(validate(schema, [1, "foo", 3])).toEqual(false);
+    expect(validate(schema, {})).toEqual(false);
+    expect(validate(schema, {a: 1, c: 3})).toEqual(false);
+    expect(validate(schema, {a: 1, b: 2, c: 3})).toEqual(false);
+    expect(validate(schema, {a: 1, b: "foo", c: 3})).toEqual(false);
+    expect(validate(schema, new Test1())).toEqual(false);
+});
+
+test("string works for strings", () => {
+    const schema = Schema.string;
+
+    expect(validate(schema, undefined)).toEqual(false);
+    expect(validate(schema, null)).toEqual(false);
+    expect(validate(schema, 0)).toEqual(false);
+    expect(validate(schema, 1)).toEqual(false);
+    expect(validate(schema, -1)).toEqual(false);
+    expect(validate(schema, 42)).toEqual(false);
+    expect(validate(schema, -42)).toEqual(false);
+    expect(validate(schema, 3.1415)).toEqual(false);
+    expect(validate(schema, -3.1415)).toEqual(false);
+    expect(validate(schema, Infinity)).toEqual(false);
+    expect(validate(schema, NaN)).toEqual(false);
+    expect(validate(schema, maxSafeInteger)).toEqual(false);
+    expect(validate(schema, unsafeInteger)).toEqual(false);
+    expect(validate(schema, true)).toEqual(false);
+    expect(validate(schema, false)).toEqual(false);
+    expect(validate(schema, "")).toEqual(true);
+    expect(validate(schema, "foo")).toEqual(true);
+    expect(validate(schema, "fooBar")).toEqual(true);
+    expect(validate(schema, "fooBar2")).toEqual(true);
+    expect(validate(schema, "8px")).toEqual(true);
+    expect(validate(schema, "Hello, world!")).toEqual(true);
+    expect(validate(schema, [])).toEqual(false);
+    expect(validate(schema, [1, 2, 3])).toEqual(false);
+    expect(validate(schema, [1, "foo", 3])).toEqual(false);
+    expect(validate(schema, {})).toEqual(false);
+    expect(validate(schema, {a: 1, c: 3})).toEqual(false);
+    expect(validate(schema, {a: 1, b: 2, c: 3})).toEqual(false);
+    expect(validate(schema, {a: 1, b: "foo", c: 3})).toEqual(false);
+    expect(validate(schema, new Test1())).toEqual(false);
+});
+
+test("array validates arrays with items of the correct type", () => {
+    const schema = Schema.array(Schema.float);
+
+    expect(validate(schema, undefined)).toEqual(false);
+    expect(validate(schema, null)).toEqual(false);
+    expect(validate(schema, 0)).toEqual(false);
+    expect(validate(schema, 1)).toEqual(false);
+    expect(validate(schema, -1)).toEqual(false);
+    expect(validate(schema, 42)).toEqual(false);
+    expect(validate(schema, -42)).toEqual(false);
+    expect(validate(schema, 3.1415)).toEqual(false);
+    expect(validate(schema, -3.1415)).toEqual(false);
+    expect(validate(schema, Infinity)).toEqual(false);
+    expect(validate(schema, NaN)).toEqual(false);
+    expect(validate(schema, maxSafeInteger)).toEqual(false);
+    expect(validate(schema, unsafeInteger)).toEqual(false);
+    expect(validate(schema, true)).toEqual(false);
+    expect(validate(schema, false)).toEqual(false);
+    expect(validate(schema, "")).toEqual(false);
+    expect(validate(schema, "foo")).toEqual(false);
+    expect(validate(schema, "fooBar")).toEqual(false);
+    expect(validate(schema, "fooBar2")).toEqual(false);
+    expect(validate(schema, "8px")).toEqual(false);
+    expect(validate(schema, "Hello, world!")).toEqual(false);
+    expect(validate(schema, [])).toEqual(true);
+    expect(validate(schema, [1, 2, 3])).toEqual(true);
+    expect(validate(schema, [1, "foo", 3])).toEqual(false);
+    expect(validate(schema, {})).toEqual(false);
+    expect(validate(schema, {a: 1, c: 3})).toEqual(false);
+    expect(validate(schema, {a: 1, b: 2, c: 3})).toEqual(false);
+    expect(validate(schema, {a: 1, b: "foo", c: 3})).toEqual(false);
+    expect(validate(schema, new Test1())).toEqual(false);
+});
+
+test("object validates objects with keys of the correct type", () => {
+    const schema = Schema.object({
+        a: Schema.float,
+        b: Schema.float,
+        c: Schema.float,
+    });
+
+    expect(validate(schema, undefined)).toEqual(false);
+    expect(validate(schema, null)).toEqual(false);
+    expect(validate(schema, 0)).toEqual(false);
+    expect(validate(schema, 1)).toEqual(false);
+    expect(validate(schema, -1)).toEqual(false);
+    expect(validate(schema, 42)).toEqual(false);
+    expect(validate(schema, -42)).toEqual(false);
+    expect(validate(schema, 3.1415)).toEqual(false);
+    expect(validate(schema, -3.1415)).toEqual(false);
+    expect(validate(schema, Infinity)).toEqual(false);
+    expect(validate(schema, NaN)).toEqual(false);
+    expect(validate(schema, maxSafeInteger)).toEqual(false);
+    expect(validate(schema, unsafeInteger)).toEqual(false);
+    expect(validate(schema, true)).toEqual(false);
+    expect(validate(schema, false)).toEqual(false);
+    expect(validate(schema, "")).toEqual(false);
+    expect(validate(schema, "foo")).toEqual(false);
+    expect(validate(schema, "fooBar")).toEqual(false);
+    expect(validate(schema, "fooBar2")).toEqual(false);
+    expect(validate(schema, "8px")).toEqual(false);
+    expect(validate(schema, "Hello, world!")).toEqual(false);
+    expect(validate(schema, [])).toEqual(false);
+    expect(validate(schema, [1, 2, 3])).toEqual(false);
+    expect(validate(schema, [1, "foo", 3])).toEqual(false);
+    expect(validate(schema, {})).toEqual(false);
+    expect(validate(schema, {a: 1, c: 3})).toEqual(false);
+    expect(validate(schema, {a: 1, b: 2, c: 3})).toEqual(true);
+    expect(validate(schema, {a: 1, b: "foo", c: 3})).toEqual(false);
+    expect(validate(schema, new Test1())).toEqual(false);
+});
+
+test("object with optional keys validates objects with keys of the correct type", () => {
+    const schema = Schema.object({
+        a: Schema.float,
+        b: Schema.float.optional(),
+        c: Schema.float,
+    });
+
+    expect(validate(schema, undefined)).toEqual(false);
+    expect(validate(schema, null)).toEqual(false);
+    expect(validate(schema, 0)).toEqual(false);
+    expect(validate(schema, 1)).toEqual(false);
+    expect(validate(schema, -1)).toEqual(false);
+    expect(validate(schema, 42)).toEqual(false);
+    expect(validate(schema, -42)).toEqual(false);
+    expect(validate(schema, 3.1415)).toEqual(false);
+    expect(validate(schema, -3.1415)).toEqual(false);
+    expect(validate(schema, Infinity)).toEqual(false);
+    expect(validate(schema, NaN)).toEqual(false);
+    expect(validate(schema, maxSafeInteger)).toEqual(false);
+    expect(validate(schema, unsafeInteger)).toEqual(false);
+    expect(validate(schema, true)).toEqual(false);
+    expect(validate(schema, false)).toEqual(false);
+    expect(validate(schema, "")).toEqual(false);
+    expect(validate(schema, "foo")).toEqual(false);
+    expect(validate(schema, "fooBar")).toEqual(false);
+    expect(validate(schema, "fooBar2")).toEqual(false);
+    expect(validate(schema, "8px")).toEqual(false);
+    expect(validate(schema, "Hello, world!")).toEqual(false);
+    expect(validate(schema, [])).toEqual(false);
+    expect(validate(schema, [1, 2, 3])).toEqual(false);
+    expect(validate(schema, [1, "foo", 3])).toEqual(false);
+    expect(validate(schema, {})).toEqual(false);
+    expect(validate(schema, {a: 1, c: 3})).toEqual(true);
+    expect(validate(schema, {a: 1, b: 2, c: 3})).toEqual(true);
+    expect(validate(schema, {a: 1, b: "foo", c: 3})).toEqual(false);
+    expect(validate(schema, new Test1())).toEqual(true);
+});
+
+test("object with default keys validates objects with keys of the correct type", () => {
+    const schema = Schema.object({
+        a: Schema.float,
+        b: Schema.float.default(42),
+        c: Schema.float,
+    });
+
+    expect(validate(schema, undefined)).toEqual(false);
+    expect(validate(schema, null)).toEqual(false);
+    expect(validate(schema, 0)).toEqual(false);
+    expect(validate(schema, 1)).toEqual(false);
+    expect(validate(schema, -1)).toEqual(false);
+    expect(validate(schema, 42)).toEqual(false);
+    expect(validate(schema, -42)).toEqual(false);
+    expect(validate(schema, 3.1415)).toEqual(false);
+    expect(validate(schema, -3.1415)).toEqual(false);
+    expect(validate(schema, Infinity)).toEqual(false);
+    expect(validate(schema, NaN)).toEqual(false);
+    expect(validate(schema, maxSafeInteger)).toEqual(false);
+    expect(validate(schema, unsafeInteger)).toEqual(false);
+    expect(validate(schema, true)).toEqual(false);
+    expect(validate(schema, false)).toEqual(false);
+    expect(validate(schema, "")).toEqual(false);
+    expect(validate(schema, "foo")).toEqual(false);
+    expect(validate(schema, "fooBar")).toEqual(false);
+    expect(validate(schema, "fooBar2")).toEqual(false);
+    expect(validate(schema, "8px")).toEqual(false);
+    expect(validate(schema, "Hello, world!")).toEqual(false);
+    expect(validate(schema, [])).toEqual(false);
+    expect(validate(schema, [1, 2, 3])).toEqual(false);
+    expect(validate(schema, [1, "foo", 3])).toEqual(false);
+    expect(validate(schema, {})).toEqual(false);
+    expect(validate(schema, {a: 1, c: 3})).toEqual(true);
+    expect(validate(schema, {a: 1, b: 2, c: 3})).toEqual(true);
+    expect(validate(schema, {a: 1, b: "foo", c: 3})).toEqual(false);
+    expect(validate(schema, new Test1())).toEqual(true);
+});
+
+test("object deletes unknown keys in-place", () => {
+    const schema = Schema.object({
+        a: Schema.float,
+        c: Schema.float,
+    });
+
+    const object = {a: 1, b: 2, c: 3};
+
+    expect(object).toEqual({a: 1, b: 2, c: 3});
+    expect(schema.deserialize(object)).toBe(object);
+    expect(object).toEqual({a: 1, c: 3});
+});
+
+test("object produces new object for non-plain object", () => {
+    const schema = Schema.object({
+        a: Schema.float,
+        b: Schema.float.optional(),
+    });
+
+    const object = new Test1();
+
+    expect(object).toEqual({a: 1, c: 3});
+    expect(schema.deserialize(object as any)).not.toBe(object);
+    expect(schema.deserialize(object as any)).toEqual({a: 1});
+    expect(object).toEqual({a: 1, c: 3});
+});
+
+test("object with default property adds a new property to object", () => {
+    const schema = Schema.object({
+        a: Schema.float,
+        b: Schema.float.default(2),
+    });
+
+    expect(schema.deserialize({a: 1})).toEqual({a: 1, b: 2});
+});
+
+test("object with original property key can rename a property key", () => {
+    const schema = Schema.object({
+        a: Schema.float,
+        b: Schema.float.originalPropertyKey("c"),
+    });
+
+    expect(schema.deserialize({a: 1, c: 3})).toEqual({a: 1, b: 3});
+    expect(schema.deserialize({a: 1, b: 2, c: 3})).toEqual({a: 1, b: 2});
+});
+
+test("value only matches exactly identical values", () => {
+    {
+        const schema = Schema.value(3.1415);
+
+        expect(validate(schema, undefined)).toEqual(false);
+        expect(validate(schema, null)).toEqual(false);
+        expect(validate(schema, 0)).toEqual(false);
+        expect(validate(schema, 1)).toEqual(false);
+        expect(validate(schema, -1)).toEqual(false);
+        expect(validate(schema, 42)).toEqual(false);
+        expect(validate(schema, -42)).toEqual(false);
+        expect(validate(schema, 3.1415)).toEqual(true);
+        expect(validate(schema, -3.1415)).toEqual(false);
+        expect(validate(schema, Infinity)).toEqual(false);
+        expect(validate(schema, NaN)).toEqual(false);
+        expect(validate(schema, maxSafeInteger)).toEqual(false);
+        expect(validate(schema, unsafeInteger)).toEqual(false);
+        expect(validate(schema, true)).toEqual(false);
+        expect(validate(schema, false)).toEqual(false);
+        expect(validate(schema, "")).toEqual(false);
+        expect(validate(schema, "foo")).toEqual(false);
+        expect(validate(schema, "fooBar")).toEqual(false);
+        expect(validate(schema, "fooBar2")).toEqual(false);
+        expect(validate(schema, "8px")).toEqual(false);
+        expect(validate(schema, "Hello, world!")).toEqual(false);
+        expect(validate(schema, [])).toEqual(false);
+        expect(validate(schema, [1, 2, 3])).toEqual(false);
+        expect(validate(schema, [1, "foo", 3])).toEqual(false);
+        expect(validate(schema, {})).toEqual(false);
+        expect(validate(schema, {a: 1, c: 3})).toEqual(false);
+        expect(validate(schema, {a: 1, b: 2, c: 3})).toEqual(false);
+        expect(validate(schema, {a: 1, b: "foo", c: 3})).toEqual(false);
+        expect(validate(schema, new Test1())).toEqual(false);
+    }
+    {
+        const schema = Schema.value("fooBar2");
+
+        expect(validate(schema, undefined)).toEqual(false);
+        expect(validate(schema, null)).toEqual(false);
+        expect(validate(schema, 0)).toEqual(false);
+        expect(validate(schema, 1)).toEqual(false);
+        expect(validate(schema, -1)).toEqual(false);
+        expect(validate(schema, 42)).toEqual(false);
+        expect(validate(schema, -42)).toEqual(false);
+        expect(validate(schema, 3.1415)).toEqual(false);
+        expect(validate(schema, -3.1415)).toEqual(false);
+        expect(validate(schema, Infinity)).toEqual(false);
+        expect(validate(schema, NaN)).toEqual(false);
+        expect(validate(schema, maxSafeInteger)).toEqual(false);
+        expect(validate(schema, unsafeInteger)).toEqual(false);
+        expect(validate(schema, true)).toEqual(false);
+        expect(validate(schema, false)).toEqual(false);
+        expect(validate(schema, "")).toEqual(false);
+        expect(validate(schema, "foo")).toEqual(false);
+        expect(validate(schema, "fooBar")).toEqual(false);
+        expect(validate(schema, "fooBar2")).toEqual(true);
+        expect(validate(schema, "8px")).toEqual(false);
+        expect(validate(schema, "Hello, world!")).toEqual(false);
+        expect(validate(schema, [])).toEqual(false);
+        expect(validate(schema, [1, 2, 3])).toEqual(false);
+        expect(validate(schema, [1, "foo", 3])).toEqual(false);
+        expect(validate(schema, {})).toEqual(false);
+        expect(validate(schema, {a: 1, c: 3})).toEqual(false);
+        expect(validate(schema, {a: 1, b: 2, c: 3})).toEqual(false);
+        expect(validate(schema, {a: 1, b: "foo", c: 3})).toEqual(false);
+        expect(validate(schema, new Test1())).toEqual(false);
+    }
+    {
+        const schema = Schema.value(NaN);
+
+        expect(validate(schema, undefined)).toEqual(false);
+        expect(validate(schema, null)).toEqual(false);
+        expect(validate(schema, 0)).toEqual(false);
+        expect(validate(schema, 1)).toEqual(false);
+        expect(validate(schema, -1)).toEqual(false);
+        expect(validate(schema, 42)).toEqual(false);
+        expect(validate(schema, -42)).toEqual(false);
+        expect(validate(schema, 3.1415)).toEqual(false);
+        expect(validate(schema, -3.1415)).toEqual(false);
+        expect(validate(schema, Infinity)).toEqual(false);
+        expect(validate(schema, NaN)).toEqual(true);
+        expect(validate(schema, maxSafeInteger)).toEqual(false);
+        expect(validate(schema, unsafeInteger)).toEqual(false);
+        expect(validate(schema, true)).toEqual(false);
+        expect(validate(schema, false)).toEqual(false);
+        expect(validate(schema, "")).toEqual(false);
+        expect(validate(schema, "foo")).toEqual(false);
+        expect(validate(schema, "fooBar")).toEqual(false);
+        expect(validate(schema, "fooBar2")).toEqual(false);
+        expect(validate(schema, "8px")).toEqual(false);
+        expect(validate(schema, "Hello, world!")).toEqual(false);
+        expect(validate(schema, [])).toEqual(false);
+        expect(validate(schema, [1, 2, 3])).toEqual(false);
+        expect(validate(schema, [1, "foo", 3])).toEqual(false);
+        expect(validate(schema, {})).toEqual(false);
+        expect(validate(schema, {a: 1, c: 3})).toEqual(false);
+        expect(validate(schema, {a: 1, b: 2, c: 3})).toEqual(false);
+        expect(validate(schema, {a: 1, b: "foo", c: 3})).toEqual(false);
+        expect(validate(schema, new Test1())).toEqual(false);
+    }
+});
+
+test("empty union validates nothing", () => {
+    const schema = Schema.union({});
+
+    expect(validate(schema, undefined)).toEqual(false);
+    expect(validate(schema, null)).toEqual(false);
+    expect(validate(schema, 0)).toEqual(false);
+    expect(validate(schema, 1)).toEqual(false);
+    expect(validate(schema, -1)).toEqual(false);
+    expect(validate(schema, 42)).toEqual(false);
+    expect(validate(schema, -42)).toEqual(false);
+    expect(validate(schema, 3.1415)).toEqual(false);
+    expect(validate(schema, -3.1415)).toEqual(false);
+    expect(validate(schema, Infinity)).toEqual(false);
+    expect(validate(schema, NaN)).toEqual(false);
+    expect(validate(schema, maxSafeInteger)).toEqual(false);
+    expect(validate(schema, unsafeInteger)).toEqual(false);
+    expect(validate(schema, true)).toEqual(false);
+    expect(validate(schema, false)).toEqual(false);
+    expect(validate(schema, "")).toEqual(false);
+    expect(validate(schema, "foo")).toEqual(false);
+    expect(validate(schema, "fooBar")).toEqual(false);
+    expect(validate(schema, "fooBar2")).toEqual(false);
+    expect(validate(schema, "8px")).toEqual(false);
+    expect(validate(schema, "Hello, world!")).toEqual(false);
+    expect(validate(schema, [])).toEqual(false);
+    expect(validate(schema, [1, 2, 3])).toEqual(false);
+    expect(validate(schema, [1, "foo", 3])).toEqual(false);
+    expect(validate(schema, {})).toEqual(false);
+    expect(validate(schema, {a: 1, c: 3})).toEqual(false);
+    expect(validate(schema, {a: 1, b: 2, c: 3})).toEqual(false);
+    expect(validate(schema, {a: 1, b: "foo", c: 3})).toEqual(false);
+    expect(validate(schema, {type: null})).toEqual(false);
+    expect(validate(schema, {type: 42})).toEqual(false);
+    expect(validate(schema, {type: "foo"})).toEqual(false);
+    expect(validate(schema, new Test1())).toEqual(false);
+    expect(validate(schema, new Test2({}))).toEqual(false);
+    expect(validate(schema, new Test2({type: null}))).toEqual(false);
+    expect(validate(schema, new Test2({type: 42}))).toEqual(false);
+    expect(validate(schema, new Test2({type: "foo"}))).toEqual(false);
+});
+
+test("union requires variant objects to have a type property of the same name", () => {
+    Schema.union({
+        // @ts-expect-error
+        foo: Schema.object({
+            type: Schema.value("bar"),
+        }),
+    });
+
+    Schema.union({
+        // @ts-expect-error
+        foo: Schema.object({
+            type: Schema.value("foo").optional(),
+        }),
+    });
+});
+
+test("union does not validate objects with an unknown type string", () => {
+    const schema = Schema.union({
+        foo: Schema.object({
+            type: Schema.value("foo"),
+        }),
+        bar: Schema.object({
+            type: Schema.value("bar"),
+        }),
+    });
+
+    const object1 = {type: "foo"};
+    const object2 = {type: "bar"};
+    const object3 = {type: "qux"};
+
+    expect(schema.deserialize(object1)).toBe(object1);
+    expect(object1).toEqual({type: "foo"});
+
+    expect(schema.deserialize(object2)).toBe(object2);
+    expect(object2).toEqual({type: "bar"});
+
+    expect(() => schema.deserialize(object3)).toThrow(SchemaDeserializationError);
+});
+
+test("union does not look at a type property in the prototype", () => {
+    class Test {}
+    (Test.prototype as any).type = "foo";
+
+    const schema = Schema.union({
+        foo: Schema.object({
+            type: Schema.value("foo"),
+        }),
+        bar: Schema.object({
+            type: Schema.value("bar"),
+        }),
+    });
+
+    expect(validate(schema, new Test())).toEqual(false);
+});
+
+test("union variants can be renamed", () => {
+    const schema = Schema.union({
+        foo: Schema.object({
+            type: Schema.value("foo"),
+        }),
+        bar: Schema.object({
+            type: Schema.value("bar"),
+        }).originalTypeName("qux"),
+    });
+
+    expect(schema.deserialize({type: "foo"})).toEqual({type: "foo"});
+    expect(schema.deserialize({type: "bar"})).toEqual({type: "bar"});
+    expect(schema.deserialize({type: "qux"})).toEqual({type: "bar"});
+
+    expect(schema.serialize({type: "foo"})).toEqual({type: "foo"});
+    expect(schema.serialize({type: "bar"})).toEqual({type: "qux"});
+});
+
+test("can rename optional object properties no matter where the combinator lies", () => {
+    const schema1 = Schema.object({
+        foo: Schema.integer.optional().originalPropertyKey("bar"),
+    });
+
+    const schema2 = Schema.object({
+        foo: Schema.integer.originalPropertyKey("bar").optional(),
+    });
+
+    const schema3 = Schema.object({
+        foo: Schema.integer.default(0).originalPropertyKey("bar"),
+    });
+
+    const schema4 = Schema.object({
+        foo: Schema.integer.originalPropertyKey("bar").default(0),
+    });
+
+    expect(schema1.deserialize({})).toEqual({});
+    expect(schema1.deserialize({foo: 1})).toEqual({foo: 1});
+    expect(schema1.deserialize({bar: 1})).toEqual({foo: 1});
+    expect(schema2.deserialize({})).toEqual({});
+    expect(schema2.deserialize({foo: 1})).toEqual({foo: 1});
+    expect(schema2.deserialize({bar: 1})).toEqual({foo: 1});
+    expect(schema3.deserialize({})).toEqual({foo: 0});
+    expect(schema3.deserialize({foo: 1})).toEqual({foo: 1});
+    expect(schema3.deserialize({bar: 1})).toEqual({foo: 1});
+    expect(schema4.deserialize({})).toEqual({foo: 0});
+    expect(schema4.deserialize({foo: 1})).toEqual({foo: 1});
+    expect(schema4.deserialize({bar: 1})).toEqual({foo: 1});
+});
