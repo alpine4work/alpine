@@ -1,3 +1,4 @@
+/* eslint only-erasable-types: "error" */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 // eslint-disable-next-line only-erasable-types

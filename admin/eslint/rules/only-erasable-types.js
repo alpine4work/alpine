@@ -17,10 +17,13 @@ module.exports = {
                     node.type === "TSInterfaceDeclaration" ||
                     node.type === "TSTypeAliasDeclaration" ||
                     node.type === "TSTypeParameterDeclaration" ||
+                    node.type === "TSModuleDeclaration" ||
                     (node.type === "ExportNamedDeclaration" &&
                         node.declaration.type === "TSInterfaceDeclaration") ||
                     (node.type === "ExportNamedDeclaration" &&
-                        node.declaration.type === "TSTypeAliasDeclaration");
+                        node.declaration.type === "TSTypeAliasDeclaration") ||
+                    (node.type === "ExportNamedDeclaration" &&
+                        node.declaration.type === "TSModuleDeclaration");
 
                 if (!isErasableType) {
                     if (node.type !== "ImportDeclaration") {

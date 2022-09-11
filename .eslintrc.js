@@ -275,6 +275,13 @@ module.exports = {
             },
         },
         {
+            files: ["**/types/**/*.test.*"],
+            rules: {
+                // Tests in `types` directories may have executable code.
+                "only-erasable-types": "off",
+            },
+        },
+        {
             files: ["pages/**/*.page.*"],
             rules: {
                 // Next.js uses default exports in the `./pages` directory to figure out
