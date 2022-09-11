@@ -4,6 +4,10 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {hasOwnProperty} from "~/shared/helpers/object/has-own-property";
 import {isPlainObject} from "~/shared/helpers/object/is-plain-object";
 import {Optionalize} from "~/shared/helpers/types/optionalize";
+import {
+    SchemaDescription,
+    SchemaObjectPropertyDescription,
+} from "~/shared/schema/types/schema-description-types";
 
 /**
  * Get the underlying type of a schema object.
@@ -70,6 +74,11 @@ export type SchemaSerializedArrayValue = ReadonlyArray<SchemaSerializedValue>;
  */
 export class Schema<Value> {
     /**
+     * The description of the serialized value returned by this schema.
+     */
+    public readonly description: SchemaDescription;
+
+    /**
      * Serializes a value into a format we can send across process boundaries.
      *
      * Does not mutate the underlying value during serialization.
@@ -111,12 +120,15 @@ export class Schema<Value> {
     // [2]: https://serde.rs
 
     private constructor({
+        description,
         serialize,
         deserialize,
     }: {
+        description: SchemaDescription;
         serialize: (value: Value) => SchemaSerializedValue;
         deserialize: (serializedValue: SchemaSerializedValue) => Value;
     }) {
+        this.description = description;
         this.serialize = serialize;
         this.deserialize = deserialize;
     }
@@ -125,6 +137,7 @@ export class Schema<Value> {
      * Accept a boolean value.
      */
     public static boolean = new Schema<boolean>({
+        description: {type: "Boolean"},
         serialize: value => value,
         deserialize: value => {
             if (typeof value !== "boolean")
@@ -141,6 +154,7 @@ export class Schema<Value> {
      * [1]: https://en.wikipedia.org/wiki/IEEE_754
      */
     public static float = new Schema<number>({
+        description: {type: "Float"},
         serialize: value => value,
         deserialize: value => {
             if (typeof value !== "number") throw new SchemaDeserializationError("Expected number");
@@ -156,6 +170,7 @@ export class Schema<Value> {
      * [1]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/isSafeInteger
      */
     public static integer = new Schema<number>({
+        description: {type: "Integer"},
         serialize: value => {
             assert(Number.isSafeInteger(value));
             return value;
@@ -174,6 +189,7 @@ export class Schema<Value> {
      * Accept any string value.
      */
     public static string = new Schema<string>({
+        description: {type: "String"},
         serialize: value => value,
         deserialize: value => {
             if (typeof value !== "string") throw new SchemaDeserializationError("Expected string");
@@ -190,6 +206,7 @@ export class Schema<Value> {
      * treat the string as base64 binary encoded data.
      */
     public static bytes = new Schema<Uint8Array>({
+        description: {type: "Bytes"},
         serialize: value => {
             return new JsonStringifiableUint8Array(value);
         },
@@ -212,6 +229,10 @@ export class Schema<Value> {
      */
     public nullable(): Schema<Value | null> {
         return new Schema({
+            description: {
+                type: "Nullable",
+                schema: this.description,
+            },
             serialize: value => {
                 if (value === null) return null;
                 return this.serialize(value);
@@ -230,6 +251,10 @@ export class Schema<Value> {
         expectedValue: Value,
     ): Schema<Value> {
         return new Schema({
+            description: {
+                type: "Value",
+                value: expectedValue,
+            },
             serialize: value => value,
             deserialize: value => {
                 if (!Object.is(expectedValue, value))
@@ -286,6 +311,10 @@ export class Schema<Value> {
      */
     public static array<Value>(itemSchema: Schema<Value>): Schema<ReadonlyArray<Value>> {
         return new Schema({
+            description: {
+                type: "Array",
+                itemSchema: itemSchema.description,
+            },
             serialize: value => value.map(item => itemSchema.serialize(item)),
             deserialize: value => {
                 if (!Array.isArray(value))
@@ -328,6 +357,15 @@ export class Schema<Value> {
         );
 
         return new Schema<Optionalize<{[Key in keyof Schemas]: SchemaType<Schemas[Key]>}>>({
+            description: {
+                type: "Object",
+                propertySchemaByKey: Object.fromEntries(
+                    Array.from(schemaByKey, ([key, schema]) => [
+                        schema.description.originalKey ?? key,
+                        schema.description.propertyDescription,
+                    ]),
+                ),
+            },
             serialize: value => {
                 const newValue: {[key: string]: SchemaSerializedValue} = {};
 
@@ -415,8 +453,18 @@ export class Schema<Value> {
     public static union<
         Schemas extends {
             [Key in keyof Schemas]:
-                | Schema<{type: Key & string}>
-                | SchemaUnionVariant<{type: Key & string}>;
+                | (Schema<any> & {
+                      // We need to put our `Key` type constraint on `deserialize` instead of the
+                      // type parameter so the object type can be covariant instead of invariant.
+                      deserialize: (value: SchemaSerializedValue) => {type: Key};
+                  })
+                | (SchemaUnionVariant<any> & {
+                      schema: {
+                          // We need to put our `Key` type constraint on `deserialize` instead of the
+                          // type parameter so the object type can be covariant instead of invariant.
+                          deserialize: (value: SchemaSerializedValue) => {type: Key};
+                      };
+                  });
         },
     >(schemas: Schemas): Schema<SchemaType<Schemas[keyof Schemas]>> {
         const schemaEntries = Object.entries(schemas) as Array<
@@ -449,6 +497,34 @@ export class Schema<Value> {
         }
 
         return new Schema<SchemaType<Schemas[keyof Schemas]>>({
+            description: {
+                type: "Union",
+                variantSchemaByType: Object.fromEntries(
+                    Array.from(schemaByTypeName, ([typeName, {schema, serializedTypeName}]) => [
+                        serializedTypeName,
+                        // If the serialized type name is different then the type name at runtime, make
+                        // sure to update the schema description for this union with the correct type
+                        // name.
+                        serializedTypeName !== typeName &&
+                        schema.description.type === "Object" &&
+                        schema.description.propertySchemaByKey.type &&
+                        schema.description.propertySchemaByKey.type.valueSchema.type === "Value" &&
+                        schema.description.propertySchemaByKey.type.valueSchema.value === typeName
+                            ? {
+                                  ...schema.description,
+                                  propertySchemaByKey: {
+                                      ...schema.description.propertySchemaByKey,
+                                      type: {
+                                          valueSchema: {type: "Value", value: serializedTypeName},
+                                          optional:
+                                              schema.description.propertySchemaByKey.type.optional,
+                                      },
+                                  },
+                              }
+                            : schema.description,
+                    ]),
+                ),
+            },
             serialize: value => {
                 const schema = schemaByTypeName.get(value.type);
                 assert(schema);
@@ -526,6 +602,14 @@ const schemaDeserializationMissingObjectPropertySymbol = Symbol(
 
 export class SchemaObjectProperty<Value> {
     /**
+     * The description of the serialized property written by this schema.
+     */
+    public readonly description: {
+        readonly originalKey: string | null;
+        readonly propertyDescription: SchemaObjectPropertyDescription;
+    };
+
+    /**
      * Serialize the property. We expect this function to actually write the
      * property to the provided `object`.
      *
@@ -554,9 +638,14 @@ export class SchemaObjectProperty<Value> {
     ) => Value | typeof schemaDeserializationMissingObjectPropertySymbol;
 
     private constructor({
+        description,
         serializeProperty,
         deserializeProperty,
     }: {
+        description: {
+            readonly originalKey: string | null;
+            readonly propertyDescription: SchemaObjectPropertyDescription;
+        };
         serializeProperty: (
             object: {[key: string]: SchemaSerializedValue | undefined},
             key: string,
@@ -567,6 +656,7 @@ export class SchemaObjectProperty<Value> {
             key: string,
         ) => Value | typeof schemaDeserializationMissingObjectPropertySymbol;
     }) {
+        this.description = description;
         this.serializeProperty = serializeProperty;
         this.deserializeProperty = deserializeProperty;
     }
@@ -576,6 +666,13 @@ export class SchemaObjectProperty<Value> {
      */
     public static wrap<Value>(schema: Schema<Value>): SchemaObjectProperty<Value> {
         return new SchemaObjectProperty({
+            description: {
+                originalKey: null,
+                propertyDescription: {
+                    valueSchema: schema.description,
+                    optional: false,
+                },
+            },
             serializeProperty: (object, key, value) => {
                 object[key] = schema.serialize(value);
             },
@@ -590,6 +687,13 @@ export class SchemaObjectProperty<Value> {
     /** @see Schema.optional */
     public optional(): SchemaObjectProperty<Value | undefined> {
         return new SchemaObjectProperty({
+            description: {
+                ...this.description,
+                propertyDescription: {
+                    ...this.description.propertyDescription,
+                    optional: true,
+                },
+            },
             serializeProperty: (object, key, value) => {
                 if (value === undefined) return;
                 this.serializeProperty(object, key, value);
@@ -605,6 +709,13 @@ export class SchemaObjectProperty<Value> {
     /** @see Schema.default */
     public default(defaultValue: Value): SchemaObjectProperty<Value> {
         return new SchemaObjectProperty({
+            description: {
+                ...this.description,
+                propertyDescription: {
+                    ...this.description.propertyDescription,
+                    optional: true,
+                },
+            },
             serializeProperty: (object, key, value) => {
                 this.serializeProperty(object, key, value);
             },
@@ -619,6 +730,10 @@ export class SchemaObjectProperty<Value> {
     /** @see Schema.originalPropertyKey */
     public originalPropertyKey(originalKey: string): SchemaObjectProperty<Value> {
         return new SchemaObjectProperty({
+            description: {
+                ...this.description,
+                originalKey,
+            },
             serializeProperty: (object, key, value) => {
                 this.serializeProperty(object, originalKey, value);
             },

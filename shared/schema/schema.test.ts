@@ -586,6 +586,13 @@ test("union requires variant objects to have a type property of the same name", 
             type: Schema.value("foo").optional(),
         }),
     });
+
+    Schema.union({
+        // @ts-expect-error
+        foo: Schema.object({
+            type: Schema.value("bar"),
+        }).originalTypeName("qux"),
+    });
 });
 
 test("union does not validate objects with an unknown type string", () => {
