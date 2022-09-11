@@ -119,7 +119,7 @@ export class Schema<Value> {
     // [1]: https://mrale.ph/blog/2015/01/11/whats-up-with-monomorphism.html
     // [2]: https://serde.rs
 
-    private constructor({
+    protected constructor({
         description,
         serialize,
         deserialize,
@@ -348,7 +348,7 @@ export class Schema<Value> {
      */
     public static object<Schemas extends {[key: string]: Schema<any> | SchemaObjectProperty<any>}>(
         schemas: Schemas,
-    ): Schema<Optionalize<{readonly [Key in keyof Schemas]: SchemaType<Schemas[Key]>}>> {
+    ): ObjectSchema<Optionalize<{readonly [Key in keyof Schemas]: SchemaType<Schemas[Key]>}>> {
         const schemaByKey = new Map<string, SchemaObjectProperty<unknown>>(
             Object.entries(schemas).map(([key, schema]) => [
                 key,
@@ -356,7 +356,9 @@ export class Schema<Value> {
             ]),
         );
 
-        return new Schema<Optionalize<{[Key in keyof Schemas]: SchemaType<Schemas[Key]>}>>({
+        const config: ObjectSchemaConfig<
+            Optionalize<{[Key in keyof Schemas]: SchemaType<Schemas[Key]>}>
+        > = {
             description: {
                 type: "Object",
                 propertySchemaByKey: Object.fromEntries(
@@ -366,20 +368,36 @@ export class Schema<Value> {
                     ]),
                 ),
             },
-            serialize: value => {
-                const newValue: {[key: string]: SchemaSerializedValue} = {};
-
+            serializeInto: (value, target) => {
                 for (const [key, schema] of schemaByKey) {
-                    schema.serializeProperty(newValue, key, (value as any)[key]);
+                    schema.serializeProperty(target, key, (value as any)[key]);
                 }
-
-                return newValue;
             },
-            deserialize: value => {
+            deserializeInto: (value, target) => {
                 if (typeof value !== "object" || value === null)
                     throw new SchemaDeserializationError("Expected an object");
 
-                if (isPlainObject(value)) {
+                if (target !== undefined) {
+                    for (const [key, schema] of schemaByKey) {
+                        const keyValue = withSchemaDeserializationStackFrame(
+                            {type: "ObjectProperty", key},
+                            () =>
+                                schema.deserializeProperty(
+                                    value as any as SchemaSerializedObjectValue,
+                                    key,
+                                ),
+                        );
+
+                        if (keyValue === schemaDeserializationMissingObjectPropertySymbol)
+                            throw new SchemaDeserializationError(
+                                `Required property \`${key}\` not found`,
+                            );
+
+                        (target as any)[key] = keyValue;
+                    }
+
+                    return target as any;
+                } else if (isPlainObject(value)) {
                     const unknownKeys = new Set(Object.keys(value));
 
                     for (const [key, schema] of schemaByKey) {
@@ -432,7 +450,11 @@ export class Schema<Value> {
                     return newValue as any;
                 }
             },
-        });
+        };
+
+        // @ts-expect-error: Constructor is marked private so code outside of this file
+        // can't construct it. But we want to construct an object schema here.
+        return new ObjectSchema(config);
     }
 
     /**
@@ -572,6 +594,54 @@ export class Schema<Value> {
                 return deserializedValue;
             },
         });
+    }
+}
+
+type ObjectSchemaConfig<Value> = {
+    description: SchemaDescription;
+    serializeInto: (value: Value, target: {[key: string]: SchemaSerializedValue}) => void;
+    deserializeInto: (
+        serializedValue: SchemaSerializedValue,
+        target?: {[key: string]: SchemaSerializedValue},
+    ) => Value;
+};
+
+/**
+ * Schema for an object value.
+ *
+ * You should only create this with `Schema.object()`.
+ */
+export class ObjectSchema<Value> extends Schema<Value> {
+    /**
+     * Serialize by assigning object properties directly to the provided
+     * target instead of creating a new object.
+     */
+    public readonly serializeInto: (
+        value: Value,
+        target: {[key: string]: SchemaSerializedValue},
+    ) => void;
+
+    /**
+     * Deserialize by assigning object properties directly to the provided
+     * target instead of the source value or creating a new value.
+     */
+    public readonly deserializeInto: (
+        serializedValue: SchemaSerializedValue,
+        target?: {[key: string]: SchemaSerializedValue},
+    ) => Value;
+
+    private constructor({description, serializeInto, deserializeInto}: ObjectSchemaConfig<Value>) {
+        super({
+            description,
+            serialize: value => {
+                const newValue: {[key: string]: SchemaSerializedValue} = {};
+                serializeInto(value, newValue);
+                return newValue;
+            },
+            deserialize: deserializeInto,
+        });
+        this.serializeInto = serializeInto;
+        this.deserializeInto = deserializeInto;
     }
 }
 
