@@ -1,8 +1,10 @@
 import {
     AttributeValue,
     BatchGetItemCommand,
+    BatchWriteItemCommand,
     DynamoDBClient,
     KeysAndAttributes,
+    WriteRequest,
 } from "@aws-sdk/client-dynamodb";
 import {Command, MetadataBearer} from "@aws-sdk/types";
 import {expectTypeOf} from "expect-type";
@@ -14,6 +16,7 @@ import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {isDeepEqual} from "~/shared/helpers/control/is-deep-equal";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get-or-set-default-map-value";
+import {quote} from "~/shared/helpers/string/quote";
 import {
     JsonStringifiableUint8Array,
     SchemaSerializedObjectValue,
@@ -50,6 +53,7 @@ export class DynamoClient {
     private readonly _getItemBatcherByConsistency: {
         [Key in DynamoReadConsistency]: DynamoClientGetItemBatcher;
     };
+    private readonly _writeItemBatcher: DynamoClientWriteItemBatcher;
 
     constructor(client: DynamoWrappedClientInterface) {
         this._client = client;
@@ -58,6 +62,7 @@ export class DynamoClient {
             Eventual: new DynamoClientGetItemBatcher(this._client, "Eventual"),
             Strong: new DynamoClientGetItemBatcher(this._client, "Strong"),
         };
+        this._writeItemBatcher = new DynamoClientWriteItemBatcher(this._client);
     }
 
     /**
@@ -81,55 +86,80 @@ export class DynamoClient {
         const batcher = this._getItemBatcherByConsistency[consistency];
         return batcher.getItem(tableName, key);
     }
-}
 
-type DynamoClientGetItemBatch = {
-    itemCount: number;
-    tableBatches: Map<string, DynamoClientGetItemTableBatch>;
-};
-
-type DynamoClientGetItemTableBatch = {
-    keyAttributes: Set<string>;
-    keyBatches: Map<string, DynamoClientGetItemKeyBatch>;
-};
-
-type DynamoClientGetItemKeyBatch = {
-    key: SchemaSerializedObjectValue;
-    promiseResolvers: Array<PromiseResolver<SchemaSerializedObjectValue | null>>;
-};
-
-/**
- * Responsible for batching multiple `getItem()` calls into one
- * [`BatchGetItem`][1] command for DynamoDB.
- *
- * Implemented as a class so we can have a separate batcher for each read
- * consistency mode.
- *
- * We want each `BatchGetItem` command to have the same read consistency since
- * the slowest individual item latency will be the latency for the entire
- * batch. And strong read consistency may increase latency.
- *
- * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
- */
-class DynamoClientGetItemBatcher {
-    private readonly _client: DynamoWrappedClientInterface;
-    private readonly _consistency: DynamoReadConsistency;
-
-    private _scheduledBatch: DynamoClientGetItemBatch | null = null;
-
-    constructor(client: DynamoWrappedClientInterface, consistency: DynamoReadConsistency) {
-        this._client = client;
-        this._consistency = consistency;
+    /**
+     * Put a single item into DynamoDB. Corresponds to the [`PutItem`][1] command.
+     *
+     * Our DynamoDB class doesn't know which attributes in an item correspond to
+     * the key, so we need the caller to give us the `key` object for the item
+     * separately.
+     *
+     * For `putItem()` calls made in a short window of time that don't have
+     * conditions, we will batch them together into a [`BatchWriteItem`][2]
+     * command.
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
+     * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
+     */
+    public putItem({
+        tableName,
+        key,
+        item,
+    }: {
+        tableName: string;
+        key: SchemaSerializedObjectValue;
+        item: SchemaSerializedObjectValue;
+    }): Promise<void> {
+        return this._writeItemBatcher.putItem(tableName, key, item);
     }
 
     /**
-     * Add a get item request to the current batch we're building. If we haven't
-     * scheduled a batch execution, also do that.
+     * Delete a single item from DynamoDB. Corresponds to the [`DeleteItem`][1]
+     * command.
+     *
+     * For `deleteItem()` calls made in a short window of time that don't have
+     * conditions, we will batch them together into a [`BatchWriteItem`][2]
+     * command.
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DeleteItem.html
+     * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
      */
-    public getItem(
-        tableName: string,
-        key: SchemaSerializedObjectValue,
-    ): Promise<SchemaSerializedObjectValue | null> {
+    public deleteItem({
+        tableName,
+        key,
+    }: {
+        tableName: string;
+        key: SchemaSerializedObjectValue;
+    }): Promise<void> {
+        return this._writeItemBatcher.deleteItem(tableName, key);
+    }
+}
+
+type DynamoClientBatch<Input, Output> = {
+    itemCount: number;
+    tableBatches: Map<string, DynamoClientTableBatch<Input, Output>>;
+};
+
+type DynamoClientTableBatch<Input, Output> = {
+    keyAttributes: Set<string>;
+    keyBatches: Map<string, DynamoClientKeyBatch<Input, Output>>;
+};
+
+type DynamoClientKeyBatch<Input, Output> = {
+    key: SchemaSerializedObjectValue;
+    input: Input;
+    promiseResolvers: Array<PromiseResolver<Output>>;
+};
+
+abstract class DynamoClientItemBatcherBase<Input, Output> {
+    private readonly _maxBatchItemCount: number;
+    private _scheduledBatch: DynamoClientBatch<Input, Output> | null = null;
+
+    constructor({maxBatchItemCount}: {maxBatchItemCount: number}) {
+        this._maxBatchItemCount = maxBatchItemCount;
+    }
+
+    private _getScheduledBatch(): DynamoClientBatch<Input, Output> {
         if (this._scheduledBatch === null) {
             this._scheduledBatch = {
                 itemCount: 0,
@@ -137,18 +167,23 @@ class DynamoClientGetItemBatcher {
             };
             this._scheduleBatchExecution();
         }
+        return this._scheduledBatch;
+    }
+
+    protected _addItem(
+        tableName: string,
+        key: SchemaSerializedObjectValue,
+        input: Input,
+    ): Promise<Output> {
+        const scheduledBatch = this._getScheduledBatch();
 
         const keyAttributes = new Set(Object.keys(key));
-        const promiseResolver = createPromiseResolver<SchemaSerializedObjectValue | null>();
+        const promiseResolver = createPromiseResolver<Output>();
 
-        const tableBatch = getOrSetDefaultMapValue(
-            this._scheduledBatch.tableBatches,
-            tableName,
-            () => ({
-                keyAttributes,
-                keyBatches: new Map(),
-            }),
-        );
+        const tableBatch = getOrSetDefaultMapValue(scheduledBatch.tableBatches, tableName, () => ({
+            keyAttributes,
+            keyBatches: new Map(),
+        }));
 
         // Make sure all keys for a table use the same attributes.
         assert(isDeepEqual(tableBatch.keyAttributes, keyAttributes));
@@ -159,14 +194,18 @@ class DynamoClientGetItemBatcher {
             () => {
                 // Every time this function is called, it means we are adding a new key to the
                 // map. So increment the number of items this batch is fetching here.
-                this._scheduledBatch!.itemCount++;
+                scheduledBatch.itemCount++;
 
                 return {
                     key,
+                    input,
                     promiseResolvers: [],
                 };
             },
         );
+
+        // Always override with the latest input.
+        keyBatch.input = input;
 
         keyBatch.promiseResolvers.push(promiseResolver);
 
@@ -229,12 +268,12 @@ class DynamoClientGetItemBatcher {
         scheduleMicrotask(maybeExecuteBatch);
     }
 
-    private _executeFullBatch(fullBatch: DynamoClientGetItemBatch) {
+    protected _executeFullBatch(fullBatch: DynamoClientBatch<Input, Output>) {
         // This batch execution is performed in a microtask, so if an error is thrown
         // it's thrown into the void. Add a try/catch so that errors reject the promise
         // resolvers in our batch.
         try {
-            const batches = splitDynamoClientGetItemBatch(fullBatch);
+            const batches = splitDynamoClientBatch(fullBatch, this._maxBatchItemCount);
 
             for (const batch of batches) {
                 this._executeBatch(batch, 1);
@@ -250,138 +289,25 @@ class DynamoClientGetItemBatcher {
         }
     }
 
-    private async _executeBatch(batch: DynamoClientGetItemBatch, attemptNumber: number) {
+    private async _executeBatch(batch: DynamoClientBatch<Input, Output>, attemptNumber: number) {
         // This function is async but called from a synchronous function. So if an
         // error is thrown it's thrown in the void. Add a try/catch so that errors
         // reject the promise resolvers in our batch.
         try {
             assert(batch.itemCount <= 100);
 
-            const command = new BatchGetItemCommand({
-                RequestItems: Object.fromEntries(
-                    Array.from(
-                        batch.tableBatches,
-                        ([tableName, tableBatch]): [string, KeysAndAttributes] => {
-                            return [
-                                tableName,
-                                {
-                                    ConsistentRead: this._consistency === "Strong",
-                                    Keys: Array.from(tableBatch.keyBatches.values(), ({key}) =>
-                                        intoDynamoAttributeValueObject(key),
-                                    ),
-                                },
-                            ];
-                        },
-                    ),
-                ),
-            });
-
-            const output = await this._client.send(command);
-
-            for (const [tableName, items] of Object.entries(output.Responses ?? {})) {
-                const tableBatch = batch.tableBatches.get(tableName);
-                assert(
-                    tableBatch,
-                    '"BatchGetItem" output contains a response for a table we didn\'t request',
-                );
-
-                for (const _item of items) {
-                    const item = fromDynamoAttributeValueObject(_item);
-
-                    const key = Object.fromEntries(
-                        Array.from(tableBatch.keyAttributes, keyAttribute => [
-                            keyAttribute,
-                            item[keyAttribute],
-                        ]),
-                    );
-
-                    const keyString = jsonStableStringify(key);
-                    const keyBatch = tableBatch.keyBatches.get(keyString);
-                    assert(
-                        keyBatch,
-                        '"BatchGetItem" output contains a response for an item we didn\'t request',
-                    );
-
-                    for (const promiseResolver of keyBatch.promiseResolvers) {
-                        promiseResolver.resolve(item);
-                    }
-
-                    tableBatch.keyBatches.delete(keyString);
-                    batch.itemCount -= 1;
-                }
-
-                // If all items for this table were present in the response then we can cleanup
-                // our table batch.
-                if (tableBatch.keyBatches.size === 0) batch.tableBatches.delete(tableName);
-            }
-
-            const unprocessedBatch: DynamoClientGetItemBatch = {
-                itemCount: 0,
-                tableBatches: new Map(),
-            };
-
-            // If we have any unprocessed keys move them into a new unprocessed batch
-            // object.
-            if (output.UnprocessedKeys) {
-                for (const [tableName, {Keys: unprocessedKeys}] of Object.entries(
-                    output.UnprocessedKeys,
-                )) {
-                    const tableBatch = batch.tableBatches.get(tableName);
-                    assert(
-                        tableBatch,
-                        '"BatchGetItem" output contains a response for a table we didn\'t request',
-                    );
-
-                    if (unprocessedKeys && unprocessedKeys?.length > 1) {
-                        const unprocessedTableBatch = getOrSetDefaultMapValue(
-                            unprocessedBatch.tableBatches,
-                            tableName,
-                            () => ({
-                                keyAttributes: tableBatch.keyAttributes,
-                                keyBatches: new Map(),
-                            }),
-                        );
-
-                        for (const _key of unprocessedKeys) {
-                            const key = fromDynamoAttributeValueObject(_key);
-
-                            const keyString = jsonStableStringify(key);
-                            const keyBatch = tableBatch.keyBatches.get(keyString);
-                            assert(
-                                keyBatch,
-                                '"BatchGetItem" output contains a response for an item we didn\'t request',
-                            );
-
-                            tableBatch.keyBatches.delete(keyString);
-                            batch.itemCount -= 1;
-
-                            assert(!unprocessedTableBatch.keyBatches.has(keyString));
-                            unprocessedTableBatch.keyBatches.set(keyString, keyBatch);
-                            unprocessedBatch.itemCount += 1;
-                        }
-
-                        // If all items for this table were present in the response then we can cleanup
-                        // our table batch.
-                        if (tableBatch.keyBatches.size === 0) batch.tableBatches.delete(tableName);
-                    }
-                }
-            }
-
-            // For keys that were not returned in either `Responses` or `UnprocessedKeys`,
-            // that means they do not have an item in DynamoDB and should resolve to null.
-            for (const {keyBatches} of batch.tableBatches.values()) {
-                for (const {promiseResolvers} of keyBatches.values()) {
-                    for (const promiseResolver of promiseResolvers) {
-                        promiseResolver.resolve(null);
-                    }
-                }
-            }
+            const {unprocessedBatch} = await this._sendBatchCommand(batch);
 
             if (unprocessedBatch.itemCount > 0) {
                 // The DynamoDB docs strongly recommend us to retry unprocessed key requests
                 // with exponential backoff:
                 // https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
-                const delayMs = Math.min(1000 * 60, 50 * 2 ** (attemptNumber - 1));
+                const delayMs = 50 * 2 ** (attemptNumber - 1);
+
+                if (delayMs > 1000 * 60)
+                    throw new Error(
+                        `Could not finish executing batch after ${attemptNumber} attempts`,
+                    );
 
                 // See: https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter
                 const delayMsWithJitter = Math.floor(Math.random() * delayMs);
@@ -400,6 +326,17 @@ class DynamoClientGetItemBatcher {
             }
         }
     }
+
+    /**
+     * Send a batch command to DynamoDB for the provided batch.
+     *
+     * This function is expected to construct a new batch with any unprocessed
+     * items. If all items were processed then the function may return an
+     * `unprocessedBatch` with `itemCount` of 0.
+     */
+    protected abstract _sendBatchCommand(
+        batch: DynamoClientBatch<Input, Output>,
+    ): Promise<{unprocessedBatch: DynamoClientBatch<Input, Output>}>;
 }
 
 /**
@@ -408,17 +345,16 @@ class DynamoClientGetItemBatcher {
  *
  * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
  */
-function splitDynamoClientGetItemBatch(
-    fullBatch: DynamoClientGetItemBatch,
-): Array<DynamoClientGetItemBatch> {
-    const maxBatchItemCount = 100;
-
+function splitDynamoClientBatch<Input, Output>(
+    fullBatch: DynamoClientBatch<Input, Output>,
+    maxBatchItemCount: number,
+): Array<DynamoClientBatch<Input, Output>> {
     if (fullBatch.itemCount < maxBatchItemCount) {
         return [fullBatch];
     }
 
-    const batches: Array<DynamoClientGetItemBatch> = [];
-    let currentBatch: DynamoClientGetItemBatch;
+    const batches: Array<DynamoClientBatch<Input, Output>> = [];
+    let currentBatch: DynamoClientBatch<Input, Output>;
 
     while (fullBatch.itemCount > 0) {
         currentBatch = {
@@ -476,6 +412,316 @@ function splitDynamoClientGetItemBatch(
     }
 
     return batches;
+}
+
+/**
+ * Responsible for batching multiple `getItem()` calls into one
+ * [`BatchGetItem`][1] command for DynamoDB.
+ *
+ * Implemented as a class so we can have a separate batcher for each read
+ * consistency mode.
+ *
+ * We want each `BatchGetItem` command to have the same read consistency since
+ * the slowest individual item latency will be the latency for the entire
+ * batch. And strong read consistency may increase latency.
+ *
+ * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
+ */
+class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
+    null,
+    SchemaSerializedObjectValue | null
+> {
+    private readonly _client: DynamoWrappedClientInterface;
+    private readonly _consistency: DynamoReadConsistency;
+
+    constructor(client: DynamoWrappedClientInterface, consistency: DynamoReadConsistency) {
+        super({maxBatchItemCount: 100});
+        this._client = client;
+        this._consistency = consistency;
+    }
+
+    public getItem(tableName: string, key: SchemaSerializedObjectValue) {
+        return this._addItem(tableName, key, null);
+    }
+
+    protected async _sendBatchCommand(
+        batch: DynamoClientBatch<null, SchemaSerializedObjectValue | null>,
+    ) {
+        const command = new BatchGetItemCommand({
+            RequestItems: Object.fromEntries(
+                Array.from(
+                    batch.tableBatches,
+                    ([tableName, tableBatch]): [string, KeysAndAttributes] => {
+                        return [
+                            tableName,
+                            {
+                                ConsistentRead: this._consistency === "Strong",
+                                Keys: Array.from(tableBatch.keyBatches.values(), ({key}) =>
+                                    intoDynamoAttributeValueObject(key),
+                                ),
+                            },
+                        ];
+                    },
+                ),
+            ),
+        });
+
+        const output = await this._client.send(command);
+
+        for (const [tableName, items] of Object.entries(output.Responses ?? {})) {
+            const tableBatch = batch.tableBatches.get(tableName);
+            assert(
+                tableBatch,
+                '"BatchGetItem" output contains a response for a table we didn\'t request',
+            );
+
+            for (const _item of items) {
+                const item = fromDynamoAttributeValueObject(_item);
+
+                const key = Object.fromEntries(
+                    Array.from(tableBatch.keyAttributes, keyAttribute => [
+                        keyAttribute,
+                        item[keyAttribute],
+                    ]),
+                );
+
+                const keyString = jsonStableStringify(key);
+                const keyBatch = tableBatch.keyBatches.get(keyString);
+                assert(
+                    keyBatch,
+                    '"BatchGetItem" output contains a response for an item we didn\'t request',
+                );
+
+                for (const promiseResolver of keyBatch.promiseResolvers) {
+                    promiseResolver.resolve(item);
+                }
+
+                tableBatch.keyBatches.delete(keyString);
+                batch.itemCount -= 1;
+            }
+
+            // If all items for this table were present in the response then we can cleanup
+            // our table batch.
+            if (tableBatch.keyBatches.size === 0) batch.tableBatches.delete(tableName);
+        }
+
+        const unprocessedBatch: DynamoClientBatch<null, SchemaSerializedObjectValue | null> = {
+            itemCount: 0,
+            tableBatches: new Map(),
+        };
+
+        // If we have any unprocessed keys move them into a new unprocessed batch
+        // object.
+        if (output.UnprocessedKeys) {
+            for (const [tableName, {Keys: unprocessedKeys}] of Object.entries(
+                output.UnprocessedKeys,
+            )) {
+                const tableBatch = batch.tableBatches.get(tableName);
+                assert(
+                    tableBatch,
+                    '"BatchGetItem" output contains a response for a table we didn\'t request',
+                );
+
+                if (unprocessedKeys && unprocessedKeys?.length > 1) {
+                    const unprocessedTableBatch = getOrSetDefaultMapValue(
+                        unprocessedBatch.tableBatches,
+                        tableName,
+                        () => ({
+                            keyAttributes: tableBatch.keyAttributes,
+                            keyBatches: new Map(),
+                        }),
+                    );
+
+                    for (const _key of unprocessedKeys) {
+                        const key = fromDynamoAttributeValueObject(_key);
+
+                        const keyString = jsonStableStringify(key);
+                        const keyBatch = tableBatch.keyBatches.get(keyString);
+                        assert(
+                            keyBatch,
+                            '"BatchGetItem" output contains a response for an item we didn\'t request',
+                        );
+
+                        tableBatch.keyBatches.delete(keyString);
+                        batch.itemCount -= 1;
+
+                        assert(!unprocessedTableBatch.keyBatches.has(keyString));
+                        unprocessedTableBatch.keyBatches.set(keyString, keyBatch);
+                        unprocessedBatch.itemCount += 1;
+                    }
+
+                    // If all items for this table were present in the response then we can cleanup
+                    // our table batch.
+                    if (tableBatch.keyBatches.size === 0) batch.tableBatches.delete(tableName);
+                }
+            }
+        }
+
+        // For keys that were not returned in either `Responses` or `UnprocessedKeys`,
+        // that means they do not have an item in DynamoDB and should resolve to null.
+        for (const {keyBatches} of batch.tableBatches.values()) {
+            for (const {promiseResolvers} of keyBatches.values()) {
+                for (const promiseResolver of promiseResolvers) {
+                    promiseResolver.resolve(null);
+                }
+            }
+        }
+
+        return {unprocessedBatch};
+    }
+}
+
+type DynamoClientWriteItemBatchAction =
+    | {action: "Put"; item: SchemaSerializedObjectValue}
+    | {action: "Delete"};
+
+/**
+ * Responsible for batching multiple `putItem()` and `deleteItem()` calls into
+ * one [`BatchWriteItem`][1] command for DynamoDB.
+ *
+ * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
+ */
+class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
+    DynamoClientWriteItemBatchAction,
+    void
+> {
+    private readonly _client: DynamoWrappedClientInterface;
+
+    constructor(client: DynamoWrappedClientInterface) {
+        super({maxBatchItemCount: 25});
+        this._client = client;
+    }
+
+    public putItem(
+        tableName: string,
+        key: SchemaSerializedObjectValue,
+        item: SchemaSerializedObjectValue,
+    ): Promise<void> {
+        // Make sure that all the properties in our `key` also exist in our `item`.
+        for (const keyEntry of Object.entries(key)) {
+            if (!isDeepEqual(keyEntry[1], item[keyEntry[0]]))
+                throw new Error(quote`Key attribute ${keyEntry[0]} is different in key and item`);
+        }
+        return this._addItem(tableName, key, {action: "Put", item});
+    }
+
+    public deleteItem(tableName: string, key: SchemaSerializedObjectValue): Promise<void> {
+        return this._addItem(tableName, key, {action: "Delete"});
+    }
+
+    protected async _sendBatchCommand(
+        batch: DynamoClientBatch<DynamoClientWriteItemBatchAction, void>,
+    ) {
+        const command = new BatchWriteItemCommand({
+            RequestItems: Object.fromEntries(
+                Array.from(
+                    batch.tableBatches,
+                    ([tableName, tableBatch]): [string, Array<WriteRequest>] => {
+                        return [
+                            tableName,
+                            Array.from(tableBatch.keyBatches.values(), ({key, input}) => {
+                                switch (input.action) {
+                                    case "Put": {
+                                        return {
+                                            PutRequest: {
+                                                Item: intoDynamoAttributeValueObject(input.item),
+                                            },
+                                        };
+                                    }
+                                    case "Delete": {
+                                        return {
+                                            DeleteRequest: {
+                                                Key: intoDynamoAttributeValueObject(key),
+                                            },
+                                        };
+                                    }
+                                    default:
+                                        throw exhaustive(input);
+                                }
+                            }),
+                        ];
+                    },
+                ),
+            ),
+        });
+
+        const output = await this._client.send(command);
+
+        const unprocessedBatch: DynamoClientBatch<DynamoClientWriteItemBatchAction, void> = {
+            itemCount: 0,
+            tableBatches: new Map(),
+        };
+
+        // If we have any unprocessed keys move them into a new unprocessed batch
+        // object.
+        if (output.UnprocessedItems) {
+            for (const [tableName, unprocessedItems] of Object.entries(output.UnprocessedItems)) {
+                const tableBatch = batch.tableBatches.get(tableName);
+                assert(
+                    tableBatch,
+                    '"BatchWriteItem" output contains a response for a table we didn\'t request',
+                );
+
+                const unprocessedTableBatch = getOrSetDefaultMapValue(
+                    unprocessedBatch.tableBatches,
+                    tableName,
+                    () => ({
+                        keyAttributes: tableBatch.keyAttributes,
+                        keyBatches: new Map(),
+                    }),
+                );
+
+                for (const unprocessedItem of unprocessedItems) {
+                    let key: SchemaSerializedObjectValue;
+                    if (unprocessedItem.PutRequest?.Item) {
+                        const newKey: {[key: string]: AttributeValue} = {};
+
+                        for (const keyAttribute of tableBatch.keyAttributes) {
+                            const keyAttributeValue = unprocessedItem.PutRequest.Item[keyAttribute];
+                            if (keyAttributeValue !== undefined)
+                                newKey[keyAttribute] = keyAttributeValue;
+                        }
+
+                        key = fromDynamoAttributeValueObject(newKey);
+                    } else if (unprocessedItem.DeleteRequest && unprocessedItem.DeleteRequest.Key) {
+                        key = fromDynamoAttributeValueObject(unprocessedItem.DeleteRequest.Key);
+                    } else {
+                        throw new Error('Unrecognized unprocessed item in "BatchWriteItem" output');
+                    }
+
+                    const keyString = jsonStableStringify(key);
+                    const keyBatch = tableBatch.keyBatches.get(keyString);
+                    assert(
+                        keyBatch,
+                        '"BatchWriteItem" output contains a response for an item we didn\'t request',
+                    );
+
+                    tableBatch.keyBatches.delete(keyString);
+                    batch.itemCount -= 1;
+
+                    assert(!unprocessedTableBatch.keyBatches.has(keyString));
+                    unprocessedTableBatch.keyBatches.set(keyString, keyBatch);
+                    unprocessedBatch.itemCount += 1;
+                }
+
+                // If all items for this table were present in the response then we can cleanup
+                // our table batch.
+                if (tableBatch.keyBatches.size === 0) batch.tableBatches.delete(tableName);
+            }
+        }
+
+        // For keys that were not returned `UnprocessedItems`, that means the write
+        // succeeded so we can resolve the promises for the batched items.
+        for (const {keyBatches} of batch.tableBatches.values()) {
+            for (const {promiseResolvers} of keyBatches.values()) {
+                for (const promiseResolver of promiseResolvers) {
+                    promiseResolver.resolve();
+                }
+            }
+        }
+
+        return {unprocessedBatch};
+    }
 }
 
 /**
