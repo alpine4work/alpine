@@ -3,7 +3,6 @@ import {Mark} from "prosemirror-model";
 import {EditorView} from "prosemirror-view";
 import {RefObject, useRef, useState} from "react";
 import {useButton, useHover} from "react-aria";
-import {trimSpacesFromRange} from "~/client/content/internal/content-editor-prosemirror-helpers";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus-ring";
 import {sprinkles} from "~/client/design/sprinkles.css";
