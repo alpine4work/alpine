@@ -36,11 +36,27 @@ export type SchemaSerializedValue =
     | SchemaSerializedObjectValue
     | SchemaSerializedArrayValue;
 
-type SchemaSerializedScalarValue = null | boolean | number | string | JsonStringifiableUint8Array;
+/**
+ * A serialized value which doesn't contain other values.
+ */
+export type SchemaSerializedScalarValue =
+    | null
+    | boolean
+    | number
+    | string
+    | JsonStringifiableUint8Array;
 
-type SchemaSerializedObjectValue = {readonly [key: string]: SchemaSerializedValue | undefined};
+/**
+ * A serialized object value.
+ */
+export type SchemaSerializedObjectValue = {
+    readonly [key: string]: SchemaSerializedValue | undefined;
+};
 
-type SchemaSerializedArrayValue = ReadonlyArray<SchemaSerializedValue>;
+/**
+ * A serialized array value.
+ */
+export type SchemaSerializedArrayValue = ReadonlyArray<SchemaSerializedValue>;
 
 /**
  * The schema class is a type-safe combinator-style utility for validating and
@@ -67,6 +83,32 @@ export class Schema<Value> {
      * May mutate the underlying value during deserialization.
      */
     public readonly deserialize: (serializedValue: SchemaSerializedValue) => Value;
+
+    // NOTE(calebmer): Some ideas on serialization/deserialization performance.
+    // Two performance problems:
+    //
+    // 1. There's a lot of abstraction. To serialize an object you step through
+    //    a pretty deep, recursive, function stack. We may bypass a lot of
+    //    JavaScript engine optimizations around [hidden classes][1] through
+    //    dynamic property access like `o[p]` instead of `o.p`.
+    // 2. The serialization format is pretty general. What if instead we had
+    //    multiple specialized serialization formats? (Like [serde][2] in Rust.)
+    //    For example, we need another serialization pass for DynamoDB to convert
+    //    into its value format. We also need a serialization pass to convert into
+    //    MessagePack (for Ably) or JSON.
+    //
+    // We could solve both problems with codegen! Instead of the functional
+    // programming style where we build up serialize and deserialize functions, we
+    // generate hyper optimized non-recursive functions for different target
+    // formats. We generate a function for DynamoDB, for MessagePack, and for JSON
+    // (both direct string serialization but also object serialization).
+    //
+    // I suspect since we do serialization and deserialization SO MUCH that
+    // investing in optimizing those code paths will prove to be a meaningful
+    // performance win.
+    //
+    // [1]: https://mrale.ph/blog/2015/01/11/whats-up-with-monomorphism.html
+    // [2]: https://serde.rs
 
     private constructor({
         serialize,
@@ -466,14 +508,14 @@ export class Schema<Value> {
  * the binary contents. If the serializer uses `JSON.stringify()` then we get
  * a base64 string.
  */
-class JsonStringifiableUint8Array extends Uint8Array {
+export class JsonStringifiableUint8Array extends Uint8Array {
     constructor(array: Uint8Array) {
         // Important that we don't copy the array and instead reference the same
         // underlying buffer as the array we are provided.
         super(array.buffer, array.byteOffset, array.length);
     }
 
-    public toJSON() {
+    public toJSON(): string {
         return bytesToBase64(this);
     }
 }

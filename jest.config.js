@@ -9,7 +9,6 @@ const getJestConfig = createJestConfig({
     testEnvironment: "jest-environment-jsdom",
     resolver: require.resolve("./admin/jest/jest-resolver.js"),
     snapshotResolver: require.resolve("./admin/jest/jest-snapshot-resolver.js"),
-    setupFilesAfterEnv: [require.resolve("./admin/jest/jest-setup-tests.ts")],
     clearMocks: true,
 });
 
@@ -41,5 +40,25 @@ module.exports = async (...args) => {
         ...jestConfig.transform,
     };
 
-    return jestConfig;
+    // Configure the main Jest config object to ignore server code. We will create
+    // a second config for testing server code.
+    jestConfig.displayName = "client";
+
+    const originalTestPathIgnorePatterns = [...jestConfig.testPathIgnorePatterns];
+    jestConfig.testPathIgnorePatterns.push("<rootDir>/server/");
+
+    jestConfig.setupFilesAfterEnv ??= [];
+    const originalSetupFilesAfterEnv = [...jestConfig.setupFilesAfterEnv];
+    jestConfig.setupFilesAfterEnv.push(require.resolve("./admin/jest/jest-setup-client-tests.ts"));
+
+    const serverJestConfig = {
+        ...jestConfig,
+        displayName: "server",
+        testEnvironment: "node",
+        testMatch: jestConfig.testMatch.map(testMatch => `<rootDir>/server/${testMatch}`),
+        testPathIgnorePatterns: originalTestPathIgnorePatterns,
+        setupFilesAfterEnv: originalSetupFilesAfterEnv,
+    };
+
+    return {projects: [jestConfig, serverJestConfig]};
 };
