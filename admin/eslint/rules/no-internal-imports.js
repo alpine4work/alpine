@@ -48,22 +48,6 @@ module.exports = {
                         break;
                     }
 
-                    // Reject an import: `~/foo/internal/bar`
-                    // From: `~/foo/qux/buz`
-                    if (
-                        ourPath.slice(
-                            pathInternalIndex,
-                            pathInternalIndex + internalPathSegment.length,
-                        ) !== internalPathSegment &&
-                        ourPath.indexOf("/", pathInternalIndex + 1) !== -1
-                    ) {
-                        context.report({
-                            node: node.source,
-                            messageId: "noInternalImport",
-                        });
-                        break;
-                    }
-
                     pathStartIndex = pathInternalIndex + internalPathSegment.length;
                     pathInternalIndex = importPath.indexOf(internalPathSegment, pathStartIndex);
                 }

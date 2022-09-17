@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 // Error
-// eslint-disable-next-line no-internal-imports
 import {foo} from "~/admin/eslint/test/internal/eslint-rule-no-internal-imports-test-1";
 
 // Ok
