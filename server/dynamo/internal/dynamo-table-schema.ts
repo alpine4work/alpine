@@ -5,6 +5,11 @@ import fs from "fs-extra";
 import isCi from "is-ci";
 import path from "path";
 import {DynamoClient, DynamoReadConsistency} from "~/server/dynamo/internal/dynamo-client";
+import {
+    DynamoCondition,
+    DynamoConditionExpression,
+    DynamoConditionExpressionCompilationContext,
+} from "~/server/dynamo/internal/dynamo-condition";
 import {dynamoKeySeparator} from "~/server/dynamo/internal/dynamo-key-attribute-schema";
 import {DynamoTableSchemaTypes} from "~/server/dynamo/internal/types/dynamo-table-schema-types";
 import {repoDirectoryPath} from "~/server/helpers/repo-directory-path";
@@ -151,8 +156,7 @@ export class DynamoTableSchema<
         {
             condition,
         }: {
-            // TODO(calebmer): Conditions
-            condition?: never;
+            condition?: DynamoCondition<Item>;
         } = {},
     ): Promise<void> {
         this._commitDescriptionOnFirstWrite();
@@ -162,22 +166,63 @@ export class DynamoTableSchema<
         const serializedItem: {[key: string]: SchemaSerializedValue} = {partitionKey, sortKey};
         attributesSchema.serializeInto(item, serializedItem);
 
-        return client.putItem({
-            tableName: this._config.name,
-            key: {partitionKey, sortKey},
-            item: serializedItem,
-        });
+        if (condition === undefined) {
+            return client.putItem({
+                tableName: this._config.name,
+                key: {partitionKey, sortKey},
+                item: serializedItem,
+            });
+        } else {
+            const conditionCompilationContext = DynamoConditionExpressionCompilationContext.new();
+            const conditionExpression = DynamoConditionExpression.from(condition);
+            const {string: conditionExpressionString} = conditionExpression.compile(
+                attributesSchema,
+                conditionCompilationContext,
+            );
+
+            return client.putItem({
+                tableName: this._config.name,
+                key: {partitionKey, sortKey},
+                item: serializedItem,
+                conditionExpression: conditionExpressionString,
+                expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
+            });
+        }
     }
 
-    public deleteItem(client: DynamoClient, key: Types["Key"]): Promise<void> {
+    public deleteItem<Key extends Types["Key"]>(
+        client: DynamoClient,
+        key: Key,
+        {
+            condition,
+        }: {
+            condition?: DynamoCondition<Types["Item"] & Key>;
+        } = {},
+    ): Promise<void> {
         this._commitDescriptionOnFirstWrite();
 
-        const {partitionKey, sortKey} = this._serializeKey(key);
+        const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
 
-        return client.deleteItem({
-            tableName: this._config.name,
-            key: {partitionKey, sortKey},
-        });
+        if (condition === undefined) {
+            return client.deleteItem({
+                tableName: this._config.name,
+                key: {partitionKey, sortKey},
+            });
+        } else {
+            const conditionCompilationContext = DynamoConditionExpressionCompilationContext.new();
+            const conditionExpression = DynamoConditionExpression.from(condition);
+            const {string: conditionExpressionString} = conditionExpression.compile(
+                attributesSchema,
+                conditionCompilationContext,
+            );
+
+            return client.deleteItem({
+                tableName: this._config.name,
+                key: {partitionKey, sortKey},
+                conditionExpression: conditionExpressionString,
+                expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
+            });
+        }
     }
 
     public transactionPutItem(item: Types["Item"]) {

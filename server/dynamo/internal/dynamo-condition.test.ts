@@ -38,7 +38,7 @@ function compile(condition: DynamoCondition<SchemaType<typeof schema>>): {
     const {string} = DynamoConditionExpression.from(condition).compile(schema, context);
     return {
         string,
-        variables: Object.fromEntries(context.getVariableValueByName()),
+        variables: Object.fromEntries(context.iterateVariables()),
     };
 }
 

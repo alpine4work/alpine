@@ -1,4 +1,5 @@
 import {assert} from "~/shared/helpers/control/assert";
+import {iterableMap} from "~/shared/helpers/iterable/iterable-map";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get-or-set-default-map-value";
 import {NonUndefined} from "~/shared/helpers/types/non-undefined";
 import {
@@ -310,8 +311,8 @@ export class DynamoConditionExpressionCompilationContext {
     /**
      * Get a map of all variables assignments in this context.
      */
-    public getVariableValueByName(): ReadonlyMap<string, SchemaSerializedValue> {
-        return new Map(Array.from(this._variableNameByValue, ([value, name]) => [name, value]));
+    public iterateVariables(): Iterable<[string, SchemaSerializedValue]> {
+        return iterableMap(this._variableNameByValue, ([value, name]) => [name, value]);
     }
 }
 
@@ -336,7 +337,7 @@ class DynamoConditionAttributeExpression<
         assert(schema instanceof ObjectSchema, "Expected a schema created by `Schema.object()`");
 
         const propertySchema = schema.propertySchemaByKey.get(this._key);
-        assert(propertySchema);
+        assert(propertySchema, "Property not found");
 
         const serializedKey = propertySchema.serializedKey ?? this._key;
 

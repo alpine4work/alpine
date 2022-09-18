@@ -2,8 +2,10 @@ import {
     AttributeValue,
     BatchGetItemCommand,
     BatchWriteItemCommand,
+    DeleteItemCommand,
     DynamoDBClient,
     KeysAndAttributes,
+    PutItemCommand,
     WriteRequest,
 } from "@aws-sdk/client-dynamodb";
 import {Command, MetadataBearer} from "@aws-sdk/types";
@@ -15,6 +17,7 @@ import {scheduleMicrotask} from "~/shared/helpers/async/schedule-microtask";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {isDeepEqual} from "~/shared/helpers/control/is-deep-equal";
+import {iterableMap} from "~/shared/helpers/iterable/iterable-map";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get-or-set-default-map-value";
 import {quote} from "~/shared/helpers/string/quote";
 import {
@@ -120,16 +123,36 @@ export class DynamoClient {
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
      * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
      */
-    public putItem({
+    public async putItem({
         tableName,
         key,
         item,
+        conditionExpression,
+        expressionAttributeValues,
     }: {
         tableName: string;
         key: SchemaSerializedObjectValue;
         item: SchemaSerializedObjectValue;
+        conditionExpression?: string;
+        expressionAttributeValues?: Map<string, SchemaSerializedValue>;
     }): Promise<void> {
-        return this._writeItemBatcher.putItem(tableName, key, item);
+        // Writes without a condition may be batched.
+        if (conditionExpression === undefined)
+            return this._writeItemBatcher.putItem(tableName, key, item);
+
+        const command = new PutItemCommand({
+            TableName: tableName,
+            Item: intoDynamoAttributeValueObject(item),
+            ConditionExpression: conditionExpression,
+            ExpressionAttributeValues: Object.fromEntries(
+                iterableMap(expressionAttributeValues ?? [], ([name, value]) => [
+                    name,
+                    intoDynamoAttributeValue(value),
+                ]),
+            ),
+        });
+
+        await this._client.send(command);
     }
 
     /**
@@ -143,14 +166,34 @@ export class DynamoClient {
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DeleteItem.html
      * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
      */
-    public deleteItem({
+    public async deleteItem({
         tableName,
         key,
+        conditionExpression,
+        expressionAttributeValues,
     }: {
         tableName: string;
         key: SchemaSerializedObjectValue;
+        conditionExpression?: string;
+        expressionAttributeValues?: Map<string, SchemaSerializedValue>;
     }): Promise<void> {
-        return this._writeItemBatcher.deleteItem(tableName, key);
+        // Writes without a condition may be batched.
+        if (conditionExpression === undefined)
+            return this._writeItemBatcher.deleteItem(tableName, key);
+
+        const command = new DeleteItemCommand({
+            TableName: tableName,
+            Key: intoDynamoAttributeValueObject(key),
+            ConditionExpression: conditionExpression,
+            ExpressionAttributeValues: Object.fromEntries(
+                iterableMap(expressionAttributeValues ?? [], ([name, value]) => [
+                    name,
+                    intoDynamoAttributeValue(value),
+                ]),
+            ),
+        });
+
+        await this._client.send(command);
     }
 }
 
@@ -729,7 +772,7 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
             }
         }
 
-        // For keys that were not returned `UnprocessedItems`, that means the write
+        // For keys that were not returned in `UnprocessedItems`, that means the write
         // succeeded so we can resolve the promises for the batched items.
         for (const {keyBatches} of batch.tableBatches.values()) {
             for (const {promiseResolvers} of keyBatches.values()) {
