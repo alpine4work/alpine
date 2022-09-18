@@ -43,8 +43,11 @@ import {
 import {trimSpacesFromRange} from "~/client/content/internal/content-editor-prosemirror-helpers";
 import {FocusRingPortal} from "~/client/design/focus-ring";
 import {isMac} from "~/client/helpers/platform/is-mac";
-import {ContentSchema, doesUrlStartWithAllowedProtocol} from "~/shared/content/content-schema";
-import {docClassName} from "~/shared/content/content-schema.css";
+import {
+    ContentProsemirrorSchema,
+    doesUrlStartWithAllowedProtocol,
+} from "~/shared/content/content-prosemirror-schema";
+import {docClassName} from "~/shared/content/content-prosemirror-schema.css";
 import {assert} from "~/shared/helpers/control/assert";
 import {Id, generateId} from "~/shared/id/id";
 
@@ -57,7 +60,7 @@ declare module "prosemirror-model" {
     }
 }
 
-function buildPlugins(schema: ContentSchema) {
+function buildPlugins(schema: ContentProsemirrorSchema) {
     return [history(), buildInputRulesPlugin(schema), buildKeymapPlugin(schema)];
 }
 
@@ -73,7 +76,7 @@ export class ContentEditorState {
     /**
      * Creates a new state for our content editor.
      */
-    public static create({schema, content}: {schema: ContentSchema; content: Node}) {
+    public static create({schema, content}: {schema: ContentProsemirrorSchema; content: Node}) {
         assert(content.type.schema === schema);
 
         const plugins = buildPlugins(schema);
@@ -94,7 +97,7 @@ export class ContentEditorState {
         version,
         content,
     }: {
-        schema: ContentSchema;
+        schema: ContentProsemirrorSchema;
 
         /**
          * The content version for collaborative editing.

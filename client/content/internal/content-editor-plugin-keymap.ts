@@ -18,7 +18,10 @@ import {EditorState, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {createToggleMarkCommand} from "~/client/content/internal/content-editor-prosemirror-helpers";
 import {isMac} from "~/client/helpers/platform/is-mac";
-import {ContentSchema, maxListItemIndentation} from "~/shared/content/content-schema";
+import {
+    ContentProsemirrorSchema,
+    maxListItemIndentation,
+} from "~/shared/content/content-prosemirror-schema";
 
 type Command = (
     state: EditorState,
@@ -29,7 +32,7 @@ type Command = (
 export const openKeyboardHighlightFloaterMetaKey = "openKeyboardHighlightFloater";
 export const openKeyboardLinkFloaterMetaKey = "openKeyboardLinkFloater";
 
-export function buildKeymapPlugin(schema: ContentSchema) {
+export function buildKeymapPlugin(schema: ContentProsemirrorSchema) {
     const keys = new Map<string, Command>();
 
     // History

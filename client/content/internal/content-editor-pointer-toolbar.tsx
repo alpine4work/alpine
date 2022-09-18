@@ -46,7 +46,7 @@ import {uninterruptedThoughtLimitMs} from "~/client/design/timing-constants";
 import {Tooltip, TooltipRef} from "~/client/design/tooltip";
 import {useConstant} from "~/client/helpers/lifecycle/use-constant";
 import {isMac} from "~/client/helpers/platform/is-mac";
-import {ContentSchema} from "~/shared/content/content-schema";
+import {ContentProsemirrorSchema} from "~/shared/content/content-prosemirror-schema";
 import {spacing} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
 
@@ -323,7 +323,7 @@ function ContentEditorPointerToolbarButtons({
     onLinkInputOpen,
     onLinkInputClose,
 }: {
-    state: EditorState & {schema: ContentSchema};
+    state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<EditorView | null>;
     sharedTooltipLifecycleRef: (tooltipRef: TooltipRef) => () => void;
     isFadingOut: boolean;

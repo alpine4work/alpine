@@ -1,13 +1,13 @@
 import {assignInlineVars} from "@vanilla-extract/dynamic";
 import classNames from "classnames";
-import {Schema} from "prosemirror-model";
+import {Schema as ProsemirrorSchema} from "prosemirror-model";
 import {
     clampListItemIndentation,
-    contentBaseSchemaSpec,
+    contentBaseProsemirrorSchemaSpec,
     createListItemParseRule,
-    createSchemaSpec,
+    createProsemirrorSchemaSpec,
     toDebugStringWithIndent,
-} from "~/shared/content/content-schema";
+} from "~/shared/content/content-prosemirror-schema";
 import {
     checkListItemCheckedClassName,
     dividerClassName,
@@ -18,13 +18,13 @@ import {
     listItemClassName,
     listItemIndentationVar,
     titleClassName,
-} from "~/shared/content/content-schema.css";
+} from "~/shared/content/content-prosemirror-schema.css";
 import {HighlightColor, isHighlightColor} from "~/shared/content/highlight-color";
 import {assert} from "~/shared/helpers/control/assert";
 
-const documentWithoutTitleContentSchemaSpec = createSchemaSpec({
+const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
     nodes: {
-        ...contentBaseSchemaSpec.nodes,
+        ...contentBaseProsemirrorSchemaSpec.nodes,
 
         /*
          * Crucial for adding structure to the document. Can be extended in the
@@ -143,7 +143,7 @@ const documentWithoutTitleContentSchemaSpec = createSchemaSpec({
         },
     },
     marks: {
-        ...contentBaseSchemaSpec.marks,
+        ...contentBaseProsemirrorSchemaSpec.marks,
 
         /**
          * Gives the writer a flexible tool for annotating their content. Highlight
@@ -195,15 +195,15 @@ const documentWithoutTitleContentSchemaSpec = createSchemaSpec({
     },
 });
 
-const documentContentSchemaSpec = createSchemaSpec({
+const documentContentProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
     nodes: {
-        ...documentWithoutTitleContentSchemaSpec.nodes,
+        ...documentWithoutTitleContentProsemirrorSchemaSpec.nodes,
 
         /**
          * A document includes a required title at the top.
          */
         doc: {
-            content: `title ${documentWithoutTitleContentSchemaSpec.nodes.doc.content}`,
+            content: `title ${documentWithoutTitleContentProsemirrorSchemaSpec.nodes.doc.content}`,
         },
 
         /**
@@ -235,19 +235,25 @@ const documentContentSchemaSpec = createSchemaSpec({
         },
     },
     marks: {
-        ...documentWithoutTitleContentSchemaSpec.marks,
+        ...documentWithoutTitleContentProsemirrorSchemaSpec.marks,
     },
 });
 
-export const DocumentContentSchema = new Schema(documentContentSchemaSpec);
+export const DocumentContentProsemirrorSchema = new ProsemirrorSchema(
+    documentContentProsemirrorSchemaSpec,
+);
 
-export const emptyDocumentContent = DocumentContentSchema.node("doc", {}, [
-    DocumentContentSchema.node("title"),
-    DocumentContentSchema.node("paragraph"),
+export const emptyDocumentContent = DocumentContentProsemirrorSchema.node("doc", {}, [
+    DocumentContentProsemirrorSchema.node("title"),
+    DocumentContentProsemirrorSchema.node("paragraph"),
 ]);
 
-export const DocumentWithoutTitleContentSchema = new Schema(documentWithoutTitleContentSchemaSpec);
+export const DocumentWithoutTitleContentProsemirrorSchema = new ProsemirrorSchema(
+    documentWithoutTitleContentProsemirrorSchemaSpec,
+);
 
-export const emptyDocumentWithoutTitleContent = DocumentWithoutTitleContentSchema.node("doc", {}, [
-    DocumentWithoutTitleContentSchema.node("paragraph"),
-]);
+export const emptyDocumentWithoutTitleContent = DocumentWithoutTitleContentProsemirrorSchema.node(
+    "doc",
+    {},
+    [DocumentWithoutTitleContentProsemirrorSchema.node("paragraph")],
+);

@@ -3,13 +3,16 @@ import {useEffect, useState} from "react";
 import {ContentEditor, ContentEditorState} from "~/client/content/content-editor";
 import {sprinkles} from "~/client/design/sprinkles.css";
 import {
-    DocumentContentSchema,
+    DocumentContentProsemirrorSchema,
     emptyDocumentContent,
-} from "~/shared/content/document-content-schema";
+} from "~/shared/content/document-content-prosemirror-schema";
 
 export default function Home() {
     const [state, setState] = useState(() =>
-        ContentEditorState.create({schema: DocumentContentSchema, content: emptyDocumentContent}),
+        ContentEditorState.create({
+            schema: DocumentContentProsemirrorSchema,
+            content: emptyDocumentContent,
+        }),
     );
 
     useEffect(() => {
@@ -17,15 +20,17 @@ export default function Home() {
         if (!indexContentJson) {
             setState(
                 ContentEditorState.create({
-                    schema: DocumentContentSchema,
+                    schema: DocumentContentProsemirrorSchema,
                     content: emptyDocumentContent,
                 }),
             );
         } else {
             setState(
                 ContentEditorState.create({
-                    schema: DocumentContentSchema,
-                    content: DocumentContentSchema.nodeFromJSON(JSON.parse(indexContentJson)),
+                    schema: DocumentContentProsemirrorSchema,
+                    content: DocumentContentProsemirrorSchema.nodeFromJSON(
+                        JSON.parse(indexContentJson),
+                    ),
                 }),
             );
         }

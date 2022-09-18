@@ -14,13 +14,13 @@ import {
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {TooltipCoordinationContextProvider} from "~/client/design/tooltip";
 import {
-    DocumentWithoutTitleContentSchema,
+    DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
-} from "~/shared/content/document-content-schema";
+} from "~/shared/content/document-content-prosemirror-schema";
 
 jest.useFakeTimers();
 
-const schema = DocumentWithoutTitleContentSchema;
+const schema = DocumentWithoutTitleContentProsemirrorSchema;
 
 function TestContentEditor({initialContent}: {initialContent?: Node}) {
     const [state, setState] = useState(() =>

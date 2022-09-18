@@ -7,10 +7,10 @@ import {
 } from "prosemirror-inputrules";
 import {MarkType, NodeType} from "prosemirror-model";
 import {findWrapping} from "prosemirror-transform";
-import {ContentSchema} from "~/shared/content/content-schema";
+import {ContentProsemirrorSchema} from "~/shared/content/content-prosemirror-schema";
 import {assert} from "~/shared/helpers/control/assert";
 
-export function buildInputRulesPlugin(schema: ContentSchema) {
+export function buildInputRulesPlugin(schema: ContentProsemirrorSchema) {
     const rules: Array<InputRule> = [];
 
     // "smart quotes"

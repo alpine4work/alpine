@@ -12,15 +12,15 @@ import {
     getEditorViewForTest,
 } from "~/client/content/content-editor";
 import {
-    DocumentWithoutTitleContentSchema,
+    DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
-} from "~/shared/content/document-content-schema";
+} from "~/shared/content/document-content-prosemirror-schema";
 import {assert} from "~/shared/helpers/control/assert";
 
 function TestContentEditor() {
     const [state, setState] = useState(() =>
         ContentEditorState.create({
-            schema: DocumentWithoutTitleContentSchema,
+            schema: DocumentWithoutTitleContentProsemirrorSchema,
             content: emptyDocumentWithoutTitleContent,
         }),
     );

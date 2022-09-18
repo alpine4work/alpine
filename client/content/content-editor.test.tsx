@@ -12,14 +12,14 @@ import {
     getEditorViewForTest,
 } from "~/client/content/content-editor";
 import {
-    DocumentWithoutTitleContentSchema,
+    DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
-} from "~/shared/content/document-content-schema";
+} from "~/shared/content/document-content-prosemirror-schema";
 
 function TestContentEditor() {
     const [state, setState] = useState(() =>
         ContentEditorState.create({
-            schema: DocumentWithoutTitleContentSchema,
+            schema: DocumentWithoutTitleContentProsemirrorSchema,
             content: emptyDocumentWithoutTitleContent,
         }),
     );
@@ -55,7 +55,7 @@ test("renders an empty document", () => {
         <ContentEditor
             aria-label="Test"
             state={ContentEditorState.create({
-                schema: DocumentWithoutTitleContentSchema,
+                schema: DocumentWithoutTitleContentProsemirrorSchema,
                 content: emptyDocumentWithoutTitleContent,
             })}
             onChange={() => {}}
@@ -66,7 +66,7 @@ test("renders an empty document", () => {
 });
 
 test("renders an initial editor state", () => {
-    const schema = DocumentWithoutTitleContentSchema;
+    const schema = DocumentWithoutTitleContentProsemirrorSchema;
 
     const content = schema.node("doc", {}, [
         schema.node("paragraph", {}, [
@@ -88,7 +88,7 @@ test("renders an initial editor state", () => {
 });
 
 test("rerenders with a changed document", () => {
-    const schema = DocumentWithoutTitleContentSchema;
+    const schema = DocumentWithoutTitleContentProsemirrorSchema;
 
     const doc1 = schema.node("doc", {}, [schema.node("paragraph", {}, [schema.text("Hello")])]);
     const doc2 = schema.node("doc", {}, [
@@ -156,7 +156,7 @@ test("will revert optimistic update if it doesn't match props", () => {
     function NoopContentEditor() {
         const [state] = useState(() =>
             ContentEditorState.create({
-                schema: DocumentWithoutTitleContentSchema,
+                schema: DocumentWithoutTitleContentProsemirrorSchema,
                 content: emptyDocumentWithoutTitleContent,
             }),
         );

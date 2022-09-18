@@ -8,11 +8,11 @@ import {
 } from "~/client/content/content-editor";
 import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use-is-initial-app-render";
 import {
-    DocumentWithoutTitleContentSchema,
+    DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
-} from "~/shared/content/document-content-schema";
+} from "~/shared/content/document-content-prosemirror-schema";
 
-const schema = DocumentWithoutTitleContentSchema;
+const schema = DocumentWithoutTitleContentProsemirrorSchema;
 
 const blockTestCases: Array<{
     name: string;

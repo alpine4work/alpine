@@ -13,7 +13,7 @@ import {
     paragraphClassName,
     quoteBlockClassName,
     strikeClassName,
-} from "~/shared/content/content-schema.css";
+} from "~/shared/content/content-prosemirror-schema.css";
 
 /**
  * The maximum level of indentation for a list item.
@@ -45,18 +45,18 @@ export function doesUrlStartWithAllowedProtocol(url: string) {
  * adhere to the `SchemaSpec` format while allowing the return type to be an
  * instance of `SchemaSpec`. (So node keys are preserved, for instance.)
  */
-export function createSchemaSpec<Schema extends SchemaSpec<string, string>>(
+export function createProsemirrorSchemaSpec<Schema extends SchemaSpec<string, string>>(
     schema: Schema,
 ): Schema {
     return schema;
 }
 
-export type ContentSchema = Schema<
-    keyof typeof contentBaseSchemaSpec["nodes"],
-    keyof typeof contentBaseSchemaSpec["marks"]
+export type ContentProsemirrorSchema = Schema<
+    keyof typeof contentBaseProsemirrorSchemaSpec["nodes"],
+    keyof typeof contentBaseProsemirrorSchemaSpec["marks"]
 >;
 
-export const contentBaseSchemaSpec = createSchemaSpec({
+export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
     nodes: {
         /**
          * Document root, every ProseMirror schema requires this.
