@@ -4,11 +4,8 @@ import {Construct} from "constructs";
 import fs from "fs-extra";
 import isCi from "is-ci";
 import path from "path";
-import {
-    DynamoClient,
-    DynamoReadConsistency,
-    DynamoTransactionEntry,
-} from "~/server/dynamo/internal/dynamo-client";
+import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo-transaction-entry";
+import {DynamoReadConsistency} from "~/server/dynamo/internal/dynamo-client";
 import {
     DynamoCondition,
     DynamoConditionExpression,
@@ -18,8 +15,10 @@ import {
     DynamoKeyAttribute,
     dynamoKeySeparator,
 } from "~/server/dynamo/internal/dynamo-key-attribute-schema";
+import {getDynamoClientFromRequestContext} from "~/server/dynamo/internal/get-dynamo-client-from-request-context";
 import {DynamoTableSchemaTypes} from "~/server/dynamo/internal/types/dynamo-table-schema-types";
 import {repoDirectoryPath} from "~/server/helpers/repo-directory-path";
+import {RequestContext} from "~/server/request/request-context";
 import {checkSchemaDescriptionBackwardsCompatibility} from "~/server/schema/check-schema-description-backwards-compatibility";
 import {assert} from "~/shared/helpers/control/assert";
 import {isDeepEqual} from "~/shared/helpers/control/is-deep-equal";
@@ -194,10 +193,11 @@ export class DynamoTableSchema<
     }
 
     public async getItem<Key extends Types["Key"]>(
-        client: DynamoClient,
+        context: RequestContext,
         key: Key,
         {consistency}: {consistency?: DynamoReadConsistency} = {},
     ): Promise<MergeObjectIntersection<Types["Item"] & Key> | null> {
+        const client = getDynamoClientFromRequestContext(context);
         const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
 
         const serializedItem = await client.getItem({
@@ -213,7 +213,7 @@ export class DynamoTableSchema<
     }
 
     public async putItem<Item extends Types["Item"]>(
-        client: DynamoClient,
+        context: RequestContext,
         item: Item,
         {
             condition,
@@ -223,6 +223,7 @@ export class DynamoTableSchema<
     ): Promise<void> {
         this._commitDescriptionOnFirstWrite();
 
+        const client = getDynamoClientFromRequestContext(context);
         const {partitionKey, sortKey, attributesSchema} = this._serializeKey(item as Types["Key"]);
 
         const serializedItem: {[key: string]: SchemaSerializedValue} = {partitionKey, sortKey};
@@ -253,7 +254,7 @@ export class DynamoTableSchema<
     }
 
     public deleteItem<Key extends Types["Key"]>(
-        client: DynamoClient,
+        context: RequestContext,
         key: Key,
         {
             condition,
@@ -263,6 +264,7 @@ export class DynamoTableSchema<
     ): Promise<void> {
         this._commitDescriptionOnFirstWrite();
 
+        const client = getDynamoClientFromRequestContext(context);
         const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
 
         if (condition === undefined) {
@@ -288,7 +290,7 @@ export class DynamoTableSchema<
     }
 
     public transactionPutItem<Item extends Types["Item"]>(
-        client: DynamoClient,
+        context: RequestContext,
         item: Item,
         {
             condition,
@@ -298,6 +300,7 @@ export class DynamoTableSchema<
     ): DynamoTransactionEntry {
         this._commitDescriptionOnFirstWrite();
 
+        const client = getDynamoClientFromRequestContext(context);
         const {partitionKey, sortKey, attributesSchema} = this._serializeKey(item as Types["Key"]);
 
         const serializedItem: {[key: string]: SchemaSerializedValue} = {partitionKey, sortKey};
@@ -326,7 +329,7 @@ export class DynamoTableSchema<
     }
 
     public transactionDeleteItem<Key extends Types["Key"]>(
-        client: DynamoClient,
+        context: RequestContext,
         key: Key,
         {
             condition,
@@ -336,6 +339,7 @@ export class DynamoTableSchema<
     ): DynamoTransactionEntry {
         this._commitDescriptionOnFirstWrite();
 
+        const client = getDynamoClientFromRequestContext(context);
         const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
 
         if (condition === undefined) {
@@ -361,10 +365,11 @@ export class DynamoTableSchema<
     }
 
     public transactionConditionCheck<Key extends Types["Key"]>(
-        client: DynamoClient,
+        context: RequestContext,
         key: Key,
         condition: DynamoCondition<Types["Item"] & Key>,
     ): DynamoTransactionEntry {
+        const client = getDynamoClientFromRequestContext(context);
         const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
 
         const conditionCompilationContext = DynamoConditionExpressionCompilationContext.new();
@@ -387,7 +392,7 @@ export class DynamoTableSchema<
         StartKey extends Types["Key"] & PartitionKey,
         EndKey extends Types["Key"] & PartitionKey,
     >(
-        client: DynamoClient,
+        context: RequestContext,
         {
             startKey,
             endKey,
@@ -407,6 +412,7 @@ export class DynamoTableSchema<
                 }
         >
     > {
+        const client = getDynamoClientFromRequestContext(context);
         const {partitionKey: startPartitionKey, sortKey: startSortKey} =
             this._serializeKey(startKey);
         const {partitionKey: endPartitionKey, sortKey: endSortKey} = this._serializeKey(endKey);

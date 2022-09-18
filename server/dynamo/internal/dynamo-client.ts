@@ -7,13 +7,13 @@ import {
     KeysAndAttributes,
     PutItemCommand,
     QueryCommand,
-    TransactWriteItem,
     TransactWriteItemsCommand,
     WriteRequest,
 } from "@aws-sdk/client-dynamodb";
 import {Command, MetadataBearer} from "@aws-sdk/types";
 import {expectTypeOf} from "expect-type";
 import jsonStableStringify from "json-stable-stringify";
+import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo-transaction-entry";
 import {isReadonlyArray} from "~/shared/helpers/array/is-readonly-array";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise-resolver";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule-microtask";
@@ -212,11 +212,13 @@ export class DynamoClient {
      *
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
      */
-    // TODO(calebmer): Leverage the `ClientRequestToken` for idempotent
-    // transactions.
-    public async executeTransaction(entries: ReadonlyArray<DynamoTransactionEntry>): Promise<void> {
+    public async executeTransaction(
+        entries: ReadonlyArray<DynamoTransactionEntry>,
+        {clientRequestToken}: {clientRequestToken?: string} = {},
+    ): Promise<void> {
         const command = new TransactWriteItemsCommand({
             TransactItems: entries.map(entry => entry._getTransactItemForClient(this)),
+            ClientRequestToken: clientRequestToken,
         });
 
         await this._client.send(command);
@@ -402,33 +404,6 @@ export class DynamoClient {
             // a `lastEvaluatedKey`.
             if (limit !== undefined && totalScannedCount >= limit) break;
         } while (lastEvaluatedKey !== undefined);
-    }
-}
-
-/**
- * An entry within a DynamoDB write transaction. Entries within a transaction
- * will all succeed or fail together.
- */
-export class DynamoTransactionEntry {
-    private constructor(private readonly _transactItem: TransactWriteItem) {}
-
-    /**
-     * Should not call this outside of `DynamoClient`! Use functions like
-     * `DynamoClient.transactionPutItem()` instead. We require you to pass in a
-     * `DynamoClient` to make sure you at least have access to a `DynamoClient`.
-     */
-    public static _newFromClient(client: DynamoClient, transactItem: TransactWriteItem) {
-        return new DynamoTransactionEntry(transactItem);
-    }
-
-    /**
-     * Should not call this outside of `DynamoClient`! A transaction entry should
-     * be treated as an opaque object outside of this file. We require you to pass
-     * in a `DynamoClient` to make sure you at least have access to a
-     * `DynamoClient`.
-     */
-    public _getTransactItemForClient(client: DynamoClient): TransactWriteItem {
-        return this._transactItem;
     }
 }
 
