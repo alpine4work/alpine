@@ -29,8 +29,6 @@ import {defaultCompareStrings} from "~/shared/helpers/string/default-compare-str
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge-object-intersection";
 import {SchemaSerializedValue} from "~/shared/schema/schema";
 
-// TODO(calebmer): Documentation!!!
-
 /**
  * When schema evolution is enabled, the schema in code may be different from
  * the last schema used to write to the database.
@@ -50,12 +48,68 @@ const dynamoGeneratedDirectoryPath = path.join(
 export type DynamoTableSchemaGetTypes<Schema extends DynamoTableSchema<any>> =
     Schema extends DynamoTableSchema<infer Types> ? Types : never;
 
+/**
+ * Abstraction over DynamoDB tables for defining the type of data that resides
+ * within. Features of this abstraction:
+ *
+ * - Define the type of data in your DynamoDB table using our `Schema`
+ *   abstraction.
+ * - Forces you to structure your table in a way that is easy to evolve over
+ *   time without migrations. (Multiple partition types, multiple sort range
+ *   types.)
+ * - Ensures you always evolve your schema in a backwards compatible way.
+ *   (Saves a description of the schema to the git repo and checks against it
+ *   whenever you make a change.)
+ * - Automatically provisions AWS resources needed for the table using the
+ *   AWS CDK.
+ * - Reads and writes are automatically batched behind the scenes when
+ *   possible.
+ * - Queries use async iterators to transparently paginate.
+ * - Transactions automatically use the request id to ensure idempotency.
+ */
 export class DynamoTableSchema<
     Types extends DynamoTableSchemaTypes.Types<DynamoTableSchemaTypes.ConfigBase>,
 > {
+    /**
+     * The config is the object you pass into the constructor when initializing the
+     * table.
+     *
+     * How it's different from `_description`:
+     *
+     * - Contains full `Schema` objects instead of a JSON description. So you need
+     *   the config to serialize/deserialize values from DynamoDB.
+     * - The object style is optimize for the developers who manually write the
+     *   object. So we pick shorter names like `partitions` instead of longer,
+     *   explicit names like `partitionByType`.
+     */
     private readonly _config: DynamoTableSchemaTypes.ConfigBase;
-    private readonly _descriptionPath: string;
+
+    /**
+     * The description is a JSON object we generate from the config and last
+     * description object committed to the git repo.
+     *
+     * How it's different from `_config`:
+     *
+     * - Contains an `OrderKey` for sort ranges. This `OrderKey` is taken from the
+     *   last schema description that we loaded from the git repo. If no `OrderKey`
+     *   exists in that description for the sort range then we generate a new one.
+     * - Fully serializable to JSON. So does not contain `Schema` objects but
+     *   rather contains a `SchemaDescription`.
+     */
     private readonly _description: DynamoTableSchemaTypes.Description;
+
+    /**
+     * The file path to where the description object is serialized on disk.
+     */
+    private readonly _descriptionPath: string;
+
+    /**
+     * Have we serialized our description to disk yet? We wait for the first write
+     * against our database to do this.
+     *
+     * Reads are safe since on schema construction we assert that our current
+     * description is backwards compatible with the description saved to disk.
+     */
     private _hasCommitDescription = false;
 
     public static new<Config extends DynamoTableSchemaTypes.ConfigBase>(
@@ -101,6 +155,14 @@ export class DynamoTableSchema<
         });
     }
 
+    /**
+     * Serializes a key object to the two attribute values we store in the
+     * database.
+     *
+     * Also returns the `Schema` object for attributes of the key's sort range.
+     *
+     * The key format is a list of strings separated by a `#` character.
+     */
     private _serializeKey(key: Types["Key"]): {
         partitionKey: string;
         sortKey: string;
@@ -138,6 +200,12 @@ export class DynamoTableSchema<
         };
     }
 
+    /**
+     * Deserializes the two key attribute values we store in the database to our
+     * key object.
+     *
+     * Also returns the `Schema` object for attributes of the key's sort range.
+     */
     private _deserializeKey(
         partitionKey: string,
         sortKey: string,
@@ -192,6 +260,17 @@ export class DynamoTableSchema<
         };
     }
 
+    /**
+     * Gets a single item by its key from the database. Returns `null` if the item
+     * does not exist.
+     *
+     * Corresponds to the [`GetItem`][1] command. If you call this function many
+     * times in parallel then we will batch the reads together into a
+     * [`BatchGetItem`][2] command.
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html
+     * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
+     */
     public async getItem<Key extends Types["Key"]>(
         context: RequestContext,
         key: Key,
@@ -212,6 +291,22 @@ export class DynamoTableSchema<
         return item;
     }
 
+    /**
+     * Puts an item into the database. If an item with the same key already exists
+     * then we will replace that item.
+     *
+     * If you provide a condition then the condition must evaluate to true for the
+     * write to succeed. Otherwise an error is thrown. Use this to implement
+     * [optimistic locking][1].
+     *
+     * Corresponds to the [`PutItem`][2] command. If you call this function many
+     * times in parallel (without a condition) then we will batch the writes
+     * together into a [`BatchWriteItem`][3] command.
+     *
+     * [1]: https://en.wikipedia.org/wiki/Optimistic_concurrency_control
+     * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
+     * [3]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
+     */
     public async putItem<Item extends Types["Item"]>(
         context: RequestContext,
         item: Item,
@@ -253,6 +348,22 @@ export class DynamoTableSchema<
         }
     }
 
+    /**
+     * Deletes an item from the database. If the item doesn't exist, this is
+     * a noop.
+     *
+     * If you provide a condition then the condition must evaluate to true for the
+     * write to succeed. Otherwise an error is thrown. Use this to implement
+     * [optimistic locking][1].
+     *
+     * Corresponds to the [`DeleteItem`][2] command. If you call this function many
+     * times in parallel (without a condition) then we will batch the writes
+     * together into a [`BatchWriteItem`][3] command.
+     *
+     * [1]: https://en.wikipedia.org/wiki/Optimistic_concurrency_control
+     * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DeleteItem.html
+     * [3]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
+     */
     public deleteItem<Key extends Types["Key"]>(
         context: RequestContext,
         key: Key,
@@ -289,6 +400,13 @@ export class DynamoTableSchema<
         }
     }
 
+    /**
+     * Creates a transaction entry to put an item into the database. Same semantics
+     * as `putItem()` but you can perform multiple writes in a single transaction
+     * so they all succeed or fail together.
+     *
+     * Use `RequestContext.executeTransaction()` to execute a transaction.
+     */
     public transactionPutItem<Item extends Types["Item"]>(
         context: RequestContext,
         item: Item,
@@ -328,6 +446,13 @@ export class DynamoTableSchema<
         }
     }
 
+    /**
+     * Creates a transaction entry to delete an item from the database. Same
+     * semantics as `deleteItem()` but you can perform multiple writes in a single
+     * transaction so they all succeed or fail together.
+     *
+     * Use `RequestContext.executeTransaction()` to execute a transaction.
+     */
     public transactionDeleteItem<Key extends Types["Key"]>(
         context: RequestContext,
         key: Key,
@@ -364,6 +489,18 @@ export class DynamoTableSchema<
         }
     }
 
+    /**
+     * Creates a transaction entry that checks that a condition evaluates to true
+     * for the provided key. If the condition fails then the entire transaction
+     * which contains this condition check fails.
+     *
+     * See the [`TransactWriteItems`][1] command for more information about the
+     * condition check.
+     *
+     * Use `RequestContext.executeTransaction()` to execute a transaction.
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
+     */
     public transactionConditionCheck<Key extends Types["Key"]>(
         context: RequestContext,
         key: Key,
@@ -387,6 +524,19 @@ export class DynamoTableSchema<
         });
     }
 
+    /**
+     * Queries a range of a partition in the table. Queries are how you get many
+     * items from the database at once. Queries require you to carefully structure
+     * your table ahead of time so that items that need to be read together are
+     * physically next to each other.
+     *
+     * Through some TypeScript magic, the return type of this function only
+     * includes valid items within the provided range.
+     *
+     * Corresponds to the [`Query`][1] command.
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Query.html
+     */
     public query<
         PartitionKey extends Types["PartitionKey"],
         StartKey extends Types["Key"] & PartitionKey,
@@ -490,6 +640,23 @@ export function getAllConstructedDynamoTableSchemas(): Array<
         .map(([, schema]) => schema);
 }
 
+/**
+ * Loads the last schema description from the file system, creates the next
+ * schema description from the schema config, and checks that the next schema
+ * description is backwards compatible with the last schema description.
+ *
+ * Also generates `OrderKey`s for sort ranges which don't have them. Every sort
+ * range gets an `OrderKey` and the lexicographic order of `OrderKey`s
+ * corresponds to the order in which the sort ranges were defined. We include
+ * the `OrderKey` at the beginning of the sort key so that sort ranges in the
+ * database have the same order as when they were defined in code.
+ *
+ * After an `OrderKey` is set for a sort range it may not be changed! That
+ * would be a backwards incompatible change since we've saved data to the
+ * database with that `OrderKey`. However, you may add new sort ranges between
+ * two existing sort ranges. We will generate an `OrderKey` between the
+ * `OrderKey`s of the existing sort ranges.
+ */
 function getAndCheckDynamoTableSchemaDescriptions(config: DynamoTableSchemaTypes.ConfigBase): {
     descriptionPath: string;
     lastDescription: DynamoTableSchemaTypes.Description | null;
