@@ -4,7 +4,11 @@ import {Construct} from "constructs";
 import fs from "fs-extra";
 import isCi from "is-ci";
 import path from "path";
-import {DynamoClient, DynamoReadConsistency} from "~/server/dynamo/internal/dynamo-client";
+import {
+    DynamoClient,
+    DynamoReadConsistency,
+    DynamoTransactionEntry,
+} from "~/server/dynamo/internal/dynamo-client";
 import {
     DynamoCondition,
     DynamoConditionExpression,
@@ -225,14 +229,99 @@ export class DynamoTableSchema<
         }
     }
 
-    public transactionPutItem(item: Types["Item"]) {
+    public transactionPutItem<Item extends Types["Item"]>(
+        client: DynamoClient,
+        item: Item,
+        {
+            condition,
+        }: {
+            condition?: DynamoCondition<Item>;
+        } = {},
+    ): DynamoTransactionEntry {
         this._commitDescriptionOnFirstWrite();
-        // TODO(calebmer): Transactional put
+
+        const {partitionKey, sortKey, attributesSchema} = this._serializeKey(item as Types["Key"]);
+
+        const serializedItem: {[key: string]: SchemaSerializedValue} = {partitionKey, sortKey};
+        attributesSchema.serializeInto(item, serializedItem);
+
+        if (condition === undefined) {
+            return client.transactionPutItem({
+                tableName: this._config.name,
+                item: serializedItem,
+            });
+        } else {
+            const conditionCompilationContext = DynamoConditionExpressionCompilationContext.new();
+            const conditionExpression = DynamoConditionExpression.from(condition);
+            const {string: conditionExpressionString} = conditionExpression.compile(
+                attributesSchema,
+                conditionCompilationContext,
+            );
+
+            return client.transactionPutItem({
+                tableName: this._config.name,
+                item: serializedItem,
+                conditionExpression: conditionExpressionString,
+                expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
+            });
+        }
     }
 
-    public transactionDeleteItem(key: Types["Key"]) {
+    public transactionDeleteItem<Key extends Types["Key"]>(
+        client: DynamoClient,
+        key: Key,
+        {
+            condition,
+        }: {
+            condition?: DynamoCondition<Types["Item"] & Key>;
+        } = {},
+    ): DynamoTransactionEntry {
         this._commitDescriptionOnFirstWrite();
-        // TODO(calebmer): Transactional delete
+
+        const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
+
+        if (condition === undefined) {
+            return client.transactionDeleteItem({
+                tableName: this._config.name,
+                key: {partitionKey, sortKey},
+            });
+        } else {
+            const conditionCompilationContext = DynamoConditionExpressionCompilationContext.new();
+            const conditionExpression = DynamoConditionExpression.from(condition);
+            const {string: conditionExpressionString} = conditionExpression.compile(
+                attributesSchema,
+                conditionCompilationContext,
+            );
+
+            return client.transactionDeleteItem({
+                tableName: this._config.name,
+                key: {partitionKey, sortKey},
+                conditionExpression: conditionExpressionString,
+                expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
+            });
+        }
+    }
+
+    public transactionConditionCheck<Key extends Types["Key"]>(
+        client: DynamoClient,
+        key: Key,
+        condition: DynamoCondition<Types["Item"] & Key>,
+    ): DynamoTransactionEntry {
+        const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
+
+        const conditionCompilationContext = DynamoConditionExpressionCompilationContext.new();
+        const conditionExpression = DynamoConditionExpression.from(condition);
+        const {string: conditionExpressionString} = conditionExpression.compile(
+            attributesSchema,
+            conditionCompilationContext,
+        );
+
+        return client.transactionConditionCheck({
+            tableName: this._config.name,
+            key: {partitionKey, sortKey},
+            conditionExpression: conditionExpressionString,
+            expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
+        });
     }
 
     public async query<

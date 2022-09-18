@@ -6,6 +6,8 @@ import {
     DynamoDBClient,
     KeysAndAttributes,
     PutItemCommand,
+    TransactWriteItem,
+    TransactWriteItemsCommand,
     WriteRequest,
 } from "@aws-sdk/client-dynamodb";
 import {Command, MetadataBearer} from "@aws-sdk/types";
@@ -136,6 +138,12 @@ export class DynamoClient {
         conditionExpression?: string;
         expressionAttributeValues?: Map<string, SchemaSerializedValue>;
     }): Promise<void> {
+        // Make sure that all the properties in our `key` also exist in our `item`.
+        for (const keyEntry of Object.entries(key)) {
+            if (!isDeepEqual(keyEntry[1], item[keyEntry[0]]))
+                throw new Error(quote`Key attribute ${keyEntry[0]} is different in key and item`);
+        }
+
         // Writes without a condition may be batched.
         if (conditionExpression === undefined)
             return this._writeItemBatcher.putItem(tableName, key, item);
@@ -194,6 +202,153 @@ export class DynamoClient {
         });
 
         await this._client.send(command);
+    }
+
+    /**
+     * Perform up to 25 actions atomically with [`TransactWriteItems`][1]. Either
+     * all actions in the transaction succeed or if one action fails then none of
+     * the actions in the transaction will be applied.
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
+     */
+    public async executeTransaction(entries: ReadonlyArray<DynamoTransactionEntry>): Promise<void> {
+        const command = new TransactWriteItemsCommand({
+            TransactItems: entries.map(entry => entry._getTransactItemForClient(this)),
+        });
+
+        await this._client.send(command);
+    }
+
+    /**
+     * Create an `PutItem` entry for [`TransactWriteItems`][1]. Will not be
+     * executed until you call `executeTransaction()` with other transaction
+     * entries.
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
+     */
+    public transactionPutItem({
+        tableName,
+        item,
+        conditionExpression,
+        expressionAttributeValues,
+    }: {
+        tableName: string;
+        item: SchemaSerializedObjectValue;
+        conditionExpression?: string;
+        expressionAttributeValues?: Map<string, SchemaSerializedValue>;
+    }): DynamoTransactionEntry {
+        return DynamoTransactionEntry._newFromClient(this, {
+            Put: {
+                TableName: tableName,
+                Item: intoDynamoAttributeValueObject(item),
+                ConditionExpression: conditionExpression,
+                ExpressionAttributeValues: conditionExpression
+                    ? Object.fromEntries(
+                          iterableMap(expressionAttributeValues ?? [], ([name, value]) => [
+                              name,
+                              intoDynamoAttributeValue(value),
+                          ]),
+                      )
+                    : undefined,
+            },
+        });
+    }
+
+    /**
+     * Create a `DeleteItem` entry for [`TransactWriteItems`][1]. Will not be
+     * executed until you call `executeTransaction()` with other transaction
+     * entries.
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
+     */
+    public transactionDeleteItem({
+        tableName,
+        key,
+        conditionExpression,
+        expressionAttributeValues,
+    }: {
+        tableName: string;
+        key: SchemaSerializedObjectValue;
+        conditionExpression?: string;
+        expressionAttributeValues?: Map<string, SchemaSerializedValue>;
+    }): DynamoTransactionEntry {
+        return DynamoTransactionEntry._newFromClient(this, {
+            Delete: {
+                TableName: tableName,
+                Key: intoDynamoAttributeValueObject(key),
+                ConditionExpression: conditionExpression,
+                ExpressionAttributeValues: conditionExpression
+                    ? Object.fromEntries(
+                          iterableMap(expressionAttributeValues ?? [], ([name, value]) => [
+                              name,
+                              intoDynamoAttributeValue(value),
+                          ]),
+                      )
+                    : undefined,
+            },
+        });
+    }
+
+    /**
+     * Create a `ConditionCheck` entry for [`TransactWriteItems`][1]. Will not be
+     * executed until you call `executeTransaction()` with other transaction
+     * entries.
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
+     */
+    public transactionConditionCheck({
+        tableName,
+        key,
+        conditionExpression,
+        expressionAttributeValues,
+    }: {
+        tableName: string;
+        key: SchemaSerializedObjectValue;
+        conditionExpression: string;
+        expressionAttributeValues?: Map<string, SchemaSerializedValue>;
+    }): DynamoTransactionEntry {
+        return DynamoTransactionEntry._newFromClient(this, {
+            ConditionCheck: {
+                TableName: tableName,
+                Key: intoDynamoAttributeValueObject(key),
+                ConditionExpression: conditionExpression,
+                ExpressionAttributeValues: conditionExpression
+                    ? Object.fromEntries(
+                          iterableMap(expressionAttributeValues ?? [], ([name, value]) => [
+                              name,
+                              intoDynamoAttributeValue(value),
+                          ]),
+                      )
+                    : undefined,
+            },
+        });
+    }
+}
+
+/**
+ * An entry within a DynamoDB write transaction. Entries within a transaction
+ * will all succeed or fail together.
+ */
+export class DynamoTransactionEntry {
+    private constructor(private readonly _transactItem: TransactWriteItem) {}
+
+    /**
+     * Should not call this outside of `DynamoClient`! Use functions like
+     * `DynamoClient.transactionPutItem()` instead. We require you to pass in a
+     * `DynamoClient` to make sure you at least have access to a `DynamoClient`.
+     */
+    public static _newFromClient(client: DynamoClient, transactItem: TransactWriteItem) {
+        return new DynamoTransactionEntry(transactItem);
+    }
+
+    /**
+     * Should not call this outside of `DynamoClient`! A transaction entry should
+     * be treated as an opaque object outside of this file. We require you to pass
+     * in a `DynamoClient` to make sure you at least have access to a
+     * `DynamoClient`.
+     */
+    public _getTransactItemForClient(client: DynamoClient): TransactWriteItem {
+        return this._transactItem;
     }
 }
 
@@ -659,11 +814,6 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
         key: SchemaSerializedObjectValue,
         item: SchemaSerializedObjectValue,
     ): Promise<void> {
-        // Make sure that all the properties in our `key` also exist in our `item`.
-        for (const keyEntry of Object.entries(key)) {
-            if (!isDeepEqual(keyEntry[1], item[keyEntry[0]]))
-                throw new Error(quote`Key attribute ${keyEntry[0]} is different in key and item`);
-        }
         return this._addItem(tableName, key, {action: "Put", item});
     }
 
