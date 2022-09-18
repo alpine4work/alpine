@@ -13,7 +13,7 @@ import {
     paragraphClassName,
     quoteBlockClassName,
     strikeClassName,
-} from "~/shared/content/content-prosemirror-schema.css";
+} from "~/shared/content/content-schema.css";
 
 /**
  * The maximum level of indentation for a list item.

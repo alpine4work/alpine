@@ -10,7 +10,7 @@ import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use-is
 import {
     DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
-} from "~/shared/content/document-content-prosemirror-schema";
+} from "~/shared/content/document-content-schema";
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
 

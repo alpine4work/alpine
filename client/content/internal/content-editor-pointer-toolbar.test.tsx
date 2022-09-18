@@ -16,7 +16,7 @@ import {TooltipCoordinationContextProvider} from "~/client/design/tooltip";
 import {
     DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
-} from "~/shared/content/document-content-prosemirror-schema";
+} from "~/shared/content/document-content-schema";
 
 jest.useFakeTimers();
 

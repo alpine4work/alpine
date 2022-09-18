@@ -18,10 +18,7 @@ import {EditorState, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {createToggleMarkCommand} from "~/client/content/internal/content-editor-prosemirror-helpers";
 import {isMac} from "~/client/helpers/platform/is-mac";
-import {
-    ContentProsemirrorSchema,
-    maxListItemIndentation,
-} from "~/shared/content/content-prosemirror-schema";
+import {ContentProsemirrorSchema, maxListItemIndentation} from "~/shared/content/content-schema";
 
 type Command = (
     state: EditorState,

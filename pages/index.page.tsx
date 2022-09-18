@@ -5,7 +5,7 @@ import {sprinkles} from "~/client/design/sprinkles.css";
 import {
     DocumentContentProsemirrorSchema,
     emptyDocumentContent,
-} from "~/shared/content/document-content-prosemirror-schema";
+} from "~/shared/content/document-content-schema";
 
 export default function Home() {
     const [state, setState] = useState(() =>

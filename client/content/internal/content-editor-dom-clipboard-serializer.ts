@@ -1,5 +1,5 @@
 import {DOMSerializer, Fragment, Mark, Node, Schema} from "prosemirror-model";
-import {clampListItemIndentation} from "~/shared/content/content-prosemirror-schema";
+import {clampListItemIndentation} from "~/shared/content/content-schema";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable-every";
 
 // Augment with types for some internal methods from:

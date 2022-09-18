@@ -14,7 +14,7 @@ import {
 import {
     DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
-} from "~/shared/content/document-content-prosemirror-schema";
+} from "~/shared/content/document-content-schema";
 import {assert} from "~/shared/helpers/control/assert";
 
 function TestContentEditor() {

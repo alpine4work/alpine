@@ -46,8 +46,8 @@ import {isMac} from "~/client/helpers/platform/is-mac";
 import {
     ContentProsemirrorSchema,
     doesUrlStartWithAllowedProtocol,
-} from "~/shared/content/content-prosemirror-schema";
-import {docClassName} from "~/shared/content/content-prosemirror-schema.css";
+} from "~/shared/content/content-schema";
+import {docClassName} from "~/shared/content/content-schema.css";
 import {assert} from "~/shared/helpers/control/assert";
 import {Id, generateId} from "~/shared/id/id";
 

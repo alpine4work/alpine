@@ -6,7 +6,7 @@ import {
     checkListItemCheckboxContainerClassName,
     checkListItemCheckboxPressedClassName,
     checkListItemContentClassName,
-} from "~/shared/content/content-prosemirror-schema.css";
+} from "~/shared/content/content-schema.css";
 
 export function createContentEditorCheckListItemNodeView(
     node: Node,

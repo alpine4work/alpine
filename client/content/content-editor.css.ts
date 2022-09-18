@@ -3,7 +3,7 @@ import {
     paragraphMargin,
     titleClassName,
     titlePaddingTop,
-} from "~/shared/content/content-prosemirror-schema.css";
+} from "~/shared/content/content-schema.css";
 import {colorSchemeVars} from "~/shared/design/color-scheme.css";
 import {fontScale, fontWeights} from "~/shared/design/fonts";
 import {parseRemLengthNumber, spacing} from "~/shared/design/spacing";

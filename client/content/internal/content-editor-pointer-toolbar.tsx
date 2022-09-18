@@ -46,7 +46,7 @@ import {uninterruptedThoughtLimitMs} from "~/client/design/timing-constants";
 import {Tooltip, TooltipRef} from "~/client/design/tooltip";
 import {useConstant} from "~/client/helpers/lifecycle/use-constant";
 import {isMac} from "~/client/helpers/platform/is-mac";
-import {ContentProsemirrorSchema} from "~/shared/content/content-prosemirror-schema";
+import {ContentProsemirrorSchema} from "~/shared/content/content-schema";
 import {spacing} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
 

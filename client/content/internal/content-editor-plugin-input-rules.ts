@@ -7,7 +7,7 @@ import {
 } from "prosemirror-inputrules";
 import {MarkType, NodeType} from "prosemirror-model";
 import {findWrapping} from "prosemirror-transform";
-import {ContentProsemirrorSchema} from "~/shared/content/content-prosemirror-schema";
+import {ContentProsemirrorSchema} from "~/shared/content/content-schema";
 import {assert} from "~/shared/helpers/control/assert";
 
 export function buildInputRulesPlugin(schema: ContentProsemirrorSchema) {

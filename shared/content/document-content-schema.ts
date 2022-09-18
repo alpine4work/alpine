@@ -7,7 +7,7 @@ import {
     createListItemParseRule,
     createProsemirrorSchemaSpec,
     toDebugStringWithIndent,
-} from "~/shared/content/content-prosemirror-schema";
+} from "~/shared/content/content-schema";
 import {
     checkListItemCheckedClassName,
     dividerClassName,
@@ -18,7 +18,7 @@ import {
     listItemClassName,
     listItemIndentationVar,
     titleClassName,
-} from "~/shared/content/content-prosemirror-schema.css";
+} from "~/shared/content/content-schema.css";
 import {HighlightColor, isHighlightColor} from "~/shared/content/highlight-color";
 import {assert} from "~/shared/helpers/control/assert";
 import {Schema, SchemaDeserializationError} from "~/shared/schema/schema";
