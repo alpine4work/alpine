@@ -48,11 +48,30 @@ expectTypeOf<DynamoDBClient>().toMatchTypeOf<DynamoWrappedClientInterface>();
  * batching.
  */
 export class DynamoClient {
+    /**
+     * The underlying DynamoDB client from the AWS SDK.
+     */
     private readonly _client: DynamoWrappedClientInterface;
 
+    /**
+     * Batchers for the [`GetItem`][1] command.
+     *
+     * We have a separate batcher for our different read consistency levels. If the
+     * code tries to do eventual and strong reads simultaneously, we don't want the
+     * strong reads to increase the latency of eventual reads.
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html
+     */
     private readonly _getItemBatcherByConsistency: {
         [Key in DynamoReadConsistency]: DynamoClientGetItemBatcher;
     };
+
+    /**
+     * Batcher for the [`PutItem`][1] and [`DeleteItem`][2] commands.
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
+     * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DeleteItem.html
+     */
     private readonly _writeItemBatcher: DynamoClientWriteItemBatcher;
 
     constructor(client: DynamoWrappedClientInterface) {

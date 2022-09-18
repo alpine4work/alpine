@@ -125,7 +125,17 @@ export function isDynamoKeyAttribute(string: string): string is DynamoKeyAttribu
 export type DynamoKeyAttributeSchemaType<Schema extends DynamoKeyAttributeSchema<any>> =
     Schema extends DynamoKeyAttributeSchema<infer Value> ? Value : never;
 
-const dynamoKeyAttributeSchemaNames = new Set<string>();
+/**
+ * A description of the attribute schema for backwards compatibility checking
+ * purposes.
+ */
+export type DynamoKeyAttributeSchemaDescription =
+    | {readonly type: "Id"}
+    | {readonly type: "Date"}
+    | {readonly type: "Integer"}
+    | {readonly type: "Float"}
+    | {readonly type: "OrderKey"}
+    | {readonly type: "Reverse"; readonly schema: DynamoKeyAttributeSchemaDescription};
 
 /**
  * An attribute of a DynamoDB key.
@@ -140,7 +150,7 @@ export class DynamoKeyAttributeSchema<Value> {
      * IDs are fully random and have no useful order.
      */
     public static id = new DynamoKeyAttributeSchema<Id>({
-        name: "Id",
+        description: {type: "Id"},
         serialize: value => value,
         deserialize: keyAttribute => {
             assert(isId(keyAttribute));
@@ -154,7 +164,7 @@ export class DynamoKeyAttributeSchema<Value> {
      * [1]: https://en.wikipedia.org/wiki/ISO_8601
      */
     public static date = new DynamoKeyAttributeSchema<Date>({
-        name: "Date",
+        description: {type: "Date"},
         serialize: serializeDateString,
         deserialize: keyAttribute => {
             assert(isDateString(keyAttribute));
@@ -166,7 +176,7 @@ export class DynamoKeyAttributeSchema<Value> {
      * Integers are serialized to an `ElenInteger`.
      */
     public static integer = new DynamoKeyAttributeSchema<number>({
-        name: "Integer",
+        description: {type: "Integer"},
         serialize: encodeElenInteger,
         deserialize: keyAttribute => {
             const value = decodeElenIntegerIfPossible(keyAttribute);
@@ -182,7 +192,7 @@ export class DynamoKeyAttributeSchema<Value> {
      * `ElenInteger`. So if you're using integers please prefer `ElenInteger`.
      */
     public static float = new DynamoKeyAttributeSchema<number>({
-        name: "Float",
+        description: {type: "Float"},
         serialize: encodeElenFloat,
         deserialize: keyAttribute => {
             const value = decodeElenFloatIfPossible(keyAttribute);
@@ -195,7 +205,7 @@ export class DynamoKeyAttributeSchema<Value> {
      * `OrderKey`s have a natural lexicographic order.
      */
     public static orderKey = new DynamoKeyAttributeSchema<OrderKey>({
-        name: "OrderKey",
+        description: {type: "OrderKey"},
         serialize: value => value,
         deserialize: keyAttribute => {
             assert(isOrderKey(keyAttribute));
@@ -203,7 +213,11 @@ export class DynamoKeyAttributeSchema<Value> {
         },
     });
 
-    public readonly name: string;
+    /**
+     * The description of this attribute for backwards compatibility checking
+     * purposes.
+     */
+    public readonly description: DynamoKeyAttributeSchemaDescription;
 
     /**
      * Serializes the attribute value into a DynamoDB key attribute.
@@ -217,21 +231,15 @@ export class DynamoKeyAttributeSchema<Value> {
     public readonly deserialize: (keyAttribute: DynamoKeyAttribute) => Value;
 
     private constructor({
-        name,
+        description,
         serialize,
         deserialize,
     }: {
-        name: string;
+        description: DynamoKeyAttributeSchemaDescription;
         serialize: (value: Value) => DynamoKeyAttribute;
         deserialize: (keyAttribute: DynamoKeyAttribute) => Value;
     }) {
-        assert(
-            !dynamoKeyAttributeSchemaNames.has(name),
-            "Key attribute schema names must be unique",
-        );
-        dynamoKeyAttributeSchemaNames.add(name);
-
-        this.name = name;
+        this.description = description;
         this.serialize = serialize;
         this.deserialize = deserialize;
     }
@@ -247,7 +255,7 @@ export class DynamoKeyAttributeSchema<Value> {
     public reverse(): DynamoKeyAttributeSchema<Value> {
         if (!this._reverseSchema) {
             this._reverseSchema = new DynamoKeyAttributeSchema<Value>({
-                name: `Reverse(${this.name})`,
+                description: {type: "Reverse", schema: this.description},
                 serialize: value => {
                     const keyAttribute = this.serialize(value);
                     return serializeReversedDynamoKeyAttribute(keyAttribute);

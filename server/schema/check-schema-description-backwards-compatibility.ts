@@ -35,7 +35,7 @@ export function checkSchemaDescriptionBackwardsCompatibility(
         case "Bytes": {
             if (lastSchema.type !== nextSchema.type) {
                 throw new SchemaDescriptionBackwardsIncompatibleError(
-                    `Schema type \`${lastSchema.type}\` is incompatible with \`${nextSchema.type}\``,
+                    `\`${lastSchema.type}\` type is incompatible with \`${nextSchema.type}\` type`,
                 );
             }
             return;
@@ -44,7 +44,7 @@ export function checkSchemaDescriptionBackwardsCompatibility(
             // It is safe for an integer to become a float.
             if (lastSchema.type !== "Float" && lastSchema.type !== "Integer") {
                 throw new SchemaDescriptionBackwardsIncompatibleError(
-                    `Schema type \`${lastSchema.type}\` is incompatible with \`${nextSchema.type}\``,
+                    `\`${lastSchema.type}\` type is incompatible with \`${nextSchema.type}\` type`,
                 );
             }
             return;
@@ -52,14 +52,14 @@ export function checkSchemaDescriptionBackwardsCompatibility(
         case "Value": {
             if (lastSchema.type !== "Value") {
                 throw new SchemaDescriptionBackwardsIncompatibleError(
-                    `Schema type \`${lastSchema.type}\` is incompatible with \`${nextSchema.type}\``,
+                    `\`${lastSchema.type}\` type is incompatible with \`${nextSchema.type}\` type`,
                 );
             }
             if (!Object.is(lastSchema.value, nextSchema.value)) {
                 throw new SchemaDescriptionBackwardsIncompatibleError(
-                    `Value schema's value \`${JSON.stringify(
+                    `\`${JSON.stringify(
                         lastSchema.value,
-                    )}\` is incompatible with \`${JSON.stringify(nextSchema.value)}\``,
+                    )}\` value is incompatible with \`${JSON.stringify(nextSchema.value)}\` value`,
                 );
             }
             return;
@@ -78,7 +78,7 @@ export function checkSchemaDescriptionBackwardsCompatibility(
         case "Array": {
             if (lastSchema.type !== "Array") {
                 throw new SchemaDescriptionBackwardsIncompatibleError(
-                    `Schema type \`${lastSchema.type}\` is incompatible with \`${nextSchema.type}\``,
+                    `\`${lastSchema.type}\` type is incompatible with \`${nextSchema.type}\` type`,
                 );
             }
 
@@ -93,7 +93,7 @@ export function checkSchemaDescriptionBackwardsCompatibility(
         case "Object": {
             if (lastSchema.type !== "Object") {
                 throw new SchemaDescriptionBackwardsIncompatibleError(
-                    `Schema type \`${lastSchema.type}\` is incompatible with \`${nextSchema.type}\``,
+                    `\`${lastSchema.type}\` type is incompatible with \`${nextSchema.type}\` type`,
                 );
             }
 
@@ -105,12 +105,12 @@ export function checkSchemaDescriptionBackwardsCompatibility(
                 if (!lastPropertySchema) {
                     if (!nextPropertySchema.optional)
                         throw new SchemaDescriptionBackwardsIncompatibleError(
-                            `Schema adds new required \`${key}\` property that did not used to exist`,
+                            `Required \`${key}\` property not found`,
                         );
                 } else {
                     if (lastPropertySchema.optional && !nextPropertySchema.optional)
                         throw new SchemaDescriptionBackwardsIncompatibleError(
-                            `Schema sets \`${key}\` property to required when it used to be optional`,
+                            `Optional \`${key}\` property can not be made required`,
                         );
 
                     withSchemaDescriptionStackFrame({type: "ObjectProperty", key}, () => {
@@ -126,7 +126,7 @@ export function checkSchemaDescriptionBackwardsCompatibility(
         case "Union": {
             if (lastSchema.type !== "Union") {
                 throw new SchemaDescriptionBackwardsIncompatibleError(
-                    `Schema type \`${lastSchema.type}\` is incompatible with \`${nextSchema.type}\``,
+                    `\`${lastSchema.type}\` type is incompatible with \`${nextSchema.type}\` type`,
                 );
             }
 
@@ -137,7 +137,7 @@ export function checkSchemaDescriptionBackwardsCompatibility(
 
                 if (!nextVariantSchema) {
                     throw new SchemaDescriptionBackwardsIncompatibleError(
-                        `Schema union variant \`${type}\` was removed`,
+                        `Union variant \`${type}\` not found`,
                     );
                 } else {
                     withSchemaDescriptionStackFrame(

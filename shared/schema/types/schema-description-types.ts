@@ -49,6 +49,6 @@ export type SchemaObjectPropertyDescription = {
 export type SchemaUnionDescription = {
     readonly type: "Union";
     readonly variantSchemaByType: {
-        readonly [key: string]: SchemaDescription;
+        readonly [type: string]: SchemaDescription;
     };
 };

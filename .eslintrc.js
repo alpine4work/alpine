@@ -12,6 +12,9 @@ module.exports = {
         "sort-imports-by-source": "warn",
         "no-internal-imports": "error",
 
+        // TODO(calebmer): Write eslint rule that detects when you have `await`s that
+        // could be parallelized with `Promise.all()`.
+
         // Sort imports within an import declaration alphabetically. We want to sort
         // import declarations by their module specifier.
         "sort-imports": ["warn", {ignoreDeclarationSort: true}],

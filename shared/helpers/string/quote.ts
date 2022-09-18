@@ -9,7 +9,7 @@ import {assert} from "~/shared/helpers/control/assert";
  */
 export function quote(
     templateStrings: TemplateStringsArray,
-    ...values: Array<string | number | null>
+    ...values: Array<string | number | boolean | null>
 ): string {
     assert(templateStrings.length > 0);
     assert(templateStrings.length === values.length + 1);

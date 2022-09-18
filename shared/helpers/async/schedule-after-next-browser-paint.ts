@@ -1,5 +1,3 @@
-import {scheduleMicrotask} from "~/shared/helpers/async/schedule-microtask";
-
 /**
  * Schedules a function to run immediately after the next browser paint.
  *
@@ -18,10 +16,10 @@ import {scheduleMicrotask} from "~/shared/helpers/async/schedule-microtask";
  * [1]: https://github.com/facebook/react/blob/8ef3a7c08c55c13995267902859381da8b5985ac/packages/scheduler/src/forks/Scheduler.js#L570-L579
  */
 export function scheduleAfterNextBrowserPaint(callback: () => void) {
-    // If we are not in a browser context, browser paints don't matter. So schedule
-    // a microtask.
+    // If we are not in a browser context, browser paints don't matter. We still
+    // want to schedule a macrotask, though, so use `setTimeout()`.
     if (typeof window === "undefined") {
-        scheduleMicrotask(callback);
+        setTimeout(callback, 0);
         return;
     }
 
