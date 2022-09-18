@@ -24,11 +24,6 @@ import {
 import {HighlightColor, isHighlightColor} from "~/shared/content/highlight-color";
 import {assert} from "~/shared/helpers/control/assert";
 
-// TODO(calebmer): Consider including custom hero header images using abstract
-// line art. Like from these sets:
-// - https://creativemarket.com/kloroform/collections/1866986/Wires
-// - https://creativemarket.com/andrewpixel/5737653-1000-Abstract-Illustration-BUNDLE (geometric shapes)
-
 /**
  * The maximum level of indentation for a list item.
  */
