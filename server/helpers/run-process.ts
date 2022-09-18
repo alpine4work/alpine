@@ -36,7 +36,9 @@ export async function runProcess(
         env?: {[key: string]: string | undefined};
     } = {},
 ): Promise<string> {
-    const flattenedArgs: Array<string | undefined | null | false> = args.flat(Infinity);
+    const flattenedArgs: Array<string | undefined | null | false> =
+        // @ts-expect-error: I suspect this is a TypeScript bug?
+        args.flat(Infinity);
 
     const subprocess = spawn(command, flattenedArgs.filter(isNotNullishOrFalse), {
         cwd,
