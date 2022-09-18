@@ -147,6 +147,18 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     }
 
     /**
+     * Accept any value.
+     *
+     * An escape hatch if your type is complicated and you'd like to manage it
+     * yourself.
+     */
+    public static unknown = new Schema<SchemaSerializedValue>({
+        description: {type: "Unknown"},
+        serialize: value => value,
+        deserialize: value => value,
+    });
+
+    /**
      * Accept a boolean value.
      */
     public static boolean = new Schema<boolean>({
@@ -499,6 +511,33 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
                     throw new SchemaDeserializationError("Unknown type");
 
                 return deserializedValue;
+            },
+        });
+    }
+
+    /**
+     * Transform a schema's value at runtime into a different format.
+     *
+     * If you want to serialize a value in a format supported by our `Schema` but
+     * manipulate the value at runtime as some custom object, you can use the
+     * transform object to add extra serialization and deserialization steps.
+     */
+    public transform<NewValue>({
+        serialize,
+        deserialize,
+    }: {
+        serialize: (value: NewValue) => Value;
+        deserialize: (value: Value) => NewValue;
+    }): Schema<NewValue> {
+        return new Schema({
+            description: this.description,
+            serialize: newValue => {
+                const value = serialize(newValue);
+                return this.serialize(value);
+            },
+            deserialize: unknownValue => {
+                const value = this.deserialize(unknownValue);
+                return deserialize(value);
             },
         });
     }

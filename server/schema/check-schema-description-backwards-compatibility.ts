@@ -28,6 +28,9 @@ export function checkSchemaDescriptionBackwardsCompatibility(
         }
     }
 
+    // You may always convert to unknown.
+    if (nextSchema.type === "Unknown") return;
+
     switch (nextSchema.type) {
         case "Boolean":
         case "Integer":

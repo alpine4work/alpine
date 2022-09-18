@@ -17,6 +17,7 @@ export type SchemaDescription =
     | SchemaUnionDescription;
 
 export type SchemaScalarDescription =
+    | {readonly type: "Unknown"}
     | {readonly type: "Boolean"}
     | {readonly type: "Float"}
     | {readonly type: "Integer"}

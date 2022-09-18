@@ -1,6 +1,6 @@
 import {assignInlineVars} from "@vanilla-extract/dynamic";
 import classNames from "classnames";
-import {Schema as ProsemirrorSchema} from "prosemirror-model";
+import {Node, Schema as ProsemirrorSchema} from "prosemirror-model";
 import {
     clampListItemIndentation,
     contentBaseProsemirrorSchemaSpec,
@@ -21,6 +21,7 @@ import {
 } from "~/shared/content/content-prosemirror-schema.css";
 import {HighlightColor, isHighlightColor} from "~/shared/content/highlight-color";
 import {assert} from "~/shared/helpers/control/assert";
+import {Schema, SchemaDeserializationError} from "~/shared/schema/schema";
 
 const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
     nodes: {
@@ -195,6 +196,43 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
     },
 });
 
+export type DocumentWithoutTitleContent = Node & {_DocumentWithoutTitleContent: never};
+
+export function isDocumentWithoutTitleContent(node: Node): node is DocumentWithoutTitleContent {
+    return (
+        node.type.schema === DocumentWithoutTitleContentProsemirrorSchema &&
+        node.type.name === "doc"
+    );
+}
+
+export const DocumentWithoutTitleContentProsemirrorSchema = new ProsemirrorSchema(
+    documentWithoutTitleContentProsemirrorSchemaSpec,
+);
+
+export const DocumentWithoutTitleContentSchema =
+    Schema.unknown.transform<DocumentWithoutTitleContent>({
+        serialize: content => content.toJSON(),
+        deserialize: unknownValue => {
+            let content;
+            try {
+                content = DocumentWithoutTitleContentProsemirrorSchema.nodeFromJSON(unknownValue);
+            } catch {
+                throw new SchemaDeserializationError("Invalid document content");
+            }
+
+            if (!isDocumentWithoutTitleContent(content))
+                throw new SchemaDeserializationError('Invalid document content"');
+
+            return content;
+        },
+    });
+
+export const emptyDocumentWithoutTitleContent = DocumentWithoutTitleContentProsemirrorSchema.node(
+    "doc",
+    {},
+    [DocumentWithoutTitleContentProsemirrorSchema.node("paragraph")],
+) as DocumentWithoutTitleContent;
+
 const documentContentProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
     nodes: {
         ...documentWithoutTitleContentProsemirrorSchemaSpec.nodes,
@@ -239,21 +277,34 @@ const documentContentProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
     },
 });
 
+export type DocumentContent = Node & {_DocumentContent: never};
+
+export function isDocumentContent(node: Node): node is DocumentContent {
+    return node.type.schema === DocumentContentProsemirrorSchema && node.type.name === "doc";
+}
+
 export const DocumentContentProsemirrorSchema = new ProsemirrorSchema(
     documentContentProsemirrorSchemaSpec,
 );
 
+export const DocumentContentSchema = Schema.unknown.transform<DocumentContent>({
+    serialize: content => content.toJSON(),
+    deserialize: unknownValue => {
+        let content;
+        try {
+            content = DocumentContentProsemirrorSchema.nodeFromJSON(unknownValue);
+        } catch {
+            throw new SchemaDeserializationError("Invalid document content");
+        }
+
+        if (!isDocumentContent(content))
+            throw new SchemaDeserializationError('Invalid document content"');
+
+        return content;
+    },
+});
+
 export const emptyDocumentContent = DocumentContentProsemirrorSchema.node("doc", {}, [
     DocumentContentProsemirrorSchema.node("title"),
     DocumentContentProsemirrorSchema.node("paragraph"),
-]);
-
-export const DocumentWithoutTitleContentProsemirrorSchema = new ProsemirrorSchema(
-    documentWithoutTitleContentProsemirrorSchemaSpec,
-);
-
-export const emptyDocumentWithoutTitleContent = DocumentWithoutTitleContentProsemirrorSchema.node(
-    "doc",
-    {},
-    [DocumentWithoutTitleContentProsemirrorSchema.node("paragraph")],
-);
+]) as DocumentContent;
