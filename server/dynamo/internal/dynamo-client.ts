@@ -6,6 +6,7 @@ import {
     DynamoDBClient,
     KeysAndAttributes,
     PutItemCommand,
+    QueryCommand,
     TransactWriteItem,
     TransactWriteItemsCommand,
     WriteRequest,
@@ -211,6 +212,8 @@ export class DynamoClient {
      *
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
      */
+    // TODO(calebmer): Leverage the `ClientRequestToken` for idempotent
+    // transactions.
     public async executeTransaction(entries: ReadonlyArray<DynamoTransactionEntry>): Promise<void> {
         const command = new TransactWriteItemsCommand({
             TransactItems: entries.map(entry => entry._getTransactItemForClient(this)),
@@ -322,6 +325,83 @@ export class DynamoClient {
                     : undefined,
             },
         });
+    }
+
+    /**
+     * Performs a [`Query`][1] operation against DynamoDB. A query lets us read
+     * items from the table between two sort keys in a partition.
+     *
+     * DynamoDB only returns 1 MB of data at a time and you're expected to
+     * [paginate to fetch the rest of the data][2]. This function abstracts that
+     * away. By returning a JavaScript async iterator, the consumer may break the
+     * iterator at any time and it will stop pagination.
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Query.html
+     * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Query.Pagination.html
+     */
+    public async *query({
+        tableName,
+        partitionKey,
+        sortKey,
+        consistency = "Eventual",
+        limit,
+    }: {
+        tableName: string;
+        partitionKey: {
+            name: string;
+            value: SchemaSerializedValue;
+        };
+        sortKey: {
+            name: string;
+            startValue?: SchemaSerializedValue;
+            endValue?: SchemaSerializedValue;
+        };
+        consistency?: DynamoReadConsistency;
+        limit?: number;
+    }): AsyncIterableIterator<SchemaSerializedObjectValue> {
+        const keyConditionExpression =
+            sortKey.startValue !== undefined && sortKey.endValue !== undefined
+                ? `${partitionKey.name} = :pkv and ${sortKey.name} between :skv1 and :skv2`
+                : sortKey.startValue !== undefined
+                ? `${partitionKey.name} = :pkv and ${sortKey.name} >= :skv1`
+                : sortKey.endValue !== undefined
+                ? `${partitionKey.name} = :pkv and ${sortKey.name} <= :skv2`
+                : `${partitionKey.name} = :pkv`;
+
+        const expressionAttributeValues = intoDynamoAttributeValueObject({
+            ":pkv": partitionKey.value,
+            ":skv1": sortKey.startValue,
+            ":skv2": sortKey.endValue,
+        });
+
+        let totalScannedCount = 0;
+        let lastEvaluatedKey: {[key: string]: AttributeValue} | undefined;
+
+        do {
+            const command: QueryCommand = new QueryCommand({
+                TableName: tableName,
+                ConsistentRead: consistency === "Strong",
+                // If we have a limit of 100 and we scanned 40 rows in our previous queries,
+                // then our new limit is 60 since we don't want to exceed our initial limit.
+                Limit: limit !== undefined ? limit - totalScannedCount : undefined,
+                KeyConditionExpression: keyConditionExpression,
+                ExpressionAttributeValues: expressionAttributeValues,
+                ExclusiveStartKey: lastEvaluatedKey,
+            });
+
+            const output = await this._client.send(command);
+
+            totalScannedCount += output.ScannedCount ?? 0;
+            lastEvaluatedKey = output.LastEvaluatedKey;
+
+            for (const item of output.Items ?? []) {
+                yield fromDynamoAttributeValueObject(item);
+            }
+
+            // If we have exceeded the limit then don't query again. Even if there is
+            // a `lastEvaluatedKey`.
+            if (limit !== undefined && totalScannedCount >= limit) break;
+        } while (lastEvaluatedKey !== undefined);
     }
 }
 

@@ -14,12 +14,16 @@ import {
     DynamoConditionExpression,
     DynamoConditionExpressionCompilationContext,
 } from "~/server/dynamo/internal/dynamo-condition";
-import {dynamoKeySeparator} from "~/server/dynamo/internal/dynamo-key-attribute-schema";
+import {
+    DynamoKeyAttribute,
+    dynamoKeySeparator,
+} from "~/server/dynamo/internal/dynamo-key-attribute-schema";
 import {DynamoTableSchemaTypes} from "~/server/dynamo/internal/types/dynamo-table-schema-types";
 import {repoDirectoryPath} from "~/server/helpers/repo-directory-path";
 import {checkSchemaDescriptionBackwardsCompatibility} from "~/server/schema/check-schema-description-backwards-compatibility";
 import {assert} from "~/shared/helpers/control/assert";
 import {isDeepEqual} from "~/shared/helpers/control/is-deep-equal";
+import {asyncIterableIteratorMap} from "~/shared/helpers/iterable/async-iterable-iterator-map";
 import {mapObjectValues} from "~/shared/helpers/object/map-object-values";
 import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order-key";
 import {defaultCompareStrings} from "~/shared/helpers/string/default-compare-strings";
@@ -131,6 +135,60 @@ export class DynamoTableSchema<
         return {
             partitionKey,
             sortKey,
+            attributesSchema: sortRangeConfig.attributes,
+        };
+    }
+
+    private _deserializeKey(
+        partitionKey: string,
+        sortKey: string,
+    ): {
+        key: Types["Key"];
+        attributesSchema: DynamoTableSchemaTypes.SortRange.ConfigBase["attributes"];
+    } {
+        const partitionKeyEntries = partitionKey.split(dynamoKeySeparator);
+        const sortKeyEntries = sortKey.split(dynamoKeySeparator);
+
+        const partitionType = partitionKeyEntries[0];
+        const sortRangeType = sortKeyEntries[1];
+        assert(partitionType, "Invalid partition key");
+        assert(sortRangeType, "Invalid sort key");
+
+        const partitionConfig = this._config.partitions[partitionType];
+        const partitionDescription = this._description.partitionByType[partitionType];
+        assert(partitionConfig && partitionDescription, "Invalid partition key");
+        const sortRangeConfig = partitionConfig.sortRanges[sortRangeType];
+        const sortRangeDescription = partitionDescription.sortRangeByType[sortRangeType];
+        assert(sortRangeConfig && sortRangeDescription, "Invalid sort key");
+
+        assert(sortKeyEntries[0] === sortRangeDescription.orderKey, "Invalid sort key");
+
+        const key: any = {partitionType};
+
+        let partitionKeyEntryIndex = 1;
+        for (const [attributeKey, attributeSchema] of Object.entries(
+            partitionConfig.partitionKeyAttributes,
+        )) {
+            const partitionKeyEntry = partitionKeyEntries[partitionKeyEntryIndex++];
+            assert(partitionKeyEntry !== undefined, "Invalid partition key");
+            key[attributeKey] = attributeSchema.deserialize(
+                partitionKeyEntry as DynamoKeyAttribute,
+            );
+        }
+
+        key.sortRangeType = sortRangeType;
+
+        let sortKeyEntryIndex = 1;
+        for (const [attributeKey, attributeSchema] of Object.entries(
+            partitionConfig.partitionKeyAttributes,
+        )) {
+            const sortKeyEntry = sortKeyEntries[sortKeyEntryIndex++];
+            assert(sortKeyEntry !== undefined, "Invalid sort key");
+            key[attributeKey] = attributeSchema.deserialize(sortKeyEntry as DynamoKeyAttribute);
+        }
+
+        return {
+            key,
             attributesSchema: sortRangeConfig.attributes,
         };
     }
@@ -324,28 +382,67 @@ export class DynamoTableSchema<
         });
     }
 
-    public async query<
+    public query<
         PartitionKey extends Types["PartitionKey"],
         StartKey extends Types["Key"] & PartitionKey,
         EndKey extends Types["Key"] & PartitionKey,
-    >({
-        startKey,
-        endKey,
-    }: {
-        startKey: StartKey;
-        endKey: EndKey;
-    }): Promise<
-        Array<
-            MergeObjectIntersection<
-                Types["Item"] &
-                    PartitionKey & {
-                        readonly partitionSortType: Types["QueryKeyMap"][PartitionKey["partitionType"]][StartKey["partitionSortType"]][EndKey["partitionSortType"]];
-                    }
-            >
+    >(
+        client: DynamoClient,
+        {
+            startKey,
+            endKey,
+            consistency,
+            limit,
+        }: {
+            startKey: StartKey;
+            endKey: EndKey;
+            consistency?: DynamoReadConsistency;
+            limit?: number;
+        },
+    ): AsyncIterableIterator<
+        MergeObjectIntersection<
+            Types["Item"] &
+                PartitionKey & {
+                    readonly sortRangeType: Types["QueryKeyMap"][PartitionKey["partitionType"]][StartKey["sortRangeType"]][EndKey["sortRangeType"]];
+                }
         >
     > {
-        // TODO(calebmer): Implement!!
-        return [];
+        const {partitionKey: startPartitionKey, sortKey: startSortKey} =
+            this._serializeKey(startKey);
+        const {partitionKey: endPartitionKey, sortKey: endSortKey} = this._serializeKey(endKey);
+
+        if (startPartitionKey !== endPartitionKey)
+            throw new Error("The partition key of our start key and end key should be the same");
+
+        const iterator = client.query({
+            tableName: this._config.name,
+            partitionKey: {
+                name: "partitionKey",
+                value: startPartitionKey,
+            },
+            sortKey: {
+                name: "sortKey",
+                startValue: startSortKey,
+                endValue: endSortKey,
+            },
+            consistency,
+            limit,
+        });
+
+        return asyncIterableIteratorMap(iterator, serializedItem => {
+            assert(typeof serializedItem.partitionKey === "string");
+            assert(typeof serializedItem.sortKey === "string");
+
+            const {key, attributesSchema} = this._deserializeKey(
+                serializedItem.partitionKey,
+                serializedItem.sortKey,
+            );
+
+            const item: any = key;
+            attributesSchema.deserializeInto(serializedItem, item);
+
+            return item;
+        });
     }
 
     /**
