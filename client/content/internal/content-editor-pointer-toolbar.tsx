@@ -73,7 +73,7 @@ export function ContentEditorPointerToolbar({
         // Don't show the toolbar if the selection overlaps with the title. The title
         // can only be at the beginning of a document so checking whether
         // `selection.from` is in the title is sufficient for detecting overlap.
-        state.selection.$from.parent.type !== ContentSchema.nodes.title;
+        state.selection.$from.parent.type.name !== "title";
 
     const initialSelection = useConstant(() => state.selection);
 
@@ -323,7 +323,7 @@ function ContentEditorPointerToolbarButtons({
     onLinkInputOpen,
     onLinkInputClose,
 }: {
-    state: EditorState;
+    state: EditorState & {schema: ContentSchema};
     viewRef: RefObject<EditorView | null>;
     sharedTooltipLifecycleRef: (tooltipRef: TooltipRef) => () => void;
     isFadingOut: boolean;
@@ -334,18 +334,51 @@ function ContentEditorPointerToolbarButtons({
     const {isBold, isItalic, isStrike, activeLinkMark, activeHighlightMark} = useMemo(() => {
         const marks = getMarksSpanningAcrossEntireRange(state.doc, state.selection);
 
-        const activeLinkMark = marks.find(mark => mark.type === ContentSchema.marks.link) ?? null;
-        const activeHighlightMark =
-            marks.find(mark => mark.type === ContentSchema.marks.highlight) ?? null;
+        const activeLinkMark = marks.find(mark => mark.type.name === "link") ?? null;
+        const activeHighlightMark = marks.find(mark => mark.type.name === "highlight") ?? null;
 
         return {
-            isBold: ContentSchema.mark("bold").isInSet(marks),
-            isItalic: ContentSchema.mark("italic").isInSet(marks),
-            isStrike: ContentSchema.mark("strike").isInSet(marks),
+            isBold: state.schema.mark("bold").isInSet(marks),
+            isItalic: state.schema.mark("italic").isInSet(marks),
+            isStrike: state.schema.mark("strike").isInSet(marks),
             activeLinkMark,
             activeHighlightMark,
         };
-    }, [state.doc, state.selection]);
+    }, [state.doc, state.schema, state.selection]);
+
+    const isCheckListActive = useMemo(
+        () =>
+            !!state.schema.nodes.checkListItem &&
+            areAllNodesListItemType(state.doc, state.selection, state.schema.nodes.checkListItem),
+        [state.doc, state.schema.nodes.checkListItem, state.selection],
+    );
+
+    const isHeadingLevel1Active = useMemo(
+        () =>
+            !!state.schema.nodes.heading &&
+            areAllNodesBlockType(state.doc, state.selection, state.schema.nodes.heading, {
+                level: 1,
+            }),
+        [state.doc, state.schema.nodes.heading, state.selection],
+    );
+
+    const isHeadingLevel2Active = useMemo(
+        () =>
+            !!state.schema.nodes.heading &&
+            areAllNodesBlockType(state.doc, state.selection, state.schema.nodes.heading, {
+                level: 2,
+            }),
+        [state.doc, state.schema.nodes.heading, state.selection],
+    );
+
+    const isHeadingLevel3Active = useMemo(
+        () =>
+            !!state.schema.nodes.heading &&
+            areAllNodesBlockType(state.doc, state.selection, state.schema.nodes.heading, {
+                level: 3,
+            }),
+        [state.doc, state.schema.nodes.heading, state.selection],
+    );
 
     return (
         <>
@@ -355,7 +388,7 @@ function ContentEditorPointerToolbarButtons({
                 viewRef={viewRef}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                 isActive={isBold}
-                command={createToggleMarkCommand(ContentSchema.mark("bold"))}
+                command={createToggleMarkCommand(state.schema.mark("bold"))}
             >
                 <TextBolder />
             </ContentEditorPointerToolbarButton>
@@ -365,7 +398,7 @@ function ContentEditorPointerToolbarButtons({
                 viewRef={viewRef}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                 isActive={isItalic}
-                command={createToggleMarkCommand(ContentSchema.mark("italic"))}
+                command={createToggleMarkCommand(state.schema.mark("italic"))}
             >
                 <TextItalic />
             </ContentEditorPointerToolbarButton>
@@ -375,7 +408,7 @@ function ContentEditorPointerToolbarButtons({
                 viewRef={viewRef}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                 isActive={isStrike}
-                command={createToggleMarkCommand(ContentSchema.mark("strike"))}
+                command={createToggleMarkCommand(state.schema.mark("strike"))}
             >
                 <TextStrikethrough />
             </ContentEditorPointerToolbarButton>
@@ -389,12 +422,14 @@ function ContentEditorPointerToolbarButtons({
                 onLinkInputOpen={onLinkInputOpen}
                 onLinkInputClose={onLinkInputClose}
             />
-            <ContentEditorPointerToolbarHighlightButton
-                viewRef={viewRef}
-                sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
-                isToolbarFadingOut={isFadingOut}
-                activeHighlightMark={activeHighlightMark}
-            />
+            {state.schema.marks.highlight && (
+                <ContentEditorPointerToolbarHighlightButton
+                    viewRef={viewRef}
+                    sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
+                    isToolbarFadingOut={isFadingOut}
+                    activeHighlightMark={activeHighlightMark}
+                />
+            )}
             <ContentEditorPointerToolbarButton
                 dividerLeft
                 description="Bulleted list"
@@ -406,11 +441,11 @@ function ContentEditorPointerToolbarButtons({
                         areAllNodesListItemType(
                             state.doc,
                             state.selection,
-                            ContentSchema.nodes.unorderedListItem,
+                            state.schema.nodes.unorderedListItem,
                         ),
-                    [state.doc, state.selection],
+                    [state.doc, state.schema.nodes.unorderedListItem, state.selection],
                 )}
-                command={createToggleListItemsCommand(ContentSchema.nodes.unorderedListItem)}
+                command={createToggleListItemsCommand(state.schema.nodes.unorderedListItem)}
             >
                 <ListBullets />
             </ContentEditorPointerToolbarButton>
@@ -424,91 +459,68 @@ function ContentEditorPointerToolbarButtons({
                         areAllNodesListItemType(
                             state.doc,
                             state.selection,
-                            ContentSchema.nodes.orderedListItem,
+                            state.schema.nodes.orderedListItem,
                         ),
-                    [state.doc, state.selection],
+                    [state.doc, state.schema.nodes.orderedListItem, state.selection],
                 )}
-                command={createToggleListItemsCommand(ContentSchema.nodes.orderedListItem)}
+                command={createToggleListItemsCommand(state.schema.nodes.orderedListItem)}
             >
                 <ListNumbers />
             </ContentEditorPointerToolbarButton>
-            <ContentEditorPointerToolbarButton
-                dividerRight
-                description="Check list"
-                keyboardShortcut="[ ] Hello"
-                viewRef={viewRef}
-                sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
-                isActive={useMemo(
-                    () =>
-                        areAllNodesListItemType(
-                            state.doc,
-                            state.selection,
-                            ContentSchema.nodes.checkListItem,
-                        ),
-                    [state.doc, state.selection],
-                )}
-                command={createToggleListItemsCommand(ContentSchema.nodes.checkListItem)}
-            >
-                <ListChecks />
-            </ContentEditorPointerToolbarButton>
-            <ContentEditorPointerToolbarButton
-                dividerLeft
-                description="Heading 1"
-                keyboardShortcut="# Hello"
-                viewRef={viewRef}
-                sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
-                isActive={useMemo(
-                    () =>
-                        areAllNodesBlockType(
-                            state.doc,
-                            state.selection,
-                            ContentSchema.nodes.heading,
-                            {level: 1},
-                        ),
-                    [state.doc, state.selection],
-                )}
-                command={createToggleBlockTypeCommand(ContentSchema.nodes.heading, {level: 1})}
-            >
-                <TextHOne />
-            </ContentEditorPointerToolbarButton>
-            <ContentEditorPointerToolbarButton
-                description="Heading 2"
-                keyboardShortcut="## Hello"
-                viewRef={viewRef}
-                sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
-                isActive={useMemo(
-                    () =>
-                        areAllNodesBlockType(
-                            state.doc,
-                            state.selection,
-                            ContentSchema.nodes.heading,
-                            {level: 2},
-                        ),
-                    [state.doc, state.selection],
-                )}
-                command={createToggleBlockTypeCommand(ContentSchema.nodes.heading, {level: 2})}
-            >
-                <TextHTwo />
-            </ContentEditorPointerToolbarButton>
-            <ContentEditorPointerToolbarButton
-                description="Heading 3"
-                keyboardShortcut="### Hello"
-                viewRef={viewRef}
-                sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
-                isActive={useMemo(
-                    () =>
-                        areAllNodesBlockType(
-                            state.doc,
-                            state.selection,
-                            ContentSchema.nodes.heading,
-                            {level: 3},
-                        ),
-                    [state.doc, state.selection],
-                )}
-                command={createToggleBlockTypeCommand(ContentSchema.nodes.heading, {level: 3})}
-            >
-                <TextHThree />
-            </ContentEditorPointerToolbarButton>
+            {state.schema.nodes.checkListItem && (
+                <ContentEditorPointerToolbarButton
+                    dividerRight
+                    description="Check list"
+                    keyboardShortcut="[ ] Hello"
+                    viewRef={viewRef}
+                    sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
+                    isActive={isCheckListActive}
+                    command={createToggleListItemsCommand(state.schema.nodes.checkListItem)}
+                >
+                    <ListChecks />
+                </ContentEditorPointerToolbarButton>
+            )}
+            {state.schema.nodes.heading && (
+                <>
+                    <ContentEditorPointerToolbarButton
+                        dividerLeft
+                        description="Heading 1"
+                        keyboardShortcut="# Hello"
+                        viewRef={viewRef}
+                        sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
+                        isActive={isHeadingLevel1Active}
+                        command={createToggleBlockTypeCommand(state.schema.nodes.heading, {
+                            level: 1,
+                        })}
+                    >
+                        <TextHOne />
+                    </ContentEditorPointerToolbarButton>
+                    <ContentEditorPointerToolbarButton
+                        description="Heading 2"
+                        keyboardShortcut="## Hello"
+                        viewRef={viewRef}
+                        sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
+                        isActive={isHeadingLevel2Active}
+                        command={createToggleBlockTypeCommand(state.schema.nodes.heading, {
+                            level: 2,
+                        })}
+                    >
+                        <TextHTwo />
+                    </ContentEditorPointerToolbarButton>
+                    <ContentEditorPointerToolbarButton
+                        description="Heading 3"
+                        keyboardShortcut="### Hello"
+                        viewRef={viewRef}
+                        sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
+                        isActive={isHeadingLevel3Active}
+                        command={createToggleBlockTypeCommand(state.schema.nodes.heading, {
+                            level: 3,
+                        })}
+                    >
+                        <TextHThree />
+                    </ContentEditorPointerToolbarButton>
+                </>
+            )}
         </>
     );
 }
@@ -770,6 +782,8 @@ function ContentEditorPointerToolbarHighlightButton({
                         assert(viewRef.current);
                         const {state, dispatch} = viewRef.current;
 
+                        assert(state.schema.marks.highlight);
+
                         // Clicking the highlight button when there is an active highlight mark removes
                         // the highlight. Because the button is rendered in the activated style.
                         if (activeHighlightMark) {
@@ -777,7 +791,7 @@ function ContentEditorPointerToolbarHighlightButton({
                                 state.tr.removeMark(
                                     state.selection.from,
                                     state.selection.to,
-                                    ContentSchema.marks.highlight,
+                                    state.schema.marks.highlight,
                                 ),
                             );
                             return true;

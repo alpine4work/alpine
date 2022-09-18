@@ -15,7 +15,6 @@ import {trimSpacesFromRange} from "~/client/content/internal/content-editor-pros
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus-ring";
 import {Tooltip} from "~/client/design/tooltip";
-import {ContentSchema} from "~/shared/content/content-schema";
 import {HighlightColor, colorByHighlightColor} from "~/shared/content/highlight-color";
 import {assert} from "~/shared/helpers/control/assert";
 
@@ -68,7 +67,7 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
                 state.tr.addMark(
                     range.from,
                     range.to,
-                    ContentSchema.mark("highlight", {
+                    state.schema.mark("highlight", {
                         color: highlightColor,
                     }),
                 ),
@@ -78,7 +77,7 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
                 state.tr.removeMark(
                     state.selection.from,
                     state.selection.to,
-                    ContentSchema.marks.highlight,
+                    state.schema.marks.highlight,
                 ),
             );
         }

@@ -29,7 +29,7 @@ type Command = (
 export const openKeyboardHighlightFloaterMetaKey = "openKeyboardHighlightFloater";
 export const openKeyboardLinkFloaterMetaKey = "openKeyboardLinkFloater";
 
-export function buildKeymapPlugin() {
+export function buildKeymapPlugin(schema: ContentSchema) {
     const keys = new Map<string, Command>();
 
     // History
@@ -71,14 +71,14 @@ export function buildKeymapPlugin() {
             if (
                 node.isTextblock === false ||
                 node.content.size > 0 ||
-                node.type === ContentSchema.nodes.paragraph
+                node.type.name === "paragraph"
             ) {
                 return false;
             }
 
             // 2. Convert the textblock to a paragraph.
             if (dispatch) {
-                dispatch(state.tr.setBlockType($from.pos, $to.pos, ContentSchema.nodes.paragraph));
+                dispatch(state.tr.setBlockType($from.pos, $to.pos, schema.nodes.paragraph));
             }
             return true;
         },
@@ -145,9 +145,7 @@ export function buildKeymapPlugin() {
     // alt+enter to create a list item with multiple lines, for instance.
     const altEnterCommand: Command = (state, dispatch) => {
         if (dispatch) {
-            dispatch(
-                state.tr.replaceSelectionWith(ContentSchema.nodes.break.create()).scrollIntoView(),
-            );
+            dispatch(state.tr.replaceSelectionWith(schema.nodes.break.create()).scrollIntoView());
         }
         return true;
     };
@@ -182,7 +180,7 @@ export function buildKeymapPlugin() {
             // cursor should be at the beginning of the block.
             const isSelectionAtFirstOffsetOfTextblock =
                 node.isTextblock &&
-                node.type !== ContentSchema.nodes.paragraph &&
+                node.type.name !== "paragraph" &&
                 $from.pos === $to.pos &&
                 $from.parentOffset === 0;
 
@@ -190,7 +188,7 @@ export function buildKeymapPlugin() {
 
             // 2. Convert the textblock to a paragraph.
             if (dispatch) {
-                dispatch(state.tr.setBlockType($from.pos, $to.pos, ContentSchema.nodes.paragraph));
+                dispatch(state.tr.setBlockType($from.pos, $to.pos, schema.nodes.paragraph));
             }
             return true;
         },
@@ -225,8 +223,8 @@ export function buildKeymapPlugin() {
             // 1. Should be an empty paragraph text block in a quote block and the cursor
             // should be at the beginning of the block.
             const isSelectionAtFirstOffsetOfParagraphInQuoteBlock =
-                node.type === ContentSchema.nodes.paragraph &&
-                (parentNode.type === ContentSchema.nodes.quoteBlock ||
+                node.type.name === "paragraph" &&
+                (parentNode.type.name === "quoteBlock" ||
                     (parentNode.type.groups.includes("listItem") &&
                         // If the previous node is a list item and we are the first paragraph in our
                         // list item, join with the last list item instead of removing the list item
@@ -270,7 +268,7 @@ export function buildKeymapPlugin() {
             const isSelectionAtFirstOffsetOfParagraph =
                 $from.pos === $to.pos &&
                 $from.parentOffset === 0 &&
-                $from.node().type === ContentSchema.nodes.paragraph;
+                $from.node().type.name === "paragraph";
 
             if (!isSelectionAtFirstOffsetOfParagraph) return false;
 
@@ -278,8 +276,7 @@ export function buildKeymapPlugin() {
             const lastNode = state.doc.resolve($from.before()).nodeBefore;
             const isLastNodeListItemOrQuoteBlock =
                 lastNode &&
-                (lastNode.type.groups.includes("listItem") ||
-                    lastNode.type === ContentSchema.nodes.quoteBlock);
+                (lastNode.type.groups.includes("listItem") || lastNode.type.name === "quoteBlock");
 
             if (!isLastNodeListItemOrQuoteBlock) return false;
 
@@ -642,29 +639,31 @@ export function buildKeymapPlugin() {
     keys.set("Mod-a", selectAll);
 
     // Toggle inline formats
-    keys.set("Mod-b", createToggleMarkCommand(ContentSchema.mark("bold")));
-    keys.set("Mod-i", createToggleMarkCommand(ContentSchema.mark("italic")));
-    keys.set("Mod-shift-x", createToggleMarkCommand(ContentSchema.mark("strike")));
-    keys.set("Mod-shift-k", createToggleMarkCommand(ContentSchema.mark("code")));
+    keys.set("Mod-b", createToggleMarkCommand(schema.mark("bold")));
+    keys.set("Mod-i", createToggleMarkCommand(schema.mark("italic")));
+    keys.set("Mod-shift-x", createToggleMarkCommand(schema.mark("strike")));
+    keys.set("Mod-shift-k", createToggleMarkCommand(schema.mark("code")));
 
     // Highlight overlay
-    keys.set("Mod-shift-h", (state, dispatch) => {
-        // Only open highlight color selector if we're selecting some text.
-        if (state.selection.from === state.selection.to) {
-            return false;
-        }
+    if (schema.nodes.highlight) {
+        keys.set("Mod-shift-h", (state, dispatch) => {
+            // Only open highlight color selector if we're selecting some text.
+            if (state.selection.from === state.selection.to) {
+                return false;
+            }
 
-        let isHighlightSupported = false;
-        state.doc.nodesBetween(state.selection.from, state.selection.to, node => {
-            if (!node.inlineContent) return;
-            isHighlightSupported ||= node.type.allowsMarkType(ContentSchema.marks.highlight);
+            let isHighlightSupported = false;
+            state.doc.nodesBetween(state.selection.from, state.selection.to, node => {
+                if (!node.inlineContent) return;
+                isHighlightSupported ||= node.type.allowsMarkType(schema.marks.highlight!);
+            });
+
+            if (!isHighlightSupported) return false;
+
+            dispatch?.(state.tr.setMeta(openKeyboardHighlightFloaterMetaKey, true));
+            return true;
         });
-
-        if (!isHighlightSupported) return false;
-
-        dispatch?.(state.tr.setMeta(openKeyboardHighlightFloaterMetaKey, true));
-        return true;
-    });
+    }
 
     // Link overlay
     keys.set("Mod-k", (state, dispatch) => {
@@ -676,7 +675,7 @@ export function buildKeymapPlugin() {
         let isLinkSupported = false;
         state.doc.nodesBetween(state.selection.from, state.selection.to, node => {
             if (!node.inlineContent) return;
-            isLinkSupported ||= node.type.allowsMarkType(ContentSchema.marks.link);
+            isLinkSupported ||= node.type.allowsMarkType(schema.marks.link);
         });
 
         if (!isLinkSupported) return false;

@@ -1,16 +1,10 @@
 import {assignInlineVars} from "@vanilla-extract/dynamic";
 import classNames from "classnames";
-import {Node, ParseRule, Schema} from "prosemirror-model";
+import {Node, ParseRule, Schema, SchemaSpec} from "prosemirror-model";
 import {
     boldClassName,
     bulletListItemClassName,
-    checkListItemCheckedClassName,
     codeClassName,
-    dividerClassName,
-    headingLevel1ClassName,
-    headingLevel2ClassName,
-    headingLevel3ClassName,
-    highlightClassNameByColor,
     italicClassName,
     linkClassName,
     listItemClassName,
@@ -19,10 +13,7 @@ import {
     paragraphClassName,
     quoteBlockClassName,
     strikeClassName,
-    titleClassName,
 } from "~/shared/content/content-schema.css";
-import {HighlightColor, isHighlightColor} from "~/shared/content/highlight-color";
-import {assert} from "~/shared/helpers/control/assert";
 
 /**
  * The maximum level of indentation for a list item.
@@ -40,7 +31,7 @@ const allowedLinkProtocols: ReadonlySet<string> = new Set(["http", "https"]);
 /**
  * Does the URL string start with an allowed protocol?
  */
-export function startsWithAllowedProtocol(url: string) {
+export function doesUrlStartWithAllowedProtocol(url: string) {
     for (const protocol of allowedLinkProtocols) {
         if (url.startsWith(`${protocol}://`)) {
             return true;
@@ -50,50 +41,28 @@ export function startsWithAllowedProtocol(url: string) {
 }
 
 /**
- * A ProseMirror document schema. See the [ProseMirror guide on schemas][1] for
- * an explanation of this format. See [`prosemirror-schema-basic`][2] for an
- * example of a basic schema. See [`prosemirror-schema-list`][3] for an example
- * of adding list nodes to a schema.
- *
- * [1]: https://prosemirror.net/docs/guide/#schema
- * [2]: https://github.com/ProseMirror/prosemirror-schema-basic/blob/3d626fd16e0c4eb5a448ec585509494243ef55b3/src/schema-basic.js
- * [3]: https://github.com/ProseMirror/prosemirror-schema-list/blob/7b082efb983c7ab61b6f56135cbf04ce8f41b6fe/src/schema-list.js
+ * TypeScript convenience function for creating a `SchemaSpec`. Forces us to
+ * adhere to the `SchemaSpec` format while allowing the return type to be an
+ * instance of `SchemaSpec`. (So node keys are preserved, for instance.)
  */
-export const ContentSchema = new Schema({
+export function createSchemaSpec<Schema extends SchemaSpec<string, string>>(
+    schema: Schema,
+): Schema {
+    return schema;
+}
+
+export type ContentSchema = Schema<
+    keyof typeof contentBaseSchemaSpec["nodes"],
+    keyof typeof contentBaseSchemaSpec["marks"]
+>;
+
+export const contentBaseSchemaSpec = createSchemaSpec({
     nodes: {
         /**
          * Document root, every ProseMirror schema requires this.
          */
         doc: {
-            content: "title block+",
-        },
-
-        /**
-         * Every document comes with a required title.
-         *
-         * The title must be plain text since we extract the title from the
-         * document and render it in other places.
-         *
-         * Since there is only one title node and it's required, the title node also
-         * contains some other attributes that are global to the document. Like the
-         * cover image.
-         */
-        title: {
-            content: "text*",
-            marks: "",
-            toDOM: () => ["h1", {class: titleClassName}, 0],
-            // Try to parse as a `heading`. If we can't (because it's the first position in
-            // a document) then parse as a title.
-            parseDOM: [
-                {tag: "p", priority: 40},
-                {tag: "div", priority: 40},
-                {tag: "h1", priority: 40},
-                {tag: "h2", priority: 40},
-                {tag: "h3", priority: 40},
-                {tag: "h4", priority: 40},
-                {tag: "h5", priority: 40},
-                {tag: "h6", priority: 40},
-            ],
+            content: "block+",
         },
 
         /**
@@ -124,53 +93,6 @@ export const ContentSchema = new Schema({
                         return {};
                     },
                 },
-            ],
-        },
-
-        /*
-         * Crucial for adding structure to the document. Can be extended in the
-         * future with an outline feature.
-         *
-         * Can only be levels 1, 2, and 3.
-         *
-         * The element used for a heading is its level plus 1. For example, a
-         * heading with level 1 will use an `<h2>` instead of an `<h1>`. This is
-         * because our support for titles usually lives outside content (e.g.
-         * tasks). This also prevents users from confusing screen readers by
-         * creating a bunch of level 1 headings.
-         */
-        heading: {
-            group: "block",
-            content: "inline*",
-            attrs: {
-                level: {default: 1},
-            },
-            toDOM: node => {
-                const unknownLevel: unknown = node.attrs.level;
-                const level =
-                    typeof unknownLevel === "number"
-                        ? Math.max(Math.min(3, Math.floor(unknownLevel)), 1)
-                        : 1;
-                return [
-                    `h${level + 1}`,
-                    {
-                        class:
-                            level === 3
-                                ? headingLevel3ClassName
-                                : level === 2
-                                ? headingLevel2ClassName
-                                : headingLevel1ClassName,
-                    },
-                    0,
-                ];
-            },
-            parseDOM: [
-                {tag: "h1", priority: 50, attrs: {level: 1}},
-                {tag: "h2", priority: 50, attrs: {level: 1}},
-                {tag: "h3", priority: 50, attrs: {level: 2}},
-                {tag: "h4", priority: 50, attrs: {level: 3}},
-                {tag: "h5", priority: 50, attrs: {level: 3}},
-                {tag: "h6", priority: 50, attrs: {level: 3}},
             ],
         },
 
@@ -292,75 +214,6 @@ export const ContentSchema = new Schema({
         },
 
         /**
-         * List some things in either a complete or incomplete state. Modern
-         * document editors typically have this as it gives you a lightweight
-         * ability to represent some state of some things.
-         */
-        checkListItem: {
-            group: "block listItem",
-            content: "paragraph+",
-            attrs: {
-                indent: {default: 0},
-                checked: {default: false},
-            },
-            defining: true,
-            toDOM: node => {
-                const indent = clampListItemIndentation(node.attrs.indent);
-                return [
-                    "div",
-                    {
-                        class: classNames(listItemClassName, {
-                            [checkListItemCheckedClassName]: node.attrs.checked,
-                        }),
-                        style: assignInlineVars({[listItemIndentationVar]: indent.toString()}),
-                    },
-                    0,
-                ];
-            },
-            parseDOM: [
-                (() => {
-                    const parseRule = createListItemParseRule("ul");
-
-                    const {priority, getAttrs} = parseRule;
-                    assert(priority && getAttrs);
-
-                    return {
-                        ...parseRule,
-                        priority: priority + 1,
-                        getAttrs: node => {
-                            const attrs = getAttrs(node);
-                            if (!attrs) return false;
-
-                            if (!(node instanceof HTMLElement)) return false;
-
-                            if (
-                                node.firstElementChild &&
-                                node.firstElementChild instanceof HTMLInputElement &&
-                                node.firstElementChild.type === "checkbox"
-                            ) {
-                                return {...attrs, checked: node.firstElementChild.checked};
-                            }
-
-                            return false;
-                        },
-                    };
-                })(),
-            ],
-            toDebugString: toDebugStringWithIndent,
-        },
-
-        /**
-         * Also known as a horizontal rule. Another way to organize documents
-         * alongside headers. Allows the writer to specify an unnamed break in
-         * content.
-         */
-        divider: {
-            group: "block",
-            toDOM: () => ["hr", {class: dividerClassName}],
-            parseDOM: [{tag: "hr"}],
-        },
-
-        /**
          * A hard line break in the document. Provides just a little bit more
          * flexibility for document spacing. For example, if you want two lines
          * without margin between them (which you'd get with a paragraph) you'd use
@@ -450,54 +303,6 @@ export const ContentSchema = new Schema({
         },
 
         /**
-         * Gives the writer a flexible tool for annotating their content. Highlight
-         * colors don't have a well defined purpose, but that means a writer can
-         * assign to them whatever purpose they wish. We have a highlight color for
-         * red, yellow, green, blue, and purple. We exclude orange because it is too
-         * close visually to red and yellow.
-         */
-        highlight: {
-            attrs: {
-                color: {},
-            },
-            inclusive: false,
-            toDOM: node => {
-                const unknownColor: unknown = node.attrs.color;
-                const color: HighlightColor =
-                    typeof unknownColor === "string" && isHighlightColor(unknownColor)
-                        ? unknownColor
-                        : HighlightColor.Orange;
-
-                return [
-                    "mark",
-                    {
-                        class: highlightClassNameByColor[color],
-                        "data-highlight-color": color,
-                    },
-                    0,
-                ];
-            },
-            parseDOM: [
-                {
-                    tag: "mark",
-                    getAttrs: node => {
-                        const attrs: {[key: string]: unknown} = {};
-
-                        if (
-                            node instanceof HTMLElement &&
-                            node.dataset.highlightColor &&
-                            isHighlightColor(node.dataset.highlightColor)
-                        ) {
-                            attrs.color = node.dataset.highlightColor;
-                        }
-
-                        return attrs;
-                    },
-                },
-            ],
-        },
-
-        /**
          * This is the web! You just gotta have them links.
          */
         // TODO(calebmer): If linking to an internal URL we should load it directly
@@ -514,7 +319,7 @@ export const ContentSchema = new Schema({
                 // we avoid XSS vulnerabilities with URLs that look like
                 // `javascript:alert('XSS')`.
                 const url =
-                    typeof unknownUrl === "string" && startsWithAllowedProtocol(unknownUrl)
+                    typeof unknownUrl === "string" && doesUrlStartWithAllowedProtocol(unknownUrl)
                         ? unknownUrl
                         : "about:blank#blocked";
 
@@ -545,7 +350,7 @@ export const ContentSchema = new Schema({
     },
 });
 
-function toDebugStringWithIndent(node: Node) {
+export function toDebugStringWithIndent(node: Node) {
     const args = [];
 
     if (node.attrs.indent) {
@@ -557,7 +362,7 @@ function toDebugStringWithIndent(node: Node) {
     return args.length === 0 ? `${node.type.name}` : `${node.type.name}(${args.join(", ")})`;
 }
 
-function createListItemParseRule(firstListParentTagName: "ul" | "ol"): ParseRule {
+export function createListItemParseRule(firstListParentTagName: "ul" | "ol"): ParseRule {
     return {
         tag: "li",
         priority: 50,
@@ -590,11 +395,3 @@ function createListItemParseRule(firstListParentTagName: "ul" | "ol"): ParseRule
         },
     };
 }
-
-/**
- * An empty doc for our content schema.
- */
-export const emptyContent = ContentSchema.node("doc", {}, [
-    ContentSchema.node("title"),
-    ContentSchema.node("paragraph"),
-]);

@@ -2,18 +2,31 @@ import Head from "next/head";
 import {useEffect, useState} from "react";
 import {ContentEditor, ContentEditorState} from "~/client/content/content-editor";
 import {sprinkles} from "~/client/design/sprinkles.css";
-import {ContentSchema} from "~/shared/content/content-schema";
+import {
+    DocumentContentSchema,
+    emptyDocumentContent,
+} from "~/shared/content/document-content-schema";
 
 export default function Home() {
-    const [state, setState] = useState(() => ContentEditorState.create());
+    const [state, setState] = useState(() =>
+        ContentEditorState.create({schema: DocumentContentSchema, content: emptyDocumentContent}),
+    );
 
     useEffect(() => {
         const indexContentJson = localStorage.getItem("indexContentJson");
         if (!indexContentJson) {
-            setState(ContentEditorState.create());
+            setState(
+                ContentEditorState.create({
+                    schema: DocumentContentSchema,
+                    content: emptyDocumentContent,
+                }),
+            );
         } else {
             setState(
-                ContentEditorState.create(ContentSchema.nodeFromJSON(JSON.parse(indexContentJson))),
+                ContentEditorState.create({
+                    schema: DocumentContentSchema,
+                    content: DocumentContentSchema.nodeFromJSON(JSON.parse(indexContentJson)),
+                }),
             );
         }
     }, []);

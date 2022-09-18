@@ -10,30 +10,34 @@ import {findWrapping} from "prosemirror-transform";
 import {ContentSchema} from "~/shared/content/content-schema";
 import {assert} from "~/shared/helpers/control/assert";
 
-export function buildInputRulesPlugin() {
+export function buildInputRulesPlugin(schema: ContentSchema) {
     const rules: Array<InputRule> = [];
 
     // "smart quotes"
     rules.push(...smartQuotes);
 
     // `# `, `## `, or `### ` creates a heading
-    rules.push(
-        textblockTypeInputRule(/^(#{1,3})\s$/, ContentSchema.nodes.heading, match => ({
-            level: match[1]!.length,
-        })),
-    );
+    if (schema.nodes.heading) {
+        rules.push(
+            textblockTypeInputRule(/^(#{1,3})\s$/, schema.nodes.heading, match => ({
+                level: match[1]!.length,
+            })),
+        );
+    }
 
     // `> ` creates a quote block
-    rules.push(wrappingInputRule(/^\s*>\s$/, ContentSchema.nodes.quoteBlock));
+    rules.push(wrappingInputRule(/^\s*>\s$/, schema.nodes.quoteBlock));
 
     // `- ` or `* ` creates a bullet list item
-    rules.push(listItemInputRule(/^\s*[-*]\s$/, ContentSchema.nodes.unorderedListItem));
+    rules.push(listItemInputRule(/^\s*[-*]\s$/, schema.nodes.unorderedListItem));
 
     // `1. ` creates an ordered list item
-    rules.push(listItemInputRule(/^\s*1\.\s$/, ContentSchema.nodes.orderedListItem));
+    rules.push(listItemInputRule(/^\s*1\.\s$/, schema.nodes.orderedListItem));
 
     // `[] ` or `[ ] ` creates a check list item
-    rules.push(listItemInputRule(/^\s*\[\s*\]\s$/, ContentSchema.nodes.checkListItem));
+    if (schema.nodes.checkListItem) {
+        rules.push(listItemInputRule(/^\s*\[\s*\]\s$/, schema.nodes.checkListItem));
+    }
 
     function listItemInputRule(regExp: RegExp, nodeType: NodeType) {
         return new InputRule(regExp, (state, _match, start, end) => {
@@ -67,58 +71,60 @@ export function buildInputRulesPlugin() {
     }
 
     // ``` creates a code block
-    rules.push(textblockTypeInputRule(/^```$/, ContentSchema.nodes.codeBlock));
+    rules.push(textblockTypeInputRule(/^```$/, schema.nodes.codeBlock));
 
     // `---` creates a divider
-    rules.push(
-        new InputRule(/^(?:--|\u2014)-$/u, (state, _match, start, end) => {
-            const $start = state.doc.resolve(start);
-            const $end = state.doc.resolve(end);
+    if (schema.nodes.divider) {
+        rules.push(
+            new InputRule(/^(?:--|\u2014)-$/u, (state, _match, start, end) => {
+                const $start = state.doc.resolve(start);
+                const $end = state.doc.resolve(end);
 
-            const isEndOfParent = $end.parentOffset === $end.parent.content.size;
+                const isEndOfParent = $end.parentOffset === $end.parent.content.size;
 
-            // If you type `---|test` (where `|` is your cursor) then we don't want to
-            // insert a divider.
-            if (!isEndOfParent) {
-                return null;
-            }
+                // If you type `---|test` (where `|` is your cursor) then we don't want to
+                // insert a divider.
+                if (!isEndOfParent) {
+                    return null;
+                }
 
-            // Make sure we can insert a divider at this location. We can't insert a
-            // divider in a list item or quote block for instance.
-            if (
-                !$start
-                    .node(-1)
-                    .canReplaceWith(
-                        $start.index(-1),
-                        $start.indexAfter(-1),
-                        ContentSchema.nodes.divider,
-                    )
-            ) {
-                return null;
-            }
+                // Make sure we can insert a divider at this location. We can't insert a
+                // divider in a list item or quote block for instance.
+                if (
+                    !$start
+                        .node(-1)
+                        .canReplaceWith(
+                            $start.index(-1),
+                            $start.indexAfter(-1),
+                            schema.nodes.divider!,
+                        )
+                ) {
+                    return null;
+                }
 
-            const transaction = state.tr.replaceWith(
-                // Start will always be the first text position in the block. So by
-                // subtracting one we get the first block position.
-                start - 1,
-                // Replacing to `end + 1` will replace the entire block.
-                end + 1,
+                const transaction = state.tr.replaceWith(
+                    // Start will always be the first text position in the block. So by
+                    // subtracting one we get the first block position.
+                    start - 1,
+                    // Replacing to `end + 1` will replace the entire block.
+                    end + 1,
 
-                ContentSchema.node("divider"),
-            );
+                    schema.node("divider"),
+                );
 
-            const isEndOfDoc = state.doc.content.size - 1 === end;
+                const isEndOfDoc = state.doc.content.size - 1 === end;
 
-            // If we are inserting a divider at the end of the document then we want
-            // to insert a paragraph after the divider so the user may continue
-            // typing.
-            if (isEndOfDoc) {
-                transaction.insert(start, ContentSchema.node("paragraph"));
-            }
+                // If we are inserting a divider at the end of the document then we want
+                // to insert a paragraph after the divider so the user may continue
+                // typing.
+                if (isEndOfDoc) {
+                    transaction.insert(start, schema.node("paragraph"));
+                }
 
-            return transaction;
-        }),
-    );
+                return transaction;
+            }),
+        );
+    }
 
     // Markdown-style bracket rules
     //
@@ -128,10 +134,10 @@ export function buildInputRulesPlugin() {
     // the set of power users is larger than the set of power users that care
     // about Markdown compatibility. A single asterisk is much more convenient
     // without any legacy attachment to Markdown.
-    rules.push(markdownBracketInputRule("*", ContentSchema.marks.bold));
-    rules.push(markdownBracketInputRule("_", ContentSchema.marks.italic));
-    rules.push(markdownBracketInputRule("~", ContentSchema.marks.strike));
-    rules.push(markdownBracketInputRule("`", ContentSchema.marks.code));
+    rules.push(markdownBracketInputRule("*", schema.marks.bold));
+    rules.push(markdownBracketInputRule("_", schema.marks.italic));
+    rules.push(markdownBracketInputRule("~", schema.marks.strike));
+    rules.push(markdownBracketInputRule("`", schema.marks.code));
 
     function markdownBracketInputRule(char: string, markType: MarkType) {
         assert(char.length === 1);

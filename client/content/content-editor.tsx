@@ -43,11 +43,7 @@ import {
 import {trimSpacesFromRange} from "~/client/content/internal/content-editor-prosemirror-helpers";
 import {FocusRingPortal} from "~/client/design/focus-ring";
 import {isMac} from "~/client/helpers/platform/is-mac";
-import {
-    ContentSchema,
-    emptyContent,
-    startsWithAllowedProtocol,
-} from "~/shared/content/content-schema";
+import {ContentSchema, doesUrlStartWithAllowedProtocol} from "~/shared/content/content-schema";
 import {docClassName} from "~/shared/content/content-schema.css";
 import {assert} from "~/shared/helpers/control/assert";
 import {Id, generateId} from "~/shared/id/id";
@@ -61,13 +57,8 @@ declare module "prosemirror-model" {
     }
 }
 
-let cachedPlugins: Array<Plugin>;
-
-function buildPlugins() {
-    if (cachedPlugins === undefined) {
-        cachedPlugins = [history(), buildInputRulesPlugin(), buildKeymapPlugin()];
-    }
-    return cachedPlugins;
+function buildPlugins(schema: ContentSchema) {
+    return [history(), buildInputRulesPlugin(schema), buildKeymapPlugin(schema)];
 }
 
 /**
@@ -82,8 +73,10 @@ export class ContentEditorState {
     /**
      * Creates a new state for our content editor.
      */
-    public static create(content: Node = emptyContent) {
-        const plugins = buildPlugins();
+    public static create({schema, content}: {schema: ContentSchema; content: Node}) {
+        assert(content.type.schema === schema);
+
+        const plugins = buildPlugins(schema);
 
         return new ContentEditorState(
             EditorState.create({
@@ -97,22 +90,27 @@ export class ContentEditorState {
      * Creates a new collaborative state for our content editor.
      */
     public static createCollab({
-        version = 0,
-        content = emptyContent,
+        schema,
+        version,
+        content,
     }: {
+        schema: ContentSchema;
+
         /**
          * The content version for collaborative editing.
          */
-        version?: number;
+        version: number;
 
         /**
          * The initial content in the editor. If no content is provided then we
          * start with empty content.
          */
-        content?: Node;
-    } = {}) {
+        content: Node;
+    }) {
+        assert(content.type.schema === schema);
+
         const plugins = [
-            ...buildPlugins(),
+            ...buildPlugins(schema),
             collab({
                 clientID: generateId(),
                 version,
@@ -394,11 +392,13 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
     useLayoutEffect(() => {
         assert(elementRef.current);
 
+        const schema = propsRef.current.state.doc.type.schema;
+
         const view = new EditorView(elementRef.current, {
             state: unwrap(propsRef.current.state),
 
-            domParser: ContentEditorDomParser.fromSchema(ContentSchema),
-            clipboardSerializer: ContentEditorDomClipboardSerializer.fromSchema(ContentSchema),
+            domParser: ContentEditorDomParser.fromSchema(schema),
+            clipboardSerializer: ContentEditorDomClipboardSerializer.fromSchema(schema),
 
             nodeViews: {
                 orderedListItem: createContentEditorOrderedListItemNodeView,
@@ -750,7 +750,7 @@ function handlePaste(view: EditorView, event: ClipboardEvent, slice: Slice): boo
     // entire slice content instead of the content determined by `Slice.maxOpen()`.
     if (
         view.state.selection.$from.depth === 1 &&
-        view.state.selection.$from.node().type === ContentSchema.nodes.paragraph &&
+        view.state.selection.$from.node().type.name === "paragraph" &&
         view.state.selection.$from.node().nodeSize === 2 &&
         view.state.selection.$from.pos === view.state.selection.$to.pos
     ) {
@@ -774,14 +774,14 @@ function handleLinkPaste(view: EditorView, event: ClipboardEvent): boolean {
 
     // 2. Make sure the URL starts with an allowed protocol.
     const url = event.clipboardData?.getData("text/plain");
-    if (url && !startsWithAllowedProtocol(url)) {
+    if (url && !doesUrlStartWithAllowedProtocol(url)) {
         return false;
     }
 
     // 3. Instead of replacing the selected text with the replaced text we instead
     // add a link mark to the selection.
     const range = trimSpacesFromRange(state.doc, state.selection);
-    view.dispatch(state.tr.addMark(range.from, range.to, ContentSchema.mark("link", {url})));
+    view.dispatch(state.tr.addMark(range.from, range.to, state.schema.mark("link", {url})));
     return true;
 }
 
@@ -801,15 +801,22 @@ function isCollabPlugin(plugin: Plugin) {
 
 function isTitleEmpty(node: Node): boolean {
     assert(node.type.name === "doc");
+    if (!node.type.schema.nodes.title) return true;
     const firstChildNode = node.child(0);
-    return firstChildNode.type === ContentSchema.nodes.title && firstChildNode.content.size === 0;
+    return firstChildNode.type.name === "title" && firstChildNode.content.size === 0;
 }
 
 function isBodyEmpty(node: Node): boolean {
     assert(node.type.name === "doc");
-    if (node.childCount !== 2) return false;
-    const secondChildNode = node.child(1);
-    return (
-        secondChildNode.type === ContentSchema.nodes.paragraph && secondChildNode.content.size === 0
-    );
+
+    let bodyChildNode;
+    if (!node.type.schema.nodes.title) {
+        if (node.childCount !== 1) return false;
+        bodyChildNode = node.child(0);
+    } else {
+        if (node.childCount !== 2) return false;
+        bodyChildNode = node.child(1);
+    }
+
+    return bodyChildNode.type.name === "paragraph" && bodyChildNode.content.size === 0;
 }

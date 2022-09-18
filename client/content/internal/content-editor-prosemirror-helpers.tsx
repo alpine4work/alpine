@@ -1,7 +1,6 @@
 import {Attrs, Mark, Node, NodeType, ResolvedPos} from "prosemirror-model";
 import {Command, TextSelection, Transaction} from "prosemirror-state";
 import {findWrapping} from "prosemirror-transform";
-import {ContentSchema} from "~/shared/content/content-schema";
 import {assert} from "~/shared/helpers/control/assert";
 
 /**
@@ -208,12 +207,13 @@ export function createToggleBlockTypeCommand(
         if (isEveryNodeAlreadyBlockType === undefined) isEveryNodeAlreadyBlockType = false;
 
         if (isEveryNodeAlreadyBlockType) {
+            assert(state.schema.nodes.paragraph);
             dispatch?.(
                 state.tr
                     .setBlockType(
                         state.selection.from,
                         state.selection.to,
-                        ContentSchema.nodes.paragraph,
+                        state.schema.nodes.paragraph,
                     )
                     .scrollIntoView(),
             );

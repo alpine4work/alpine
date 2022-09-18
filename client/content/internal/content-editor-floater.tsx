@@ -22,7 +22,6 @@ import {OverlayAnimated} from "~/client/design/overlay-animated";
 import {overlayFadeAnimationDurationMs} from "~/client/design/overlay-animated.css";
 import {uninterruptedThoughtLimitMs} from "~/client/design/timing-constants";
 import {useConstant} from "~/client/helpers/lifecycle/use-constant";
-import {ContentSchema} from "~/shared/content/content-schema";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule-microtask";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
@@ -138,7 +137,7 @@ function ContentEditorKeyboardHighlightFloater({
     const mark = useMemo(
         () =>
             getMarksSpanningAcrossEntireRange(state.doc, range).find(
-                mark => mark.type === ContentSchema.marks.highlight,
+                mark => mark.type.name === "highlight",
             ) ?? null,
         [range, state.doc],
     );
@@ -258,7 +257,7 @@ function ContentEditorKeyboardLinkFloater({
     const mark = useMemo(
         () =>
             getMarksSpanningAcrossEntireRange(state.doc, range).find(
-                mark => mark.type === ContentSchema.marks.link,
+                mark => mark.type.name === "link",
             ) ?? null,
         [range, state.doc],
     );

@@ -11,10 +11,18 @@ import {
     ContentEditorState,
     getEditorViewForTest,
 } from "~/client/content/content-editor";
-import {ContentSchema} from "~/shared/content/content-schema";
+import {
+    DocumentWithoutTitleContentSchema,
+    emptyDocumentWithoutTitleContent,
+} from "~/shared/content/document-content-schema";
 
 function TestContentEditor() {
-    const [state, setState] = useState(() => ContentEditorState.create());
+    const [state, setState] = useState(() =>
+        ContentEditorState.create({
+            schema: DocumentWithoutTitleContentSchema,
+            content: emptyDocumentWithoutTitleContent,
+        }),
+    );
     return <ContentEditor aria-label="Test" state={state} onChange={setState} />;
 }
 
@@ -44,24 +52,34 @@ function dispatch(buildTransaction: (state: EditorState) => Transaction) {
 
 test("renders an empty document", () => {
     render(
-        <ContentEditor aria-label="Test" state={ContentEditorState.create()} onChange={() => {}} />,
+        <ContentEditor
+            aria-label="Test"
+            state={ContentEditorState.create({
+                schema: DocumentWithoutTitleContentSchema,
+                content: emptyDocumentWithoutTitleContent,
+            })}
+            onChange={() => {}}
+        />,
     );
 
     expect(getTextbox().textContent).toEqual("");
 });
 
 test("renders an initial editor state", () => {
-    const content = ContentSchema.node("doc", {}, [
-        ContentSchema.node("paragraph", {}, [
-            ContentSchema.text("Hello "),
-            ContentSchema.text("world", [ContentSchema.mark("bold")]),
-            ContentSchema.text("!"),
+    const schema = DocumentWithoutTitleContentSchema;
+
+    const content = schema.node("doc", {}, [
+        schema.node("paragraph", {}, [
+            schema.text("Hello "),
+            schema.text("world", [schema.mark("bold")]),
+            schema.text("!"),
         ]),
     ]);
+
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(content)}
+            state={ContentEditorState.create({schema, content})}
             onChange={() => {}}
         />,
     );
@@ -70,14 +88,14 @@ test("renders an initial editor state", () => {
 });
 
 test("rerenders with a changed document", () => {
-    const content1 = ContentSchema.node("doc", {}, [
-        ContentSchema.node("paragraph", {}, [ContentSchema.text("Hello")]),
-    ]);
-    const content2 = ContentSchema.node("doc", {}, [
-        ContentSchema.node("paragraph", {}, [
-            ContentSchema.text("Hello "),
-            ContentSchema.text("world", [ContentSchema.mark("bold")]),
-            ContentSchema.text("!"),
+    const schema = DocumentWithoutTitleContentSchema;
+
+    const doc1 = schema.node("doc", {}, [schema.node("paragraph", {}, [schema.text("Hello")])]);
+    const doc2 = schema.node("doc", {}, [
+        schema.node("paragraph", {}, [
+            schema.text("Hello "),
+            schema.text("world", [schema.mark("bold")]),
+            schema.text("!"),
         ]),
     ]);
 
@@ -86,7 +104,7 @@ test("rerenders with a changed document", () => {
     const {rerender} = render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(content1)}
+            state={ContentEditorState.create({schema, content: doc1})}
             onChange={onTransaction}
         />,
     );
@@ -96,7 +114,7 @@ test("rerenders with a changed document", () => {
     rerender(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(content2)}
+            state={ContentEditorState.create({schema, content: doc2})}
             onChange={onTransaction}
         />,
     );
@@ -136,7 +154,12 @@ test("will optimistically update the DOM synchronously", () => {
 
 test("will revert optimistic update if it doesn't match props", () => {
     function NoopContentEditor() {
-        const [state] = useState(() => ContentEditorState.create());
+        const [state] = useState(() =>
+            ContentEditorState.create({
+                schema: DocumentWithoutTitleContentSchema,
+                content: emptyDocumentWithoutTitleContent,
+            }),
+        );
         return (
             <ContentEditor aria-label="Test" state={state} onChange={useCallback(() => {}, [])} />
         );

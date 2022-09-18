@@ -13,12 +13,22 @@ import {
 } from "~/client/content/content-editor";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {TooltipCoordinationContextProvider} from "~/client/design/tooltip";
-import {ContentSchema} from "~/shared/content/content-schema";
+import {
+    DocumentWithoutTitleContentSchema,
+    emptyDocumentWithoutTitleContent,
+} from "~/shared/content/document-content-schema";
 
 jest.useFakeTimers();
 
+const schema = DocumentWithoutTitleContentSchema;
+
 function TestContentEditor({initialContent}: {initialContent?: Node}) {
-    const [state, setState] = useState(() => ContentEditorState.create(initialContent));
+    const [state, setState] = useState(() =>
+        ContentEditorState.create({
+            schema,
+            content: initialContent ?? emptyDocumentWithoutTitleContent,
+        }),
+    );
     return (
         <OverlayScopeContextProvider>
             <TooltipCoordinationContextProvider>
@@ -62,10 +72,10 @@ test("shows the toolbar when a range of content is selected", () => {
 
     render(
         <TestContentEditor
-            initialContent={ContentSchema.node("doc", {}, [
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("foo")]),
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("bar")]),
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("qux")]),
+            initialContent={schema.node("doc", {}, [
+                schema.node("paragraph", {}, [schema.text("foo")]),
+                schema.node("paragraph", {}, [schema.text("bar")]),
+                schema.node("paragraph", {}, [schema.text("qux")]),
             ])}
         />,
     );
@@ -98,10 +108,10 @@ test("shows the toolbar when there's a pointer interaction modality", () => {
 
     render(
         <TestContentEditor
-            initialContent={ContentSchema.node("doc", {}, [
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("foo")]),
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("bar")]),
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("qux")]),
+            initialContent={schema.node("doc", {}, [
+                schema.node("paragraph", {}, [schema.text("foo")]),
+                schema.node("paragraph", {}, [schema.text("bar")]),
+                schema.node("paragraph", {}, [schema.text("qux")]),
             ])}
         />,
     );
@@ -135,10 +145,10 @@ test("shows the toolbar when the editor is focused", () => {
 
     render(
         <TestContentEditor
-            initialContent={ContentSchema.node("doc", {}, [
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("foo")]),
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("bar")]),
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("qux")]),
+            initialContent={schema.node("doc", {}, [
+                schema.node("paragraph", {}, [schema.text("foo")]),
+                schema.node("paragraph", {}, [schema.text("bar")]),
+                schema.node("paragraph", {}, [schema.text("qux")]),
             ])}
         />,
     );
@@ -176,10 +186,10 @@ test("toggles headings on", () => {
 
     render(
         <TestContentEditor
-            initialContent={ContentSchema.node("doc", {}, [
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("foo")]),
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("bar")]),
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("qux")]),
+            initialContent={schema.node("doc", {}, [
+                schema.node("paragraph", {}, [schema.text("foo")]),
+                schema.node("paragraph", {}, [schema.text("bar")]),
+                schema.node("paragraph", {}, [schema.text("qux")]),
             ])}
         />,
     );
@@ -200,11 +210,13 @@ test("toggles headings on", () => {
     });
 
     expect(getDoc().toJSON()).toEqual(
-        ContentSchema.node("doc", {}, [
-            ContentSchema.node("heading", {level: 1}, [ContentSchema.text("foo")]),
-            ContentSchema.node("heading", {level: 1}, [ContentSchema.text("bar")]),
-            ContentSchema.node("heading", {level: 1}, [ContentSchema.text("qux")]),
-        ]).toJSON(),
+        schema
+            .node("doc", {}, [
+                schema.node("heading", {level: 1}, [schema.text("foo")]),
+                schema.node("heading", {level: 1}, [schema.text("bar")]),
+                schema.node("heading", {level: 1}, [schema.text("qux")]),
+            ])
+            .toJSON(),
     );
 });
 
@@ -213,10 +225,10 @@ test("toggles headings off", () => {
 
     render(
         <TestContentEditor
-            initialContent={ContentSchema.node("doc", {}, [
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("foo")]),
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("bar")]),
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("qux")]),
+            initialContent={schema.node("doc", {}, [
+                schema.node("paragraph", {}, [schema.text("foo")]),
+                schema.node("paragraph", {}, [schema.text("bar")]),
+                schema.node("paragraph", {}, [schema.text("qux")]),
             ])}
         />,
     );
@@ -237,11 +249,13 @@ test("toggles headings off", () => {
     });
 
     expect(getDoc().toJSON()).toEqual(
-        ContentSchema.node("doc", {}, [
-            ContentSchema.node("heading", {level: 1}, [ContentSchema.text("foo")]),
-            ContentSchema.node("heading", {level: 1}, [ContentSchema.text("bar")]),
-            ContentSchema.node("heading", {level: 1}, [ContentSchema.text("qux")]),
-        ]).toJSON(),
+        schema
+            .node("doc", {}, [
+                schema.node("heading", {level: 1}, [schema.text("foo")]),
+                schema.node("heading", {level: 1}, [schema.text("bar")]),
+                schema.node("heading", {level: 1}, [schema.text("qux")]),
+            ])
+            .toJSON(),
     );
 
     act(() => {
@@ -249,11 +263,13 @@ test("toggles headings off", () => {
     });
 
     expect(getDoc().toJSON()).toEqual(
-        ContentSchema.node("doc", {}, [
-            ContentSchema.node("paragraph", {}, [ContentSchema.text("foo")]),
-            ContentSchema.node("paragraph", {}, [ContentSchema.text("bar")]),
-            ContentSchema.node("paragraph", {}, [ContentSchema.text("qux")]),
-        ]).toJSON(),
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph", {}, [schema.text("foo")]),
+                schema.node("paragraph", {}, [schema.text("bar")]),
+                schema.node("paragraph", {}, [schema.text("qux")]),
+            ])
+            .toJSON(),
     );
 });
 
@@ -262,10 +278,10 @@ test("toggles headings on when there's already a heading of that level", () => {
 
     render(
         <TestContentEditor
-            initialContent={ContentSchema.node("doc", {}, [
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("foo")]),
-                ContentSchema.node("heading", {level: 1}, [ContentSchema.text("bar")]),
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("qux")]),
+            initialContent={schema.node("doc", {}, [
+                schema.node("paragraph", {}, [schema.text("foo")]),
+                schema.node("heading", {level: 1}, [schema.text("bar")]),
+                schema.node("paragraph", {}, [schema.text("qux")]),
             ])}
         />,
     );
@@ -286,11 +302,13 @@ test("toggles headings on when there's already a heading of that level", () => {
     });
 
     expect(getDoc().toJSON()).toEqual(
-        ContentSchema.node("doc", {}, [
-            ContentSchema.node("heading", {level: 1}, [ContentSchema.text("foo")]),
-            ContentSchema.node("heading", {level: 1}, [ContentSchema.text("bar")]),
-            ContentSchema.node("heading", {level: 1}, [ContentSchema.text("qux")]),
-        ]).toJSON(),
+        schema
+            .node("doc", {}, [
+                schema.node("heading", {level: 1}, [schema.text("foo")]),
+                schema.node("heading", {level: 1}, [schema.text("bar")]),
+                schema.node("heading", {level: 1}, [schema.text("qux")]),
+            ])
+            .toJSON(),
     );
 });
 
@@ -299,10 +317,10 @@ test("converts headings of another level", () => {
 
     render(
         <TestContentEditor
-            initialContent={ContentSchema.node("doc", {}, [
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("foo")]),
-                ContentSchema.node("heading", {level: 2}, [ContentSchema.text("bar")]),
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("qux")]),
+            initialContent={schema.node("doc", {}, [
+                schema.node("paragraph", {}, [schema.text("foo")]),
+                schema.node("heading", {level: 2}, [schema.text("bar")]),
+                schema.node("paragraph", {}, [schema.text("qux")]),
             ])}
         />,
     );
@@ -323,11 +341,13 @@ test("converts headings of another level", () => {
     });
 
     expect(getDoc().toJSON()).toEqual(
-        ContentSchema.node("doc", {}, [
-            ContentSchema.node("heading", {level: 1}, [ContentSchema.text("foo")]),
-            ContentSchema.node("heading", {level: 1}, [ContentSchema.text("bar")]),
-            ContentSchema.node("heading", {level: 1}, [ContentSchema.text("qux")]),
-        ]).toJSON(),
+        schema
+            .node("doc", {}, [
+                schema.node("heading", {level: 1}, [schema.text("foo")]),
+                schema.node("heading", {level: 1}, [schema.text("bar")]),
+                schema.node("heading", {level: 1}, [schema.text("qux")]),
+            ])
+            .toJSON(),
     );
 });
 
@@ -336,10 +356,10 @@ test("toggles list on", () => {
 
     render(
         <TestContentEditor
-            initialContent={ContentSchema.node("doc", {}, [
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("foo")]),
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("bar")]),
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("qux")]),
+            initialContent={schema.node("doc", {}, [
+                schema.node("paragraph", {}, [schema.text("foo")]),
+                schema.node("paragraph", {}, [schema.text("bar")]),
+                schema.node("paragraph", {}, [schema.text("qux")]),
             ])}
         />,
     );
@@ -360,17 +380,19 @@ test("toggles list on", () => {
     });
 
     expect(getDoc().toJSON()).toEqual(
-        ContentSchema.node("doc", {}, [
-            ContentSchema.node("unorderedListItem", {indent: 0}, [
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("foo")]),
-            ]),
-            ContentSchema.node("unorderedListItem", {indent: 0}, [
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("bar")]),
-            ]),
-            ContentSchema.node("unorderedListItem", {indent: 0}, [
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("qux")]),
-            ]),
-        ]).toJSON(),
+        schema
+            .node("doc", {}, [
+                schema.node("unorderedListItem", {indent: 0}, [
+                    schema.node("paragraph", {}, [schema.text("foo")]),
+                ]),
+                schema.node("unorderedListItem", {indent: 0}, [
+                    schema.node("paragraph", {}, [schema.text("bar")]),
+                ]),
+                schema.node("unorderedListItem", {indent: 0}, [
+                    schema.node("paragraph", {}, [schema.text("qux")]),
+                ]),
+            ])
+            .toJSON(),
     );
 });
 
@@ -379,10 +401,10 @@ test("toggles list off", () => {
 
     render(
         <TestContentEditor
-            initialContent={ContentSchema.node("doc", {}, [
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("foo")]),
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("bar")]),
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("qux")]),
+            initialContent={schema.node("doc", {}, [
+                schema.node("paragraph", {}, [schema.text("foo")]),
+                schema.node("paragraph", {}, [schema.text("bar")]),
+                schema.node("paragraph", {}, [schema.text("qux")]),
             ])}
         />,
     );
@@ -403,17 +425,19 @@ test("toggles list off", () => {
     });
 
     expect(getDoc().toJSON()).toEqual(
-        ContentSchema.node("doc", {}, [
-            ContentSchema.node("unorderedListItem", {indent: 0}, [
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("foo")]),
-            ]),
-            ContentSchema.node("unorderedListItem", {indent: 0}, [
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("bar")]),
-            ]),
-            ContentSchema.node("unorderedListItem", {indent: 0}, [
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("qux")]),
-            ]),
-        ]).toJSON(),
+        schema
+            .node("doc", {}, [
+                schema.node("unorderedListItem", {indent: 0}, [
+                    schema.node("paragraph", {}, [schema.text("foo")]),
+                ]),
+                schema.node("unorderedListItem", {indent: 0}, [
+                    schema.node("paragraph", {}, [schema.text("bar")]),
+                ]),
+                schema.node("unorderedListItem", {indent: 0}, [
+                    schema.node("paragraph", {}, [schema.text("qux")]),
+                ]),
+            ])
+            .toJSON(),
     );
 
     act(() => {
@@ -421,11 +445,13 @@ test("toggles list off", () => {
     });
 
     expect(getDoc().toJSON()).toEqual(
-        ContentSchema.node("doc", {}, [
-            ContentSchema.node("paragraph", {}, [ContentSchema.text("foo")]),
-            ContentSchema.node("paragraph", {}, [ContentSchema.text("bar")]),
-            ContentSchema.node("paragraph", {}, [ContentSchema.text("qux")]),
-        ]).toJSON(),
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph", {}, [schema.text("foo")]),
+                schema.node("paragraph", {}, [schema.text("bar")]),
+                schema.node("paragraph", {}, [schema.text("qux")]),
+            ])
+            .toJSON(),
     );
 });
 
@@ -434,12 +460,12 @@ test("toggles list on even when there's already a list item of that type", () =>
 
     render(
         <TestContentEditor
-            initialContent={ContentSchema.node("doc", {}, [
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("foo")]),
-                ContentSchema.node("unorderedListItem", {indent: 0}, [
-                    ContentSchema.node("paragraph", {}, [ContentSchema.text("bar")]),
+            initialContent={schema.node("doc", {}, [
+                schema.node("paragraph", {}, [schema.text("foo")]),
+                schema.node("unorderedListItem", {indent: 0}, [
+                    schema.node("paragraph", {}, [schema.text("bar")]),
                 ]),
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("qux")]),
+                schema.node("paragraph", {}, [schema.text("qux")]),
             ])}
         />,
     );
@@ -460,17 +486,19 @@ test("toggles list on even when there's already a list item of that type", () =>
     });
 
     expect(getDoc().toJSON()).toEqual(
-        ContentSchema.node("doc", {}, [
-            ContentSchema.node("unorderedListItem", {indent: 0}, [
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("foo")]),
-            ]),
-            ContentSchema.node("unorderedListItem", {indent: 0}, [
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("bar")]),
-            ]),
-            ContentSchema.node("unorderedListItem", {indent: 0}, [
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("qux")]),
-            ]),
-        ]).toJSON(),
+        schema
+            .node("doc", {}, [
+                schema.node("unorderedListItem", {indent: 0}, [
+                    schema.node("paragraph", {}, [schema.text("foo")]),
+                ]),
+                schema.node("unorderedListItem", {indent: 0}, [
+                    schema.node("paragraph", {}, [schema.text("bar")]),
+                ]),
+                schema.node("unorderedListItem", {indent: 0}, [
+                    schema.node("paragraph", {}, [schema.text("qux")]),
+                ]),
+            ])
+            .toJSON(),
     );
 });
 
@@ -479,12 +507,12 @@ test("toggles list on even when there's already a list item of a different type"
 
     render(
         <TestContentEditor
-            initialContent={ContentSchema.node("doc", {}, [
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("foo")]),
-                ContentSchema.node("orderedListItem", {indent: 0}, [
-                    ContentSchema.node("paragraph", {}, [ContentSchema.text("bar")]),
+            initialContent={schema.node("doc", {}, [
+                schema.node("paragraph", {}, [schema.text("foo")]),
+                schema.node("orderedListItem", {indent: 0}, [
+                    schema.node("paragraph", {}, [schema.text("bar")]),
                 ]),
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("qux")]),
+                schema.node("paragraph", {}, [schema.text("qux")]),
             ])}
         />,
     );
@@ -505,17 +533,19 @@ test("toggles list on even when there's already a list item of a different type"
     });
 
     expect(getDoc().toJSON()).toEqual(
-        ContentSchema.node("doc", {}, [
-            ContentSchema.node("unorderedListItem", {indent: 0}, [
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("foo")]),
-            ]),
-            ContentSchema.node("unorderedListItem", {indent: 0}, [
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("bar")]),
-            ]),
-            ContentSchema.node("unorderedListItem", {indent: 0}, [
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("qux")]),
-            ]),
-        ]).toJSON(),
+        schema
+            .node("doc", {}, [
+                schema.node("unorderedListItem", {indent: 0}, [
+                    schema.node("paragraph", {}, [schema.text("foo")]),
+                ]),
+                schema.node("unorderedListItem", {indent: 0}, [
+                    schema.node("paragraph", {}, [schema.text("bar")]),
+                ]),
+                schema.node("unorderedListItem", {indent: 0}, [
+                    schema.node("paragraph", {}, [schema.text("qux")]),
+                ]),
+            ])
+            .toJSON(),
     );
 });
 
@@ -524,15 +554,15 @@ test("toggles list on even when the entire list is a different type with some in
 
     render(
         <TestContentEditor
-            initialContent={ContentSchema.node("doc", {}, [
-                ContentSchema.node("orderedListItem", {indent: 0}, [
-                    ContentSchema.node("paragraph", {}, [ContentSchema.text("foo")]),
+            initialContent={schema.node("doc", {}, [
+                schema.node("orderedListItem", {indent: 0}, [
+                    schema.node("paragraph", {}, [schema.text("foo")]),
                 ]),
-                ContentSchema.node("orderedListItem", {indent: 1}, [
-                    ContentSchema.node("paragraph", {}, [ContentSchema.text("bar")]),
+                schema.node("orderedListItem", {indent: 1}, [
+                    schema.node("paragraph", {}, [schema.text("bar")]),
                 ]),
-                ContentSchema.node("orderedListItem", {indent: 0}, [
-                    ContentSchema.node("paragraph", {}, [ContentSchema.text("qux")]),
+                schema.node("orderedListItem", {indent: 0}, [
+                    schema.node("paragraph", {}, [schema.text("qux")]),
                 ]),
             ])}
         />,
@@ -554,16 +584,18 @@ test("toggles list on even when the entire list is a different type with some in
     });
 
     expect(getDoc().toJSON()).toEqual(
-        ContentSchema.node("doc", {}, [
-            ContentSchema.node("unorderedListItem", {indent: 0}, [
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("foo")]),
-            ]),
-            ContentSchema.node("unorderedListItem", {indent: 1}, [
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("bar")]),
-            ]),
-            ContentSchema.node("unorderedListItem", {indent: 0}, [
-                ContentSchema.node("paragraph", {}, [ContentSchema.text("qux")]),
-            ]),
-        ]).toJSON(),
+        schema
+            .node("doc", {}, [
+                schema.node("unorderedListItem", {indent: 0}, [
+                    schema.node("paragraph", {}, [schema.text("foo")]),
+                ]),
+                schema.node("unorderedListItem", {indent: 1}, [
+                    schema.node("paragraph", {}, [schema.text("bar")]),
+                ]),
+                schema.node("unorderedListItem", {indent: 0}, [
+                    schema.node("paragraph", {}, [schema.text("qux")]),
+                ]),
+            ])
+            .toJSON(),
     );
 });

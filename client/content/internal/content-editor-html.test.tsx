@@ -6,7 +6,13 @@ import {
     ContentEditorState,
     getEditorViewForTest,
 } from "~/client/content/content-editor";
-import {ContentSchema} from "~/shared/content/content-schema";
+import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use-is-initial-app-render";
+import {
+    DocumentWithoutTitleContentSchema,
+    emptyDocumentWithoutTitleContent,
+} from "~/shared/content/document-content-schema";
+
+const schema = DocumentWithoutTitleContentSchema;
 
 const blockTestCases: Array<{
     name: string;
@@ -16,66 +22,53 @@ const blockTestCases: Array<{
 }> = [
     {
         name: "paragraph",
-        build: content => ContentSchema.node("paragraph", {}, content),
+        build: content => schema.node("paragraph", {}, content),
     },
     {
         name: "heading 1",
-        build: content => ContentSchema.node("heading", {level: 1}, content),
+        build: content => schema.node("heading", {level: 1}, content),
     },
     {
         name: "heading 2",
-        build: content => ContentSchema.node("heading", {level: 2}, content),
+        build: content => schema.node("heading", {level: 2}, content),
     },
     {
         name: "heading 3",
-        build: content => ContentSchema.node("heading", {level: 3}, content),
+        build: content => schema.node("heading", {level: 3}, content),
     },
     {
         name: "quote",
-        build: content =>
-            ContentSchema.node("quoteBlock", {}, ContentSchema.node("paragraph", {}, content)),
+        build: content => schema.node("quoteBlock", {}, schema.node("paragraph", {}, content)),
     },
     {
         name: "code",
         disableInlineTests: true,
-        build: content => ContentSchema.node("codeBlock", {}, content),
+        build: content => schema.node("codeBlock", {}, content),
     },
     {
         name: "divider",
         disableContentTests: true,
-        build: content => ContentSchema.node("divider", {}, content),
+        build: content => schema.node("divider", {}, content),
     },
     {
         name: "bullet list",
         build: content =>
-            ContentSchema.node("unorderedListItem", {}, [
-                ContentSchema.node("paragraph", {}, content),
-            ]),
+            schema.node("unorderedListItem", {}, [schema.node("paragraph", {}, content)]),
     },
     {
         name: "ordered list",
         build: content =>
-            ContentSchema.node("orderedListItem", {}, [
-                ContentSchema.node("paragraph", {}, content),
-            ]),
+            schema.node("orderedListItem", {}, [schema.node("paragraph", {}, content)]),
     },
     {
         name: "check list (unchecked)",
         build: content =>
-            ContentSchema.node(
-                "checkListItem",
-                {checked: false},
-                ContentSchema.node("paragraph", {}, content),
-            ),
+            schema.node("checkListItem", {checked: false}, schema.node("paragraph", {}, content)),
     },
     {
         name: "check list (checked)",
         build: content =>
-            ContentSchema.node(
-                "checkListItem",
-                {checked: true},
-                ContentSchema.node("paragraph", {}, content),
-            ),
+            schema.node("checkListItem", {checked: true}, schema.node("paragraph", {}, content)),
     },
 ];
 
@@ -86,44 +79,46 @@ const inlineTestCases: Array<{
 }> = [
     {
         name: "bold",
-        build: () => ContentSchema.mark("bold"),
+        build: () => schema.mark("bold"),
     },
     {
         name: "italic",
-        build: () => ContentSchema.mark("italic"),
+        build: () => schema.mark("italic"),
     },
     {
         name: "strike",
-        build: () => ContentSchema.mark("strike"),
+        build: () => schema.mark("strike"),
     },
     {
         name: "code",
-        build: () => ContentSchema.mark("code"),
+        build: () => schema.mark("code"),
     },
     {
         name: "highlight",
-        build: () => ContentSchema.mark("highlight", {color: "green"}),
+        build: () => schema.mark("highlight", {color: "green"}),
     },
     {
         name: "link",
-        build: () => ContentSchema.mark("link", {url: "https://example.com/"}),
+        build: () => schema.mark("link", {url: "https://example.com/"}),
     },
     {
         name: "link (XSS vulnerability)",
         disableClipboardTests: true,
-        build: () => ContentSchema.mark("link", {url: "javascript:alert('XSS')"}), // eslint-disable-line no-script-url
+        build: () => schema.mark("link", {url: "javascript:alert('XSS')"}), // eslint-disable-line no-script-url
     },
 ];
 
 for (const blockTestCase of blockTestCases) {
     test(`${blockTestCase.name} empty`, () => {
-        const content = ContentSchema.node("doc", {}, [blockTestCase.build([])]);
+        const content = schema.node("doc", {}, [blockTestCase.build([])]);
         render(
-            <ContentEditor
-                aria-label="Test"
-                state={ContentEditorState.create(content)}
-                onChange={() => {}}
-            />,
+            <AppInitialRenderContextProvider>
+                <ContentEditor
+                    aria-label="Test"
+                    state={ContentEditorState.create({schema, content})}
+                    onChange={() => {}}
+                />
+            </AppInitialRenderContextProvider>,
         );
 
         expect(screen.getByRole("textbox")).toHaveTextContent("");
@@ -140,13 +135,13 @@ for (const blockTestCase of blockTestCases) {
     }
 
     test(`${blockTestCase.name} plain`, () => {
-        const content = ContentSchema.node("doc", {}, [
-            blockTestCase.build([ContentSchema.text("Hello world!")]),
+        const content = schema.node("doc", {}, [
+            blockTestCase.build([schema.text("Hello world!")]),
         ]);
         render(
             <ContentEditor
                 aria-label="Test"
-                state={ContentEditorState.create(content)}
+                state={ContentEditorState.create({schema, content})}
                 onChange={() => {}}
             />,
         );
@@ -163,17 +158,17 @@ for (const blockTestCase of blockTestCases) {
 
     for (const inlineTestCase of inlineTestCases) {
         test(`${blockTestCase.name} ${inlineTestCase.name}`, () => {
-            const content = ContentSchema.node("doc", {}, [
+            const content = schema.node("doc", {}, [
                 blockTestCase.build([
-                    ContentSchema.text("Hello "),
-                    ContentSchema.text("world", [inlineTestCase.build()]),
-                    ContentSchema.text("!"),
+                    schema.text("Hello "),
+                    schema.text("world", [inlineTestCase.build()]),
+                    schema.text("!"),
                 ]),
             ]);
             render(
                 <ContentEditor
                     aria-label="Test"
-                    state={ContentEditorState.create(content)}
+                    state={ContentEditorState.create({schema, content})}
                     onChange={() => {}}
                 />,
             );
@@ -189,17 +184,17 @@ for (const blockTestCase of blockTestCases) {
 
 for (const inlineTestCase of inlineTestCases) {
     test(`${inlineTestCase.name}`, () => {
-        const content = ContentSchema.node("doc", {}, [
-            ContentSchema.node("paragraph", {}, [
-                ContentSchema.text("Hello "),
-                ContentSchema.text("world", [inlineTestCase.build()]),
-                ContentSchema.text("!"),
+        const content = schema.node("doc", {}, [
+            schema.node("paragraph", {}, [
+                schema.text("Hello "),
+                schema.text("world", [inlineTestCase.build()]),
+                schema.text("!"),
             ]),
         ]);
         render(
             <ContentEditor
                 aria-label="Test"
-                state={ContentEditorState.create(content)}
+                state={ContentEditorState.create({schema, content})}
                 onChange={() => {}}
             />,
         );
@@ -226,8 +221,14 @@ function expectClipboardRoundtripToWork() {
     expect(copiedElement).toMatchSnapshot("clipboard");
 
     function TestContentEditor() {
-        const [state, setState] = useState(() => ContentEditorState.create());
-        return <ContentEditor aria-label="Test" state={state} onChange={setState} />;
+        const [state, setState] = useState(() =>
+            ContentEditorState.create({schema, content: emptyDocumentWithoutTitleContent}),
+        );
+        return (
+            <AppInitialRenderContextProvider>
+                <ContentEditor aria-label="Test" state={state} onChange={setState} />
+            </AppInitialRenderContextProvider>
+        );
     }
 
     const {container, unmount} = render(<TestContentEditor />);
@@ -257,11 +258,12 @@ test("heading cannot have a level lower than 1", () => {
     const {rerender} = render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(
-                ContentSchema.node("doc", {}, [
-                    ContentSchema.node("heading", {level: 0}, [ContentSchema.text("Test")]),
+            state={ContentEditorState.create({
+                schema,
+                content: schema.node("doc", {}, [
+                    schema.node("heading", {level: 0}, [schema.text("Test")]),
                 ]),
-            )}
+            })}
             onChange={() => {}}
         />,
     );
@@ -271,11 +273,12 @@ test("heading cannot have a level lower than 1", () => {
     rerender(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(
-                ContentSchema.node("doc", {}, [
-                    ContentSchema.node("heading", {level: -42}, [ContentSchema.text("Test")]),
+            state={ContentEditorState.create({
+                schema,
+                content: schema.node("doc", {}, [
+                    schema.node("heading", {level: -42}, [schema.text("Test")]),
                 ]),
-            )}
+            })}
             onChange={() => {}}
         />,
     );
@@ -287,11 +290,12 @@ test("heading cannot have a level greater than 3", () => {
     const {rerender} = render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(
-                ContentSchema.node("doc", {}, [
-                    ContentSchema.node("heading", {level: 4}, [ContentSchema.text("Test")]),
+            state={ContentEditorState.create({
+                schema,
+                content: schema.node("doc", {}, [
+                    schema.node("heading", {level: 4}, [schema.text("Test")]),
                 ]),
-            )}
+            })}
             onChange={() => {}}
         />,
     );
@@ -301,11 +305,12 @@ test("heading cannot have a level greater than 3", () => {
     rerender(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(
-                ContentSchema.node("doc", {}, [
-                    ContentSchema.node("heading", {level: 42}, [ContentSchema.text("Test")]),
+            state={ContentEditorState.create({
+                schema,
+                content: schema.node("doc", {}, [
+                    schema.node("heading", {level: 42}, [schema.text("Test")]),
                 ]),
-            )}
+            })}
             onChange={() => {}}
         />,
     );
@@ -317,11 +322,12 @@ test("heading cannot be the wrong type", () => {
     const {rerender} = render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(
-                ContentSchema.node("doc", {}, [
-                    ContentSchema.node("heading", {level: ""}, [ContentSchema.text("Test")]),
+            state={ContentEditorState.create({
+                schema,
+                content: schema.node("doc", {}, [
+                    schema.node("heading", {level: ""}, [schema.text("Test")]),
                 ]),
-            )}
+            })}
             onChange={() => {}}
         />,
     );
@@ -331,13 +337,12 @@ test("heading cannot be the wrong type", () => {
     rerender(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(
-                ContentSchema.node("doc", {}, [
-                    ContentSchema.node("heading", {level: "secondary"}, [
-                        ContentSchema.text("Test"),
-                    ]),
+            state={ContentEditorState.create({
+                schema,
+                content: schema.node("doc", {}, [
+                    schema.node("heading", {level: "secondary"}, [schema.text("Test")]),
                 ]),
-            )}
+            })}
             onChange={() => {}}
         />,
     );
@@ -347,11 +352,12 @@ test("heading cannot be the wrong type", () => {
     rerender(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(
-                ContentSchema.node("doc", {}, [
-                    ContentSchema.node("heading", {level: true}, [ContentSchema.text("Test")]),
+            state={ContentEditorState.create({
+                schema,
+                content: schema.node("doc", {}, [
+                    schema.node("heading", {level: true}, [schema.text("Test")]),
                 ]),
-            )}
+            })}
             onChange={() => {}}
         />,
     );
@@ -363,11 +369,12 @@ test("heading is converted into an integer", () => {
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(
-                ContentSchema.node("doc", {}, [
-                    ContentSchema.node("heading", {level: 2.5}, [ContentSchema.text("Test")]),
+            state={ContentEditorState.create({
+                schema,
+                content: schema.node("doc", {}, [
+                    schema.node("heading", {level: 2.5}, [schema.text("Test")]),
                 ]),
-            )}
+            })}
             onChange={() => {}}
         />,
     );
@@ -379,16 +386,19 @@ test("link with a non-HTTP scheme is blocked", () => {
     const {rerender} = render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(
-                ContentSchema.node("doc", {}, [
-                    ContentSchema.node("paragraph", {}, [
-                        ContentSchema.text("Test", [
-                            // eslint-disable-next-line no-script-url
-                            ContentSchema.mark("link", {url: "javascript:alert('XSS')"}),
+            state={ContentEditorState.create({
+                schema,
+                content: schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Test", [
+                            schema.mark("link", {
+                                // eslint-disable-next-line no-script-url
+                                url: "javascript:alert('XSS')",
+                            }),
                         ]),
                     ]),
                 ]),
-            )}
+            })}
             onChange={() => {}}
         />,
     );
@@ -398,17 +408,18 @@ test("link with a non-HTTP scheme is blocked", () => {
     rerender(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(
-                ContentSchema.node("doc", {}, [
-                    ContentSchema.node("paragraph", {}, [
-                        ContentSchema.text("Test", [
-                            ContentSchema.mark("link", {
+            state={ContentEditorState.create({
+                schema,
+                content: schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Test", [
+                            schema.mark("link", {
                                 url: "file:///Users/calebmer/cyberworlds/package.json",
                             }),
                         ]),
                     ]),
                 ]),
-            )}
+            })}
             onChange={() => {}}
         />,
     );
@@ -418,15 +429,14 @@ test("link with a non-HTTP scheme is blocked", () => {
     rerender(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(
-                ContentSchema.node("doc", {}, [
-                    ContentSchema.node("paragraph", {}, [
-                        ContentSchema.text("Test", [
-                            ContentSchema.mark("link", {url: "tel:+123456789"}),
-                        ]),
+            state={ContentEditorState.create({
+                schema,
+                content: schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Test", [schema.mark("link", {url: "tel:+123456789"})]),
                     ]),
                 ]),
-            )}
+            })}
             onChange={() => {}}
         />,
     );
@@ -435,27 +445,27 @@ test("link with a non-HTTP scheme is blocked", () => {
 });
 
 test("bullet list with multiple items", () => {
-    const content = ContentSchema.node("doc", {}, [
-        ContentSchema.node(
+    const content = schema.node("doc", {}, [
+        schema.node(
             "unorderedListItem",
             {indent: 0},
-            ContentSchema.node("paragraph", {}, ContentSchema.text("Item 1")),
+            schema.node("paragraph", {}, schema.text("Item 1")),
         ),
-        ContentSchema.node(
+        schema.node(
             "unorderedListItem",
             {indent: 0},
-            ContentSchema.node("paragraph", {}, ContentSchema.text("Item 2")),
+            schema.node("paragraph", {}, schema.text("Item 2")),
         ),
-        ContentSchema.node(
+        schema.node(
             "unorderedListItem",
             {indent: 0},
-            ContentSchema.node("paragraph", {}, ContentSchema.text("Item 3")),
+            schema.node("paragraph", {}, schema.text("Item 3")),
         ),
     ]);
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(content)}
+            state={ContentEditorState.create({schema, content})}
             onChange={() => {}}
         />,
     );
@@ -466,27 +476,15 @@ test("bullet list with multiple items", () => {
 });
 
 test("ordered list with multiple items", () => {
-    const content = ContentSchema.node("doc", {}, [
-        ContentSchema.node(
-            "orderedListItem",
-            {},
-            ContentSchema.node("paragraph", {}, ContentSchema.text("Item 1")),
-        ),
-        ContentSchema.node(
-            "orderedListItem",
-            {},
-            ContentSchema.node("paragraph", {}, ContentSchema.text("Item 2")),
-        ),
-        ContentSchema.node(
-            "orderedListItem",
-            {},
-            ContentSchema.node("paragraph", {}, ContentSchema.text("Item 3")),
-        ),
+    const content = schema.node("doc", {}, [
+        schema.node("orderedListItem", {}, schema.node("paragraph", {}, schema.text("Item 1"))),
+        schema.node("orderedListItem", {}, schema.node("paragraph", {}, schema.text("Item 2"))),
+        schema.node("orderedListItem", {}, schema.node("paragraph", {}, schema.text("Item 3"))),
     ]);
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(content)}
+            state={ContentEditorState.create({schema, content})}
             onChange={() => {}}
         />,
     );
@@ -497,27 +495,27 @@ test("ordered list with multiple items", () => {
 });
 
 test("check list with multiple items", () => {
-    const content = ContentSchema.node("doc", {}, [
-        ContentSchema.node(
+    const content = schema.node("doc", {}, [
+        schema.node(
             "checkListItem",
             {checked: true},
-            ContentSchema.node("paragraph", {}, ContentSchema.text("Item 1")),
+            schema.node("paragraph", {}, schema.text("Item 1")),
         ),
-        ContentSchema.node(
+        schema.node(
             "checkListItem",
             {checked: false},
-            ContentSchema.node("paragraph", {}, ContentSchema.text("Item 2")),
+            schema.node("paragraph", {}, schema.text("Item 2")),
         ),
-        ContentSchema.node(
+        schema.node(
             "checkListItem",
             {checked: true},
-            ContentSchema.node("paragraph", {}, ContentSchema.text("Item 3")),
+            schema.node("paragraph", {}, schema.text("Item 3")),
         ),
     ]);
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(content)}
+            state={ContentEditorState.create({schema, content})}
             onChange={() => {}}
         />,
     );
@@ -528,32 +526,32 @@ test("check list with multiple items", () => {
 });
 
 test("bullet list with sub-list", () => {
-    const content = ContentSchema.node("doc", {}, [
-        ContentSchema.node(
+    const content = schema.node("doc", {}, [
+        schema.node(
             "unorderedListItem",
             {indent: 0},
-            ContentSchema.node("paragraph", {}, ContentSchema.text("Test")),
+            schema.node("paragraph", {}, schema.text("Test")),
         ),
-        ContentSchema.node(
+        schema.node(
             "unorderedListItem",
             {indent: 1},
-            ContentSchema.node("paragraph", {}, ContentSchema.text("Item 1")),
+            schema.node("paragraph", {}, schema.text("Item 1")),
         ),
-        ContentSchema.node(
+        schema.node(
             "unorderedListItem",
             {indent: 1},
-            ContentSchema.node("paragraph", {}, ContentSchema.text("Item 2")),
+            schema.node("paragraph", {}, schema.text("Item 2")),
         ),
-        ContentSchema.node(
+        schema.node(
             "unorderedListItem",
             {indent: 1},
-            ContentSchema.node("paragraph", {}, ContentSchema.text("Item 3")),
+            schema.node("paragraph", {}, schema.text("Item 3")),
         ),
     ]);
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(content)}
+            state={ContentEditorState.create({schema, content})}
             onChange={() => {}}
         />,
     );
@@ -564,32 +562,32 @@ test("bullet list with sub-list", () => {
 });
 
 test("ordered list with sub-list", () => {
-    const content = ContentSchema.node("doc", {}, [
-        ContentSchema.node(
+    const content = schema.node("doc", {}, [
+        schema.node(
             "orderedListItem",
             {indent: 0},
-            ContentSchema.node("paragraph", {}, ContentSchema.text("Test")),
+            schema.node("paragraph", {}, schema.text("Test")),
         ),
-        ContentSchema.node(
+        schema.node(
             "orderedListItem",
             {indent: 1},
-            ContentSchema.node("paragraph", {}, ContentSchema.text("Item 1")),
+            schema.node("paragraph", {}, schema.text("Item 1")),
         ),
-        ContentSchema.node(
+        schema.node(
             "orderedListItem",
             {indent: 1},
-            ContentSchema.node("paragraph", {}, ContentSchema.text("Item 2")),
+            schema.node("paragraph", {}, schema.text("Item 2")),
         ),
-        ContentSchema.node(
+        schema.node(
             "orderedListItem",
             {indent: 1},
-            ContentSchema.node("paragraph", {}, ContentSchema.text("Item 3")),
+            schema.node("paragraph", {}, schema.text("Item 3")),
         ),
     ]);
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(content)}
+            state={ContentEditorState.create({schema, content})}
             onChange={() => {}}
         />,
     );
@@ -600,32 +598,32 @@ test("ordered list with sub-list", () => {
 });
 
 test("check list with sub-list", () => {
-    const content = ContentSchema.node("doc", {}, [
-        ContentSchema.node(
+    const content = schema.node("doc", {}, [
+        schema.node(
             "checkListItem",
             {indent: 0, checked: true},
-            ContentSchema.node("paragraph", {}, ContentSchema.text("Test")),
+            schema.node("paragraph", {}, schema.text("Test")),
         ),
-        ContentSchema.node(
+        schema.node(
             "checkListItem",
             {indent: 1, checked: true},
-            ContentSchema.node("paragraph", {}, ContentSchema.text("Item 1")),
+            schema.node("paragraph", {}, schema.text("Item 1")),
         ),
-        ContentSchema.node(
+        schema.node(
             "checkListItem",
             {indent: 1, checked: false},
-            ContentSchema.node("paragraph", {}, ContentSchema.text("Item 2")),
+            schema.node("paragraph", {}, schema.text("Item 2")),
         ),
-        ContentSchema.node(
+        schema.node(
             "checkListItem",
             {indent: 1, checked: true},
-            ContentSchema.node("paragraph", {}, ContentSchema.text("Item 3")),
+            schema.node("paragraph", {}, schema.text("Item 3")),
         ),
     ]);
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(content)}
+            state={ContentEditorState.create({schema, content})}
             onChange={() => {}}
         />,
     );
@@ -636,32 +634,32 @@ test("check list with sub-list", () => {
 });
 
 test("bullet list with sub-list of another type", () => {
-    const content = ContentSchema.node("doc", {}, [
-        ContentSchema.node(
+    const content = schema.node("doc", {}, [
+        schema.node(
             "unorderedListItem",
             {indent: 0},
-            ContentSchema.node("paragraph", {}, ContentSchema.text("Test")),
+            schema.node("paragraph", {}, schema.text("Test")),
         ),
-        ContentSchema.node(
+        schema.node(
             "orderedListItem",
             {indent: 1},
-            ContentSchema.node("paragraph", {}, ContentSchema.text("Item 1")),
+            schema.node("paragraph", {}, schema.text("Item 1")),
         ),
-        ContentSchema.node(
+        schema.node(
             "orderedListItem",
             {indent: 1},
-            ContentSchema.node("paragraph", {}, ContentSchema.text("Item 2")),
+            schema.node("paragraph", {}, schema.text("Item 2")),
         ),
-        ContentSchema.node(
+        schema.node(
             "orderedListItem",
             {indent: 1},
-            ContentSchema.node("paragraph", {}, ContentSchema.text("Item 3")),
+            schema.node("paragraph", {}, schema.text("Item 3")),
         ),
     ]);
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(content)}
+            state={ContentEditorState.create({schema, content})}
             onChange={() => {}}
         />,
     );
@@ -672,32 +670,32 @@ test("bullet list with sub-list of another type", () => {
 });
 
 test("ordered list with sub-list of another type", () => {
-    const content = ContentSchema.node("doc", {}, [
-        ContentSchema.node(
+    const content = schema.node("doc", {}, [
+        schema.node(
             "orderedListItem",
             {indent: 0},
-            ContentSchema.node("paragraph", {}, ContentSchema.text("Test")),
+            schema.node("paragraph", {}, schema.text("Test")),
         ),
-        ContentSchema.node(
+        schema.node(
             "checkListItem",
             {indent: 1, checked: true},
-            ContentSchema.node("paragraph", {}, ContentSchema.text("Item 1")),
+            schema.node("paragraph", {}, schema.text("Item 1")),
         ),
-        ContentSchema.node(
+        schema.node(
             "checkListItem",
             {indent: 1, checked: false},
-            ContentSchema.node("paragraph", {}, ContentSchema.text("Item 2")),
+            schema.node("paragraph", {}, schema.text("Item 2")),
         ),
-        ContentSchema.node(
+        schema.node(
             "checkListItem",
             {indent: 1, checked: true},
-            ContentSchema.node("paragraph", {}, ContentSchema.text("Item 3")),
+            schema.node("paragraph", {}, schema.text("Item 3")),
         ),
     ]);
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(content)}
+            state={ContentEditorState.create({schema, content})}
             onChange={() => {}}
         />,
     );
@@ -708,32 +706,32 @@ test("ordered list with sub-list of another type", () => {
 });
 
 test("check list with sub-list of another type", () => {
-    const content = ContentSchema.node("doc", {}, [
-        ContentSchema.node(
+    const content = schema.node("doc", {}, [
+        schema.node(
             "checkListItem",
             {indent: 0, checked: true},
-            ContentSchema.node("paragraph", {}, ContentSchema.text("Test")),
+            schema.node("paragraph", {}, schema.text("Test")),
         ),
-        ContentSchema.node(
+        schema.node(
             "orderedListItem",
             {indent: 1},
-            ContentSchema.node("paragraph", {}, ContentSchema.text("Item 1")),
+            schema.node("paragraph", {}, schema.text("Item 1")),
         ),
-        ContentSchema.node(
+        schema.node(
             "orderedListItem",
             {indent: 1},
-            ContentSchema.node("paragraph", {}, ContentSchema.text("Item 2")),
+            schema.node("paragraph", {}, schema.text("Item 2")),
         ),
-        ContentSchema.node(
+        schema.node(
             "orderedListItem",
             {indent: 1},
-            ContentSchema.node("paragraph", {}, ContentSchema.text("Item 3")),
+            schema.node("paragraph", {}, schema.text("Item 3")),
         ),
     ]);
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(content)}
+            state={ContentEditorState.create({schema, content})}
             onChange={() => {}}
         />,
     );
@@ -744,17 +742,17 @@ test("check list with sub-list of another type", () => {
 });
 
 test("can put hard breaks inside paragraphs", () => {
-    const content = ContentSchema.node("doc", {}, [
-        ContentSchema.node("paragraph", {}, [
-            ContentSchema.text("Hello…"),
-            ContentSchema.node("break"),
-            ContentSchema.text("…world!"),
+    const content = schema.node("doc", {}, [
+        schema.node("paragraph", {}, [
+            schema.text("Hello…"),
+            schema.node("break"),
+            schema.text("…world!"),
         ]),
     ]);
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(content)}
+            state={ContentEditorState.create({schema, content})}
             onChange={() => {}}
         />,
     );
@@ -765,19 +763,19 @@ test("can put hard breaks inside paragraphs", () => {
 });
 
 test("can put hard breaks inside list items", () => {
-    const content = ContentSchema.node("doc", {}, [
-        ContentSchema.node("unorderedListItem", {}, [
-            ContentSchema.node("paragraph", {}, [
-                ContentSchema.text("Hello…"),
-                ContentSchema.node("break"),
-                ContentSchema.text("…world!"),
+    const content = schema.node("doc", {}, [
+        schema.node("unorderedListItem", {}, [
+            schema.node("paragraph", {}, [
+                schema.text("Hello…"),
+                schema.node("break"),
+                schema.text("…world!"),
             ]),
         ]),
     ]);
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(content)}
+            state={ContentEditorState.create({schema, content})}
             onChange={() => {}}
         />,
     );
@@ -788,16 +786,16 @@ test("can put hard breaks inside list items", () => {
 });
 
 test("can put multiple paragraphs inside list items", () => {
-    const content = ContentSchema.node("doc", {}, [
-        ContentSchema.node("unorderedListItem", {}, [
-            ContentSchema.node("paragraph", {}, [ContentSchema.text("Hello…")]),
-            ContentSchema.node("paragraph", {}, [ContentSchema.text("…world!")]),
+    const content = schema.node("doc", {}, [
+        schema.node("unorderedListItem", {}, [
+            schema.node("paragraph", {}, [schema.text("Hello…")]),
+            schema.node("paragraph", {}, [schema.text("…world!")]),
         ]),
     ]);
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(content)}
+            state={ContentEditorState.create({schema, content})}
             onChange={() => {}}
         />,
     );

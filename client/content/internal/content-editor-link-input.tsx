@@ -7,7 +7,6 @@ import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus-ring";
 import {sprinkles} from "~/client/design/sprinkles.css";
 import {Tooltip} from "~/client/design/tooltip";
-import {ContentSchema} from "~/shared/content/content-schema";
 import {spacing} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
 
@@ -42,7 +41,7 @@ export function ContentEditorLinkInput({
         // NOTE(calebmer): We don't trim spaces the range here in case the user is
         // updating an existing URL.
         dispatch(
-            state.tr.addMark(range.from, range.to, ContentSchema.mark("link", {url: finalUrl})),
+            state.tr.addMark(range.from, range.to, state.schema.mark("link", {url: finalUrl})),
         );
 
         onClose();

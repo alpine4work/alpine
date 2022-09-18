@@ -1,5 +1,5 @@
 import {DOMSerializer, Fragment, Mark, Node, Schema} from "prosemirror-model";
-import {ContentSchema, clampListItemIndentation} from "~/shared/content/content-schema";
+import {clampListItemIndentation} from "~/shared/content/content-schema";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable-every";
 
 // Augment with types for some internal methods from:
@@ -39,12 +39,12 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
     override serializeNodeInner(node: Node, options: {document?: Document}): globalThis.Node {
         const document = options.document ?? window.document;
 
-        if (node.type === ContentSchema.nodes.unorderedListItem)
+        if (node.type.name === "unorderedListItem")
             return this._serializeListItemNode("ul", node, options);
-        if (node.type === ContentSchema.nodes.orderedListItem)
+        if (node.type.name === "orderedListItem")
             return this._serializeListItemNode("ol", node, options);
 
-        if (node.type === ContentSchema.nodes.checkListItem) {
+        if (node.type.name === "checkListItem") {
             const checkboxDom = document.createElement("input");
 
             checkboxDom.setAttribute("type", "checkbox");
