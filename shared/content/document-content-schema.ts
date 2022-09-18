@@ -1,6 +1,7 @@
 import {assignInlineVars} from "@vanilla-extract/dynamic";
 import classNames from "classnames";
 import {Node, Schema as ProsemirrorSchema} from "prosemirror-model";
+import {Step} from "prosemirror-transform";
 import {
     clampListItemIndentation,
     contentBaseProsemirrorSchemaSpec,
@@ -227,6 +228,20 @@ export const DocumentWithoutTitleContentSchema =
         },
     });
 
+export const DocumentWithoutTitleContentStepSchema = Schema.unknown.transform<Step>({
+    serialize: step => step.toJSON(),
+    deserialize: unknownValue => {
+        let content;
+        try {
+            content = Step.fromJSON(DocumentWithoutTitleContentProsemirrorSchema, unknownValue);
+        } catch {
+            throw new SchemaDeserializationError("Invalid document content step");
+        }
+
+        return content;
+    },
+});
+
 export const emptyDocumentWithoutTitleContent = DocumentWithoutTitleContentProsemirrorSchema.node(
     "doc",
     {},
@@ -299,6 +314,20 @@ export const DocumentContentSchema = Schema.unknown.transform<DocumentContent>({
 
         if (!isDocumentContent(content))
             throw new SchemaDeserializationError('Invalid document content"');
+
+        return content;
+    },
+});
+
+export const DocumentContentStepSchema = Schema.unknown.transform<Step>({
+    serialize: step => step.toJSON(),
+    deserialize: unknownValue => {
+        let content;
+        try {
+            content = Step.fromJSON(DocumentContentProsemirrorSchema, unknownValue);
+        } catch {
+            throw new SchemaDeserializationError("Invalid document content step");
+        }
 
         return content;
     },
