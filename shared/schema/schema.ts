@@ -3,6 +3,7 @@ import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {hasOwnProperty} from "~/shared/helpers/object/has-own-property";
 import {isPlainObject} from "~/shared/helpers/object/is-plain-object";
+import {isIdentifier} from "~/shared/helpers/string/is-identifier";
 import {Optionalize} from "~/shared/helpers/types/optionalize";
 import {
     SchemaDescription,
@@ -13,10 +14,10 @@ import {
  * Get the underlying type of a schema object.
  */
 export type SchemaType<
-    T extends Schema<any> | SchemaObjectProperty<any> | SchemaUnionVariant<any>,
+    T extends Schema<any> | ObjectPropertySchema<any, any> | SchemaUnionVariant<any>,
 > = T extends Schema<infer U>
     ? U
-    : T extends SchemaObjectProperty<infer U>
+    : T extends ObjectPropertySchema<infer U, any>
     ? U
     : T extends SchemaUnionVariant<infer U>
     ? U
@@ -63,6 +64,18 @@ export type SchemaSerializedObjectValue = {
 export type SchemaSerializedArrayValue = ReadonlyArray<SchemaSerializedValue>;
 
 /**
+ * `Schema` but you can only serialize.
+ *
+ * Useful if you want to be [contravariant][1] on `Value`.
+ *
+ * [1]: https://en.wikipedia.org/wiki/Covariance_and_contravariance_(computer_science)
+ */
+export interface SchemaWithOnlySerialization<Value> {
+    readonly description: SchemaDescription;
+    serialize(value: Value): SchemaSerializedValue;
+}
+
+/**
  * The schema class is a type-safe combinator-style utility for validating and
  * migrating unknown JavaScript values. You may use it for reading values from
  * a dynamic JSON data store, messages from an untyped event stream, or for
@@ -72,7 +85,7 @@ export type SchemaSerializedArrayValue = ReadonlyArray<SchemaSerializedValue>;
  * objects will silently discard unknown properties from a new application
  * version.
  */
-export class Schema<Value> {
+export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     /**
      * The description of the serialized value returned by this schema.
      */
@@ -273,7 +286,7 @@ export class Schema<Value> {
      * properties.
      */
     public optional() {
-        return SchemaObjectProperty.wrap(this).optional();
+        return ObjectPropertySchema.wrap(this).optional();
     }
 
     /**
@@ -283,7 +296,7 @@ export class Schema<Value> {
      * the provided default value.
      */
     public default(defaultValue: Value) {
-        return SchemaObjectProperty.wrap(this).default(defaultValue);
+        return ObjectPropertySchema.wrap(this).default(defaultValue);
     }
 
     /**
@@ -292,7 +305,7 @@ export class Schema<Value> {
      * instead of the one in the `Schema.object()` definition.
      */
     public originalPropertyKey(originalKey: string) {
-        return SchemaObjectProperty.wrap(this).originalPropertyKey(originalKey);
+        return ObjectPropertySchema.wrap(this).originalPropertyKey(originalKey);
     }
 
     /**
@@ -346,115 +359,12 @@ export class Schema<Value> {
      * delete any extra unknown keys. If parsing an object with a prototype chain
      * then we will create a new, plain, object.
      */
-    public static object<Schemas extends {[key: string]: Schema<any> | SchemaObjectProperty<any>}>(
+    public static object<
+        Schemas extends {[key: string]: Schema<any> | ObjectPropertySchema<any, any>},
+    >(
         schemas: Schemas,
     ): ObjectSchema<Optionalize<{readonly [Key in keyof Schemas]: SchemaType<Schemas[Key]>}>> {
-        const schemaByKey = new Map<string, SchemaObjectProperty<unknown>>(
-            Object.entries(schemas).map(([key, schema]) => [
-                key,
-                schema instanceof Schema ? SchemaObjectProperty.wrap(schema) : schema,
-            ]),
-        );
-
-        const config: ObjectSchemaConfig<
-            Optionalize<{[Key in keyof Schemas]: SchemaType<Schemas[Key]>}>
-        > = {
-            description: {
-                type: "Object",
-                propertySchemaByKey: Object.fromEntries(
-                    Array.from(schemaByKey, ([key, schema]) => [
-                        schema.description.originalKey ?? key,
-                        schema.description.propertyDescription,
-                    ]),
-                ),
-            },
-            serializeInto: (value, target) => {
-                for (const [key, schema] of schemaByKey) {
-                    schema.serializeProperty(target, key, (value as any)[key]);
-                }
-            },
-            deserializeInto: (value, target) => {
-                if (typeof value !== "object" || value === null)
-                    throw new SchemaDeserializationError("Expected an object");
-
-                if (target !== undefined) {
-                    for (const [key, schema] of schemaByKey) {
-                        const keyValue = withSchemaDeserializationStackFrame(
-                            {type: "ObjectProperty", key},
-                            () =>
-                                schema.deserializeProperty(
-                                    value as any as SchemaSerializedObjectValue,
-                                    key,
-                                ),
-                        );
-
-                        if (keyValue === schemaDeserializationMissingObjectPropertySymbol)
-                            throw new SchemaDeserializationError(
-                                `Required property \`${key}\` not found`,
-                            );
-
-                        (target as any)[key] = keyValue;
-                    }
-
-                    return target as any;
-                } else if (isPlainObject(value)) {
-                    const unknownKeys = new Set(Object.keys(value));
-
-                    for (const [key, schema] of schemaByKey) {
-                        unknownKeys.delete(key);
-
-                        const keyValue = withSchemaDeserializationStackFrame(
-                            {type: "ObjectProperty", key},
-                            () => schema.deserializeProperty(value, key),
-                        );
-
-                        if (keyValue === schemaDeserializationMissingObjectPropertySymbol)
-                            throw new SchemaDeserializationError(
-                                `Required property \`${key}\` not found`,
-                            );
-
-                        (value as any)[key] = keyValue;
-                    }
-
-                    // Silently discard keys our schema doesn't know about instead of erring. By
-                    // not erring we are future compatible with new schemas.
-                    //
-                    // We need to delete properties, though, so an attacker doesn't try setting
-                    // `__proto__` or other intrinsic properties.
-                    for (const key of unknownKeys) {
-                        delete (value as any)[key];
-                    }
-
-                    return value as any;
-                } else {
-                    const newValue: {[key: string]: unknown} = {};
-
-                    for (const [key, schema] of schemaByKey) {
-                        const keyValue = withSchemaDeserializationStackFrame(
-                            {type: "ObjectProperty", key},
-                            () =>
-                                schema.deserializeProperty(
-                                    value as any as SchemaSerializedObjectValue,
-                                    key,
-                                ),
-                        );
-
-                        if (keyValue === schemaDeserializationMissingObjectPropertySymbol)
-                            throw new SchemaDeserializationError(
-                                `Required property \`${key}\` not found`,
-                            );
-
-                        newValue[key] = keyValue;
-                    }
-
-                    return newValue as any;
-                }
-            },
-        };
-
-        // @ts-expect-error: Constructor is marked private so code outside of this file
-        // can't construct it. But we want to construct an object schema here.
-        return new ObjectSchema(config);
+        return ObjectSchema._new(schemas);
     }
 
     /**
@@ -497,26 +407,26 @@ export class Schema<Value> {
             string,
             {schema: Schema<{type: string}>; serializedTypeName: string}
         >(
-            schemaEntries.map(([typeName, schema]) => [
-                typeName,
-                schema instanceof SchemaUnionVariant
-                    ? {schema: schema.schema, serializedTypeName: schema.originalTypeName}
-                    : {schema, serializedTypeName: typeName},
-            ]),
+            schemaEntries.map(([typeName, schema]) => {
+                assert(isIdentifier(typeName));
+                return [
+                    typeName,
+                    schema instanceof SchemaUnionVariant
+                        ? {schema: schema.schema, serializedTypeName: schema.serializedTypeName}
+                        : {schema, serializedTypeName: typeName},
+                ];
+            }),
         );
 
-        const schemaByOriginalTypeName = new Map<
+        const schemaBySerializedTypeName = new Map<
             string,
             {schema: Schema<{type: string}>; typeName: string}
-        >();
-        for (const [typeName, schema] of schemaEntries) {
-            if (schema instanceof SchemaUnionVariant) {
-                schemaByOriginalTypeName.set(schema.originalTypeName, {
-                    schema: schema.schema,
-                    typeName,
-                });
-            }
-        }
+        >(
+            Array.from(schemaByTypeName, ([typeName, {schema, serializedTypeName}]) => [
+                serializedTypeName,
+                {schema, typeName},
+            ]),
+        );
 
         return new Schema<SchemaType<Schemas[keyof Schemas]>>({
             description: {
@@ -567,21 +477,18 @@ export class Schema<Value> {
                 const deserializedValue = withSchemaDeserializationStackFrame(
                     {type: "UnionVariant", typeKey: "type", typeValue: type},
                     () => {
-                        // First we try the current type name for the schema...
-                        {
-                            const schema = schemaByTypeName.get(type);
-                            if (schema !== undefined) {
-                                return schema.schema.deserialize(value) as any;
-                            }
-                        }
-
-                        // Then we try the original type name for the schema...
-                        {
-                            const schema = schemaByOriginalTypeName.get(type);
-                            if (schema !== undefined) {
-                                value.type = schema.typeName;
-                                return schema.schema.deserialize(value as any);
-                            }
+                        // Always use the serialized type name, never use the current type name in
+                        // code. We don't have code that will serialize using the current type name.
+                        //
+                        // This makes static analysis on the schema a bit easier. Since we don't need
+                        // to consider two possible types.
+                        //
+                        // We may want to consider a migration path in the future where both types are
+                        // temporarily allowed until one type fully replaces the other.
+                        const schema = schemaBySerializedTypeName.get(type);
+                        if (schema !== undefined) {
+                            value.type = schema.typeName;
+                            return schema.schema.deserialize(value) as any;
                         }
 
                         return null;
@@ -597,21 +504,24 @@ export class Schema<Value> {
     }
 }
 
-type ObjectSchemaConfig<Value> = {
-    description: SchemaDescription;
-    serializeInto: (value: Value, target: {[key: string]: SchemaSerializedValue}) => void;
-    deserializeInto: (
-        serializedValue: SchemaSerializedValue,
-        target?: {[key: string]: SchemaSerializedValue},
-    ) => Value;
-};
-
 /**
  * Schema for an object value.
  *
  * You should only create this with `Schema.object()`.
  */
 export class ObjectSchema<Value> extends Schema<Value> {
+    /**
+     * The schema for every property in our object.
+     *
+     * Useful for static analysis.
+     *
+     * Keys must be valid identifiers (according to `isIdentifier()`).
+     */
+    public readonly propertySchemaByKey: ReadonlyMap<
+        string,
+        ObjectPropertySchema<unknown, unknown>
+    >;
+
     /**
      * Serialize by assigning object properties directly to the provided
      * target instead of creating a new object.
@@ -630,7 +540,20 @@ export class ObjectSchema<Value> extends Schema<Value> {
         target?: {[key: string]: SchemaSerializedValue},
     ) => Value;
 
-    private constructor({description, serializeInto, deserializeInto}: ObjectSchemaConfig<Value>) {
+    private constructor({
+        propertySchemaByKey,
+        description,
+        serializeInto,
+        deserializeInto,
+    }: {
+        propertySchemaByKey: ReadonlyMap<string, ObjectPropertySchema<unknown, unknown>>;
+        description: SchemaDescription;
+        serializeInto: (value: Value, target: {[key: string]: SchemaSerializedValue}) => void;
+        deserializeInto: (
+            serializedValue: SchemaSerializedValue,
+            target?: {[key: string]: SchemaSerializedValue},
+        ) => Value;
+    }) {
         super({
             description,
             serialize: value => {
@@ -640,8 +563,100 @@ export class ObjectSchema<Value> extends Schema<Value> {
             },
             deserialize: deserializeInto,
         });
+        this.propertySchemaByKey = propertySchemaByKey;
         this.serializeInto = serializeInto;
         this.deserializeInto = deserializeInto;
+    }
+
+    /**
+     * Prefer `Schema.object()` which directly calls this method.
+     */
+    public static _new<
+        Schemas extends {[key: string]: Schema<any> | ObjectPropertySchema<any, any>},
+    >(
+        schemas: Schemas,
+    ): ObjectSchema<Optionalize<{readonly [Key in keyof Schemas]: SchemaType<Schemas[Key]>}>> {
+        const propertySchemaByKey = new Map<string, ObjectPropertySchema<unknown, unknown>>(
+            Object.entries(schemas).map(([key, schema]) => {
+                assert(isIdentifier(key));
+                return [key, schema instanceof Schema ? ObjectPropertySchema.wrap(schema) : schema];
+            }),
+        );
+
+        return new ObjectSchema<Optionalize<{[Key in keyof Schemas]: SchemaType<Schemas[Key]>}>>({
+            propertySchemaByKey,
+            description: {
+                type: "Object",
+                propertySchemaByKey: Object.fromEntries(
+                    Array.from(propertySchemaByKey, ([key, schema]) => [
+                        schema.serializedKey ?? key,
+                        schema.description,
+                    ]),
+                ),
+            },
+            serializeInto: (value, target) => {
+                for (const [key, schema] of propertySchemaByKey) {
+                    const serializedKey = schema.serializedKey ?? key;
+                    schema.serializeProperty(target, serializedKey, (value as any)[key]);
+                }
+            },
+            deserializeInto: (value, target) => {
+                if (typeof value !== "object" || value === null)
+                    throw new SchemaDeserializationError("Expected an object");
+
+                if (target !== undefined) {
+                    for (const [key, schema] of propertySchemaByKey) {
+                        const serializedKey = schema.serializedKey ?? key;
+
+                        const keyValue = schema.deserializeProperty(
+                            value as any as SchemaSerializedObjectValue,
+                            serializedKey,
+                        );
+
+                        (target as any)[key] = keyValue;
+                    }
+
+                    return target as any;
+                } else if (isPlainObject(value)) {
+                    const unknownKeys = new Set(Object.keys(value));
+
+                    for (const [key, schema] of propertySchemaByKey) {
+                        unknownKeys.delete(key);
+                        const serializedKey = schema.serializedKey ?? key;
+
+                        const keyValue = schema.deserializeProperty(value, serializedKey);
+
+                        (value as any)[key] = keyValue;
+                    }
+
+                    // Silently discard keys our schema doesn't know about instead of erring. By
+                    // not erring we are future compatible with new schemas.
+                    //
+                    // We need to delete properties, though, so an attacker doesn't try setting
+                    // `__proto__` or other intrinsic properties.
+                    for (const key of unknownKeys) {
+                        delete (value as any)[key];
+                    }
+
+                    return value as any;
+                } else {
+                    const newValue: {[key: string]: unknown} = {};
+
+                    for (const [key, schema] of propertySchemaByKey) {
+                        const serializedKey = schema.serializedKey ?? key;
+
+                        const keyValue = schema.deserializeProperty(
+                            value as any as SchemaSerializedObjectValue,
+                            serializedKey,
+                        );
+
+                        newValue[key] = keyValue;
+                    }
+
+                    return newValue as any;
+                }
+            },
+        });
     }
 }
 
@@ -666,18 +681,24 @@ export class JsonStringifiableUint8Array extends Uint8Array {
     }
 }
 
-const schemaDeserializationMissingObjectPropertySymbol = Symbol(
-    "schemaDeserializationMissingObjectProperty",
-);
+export class ObjectPropertySchema<Value, SchemaValue extends Value> {
+    /**
+     * The key this property is written to in the serialized object. If null then
+     * we use the key provided in the object schema definition.
+     *
+     * Must be a valid identifier (according to `isIdentifier()`).
+     */
+    public readonly serializedKey: string | null;
 
-export class SchemaObjectProperty<Value> {
     /**
      * The description of the serialized property written by this schema.
      */
-    public readonly description: {
-        readonly originalKey: string | null;
-        readonly propertyDescription: SchemaObjectPropertyDescription;
-    };
+    readonly description: SchemaObjectPropertyDescription;
+
+    /**
+     * The schema for our underlying value. Useful for static analysis.
+     */
+    public readonly valueSchema: Schema<SchemaValue>;
 
     /**
      * Serialize the property. We expect this function to actually write the
@@ -705,27 +726,27 @@ export class SchemaObjectProperty<Value> {
     public readonly deserializeProperty: (
         object: SchemaSerializedObjectValue,
         key: string,
-    ) => Value | typeof schemaDeserializationMissingObjectPropertySymbol;
+    ) => Value;
 
     private constructor({
+        serializedKey,
+        valueSchema,
         description,
         serializeProperty,
         deserializeProperty,
     }: {
-        description: {
-            readonly originalKey: string | null;
-            readonly propertyDescription: SchemaObjectPropertyDescription;
-        };
+        serializedKey: string | null;
+        valueSchema: Schema<SchemaValue>;
+        description: SchemaObjectPropertyDescription;
         serializeProperty: (
             object: {[key: string]: SchemaSerializedValue | undefined},
             key: string,
             value: Value,
         ) => void;
-        deserializeProperty: (
-            object: SchemaSerializedObjectValue,
-            key: string,
-        ) => Value | typeof schemaDeserializationMissingObjectPropertySymbol;
+        deserializeProperty: (object: SchemaSerializedObjectValue, key: string) => Value;
     }) {
+        this.serializedKey = serializedKey;
+        this.valueSchema = valueSchema;
         this.description = description;
         this.serializeProperty = serializeProperty;
         this.deserializeProperty = deserializeProperty;
@@ -734,87 +755,79 @@ export class SchemaObjectProperty<Value> {
     /**
      * Wrap a schema into a required object property.
      */
-    public static wrap<Value>(schema: Schema<Value>): SchemaObjectProperty<Value> {
-        return new SchemaObjectProperty({
+    public static wrap<Value>(schema: Schema<Value>): ObjectPropertySchema<Value, Value> {
+        return new ObjectPropertySchema({
+            serializedKey: null,
+            valueSchema: schema,
             description: {
-                originalKey: null,
-                propertyDescription: {
-                    valueSchema: schema.description,
-                    optional: false,
-                },
+                valueSchema: schema.description,
+                optional: false,
             },
             serializeProperty: (object, key, value) => {
                 object[key] = schema.serialize(value);
             },
             deserializeProperty: (object, key) => {
                 const value = hasOwnProperty(object, key) ? object[key] : undefined;
-                if (value === undefined) return schemaDeserializationMissingObjectPropertySymbol;
-                return schema.deserialize(value);
+
+                if (value === undefined)
+                    throw new SchemaDeserializationError(`Required property \`${key}\` not found`);
+
+                return withSchemaDeserializationStackFrame({type: "ObjectProperty", key}, () =>
+                    schema.deserialize(value),
+                );
             },
         });
     }
 
     /** @see Schema.optional */
-    public optional(): SchemaObjectProperty<Value | undefined> {
-        return new SchemaObjectProperty({
+    public optional(): ObjectPropertySchema<Value | undefined, SchemaValue> {
+        return new ObjectPropertySchema({
+            serializedKey: this.serializedKey,
+            valueSchema: this.valueSchema,
             description: {
                 ...this.description,
-                propertyDescription: {
-                    ...this.description.propertyDescription,
-                    optional: true,
-                },
+                optional: true,
             },
             serializeProperty: (object, key, value) => {
                 if (value === undefined) return;
                 this.serializeProperty(object, key, value);
             },
             deserializeProperty: (object, key) => {
-                const value = this.deserializeProperty(object, key);
-                if (value === schemaDeserializationMissingObjectPropertySymbol) return undefined;
-                return value;
+                if (!hasOwnProperty(object, key) || object[key] === undefined) return undefined;
+                return this.deserializeProperty(object, key);
             },
         });
     }
 
     /** @see Schema.default */
-    public default(defaultValue: Value): SchemaObjectProperty<Value> {
-        return new SchemaObjectProperty({
+    public default(defaultValue: Value): ObjectPropertySchema<Value, SchemaValue> {
+        return new ObjectPropertySchema({
+            serializedKey: this.serializedKey,
+            valueSchema: this.valueSchema,
             description: {
                 ...this.description,
-                propertyDescription: {
-                    ...this.description.propertyDescription,
-                    optional: true,
-                },
+                optional: true,
             },
             serializeProperty: (object, key, value) => {
                 this.serializeProperty(object, key, value);
             },
             deserializeProperty: (object, key) => {
-                const value = this.deserializeProperty(object, key);
-                if (value === schemaDeserializationMissingObjectPropertySymbol) return defaultValue;
-                return value;
+                if (!hasOwnProperty(object, key) || object[key] === undefined) return defaultValue;
+                return this.deserializeProperty(object, key);
             },
         });
     }
 
     /** @see Schema.originalPropertyKey */
-    public originalPropertyKey(originalKey: string): SchemaObjectProperty<Value> {
-        return new SchemaObjectProperty({
-            description: {
-                ...this.description,
-                originalKey,
-            },
-            serializeProperty: (object, key, value) => {
-                this.serializeProperty(object, originalKey, value);
-            },
-            deserializeProperty: (object, key) => {
-                return this.deserializeProperty(
-                    object,
-                    // If the provided key exists on the object then use that for deserializing.
-                    // Otherwise we're using the original key.
-                    hasOwnProperty(object, key) && object[key] !== undefined ? key : originalKey,
-                );
-            },
+    public originalPropertyKey(originalKey: string): ObjectPropertySchema<Value, SchemaValue> {
+        assert(isIdentifier(originalKey));
+
+        return new ObjectPropertySchema({
+            serializedKey: originalKey,
+            valueSchema: this.valueSchema,
+            description: this.description,
+            serializeProperty: this.serializeProperty,
+            deserializeProperty: this.deserializeProperty,
         });
     }
 }
@@ -823,7 +836,18 @@ export class SchemaObjectProperty<Value> {
  * An intermediate object we use for renaming union schema variants.
  */
 export class SchemaUnionVariant<Value> {
-    constructor(public readonly schema: Schema<Value>, public readonly originalTypeName: string) {}
+    constructor(
+        /**
+         * The underlying schema for the union variant.
+         */
+        public readonly schema: Schema<Value>,
+        /**
+         * The name we use in serialization for the union's `type`.
+         */
+        public readonly serializedTypeName: string,
+    ) {
+        assert(isIdentifier(serializedTypeName));
+    }
 }
 
 /**

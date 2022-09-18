@@ -426,7 +426,7 @@ test("object with original property key can rename a property key", () => {
     });
 
     expect(schema.deserialize({a: 1, c: 3})).toEqual({a: 1, b: 3});
-    expect(schema.deserialize({a: 1, b: 2, c: 3})).toEqual({a: 1, b: 2});
+    expect(schema.deserialize({a: 1, b: 2, c: 3})).toEqual({a: 1, b: 3});
 });
 
 test("value only matches exactly identical values", () => {
@@ -645,7 +645,7 @@ test("union variants can be renamed", () => {
     });
 
     expect(schema.deserialize({type: "foo"})).toEqual({type: "foo"});
-    expect(schema.deserialize({type: "bar"})).toEqual({type: "bar"});
+    expect(validate(schema, {type: "bar"})).toEqual(false);
     expect(schema.deserialize({type: "qux"})).toEqual({type: "bar"});
 
     expect(schema.serialize({type: "foo"})).toEqual({type: "foo"});
@@ -670,15 +670,15 @@ test("can rename optional object properties no matter where the combinator lies"
     });
 
     expect(schema1.deserialize({})).toEqual({});
-    expect(schema1.deserialize({foo: 1})).toEqual({foo: 1});
+    expect(schema1.deserialize({foo: 1})).toEqual({});
     expect(schema1.deserialize({bar: 1})).toEqual({foo: 1});
     expect(schema2.deserialize({})).toEqual({});
-    expect(schema2.deserialize({foo: 1})).toEqual({foo: 1});
+    expect(schema2.deserialize({foo: 1})).toEqual({});
     expect(schema2.deserialize({bar: 1})).toEqual({foo: 1});
     expect(schema3.deserialize({})).toEqual({foo: 0});
-    expect(schema3.deserialize({foo: 1})).toEqual({foo: 1});
+    expect(schema3.deserialize({foo: 1})).toEqual({foo: 0});
     expect(schema3.deserialize({bar: 1})).toEqual({foo: 1});
     expect(schema4.deserialize({})).toEqual({foo: 0});
-    expect(schema4.deserialize({foo: 1})).toEqual({foo: 1});
+    expect(schema4.deserialize({foo: 1})).toEqual({foo: 0});
     expect(schema4.deserialize({bar: 1})).toEqual({foo: 1});
 });
