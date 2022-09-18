@@ -14,7 +14,7 @@ const nextConfig = {
     // In general, try to put non-page code in `frontend`, `backend`, or `shared`.
     // Avoids potential security concerns where non-page code is accessible to
     // the public internet.
-    pageExtensions: ["tsx", "ts", "jsx", "js"].map(ext => `page.${ext}`),
+    pageExtensions: ["tsx", "ts", "jsx", "js", "mjs"].map(ext => `page.${ext}`),
 
     poweredByHeader: false,
     reactStrictMode: true,

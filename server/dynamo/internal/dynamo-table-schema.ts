@@ -61,6 +61,32 @@ export class DynamoTableSchema<
 
         this._descriptionPath = descriptionPath;
         this._description = description;
+
+        assert(!allConstructedDynamoTableSchemas.has(this._config.name));
+        allConstructedDynamoTableSchemas.set(this._config.name, this);
+    }
+
+    public addAwsResources(scope: Construct) {
+        new cdk.aws_dynamodb.Table(scope, `${this._config.name}Table`, {
+            tableName: this._config.name,
+            partitionKey: {
+                name: "partitionKey",
+                type: cdk.aws_dynamodb.AttributeType.STRING,
+            },
+            sortKey: {
+                name: "sortKey",
+                type: cdk.aws_dynamodb.AttributeType.STRING,
+            },
+
+            // If we have predictable traffic patterns then provisioned billing mode may be
+            // cheaper. If we're consistently utilizing 100% provisioned capacity (very
+            // unlikely) then provisioned billing mode is ~7x cheaper.
+            //
+            // Reconsider billing mode when we have traffic.
+            //
+            // https://www.serverless.com/blog/dynamodb-on-demand-serverless
+            billingMode: cdk.aws_dynamodb.BillingMode.PAY_PER_REQUEST,
+        });
     }
 
     private _serializeKey(key: Types["Key"]): {
@@ -207,6 +233,24 @@ export class DynamoTableSchema<
 
         fs.writeFileSync(this._descriptionPath, JSON.stringify(this._description, null, 2));
     }
+}
+
+const allConstructedDynamoTableSchemas = new Map<
+    string,
+    DynamoTableSchema<DynamoTableSchemaTypes.Types<DynamoTableSchemaTypes.ConfigBase>>
+>();
+
+/**
+ * Get all `DynamoTableSchema`s that have been constructed so far.
+ *
+ * They will be sorted by name so the order is deterministic.
+ */
+export function getAllConstructedDynamoTableSchemas(): Array<
+    DynamoTableSchema<DynamoTableSchemaTypes.Types<DynamoTableSchemaTypes.ConfigBase>>
+> {
+    return Array.from(allConstructedDynamoTableSchemas)
+        .sort(([name1], [name2]) => defaultCompareStrings(name1, name2))
+        .map(([, schema]) => schema);
 }
 
 function getAndCheckDynamoTableSchemaDescriptions(config: DynamoTableSchemaTypes.ConfigBase): {
