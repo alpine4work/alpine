@@ -58,6 +58,7 @@ module.exports = async (...args) => {
         testMatch: jestConfig.testMatch.map(testMatch => `<rootDir>/server/${testMatch}`),
         testPathIgnorePatterns: originalTestPathIgnorePatterns,
         setupFilesAfterEnv: originalSetupFilesAfterEnv,
+        globalSetup: require.resolve("./admin/jest/jest-global-setup-server-tests.ts"),
     };
 
     return {projects: [jestConfig, serverJestConfig]};
