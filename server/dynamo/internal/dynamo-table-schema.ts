@@ -194,7 +194,7 @@ export class DynamoTableSchema<
             partitionKeyEntries.push(attributeSchema.serialize(key[attributeKey]));
         }
 
-        const sortKeyEntries = [sortRangeDescription.orderKey, key.partitionSortType];
+        const sortKeyEntries = [sortRangeDescription.orderKey, key.sortRangeType];
         for (const [attributeKey, attributeSchema] of Object.entries(
             sortRangeConfig.sortKeyAttributes,
         )) {
@@ -257,9 +257,9 @@ export class DynamoTableSchema<
 
         key.sortRangeType = sortRangeType;
 
-        let sortKeyEntryIndex = 1;
+        let sortKeyEntryIndex = 2;
         for (const [attributeKey, attributeSchema] of Object.entries(
-            partitionConfig.partitionKeyAttributes,
+            sortRangeConfig.sortKeyAttributes,
         )) {
             const sortKeyEntry = sortKeyEntries[sortKeyEntryIndex++];
             assert(sortKeyEntry !== undefined, "Invalid sort key");
@@ -632,7 +632,7 @@ export class DynamoTableSchema<
         if (this._hasCommitDescription) return;
         this._hasCommitDescription = true;
 
-        fs.writeFileSync(this._descriptionPath, JSON.stringify(this._description, null, 2));
+        fs.writeFileSync(this._descriptionPath, JSON.stringify(this._description, null, 4));
     }
 }
 
