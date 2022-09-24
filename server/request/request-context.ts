@@ -1,8 +1,10 @@
+import {DynamoDBClient} from "@aws-sdk/client-dynamodb";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo-transaction-entry";
 // The request context currently owns the DynamoDB client object.
 // eslint-disable-next-line no-internal-imports
 import {DynamoClient} from "~/server/dynamo/internal/dynamo-client";
-import {Id} from "~/shared/id/id";
+import {assert} from "~/shared/helpers/control/assert";
+import {Id, generateId} from "~/shared/id/id";
 
 /**
  * Context for a single request executing against our server.
@@ -24,9 +26,20 @@ export class RequestContext {
      */
     private readonly _dynamoClient: DynamoClient;
 
-    constructor({requestId, dynamoClient}: {requestId: Id; dynamoClient: DynamoClient}) {
+    private constructor({requestId, dynamoClient}: {requestId: Id; dynamoClient: DynamoClient}) {
         this.requestId = requestId;
         this._dynamoClient = dynamoClient;
+    }
+
+    /**
+     * Creates a new test request context. Each test request context has a
+     * different request id.
+     */
+    public static test() {
+        return new RequestContext({
+            requestId: generateId(),
+            dynamoClient: getDynamoClientForTest(),
+        });
     }
 
     /**
@@ -38,7 +51,27 @@ export class RequestContext {
      *
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
      */
-    public executeTransaction(entries: ReadonlyArray<DynamoTransactionEntry>) {
-        this._dynamoClient.executeTransaction(entries, {clientRequestToken: this.requestId});
+    public executeTransaction(entries: ReadonlyArray<DynamoTransactionEntry>): Promise<void> {
+        return this._dynamoClient.executeTransaction(entries, {clientRequestToken: this.requestId});
     }
+}
+
+let dynamoClientForTest: DynamoClient | null = null;
+
+function getDynamoClientForTest(): DynamoClient {
+    assert(process.env.NODE_ENV === "test");
+
+    if (dynamoClientForTest === null) {
+        assert(process.env.LOCALSTACK_EDGE_PORT);
+        const localstackEdgePort = parseInt(process.env.LOCALSTACK_EDGE_PORT, 10);
+
+        dynamoClientForTest = new DynamoClient(
+            new DynamoDBClient({
+                region: "us-east-1",
+                endpoint: `http://localhost:${localstackEdgePort}`,
+            }),
+        );
+    }
+
+    return dynamoClientForTest;
 }

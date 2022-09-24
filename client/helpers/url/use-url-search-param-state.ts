@@ -29,7 +29,7 @@ export function useUrlSearchParamState(
                 url.searchParams.delete(searchParamName);
             }
 
-            router.replace(`${url.pathname}${url.hash}${url.search}`);
+            void router.replace(`${url.pathname}${url.hash}${url.search}`);
         },
         [searchParamName, router],
     );

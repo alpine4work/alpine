@@ -37,6 +37,10 @@ module.exports = {
         "no-implied-eval": "warn",
         "no-script-url": "warn",
 
+        // If a variable is not assigned then use `const` instead of `let` for
+        // consistency.
+        "prefer-const": "warn",
+
         // Throw an error to get a stack.
         "no-throw-literal": "error",
         "prefer-promise-reject-errors": "error",
@@ -229,6 +233,42 @@ module.exports = {
         ],
     },
     overrides: [
+        {
+            files: ["**/*.{ts,tsx}"],
+            parserOptions: {
+                tsconfigRootDir: __dirname,
+                project: ["./tsconfig.json"],
+            },
+            extends: ["plugin:@typescript-eslint/recommended-requiring-type-checking"],
+            rules: {
+                // We trust our developers to use `any` appropriately. So we disable eslint
+                // rules surrounding `any`.
+                "@typescript-eslint/no-unsafe-argument": "off",
+                "@typescript-eslint/no-unsafe-assignment": "off",
+                "@typescript-eslint/no-unsafe-call": "off",
+                "@typescript-eslint/no-unsafe-member-access": "off",
+                "@typescript-eslint/no-unsafe-return": "off",
+
+                // There are reasonable code style reasons to have an async function with no
+                // awaits.
+                "@typescript-eslint/require-await": "off",
+
+                // Error is too loud. An unnecessary type assertion is a noop.
+                "@typescript-eslint/no-unnecessary-type-assertion": "warn",
+
+                // We want to warn when you're coercing a value to a string but allow booleans
+                // and numbers which have reasonable string semantics. Also allow any since we
+                // trust developers to use it appropriately.
+                "@typescript-eslint/restrict-plus-operands": ["warn", {allowAny: true}],
+                "@typescript-eslint/restrict-template-expressions": [
+                    "warn",
+                    {allowAny: true, allowBoolean: true, allowNumber: true},
+                ],
+
+                // The recommended type checking rules upgrade this to an error.
+                "prefer-const": "warn",
+            },
+        },
         {
             files: ["!**/*.{ts,tsx}"],
             // Assume plain JS files are scripts and not modules.

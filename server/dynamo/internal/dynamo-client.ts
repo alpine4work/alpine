@@ -523,7 +523,7 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
 
         const maybeExecuteBatch = () => {
             assert(scheduledBatch === this._scheduledBatch);
-            let lastItemCount = scheduledBatch.itemCount;
+            const lastItemCount = scheduledBatch.itemCount;
 
             scheduleMicrotask(() => {
                 assert(scheduledBatch === this._scheduledBatch);
@@ -548,7 +548,7 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
             const batches = splitDynamoClientBatch(fullBatch, this._maxBatchItemCount);
 
             for (const batch of batches) {
-                this._executeBatch(batch, 1);
+                void this._executeBatch(batch, 1);
             }
         } catch (error) {
             for (const {keyBatches} of fullBatch.tableBatches.values()) {
@@ -585,7 +585,7 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
                 const delayMsWithJitter = Math.floor(Math.random() * delayMs);
 
                 setTimeout(() => {
-                    this._executeBatch(unprocessedBatch, attemptNumber + 1);
+                    void this._executeBatch(unprocessedBatch, attemptNumber + 1);
                 }, delayMsWithJitter);
             }
         } catch (error) {

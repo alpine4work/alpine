@@ -22,9 +22,7 @@ export async function prepareLocalstack() {
 
     // eslint-disable-next-line no-console
     console.log(
-        `${chalk.magenta(
-            "event",
-        )} - localstack ready on http://localhost:${localstackEdgePort}, deploying aws resources...`,
+        `${chalk.cyan("info")}  - localstack ready on http://localhost:${localstackEdgePort}`,
     );
 
     const startTime = process.hrtime.bigint();

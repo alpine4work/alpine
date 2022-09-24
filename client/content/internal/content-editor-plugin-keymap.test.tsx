@@ -183,7 +183,7 @@ async function simulateTyping(
 
     if (lastEditableChild.nodeType === Node.TEXT_NODE) {
         if (fromStart) {
-            lastEditableChild.textContent = text + lastEditableChild.textContent;
+            lastEditableChild.textContent = text + (lastEditableChild.textContent ?? "");
         } else {
             lastEditableChild.textContent += text;
         }
@@ -2553,7 +2553,7 @@ test("when pasting a text when there's a selection we will linkify the selection
     fireEvent.paste(getTextbox(), pastePlainTextClipboardEvent("https://example.com"));
 
     expect(getDoc().toString()).toEqual('doc(paragraph(link("test")))');
-    expect((screen.getByRole("link") as HTMLAnchorElement).href).toEqual("https://example.com/");
+    expect(screen.getByRole<HTMLAnchorElement>("link").href).toEqual("https://example.com/");
 });
 
 test("delete will join with the next block", async () => {

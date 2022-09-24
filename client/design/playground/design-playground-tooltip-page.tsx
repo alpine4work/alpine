@@ -78,7 +78,7 @@ export function DesignPlaygroundTooltipPage() {
             <DesignPlaygroundScrollPreview
                 // Recenter the content if we're switching between vertical and
                 // horizontal placements.
-                key={`${overlayPlacementVertical}`}
+                key={String(overlayPlacementVertical)}
                 shouldRenderOverlaysInDocumentBody={shouldRenderOverlaysInDocumentBody}
             >
                 <Box

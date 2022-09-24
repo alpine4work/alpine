@@ -30,9 +30,9 @@ preparePromise.then(
 
 const server = createServer((req, res) => {
     if (isPrepared) {
-        handle(req, res);
+        void handle(req, res);
     } else {
-        preparePromise.then(() => handle(req, res));
+        void preparePromise.then(() => handle(req, res));
     }
 });
 

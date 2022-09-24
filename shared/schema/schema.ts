@@ -917,7 +917,7 @@ type SchemaDeserializationStackFrame =
           readonly typeValue: string;
       };
 
-let schemaDeserializationStack: Array<SchemaDeserializationStackFrame> = [];
+const schemaDeserializationStack: Array<SchemaDeserializationStackFrame> = [];
 
 function withSchemaDeserializationStackFrame<Value>(
     frame: SchemaDeserializationStackFrame,

@@ -403,7 +403,7 @@ test("link with a non-HTTP scheme is blocked", () => {
         />,
     );
 
-    expect((screen.getByRole("link") as HTMLAnchorElement).href).toEqual("about:blank#blocked");
+    expect(screen.getByRole<HTMLAnchorElement>("link").href).toEqual("about:blank#blocked");
 
     rerender(
         <ContentEditor
@@ -424,7 +424,7 @@ test("link with a non-HTTP scheme is blocked", () => {
         />,
     );
 
-    expect((screen.getByRole("link") as HTMLAnchorElement).href).toEqual("about:blank#blocked");
+    expect(screen.getByRole<HTMLAnchorElement>("link").href).toEqual("about:blank#blocked");
 
     rerender(
         <ContentEditor
@@ -441,7 +441,7 @@ test("link with a non-HTTP scheme is blocked", () => {
         />,
     );
 
-    expect((screen.getByRole("link") as HTMLAnchorElement).href).toEqual("about:blank#blocked");
+    expect(screen.getByRole<HTMLAnchorElement>("link").href).toEqual("about:blank#blocked");
 });
 
 test("bullet list with multiple items", () => {

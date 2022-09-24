@@ -551,7 +551,7 @@ function ContentEditorPointerToolbarButton({
     const onPress = () => {
         const view = viewRef.current;
         assert(view);
-        command(view.state, view.dispatch, view);
+        command(view.state, view.dispatch.bind(view), view);
     };
 
     const localRef = useRef<HTMLDivElement>(null);
@@ -780,7 +780,8 @@ function ContentEditorPointerToolbarHighlightButton({
                     sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                     command={() => {
                         assert(viewRef.current);
-                        const {state, dispatch} = viewRef.current;
+                        const {state} = viewRef.current;
+                        const dispatch = viewRef.current.dispatch.bind(viewRef.current);
 
                         assert(state.schema.marks.highlight);
 

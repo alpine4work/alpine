@@ -43,7 +43,9 @@ export async function runProcess(
     const subprocess = spawn(command, flattenedArgs.filter(isNotNullishOrFalse), {
         cwd,
         env: {
-            PATH: `${nodeModulesBinDirectoryPath}:${process.env.PATH}`,
+            PATH: process.env.PATH
+                ? `${nodeModulesBinDirectoryPath}:${process.env.PATH}`
+                : nodeModulesBinDirectoryPath,
             NODE_ENV: process.env.NODE_ENV,
             ...env,
         },

@@ -24,7 +24,7 @@ export function ContentEditorLinkInput({
     onClose: () => void;
 }) {
     const inputRef = useRef<HTMLInputElement>(null);
-    const [url, setUrl] = useState(mark?.attrs.url ?? "");
+    const [url, setUrl] = useState<string>(mark?.attrs.url ?? "");
 
     const save = () => {
         if (url === "") {
@@ -33,7 +33,8 @@ export function ContentEditorLinkInput({
         }
 
         assert(viewRef.current);
-        const {state, dispatch} = viewRef.current;
+        const {state} = viewRef.current;
+        const dispatch = viewRef.current.dispatch.bind(viewRef.current);
 
         // If the URL the user typed does not have a protocol then add `https://`.
         const finalUrl = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(url) ? url : `https://${url}`;
@@ -49,7 +50,8 @@ export function ContentEditorLinkInput({
 
     const clear = () => {
         assert(viewRef.current);
-        const {state, dispatch} = viewRef.current;
+        const {state} = viewRef.current;
+        const dispatch = viewRef.current.dispatch.bind(viewRef.current);
 
         dispatch(state.tr.removeMark(range.from, range.to, mark));
 

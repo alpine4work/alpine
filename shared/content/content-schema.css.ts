@@ -74,10 +74,9 @@ const quoteBlockBorderWidth = "0.1875rem";
 
 export const quoteBlockClassName = style({
     ...blockStyles,
-    paddingLeft:
-        parseRemLengthNumber(quoteBlockIndentation) -
-        parseRemLengthNumber(quoteBlockBorderWidth) +
-        "rem",
+    paddingLeft: `${
+        parseRemLengthNumber(quoteBlockIndentation) - parseRemLengthNumber(quoteBlockBorderWidth)
+    }rem`,
     borderLeftWidth: quoteBlockBorderWidth,
     borderColor: colorSchemeVars["grey-10"],
     color: colorSchemeVars["grey-60"],

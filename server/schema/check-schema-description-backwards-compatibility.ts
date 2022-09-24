@@ -189,7 +189,7 @@ type SchemaDescriptionStackFrame =
           readonly typeValue: string;
       };
 
-let schemaDescriptionStack: Array<SchemaDescriptionStackFrame> = [];
+const schemaDescriptionStack: Array<SchemaDescriptionStackFrame> = [];
 
 function withSchemaDescriptionStackFrame<Value>(
     frame: SchemaDescriptionStackFrame,

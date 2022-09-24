@@ -317,7 +317,7 @@ export function deserializeReversedDynamoKeyAttribute(
 
     assert(bytes[bytes.length - 1] === 127);
 
-    let chars = [];
+    const chars = [];
 
     for (let index = 0; index < bytes.length - 1; index++) {
         const charCode = 126 - bytes[index]!;

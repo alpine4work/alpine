@@ -18,19 +18,19 @@ test("batches get item calls together after two microtasks", async () => {
     const send = createSendJestFn();
     const client = new DynamoClient({send});
 
-    client.getItem({
+    void client.getItem({
         tableName: "T1",
         key: {pk: "a", sk: 1},
     });
-    client.getItem({
+    void client.getItem({
         tableName: "T1",
         key: {pk: "a", sk: 2},
     });
-    client.getItem({
+    void client.getItem({
         tableName: "T1",
         key: {pk: "a", sk: 1},
     });
-    client.getItem({
+    void client.getItem({
         tableName: "T2",
         key: {pk: "b", sk: 1},
     });
@@ -65,11 +65,11 @@ test("batches get item calls together after more than two microtasks if items ke
     const send = createSendJestFn();
     const client = new DynamoClient({send});
 
-    client.getItem({
+    void client.getItem({
         tableName: "T",
         key: {pk: "a", sk: 1},
     });
-    client.getItem({
+    void client.getItem({
         tableName: "T",
         key: {pk: "b", sk: 1},
     });
@@ -80,7 +80,7 @@ test("batches get item calls together after more than two microtasks if items ke
 
     expect(send).toBeCalledTimes(0);
 
-    client.getItem({
+    void client.getItem({
         tableName: "T",
         key: {pk: "c", sk: 1},
     });
@@ -91,7 +91,7 @@ test("batches get item calls together after more than two microtasks if items ke
 
     expect(send).toBeCalledTimes(0);
 
-    client.getItem({
+    void client.getItem({
         tableName: "T",
         key: {pk: "d", sk: 1},
     });
@@ -125,35 +125,35 @@ test("splits batches into a maximum of 100 items at a time", async () => {
     const client = new DynamoClient({send});
 
     for (let i = 0; i < 50; i++) {
-        client.getItem({
+        void client.getItem({
             tableName: "T1",
             key: {pk: i, sk: ""},
         });
     }
 
     for (let i = 0; i < 100; i++) {
-        client.getItem({
+        void client.getItem({
             tableName: "T2",
             key: {pk: i, sk: ""},
         });
     }
 
     for (let i = 0; i < 50; i++) {
-        client.getItem({
+        void client.getItem({
             tableName: "T3",
             key: {pk: i, sk: ""},
         });
     }
 
     for (let i = 0; i < 70; i++) {
-        client.getItem({
+        void client.getItem({
             tableName: "T4",
             key: {pk: i, sk: ""},
         });
     }
 
     for (let i = 0; i < 50; i++) {
-        client.getItem({
+        void client.getItem({
             tableName: "T5",
             key: {pk: i, sk: ""},
         });
@@ -217,12 +217,12 @@ test("different read consistencies are in different batches", async () => {
     const send = createSendJestFn();
     const client = new DynamoClient({send});
 
-    client.getItem({
+    void client.getItem({
         tableName: "T1",
         key: {pk: "a", sk: 1},
         consistency: "Eventual",
     });
-    client.getItem({
+    void client.getItem({
         tableName: "T2",
         key: {pk: "b", sk: 1},
         consistency: "Strong",

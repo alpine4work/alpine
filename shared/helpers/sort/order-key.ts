@@ -131,7 +131,7 @@ function incrementIntegerOrderKey(x: OrderKey): OrderKey | null {
         }
         return (h + digits.join("")) as OrderKey;
     } else {
-        return (head + digits.join("")) as OrderKey;
+        return (head! + digits.join("")) as OrderKey;
     }
 }
 
@@ -157,7 +157,7 @@ function decrementIntegerOrderKey(x: OrderKey): OrderKey | null {
         else digits.pop();
         return (h + digits.join("")) as OrderKey;
     } else {
-        return (head + digits.join("")) as OrderKey;
+        return (head! + digits.join("")) as OrderKey;
     }
 }
 

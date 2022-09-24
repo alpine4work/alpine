@@ -9,8 +9,8 @@ import React from "react";
 import ReactDom from "react-dom";
 
 if (process.env.NODE_ENV === "development" && typeof window !== "undefined") {
-    import("@axe-core/react").then(({default: axe}) => {
-        axe(React, ReactDom, 1000, {
+    void import("@axe-core/react").then(async ({default: axe}) => {
+        await axe(React, ReactDom, 1000, {
             rules: [
                 // We are building an app with web technology. Apps do not allow users to pinch
                 // and zoom in.
