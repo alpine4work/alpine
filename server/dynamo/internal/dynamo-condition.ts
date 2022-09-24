@@ -150,7 +150,7 @@ export abstract class DynamoConditionExpression<Value> {
      * the attribute value is null. In JavaScript, a property that doesn't exist is
      * represented by `undefined`.
      */
-    public static exists<Value extends undefined>(): DynamoConditionExpression<Value> {
+    public static exists<Value>(): DynamoConditionExpression<Value> {
         return new DynamoConditionAttributeExistsExpression();
     }
 
@@ -541,9 +541,7 @@ class DynamoConditionInExpression<Value> extends DynamoConditionExpression<Value
     }
 }
 
-class DynamoConditionAttributeExistsExpression<
-    Value extends undefined,
-> extends DynamoConditionExpression<Value> {
+class DynamoConditionAttributeExistsExpression<Value> extends DynamoConditionExpression<Value> {
     public compile(
         schema: SchemaWithOnlySerialization<Value>,
         context: DynamoConditionExpressionCompilationContext,
