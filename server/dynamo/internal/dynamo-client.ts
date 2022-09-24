@@ -14,6 +14,7 @@ import {Command, MetadataBearer} from "@aws-sdk/types";
 import {expectTypeOf} from "expect-type";
 import jsonStableStringify from "json-stable-stringify";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo-transaction-entry";
+import {classifyDynamoError} from "~/server/dynamo/internal/classify-dynamo-error";
 import {DeadlineExceededError, InternalError, InvalidArgumentError} from "~/shared/error/error";
 import {isReadonlyArray} from "~/shared/helpers/array/is-readonly-array";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise-resolver";
@@ -82,7 +83,7 @@ export class DynamoClient {
     private readonly _writeItemBatcher: DynamoClientWriteItemBatcher;
 
     constructor(client: DynamoWrappedClientInterface) {
-        this._client = client;
+        this._client = classifyDynamoWrappedClientErrors(client);
 
         this._getItemBatcherByConsistency = {
             Eventual: new DynamoClientGetItemBatcher(this._client, "Eventual"),
@@ -1084,4 +1085,15 @@ function fromDynamoAttributeValueObject(value: {
     }
 
     return newObject;
+}
+
+function classifyDynamoWrappedClientErrors(
+    client: DynamoWrappedClientInterface,
+): DynamoWrappedClientInterface {
+    return {
+        send: command =>
+            client.send(command).catch(error => {
+                throw classifyDynamoError(error);
+            }),
+    };
 }
