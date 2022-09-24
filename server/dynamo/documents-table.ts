@@ -1,13 +1,23 @@
+import {Step} from "prosemirror-transform";
 import {DynamoConditionExpression} from "~/server/dynamo/internal/dynamo-condition";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo-key-attribute-schema";
-import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo-table-schema";
+import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo-table-schema";
 import {RequestContext} from "~/server/request/request-context";
+import {RequestTextCheckpoint} from "~/server/request/request-text-checkpoint";
 import {
     DocumentContent,
     DocumentContentSchema,
     DocumentContentStepSchema,
+    isDocumentContent,
 } from "~/shared/content/document-content-schema";
+import {
+    DataLossError,
+    FailedPreconditionError,
+    InvalidArgumentError,
+    NotFoundError,
+} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
+import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {Id} from "~/shared/id/id";
 import {Schema} from "~/shared/schema/schema";
 
@@ -123,24 +133,28 @@ function getDocumentContentTitle(content: DocumentContent): string {
     return childNode.textContent;
 }
 
-export type DocumentForCreate = {
-    readonly id: Id;
-    readonly content: DocumentContent;
-};
-
 /**
  * Creates a new document with no history using the initial content provided.
  */
-export async function createDocument(context: RequestContext, document: DocumentForCreate) {
+export async function createDocument(
+    context: RequestContext,
+    {
+        id,
+        content,
+    }: {
+        id: Id;
+        content: DocumentContent;
+    },
+) {
     await context.executeTransaction([
         DocumentsTable.transactionPutItem(
             context,
             {
                 partitionType: "Document",
-                documentId: document.id,
+                documentId: id,
                 sortRangeType: "Attributes",
                 version: 0,
-                title: getDocumentContentTitle(document.content),
+                title: getDocumentContentTitle(content),
             },
             {
                 condition: {
@@ -154,10 +168,191 @@ export async function createDocument(context: RequestContext, document: Document
         ),
         DocumentsTable.transactionPutItem(context, {
             partitionType: "Document",
-            documentId: document.id,
+            documentId: id,
             sortRangeType: "Snapshot",
             version: 0,
-            content: document.content,
+            content,
         }),
+    ]);
+}
+
+export type Document = {
+    readonly id: Id;
+    readonly title: string;
+    readonly version: number;
+    readonly content: DocumentContent;
+};
+
+async function readDocumentAndAttributes(
+    context: RequestContext,
+    id: Id,
+): Promise<{
+    attributes: DynamoTableItemType<typeof DocumentsTable, "Document", "Attributes">;
+    document: Document;
+} | null> {
+    let attributes: DynamoTableItemType<typeof DocumentsTable, "Document", "Attributes"> | null =
+        null;
+
+    const stepByVersion = new Map<
+        number,
+        DynamoTableItemType<typeof DocumentsTable, "Document", "StepsAfterSnapshot">
+    >();
+
+    let snapshot: DynamoTableItemType<typeof DocumentsTable, "Document", "Snapshot"> | null = null;
+
+    for await (const item of DocumentsTable.query(context, {
+        startKey: {
+            partitionType: "Document",
+            documentId: id,
+            sortRangeType: "Attributes",
+        },
+        endKey: {
+            partitionType: "Document",
+            documentId: id,
+            sortRangeType: "Snapshot",
+        },
+    })) {
+        switch (item.sortRangeType) {
+            case "Attributes":
+                attributes = item;
+                break;
+            case "StepsAfterSnapshot":
+                stepByVersion.set(item.version, item);
+                break;
+            case "Snapshot":
+                snapshot = item;
+                break;
+            default:
+                throw exhaustive(item);
+        }
+    }
+
+    if (attributes === null) {
+        assert(
+            !snapshot && stepByVersion.size === 0,
+            "Document with no attributes should not have snapshot",
+        );
+        return null;
+    }
+
+    if (!snapshot) throw new DataLossError("Document with attributes should also have a snapshot");
+
+    if (snapshot.version > attributes.version)
+        throw new DataLossError("Document snapshot version is ahead of version attribute");
+
+    let content = snapshot.content;
+
+    for (let version = snapshot.version; version < attributes.version; version++) {
+        const step = stepByVersion.get(version);
+        if (!step) throw new DataLossError("Missing step after document snapshot");
+
+        const stepResult = step.step.apply(content);
+        if (!stepResult.doc)
+            throw new DataLossError(
+                `Step after document snapshot could not be applied: ${stepResult.failed!}`,
+            );
+
+        assert(isDocumentContent(stepResult.doc));
+        content = stepResult.doc;
+    }
+
+    return {
+        attributes,
+        document: {
+            id: id,
+            title: attributes.title,
+            version: attributes.version,
+            content,
+        },
+    };
+}
+
+/**
+ * Read the full document with the provided id.
+ */
+export async function readDocument(context: RequestContext, id: Id): Promise<Document | null> {
+    const documentAndAttributes = await readDocumentAndAttributes(context, id);
+    return documentAndAttributes?.document ?? null;
+}
+
+export const updateDocumentBeforeExecuteTransactionTestCheckpoint = new RequestTextCheckpoint();
+
+/**
+ * Updates our document by applying some steps. You may update a document no
+ * more than 20 steps at a time. The version number must match the current
+ * document version. Otherwise you will get an error.
+ */
+export async function updateDocument(
+    context: RequestContext,
+    {
+        id,
+        version,
+        steps,
+    }: {
+        id: Id;
+        version: number;
+        steps: ReadonlyArray<Step>;
+    },
+) {
+    // This limit is in place because of [`TransactWriteItem`s][1] 25 action limit.
+    //
+    // [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
+    if (steps.length > 20)
+        throw new InvalidArgumentError("Can not update a document more than 20 steps at a time");
+
+    // TODO(calebmer): Implement synchronous cache for recently updated documents?
+    const documentAndAttributes = await readDocumentAndAttributes(context, id);
+    if (!documentAndAttributes)
+        throw new NotFoundError("Can not update document that doesn't exist");
+    const {attributes, document} = documentAndAttributes;
+
+    // TODO(calebmer): Rebase steps instead of failing
+    if (document.version !== version)
+        throw new FailedPreconditionError(
+            "Incorrect document version, try rebasing your steps on the current document version",
+        );
+
+    // TODO(calebmer): Save new snapshot
+
+    let content = document.content;
+    for (const step of steps) {
+        const stepResult = step.apply(content);
+        if (!stepResult.doc)
+            throw new FailedPreconditionError(
+                `Could not apply step to document: ${stepResult.failed!}`,
+            );
+
+        assert(isDocumentContent(stepResult.doc));
+        content = stepResult.doc;
+    }
+
+    // This checkpoint allows us to write a test against our transaction's
+    // condition.
+    await updateDocumentBeforeExecuteTransactionTestCheckpoint.waitForTest(context);
+
+    await context.executeTransaction([
+        DocumentsTable.transactionPutItem(
+            context,
+            {
+                ...attributes,
+                version: attributes.version + steps.length,
+                title: getDocumentContentTitle(content),
+            },
+            {
+                condition: {
+                    // Make sure a concurrent writer hasn't updated the document version before us.
+                    version: attributes.version,
+                },
+            },
+        ),
+        ...steps.map((step, index) =>
+            DocumentsTable.transactionPutItem(context, {
+                partitionType: "Document",
+                documentId: id,
+                sortRangeType: "StepsAfterSnapshot",
+                version: attributes.version + index,
+                step,
+            }),
+        ),
     ]);
 }

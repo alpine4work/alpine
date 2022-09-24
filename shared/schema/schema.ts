@@ -1,4 +1,5 @@
 import {base64ToBytes, bytesToBase64} from "byte-base64";
+import {InvalidArgumentError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {hasOwnProperty} from "~/shared/helpers/object/has-own-property";
@@ -892,7 +893,7 @@ export class SchemaUnionVariant<Value> {
 /**
  * An error thrown while deserializing a schema.
  */
-export class SchemaDeserializationError extends Error {
+export class SchemaDeserializationError extends InvalidArgumentError {
     constructor(message: string) {
         const stackString = getSchemaDeserializationStackString();
 

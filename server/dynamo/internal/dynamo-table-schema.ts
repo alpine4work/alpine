@@ -5,7 +5,6 @@ import fs from "fs-extra";
 import isCi from "is-ci";
 import path from "path";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo-transaction-entry";
-import {DynamoReadConsistency} from "~/server/dynamo/internal/dynamo-client";
 import {
     DynamoCondition,
     DynamoConditionExpression,
@@ -198,7 +197,7 @@ export class DynamoTableSchema<
         for (const [attributeKey, attributeSchema] of Object.entries(
             sortRangeConfig.sortKeyAttributes,
         )) {
-            partitionKeyEntries.push(attributeSchema.serialize(key[attributeKey]));
+            sortKeyEntries.push(attributeSchema.serialize(key[attributeKey]));
         }
 
         const partitionKey = partitionKeyEntries.join(dynamoKeySeparator);
@@ -286,7 +285,6 @@ export class DynamoTableSchema<
     public async getItem<Key extends Types["Key"]>(
         context: RequestContext,
         key: Key,
-        {consistency}: {consistency?: DynamoReadConsistency} = {},
     ): Promise<MergeObjectIntersection<Types["Item"] & Key> | null> {
         const client = getDynamoClientFromRequestContext(context);
         const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
@@ -294,7 +292,7 @@ export class DynamoTableSchema<
         const serializedItem = await client.getItem({
             tableName: this._config.name,
             key: {partitionKey, sortKey},
-            consistency,
+            consistency: context.dynamoReadConsistency,
         });
 
         const item: any = {...key};
@@ -558,12 +556,10 @@ export class DynamoTableSchema<
         {
             startKey,
             endKey,
-            consistency,
             limit,
         }: {
             startKey: StartKey;
             endKey: EndKey;
-            consistency?: DynamoReadConsistency;
             limit?: number;
         },
     ): AsyncIterableIterator<
@@ -595,11 +591,13 @@ export class DynamoTableSchema<
                 startValue: startSortKey,
                 endValue: endSortKey,
             },
-            consistency,
+            consistency: context.dynamoReadConsistency,
             limit,
         });
 
         return asyncIterableIteratorMap(iterator, serializedItem => {
+
+
             assert(typeof serializedItem.partitionKey === "string");
             assert(typeof serializedItem.sortKey === "string");
 

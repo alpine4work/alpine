@@ -2,7 +2,7 @@ import {DynamoDBClient} from "@aws-sdk/client-dynamodb";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo-transaction-entry";
 // The request context currently owns the DynamoDB client object.
 // eslint-disable-next-line no-internal-imports
-import {DynamoClient} from "~/server/dynamo/internal/dynamo-client";
+import {DynamoClient, DynamoReadConsistency} from "~/server/dynamo/internal/dynamo-client";
 import {assert} from "~/shared/helpers/control/assert";
 import {Id, generateId} from "~/shared/id/id";
 
@@ -26,9 +26,24 @@ export class RequestContext {
      */
     private readonly _dynamoClient: DynamoClient;
 
-    private constructor({requestId, dynamoClient}: {requestId: Id; dynamoClient: DynamoClient}) {
+    /**
+     * The consistency for reads in this request context. Eventual consistency is
+     * faster but you may see stale data.
+     */
+    public readonly dynamoReadConsistency: DynamoReadConsistency;
+
+    private constructor({
+        requestId,
+        dynamoClient,
+        dynamoReadConsistency,
+    }: {
+        requestId: Id;
+        dynamoClient: DynamoClient;
+        dynamoReadConsistency: DynamoReadConsistency;
+    }) {
         this.requestId = requestId;
         this._dynamoClient = dynamoClient;
+        this.dynamoReadConsistency = dynamoReadConsistency;
     }
 
     /**
@@ -39,6 +54,8 @@ export class RequestContext {
         return new RequestContext({
             requestId: generateId(),
             dynamoClient: getDynamoClientForTest(),
+            // In tests we should always read the last value to be written.
+            dynamoReadConsistency: "Strong",
         });
     }
 

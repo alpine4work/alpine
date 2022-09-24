@@ -1,3 +1,4 @@
+import {InternalError} from "~/shared/error/error";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {SchemaDescription} from "~/shared/schema/types/schema-description-types";
 
@@ -165,7 +166,7 @@ export function checkSchemaDescriptionBackwardsCompatibility(
  * An error thrown while checking whether a schema is backwards compatible
  * with another.
  */
-export class SchemaDescriptionBackwardsIncompatibleError extends Error {
+export class SchemaDescriptionBackwardsIncompatibleError extends InternalError {
     constructor(message: string) {
         const stackString = getSchemaDescriptionStackString();
 
