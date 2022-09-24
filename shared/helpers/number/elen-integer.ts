@@ -1,3 +1,4 @@
+import {InvalidArgumentError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {quote} from "~/shared/helpers/string/quote";
 
@@ -97,7 +98,7 @@ function flipDigitChar(digitChar: string): string {
         case "9":
             return "0";
         default:
-            throw new Error(quote`Unexpected digit character ${digitChar}`);
+            throw new InvalidArgumentError(quote`Unexpected digit character ${digitChar}`);
     }
 }
 

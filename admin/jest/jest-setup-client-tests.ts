@@ -6,6 +6,8 @@
 // ```
 import "@testing-library/jest-dom";
 
+import {InternalError} from "~/shared/error/error";
+
 // Pretend we are on a Mac for tests. Most of our programmers use Mac for
 // development so it's more natural to use those platform conventions.
 //
@@ -23,7 +25,7 @@ if (!Range.prototype.getClientRects) {
         return clientRects as any as DOMRectList;
     };
 } else {
-    throw new Error("Yay! jsdom supports this now, we can remove our polyfill");
+    throw new InternalError("Yay! jsdom supports this now, we can remove our polyfill");
 }
 
 // Polyfill: https://developer.mozilla.org/en-US/docs/Web/API/Range/getBoundingClientRect
@@ -59,7 +61,7 @@ if (!Range.prototype.getBoundingClientRect) {
         } as DOMRect;
     };
 } else {
-    throw new Error("Yay! jsdom supports this now, we can remove our polyfill");
+    throw new InternalError("Yay! jsdom supports this now, we can remove our polyfill");
 }
 
 // Polyfill: https://developer.mozilla.org/en-US/docs/Web/API/Window/matchMedia
@@ -71,5 +73,5 @@ if (!window.matchMedia) {
         removeEventListener: jest.fn(),
     }));
 } else {
-    throw new Error("Yay! jsdom supports this now, we can remove our polyfill");
+    throw new InternalError("Yay! jsdom supports this now, we can remove our polyfill");
 }

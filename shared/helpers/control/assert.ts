@@ -1,3 +1,5 @@
+import {InternalError} from "~/shared/error/error";
+
 /**
  * Throws an assertion error if the condition is falsy.
  *
@@ -9,6 +11,6 @@
  */
 export function assert(condition: unknown, message?: string): asserts condition {
     if (!condition) {
-        throw new Error(message ? `Assertion failure: ${message}` : "Assertion failure");
+        throw new InternalError(message ? `Assertion failure: ${message}` : "Assertion failure");
     }
 }

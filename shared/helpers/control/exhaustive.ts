@@ -1,3 +1,5 @@
+import {InternalError} from "~/shared/error/error";
+
 /**
  * Exhaustiveness check for TypeScript. When you call this function TypeScript
  * will guarantee that the value you pass in should never exist according to the
@@ -36,13 +38,13 @@ export function exhaustive(value: never): Error {
         }
         if (sentinelProperty) {
             const sentinelPropertyValue = JSON.stringify(value[sentinelProperty]);
-            return new Error(
+            return new InternalError(
                 `Unexpected object of ${sentinelProperty} ${sentinelPropertyValue} in exhaustive check`,
             );
         }
     }
 
-    return new Error("Unexpected value in exhaustive check");
+    return new InternalError("Unexpected value in exhaustive check");
 }
 
 const commonSentinelProperties = ["type", "kind"];

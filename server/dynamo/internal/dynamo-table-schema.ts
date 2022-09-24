@@ -20,6 +20,7 @@ import {DynamoTableSchemaTypes} from "~/server/dynamo/internal/types/dynamo-tabl
 import {repoDirectoryPath} from "~/server/helpers/repo-directory-path";
 import {RequestContext} from "~/server/request/request-context";
 import {checkSchemaDescriptionBackwardsCompatibility} from "~/server/schema/check-schema-description-backwards-compatibility";
+import {InvalidArgumentError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {isDeepEqual} from "~/shared/helpers/control/is-deep-equal";
 import {asyncIterableIteratorMap} from "~/shared/helpers/iterable/async-iterable-iterator-map";
@@ -47,6 +48,17 @@ const dynamoGeneratedDirectoryPath = path.join(
 
 export type DynamoTableSchemaGetTypes<Schema extends DynamoTableSchema<any>> =
     Schema extends DynamoTableSchema<infer Types> ? Types : never;
+
+export type DynamoTableItemType<
+    Schema extends DynamoTableSchema<any>,
+    PartitionType extends string,
+    SortRangeType extends string,
+> = MergeObjectIntersection<
+    DynamoTableSchemaGetTypes<Schema>["Item"] & {
+        readonly partitionType: PartitionType;
+        readonly sortRangeType: SortRangeType;
+    }
+>;
 
 /**
  * Abstraction over DynamoDB tables for defining the type of data that resides
@@ -568,7 +580,9 @@ export class DynamoTableSchema<
         const {partitionKey: endPartitionKey, sortKey: endSortKey} = this._serializeKey(endKey);
 
         if (startPartitionKey !== endPartitionKey)
-            throw new Error("The partition key of our start key and end key should be the same");
+            throw new InvalidArgumentError(
+                "The partition key of our start key and end key should be the same",
+            );
 
         const iterator = client.query({
             tableName: this._config.name,
@@ -699,7 +713,7 @@ function getAndCheckDynamoTableSchemaDescriptions(config: DynamoTableSchemaTypes
                             lastExistingSortRangeOrderKey !== null &&
                             lastExistingSortRangeOrderKey >= existingSortRangeOrderKey
                         ) {
-                            throw new Error(
+                            throw new InvalidArgumentError(
                                 `Order key for sort range \`${sortRangeType}\` is less than a previous sort range order key. Did you reorder your sort range object?`,
                             );
                         }
@@ -791,7 +805,7 @@ function checkDynamoTableSchemaDescriptionBackwardsCompatibility(
     nextDescription: DynamoTableSchemaTypes.Description,
 ): void {
     if (lastDescription.name !== nextDescription.name)
-        throw new Error(
+        throw new InvalidArgumentError(
             `Table name \`${lastDescription.name}\` is not the same as \`${nextDescription.name}\``,
         );
 
@@ -810,7 +824,7 @@ function checkDynamoTableSchemaDescriptionBackwardsCompatibility(
     }
 
     for (const partitionName of missingPartitionTypes)
-        throw new Error(`Partition \`${partitionName}\` is missing`);
+        throw new InvalidArgumentError(`Partition \`${partitionName}\` is missing`);
 }
 
 function checkDynamoTablePartitionSchemaDescriptionBackwardsCompatibility(
@@ -824,7 +838,7 @@ function checkDynamoTablePartitionSchemaDescriptionBackwardsCompatibility(
     // Require partition key to always be exactly what was initially configured. No
     // migrations!
     if (!isDeepEqual(lastKeyAttributeDescriptions, nextKeyAttributeDescriptions))
-        throw new Error(`Incompatible partition key for partition \`${type}\``);
+        throw new InvalidArgumentError(`Incompatible partition key for partition \`${type}\``);
 
     const missingSortRangeTypes = new Set(Object.keys(lastDescription.sortRangeByType));
 
@@ -841,7 +855,7 @@ function checkDynamoTablePartitionSchemaDescriptionBackwardsCompatibility(
     }
 
     for (const sortRange of missingSortRangeTypes)
-        throw new Error(`Sort range \`${sortRange}\` is missing`);
+        throw new InvalidArgumentError(`Sort range \`${sortRange}\` is missing`);
 }
 
 function checkDynamoTableSortRangeSchemaDescriptionBackwardsCompatibility(
@@ -855,10 +869,10 @@ function checkDynamoTableSortRangeSchemaDescriptionBackwardsCompatibility(
     // Require partition key to always be exactly what was initially configured. No
     // migrations!
     if (!isDeepEqual(lastKeyAttributeDescriptions, nextKeyAttributeDescriptions))
-        throw new Error(`Incompatible sort key for sort range \`${type}\``);
+        throw new InvalidArgumentError(`Incompatible sort key for sort range \`${type}\``);
 
     if (lastDescription.orderKey !== nextDescription.orderKey)
-        throw new Error(`Incompatible order key for sort range \`${type}\``);
+        throw new InvalidArgumentError(`Incompatible order key for sort range \`${type}\``);
 
     checkSchemaDescriptionBackwardsCompatibility(
         lastDescription.attributesSchema,

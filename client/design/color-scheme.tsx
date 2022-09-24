@@ -1,4 +1,5 @@
 import {useEffect, useState} from "react";
+import {InternalError} from "~/shared/error/error";
 import {scheduleException} from "~/shared/helpers/async/schedule-exception";
 import {assert} from "~/shared/helpers/control/assert";
 
@@ -29,7 +30,7 @@ function getColorScheme(): ColorScheme | null {
 const colorSchemeListeners = new Set<(colorScheme: ColorScheme) => void>();
 
 function setColorScheme(colorScheme: ColorScheme) {
-    if (typeof document === "undefined") throw new Error("Can not set color scheme on the server");
+    assert(typeof document !== "undefined", "Can not set color scheme on the server");
 
     document.documentElement.dataset.colorScheme = colorScheme;
     localStorage.setItem("colorScheme", colorScheme);
@@ -51,8 +52,7 @@ function setColorScheme(colorScheme: ColorScheme) {
  * setting.
  */
 export function toggleColorScheme() {
-    if (typeof document === "undefined")
-        throw new Error("Can not toggle color scheme on the server");
+    assert(typeof document !== "undefined", "Can not toggle color scheme on the server");
 
     const colorScheme = getColorScheme();
     assert(colorScheme);

@@ -1,6 +1,7 @@
 import {spawn} from "child_process";
 import path from "path";
 import {repoDirectoryPath} from "~/server/helpers/repo-directory-path";
+import {UnknownError} from "~/shared/error/error";
 import {isNotNullishOrFalse} from "~/shared/helpers/control/is-not-nullish-or-false";
 import {quote} from "~/shared/helpers/string/quote";
 
@@ -82,7 +83,7 @@ export async function runProcess(
                     resolve();
                 } else {
                     reject(
-                        new Error(
+                        new UnknownError(
                             `${nameMessage} process exited with code ${exitCode}${stderrMessage}`,
                         ),
                     );
@@ -90,7 +91,7 @@ export async function runProcess(
             } else {
                 const signalMessage = signal !== null ? quote`${signal}` : "null";
                 reject(
-                    new Error(
+                    new UnknownError(
                         `${nameMessage} process exited by signal ${signalMessage}${stderrMessage}`,
                     ),
                 );

@@ -9,6 +9,7 @@ module.exports = {
         //
         // TODO(calebmer): Consider putting these in a plugin instead of a custom
         // rules directory to simplify things.
+        "no-global-error": "error",
         "sort-imports-by-source": "warn",
         "no-internal-imports": "error",
 
@@ -278,6 +279,9 @@ module.exports = {
                 // `require()` is ok in a JS file.
                 "@typescript-eslint/no-var-requires": "off",
                 "import/no-commonjs": "off",
+
+                // Can't import our TypeScript helpers from a JS file.
+                "no-global-error": "off",
             },
         },
         {

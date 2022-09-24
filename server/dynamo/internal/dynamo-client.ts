@@ -14,6 +14,7 @@ import {Command, MetadataBearer} from "@aws-sdk/types";
 import {expectTypeOf} from "expect-type";
 import jsonStableStringify from "json-stable-stringify";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo-transaction-entry";
+import {DeadlineExceededError, InternalError, InvalidArgumentError} from "~/shared/error/error";
 import {isReadonlyArray} from "~/shared/helpers/array/is-readonly-array";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise-resolver";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule-microtask";
@@ -142,7 +143,9 @@ export class DynamoClient {
         // Make sure that all the properties in our `key` also exist in our `item`.
         for (const keyEntry of Object.entries(key)) {
             if (!isDeepEqual(keyEntry[1], item[keyEntry[0]]))
-                throw new Error(quote`Key attribute ${keyEntry[0]} is different in key and item`);
+                throw new InvalidArgumentError(
+                    quote`Key attribute ${keyEntry[0]} is different in key and item`,
+                );
         }
 
         // Writes without a condition may be batched.
@@ -153,12 +156,15 @@ export class DynamoClient {
             TableName: tableName,
             Item: intoDynamoAttributeValueObject(item),
             ConditionExpression: conditionExpression,
-            ExpressionAttributeValues: Object.fromEntries(
-                iterableMap(expressionAttributeValues ?? [], ([name, value]) => [
-                    name,
-                    intoDynamoAttributeValue(value),
-                ]),
-            ),
+            ExpressionAttributeValues:
+                expressionAttributeValues && expressionAttributeValues.size > 0
+                    ? Object.fromEntries(
+                          iterableMap(expressionAttributeValues, ([name, value]) => [
+                              name,
+                              intoDynamoAttributeValue(value),
+                          ]),
+                      )
+                    : undefined,
         });
 
         await this._client.send(command);
@@ -194,12 +200,15 @@ export class DynamoClient {
             TableName: tableName,
             Key: intoDynamoAttributeValueObject(key),
             ConditionExpression: conditionExpression,
-            ExpressionAttributeValues: Object.fromEntries(
-                iterableMap(expressionAttributeValues ?? [], ([name, value]) => [
-                    name,
-                    intoDynamoAttributeValue(value),
-                ]),
-            ),
+            ExpressionAttributeValues:
+                expressionAttributeValues && expressionAttributeValues.size > 0
+                    ? Object.fromEntries(
+                          iterableMap(expressionAttributeValues, ([name, value]) => [
+                              name,
+                              intoDynamoAttributeValue(value),
+                          ]),
+                      )
+                    : undefined,
         });
 
         await this._client.send(command);
@@ -247,14 +256,17 @@ export class DynamoClient {
                 TableName: tableName,
                 Item: intoDynamoAttributeValueObject(item),
                 ConditionExpression: conditionExpression,
-                ExpressionAttributeValues: conditionExpression
-                    ? Object.fromEntries(
-                          iterableMap(expressionAttributeValues ?? [], ([name, value]) => [
-                              name,
-                              intoDynamoAttributeValue(value),
-                          ]),
-                      )
-                    : undefined,
+                ExpressionAttributeValues:
+                    conditionExpression &&
+                    expressionAttributeValues &&
+                    expressionAttributeValues.size > 0
+                        ? Object.fromEntries(
+                              iterableMap(expressionAttributeValues, ([name, value]) => [
+                                  name,
+                                  intoDynamoAttributeValue(value),
+                              ]),
+                          )
+                        : undefined,
             },
         });
     }
@@ -282,14 +294,17 @@ export class DynamoClient {
                 TableName: tableName,
                 Key: intoDynamoAttributeValueObject(key),
                 ConditionExpression: conditionExpression,
-                ExpressionAttributeValues: conditionExpression
-                    ? Object.fromEntries(
-                          iterableMap(expressionAttributeValues ?? [], ([name, value]) => [
-                              name,
-                              intoDynamoAttributeValue(value),
-                          ]),
-                      )
-                    : undefined,
+                ExpressionAttributeValues:
+                    conditionExpression &&
+                    expressionAttributeValues &&
+                    expressionAttributeValues.size > 0
+                        ? Object.fromEntries(
+                              iterableMap(expressionAttributeValues, ([name, value]) => [
+                                  name,
+                                  intoDynamoAttributeValue(value),
+                              ]),
+                          )
+                        : undefined,
             },
         });
     }
@@ -317,14 +332,17 @@ export class DynamoClient {
                 TableName: tableName,
                 Key: intoDynamoAttributeValueObject(key),
                 ConditionExpression: conditionExpression,
-                ExpressionAttributeValues: conditionExpression
-                    ? Object.fromEntries(
-                          iterableMap(expressionAttributeValues ?? [], ([name, value]) => [
-                              name,
-                              intoDynamoAttributeValue(value),
-                          ]),
-                      )
-                    : undefined,
+                ExpressionAttributeValues:
+                    conditionExpression &&
+                    expressionAttributeValues &&
+                    expressionAttributeValues.size > 0
+                        ? Object.fromEntries(
+                              iterableMap(expressionAttributeValues, ([name, value]) => [
+                                  name,
+                                  intoDynamoAttributeValue(value),
+                              ]),
+                          )
+                        : undefined,
             },
         });
     }
@@ -577,7 +595,7 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
                 const delayMs = 50 * 2 ** (attemptNumber - 1);
 
                 if (delayMs > 1000 * 60)
-                    throw new Error(
+                    throw new DeadlineExceededError(
                         `Could not finish executing batch after ${attemptNumber} attempts`,
                     );
 
@@ -953,7 +971,9 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
                     } else if (unprocessedItem.DeleteRequest && unprocessedItem.DeleteRequest.Key) {
                         key = fromDynamoAttributeValueObject(unprocessedItem.DeleteRequest.Key);
                     } else {
-                        throw new Error('Unrecognized unprocessed item in "BatchWriteItem" output');
+                        throw new InternalError(
+                            'Unrecognized unprocessed item in "BatchWriteItem" output',
+                        );
                     }
 
                     const keyString = jsonStableStringify(key);
@@ -1050,7 +1070,7 @@ function fromDynamoAttributeValue(value: AttributeValue): SchemaSerializedValue 
     if (value.B !== undefined) return new JsonStringifiableUint8Array(value.B);
     if (value.M !== undefined) return fromDynamoAttributeValueObject(value.M);
 
-    throw new Error("Unexpected DynamoDB attribute value");
+    throw new InternalError("Unexpected DynamoDB attribute value");
 }
 
 function fromDynamoAttributeValueObject(value: {

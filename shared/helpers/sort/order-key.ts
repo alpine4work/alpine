@@ -1,6 +1,7 @@
 // This code was derived from:
 // https://observablehq.com/@dgreensp/implementing-fractional-indexing
 
+import {InvalidArgumentError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 
 /**
@@ -97,7 +98,7 @@ function getOrderKeyIntegerPartLength(head: string) {
     if (head >= "a" && head <= "z") return head.charCodeAt(0) - "a".charCodeAt(0) + 2;
     if (head >= "A" && head <= "Z") return "Z".charCodeAt(0) - head.charCodeAt(0) + 2;
 
-    throw new Error("Unexpected head character");
+    throw new InvalidArgumentError("Unexpected head character");
 }
 
 function getOrderKeyIntegerPart(key: OrderKey): OrderKey {
