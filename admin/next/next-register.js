@@ -63,4 +63,29 @@ delete swcOptions.pagesDir;
 swcOptions.jsc.baseUrl = resolvedBaseUrl;
 swcOptions.jsc.paths = jsConfig.compilerOptions.paths;
 
+swcOptions.ignore = [
+    // Don't compile third-party code.
+    /node_modules/,
+    // Don't compile CSS files with SWC. We will use Babel to compile CSS files to
+    // add a custom plugin.
+    /^.+\.css\.(js|jsx|ts|tsx|mjs)$/,
+];
+
 require("@swc/register")(swcOptions);
+
+// Compile CSS files with Babel so we can use the `vanilla-extract` Babel plugin.
+require("@babel/register")({
+    only: [/^.+\.css\.(js|jsx|ts|tsx|mjs)$/],
+    ignore: [/node_modules/],
+    extensions: [".js", ".jsx", ".ts", ".tsx", ".mjs"],
+    presets: ["next/babel"],
+    plugins: ["@vanilla-extract/babel-plugin"],
+});
+
+// The SWC compiler will use our TypeScript config to compile import paths but
+// our Babel compiler won't. So register `tsconfig-paths` to handle imports
+// from code compiled with Babel.
+//
+// Maybe in the future convert this to a Babel plugin so it only runs with
+// Babel compiled code and matches SWC?
+require("tsconfig-paths/register");
