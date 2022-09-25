@@ -22,6 +22,7 @@ export type SchemaScalarDescription =
     | {readonly type: "Float"}
     | {readonly type: "Integer"}
     | {readonly type: "String"}
+    | {readonly type: "Id"}
     | {readonly type: "Bytes"}
     | {readonly type: "Value"; readonly value: number | boolean | string};
 

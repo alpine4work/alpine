@@ -44,6 +44,12 @@
                                     "type": "Unknown"
                                 },
                                 "optional": false
+                            },
+                            "clientId": {
+                                "valueSchema": {
+                                    "type": "Id"
+                                },
+                                "optional": false
                             }
                         }
                     }
@@ -82,6 +88,12 @@
                             "step": {
                                 "valueSchema": {
                                     "type": "Unknown"
+                                },
+                                "optional": false
+                            },
+                            "clientId": {
+                                "valueSchema": {
+                                    "type": "Id"
                                 },
                                 "optional": false
                             }

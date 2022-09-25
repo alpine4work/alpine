@@ -35,7 +35,7 @@ export function checkSchemaDescriptionBackwardsCompatibility(
     switch (nextSchema.type) {
         case "Boolean":
         case "Integer":
-        case "String":
+        case "Id":
         case "Bytes": {
             if (lastSchema.type !== nextSchema.type) {
                 throw new SchemaDescriptionBackwardsIncompatibleError(
@@ -47,6 +47,15 @@ export function checkSchemaDescriptionBackwardsCompatibility(
         case "Float": {
             // It is safe for an integer to become a float.
             if (lastSchema.type !== "Float" && lastSchema.type !== "Integer") {
+                throw new SchemaDescriptionBackwardsIncompatibleError(
+                    `\`${lastSchema.type}\` type is incompatible with \`${nextSchema.type}\` type`,
+                );
+            }
+            return;
+        }
+        case "String": {
+            // It is safe for an id to become a string.
+            if (lastSchema.type !== "String" && lastSchema.type !== "Id") {
                 throw new SchemaDescriptionBackwardsIncompatibleError(
                     `\`${lastSchema.type}\` type is incompatible with \`${nextSchema.type}\` type`,
                 );

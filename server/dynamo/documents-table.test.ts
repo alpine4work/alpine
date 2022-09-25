@@ -117,6 +117,7 @@ test("can update a document with a single step", async () => {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
+        clientId: generateId(),
     });
 
     {
@@ -136,6 +137,7 @@ test("can update a document with a single step", async () => {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("b"))],
+        clientId: generateId(),
     });
 
     {
@@ -155,6 +157,7 @@ test("can update a document with a single step", async () => {
         id: documentId,
         version: 2,
         steps: [new ReplaceStep(5, 5, textSlice("c"))],
+        clientId: generateId(),
     });
 
     {
@@ -183,6 +186,7 @@ test("can update a document with multiple steps", async () => {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
+        clientId: generateId(),
     });
 
     {
@@ -206,6 +210,7 @@ test("can update a document with multiple steps", async () => {
             new ReplaceStep(5, 5, textSlice("c")),
             new ReplaceStep(6, 6, textSlice("d")),
         ],
+        clientId: generateId(),
     });
 
     {
@@ -234,6 +239,7 @@ test("can not update a document if the version is greater than the current versi
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
+        clientId: generateId(),
     });
 
     {
@@ -254,6 +260,7 @@ test("can not update a document if the version is greater than the current versi
             id: documentId,
             version: 2,
             steps: [new ReplaceStep(5, 5, textSlice("c"))],
+            clientId: generateId(),
         });
     }).rejects.toThrow(FailedPreconditionError);
 
@@ -271,7 +278,7 @@ test("can not update a document if the version is greater than the current versi
     }
 });
 
-test("can not update a document if the version is less than the current version", async () => {
+test("can update a document if the version is one less than the current version", async () => {
     const documentId = generateId();
 
     await createDocument(RequestContext.test(), {
@@ -283,6 +290,7 @@ test("can not update a document if the version is less than the current version"
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
+        clientId: generateId(),
     });
 
     {
@@ -302,6 +310,7 @@ test("can not update a document if the version is less than the current version"
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("b"))],
+        clientId: generateId(),
     });
 
     {
@@ -317,13 +326,151 @@ test("can not update a document if the version is less than the current version"
         );
     }
 
-    await expect(async () => {
-        await updateDocument(RequestContext.test(), {
-            id: documentId,
-            version: 1,
-            steps: [new ReplaceStep(5, 5, textSlice("c"))],
-        });
-    }).rejects.toThrow(FailedPreconditionError);
+    await updateDocument(RequestContext.test(), {
+        id: documentId,
+        version: 1,
+        steps: [new ReplaceStep(4, 4, textSlice("c"))],
+        clientId: generateId(),
+    });
+
+    {
+        const document = await readDocument(RequestContext.test(), documentId);
+        expect(document?.version).toEqual(3);
+        expect(document?.content.toJSON()).toEqual(
+            schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("abc")]),
+                ])
+                .toJSON(),
+        );
+    }
+});
+
+test("can update a document if the version is many steps behind the current version", async () => {
+    const documentId = generateId();
+
+    await createDocument(RequestContext.test(), {
+        id: documentId,
+        content: emptyDocumentContent,
+    });
+
+    await updateDocument(RequestContext.test(), {
+        id: documentId,
+        version: 0,
+        steps: [new ReplaceStep(3, 3, textSlice("a"))],
+        clientId: generateId(),
+    });
+
+    {
+        const document = await readDocument(RequestContext.test(), documentId);
+        expect(document?.version).toEqual(1);
+        expect(document?.content.toJSON()).toEqual(
+            schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("a")]),
+                ])
+                .toJSON(),
+        );
+    }
+
+    await updateDocument(RequestContext.test(), {
+        id: documentId,
+        version: 1,
+        steps: [new ReplaceStep(4, 4, textSlice("b"))],
+        clientId: generateId(),
+    });
+
+    await updateDocument(RequestContext.test(), {
+        id: documentId,
+        version: 2,
+        steps: [new ReplaceStep(5, 5, textSlice("c"))],
+        clientId: generateId(),
+    });
+
+    await updateDocument(RequestContext.test(), {
+        id: documentId,
+        version: 3,
+        steps: [new ReplaceStep(6, 6, textSlice("d"))],
+        clientId: generateId(),
+    });
+
+    await updateDocument(RequestContext.test(), {
+        id: documentId,
+        version: 4,
+        steps: [new ReplaceStep(7, 7, textSlice("e"))],
+        clientId: generateId(),
+    });
+
+    {
+        const document = await readDocument(RequestContext.test(), documentId);
+        expect(document?.version).toEqual(5);
+        expect(document?.content.toJSON()).toEqual(
+            schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("abcde")]),
+                ])
+                .toJSON(),
+        );
+    }
+
+    await updateDocument(RequestContext.test(), {
+        id: documentId,
+        version: 1,
+        steps: [new ReplaceStep(4, 4, textSlice("f"))],
+        clientId: generateId(),
+    });
+
+    {
+        const document = await readDocument(RequestContext.test(), documentId);
+        expect(document?.version).toEqual(6);
+        expect(document?.content.toJSON()).toEqual(
+            schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("abcdef")]),
+                ])
+                .toJSON(),
+        );
+    }
+});
+
+test("can update a document with many steps if the version is one less than the current version", async () => {
+    const documentId = generateId();
+
+    await createDocument(RequestContext.test(), {
+        id: documentId,
+        content: emptyDocumentContent,
+    });
+
+    await updateDocument(RequestContext.test(), {
+        id: documentId,
+        version: 0,
+        steps: [new ReplaceStep(3, 3, textSlice("a"))],
+        clientId: generateId(),
+    });
+
+    {
+        const document = await readDocument(RequestContext.test(), documentId);
+        expect(document?.version).toEqual(1);
+        expect(document?.content.toJSON()).toEqual(
+            schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("a")]),
+                ])
+                .toJSON(),
+        );
+    }
+
+    await updateDocument(RequestContext.test(), {
+        id: documentId,
+        version: 1,
+        steps: [new ReplaceStep(4, 4, textSlice("b"))],
+        clientId: generateId(),
+    });
 
     {
         const document = await readDocument(RequestContext.test(), documentId);
@@ -333,6 +480,126 @@ test("can not update a document if the version is less than the current version"
                 .node("doc", {}, [
                     schema.node("title", {}, []),
                     schema.node("paragraph", {}, [schema.text("ab")]),
+                ])
+                .toJSON(),
+        );
+    }
+
+    await updateDocument(RequestContext.test(), {
+        id: documentId,
+        version: 1,
+        steps: [
+            new ReplaceStep(4, 4, textSlice("c")),
+            new ReplaceStep(5, 5, textSlice("d")),
+            new ReplaceStep(6, 6, textSlice("e")),
+            new ReplaceStep(7, 7, textSlice("f")),
+        ],
+        clientId: generateId(),
+    });
+
+    {
+        const document = await readDocument(RequestContext.test(), documentId);
+        expect(document?.version).toEqual(6);
+        expect(document?.content.toJSON()).toEqual(
+            schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("abcdef")]),
+                ])
+                .toJSON(),
+        );
+    }
+});
+
+test("can update a document with many steps if the version is many steps behind the current version", async () => {
+    const documentId = generateId();
+
+    await createDocument(RequestContext.test(), {
+        id: documentId,
+        content: emptyDocumentContent,
+    });
+
+    await updateDocument(RequestContext.test(), {
+        id: documentId,
+        version: 0,
+        steps: [new ReplaceStep(3, 3, textSlice("a"))],
+        clientId: generateId(),
+    });
+
+    {
+        const document = await readDocument(RequestContext.test(), documentId);
+        expect(document?.version).toEqual(1);
+        expect(document?.content.toJSON()).toEqual(
+            schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("a")]),
+                ])
+                .toJSON(),
+        );
+    }
+
+    await updateDocument(RequestContext.test(), {
+        id: documentId,
+        version: 1,
+        steps: [new ReplaceStep(4, 4, textSlice("b"))],
+        clientId: generateId(),
+    });
+
+    await updateDocument(RequestContext.test(), {
+        id: documentId,
+        version: 2,
+        steps: [new ReplaceStep(5, 5, textSlice("c"))],
+        clientId: generateId(),
+    });
+
+    await updateDocument(RequestContext.test(), {
+        id: documentId,
+        version: 3,
+        steps: [new ReplaceStep(6, 6, textSlice("d"))],
+        clientId: generateId(),
+    });
+
+    await updateDocument(RequestContext.test(), {
+        id: documentId,
+        version: 4,
+        steps: [new ReplaceStep(7, 7, textSlice("e"))],
+        clientId: generateId(),
+    });
+
+    {
+        const document = await readDocument(RequestContext.test(), documentId);
+        expect(document?.version).toEqual(5);
+        expect(document?.content.toJSON()).toEqual(
+            schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("abcde")]),
+                ])
+                .toJSON(),
+        );
+    }
+
+    await updateDocument(RequestContext.test(), {
+        id: documentId,
+        version: 1,
+        steps: [
+            new ReplaceStep(4, 4, textSlice("f")),
+            new ReplaceStep(5, 5, textSlice("g")),
+            new ReplaceStep(6, 6, textSlice("h")),
+            new ReplaceStep(7, 7, textSlice("i")),
+        ],
+        clientId: generateId(),
+    });
+
+    {
+        const document = await readDocument(RequestContext.test(), documentId);
+        expect(document?.version).toEqual(9);
+        expect(document?.content.toJSON()).toEqual(
+            schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("abcdefghi")]),
                 ])
                 .toJSON(),
         );
@@ -351,6 +618,7 @@ test("one document update wins when two document updates race", async () => {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
+        clientId: generateId(),
     });
 
     {
@@ -373,6 +641,7 @@ test("one document update wins when two document updates race", async () => {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("b"))],
+        clientId: generateId(),
     });
 
     const {unpause: unpauseRequest2} = await request2PausePromise;
@@ -394,6 +663,7 @@ test("one document update wins when two document updates race", async () => {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("c"))],
+        clientId: generateId(),
     });
 
     {
@@ -421,6 +691,128 @@ test("one document update wins when two document updates race", async () => {
                 .node("doc", {}, [
                     schema.node("title", {}, []),
                     schema.node("paragraph", {}, [schema.text("ac")]),
+                ])
+                .toJSON(),
+        );
+    }
+});
+
+test("can not apply an invalid step", async () => {
+    const documentId = generateId();
+
+    await createDocument(RequestContext.test(), {
+        id: documentId,
+        content: emptyDocumentContent,
+    });
+
+    await updateDocument(RequestContext.test(), {
+        id: documentId,
+        version: 0,
+        steps: [new ReplaceStep(3, 3, textSlice("a"))],
+        clientId: generateId(),
+    });
+
+    {
+        const document = await readDocument(RequestContext.test(), documentId);
+        expect(document?.version).toEqual(1);
+        expect(document?.content.toJSON()).toEqual(
+            schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("a")]),
+                ])
+                .toJSON(),
+        );
+    }
+
+    await expect(async () => {
+        await updateDocument(RequestContext.test(), {
+            id: documentId,
+            version: 1,
+            steps: [new ReplaceStep(5, 5, textSlice("b"))],
+            clientId: generateId(),
+        });
+    }).rejects.toThrow(FailedPreconditionError);
+
+    {
+        const document = await readDocument(RequestContext.test(), documentId);
+        expect(document?.version).toEqual(1);
+        expect(document?.content.toJSON()).toEqual(
+            schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("a")]),
+                ])
+                .toJSON(),
+        );
+    }
+});
+
+test("can not apply an invalid step even when rebasing", async () => {
+    const documentId = generateId();
+
+    await createDocument(RequestContext.test(), {
+        id: documentId,
+        content: emptyDocumentContent,
+    });
+
+    await updateDocument(RequestContext.test(), {
+        id: documentId,
+        version: 0,
+        steps: [new ReplaceStep(3, 3, textSlice("a"))],
+        clientId: generateId(),
+    });
+
+    {
+        const document = await readDocument(RequestContext.test(), documentId);
+        expect(document?.version).toEqual(1);
+        expect(document?.content.toJSON()).toEqual(
+            schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("a")]),
+                ])
+                .toJSON(),
+        );
+    }
+
+    await updateDocument(RequestContext.test(), {
+        id: documentId,
+        version: 1,
+        steps: [new ReplaceStep(4, 4, textSlice("b"))],
+        clientId: generateId(),
+    });
+
+    {
+        const document = await readDocument(RequestContext.test(), documentId);
+        expect(document?.version).toEqual(2);
+        expect(document?.content.toJSON()).toEqual(
+            schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("ab")]),
+                ])
+                .toJSON(),
+        );
+    }
+
+    await expect(async () => {
+        await updateDocument(RequestContext.test(), {
+            id: documentId,
+            version: 1,
+            steps: [new ReplaceStep(5, 5, textSlice("c"))],
+            clientId: generateId(),
+        });
+    }).rejects.toThrow(FailedPreconditionError);
+
+    {
+        const document = await readDocument(RequestContext.test(), documentId);
+        expect(document?.version).toEqual(2);
+        expect(document?.content.toJSON()).toEqual(
+            schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("ab")]),
                 ])
                 .toJSON(),
         );

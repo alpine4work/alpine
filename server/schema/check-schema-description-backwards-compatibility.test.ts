@@ -3,6 +3,7 @@ import {
     checkSchemaDescriptionBackwardsCompatibility,
 } from "~/server/schema/check-schema-description-backwards-compatibility";
 import {BlockInference} from "~/shared/helpers/types/block-inference";
+import {generateId} from "~/shared/id/id";
 import {Schema, SchemaDeserializationError} from "~/shared/schema/schema";
 
 function testCase<LastValue, NextValue>({
@@ -725,5 +726,28 @@ test("any schema may convert into unknown", () => {
         lastSchema: Schema.unknown,
         nextSchema: Schema.integer,
         sampleValues: ["foo", {x: 1, y: 2}, false],
+    });
+});
+
+test("id may convert into string", () => {
+    testCase({
+        isBackwardsCompatible: true,
+        lastSchema: Schema.id,
+        nextSchema: Schema.id,
+        sampleValues: [generateId()],
+    });
+
+    testCase({
+        isBackwardsCompatible: true,
+        lastSchema: Schema.id,
+        nextSchema: Schema.string,
+        sampleValues: [generateId()],
+    });
+
+    testCase({
+        isBackwardsCompatible: false,
+        lastSchema: Schema.string,
+        nextSchema: Schema.id,
+        sampleValues: ["", "foo"],
     });
 });

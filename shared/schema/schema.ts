@@ -6,6 +6,7 @@ import {hasOwnProperty} from "~/shared/helpers/object/has-own-property";
 import {isPlainObject} from "~/shared/helpers/object/is-plain-object";
 import {isIdentifier} from "~/shared/helpers/string/is-identifier";
 import {Optionalize} from "~/shared/helpers/types/optionalize";
+import {Id, isId} from "~/shared/id/id";
 import {
     SchemaDescription,
     SchemaObjectPropertyDescription,
@@ -219,6 +220,19 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
         serialize: value => value,
         deserialize: value => {
             if (typeof value !== "string") throw new SchemaDeserializationError("Expected string");
+            return value;
+        },
+    });
+
+    /**
+     * Accept any `Id` value.
+     */
+    public static id = new Schema<Id>({
+        description: {type: "Id"},
+        serialize: value => value,
+        deserialize: value => {
+            if (typeof value !== "string") throw new SchemaDeserializationError("Expected string");
+            if (!isId(value)) throw new SchemaDeserializationError("Expected id");
             return value;
         },
     });
