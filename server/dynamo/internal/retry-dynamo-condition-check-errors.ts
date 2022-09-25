@@ -36,8 +36,25 @@ export function retryDynamoConditionCheckErrors<Value>(
 
             // See: https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter
             const delayMsWithJitter = Math.floor(Math.random() * delayMs);
-            await wait(delayMsWithJitter);
 
+            // In Jest, don't wait for some milliseconds, immediately retry.
+            //
+            // Unit test timing should be predictable. And all unit tests should be
+            // isolated on a single thread. So there's concurrency but no parallelism. We
+            // don't have real world load in unit tests that depend on an exponential
+            // backoff to perform well. So to save some time, skip the backoff.
+            //
+            // This also means when you're faking timers in Jest, you don't need to
+            // remember to advance a timer for an exponential backoff. That allows this
+            // function to be transparent. Developers don't need to think about advancing
+            // exponential backoff timers. (This is the original reason we removed the
+            // wait, then expanded it to all unit tests not just unit tests with timer
+            // mocking on.)
+            if (typeof jest !== "undefined") {
+                return attempt(attemptNumber + 1);
+            }
+
+            await wait(delayMsWithJitter);
             return attempt(attemptNumber + 1);
         }
     };

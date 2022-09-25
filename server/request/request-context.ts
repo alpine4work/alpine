@@ -76,7 +76,7 @@ export class RequestContext {
 let dynamoClientForTest: DynamoClient | null = null;
 
 function getDynamoClientForTest(): DynamoClient {
-    assert(process.env.NODE_ENV === "test");
+    assert(typeof jest !== "undefined");
 
     if (dynamoClientForTest === null) {
         assert(process.env.LOCALSTACK_EDGE_PORT);

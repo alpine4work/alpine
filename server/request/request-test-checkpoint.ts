@@ -1,4 +1,5 @@
 import {RequestContext} from "~/server/request/request-context";
+import {CancelledError} from "~/shared/error/error";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise-resolver";
 import {assert} from "~/shared/helpers/control/assert";
 import {Id} from "~/shared/id/id";
@@ -8,8 +9,30 @@ import {Id} from "~/shared/id/id";
  * checkpoint call to your code and then in a test call `pauseForTest()`. The
  * request will wait until your test unpauses.
  */
-export class RequestTextCheckpoint {
+export class RequestTestCheckpoint {
     private _promiseResolverByRequestId = new Map<Id, PromiseResolver<PromiseResolver<void>>>();
+
+    constructor() {
+        // At the end of every test, cancel all our checkpoint promises if they haven't
+        // settled yet and clear our checkpoint map so we don't have a memory leak.
+        if (typeof jest !== "undefined") {
+            afterEach(() => {
+                for (const promiseResolver1 of this._promiseResolverByRequestId.values()) {
+                    if (!promiseResolver1.isSettled()) {
+                        promiseResolver1.reject(new CancelledError("Test finished"));
+                    } else {
+                        void promiseResolver1.promise.then(promiseResolver2 => {
+                            if (!promiseResolver2.isSettled()) {
+                                promiseResolver2.reject(new CancelledError("Test finished"));
+                            }
+                        });
+                    }
+                }
+
+                this._promiseResolverByRequestId.clear();
+            });
+        }
+    }
 
     /**
      * Call this at the point in your code where you want to emulate a race
@@ -39,7 +62,7 @@ export class RequestTextCheckpoint {
      * Will throw if called outside of a test environment.
      */
     public async pauseForTest(context: RequestContext): Promise<{unpause: () => void}> {
-        assert(process.env.NODE_ENV === "test");
+        assert(typeof jest !== "undefined");
 
         assert(!this._promiseResolverByRequestId.has(context.requestId), "Request already paused");
 

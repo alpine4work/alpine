@@ -724,7 +724,13 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
                 isFocused={isFocused}
                 lastSelectionChangeTransactionTime={lastSelectionChangeTransactionTime}
             />
-            {selectedNodeElement && <FocusRingPortal element={selectedNodeElement} />}
+            {selectedNodeElement && (
+                // TODO(calebmer): If you type "foo" in the title, then "bar" in the body, then
+                // put your cursor at the beginning of "bar" and hit backspace it selects the
+                // title node and it looks weird. (Make sure there are no paragraphs
+                // after "bar".)
+                <FocusRingPortal element={selectedNodeElement} />
+            )}
         </>
     );
 }
@@ -735,7 +741,7 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
 const internalEditorViewKey = `__prosemirrorEditorView$${Math.random().toString(36).slice(2)}`;
 
 export function getEditorViewForTest(element: unknown): EditorView {
-    assert(process.env.NODE_ENV === "test");
+    assert(typeof jest !== "undefined");
     assert(typeof element === "object" && element !== null);
 
     const editorView =

@@ -294,6 +294,7 @@ export class DynamoTableSchema<
             key: {partitionKey, sortKey},
             consistency: context.dynamoReadConsistency,
         });
+        if (!serializedItem) return null;
 
         const item: any = {...key};
         attributesSchema.deserializeInto(serializedItem, item);
@@ -596,8 +597,6 @@ export class DynamoTableSchema<
         });
 
         return asyncIterableIteratorMap(iterator, serializedItem => {
-
-
             assert(typeof serializedItem.partitionKey === "string");
             assert(typeof serializedItem.sortKey === "string");
 

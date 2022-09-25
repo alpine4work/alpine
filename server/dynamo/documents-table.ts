@@ -4,7 +4,8 @@ import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo-key-attr
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo-table-schema";
 import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry-dynamo-condition-check-errors";
 import {RequestContext} from "~/server/request/request-context";
-import {RequestTextCheckpoint} from "~/server/request/request-text-checkpoint";
+import {RequestTestCheckpoint} from "~/server/request/request-test-checkpoint";
+import {RequestTestCounter} from "~/server/request/request-test-counter";
 import {
     DocumentContent,
     DocumentContentSchema,
@@ -153,6 +154,15 @@ const DocumentsTable = DynamoTableSchema.new({
     },
 });
 
+/**
+ * We are not allowed to export our DynamoDB tables so instead export a
+ * function that can only be used in Jest tests.
+ */
+export function getDocumentsTableForTest() {
+    assert(typeof jest !== "undefined");
+    return DocumentsTable;
+}
+
 type DocumentAttributesItem = DynamoTableItemType<typeof DocumentsTable, "Document", "Attributes">;
 
 type DocumentStepAfterSnapshotItem = DynamoTableItemType<
@@ -233,6 +243,15 @@ export async function readDocument(context: RequestContext, id: Id): Promise<Doc
     return internalDocument?.document ?? null;
 }
 
+type InternalDocument = {
+    readonly attributes: DocumentAttributesItem;
+    readonly stepsAfterSnapshot: ReadonlyArray<DocumentStepAfterSnapshotItem>;
+    readonly snapshot: DocumentSnapshotItem;
+    readonly document: Document;
+};
+
+export const readInternalDocumentTestCounter = new RequestTestCounter();
+
 /**
  * Read the full document with the provided id.
  *
@@ -242,12 +261,9 @@ export async function readDocument(context: RequestContext, id: Id): Promise<Doc
 async function readInternalDocument(
     context: RequestContext,
     id: Id,
-): Promise<{
-    attributes: DocumentAttributesItem;
-    stepsAfterSnapshot: ReadonlyArray<DocumentStepAfterSnapshotItem>;
-    snapshot: DocumentSnapshotItem;
-    document: Document;
-} | null> {
+): Promise<InternalDocument | null> {
+    readInternalDocumentTestCounter.incrementForTest(context);
+
     let attributes: DocumentAttributesItem | null = null;
     let stepsAfterSnapshot: Array<
         DynamoTableItemType<typeof DocumentsTable, "Document", "StepsAfterSnapshot">
@@ -339,7 +355,197 @@ async function readInternalDocument(
     };
 }
 
-export const updateDocumentBeforeExecuteTransactionTestCheckpoint = new RequestTextCheckpoint();
+export const updateDocumentBeforeExecuteTransactionTestCheckpoint = new RequestTestCheckpoint();
+
+/**
+ * How long before we removed document content from our cache. This is a
+ * debounce timer. Whenever a user updates the document, we cancel any pending
+ * timer and start a new one with this expiration time. So if the user is
+ * continuously editing then we keep the content cached the entire time.
+ */
+export const documentContentCacheEvictionTimeoutMs = 1000 * 60 * 5;
+
+/**
+ * We have an in-memory cache for document content that we use ONLY when
+ * updating document content.
+ *
+ * (We only use this cache for updates since it makes the cache easier to
+ * reason about.)
+ *
+ * Document content updates happen many times per second so it's important that
+ * document content updates are fast. This cache allows us to avoid reading
+ * document content from the database when we update it. If the document
+ * content is in-memory we can read it from this cache.
+ *
+ * When we read a document from the cache, we double check with the database
+ * to make sure the cached content version is equal to the content version in
+ * the database. If there is another process updating our document content then
+ * the cache may not be up-to-date!
+ */
+// NOTE(calebmer): I'm hoping that our serverless provider (Vercel)
+// consistently routes updates from the same user to the same process. If
+// Vercel doesn't do this then the cache is pointless since each process will
+// have its own cache. I'd also hope that one day we can tune Vercel to route
+// updates from the same space id to the same process.
+export class DocumentContentCacheForUpdate {
+    private readonly _cachedContentPromiseByDocumentId = new Map<
+        Id,
+        Promise<{
+            evictionTimeoutId: NodeJS.Timer;
+            version: number;
+            content: DocumentContent;
+            seenSteps: Array<Step>;
+        } | null>
+    >();
+
+    constructor() {
+        // In our test environment, add a hook to evict all cached content at the end
+        // of every test. That way we don't have timeouts sitting around and firing
+        // randomly.
+        if (typeof jest !== "undefined") {
+            afterEach(() => {
+                for (const [id, cachedContentPromise] of this._cachedContentPromiseByDocumentId) {
+                    this._cachedContentPromiseByDocumentId.delete(id);
+                    void cachedContentPromise.then(cachedContent => {
+                        if (cachedContent) clearTimeout(cachedContent.evictionTimeoutId);
+                    });
+                }
+            });
+        }
+    }
+
+    public async readAndCacheDocument(
+        context: RequestContext,
+        id: Id,
+    ): Promise<{
+        version: number;
+        content: DocumentContent;
+
+        /**
+         * Steps that our cache has seen. This starts as `stepsAfterSnapshot` but we
+         * don't remove steps when we update the snapshot so we call it `seenSteps` to
+         * differentiate the two.
+         */
+        seenSteps: ReadonlyArray<Step>;
+
+        /**
+         * Update the cache with the provided content object and steps. We do not
+         * validate that the new content or steps are correct and trust the caller to
+         * do that!
+         */
+        updateCache: (newContent: DocumentContent, newSteps: ReadonlyArray<Step>) => void;
+    } | null> {
+        let cachedContentPromise = this._cachedContentPromiseByDocumentId.get(id);
+        const wasContentCached = !!cachedContentPromise;
+
+        if (!cachedContentPromise) {
+            // Set a timeout that will remove this content from our cache.
+            const evictionTimeoutId = setTimeout(() => {
+                // Make sure the entry for our document id hasn't changed. We don't want to
+                // touch someone else's state.
+                if (this._cachedContentPromiseByDocumentId.get(id) !== cachedContentPromise) return;
+
+                this._cachedContentPromiseByDocumentId.delete(id);
+            }, documentContentCacheEvictionTimeoutMs);
+
+            cachedContentPromise = readInternalDocument(context, id).then(
+                internalDocument => {
+                    // If the document doesn't exist, immediately evict the promise from the cache.
+                    if (!internalDocument) {
+                        clearTimeout(evictionTimeoutId);
+                        this._cachedContentPromiseByDocumentId.delete(id);
+                        return null;
+                    }
+
+                    return {
+                        evictionTimeoutId,
+                        version: internalDocument.document.version,
+                        content: internalDocument.document.content,
+                        seenSteps: internalDocument.stepsAfterSnapshot.map(({step}) => step),
+                    };
+                },
+                error => {
+                    // If we threw an error reading the document, immediately evict the promise
+                    // from the cache.
+                    clearTimeout(evictionTimeoutId);
+                    this._cachedContentPromiseByDocumentId.delete(id);
+                    throw error;
+                },
+            );
+            this._cachedContentPromiseByDocumentId.set(id, cachedContentPromise);
+        }
+
+        const cachedContent = await cachedContentPromise;
+        if (!cachedContent) return null;
+
+        // If our content was already cached, then we want to verify that the cached
+        // content version is the same as the content version in the database.
+        //
+        // Another process may have written to the database in which case the cache in
+        // this process wouldn't know. If another process wrote to the database we
+        // can't use our cached value and should instead do a full read from the
+        // database.
+        if (wasContentCached) {
+            const attributes = await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                documentId: id,
+                sortRangeType: "Attributes",
+            });
+
+            // The document was deleted from the database but not our cache.
+            if (!attributes) {
+                clearTimeout(cachedContent.evictionTimeoutId);
+                this._cachedContentPromiseByDocumentId.delete(id);
+                return null;
+            }
+
+            // If the version in our cache does not match the version in the database,
+            // clear our cache and call this function again. That should read the full
+            // document fresh and put it in the cache.
+            //
+            // TODO(calebmer): Instead of clearing the cache, what if we loaded the new
+            // steps into it?
+            if (cachedContent.version !== attributes.version) {
+                clearTimeout(cachedContent.evictionTimeoutId);
+                this._cachedContentPromiseByDocumentId.delete(id);
+                return this.readAndCacheDocument(context, id);
+            }
+        }
+
+        return {
+            version: cachedContent.version,
+            content: cachedContent.content,
+            // Create a slice of `seenSteps` so that when we mutate the array from within
+            // this function, other code with a reference to the array won't see the
+            // new values.
+            seenSteps: cachedContent.seenSteps.slice(),
+
+            updateCache: (newContent, newSteps) => {
+                // Make sure the entry for our document id hasn't changed. We don't want to
+                // touch someone else's state.
+                if (this._cachedContentPromiseByDocumentId.get(id) !== cachedContentPromise) return;
+
+                cachedContent.version += newSteps.length;
+                cachedContent.content = newContent;
+                for (const step of newSteps) cachedContent.seenSteps.push(step);
+
+                // Reset the eviction timeout every time our cached content updates. So while a
+                // user is continuously updating, we keep the content around in the cache.
+                clearTimeout(cachedContent.evictionTimeoutId);
+                cachedContent.evictionTimeoutId = setTimeout(() => {
+                    // Make sure the entry for our document id hasn't changed. We don't want to
+                    // touch someone else's state.
+                    if (this._cachedContentPromiseByDocumentId.get(id) !== cachedContentPromise)
+                        return;
+
+                    this._cachedContentPromiseByDocumentId.delete(id);
+                }, documentContentCacheEvictionTimeoutMs);
+            },
+        };
+    }
+}
+
+const globalDocumentContentCacheForUpdate = new DocumentContentCacheForUpdate();
 
 /**
  * Updates our document by applying some steps.
@@ -356,11 +562,13 @@ export function updateDocument(
         version: clientVersion,
         steps: clientSteps,
         clientId,
+        cacheOverrideForTest,
     }: {
         id: Id;
         version: number;
         steps: ReadonlyArray<Step>;
         clientId: Id;
+        cacheOverrideForTest?: DocumentContentCacheForUpdate;
     },
 ) {
     return retryDynamoConditionCheckErrors(async () => {
@@ -372,23 +580,27 @@ export function updateDocument(
                 "Can not update a document more than 20 steps at a time",
             );
 
-        // TODO(calebmer): Implement synchronous cache for recently updated documents?
-        const internalDocument = await readInternalDocument(context, id);
+        const cache = cacheOverrideForTest ?? globalDocumentContentCacheForUpdate;
+        assert(
+            cache === globalDocumentContentCacheForUpdate || typeof jest !== "undefined",
+            "Can only override the cache in Jest tests",
+        );
+
+        const internalDocument = await cache.readAndCacheDocument(context, id);
         if (!internalDocument)
             throw new NotFoundError("Can not update document that doesn't exist");
-        const {document} = internalDocument;
 
-        if (clientVersion > document.version)
+        if (clientVersion > internalDocument.version)
             throw new FailedPreconditionError(
                 "Can not update document with steps at version ahead of the document's current version",
             );
 
-        let content = document.content;
+        let content = internalDocument.content;
         let newSteps: ReadonlyArray<Step>;
 
         // If the client's version is the same as our server version then we can
         // directly apply the client's steps to the content.
-        if (clientVersion === document.version) {
+        if (clientVersion === internalDocument.version) {
             for (const step of clientSteps) {
                 const stepResult = step.apply(content);
                 if (!stepResult.doc)
@@ -405,7 +617,7 @@ export function updateDocument(
         // If the client is trying to update an older document version then we need to
         // rebase the client steps against steps which were applied before it.
         else {
-            assert(clientVersion < document.version);
+            assert(clientVersion < internalDocument.version);
 
             // Get the steps that were applied to bring our document from the provided
             // version to the document's current version.
@@ -413,30 +625,28 @@ export function updateDocument(
             // If we're lucky then the version we're trying to update is after our snapshot
             // so we've already loaded all the steps after the snapshot. Otherwise we need
             // to read new steps.
-            let stepsToRebaseAgainst: Array<
-                DocumentStepAfterSnapshotItem | DocumentStepBeforeSnapshotItem
-            >;
-            if (clientVersion >= internalDocument.snapshot.version) {
-                const stepCount = document.version - clientVersion;
+            let stepsToRebaseAgainst: Array<Step>;
+            if (clientVersion >= internalDocument.version - internalDocument.seenSteps.length) {
+                const stepCount = internalDocument.version - clientVersion;
 
-                stepsToRebaseAgainst = internalDocument.stepsAfterSnapshot.slice(
-                    internalDocument.stepsAfterSnapshot.length - stepCount,
+                stepsToRebaseAgainst = internalDocument.seenSteps.slice(
+                    internalDocument.seenSteps.length - stepCount,
                 );
             } else {
                 // TODO(calebmer): Test this code path!
                 const stepsBeforeSnapshot = await readDocumentStepsBeforeSnapshot(context, {
                     id,
                     versionStart: clientVersion,
-                    versionEnd: internalDocument.snapshot.version - 1,
+                    versionEnd: internalDocument.version - internalDocument.seenSteps.length - 1,
                 });
 
                 stepsToRebaseAgainst = [
-                    ...stepsBeforeSnapshot,
-                    ...internalDocument.stepsAfterSnapshot,
+                    ...stepsBeforeSnapshot.map(({step}) => step),
+                    ...internalDocument.seenSteps,
                 ];
             }
 
-            assert(stepsToRebaseAgainst.length === document.version - clientVersion);
+            assert(stepsToRebaseAgainst.length === internalDocument.version - clientVersion);
 
             const invertedClientSteps = [];
 
@@ -451,7 +661,7 @@ export function updateDocument(
 
                 for (let i = stepsToRebaseAgainst.length - 1; i >= 0; i--) {
                     const step = stepsToRebaseAgainst[i]!;
-                    const stepResult = step.step.invert(clientContent).apply(clientContent);
+                    const stepResult = step.invert(clientContent).apply(clientContent);
                     if (!stepResult.doc)
                         throw new DataLossError(
                             `Could not apply inverse of saved document step: ${stepResult.failed!}`,
@@ -485,7 +695,7 @@ export function updateDocument(
             for (let i = invertedClientSteps.length - 1; i >= 0; i--)
                 mapping.appendMap(invertedClientSteps[i]!.getMap());
             for (let i = 0; i < stepsToRebaseAgainst.length; i++)
-                mapping.appendMap(stepsToRebaseAgainst[i]!.step.getMap());
+                mapping.appendMap(stepsToRebaseAgainst[i]!.getMap());
 
             const rebasedSteps = [];
             let mapFrom = clientSteps.length;
@@ -521,33 +731,40 @@ export function updateDocument(
         // condition.
         await updateDocumentBeforeExecuteTransactionTestCheckpoint.waitForTest(context);
 
-        await context.executeTransaction([
-            DocumentsTable.transactionPutItem(
-                context,
-                {
-                    ...internalDocument.attributes,
-                    version: internalDocument.attributes.version + newSteps.length,
-                    // TODO(calebmer): Test title updates
-                    title: getDocumentContentTitle(content),
-                },
-                {
-                    condition: {
-                        // Make sure a concurrent writer hasn't updated the document version before us.
-                        version: internalDocument.attributes.version,
+        if (newSteps.length > 0) {
+            await context.executeTransaction([
+                DocumentsTable.transactionPutItem(
+                    context,
+                    {
+                        partitionType: "Document",
+                        documentId: id,
+                        sortRangeType: "Attributes",
+                        version: internalDocument.version + newSteps.length,
+                        title: getDocumentContentTitle(content),
                     },
-                },
-            ),
-            ...newSteps.map((step, index) =>
-                DocumentsTable.transactionPutItem(context, {
-                    partitionType: "Document",
-                    documentId: id,
-                    sortRangeType: "StepsAfterSnapshot",
-                    version: internalDocument.attributes.version + index,
-                    step,
-                    clientId,
-                }),
-            ),
-        ]);
+                    {
+                        condition: {
+                            // Make sure a concurrent writer hasn't updated the document version before us.
+                            version: internalDocument.version,
+                        },
+                    },
+                ),
+                ...newSteps.map((step, index) =>
+                    DocumentsTable.transactionPutItem(context, {
+                        partitionType: "Document",
+                        documentId: id,
+                        sortRangeType: "StepsAfterSnapshot",
+                        version: internalDocument.version + index,
+                        step,
+                        clientId,
+                    }),
+                ),
+            ]);
+
+            // Update our cache so that the next update from this process doesn't need to
+            // read content from the database.
+            internalDocument.updateCache(content, newSteps);
+        }
     });
 }
 

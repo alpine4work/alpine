@@ -1,7 +1,7 @@
 import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo-table-schema";
 import {assert} from "~/shared/helpers/control/assert";
 
-assert(process.env.NODE_ENV === "test");
+assert(typeof jest !== "undefined");
 
 /**
  * Hackishly create an object that looks like a `DynamoTableSchema` when you do
