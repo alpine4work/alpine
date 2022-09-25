@@ -14,6 +14,7 @@ import {
     quoteBlockClassName,
     strikeClassName,
 } from "~/shared/content/content-schema.css";
+import {clamp} from "~/shared/helpers/number/clamp";
 
 /**
  * The maximum level of indentation for a list item.
@@ -21,9 +22,7 @@ import {
 export const maxListItemIndentation = 5;
 
 export function clampListItemIndentation(indent: unknown): number {
-    return typeof indent === "number"
-        ? Math.min(Math.max(0, Math.floor(indent)), maxListItemIndentation)
-        : 0;
+    return typeof indent === "number" ? clamp(Math.floor(indent), 0, maxListItemIndentation) : 0;
 }
 
 const allowedLinkProtocols: ReadonlySet<string> = new Set(["http", "https"]);

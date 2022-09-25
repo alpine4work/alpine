@@ -21,6 +21,8 @@ import {
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array-from-async-iterable";
+import {iterableMap} from "~/shared/helpers/iterable/iterable-map";
+import {clamp} from "~/shared/helpers/number/clamp";
 import {Id} from "~/shared/id/id";
 import {Schema} from "~/shared/schema/schema";
 
@@ -394,7 +396,19 @@ export class DocumentContentCacheForUpdate {
             evictionTimeoutId: NodeJS.Timer;
             version: number;
             content: DocumentContent;
-            seenSteps: Array<Step>;
+            /**
+             * Steps after the snapshot the content was loaded at.
+             *
+             * Every new step applied to the document content will be pushed to this array.
+             *
+             * We never remove steps from this array which is why the name specifies
+             * "initial snapshot". The snapshot may be different from when we loaded this
+             * content but we won't evict steps from this list.
+             *
+             * By only pushing to this array it also means we can efficiently create
+             * immutable slices in O(1) time instead of an O(n) time clone.
+             */
+            stepsAfterInitialSnapshot: PushOnlyArray<Step>;
         } | null>
     >();
 
@@ -422,11 +436,12 @@ export class DocumentContentCacheForUpdate {
         content: DocumentContent;
 
         /**
-         * Steps that our cache has seen. This starts as `stepsAfterSnapshot` but we
-         * don't remove steps when we update the snapshot so we call it `seenSteps` to
-         * differentiate the two.
+         * Steps after the snapshot the content was loaded at.
+         *
+         * Some of these steps may be before the current document snapshot if the
+         * document snapshot was updated after our cache loaded the document.
          */
-        seenSteps: ReadonlyArray<Step>;
+        stepsAfterInitialSnapshot: PushOnlyArraySlice<Step>;
 
         /**
          * Update the cache with the provided content object and steps. We do not
@@ -461,7 +476,9 @@ export class DocumentContentCacheForUpdate {
                         evictionTimeoutId,
                         version: internalDocument.document.version,
                         content: internalDocument.document.content,
-                        seenSteps: internalDocument.stepsAfterSnapshot.map(({step}) => step),
+                        stepsAfterInitialSnapshot: new PushOnlyArray(
+                            iterableMap(internalDocument.stepsAfterSnapshot, ({step}) => step),
+                        ),
                     };
                 },
                 error => {
@@ -515,10 +532,10 @@ export class DocumentContentCacheForUpdate {
         return {
             version: cachedContent.version,
             content: cachedContent.content,
-            // Create a slice of `seenSteps` so that when we mutate the array from within
-            // this function, other code with a reference to the array won't see the
-            // new values.
-            seenSteps: cachedContent.seenSteps.slice(),
+            // Create a slice of `stepsAfterInitialSnapshot` so that when we mutate the
+            // array from within this function, other code with a reference to the array
+            // won't see the new values.
+            stepsAfterInitialSnapshot: cachedContent.stepsAfterInitialSnapshot.slice(),
 
             updateCache: (newContent, newSteps) => {
                 // Make sure the entry for our document id hasn't changed. We don't want to
@@ -527,7 +544,7 @@ export class DocumentContentCacheForUpdate {
 
                 cachedContent.version += newSteps.length;
                 cachedContent.content = newContent;
-                for (const step of newSteps) cachedContent.seenSteps.push(step);
+                for (const step of newSteps) cachedContent.stepsAfterInitialSnapshot.push(step);
 
                 // Reset the eviction timeout every time our cached content updates. So while a
                 // user is continuously updating, we keep the content around in the cache.
@@ -545,6 +562,71 @@ export class DocumentContentCacheForUpdate {
     }
 }
 
+/**
+ * Small helper which allows us to create a slice of an append-only array
+ * without cloning the array. A naive implementation of the native
+ * `Array.slice()` method will clone the entire array.
+ */
+class PushOnlyArray<Item> implements Iterable<Item> {
+    private readonly _array: Array<Item>;
+
+    constructor(iterable: Iterable<Item>) {
+        // Create a new array so we can make sure nothing else can mutate
+        // the array.
+        this._array = Array.from(iterable);
+    }
+
+    public get length(): number {
+        return this._array.length;
+    }
+
+    public get(index: number): Item | undefined {
+        return this._array[index];
+    }
+
+    public push(item: Item): void {
+        this._array.push(item);
+    }
+
+    public slice(start: number = 0, end: number = this.length): PushOnlyArraySlice<Item> {
+        return new PushOnlyArraySlice(this, start, end);
+    }
+
+    public *[Symbol.iterator](): Iterator<Item> {
+        // Cache length so if an item is appended it won't appear in this iterator.
+        const length = this._array.length;
+        for (let i = 0; i < length; i++) yield this._array[i]!;
+    }
+}
+
+class PushOnlyArraySlice<Item> implements Iterable<Item> {
+    private readonly _array: PushOnlyArray<Item>;
+    private readonly _start: number;
+    private readonly _end: number;
+
+    constructor(array: PushOnlyArray<Item>, start: number, end: number) {
+        this._array = array;
+        this._start = clamp(Math.floor(start), 0, array.length);
+        this._end = clamp(Math.floor(end), this._start, array.length);
+    }
+
+    public get length() {
+        return this._end - this._start;
+    }
+
+    public slice(start: number = 0, end: number = this.length): PushOnlyArraySlice<Item> {
+        return new PushOnlyArraySlice(
+            this._array,
+            this._start + clamp(start, 0, this.length),
+            this._start + clamp(end, 0, this.length),
+        );
+    }
+
+    public *[Symbol.iterator](): Iterator<Item> {
+        for (let i = this._start; i < this._end; i++) yield this._array.get(i)!;
+    }
+}
+
 const globalDocumentContentCacheForUpdate = new DocumentContentCacheForUpdate();
 
 /**
@@ -554,8 +636,21 @@ const globalDocumentContentCacheForUpdate = new DocumentContentCacheForUpdate();
  * - The version number must be less than or equal to the current document
  *   version. If the version is less than we will rebase the steps you provided
  *   against the new document steps.
+ *
+ * ### Performance
+ *
+ * This function will be called a lot while a user is updating a document. So
+ * we've tried to carefully optimize this function to have O(steps) performance
+ * and not O(contentSize) performance.
+ *
+ * We do this by:
+ *
+ * - Caching the current content in memory so we don't need to load it from the
+ *   database on every update.
+ * - Only saving the full content back to the database every 20-100 steps. For
+ *   the majority of updates we only save the steps.
  */
-export function updateDocument(
+export async function updateDocumentContent(
     context: RequestContext,
     {
         id,
@@ -571,7 +666,7 @@ export function updateDocument(
         cacheOverrideForTest?: DocumentContentCacheForUpdate;
     },
 ) {
-    return retryDynamoConditionCheckErrors(async () => {
+    const result = await retryDynamoConditionCheckErrors(async () => {
         // This limit is in place because of [`TransactWriteItem`s][1] 25 action limit.
         //
         // [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
@@ -626,23 +721,31 @@ export function updateDocument(
             // so we've already loaded all the steps after the snapshot. Otherwise we need
             // to read new steps.
             let stepsToRebaseAgainst: Array<Step>;
-            if (clientVersion >= internalDocument.version - internalDocument.seenSteps.length) {
+            if (
+                clientVersion >=
+                internalDocument.version - internalDocument.stepsAfterInitialSnapshot.length
+            ) {
                 const stepCount = internalDocument.version - clientVersion;
 
-                stepsToRebaseAgainst = internalDocument.seenSteps.slice(
-                    internalDocument.seenSteps.length - stepCount,
+                stepsToRebaseAgainst = Array.from(
+                    internalDocument.stepsAfterInitialSnapshot.slice(
+                        internalDocument.stepsAfterInitialSnapshot.length - stepCount,
+                    ),
                 );
             } else {
                 // TODO(calebmer): Test this code path!
                 const stepsBeforeSnapshot = await readDocumentStepsBeforeSnapshot(context, {
                     id,
                     versionStart: clientVersion,
-                    versionEnd: internalDocument.version - internalDocument.seenSteps.length - 1,
+                    versionEnd:
+                        internalDocument.version -
+                        internalDocument.stepsAfterInitialSnapshot.length -
+                        1,
                 });
 
                 stepsToRebaseAgainst = [
                     ...stepsBeforeSnapshot.map(({step}) => step),
-                    ...internalDocument.seenSteps,
+                    ...internalDocument.stepsAfterInitialSnapshot,
                 ];
             }
 
@@ -725,8 +828,6 @@ export function updateDocument(
             newSteps = rebasedSteps;
         }
 
-        // TODO(calebmer): Save new snapshot
-
         // This checkpoint allows us to write a test against our transaction's
         // condition.
         await updateDocumentBeforeExecuteTransactionTestCheckpoint.waitForTest(context);
@@ -765,7 +866,49 @@ export function updateDocument(
             // read content from the database.
             internalDocument.updateCache(content, newSteps);
         }
+
+        return {
+            newVersion: internalDocument.version + newSteps.length,
+            newSteps,
+        };
     });
+
+    // We add a blocking update to our snapshot within the
+    // `updateDocumentContent()` call. We don't pay the price of updating the
+    // snapshot every update but rather every N updates (where N is 20-100 steps).
+    //
+    // We need a blocking update since we can't schedule a background task in a
+    // serverless function. The function will be paused if there is no activity. We
+    // could in the future use a task queue to update the snapshot as a background
+    // job, but occasionally paying the snapshot update price within the
+    // `updateDocumentContent()` function doesn't seem too bad.
+    await maybeUpdateDocumentSnapshotAfterUpdatingContent(context, result);
+}
+
+const updateDocumentSnapshotAfterStepCount = 100;
+
+async function maybeUpdateDocumentSnapshotAfterUpdatingContent(
+    context: RequestContext,
+    {
+        newVersion,
+        newSteps,
+    }: {
+        newVersion: number;
+        newSteps: ReadonlyArray<Step>;
+    },
+) {
+    // Get the last version before `newVersion` which should trigger a snapshot.
+    const lastVersionToTriggerSnapshot =
+        Math.floor(newVersion / updateDocumentSnapshotAfterStepCount) *
+        updateDocumentSnapshotAfterStepCount;
+
+    const oldVersion = newVersion - newSteps.length;
+
+    // If we've already passed the last version number to trigger a snapshot then
+    // we don't need to save a new snapshot.
+    if (oldVersion >= lastVersionToTriggerSnapshot) return;
+
+    // TODO(calebmer): Implement
 }
 
 /**
