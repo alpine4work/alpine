@@ -2,6 +2,7 @@ import {Mapping, Step} from "prosemirror-transform";
 import {DynamoConditionExpression} from "~/server/dynamo/internal/dynamo-condition";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo-key-attribute-schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo-table-schema";
+import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry-dynamo-condition-check-errors";
 import {RequestContext} from "~/server/request/request-context";
 import {RequestTextCheckpoint} from "~/server/request/request-text-checkpoint";
 import {
@@ -348,7 +349,7 @@ export const updateDocumentBeforeExecuteTransactionTestCheckpoint = new RequestT
  *   version. If the version is less than we will rebase the steps you provided
  *   against the new document steps.
  */
-export async function updateDocument(
+export function updateDocument(
     context: RequestContext,
     {
         id,
@@ -362,186 +363,192 @@ export async function updateDocument(
         clientId: Id;
     },
 ) {
-    // This limit is in place because of [`TransactWriteItem`s][1] 25 action limit.
-    //
-    // [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
-    if (clientSteps.length > 20)
-        throw new InvalidArgumentError("Can not update a document more than 20 steps at a time");
-
-    // TODO(calebmer): Implement synchronous cache for recently updated documents?
-    const internalDocument = await readInternalDocument(context, id);
-    if (!internalDocument) throw new NotFoundError("Can not update document that doesn't exist");
-    const {document} = internalDocument;
-
-    if (clientVersion > document.version)
-        throw new FailedPreconditionError(
-            "Can not update document with steps at version ahead of the document's current version",
-        );
-
-    let content = document.content;
-    let newSteps: ReadonlyArray<Step>;
-
-    // If the client's version is the same as our server version then we can
-    // directly apply the client's steps to the content.
-    if (clientVersion === document.version) {
-        for (const step of clientSteps) {
-            const stepResult = step.apply(content);
-            if (!stepResult.doc)
-                throw new FailedPreconditionError(
-                    `Could not apply step to document: ${stepResult.failed!}`,
-                );
-
-            assert(isDocumentContent(stepResult.doc));
-            content = stepResult.doc;
-        }
-
-        newSteps = clientSteps;
-    }
-    // If the client is trying to update an older document version then we need to
-    // rebase the client steps against steps which were applied before it.
-    else {
-        assert(clientVersion < document.version);
-
-        // Get the steps that were applied to bring our document from the provided
-        // version to the document's current version.
+    return retryDynamoConditionCheckErrors(async () => {
+        // This limit is in place because of [`TransactWriteItem`s][1] 25 action limit.
         //
-        // If we're lucky then the version we're trying to update is after our snapshot
-        // so we've already loaded all the steps after the snapshot. Otherwise we need
-        // to read new steps.
-        let stepsToRebaseAgainst: Array<
-            DocumentStepAfterSnapshotItem | DocumentStepBeforeSnapshotItem
-        >;
-        if (clientVersion >= internalDocument.snapshot.version) {
-            const stepCount = document.version - clientVersion;
-
-            stepsToRebaseAgainst = internalDocument.stepsAfterSnapshot.slice(
-                internalDocument.stepsAfterSnapshot.length - stepCount,
+        // [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
+        if (clientSteps.length > 20)
+            throw new InvalidArgumentError(
+                "Can not update a document more than 20 steps at a time",
             );
-        } else {
-            // TODO(calebmer): Test this code path!
-            const stepsBeforeSnapshot = await readDocumentStepsBeforeSnapshot(context, {
-                id,
-                versionStart: clientVersion,
-                versionEnd: internalDocument.snapshot.version - 1,
-            });
 
-            stepsToRebaseAgainst = [...stepsBeforeSnapshot, ...internalDocument.stepsAfterSnapshot];
-        }
+        // TODO(calebmer): Implement synchronous cache for recently updated documents?
+        const internalDocument = await readInternalDocument(context, id);
+        if (!internalDocument)
+            throw new NotFoundError("Can not update document that doesn't exist");
+        const {document} = internalDocument;
 
-        assert(stepsToRebaseAgainst.length === document.version - clientVersion);
+        if (clientVersion > document.version)
+            throw new FailedPreconditionError(
+                "Can not update document with steps at version ahead of the document's current version",
+            );
 
-        const invertedClientSteps = [];
+        let content = document.content;
+        let newSteps: ReadonlyArray<Step>;
 
-        // Make sure all steps from the client were valid against the document at
-        // `clientVersion`. So revert back to to that version and try applying our
-        // client steps.
-        //
-        // We will drop any steps we can't rebase. But we still want to validate that
-        // the original steps were ok.
-        {
-            let clientContent = content;
-
-            for (let i = stepsToRebaseAgainst.length - 1; i >= 0; i--) {
-                const step = stepsToRebaseAgainst[i]!;
-                const stepResult = step.step.invert(clientContent).apply(clientContent);
-                if (!stepResult.doc)
-                    throw new DataLossError(
-                        `Could not apply inverse of saved document step: ${stepResult.failed!}`,
-                    );
-
-                assert(isDocumentContent(stepResult.doc));
-                clientContent = stepResult.doc;
-            }
-
+        // If the client's version is the same as our server version then we can
+        // directly apply the client's steps to the content.
+        if (clientVersion === document.version) {
             for (const step of clientSteps) {
-                const stepResult = step.apply(clientContent);
+                const stepResult = step.apply(content);
                 if (!stepResult.doc)
                     throw new FailedPreconditionError(
                         `Could not apply step to document: ${stepResult.failed!}`,
                     );
 
                 assert(isDocumentContent(stepResult.doc));
-                clientContent = stepResult.doc;
-                invertedClientSteps.push(step.invert(clientContent));
+                content = stepResult.doc;
             }
+
+            newSteps = clientSteps;
+        }
+        // If the client is trying to update an older document version then we need to
+        // rebase the client steps against steps which were applied before it.
+        else {
+            assert(clientVersion < document.version);
+
+            // Get the steps that were applied to bring our document from the provided
+            // version to the document's current version.
+            //
+            // If we're lucky then the version we're trying to update is after our snapshot
+            // so we've already loaded all the steps after the snapshot. Otherwise we need
+            // to read new steps.
+            let stepsToRebaseAgainst: Array<
+                DocumentStepAfterSnapshotItem | DocumentStepBeforeSnapshotItem
+            >;
+            if (clientVersion >= internalDocument.snapshot.version) {
+                const stepCount = document.version - clientVersion;
+
+                stepsToRebaseAgainst = internalDocument.stepsAfterSnapshot.slice(
+                    internalDocument.stepsAfterSnapshot.length - stepCount,
+                );
+            } else {
+                // TODO(calebmer): Test this code path!
+                const stepsBeforeSnapshot = await readDocumentStepsBeforeSnapshot(context, {
+                    id,
+                    versionStart: clientVersion,
+                    versionEnd: internalDocument.snapshot.version - 1,
+                });
+
+                stepsToRebaseAgainst = [
+                    ...stepsBeforeSnapshot,
+                    ...internalDocument.stepsAfterSnapshot,
+                ];
+            }
+
+            assert(stepsToRebaseAgainst.length === document.version - clientVersion);
+
+            const invertedClientSteps = [];
+
+            // Make sure all steps from the client were valid against the document at
+            // `clientVersion`. So revert back to to that version and try applying our
+            // client steps.
+            //
+            // We will drop any steps we can't rebase. But we still want to validate that
+            // the original steps were ok.
+            {
+                let clientContent = content;
+
+                for (let i = stepsToRebaseAgainst.length - 1; i >= 0; i--) {
+                    const step = stepsToRebaseAgainst[i]!;
+                    const stepResult = step.step.invert(clientContent).apply(clientContent);
+                    if (!stepResult.doc)
+                        throw new DataLossError(
+                            `Could not apply inverse of saved document step: ${stepResult.failed!}`,
+                        );
+
+                    assert(isDocumentContent(stepResult.doc));
+                    clientContent = stepResult.doc;
+                }
+
+                for (const step of clientSteps) {
+                    const stepResult = step.apply(clientContent);
+                    if (!stepResult.doc)
+                        throw new FailedPreconditionError(
+                            `Could not apply step to document: ${stepResult.failed!}`,
+                        );
+
+                    assert(isDocumentContent(stepResult.doc));
+                    clientContent = stepResult.doc;
+                    invertedClientSteps.push(step.invert(clientContent));
+                }
+            }
+
+            // See the guide for information on how to rebase a chain of steps against
+            // another chain of steps:
+            // https://prosemirror.net/docs/guide/#transform.rebasing
+            //
+            // Also see the client-side rebasing implementation:
+            // https://github.com/ProseMirror/prosemirror-collab/blob/ed039eb7e62fd0079b51406863931c6f67046881/src/collab.ts#L14-L27
+            const mapping = new Mapping();
+
+            for (let i = invertedClientSteps.length - 1; i >= 0; i--)
+                mapping.appendMap(invertedClientSteps[i]!.getMap());
+            for (let i = 0; i < stepsToRebaseAgainst.length; i++)
+                mapping.appendMap(stepsToRebaseAgainst[i]!.step.getMap());
+
+            const rebasedSteps = [];
+            let mapFrom = clientSteps.length;
+
+            for (let i = 0; i < clientSteps.length; i++) {
+                const rebasedStep = clientSteps[i]!.map(mapping.slice(mapFrom));
+                mapFrom--;
+
+                // Silently ignore steps we can't rebase. That's what the client
+                // implementation does:
+                // https://github.com/ProseMirror/prosemirror-collab/blob/ed039eb7e62fd0079b51406863931c6f67046881/src/collab.ts#L21
+                if (!rebasedStep) continue;
+
+                const rebasedStepResult = rebasedStep.apply(content);
+
+                // Silently ignore steps we can't rebase. That's what the client
+                // implementation does:
+                // https://github.com/ProseMirror/prosemirror-collab/blob/ed039eb7e62fd0079b51406863931c6f67046881/src/collab.ts#L21
+                if (!rebasedStepResult.doc) continue;
+
+                assert(isDocumentContent(rebasedStepResult.doc));
+                content = rebasedStepResult.doc;
+                rebasedSteps.push(rebasedStep);
+                mapping.appendMap(rebasedStep.getMap());
+            }
+
+            newSteps = rebasedSteps;
         }
 
-        // See the guide for information on how to rebase a chain of steps against
-        // another chain of steps:
-        // https://prosemirror.net/docs/guide/#transform.rebasing
-        //
-        // Also see the client-side rebasing implementation:
-        // https://github.com/ProseMirror/prosemirror-collab/blob/ed039eb7e62fd0079b51406863931c6f67046881/src/collab.ts#L14-L27
-        const mapping = new Mapping();
+        // TODO(calebmer): Save new snapshot
 
-        for (let i = invertedClientSteps.length - 1; i >= 0; i--)
-            mapping.appendMap(invertedClientSteps[i]!.getMap());
-        for (let i = 0; i < stepsToRebaseAgainst.length; i++)
-            mapping.appendMap(stepsToRebaseAgainst[i]!.step.getMap());
+        // This checkpoint allows us to write a test against our transaction's
+        // condition.
+        await updateDocumentBeforeExecuteTransactionTestCheckpoint.waitForTest(context);
 
-        const rebasedSteps = [];
-        let mapFrom = clientSteps.length;
-
-        for (let i = 0; i < clientSteps.length; i++) {
-            const rebasedStep = clientSteps[i]!.map(mapping.slice(mapFrom));
-            mapFrom--;
-
-            // Silently ignore steps we can't rebase. That's what the client
-            // implementation does:
-            // https://github.com/ProseMirror/prosemirror-collab/blob/ed039eb7e62fd0079b51406863931c6f67046881/src/collab.ts#L21
-            if (!rebasedStep) continue;
-
-            const rebasedStepResult = rebasedStep.apply(content);
-
-            // Silently ignore steps we can't rebase. That's what the client
-            // implementation does:
-            // https://github.com/ProseMirror/prosemirror-collab/blob/ed039eb7e62fd0079b51406863931c6f67046881/src/collab.ts#L21
-            if (!rebasedStepResult.doc) continue;
-
-            assert(isDocumentContent(rebasedStepResult.doc));
-            content = rebasedStepResult.doc;
-            rebasedSteps.push(rebasedStep);
-            mapping.appendMap(rebasedStep.getMap());
-        }
-
-        newSteps = rebasedSteps;
-    }
-
-    // TODO(calebmer): Save new snapshot
-
-    // TODO(calebmer): Retry on write condition failure
-
-    // This checkpoint allows us to write a test against our transaction's
-    // condition.
-    await updateDocumentBeforeExecuteTransactionTestCheckpoint.waitForTest(context);
-
-    await context.executeTransaction([
-        DocumentsTable.transactionPutItem(
-            context,
-            {
-                ...internalDocument.attributes,
-                version: internalDocument.attributes.version + newSteps.length,
-                // TODO(calebmer): Test title updates
-                title: getDocumentContentTitle(content),
-            },
-            {
-                condition: {
-                    // Make sure a concurrent writer hasn't updated the document version before us.
-                    version: internalDocument.attributes.version,
+        await context.executeTransaction([
+            DocumentsTable.transactionPutItem(
+                context,
+                {
+                    ...internalDocument.attributes,
+                    version: internalDocument.attributes.version + newSteps.length,
+                    // TODO(calebmer): Test title updates
+                    title: getDocumentContentTitle(content),
                 },
-            },
-        ),
-        ...newSteps.map((step, index) =>
-            DocumentsTable.transactionPutItem(context, {
-                partitionType: "Document",
-                documentId: id,
-                sortRangeType: "StepsAfterSnapshot",
-                version: internalDocument.attributes.version + index,
-                step,
-                clientId,
-            }),
-        ),
-    ]);
+                {
+                    condition: {
+                        // Make sure a concurrent writer hasn't updated the document version before us.
+                        version: internalDocument.attributes.version,
+                    },
+                },
+            ),
+            ...newSteps.map((step, index) =>
+                DocumentsTable.transactionPutItem(context, {
+                    partitionType: "Document",
+                    documentId: id,
+                    sortRangeType: "StepsAfterSnapshot",
+                    version: internalDocument.attributes.version + index,
+                    step,
+                    clientId,
+                }),
+            ),
+        ]);
+    });
 }
 
 /**

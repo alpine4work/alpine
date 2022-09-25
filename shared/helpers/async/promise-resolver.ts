@@ -1,7 +1,8 @@
 export type PromiseResolver<T> = {
     readonly promise: Promise<T>;
-    readonly resolve: (value: T) => void;
-    readonly reject: (error: unknown) => void;
+    isSettled(): boolean;
+    resolve(value: T): void;
+    reject(error: unknown): void;
 };
 
 /**
@@ -13,6 +14,7 @@ export function createPromiseResolver<
     // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
     T = void,
 >(): PromiseResolver<T> {
+    let isSettled = false;
     let resolve: (value: T) => void;
     let reject: (error: unknown) => void;
 
@@ -23,7 +25,14 @@ export function createPromiseResolver<
 
     return {
         promise,
-        resolve: resolve!,
-        reject: reject!,
+        isSettled: () => isSettled,
+        resolve: value => {
+            isSettled = true;
+            resolve!(value);
+        },
+        reject: error => {
+            isSettled = true;
+            reject!(error);
+        },
     };
 }

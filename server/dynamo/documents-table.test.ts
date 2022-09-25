@@ -606,7 +606,7 @@ test("can update a document with many steps if the version is many steps behind 
     }
 });
 
-test("one document update wins when two document updates race", async () => {
+test("when two document updates race the loser will rebase", async () => {
     const documentId = generateId();
 
     await createDocument(RequestContext.test(), {
@@ -681,16 +681,16 @@ test("one document update wins when two document updates race", async () => {
 
     unpauseRequest2();
 
-    await expect(request2Promise).rejects.toThrowError(FailedPreconditionError);
+    await request2Promise;
 
     {
         const document = await readDocument(RequestContext.test(), documentId);
-        expect(document?.version).toEqual(2);
+        expect(document?.version).toEqual(3);
         expect(document?.content.toJSON()).toEqual(
             schema
                 .node("doc", {}, [
                     schema.node("title", {}, []),
-                    schema.node("paragraph", {}, [schema.text("ac")]),
+                    schema.node("paragraph", {}, [schema.text("acb")]),
                 ])
                 .toJSON(),
         );

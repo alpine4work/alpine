@@ -20,6 +20,10 @@ export class RequestTextCheckpoint {
         const promiseResolver1 = this._promiseResolverByRequestId.get(context.requestId);
         if (!promiseResolver1) return;
 
+        // Don't create a new promise resolver if our first promise resolver is
+        // already settled.
+        if (promiseResolver1.isSettled()) return;
+
         const promiseResolver2 = createPromiseResolver();
         promiseResolver1.resolve(promiseResolver2);
         await promiseResolver2.promise;
