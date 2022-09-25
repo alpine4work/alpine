@@ -181,6 +181,8 @@ type DocumentStepBeforeSnapshotItem = DynamoTableItemType<
     "StepsBeforeSnapshot"
 >;
 
+type DocumentStepItem = DocumentStepAfterSnapshotItem | DocumentStepBeforeSnapshotItem;
+
 function getDocumentContentTitle(content: DocumentContent): string {
     const childNode = content.child(0);
     assert(childNode.type.name === "title");
@@ -267,9 +269,7 @@ async function readInternalDocument(
     readInternalDocumentTestCounter.incrementForTest(context);
 
     let attributes: DocumentAttributesItem | null = null;
-    let stepsAfterSnapshot: Array<
-        DynamoTableItemType<typeof DocumentsTable, "Document", "StepsAfterSnapshot">
-    > = [];
+    let stepsAfterSnapshot: Array<DocumentStepAfterSnapshotItem> = [];
     let snapshot: DocumentSnapshotItem | null = null;
 
     for await (const item of DocumentsTable.query(context, {
@@ -318,7 +318,6 @@ async function readInternalDocument(
     //
     // Drop any steps before the snapshot.
     if (stepsAfterSnapshot.length > attributes.version - snapshot.version) {
-        // TODO(calebmer): Test this
         stepsAfterSnapshot = stepsAfterSnapshot.slice(
             stepsAfterSnapshot.length - attributes.version - snapshot.version,
         );
@@ -341,7 +340,6 @@ async function readInternalDocument(
 
         assert(isDocumentContent(stepResult.doc));
         content = stepResult.doc;
-        stepsAfterSnapshot.push(step);
     }
 
     return {
@@ -356,8 +354,6 @@ async function readInternalDocument(
         },
     };
 }
-
-export const updateDocumentBeforeExecuteTransactionTestCheckpoint = new RequestTestCheckpoint();
 
 /**
  * How long before we removed document content from our cache. This is a
@@ -629,6 +625,9 @@ class PushOnlyArraySlice<Item> implements Iterable<Item> {
 
 const globalDocumentContentCacheForUpdate = new DocumentContentCacheForUpdate();
 
+export const updateDocumentContentBeforeExecuteTransactionTestCheckpoint =
+    new RequestTestCheckpoint();
+
 /**
  * Updates our document by applying some steps.
  *
@@ -666,7 +665,10 @@ export async function updateDocumentContent(
         cacheOverrideForTest?: DocumentContentCacheForUpdate;
     },
 ) {
-    const result = await retryDynamoConditionCheckErrors(async () => {
+    const {newVersion, newSteps, newContent} = await retryDynamoConditionCheckErrors(async () => {
+        if (!Number.isSafeInteger(clientVersion) || clientVersion < 0)
+            throw new InvalidArgumentError("Expected a positive integer version number");
+
         // This limit is in place because of [`TransactWriteItem`s][1] 25 action limit.
         //
         // [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
@@ -733,8 +735,7 @@ export async function updateDocumentContent(
                     ),
                 );
             } else {
-                // TODO(calebmer): Test this code path!
-                const stepsBeforeSnapshot = await readDocumentStepsBeforeSnapshot(context, {
+                const otherSteps = await readDocumentStepsForValidatedVersionRange(context, {
                     id,
                     versionStart: clientVersion,
                     versionEnd:
@@ -744,7 +745,7 @@ export async function updateDocumentContent(
                 });
 
                 stepsToRebaseAgainst = [
-                    ...stepsBeforeSnapshot.map(({step}) => step),
+                    ...otherSteps.map(({step}) => step),
                     ...internalDocument.stepsAfterInitialSnapshot,
                 ];
             }
@@ -830,7 +831,7 @@ export async function updateDocumentContent(
 
         // This checkpoint allows us to write a test against our transaction's
         // condition.
-        await updateDocumentBeforeExecuteTransactionTestCheckpoint.waitForTest(context);
+        await updateDocumentContentBeforeExecuteTransactionTestCheckpoint.waitForTest(context);
 
         if (newSteps.length > 0) {
             await context.executeTransaction([
@@ -870,6 +871,7 @@ export async function updateDocumentContent(
         return {
             newVersion: internalDocument.version + newSteps.length,
             newSteps,
+            newContent: content,
         };
     });
 
@@ -882,19 +884,52 @@ export async function updateDocumentContent(
     // could in the future use a task queue to update the snapshot as a background
     // job, but occasionally paying the snapshot update price within the
     // `updateDocumentContent()` function doesn't seem too bad.
-    await maybeUpdateDocumentSnapshotAfterUpdatingContent(context, result);
+    await maybeUpdateDocumentSnapshotAfterUpdatingContent(context, {
+        id,
+        newVersion,
+        newSteps,
+        newContent,
+    });
 }
 
-const updateDocumentSnapshotAfterStepCount = 100;
+/**
+ * The number of steps between document content snapshots.
+ *
+ * This isn't the exact number of steps between document content snapshots
+ * because we may update the document with more than one step at a time. If we
+ * update the document with, say, 10 steps then all 10 new steps will be
+ * included in the snapshot regardless of whether we only needed 1 more step
+ * for the next snapshot. The next snapshot will also then include fewer steps
+ * if we included some extra steps in a given snapshot.
+ *
+ * We picked 62 for our snapshot step interval which is not a clean number like
+ * 100. What's its significance? Well, we're aiming for a constant number of
+ * requests to DynamoDB and [`BatchWriteItems`][1] supports a max of 25 items.
+ * So 62 gives us two full write batches (50) and since the last batch may
+ * have a few more or a few less steps we added floor(25 / 2) to give some
+ * wiggle room.
+ *
+ * I don't think the number of DynamoDB requests actually matters but it gave
+ * us a reasonable way to pick a number.
+ *
+ * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
+ */
+const updateDocumentSnapshotAfterStepCount = 62;
+
+export const updateDocumentSnapshotBeforeDeletingStepsTestCheckpoint = new RequestTestCheckpoint();
 
 async function maybeUpdateDocumentSnapshotAfterUpdatingContent(
     context: RequestContext,
     {
+        id,
         newVersion,
         newSteps,
+        newContent,
     }: {
+        id: Id;
         newVersion: number;
         newSteps: ReadonlyArray<Step>;
+        newContent: DocumentContent;
     },
 ) {
     // Get the last version before `newVersion` which should trigger a snapshot.
@@ -908,15 +943,87 @@ async function maybeUpdateDocumentSnapshotAfterUpdatingContent(
     // we don't need to save a new snapshot.
     if (oldVersion >= lastVersionToTriggerSnapshot) return;
 
-    // TODO(calebmer): Implement
+    const snapshot = await DocumentsTable.getPartialItem(
+        context,
+        {
+            partitionType: "Document",
+            documentId: id,
+            sortRangeType: "Snapshot",
+        },
+        {
+            attributes: ["version"],
+        },
+    );
+
+    // If there is no snapshot, maybe the document was deleted? Ignore. When we try
+    // to read the document there will be an error then.
+    if (!snapshot) return;
+
+    // First, update the snapshot. We can't start moving steps until we know the
+    // snapshot has successfully updated.
+    await DocumentsTable.putItem(context, {
+        partitionType: "Document",
+        documentId: id,
+        sortRangeType: "Snapshot",
+        version: newVersion,
+        content: newContent,
+    });
+
+    // Then, for all steps between our snapshot and new version, move them into the
+    // `StepsBeforeSnapshot` range so in the future when read read the full
+    // document we don't read those steps.
+    const steps = await arrayFromAsyncIterable(
+        DocumentsTable.query(context, {
+            startKey: {
+                partitionType: "Document",
+                documentId: id,
+                sortRangeType: "StepsAfterSnapshot",
+                version: snapshot.version,
+            },
+            endKey: {
+                partitionType: "Document",
+                documentId: id,
+                sortRangeType: "StepsAfterSnapshot",
+                version: newVersion - 1,
+            },
+        }),
+    );
+
+    // Our writes should be batched under the hood if we dispatch them
+    // in parallel like this.
+    await Promise.all(
+        steps.map(async step => {
+            await DocumentsTable.putItem(context, {
+                ...step,
+                sortRangeType: "StepsBeforeSnapshot",
+            });
+
+            await updateDocumentSnapshotBeforeDeletingStepsTestCheckpoint.waitForTest(context);
+
+            // It's important that we wait for our put in the `StepsBeforeSnapshot` to
+            // successfully complete before we delete.
+            await DocumentsTable.deleteItem(context, step);
+        }),
+    );
 }
 
 /**
- * Reads all steps between `versionStart` and `versionEnd` before the document
- * snapshot. Inclusive of `versionStart` and `versionEnd`. Make sure
- * `versionEnd` is after the document snapshot!
+ * Reads all steps between `versionStart` and `versionEnd` inclusive.
+ *
+ * We assume you have checked that `versionEnd` is a version that exists! We
+ * will throw a `DataLossError` if we don't find steps up to `versionEnd`.
+ *
+ * We also assert that `versionStart` is less than `versionEnd` and
+ * `versionStart` is greater than zero.
+ *
+ * We call this function "for validated version range" because we assume
+ * `versionStart` and `versionEnd` are valid.
+ *
+ * We start by looking in the `StepsBeforeSnapshot` range since it has all our
+ * historical steps. If we can't find all the steps we need then we check the
+ * `StepsAfterSnapshot` range.
  */
-async function readDocumentStepsBeforeSnapshot(
+async function readDocumentStepsForValidatedVersionRange(
     context: RequestContext,
     {
         id,
@@ -927,10 +1034,15 @@ async function readDocumentStepsBeforeSnapshot(
         versionStart: number;
         versionEnd: number;
     },
-): Promise<Array<DocumentStepBeforeSnapshotItem>> {
+): Promise<Array<DocumentStepItem>> {
+    assert(Number.isSafeInteger(versionStart));
+    assert(Number.isSafeInteger(versionEnd));
     assert(versionStart <= versionEnd);
+    assert(versionStart >= 0);
 
-    const items = await arrayFromAsyncIterable(
+    const stepByVersion = new Map<number, DocumentStepItem>();
+
+    const stepBeforeSnapshotItems = await arrayFromAsyncIterable(
         DocumentsTable.query(context, {
             startKey: {
                 partitionType: "Document",
@@ -947,24 +1059,47 @@ async function readDocumentStepsBeforeSnapshot(
         }),
     );
 
-    // TODO(calebmer): This doesn't work if we're incrementally moving steps from
-    // before the snapshot to after the snapshot...
-    if (items.length !== versionEnd - versionStart) {
-        const snapshot = await DocumentsTable.getItem(context, {
-            partitionType: "Document",
-            documentId: id,
-            sortRangeType: "Snapshot",
-        });
-
-        if (!snapshot) throw new NotFoundError("Document does not exist");
-
-        if (!(versionEnd <= snapshot.version))
-            throw new FailedPreconditionError(
-                "Should have provided an end version before the document snapshot but instead the end version was after the document snapshot",
-            );
-
-        throw new DataLossError("Missing some steps before document snapshot");
+    for (const item of stepBeforeSnapshotItems) {
+        stepByVersion.set(item.version, item);
     }
 
-    return items;
+    // Did we get all the steps from our before snapshot range? If yes we don't
+    // need to query the after snapshot range.
+    if (stepByVersion.size < versionEnd - versionStart) {
+        const stepAfterSnapshotItems = await arrayFromAsyncIterable(
+            DocumentsTable.query(context, {
+                startKey: {
+                    partitionType: "Document",
+                    documentId: id,
+                    sortRangeType: "StepsAfterSnapshot",
+                    version: versionStart,
+                },
+                endKey: {
+                    partitionType: "Document",
+                    documentId: id,
+                    sortRangeType: "StepsAfterSnapshot",
+                    version: versionEnd,
+                },
+            }),
+        );
+
+        for (const item of stepAfterSnapshotItems) {
+            // We may have a step in both the before snapshot range and the after snapshot
+            // range while we are updating our snapshot. Prefer items in the before
+            // snapshot range.
+            if (stepByVersion.has(item.version)) continue;
+
+            stepByVersion.set(item.version, item);
+        }
+    }
+
+    const steps = [];
+
+    for (let version = versionStart; version <= versionEnd; version++) {
+        const step = stepByVersion.get(version);
+        if (!step) throw new DataLossError("Missing a document step");
+        steps.push(step);
+    }
+
+    return steps;
 }

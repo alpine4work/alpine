@@ -4,6 +4,7 @@ import {
     BatchWriteItemCommand,
     DeleteItemCommand,
     DynamoDBClient,
+    GetItemCommand,
     KeysAndAttributes,
     PutItemCommand,
     QueryCommand,
@@ -98,20 +99,43 @@ export class DynamoClient {
      * For `getItem()` calls made in a short window of time, we will batch them
      * together into a [`BatchGetItem`][2] command.
      *
+     * If a `projectionExpression` is provided then we will not batch and send a
+     * plain `GetItem` command at this time.
+     *
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html
      * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
      */
-    public getItem({
+    public async getItem({
         tableName,
         key,
         consistency = "Eventual",
+        projectionExpression,
     }: {
         tableName: string;
         key: SchemaSerializedObjectValue;
         consistency?: DynamoReadConsistency;
+        projectionExpression?: string;
     }): Promise<SchemaSerializedObjectValue | null> {
-        const batcher = this._getItemBatcherByConsistency[consistency];
-        return batcher.getItem(tableName, key);
+        // Reads without a projection expression may be batched.
+        //
+        // NOTE: If we end up using `projectionExpression` a lot, consider in the
+        // future sending batch requests with `projectionExpression`.
+        if (projectionExpression === undefined) {
+            const batcher = this._getItemBatcherByConsistency[consistency];
+            return batcher.getItem(tableName, key);
+        }
+
+        const command = new GetItemCommand({
+            TableName: tableName,
+            Key: intoDynamoAttributeValueObject(key),
+            ConsistentRead: consistency === "Strong",
+            ProjectionExpression: projectionExpression,
+        });
+
+        const output = await this._client.send(command);
+
+        if (!output.Item) return null;
+        return fromDynamoAttributeValueObject(output.Item);
     }
 
     /**

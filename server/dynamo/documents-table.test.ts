@@ -1,5 +1,5 @@
 import {Fragment, Slice} from "prosemirror-model";
-import {ReplaceStep, Step} from "prosemirror-transform";
+import {ReplaceStep} from "prosemirror-transform";
 import {
     DocumentContentCacheForUpdate,
     createDocument,
@@ -8,7 +8,7 @@ import {
     readDocument,
     readInternalDocumentTestCounter,
     updateDocumentContent,
-    updateDocumentBeforeExecuteTransactionTestCheckpoint,
+    updateDocumentContentBeforeExecuteTransactionTestCheckpoint,
 } from "~/server/dynamo/documents-table";
 import {RequestContext} from "~/server/request/request-context";
 import {
@@ -650,7 +650,7 @@ test("when two document updates race the loser will rebase", async () => {
 
     const request2Context = RequestContext.test();
     const request2PausePromise =
-        updateDocumentBeforeExecuteTransactionTestCheckpoint.pauseForTest(request2Context);
+        updateDocumentContentBeforeExecuteTransactionTestCheckpoint.pauseForTest(request2Context);
     const request2Promise = updateDocumentContent(request2Context, {
         id: documentId,
         version: 1,
@@ -2078,14 +2078,7 @@ test("updates the document title whenever it changes", async () => {
     await updateDocumentContent(RequestContext.test(), {
         id: documentId,
         version: 7,
-        steps: [
-            Step.fromJSON(schema, {
-                stepType: "replace",
-                from: 4,
-                to: 6,
-                structure: true,
-            }),
-        ],
+        steps: [new ReplaceStep(4, 6, Slice.empty, true)],
         clientId: generateId(),
     });
 

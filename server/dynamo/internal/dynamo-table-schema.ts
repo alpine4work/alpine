@@ -27,7 +27,7 @@ import {mapObjectValues} from "~/shared/helpers/object/map-object-values";
 import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order-key";
 import {defaultCompareStrings} from "~/shared/helpers/string/default-compare-strings";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge-object-intersection";
-import {SchemaSerializedValue} from "~/shared/schema/schema";
+import {ObjectSchema, SchemaSerializedValue} from "~/shared/schema/schema";
 
 /**
  * When schema evolution is enabled, the schema in code may be different from
@@ -298,6 +298,65 @@ export class DynamoTableSchema<
 
         const item: any = {...key};
         attributesSchema.deserializeInto(serializedItem, item);
+
+        return item;
+    }
+
+    /**
+     * Gets a few attributes of a single item by its key from the database. Returns
+     * `null` if the item does not exist.
+     *
+     * Corresponds to the [`GetItem`][1] command with `ProjectionExpression` set.
+     * At this time we do not batch `getPartialItem()` commands.
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html
+     */
+    public async getPartialItem<
+        Key extends Types["Key"],
+        Attributes extends string & keyof (Types["Item"] & Key),
+    >(
+        context: RequestContext,
+        key: Key,
+        {attributes}: {attributes: Array<Attributes>},
+    ): Promise<MergeObjectIntersection<Key & Pick<Types["Item"] & Key, Attributes>> | null> {
+        const client = getDynamoClientFromRequestContext(context);
+        const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
+
+        assert(
+            attributesSchema instanceof ObjectSchema,
+            "Expected a schema created by `Schema.object()`",
+        );
+
+        const projectionExpressionEntries = [];
+        for (const propertyKey of attributes) {
+            const propertySchema = attributesSchema.propertySchemaByKey.get(propertyKey);
+            assert(propertySchema, "Property not found");
+
+            const serializedKey = propertySchema.serializedKey ?? propertyKey;
+            projectionExpressionEntries.push(serializedKey);
+        }
+
+        const serializedItem = await client.getItem({
+            tableName: this._config.name,
+            key: {partitionKey, sortKey},
+            consistency: context.dynamoReadConsistency,
+            projectionExpression:
+                projectionExpressionEntries.length !== 0
+                    ? projectionExpressionEntries.join(", ")
+                    : "partitionKey",
+        });
+        if (!serializedItem) return null;
+
+        const item: any = {...key};
+        for (const propertyKey of attributes) {
+            const propertySchema = attributesSchema.propertySchemaByKey.get(propertyKey);
+            assert(propertySchema, "Property not found");
+
+            const serializedKey = propertySchema.serializedKey ?? propertyKey;
+
+            const propertyValue = propertySchema.deserializeProperty(serializedItem, serializedKey);
+            item[propertyKey] = propertyValue;
+        }
 
         return item;
     }

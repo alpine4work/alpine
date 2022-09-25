@@ -44,8 +44,12 @@ export class RequestTestCheckpoint {
         if (!promiseResolver1) return;
 
         // Don't create a new promise resolver if our first promise resolver is
-        // already settled.
-        if (promiseResolver1.isSettled()) return;
+        // already settled. Instead await the promise resolver we settled with.
+        if (promiseResolver1.isSettled()) {
+            const promiseResolver2 = await promiseResolver1.promise;
+            await promiseResolver2.promise;
+            return;
+        }
 
         const promiseResolver2 = createPromiseResolver();
         promiseResolver1.resolve(promiseResolver2);
@@ -63,7 +67,6 @@ export class RequestTestCheckpoint {
      */
     public async pauseForTest(context: RequestContext): Promise<{unpause: () => void}> {
         assert(typeof jest !== "undefined");
-
         assert(!this._promiseResolverByRequestId.has(context.requestId), "Request already paused");
 
         const promiseResolver1 = createPromiseResolver<PromiseResolver<void>>();
