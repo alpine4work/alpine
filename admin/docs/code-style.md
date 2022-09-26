@@ -29,6 +29,54 @@ we have tooling (like the TypeScript language server) which can auto-import base
 name. If you have multiple variables with the same name it becomes harder to correctly auto-import
 based on variable name alone.
 
+### Prefer long, descriptive names
+
+When naming a variable, type, function, class, or any other declaration prefer longer descriptive names to shorter names with accompanying documentation.
+
+Include context in the name for how it's supposed to be used when appropriate. For example: "A for B" (e.g. `fooForBar`) tells you that A should only be used in context B. "C with D" (e.g. `fooWithBar`) tells you that C includes some extra information D that doesn't usually come with C. "internal E" (e.g. `internalFoo`) tells you that a name is an implementation detail of E and should be used to implement E.
+
+Avoid acronyms unless they are common outside of our codebase (e.g. HTML). Acronyms are confusing and intimidating for folks without context on what the acronym stands for. Generally avoid acronyms in written communication as well.
+
+**Why?** Variable names are visible not just at the point where you declare the variable but also everywhere you use the variable. Meaning you put in a variable name can not be missed by future developers using that variable.
+
+### Exported names should be globally unique
+
+When you export a name from a TypeScript module, the name should be globally unique.
+
+One strategy to make your names more globally unique is adding a namespace at the beginning of a related group of names.
+
+**Why?** This helps when doing analysis across the codebase. You can do a global search for a globally unique name and find all the places it appears. If an exported name is reused you need to sift through all usages to figure out which ones you care about. TypeScript also provides an auto-import feature which works best with global names. As you start typing a name it will give you recommended files to import from.
+
+We recommend most of your module scoped names to be globally unique. This keeps things stylistically consistent (since exported module scoped names need to be unique) and means less work for you if you want to export a previously private name.
+
+### Recommended type naming convention
+
+This is a recommended naming convention for types that works with our style guide suggestions. This is loose guidance to help you pick a good name that's consistent with the codebase. Break out of this convention as you see fit.
+
+This naming convention can also be used for React components, schemas, or anything else that gets a PascalCase name. If a name is stylized as PascalCase that typically means it's some kind of "noun" so you can think of this as our noun naming convention.
+
+```
+{namespace}{subClass}{superClass}{member}
+```
+
+- `namespace`: A namespace for a related group of types. By using a namespace with a related group of types you make the type globall unique, make sure the type names sort together, and generally communicate what part of the system a name is a part of.
+- `subClass` and `superClass`: `subClass` is a kind of `superClass`. For a class declaration this naming convention may look like `class {subClass}{superClass} extends {superClass}`. Even if your type is not a class, sometimes you will have an inheritance relationship between types. For example a discriminated union will have a `superClass` (e.g. `Expression`) and a `subClass` (e.g. `Variable` or `Function` which becomes `VariableExpression` and `FunctionExpression`).
+- `member`: If your type "owns" another type (perhaps through a property) that other type is said to be a member. For example `type Foo = {bar: FooBar}`. Here `bar` is owned by `Foo` (it doesn't appear anywhere else) so we give it the name `FooBar`.
+
+Each part of the name is optional.
+
+This naming convention is recursive. Say you have a `member` that itself has a `subClass` and `superClass`.
+
+### Variable names and type names should mirror each other
+
+Your variable names shouldn't diverge too far from your type names. Same with function names.
+
+Suggestion for how to pick a variable name: start with the type name, convert to camel case, remove redundant information (if locally scoped), and add extra context (e.g. `fooForBar` or `fooWithBar`).
+
+If you're following the [recommended type naming convention](#recommended-type-naming-convention) the namespace is usually redundant in a locally scoped variable name. Since you typically know the systems you're working with within a function implementation so the namespace doesn't add much value. If you are exporting the variable and want it's name to be globally unique then include the namespace.
+
+**Why?** The variable name is not just seen where the variable is declared but also everywhere the variable is used. You don't write the type of the variable where it's used, just the name. If you include some of the type name in the variable name it is clear wherever the variable is used what type of thing you're interacting with.
+
 ## Comments
 
 ### Code comments should be 80 characters in length
