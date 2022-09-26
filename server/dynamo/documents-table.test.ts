@@ -1562,7 +1562,7 @@ test("updates may happen with different caches", async () => {
             clientId: generateId(),
         });
 
-        expect(getCount()).toEqual(1);
+        expect(getCount()).toEqual(0);
     }
 
     {
@@ -1591,7 +1591,7 @@ test("updates may happen with different caches", async () => {
             cacheOverrideForTest: otherCache,
         });
 
-        expect(getCount()).toEqual(1);
+        expect(getCount()).toEqual(0);
     }
 
     {

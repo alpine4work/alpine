@@ -48,6 +48,17 @@ const dynamoGeneratedDirectoryPath = path.join(
 export type DynamoTableSchemaGetTypes<Schema extends DynamoTableSchema<any>> =
     Schema extends DynamoTableSchema<infer Types> ? Types : never;
 
+export type DynamoTableKeyType<
+    Schema extends DynamoTableSchema<any>,
+    PartitionType extends string,
+    SortRangeType extends string,
+> = MergeObjectIntersection<
+    DynamoTableSchemaGetTypes<Schema>["Key"] & {
+        readonly partitionType: PartitionType;
+        readonly sortRangeType: SortRangeType;
+    }
+>;
+
 export type DynamoTableItemType<
     Schema extends DynamoTableSchema<any>,
     PartitionType extends string,

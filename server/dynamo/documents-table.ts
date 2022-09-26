@@ -15,6 +15,7 @@ import {
 import {
     DataLossError,
     FailedPreconditionError,
+    InternalError,
     InvalidArgumentError,
     NotFoundError,
 } from "~/shared/error/error";
@@ -386,43 +387,7 @@ export const documentContentCacheEvictionTimeoutMs = 1000 * 60 * 5;
 // have its own cache. I'd also hope that one day we can tune Vercel to route
 // updates from the same space id to the same process.
 export class DocumentContentCacheForUpdate {
-    private readonly _cachedContentPromiseByDocumentId = new Map<
-        Id,
-        Promise<{
-            evictionTimeoutId: NodeJS.Timer;
-            version: number;
-            content: DocumentContent;
-            /**
-             * Steps after the snapshot the content was loaded at.
-             *
-             * Every new step applied to the document content will be pushed to this array.
-             *
-             * We never remove steps from this array which is why the name specifies
-             * "initial snapshot". The snapshot may be different from when we loaded this
-             * content but we won't evict steps from this list.
-             *
-             * By only pushing to this array it also means we can efficiently create
-             * immutable slices in O(1) time instead of an O(n) time clone.
-             */
-            stepsAfterInitialSnapshot: PushOnlyArray<Step>;
-        } | null>
-    >();
-
-    constructor() {
-        // In our test environment, add a hook to evict all cached content at the end
-        // of every test. That way we don't have timeouts sitting around and firing
-        // randomly.
-        if (typeof jest !== "undefined") {
-            afterEach(() => {
-                for (const [id, cachedContentPromise] of this._cachedContentPromiseByDocumentId) {
-                    this._cachedContentPromiseByDocumentId.delete(id);
-                    void cachedContentPromise.then(cachedContent => {
-                        if (cachedContent) clearTimeout(cachedContent.evictionTimeoutId);
-                    });
-                }
-            });
-        }
-    }
+    private readonly _entries = new DocumentContentCacheForUpdateEntries();
 
     public async readAndCacheDocument(
         context: RequestContext,
@@ -444,61 +409,35 @@ export class DocumentContentCacheForUpdate {
          * validate that the new content or steps are correct and trust the caller to
          * do that!
          */
-        updateCache: (newContent: DocumentContent, newSteps: ReadonlyArray<Step>) => void;
+        updateCache: (newContent: DocumentContent, newSteps: ReadonlyArray<Step>) => Promise<void>;
     } | null> {
-        let cachedContentPromise = this._cachedContentPromiseByDocumentId.get(id);
-        const wasContentCached = !!cachedContentPromise;
+        let wasEntryCached = true;
 
-        if (!cachedContentPromise) {
-            // Set a timeout that will remove this content from our cache.
-            const evictionTimeoutId = setTimeout(() => {
-                // Make sure the entry for our document id hasn't changed. We don't want to
-                // touch someone else's state.
-                if (this._cachedContentPromiseByDocumentId.get(id) !== cachedContentPromise) return;
+        const nullableEntry = await this._entries.getOrSetEntry(id, async () => {
+            wasEntryCached = false;
 
-                this._cachedContentPromiseByDocumentId.delete(id);
-            }, documentContentCacheEvictionTimeoutMs);
+            const internalDocument = await readInternalDocument(context, id);
+            if (!internalDocument) return null;
 
-            cachedContentPromise = readInternalDocument(context, id).then(
-                internalDocument => {
-                    // If the document doesn't exist, immediately evict the promise from the cache.
-                    if (!internalDocument) {
-                        clearTimeout(evictionTimeoutId);
-                        this._cachedContentPromiseByDocumentId.delete(id);
-                        return null;
-                    }
+            return {
+                version: internalDocument.document.version,
+                content: internalDocument.document.content,
+                stepsAfterInitialSnapshot: new PushOnlyArray(
+                    iterableMap(internalDocument.stepsAfterSnapshot, ({step}) => step),
+                ),
+            };
+        });
 
-                    return {
-                        evictionTimeoutId,
-                        version: internalDocument.document.version,
-                        content: internalDocument.document.content,
-                        stepsAfterInitialSnapshot: new PushOnlyArray(
-                            iterableMap(internalDocument.stepsAfterSnapshot, ({step}) => step),
-                        ),
-                    };
-                },
-                error => {
-                    // If we threw an error reading the document, immediately evict the promise
-                    // from the cache.
-                    clearTimeout(evictionTimeoutId);
-                    this._cachedContentPromiseByDocumentId.delete(id);
-                    throw error;
-                },
-            );
-            this._cachedContentPromiseByDocumentId.set(id, cachedContentPromise);
-        }
-
-        const cachedContent = await cachedContentPromise;
-        if (!cachedContent) return null;
+        if (!nullableEntry) return null;
+        let entry = nullableEntry;
 
         // If our content was already cached, then we want to verify that the cached
         // content version is the same as the content version in the database.
         //
         // Another process may have written to the database in which case the cache in
         // this process wouldn't know. If another process wrote to the database we
-        // can't use our cached value and should instead do a full read from the
-        // database.
-        if (wasContentCached) {
+        // can't use our cached entry so should update our cache appropriately.
+        if (wasEntryCached) {
             const attributes = await DocumentsTable.getItem(context, {
                 partitionType: "Document",
                 documentId: id,
@@ -507,54 +446,202 @@ export class DocumentContentCacheForUpdate {
 
             // The document was deleted from the database but not our cache.
             if (!attributes) {
-                clearTimeout(cachedContent.evictionTimeoutId);
-                this._cachedContentPromiseByDocumentId.delete(id);
+                this._entries.evictEntry(id);
                 return null;
             }
 
-            // If the version in our cache does not match the version in the database,
-            // clear our cache and call this function again. That should read the full
-            // document fresh and put it in the cache.
-            //
-            // TODO(calebmer): Instead of clearing the cache, what if we loaded the new
-            // steps into it?
-            if (cachedContent.version !== attributes.version) {
-                clearTimeout(cachedContent.evictionTimeoutId);
-                this._cachedContentPromiseByDocumentId.delete(id);
-                return this.readAndCacheDocument(context, id);
+            if (entry.version > attributes.version)
+                throw new InternalError(
+                    "We've cached document content that has a version number ahead of what's in the database",
+                );
+
+            // If the version in our cache is less than what's in the database, then let's
+            // load the steps we are missing and apply them to our content.
+            if (entry.version < attributes.version) {
+                const nullableEntry = await this._entries.setEntry(id, async () => {
+                    const steps = await arrayFromAsyncIterable(
+                        DocumentsTable.query(context, {
+                            startKey: {
+                                partitionType: "Document",
+                                documentId: id,
+                                sortRangeType: "StepsAfterSnapshot",
+                                version: entry.version,
+                            },
+                            endKey: {
+                                partitionType: "Document",
+                                documentId: id,
+                                sortRangeType: "StepsAfterSnapshot",
+                                version: attributes.version - 1,
+                            },
+                        }),
+                    );
+
+                    let content = entry.content;
+
+                    // Make sure we have all the right steps and apply them to our cached content.
+                    for (let version = entry.version; version < attributes.version; version++) {
+                        const step = steps[version - entry.version];
+                        if (!step) throw new DataLossError("Missing step after document snapshot");
+
+                        if (step.version !== version)
+                            throw new DataLossError("Unexpected version for document step");
+
+                        const stepResult = step.step.apply(content);
+                        if (!stepResult.doc)
+                            throw new DataLossError(
+                                `Step after document snapshot could not be applied: ${stepResult.failed!}`,
+                            );
+
+                        assert(isDocumentContent(stepResult.doc));
+                        content = stepResult.doc;
+                        entry.stepsAfterInitialSnapshot.push(step.step);
+                    }
+
+                    return {
+                        version: attributes.version,
+                        content,
+                        stepsAfterInitialSnapshot: entry.stepsAfterInitialSnapshot,
+                    };
+                });
+
+                if (!nullableEntry) return null;
+                entry = nullableEntry;
             }
         }
 
         return {
-            version: cachedContent.version,
-            content: cachedContent.content,
+            version: entry.version,
+            content: entry.content,
             // Create a slice of `stepsAfterInitialSnapshot` so that when we mutate the
             // array from within this function, other code with a reference to the array
             // won't see the new values.
-            stepsAfterInitialSnapshot: cachedContent.stepsAfterInitialSnapshot.slice(),
+            stepsAfterInitialSnapshot: entry.stepsAfterInitialSnapshot.slice(),
 
-            updateCache: (newContent, newSteps) => {
-                // Make sure the entry for our document id hasn't changed. We don't want to
-                // touch someone else's state.
-                if (this._cachedContentPromiseByDocumentId.get(id) !== cachedContentPromise) return;
+            updateCache: async (newContent, newSteps) => {
+                for (const step of newSteps) entry.stepsAfterInitialSnapshot.push(step);
 
-                cachedContent.version += newSteps.length;
-                cachedContent.content = newContent;
-                for (const step of newSteps) cachedContent.stepsAfterInitialSnapshot.push(step);
-
-                // Reset the eviction timeout every time our cached content updates. So while a
-                // user is continuously updating, we keep the content around in the cache.
-                clearTimeout(cachedContent.evictionTimeoutId);
-                cachedContent.evictionTimeoutId = setTimeout(() => {
-                    // Make sure the entry for our document id hasn't changed. We don't want to
-                    // touch someone else's state.
-                    if (this._cachedContentPromiseByDocumentId.get(id) !== cachedContentPromise)
-                        return;
-
-                    this._cachedContentPromiseByDocumentId.delete(id);
-                }, documentContentCacheEvictionTimeoutMs);
+                await this._entries.setEntry(id, async () => ({
+                    version: entry.version + newSteps.length,
+                    content: newContent,
+                    stepsAfterInitialSnapshot: entry.stepsAfterInitialSnapshot,
+                }));
             },
         };
+    }
+}
+
+type DocumentContentCacheForUpdateEntry = {
+    readonly version: number;
+    readonly content: DocumentContent;
+    /**
+     * Steps after the snapshot the content was loaded at.
+     *
+     * Every new step applied to the document content will be pushed to this array.
+     *
+     * We never remove steps from this array which is why the name specifies
+     * "initial snapshot". The snapshot may be different from when we loaded this
+     * content but we won't evict steps from this list.
+     *
+     * By only pushing to this array it also means we can efficiently create
+     * immutable slices in O(1) time instead of an O(n) time clone.
+     */
+    readonly stepsAfterInitialSnapshot: PushOnlyArray<Step>;
+};
+
+/**
+ * Small helper for managing `DocumentContentCacheForUpdate` that handles
+ * cache eviction.
+ *
+ * You shouldn't have to worry about cache eviction outside of this class.
+ */
+class DocumentContentCacheForUpdateEntries {
+    private readonly _entryByDocumentId = new Map<
+        Id,
+        {
+            evictionTimeoutId: NodeJS.Timer;
+            evict: () => void;
+            promise: Promise<DocumentContentCacheForUpdateEntry | null>;
+        }
+    >();
+
+    constructor() {
+        // In our test environment, add a hook to evict all cached content at the end
+        // of every test. That way we don't have timeouts sitting around and firing
+        // randomly.
+        if (typeof jest !== "undefined") {
+            afterEach(() => {
+                for (const entry of this._entryByDocumentId.values()) {
+                    entry.evict();
+                }
+            });
+        }
+    }
+
+    /**
+     * Either get an existing entry for the provided document id or set an entry
+     * using the provided function.
+     */
+    public getOrSetEntry(
+        id: Id,
+        getData: () => Promise<DocumentContentCacheForUpdateEntry | null>,
+    ): Promise<DocumentContentCacheForUpdateEntry | null> {
+        const entry = this._entryByDocumentId.get(id);
+        if (!entry) return this.setEntry(id, getData);
+        return entry.promise;
+    }
+
+    /**
+     * Set the entry in our map for the provided id. If there is already an entry
+     * for the provided id then we will evict that entry. Calling this method will
+     * start an eviction timer at which point the entry you added will be evicted
+     * from the cache.
+     */
+    public setEntry(
+        id: Id,
+        getEntry: () => Promise<DocumentContentCacheForUpdateEntry | null>,
+    ): Promise<DocumentContentCacheForUpdateEntry | null> {
+        // Evict the last entry before setting the new entry.
+        const lastEntry = this._entryByDocumentId.get(id);
+        lastEntry?.evict();
+
+        const evict = () => {
+            // If our entry was already evicted then don't evict it again.
+            if (this._entryByDocumentId.get(id) !== nextEntry) return;
+
+            clearTimeout(nextEntry.evictionTimeoutId);
+            this._entryByDocumentId.delete(id);
+        };
+
+        const evictionTimeoutId = setTimeout(() => {
+            evict();
+        }, documentContentCacheEvictionTimeoutMs);
+
+        const nextEntry = {
+            evictionTimeoutId,
+            evict,
+            promise: getEntry().then(
+                data => {
+                    // Immediately evict if the document doesn't exist.
+                    if (data === null) evict();
+                    return data;
+                },
+                error => {
+                    // Immediately evict if we failed to get the data.
+                    evict();
+                    throw error;
+                },
+            ),
+        };
+        this._entryByDocumentId.set(id, nextEntry);
+
+        return nextEntry.promise;
+    }
+
+    /**
+     * Evict the entry for the provided id. noop if the entry doesn't exist.
+     */
+    public evictEntry(id: Id) {
+        this._entryByDocumentId.get(id)?.evict();
     }
 }
 
@@ -865,7 +952,7 @@ export async function updateDocumentContent(
 
             // Update our cache so that the next update from this process doesn't need to
             // read content from the database.
-            internalDocument.updateCache(content, newSteps);
+            await internalDocument.updateCache(content, newSteps);
         }
 
         return {
