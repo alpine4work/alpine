@@ -644,7 +644,7 @@ test("union schema variants can be renamed with original variant name", () => {
             qux: Schema.object({
                 type: Schema.value("qux"),
                 bar: Schema.integer,
-            }).originalTypeName("bar"),
+            }).originalUnionType("bar"),
         }),
         sampleValues: [
             {type: "foo", foo: 1},
@@ -687,7 +687,7 @@ test("union schema variants can be renamed with original variant name", () => {
             qux: Schema.object({
                 type: Schema.value("qux"),
                 bar: Schema.integer,
-            }).originalTypeName("bar"),
+            }).originalUnionType("bar"),
         }),
         nextSchema: Schema.union({
             foo: Schema.object({
