@@ -362,12 +362,10 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      * delete any extra unknown keys. If parsing an object with a prototype chain
      * then we will create a new, plain, object.
      */
-    public static object<
-        Schemas extends {[key: string]: Schema<any> | ObjectPropertySchema<any, any>},
-    >(
-        schemas: Schemas,
-    ): ObjectSchema<Optionalize<{readonly [Key in keyof Schemas]: SchemaType<Schemas[Key]>}>> {
-        return ObjectSchema._new(schemas);
+    public static object<Config extends ObjectSchemaConfigBase>(
+        config: Config,
+    ): ObjectSchema<ObjectSchemaConfigType<Config>> {
+        return ObjectSchema._new(config);
     }
 
     /**
@@ -454,6 +452,14 @@ export class JsonStringifiableUint8Array extends Uint8Array {
     }
 }
 
+export type ObjectSchemaConfigBase = {
+    [key: string]: Schema<any> | ObjectPropertySchema<any, any>;
+};
+
+export type ObjectSchemaConfigType<Config extends ObjectSchemaConfigBase> = Optionalize<{
+    readonly [Key in keyof Config]: SchemaType<Config[Key]>;
+}>;
+
 /**
  * Schema for an object value.
  *
@@ -521,19 +527,17 @@ export class ObjectSchema<Value> extends Schema<Value> {
     /**
      * Prefer `Schema.object()` which directly calls this method.
      */
-    public static _new<
-        Schemas extends {[key: string]: Schema<any> | ObjectPropertySchema<any, any>},
-    >(
-        schemas: Schemas,
-    ): ObjectSchema<Optionalize<{readonly [Key in keyof Schemas]: SchemaType<Schemas[Key]>}>> {
+    public static _new<Config extends ObjectSchemaConfigBase>(
+        config: Config,
+    ): ObjectSchema<ObjectSchemaConfigType<Config>> {
         const propertySchemaByKey = new Map<string, ObjectPropertySchema<unknown, unknown>>(
-            Object.entries(schemas).map(([key, schema]) => {
+            Object.entries(config).map(([key, schema]) => {
                 assert(isIdentifier(key));
                 return [key, schema instanceof Schema ? ObjectPropertySchema.wrap(schema) : schema];
             }),
         );
 
-        return new ObjectSchema<Optionalize<{[Key in keyof Schemas]: SchemaType<Schemas[Key]>}>>({
+        return new ObjectSchema<ObjectSchemaConfigType<Config>>({
             propertySchemaByKey,
             description: {
                 type: "Object",
