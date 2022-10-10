@@ -5,6 +5,7 @@ import fs from "fs-extra";
 import isCi from "is-ci";
 import path from "path";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo-transaction-entry";
+import {DynamoReadConsistency} from "~/server/dynamo/internal/dynamo-client";
 import {
     DynamoCondition,
     DynamoConditionExpression,
@@ -14,12 +15,11 @@ import {
     DynamoKeyAttribute,
     dynamoKeySeparator,
 } from "~/server/dynamo/internal/dynamo-key-attribute-schema";
-import {getDynamoClientFromRequestContext} from "~/server/dynamo/internal/get-dynamo-client-from-request-context";
+import {globalDynamoClient} from "~/server/dynamo/internal/global-dynamo-client";
 import {DynamoTableSchemaTypes} from "~/server/dynamo/internal/types/dynamo-table-schema-types";
 import {repoDirectoryPath} from "~/server/helpers/repo-directory-path";
-import {RequestContext} from "~/server/request/request-context";
 import {checkSchemaDescriptionBackwardsCompatibility} from "~/server/schema/check-schema-description-backwards-compatibility";
-import {InvalidArgumentError} from "~/shared/error/error";
+import {DataLossError, InvalidArgumentError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {isDeepEqual} from "~/shared/helpers/control/is-deep-equal";
 import {asyncIterableIteratorMap} from "~/shared/helpers/iterable/async-iterable-iterator-map";
@@ -27,7 +27,11 @@ import {mapObjectValues} from "~/shared/helpers/object/map-object-values";
 import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order-key";
 import {defaultCompareStrings} from "~/shared/helpers/string/default-compare-strings";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge-object-intersection";
-import {ObjectSchema, SchemaSerializedValue} from "~/shared/schema/schema";
+import {
+    ObjectSchema,
+    SchemaDeserializationError,
+    SchemaSerializedValue,
+} from "~/shared/schema/schema";
 
 /**
  * When schema evolution is enabled, the schema in code may be different from
@@ -294,21 +298,29 @@ export class DynamoTableSchema<
      * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
      */
     public async getItem<Key extends Types["Key"]>(
-        context: RequestContext,
         key: Key,
+        {consistency}: {consistency?: DynamoReadConsistency} = {},
     ): Promise<MergeObjectIntersection<Types["Item"] & Key> | null> {
-        const client = getDynamoClientFromRequestContext(context);
         const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
 
-        const serializedItem = await client.getItem({
+        const serializedItem = await globalDynamoClient.getItem({
             tableName: this._config.name,
             key: {partitionKey, sortKey},
-            consistency: context.dynamoReadConsistency,
+            consistency,
         });
         if (!serializedItem) return null;
 
         const item: any = {...key};
-        attributesSchema.deserializeInto(serializedItem, item);
+        try {
+            attributesSchema.deserializeInto(serializedItem, item);
+        } catch (error) {
+            // Reclassify deserialization errors from data stored in the database as data
+            // loss errors. It means we have corrupt data stored in the database!
+            if (error instanceof SchemaDeserializationError) {
+                throw new DataLossError(error.message, {cause: error});
+            }
+            throw error;
+        }
 
         return item;
     }
@@ -326,11 +338,15 @@ export class DynamoTableSchema<
         Key extends Types["Key"],
         Attributes extends string & keyof (Types["Item"] & Key),
     >(
-        context: RequestContext,
         key: Key,
-        {attributes}: {attributes: Array<Attributes>},
+        {
+            attributes,
+            consistency,
+        }: {
+            attributes: Array<Attributes>;
+            consistency?: DynamoReadConsistency;
+        },
     ): Promise<MergeObjectIntersection<Key & Pick<Types["Item"] & Key, Attributes>> | null> {
-        const client = getDynamoClientFromRequestContext(context);
         const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
 
         assert(
@@ -347,10 +363,10 @@ export class DynamoTableSchema<
             projectionExpressionEntries.push(serializedKey);
         }
 
-        const serializedItem = await client.getItem({
+        const serializedItem = await globalDynamoClient.getItem({
             tableName: this._config.name,
             key: {partitionKey, sortKey},
-            consistency: context.dynamoReadConsistency,
+            consistency,
             projectionExpression:
                 projectionExpressionEntries.length !== 0
                     ? projectionExpressionEntries.join(", ")
@@ -359,14 +375,26 @@ export class DynamoTableSchema<
         if (!serializedItem) return null;
 
         const item: any = {...key};
-        for (const propertyKey of attributes) {
-            const propertySchema = attributesSchema.propertySchemaByKey.get(propertyKey);
-            assert(propertySchema, "Property not found");
+        try {
+            for (const propertyKey of attributes) {
+                const propertySchema = attributesSchema.propertySchemaByKey.get(propertyKey);
+                assert(propertySchema, "Property not found");
 
-            const serializedKey = propertySchema.serializedKey ?? propertyKey;
+                const serializedKey = propertySchema.serializedKey ?? propertyKey;
 
-            const propertyValue = propertySchema.deserializeProperty(serializedItem, serializedKey);
-            item[propertyKey] = propertyValue;
+                const propertyValue = propertySchema.deserializeProperty(
+                    serializedItem,
+                    serializedKey,
+                );
+                item[propertyKey] = propertyValue;
+            }
+        } catch (error) {
+            // Reclassify deserialization errors from data stored in the database as data
+            // loss errors. It means we have corrupt data stored in the database!
+            if (error instanceof SchemaDeserializationError) {
+                throw new DataLossError(error.message, {cause: error});
+            }
+            throw error;
         }
 
         return item;
@@ -389,7 +417,6 @@ export class DynamoTableSchema<
      * [3]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
      */
     public async putItem<Item extends Types["Item"]>(
-        context: RequestContext,
         item: Item,
         {
             condition,
@@ -399,14 +426,13 @@ export class DynamoTableSchema<
     ): Promise<void> {
         this._commitDescriptionOnFirstWrite();
 
-        const client = getDynamoClientFromRequestContext(context);
         const {partitionKey, sortKey, attributesSchema} = this._serializeKey(item as Types["Key"]);
 
         const serializedItem: {[key: string]: SchemaSerializedValue} = {partitionKey, sortKey};
         attributesSchema.serializeInto(item, serializedItem);
 
         if (condition === undefined) {
-            return client.putItem({
+            return globalDynamoClient.putItem({
                 tableName: this._config.name,
                 key: {partitionKey, sortKey},
                 item: serializedItem,
@@ -419,7 +445,7 @@ export class DynamoTableSchema<
                 conditionCompilationContext,
             );
 
-            return client.putItem({
+            return globalDynamoClient.putItem({
                 tableName: this._config.name,
                 key: {partitionKey, sortKey},
                 item: serializedItem,
@@ -446,7 +472,6 @@ export class DynamoTableSchema<
      * [3]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
      */
     public deleteItem<Key extends Types["Key"]>(
-        context: RequestContext,
         key: Key,
         {
             condition,
@@ -456,11 +481,10 @@ export class DynamoTableSchema<
     ): Promise<void> {
         this._commitDescriptionOnFirstWrite();
 
-        const client = getDynamoClientFromRequestContext(context);
         const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
 
         if (condition === undefined) {
-            return client.deleteItem({
+            return globalDynamoClient.deleteItem({
                 tableName: this._config.name,
                 key: {partitionKey, sortKey},
             });
@@ -472,7 +496,7 @@ export class DynamoTableSchema<
                 conditionCompilationContext,
             );
 
-            return client.deleteItem({
+            return globalDynamoClient.deleteItem({
                 tableName: this._config.name,
                 key: {partitionKey, sortKey},
                 conditionExpression: conditionExpressionString,
@@ -482,14 +506,27 @@ export class DynamoTableSchema<
     }
 
     /**
+     * Perform up to 25 actions atomically with [`TransactWriteItems`][1]. Either
+     * all actions in the transaction succeed or if one action fails then none of
+     * the actions in the transaction will be applied.
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
+     */
+    public static async executeTransaction(
+        entries: ReadonlyArray<DynamoTransactionEntry>,
+        options?: {clientRequestToken?: string},
+    ): Promise<void> {
+        await globalDynamoClient.executeTransaction(entries, options);
+    }
+
+    /**
      * Creates a transaction entry to put an item into the database. Same semantics
      * as `putItem()` but you can perform multiple writes in a single transaction
      * so they all succeed or fail together.
      *
-     * Use `RequestContext.executeTransaction()` to execute a transaction.
+     * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      */
     public transactionPutItem<Item extends Types["Item"]>(
-        context: RequestContext,
         item: Item,
         {
             condition,
@@ -499,14 +536,13 @@ export class DynamoTableSchema<
     ): DynamoTransactionEntry {
         this._commitDescriptionOnFirstWrite();
 
-        const client = getDynamoClientFromRequestContext(context);
         const {partitionKey, sortKey, attributesSchema} = this._serializeKey(item as Types["Key"]);
 
         const serializedItem: {[key: string]: SchemaSerializedValue} = {partitionKey, sortKey};
         attributesSchema.serializeInto(item, serializedItem);
 
         if (condition === undefined) {
-            return client.transactionPutItem({
+            return globalDynamoClient.transactionPutItem({
                 tableName: this._config.name,
                 item: serializedItem,
             });
@@ -518,7 +554,7 @@ export class DynamoTableSchema<
                 conditionCompilationContext,
             );
 
-            return client.transactionPutItem({
+            return globalDynamoClient.transactionPutItem({
                 tableName: this._config.name,
                 item: serializedItem,
                 conditionExpression: conditionExpressionString,
@@ -532,10 +568,9 @@ export class DynamoTableSchema<
      * semantics as `deleteItem()` but you can perform multiple writes in a single
      * transaction so they all succeed or fail together.
      *
-     * Use `RequestContext.executeTransaction()` to execute a transaction.
+     * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      */
     public transactionDeleteItem<Key extends Types["Key"]>(
-        context: RequestContext,
         key: Key,
         {
             condition,
@@ -545,11 +580,10 @@ export class DynamoTableSchema<
     ): DynamoTransactionEntry {
         this._commitDescriptionOnFirstWrite();
 
-        const client = getDynamoClientFromRequestContext(context);
         const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
 
         if (condition === undefined) {
-            return client.transactionDeleteItem({
+            return globalDynamoClient.transactionDeleteItem({
                 tableName: this._config.name,
                 key: {partitionKey, sortKey},
             });
@@ -561,7 +595,7 @@ export class DynamoTableSchema<
                 conditionCompilationContext,
             );
 
-            return client.transactionDeleteItem({
+            return globalDynamoClient.transactionDeleteItem({
                 tableName: this._config.name,
                 key: {partitionKey, sortKey},
                 conditionExpression: conditionExpressionString,
@@ -578,16 +612,14 @@ export class DynamoTableSchema<
      * See the [`TransactWriteItems`][1] command for more information about the
      * condition check.
      *
-     * Use `RequestContext.executeTransaction()` to execute a transaction.
+     * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      *
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
      */
     public transactionConditionCheck<Key extends Types["Key"]>(
-        context: RequestContext,
         key: Key,
         condition: DynamoCondition<Types["Item"] & Key>,
     ): DynamoTransactionEntry {
-        const client = getDynamoClientFromRequestContext(context);
         const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
 
         const conditionCompilationContext = DynamoConditionExpressionCompilationContext.new();
@@ -597,7 +629,7 @@ export class DynamoTableSchema<
             conditionCompilationContext,
         );
 
-        return client.transactionConditionCheck({
+        return globalDynamoClient.transactionConditionCheck({
             tableName: this._config.name,
             key: {partitionKey, sortKey},
             conditionExpression: conditionExpressionString,
@@ -622,18 +654,17 @@ export class DynamoTableSchema<
         PartitionKey extends Types["PartitionKey"],
         StartKey extends Types["Key"] & PartitionKey,
         EndKey extends Types["Key"] & PartitionKey,
-    >(
-        context: RequestContext,
-        {
-            startKey,
-            endKey,
-            limit,
-        }: {
-            startKey: StartKey;
-            endKey: EndKey;
-            limit?: number;
-        },
-    ): AsyncIterableIterator<
+    >({
+        startKey,
+        endKey,
+        limit,
+        consistency,
+    }: {
+        startKey: StartKey;
+        endKey: EndKey;
+        limit?: number;
+        consistency?: DynamoReadConsistency;
+    }): AsyncIterableIterator<
         MergeObjectIntersection<
             Types["Item"] &
                 PartitionKey & {
@@ -641,7 +672,6 @@ export class DynamoTableSchema<
                 }
         >
     > {
-        const client = getDynamoClientFromRequestContext(context);
         const {partitionKey: startPartitionKey, sortKey: startSortKey} =
             this._serializeKey(startKey);
         const {partitionKey: endPartitionKey, sortKey: endSortKey} = this._serializeKey(endKey);
@@ -651,7 +681,7 @@ export class DynamoTableSchema<
                 "The partition key of our start key and end key should be the same",
             );
 
-        const iterator = client.query({
+        const iterator = globalDynamoClient.query({
             tableName: this._config.name,
             partitionKey: {
                 name: "partitionKey",
@@ -662,7 +692,7 @@ export class DynamoTableSchema<
                 startValue: startSortKey,
                 endValue: endSortKey,
             },
-            consistency: context.dynamoReadConsistency,
+            consistency,
             limit,
         });
 
@@ -676,7 +706,16 @@ export class DynamoTableSchema<
             );
 
             const item: any = key;
-            attributesSchema.deserializeInto(serializedItem, item);
+            try {
+                attributesSchema.deserializeInto(serializedItem, item);
+            } catch (error) {
+                // Reclassify deserialization errors from data stored in the database as data
+                // loss errors. It means we have corrupt data stored in the database!
+                if (error instanceof SchemaDeserializationError) {
+                    throw new DataLossError(error.message, {cause: error});
+                }
+                throw error;
+            }
 
             return item;
         });

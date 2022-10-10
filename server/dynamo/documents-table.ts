@@ -3,9 +3,8 @@ import {DynamoConditionExpression} from "~/server/dynamo/internal/dynamo-conditi
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo-key-attribute-schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo-table-schema";
 import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry-dynamo-condition-check-errors";
-import {RequestContext} from "~/server/request/request-context";
-import {RequestTestCheckpoint} from "~/server/request/request-test-checkpoint";
-import {RequestTestCounter} from "~/server/request/request-test-counter";
+import {TestCheckpoint} from "~/server/helpers/test/test-checkpoint";
+import {TestCounter} from "~/server/helpers/test/test-counter";
 import {
     DocumentContent,
     DocumentContentSchema,
@@ -193,44 +192,39 @@ function getDocumentContentTitle(content: DocumentContent): string {
 /**
  * Creates a new document with no history using the initial content provided.
  */
-export async function createDocument(
-    context: RequestContext,
-    {
-        id,
-        content,
-    }: {
-        id: Id;
-        content: DocumentContent;
-    },
-) {
-    await context.executeTransaction([
-        DocumentsTable.transactionPutItem(
-            context,
-            {
+export async function createDocument({id, content}: {id: Id; content: DocumentContent}) {
+    await DynamoTableSchema.executeTransaction(
+        [
+            DocumentsTable.transactionPutItem(
+                {
+                    partitionType: "Document",
+                    documentId: id,
+                    sortRangeType: "Attributes",
+                    version: 0,
+                    title: getDocumentContentTitle(content),
+                },
+                {
+                    condition: {
+                        // Make sure a document with this id does not already exist by checking that a
+                        // required property does not exist.
+                        //
+                        // If a document does exist, we don't want to put it in a broken state.
+                        version: DynamoConditionExpression.exists().not(),
+                    },
+                },
+            ),
+            DocumentsTable.transactionPutItem({
                 partitionType: "Document",
                 documentId: id,
-                sortRangeType: "Attributes",
+                sortRangeType: "Snapshot",
                 version: 0,
-                title: getDocumentContentTitle(content),
-            },
-            {
-                condition: {
-                    // Make sure a document with this id does not already exist by checking that a
-                    // required property does not exist.
-                    //
-                    // If a document does exist, we don't want to put it in a broken state.
-                    version: DynamoConditionExpression.exists().not(),
-                },
-            },
-        ),
-        DocumentsTable.transactionPutItem(context, {
-            partitionType: "Document",
-            documentId: id,
-            sortRangeType: "Snapshot",
-            version: 0,
-            content,
-        }),
-    ]);
+                content,
+            }),
+        ],
+        {
+            clientRequestToken: id,
+        },
+    );
 }
 
 export type Document = {
@@ -243,8 +237,8 @@ export type Document = {
 /**
  * Read the full document with the provided id.
  */
-export async function readDocument(context: RequestContext, id: Id): Promise<Document | null> {
-    const internalDocument = await readInternalDocument(context, id);
+export async function readDocument(id: Id): Promise<Document | null> {
+    const internalDocument = await readInternalDocument(id);
     return internalDocument?.document ?? null;
 }
 
@@ -255,7 +249,7 @@ type InternalDocument = {
     readonly document: Document;
 };
 
-export const readInternalDocumentTestCounter = new RequestTestCounter();
+export const readInternalDocumentTestCounter = new TestCounter();
 
 /**
  * Read the full document with the provided id.
@@ -263,17 +257,14 @@ export const readInternalDocumentTestCounter = new RequestTestCounter();
  * Not only returns the `Document` but also returns some of the document's
  * internal representation.
  */
-async function readInternalDocument(
-    context: RequestContext,
-    id: Id,
-): Promise<InternalDocument | null> {
-    readInternalDocumentTestCounter.incrementForTest(context);
+async function readInternalDocument(id: Id): Promise<InternalDocument | null> {
+    readInternalDocumentTestCounter.incrementForTest(id);
 
     let attributes: DocumentAttributesItem | null = null;
     let stepsAfterSnapshot: Array<DocumentStepAfterSnapshotItem> = [];
     let snapshot: DocumentSnapshotItem | null = null;
 
-    for await (const item of DocumentsTable.query(context, {
+    for await (const item of DocumentsTable.query({
         startKey: {
             partitionType: "Document",
             documentId: id,
@@ -389,10 +380,7 @@ export const documentContentCacheEvictionTimeoutMs = 1000 * 60 * 5;
 export class DocumentContentCacheForUpdate {
     private readonly _entries = new DocumentContentCacheForUpdateEntries();
 
-    public async readAndCacheDocument(
-        context: RequestContext,
-        id: Id,
-    ): Promise<{
+    public async readAndCacheDocument(id: Id): Promise<{
         version: number;
         content: DocumentContent;
 
@@ -416,7 +404,7 @@ export class DocumentContentCacheForUpdate {
         const nullableEntry = await this._entries.getOrSetEntry(id, async () => {
             wasEntryCached = false;
 
-            const internalDocument = await readInternalDocument(context, id);
+            const internalDocument = await readInternalDocument(id);
             if (!internalDocument) return null;
 
             return {
@@ -438,7 +426,7 @@ export class DocumentContentCacheForUpdate {
         // this process wouldn't know. If another process wrote to the database we
         // can't use our cached entry so should update our cache appropriately.
         if (wasEntryCached) {
-            const attributes = await DocumentsTable.getItem(context, {
+            const attributes = await DocumentsTable.getItem({
                 partitionType: "Document",
                 documentId: id,
                 sortRangeType: "Attributes",
@@ -460,7 +448,7 @@ export class DocumentContentCacheForUpdate {
             if (entry.version < attributes.version) {
                 const nullableEntry = await this._entries.setEntry(id, async () => {
                     const steps = await arrayFromAsyncIterable(
-                        DocumentsTable.query(context, {
+                        DocumentsTable.query({
                             startKey: {
                                 partitionType: "Document",
                                 documentId: id,
@@ -712,8 +700,10 @@ class PushOnlyArraySlice<Item> implements Iterable<Item> {
 
 const globalDocumentContentCacheForUpdate = new DocumentContentCacheForUpdate();
 
-export const updateDocumentContentBeforeExecuteTransactionTestCheckpoint =
-    new RequestTestCheckpoint();
+export const updateDocumentContentBeforeExecuteTransactionTestCheckpoint = new TestCheckpoint<{
+    id: Id;
+    clientId: Id;
+}>();
 
 /**
  * Updates our document by applying some steps.
@@ -736,22 +726,19 @@ export const updateDocumentContentBeforeExecuteTransactionTestCheckpoint =
  * - Only saving the full content back to the database every 20-100 steps. For
  *   the majority of updates we only save the steps.
  */
-export async function updateDocumentContent(
-    context: RequestContext,
-    {
-        id,
-        version: clientVersion,
-        steps: clientSteps,
-        clientId,
-        cacheOverrideForTest,
-    }: {
-        id: Id;
-        version: number;
-        steps: ReadonlyArray<Step>;
-        clientId: Id;
-        cacheOverrideForTest?: DocumentContentCacheForUpdate;
-    },
-) {
+export async function updateDocumentContent({
+    id,
+    version: clientVersion,
+    steps: clientSteps,
+    clientId,
+    cacheOverrideForTest,
+}: {
+    id: Id;
+    version: number;
+    steps: ReadonlyArray<Step>;
+    clientId: Id;
+    cacheOverrideForTest?: DocumentContentCacheForUpdate;
+}) {
     const {newVersion, newSteps, newContent} = await retryDynamoConditionCheckErrors(async () => {
         if (!Number.isSafeInteger(clientVersion) || clientVersion < 0)
             throw new InvalidArgumentError("Expected a positive integer version number");
@@ -770,7 +757,7 @@ export async function updateDocumentContent(
             "Can only override the cache in Jest tests",
         );
 
-        const internalDocument = await cache.readAndCacheDocument(context, id);
+        const internalDocument = await cache.readAndCacheDocument(id);
         if (!internalDocument)
             throw new NotFoundError("Can not update document that doesn't exist");
 
@@ -822,7 +809,7 @@ export async function updateDocumentContent(
                     ),
                 );
             } else {
-                const otherSteps = await readDocumentStepsForValidatedVersionRange(context, {
+                const otherSteps = await readDocumentStepsForValidatedVersionRange({
                     id,
                     versionStart: clientVersion,
                     versionEnd:
@@ -918,12 +905,14 @@ export async function updateDocumentContent(
 
         // This checkpoint allows us to write a test against our transaction's
         // condition.
-        await updateDocumentContentBeforeExecuteTransactionTestCheckpoint.waitForTest(context);
+        await updateDocumentContentBeforeExecuteTransactionTestCheckpoint.waitForTest({
+            id,
+            clientId,
+        });
 
         if (newSteps.length > 0) {
-            await context.executeTransaction([
+            await DynamoTableSchema.executeTransaction([
                 DocumentsTable.transactionPutItem(
-                    context,
                     {
                         partitionType: "Document",
                         documentId: id,
@@ -939,7 +928,7 @@ export async function updateDocumentContent(
                     },
                 ),
                 ...newSteps.map((step, index) =>
-                    DocumentsTable.transactionPutItem(context, {
+                    DocumentsTable.transactionPutItem({
                         partitionType: "Document",
                         documentId: id,
                         sortRangeType: "StepsAfterSnapshot",
@@ -971,7 +960,7 @@ export async function updateDocumentContent(
     // could in the future use a task queue to update the snapshot as a background
     // job, but occasionally paying the snapshot update price within the
     // `updateDocumentContent()` function doesn't seem too bad.
-    await maybeUpdateDocumentSnapshotAfterUpdatingContent(context, {
+    await maybeUpdateDocumentSnapshotAfterUpdatingContent({
         id,
         newVersion,
         newSteps,
@@ -1003,22 +992,19 @@ export async function updateDocumentContent(
  */
 const updateDocumentSnapshotAfterStepCount = 62;
 
-export const updateDocumentSnapshotBeforeDeletingStepsTestCheckpoint = new RequestTestCheckpoint();
+export const updateDocumentSnapshotBeforeDeletingStepsTestCheckpoint = new TestCheckpoint<Id>();
 
-async function maybeUpdateDocumentSnapshotAfterUpdatingContent(
-    context: RequestContext,
-    {
-        id,
-        newVersion,
-        newSteps,
-        newContent,
-    }: {
-        id: Id;
-        newVersion: number;
-        newSteps: ReadonlyArray<Step>;
-        newContent: DocumentContent;
-    },
-) {
+async function maybeUpdateDocumentSnapshotAfterUpdatingContent({
+    id,
+    newVersion,
+    newSteps,
+    newContent,
+}: {
+    id: Id;
+    newVersion: number;
+    newSteps: ReadonlyArray<Step>;
+    newContent: DocumentContent;
+}) {
     // Get the last version before `newVersion` which should trigger a snapshot.
     const lastVersionToTriggerSnapshot =
         Math.floor(newVersion / updateDocumentSnapshotAfterStepCount) *
@@ -1031,7 +1017,6 @@ async function maybeUpdateDocumentSnapshotAfterUpdatingContent(
     if (oldVersion >= lastVersionToTriggerSnapshot) return;
 
     const snapshot = await DocumentsTable.getPartialItem(
-        context,
         {
             partitionType: "Document",
             documentId: id,
@@ -1048,7 +1033,7 @@ async function maybeUpdateDocumentSnapshotAfterUpdatingContent(
 
     // First, update the snapshot. We can't start moving steps until we know the
     // snapshot has successfully updated.
-    await DocumentsTable.putItem(context, {
+    await DocumentsTable.putItem({
         partitionType: "Document",
         documentId: id,
         sortRangeType: "Snapshot",
@@ -1060,7 +1045,7 @@ async function maybeUpdateDocumentSnapshotAfterUpdatingContent(
     // `StepsBeforeSnapshot` range so in the future when read read the full
     // document we don't read those steps.
     const steps = await arrayFromAsyncIterable(
-        DocumentsTable.query(context, {
+        DocumentsTable.query({
             startKey: {
                 partitionType: "Document",
                 documentId: id,
@@ -1080,16 +1065,16 @@ async function maybeUpdateDocumentSnapshotAfterUpdatingContent(
     // in parallel like this.
     await Promise.all(
         steps.map(async step => {
-            await DocumentsTable.putItem(context, {
+            await DocumentsTable.putItem({
                 ...step,
                 sortRangeType: "StepsBeforeSnapshot",
             });
 
-            await updateDocumentSnapshotBeforeDeletingStepsTestCheckpoint.waitForTest(context);
+            await updateDocumentSnapshotBeforeDeletingStepsTestCheckpoint.waitForTest(id);
 
             // It's important that we wait for our put in the `StepsBeforeSnapshot` to
             // successfully complete before we delete.
-            await DocumentsTable.deleteItem(context, step);
+            await DocumentsTable.deleteItem(step);
         }),
     );
 }
@@ -1110,18 +1095,15 @@ async function maybeUpdateDocumentSnapshotAfterUpdatingContent(
  * historical steps. If we can't find all the steps we need then we check the
  * `StepsAfterSnapshot` range.
  */
-async function readDocumentStepsForValidatedVersionRange(
-    context: RequestContext,
-    {
-        id,
-        versionStart,
-        versionEnd,
-    }: {
-        id: Id;
-        versionStart: number;
-        versionEnd: number;
-    },
-): Promise<Array<DocumentStepItem>> {
+async function readDocumentStepsForValidatedVersionRange({
+    id,
+    versionStart,
+    versionEnd,
+}: {
+    id: Id;
+    versionStart: number;
+    versionEnd: number;
+}): Promise<Array<DocumentStepItem>> {
     assert(Number.isSafeInteger(versionStart));
     assert(Number.isSafeInteger(versionEnd));
     assert(versionStart <= versionEnd);
@@ -1130,7 +1112,7 @@ async function readDocumentStepsForValidatedVersionRange(
     const stepByVersion = new Map<number, DocumentStepItem>();
 
     const stepBeforeSnapshotItems = await arrayFromAsyncIterable(
-        DocumentsTable.query(context, {
+        DocumentsTable.query({
             startKey: {
                 partitionType: "Document",
                 documentId: id,
@@ -1154,7 +1136,7 @@ async function readDocumentStepsForValidatedVersionRange(
     // need to query the after snapshot range.
     if (stepByVersion.size < versionEnd - versionStart) {
         const stepAfterSnapshotItems = await arrayFromAsyncIterable(
-            DocumentsTable.query(context, {
+            DocumentsTable.query({
                 startKey: {
                     partitionType: "Document",
                     documentId: id,

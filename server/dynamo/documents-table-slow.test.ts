@@ -15,7 +15,6 @@ import {
     updateDocumentContent,
     updateDocumentSnapshotBeforeDeletingStepsTestCheckpoint,
 } from "~/server/dynamo/documents-table";
-import {RequestContext} from "~/server/request/request-context";
 import {
     emptyDocumentContent,
     DocumentContentProsemirrorSchema as schema,
@@ -33,7 +32,7 @@ test(
     async () => {
         const documentId = generateId();
 
-        await createDocument(RequestContext.test(), {
+        await createDocument({
             id: documentId,
             content: emptyDocumentContent,
         });
@@ -45,7 +44,7 @@ test(
         for (let i = 1; i <= 150; i++) {
             const newText = `${i} `;
 
-            await updateDocumentContent(RequestContext.test(), {
+            await updateDocumentContent({
                 id: documentId,
                 version: i - 1,
                 steps: [new ReplaceStep(3 + text.length, 3 + text.length, textSlice(newText))],
@@ -58,7 +57,6 @@ test(
                 snapshotVersions.add(
                     (
                         await getDocumentsTableForTest().getPartialItem(
-                            RequestContext.test(),
                             {
                                 partitionType: "Document",
                                 documentId,
@@ -71,7 +69,7 @@ test(
                     )?.version,
                 );
 
-                const document = await readDocument(RequestContext.test(), documentId);
+                const document = await readDocument(documentId);
                 expect(document?.version).toEqual(i);
                 expect(document?.content.toJSON()).toEqual(
                     schema
@@ -98,7 +96,7 @@ test(
     async () => {
         const documentId = generateId();
 
-        await createDocument(RequestContext.test(), {
+        await createDocument({
             id: documentId,
             content: emptyDocumentContent,
         });
@@ -125,7 +123,7 @@ test(
             const step5 = new ReplaceStep(3 + text.length, 3 + text.length, textSlice(newText5));
             text += newText5;
 
-            await updateDocumentContent(RequestContext.test(), {
+            await updateDocumentContent({
                 id: documentId,
                 version: i - 1,
                 steps: [step1, step2, step3, step4, step5],
@@ -135,7 +133,6 @@ test(
             snapshotVersions.add(
                 (
                     await getDocumentsTableForTest().getPartialItem(
-                        RequestContext.test(),
                         {
                             partitionType: "Document",
                             documentId,
@@ -148,7 +145,7 @@ test(
                 )?.version,
             );
 
-            const document = await readDocument(RequestContext.test(), documentId);
+            const document = await readDocument(documentId);
             expect(document?.version).toEqual(i + 4);
             expect(document?.content.toJSON()).toEqual(
                 schema
@@ -171,7 +168,7 @@ test(
     async () => {
         const documentId = generateId();
 
-        await createDocument(RequestContext.test(), {
+        await createDocument({
             id: documentId,
             content: emptyDocumentContent,
         });
@@ -196,14 +193,10 @@ test(
             const step5 = new ReplaceStep(3 + text.length, 3 + text.length, textSlice(newText5));
             text += newText5;
 
-            const requestContext = RequestContext.test();
-
             const requestPausePromise =
-                updateDocumentSnapshotBeforeDeletingStepsTestCheckpoint.pauseForTest(
-                    requestContext,
-                );
+                updateDocumentSnapshotBeforeDeletingStepsTestCheckpoint.pauseForTest(documentId);
 
-            const requestPromise = updateDocumentContent(requestContext, {
+            const requestPromise = updateDocumentContent({
                 id: documentId,
                 version: i - 1,
                 steps: [step1, step2, step3, step4, step5],
@@ -213,7 +206,7 @@ test(
                 // function. So to avoid waiting forever, make sure to call it here at the end
                 // of the request.
                 await updateDocumentSnapshotBeforeDeletingStepsTestCheckpoint.waitForTest(
-                    requestContext,
+                    documentId,
                 );
             });
 
@@ -221,7 +214,7 @@ test(
 
             // Read the document before the request is unpaused so old steps have not been
             // deleted yet.
-            const document = await readDocument(RequestContext.test(), documentId);
+            const document = await readDocument(documentId);
             expect(document?.version).toEqual(i + 4);
             expect(document?.content.toJSON()).toEqual(
                 schema
@@ -246,7 +239,7 @@ test(
     async () => {
         const documentId = generateId();
 
-        await createDocument(RequestContext.test(), {
+        await createDocument({
             id: documentId,
             content: emptyDocumentContent,
         });
@@ -296,7 +289,7 @@ test(
             // in the cache and instead need to go read them from the database.
             jest.runAllTimers();
 
-            await updateDocumentContent(RequestContext.test(), {
+            await updateDocumentContent({
                 id: documentId,
                 version: 0,
                 steps: [step1, step2, step3, step4, step5],
@@ -305,7 +298,7 @@ test(
 
             // Read the document before the request is unpaused so old steps have not been
             // deleted yet.
-            const document = await readDocument(RequestContext.test(), documentId);
+            const document = await readDocument(documentId);
             expect(document?.version).toEqual(i + 4);
             expect(document?.content.toJSON()).toEqual(
                 schema
