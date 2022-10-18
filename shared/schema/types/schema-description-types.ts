@@ -14,7 +14,8 @@ export type SchemaDescription =
     | SchemaNullableDescription
     | SchemaArrayDescription
     | SchemaObjectDescription
-    | SchemaUnionDescription;
+    | SchemaUnionDescription
+    | SchemaResultDescription;
 
 export type SchemaScalarDescription =
     | {readonly type: "Unknown"}
@@ -53,4 +54,10 @@ export type SchemaUnionDescription = {
     readonly variantSchemaByType: {
         readonly [type: string]: SchemaDescription;
     };
+};
+
+export type SchemaResultDescription = {
+    readonly type: "Result";
+    readonly okSchema: SchemaDescription;
+    readonly errorSchema: SchemaDescription;
 };

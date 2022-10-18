@@ -166,6 +166,35 @@ export function checkSchemaDescriptionBackwardsCompatibility(
             }
             return;
         }
+        case "Result": {
+            if (lastSchema.type !== "Result") {
+                throw new SchemaDescriptionBackwardsIncompatibleError(
+                    `\`${lastSchema.type}\` type is incompatible with \`${nextSchema.type}\` type`,
+                );
+            }
+
+            withSchemaDescriptionStackFrame(
+                {type: "UnionVariant", typeKey: "ok", typeValue: true},
+                () => {
+                    checkSchemaDescriptionBackwardsCompatibility(
+                        lastSchema.okSchema,
+                        nextSchema.okSchema,
+                    );
+                },
+            );
+
+            withSchemaDescriptionStackFrame(
+                {type: "UnionVariant", typeKey: "ok", typeValue: false},
+                () => {
+                    checkSchemaDescriptionBackwardsCompatibility(
+                        lastSchema.errorSchema,
+                        nextSchema.errorSchema,
+                    );
+                },
+            );
+
+            return;
+        }
         default:
             throw exhaustive(nextSchema);
     }
@@ -196,7 +225,7 @@ type SchemaDescriptionStackFrame =
     | {
           readonly type: "UnionVariant";
           readonly typeKey: string;
-          readonly typeValue: string;
+          readonly typeValue: string | boolean;
       };
 
 const schemaDescriptionStack: Array<SchemaDescriptionStackFrame> = [];

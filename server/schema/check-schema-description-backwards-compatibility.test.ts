@@ -751,3 +751,139 @@ test("id may convert into string", () => {
         sampleValues: ["", "foo"],
     });
 });
+
+test("result entries are separately backwards compatible with each other", () => {
+    testCase({
+        isBackwardsCompatible: true,
+        lastSchema: Schema.result(
+            Schema.object({
+                ok: Schema.value(true),
+                foo: Schema.integer,
+            }),
+            Schema.object({
+                ok: Schema.value(false),
+                bar: Schema.integer,
+            }),
+        ),
+        nextSchema: Schema.result(
+            Schema.object({
+                ok: Schema.value(true),
+                foo: Schema.integer,
+            }),
+            Schema.object({
+                ok: Schema.value(false),
+                bar: Schema.integer,
+            }),
+        ),
+        sampleValues: [
+            {ok: true, foo: 1},
+            {ok: false, bar: 2},
+        ],
+    });
+
+    testCase({
+        isBackwardsCompatible: true,
+        lastSchema: Schema.result(
+            Schema.object({
+                ok: Schema.value(true),
+                foo: Schema.integer,
+            }),
+            Schema.object({
+                ok: Schema.value(false),
+                bar: Schema.integer,
+            }),
+        ),
+        nextSchema: Schema.result(
+            Schema.object({
+                ok: Schema.value(true),
+                foo: Schema.integer,
+            }),
+            Schema.object({
+                ok: Schema.value(false),
+                bar: Schema.integer.nullable(),
+            }),
+        ),
+        sampleValues: [
+            {ok: true, foo: 1},
+            {ok: false, bar: 2},
+        ],
+    });
+
+    testCase({
+        isBackwardsCompatible: true,
+        lastSchema: Schema.result(
+            Schema.object({
+                ok: Schema.value(true),
+                foo: Schema.integer,
+            }),
+            Schema.object({
+                ok: Schema.value(false),
+                bar: Schema.integer,
+            }),
+        ),
+        nextSchema: Schema.result(
+            Schema.object({
+                ok: Schema.value(true),
+                foo: Schema.integer.nullable(),
+            }),
+            Schema.object({
+                ok: Schema.value(false),
+                bar: Schema.integer,
+            }),
+        ),
+        sampleValues: [
+            {ok: true, foo: 1},
+            {ok: false, bar: 2},
+        ],
+    });
+
+    testCase({
+        isBackwardsCompatible: false,
+        lastSchema: Schema.result(
+            Schema.object({
+                ok: Schema.value(true),
+                foo: Schema.integer,
+            }),
+            Schema.object({
+                ok: Schema.value(false),
+                bar: Schema.integer.nullable(),
+            }),
+        ),
+        nextSchema: Schema.result(
+            Schema.object({
+                ok: Schema.value(true),
+                foo: Schema.integer,
+            }),
+            Schema.object({
+                ok: Schema.value(false),
+                bar: Schema.integer,
+            }),
+        ),
+        sampleValues: [{ok: false, bar: null}],
+    });
+
+    testCase({
+        isBackwardsCompatible: false,
+        lastSchema: Schema.result(
+            Schema.object({
+                ok: Schema.value(true),
+                foo: Schema.integer.nullable(),
+            }),
+            Schema.object({
+                ok: Schema.value(false),
+                bar: Schema.integer,
+            }),
+        ),
+        nextSchema: Schema.result(
+            Schema.object({
+                ok: Schema.value(true),
+                foo: Schema.integer,
+            }),
+            Schema.object({
+                ok: Schema.value(false),
+                bar: Schema.integer,
+            }),
+        ),
+        sampleValues: [{ok: true, foo: null}],
+    });
+});

@@ -44,6 +44,8 @@ import {
 const isSchemaEvolutionEnabled =
     (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test") && !isCi;
 
+console.log("YOYOYO", repoDirectoryPath);
+
 const dynamoGeneratedDirectoryPath = path.join(
     repoDirectoryPath,
     "server/dynamo/internal/generated",
@@ -734,11 +736,10 @@ export class DynamoTableSchema<
      */
     private _commitDescriptionOnFirstWrite() {
         if (!isSchemaEvolutionEnabled) return;
-
         if (this._hasCommitDescription) return;
-        this._hasCommitDescription = true;
 
         fs.writeFileSync(this._descriptionPath, JSON.stringify(this._description, null, 4));
+        this._hasCommitDescription = true;
     }
 }
 

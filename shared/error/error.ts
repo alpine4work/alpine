@@ -214,7 +214,7 @@ export class UnauthenticatedError extends ErrorBase {
 /**
  * Get a the error constructor for the provided error code.
  */
-export function getErrorCodeConstructor(
+export function getErrorConstructorForCode(
     code: ErrorCode,
 ): new (message: string, options?: {cause?: Error}) => ErrorBase {
     switch (code) {

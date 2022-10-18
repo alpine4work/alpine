@@ -141,6 +141,19 @@ export enum ErrorCode {
     Unauthenticated = 16,
 }
 
+let errorCodes: Set<number>;
+
+/**
+ * Is the provided number an `ErrorCode`?
+ */
+export function isErrorCode(code: number): code is ErrorCode {
+    if (!errorCodes)
+        errorCodes = new Set<number>(
+            Object.values(ErrorCode).filter((code): code is number => typeof code === "number"),
+        );
+    return errorCodes.has(code);
+}
+
 /**
  * Get a name base on the provided status code which we can use for debugging.
  */

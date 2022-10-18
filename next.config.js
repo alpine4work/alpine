@@ -20,6 +20,11 @@ const nextConfig = {
     reactStrictMode: true,
     swcMinify: true,
 
+    typescript: {
+        // We run TypeScript as a part of CI. We don't need to run it again on build.
+        ignoreBuildErrors: true,
+    },
+
     eslint: {
         dirs: ["pages", "admin", "client", "server", "shared"],
         // We run eslint as a part of CI. We don't need to run it again on build.

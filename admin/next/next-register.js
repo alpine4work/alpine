@@ -54,6 +54,7 @@ delete swcOptions.emotion;
 delete swcOptions.disableNextSsg;
 delete swcOptions.disablePageConfig;
 delete swcOptions.pagesDir;
+delete swcOptions.serverComponents;
 
 // Next.js [currently doesn't propagate `resolvedBaseUrl`][1]. How does it
 // transform paths for Jest then?? Presumably there's a resolver at a different

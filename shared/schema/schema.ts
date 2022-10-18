@@ -404,6 +404,61 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     }
 
     /**
+     * A simpler version of `Schema.union()` that supports `Result<T>` objects.
+     *
+     * The first schema is for `ok: true` and the second schema is for `ok: false`.
+     */
+    public static result<
+        OkSchema extends ObjectSchema<any> & {
+            // We need to put our `ok` type constraint on `deserialize` instead of the
+            // type parameter so the object type can be covariant instead of invariant.
+            deserialize: (value: SchemaSerializedValue) => {ok: true};
+        },
+        ErrorSchema extends ObjectSchema<any> & {
+            // We need to put our `ok` type constraint on `deserialize` instead of the
+            // type parameter so the object type can be covariant instead of invariant.
+            deserialize: (value: SchemaSerializedValue) => {ok: false};
+        },
+    >(
+        okSchema: OkSchema,
+        errorSchema: ErrorSchema,
+    ): Schema<SchemaType<OkSchema> | SchemaType<ErrorSchema>> {
+        return new Schema<SchemaType<OkSchema> | SchemaType<ErrorSchema>>({
+            description: {
+                type: "Result",
+                okSchema: okSchema.description,
+                errorSchema: errorSchema.description,
+            },
+            serialize: value => {
+                if ((value as any).ok) {
+                    return okSchema.serialize(value);
+                } else {
+                    return errorSchema.serialize(value);
+                }
+            },
+            deserialize: value => {
+                if (typeof value !== "object" || value === null)
+                    throw new SchemaDeserializationError("Expected an object");
+
+                if (!hasOwnProperty(value, "ok") || typeof value.ok !== "boolean")
+                    throw new SchemaDeserializationError("Required property `ok` not found");
+
+                if (value.ok) {
+                    return withSchemaDeserializationStackFrame(
+                        {type: "UnionVariant", typeKey: "ok", typeValue: true},
+                        () => okSchema.deserialize(value),
+                    );
+                } else {
+                    return withSchemaDeserializationStackFrame(
+                        {type: "UnionVariant", typeKey: "ok", typeValue: false},
+                        () => errorSchema.deserialize(value),
+                    );
+                }
+            },
+        });
+    }
+
+    /**
      * Transform a schema's value at runtime into a different format.
      *
      * If you want to serialize a value in a format supported by our `Schema` but
@@ -1067,7 +1122,7 @@ type SchemaDeserializationStackFrame =
     | {
           readonly type: "UnionVariant";
           readonly typeKey: string;
-          readonly typeValue: string;
+          readonly typeValue: string | boolean;
       };
 
 const schemaDeserializationStack: Array<SchemaDeserializationStackFrame> = [];

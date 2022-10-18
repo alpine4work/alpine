@@ -17,7 +17,7 @@ import {
     ErrorBase,
     InternalError,
     UnknownError,
-    getErrorCodeConstructor,
+    getErrorConstructorForCode,
 } from "~/shared/error/error";
 import {ErrorCode} from "~/shared/error/error-code";
 
@@ -62,7 +62,7 @@ export function classifyDynamoError(error: unknown): ErrorBase {
     }
 
     if (errorCode !== null) {
-        const ErrorConstructor = getErrorCodeConstructor(errorCode);
+        const ErrorConstructor = getErrorConstructorForCode(errorCode);
         return new ErrorConstructor(error.message, {cause: error});
     }
 

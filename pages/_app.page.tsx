@@ -13,7 +13,7 @@ import {spacing} from "~/shared/design/spacing";
 // TODO(calebmer): Aggressively show error dialog if unhandled error occurs.
 // Like Next.js in dev. Maybe it should be dismissable? Like Next.js.
 
-export default function MyApp({Component, pageProps}: AppProps) {
+export default function App({Component, pageProps}: AppProps) {
     return (
         <>
             <Head>
