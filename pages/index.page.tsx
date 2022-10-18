@@ -6,8 +6,6 @@ import {
     DocumentContentProsemirrorSchema,
     emptyDocumentContent,
 } from "~/shared/content/document-content-schema";
-import {generateId} from "~/shared/id/id";
-import {createDocument} from "~/shared/rpc/documents-rpc-definition";
 
 export default function Home() {
     const [state, setState] = useState(() =>
@@ -16,10 +14,6 @@ export default function Home() {
             content: emptyDocumentContent,
         }),
     );
-
-    useEffect(() => {
-        createDocument({id: generateId(), content: emptyDocumentContent});
-    }, []);
 
     useEffect(() => {
         const indexContentJson = localStorage.getItem("indexContentJson");

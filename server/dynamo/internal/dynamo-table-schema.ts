@@ -44,8 +44,6 @@ import {
 const isSchemaEvolutionEnabled =
     (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test") && !isCi;
 
-console.log("YOYOYO", repoDirectoryPath);
-
 const dynamoGeneratedDirectoryPath = path.join(
     repoDirectoryPath,
     "server/dynamo/internal/generated",

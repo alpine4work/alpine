@@ -5,6 +5,7 @@ import {SchemaSerializedValue} from "~/shared/schema/schema";
 
 export type RpcImplementation = {
     execute: (input: SchemaSerializedValue) => Promise<SchemaSerializedValue>;
+    dangerouslyExecuteWithoutSchema: (input: any) => Promise<any>;
 };
 
 /**
@@ -29,7 +30,10 @@ export function implementRpc<Input, Output>(
         return rpc.outputSchema.serialize(output);
     };
 
-    rpcImplementationByName.set(rpc.rpcName, {execute});
+    rpcImplementationByName.set(rpc.rpcName, {
+        execute,
+        dangerouslyExecuteWithoutSchema: implementation,
+    });
 }
 
 const rpcImplementationByName = new Map<string, RpcImplementation>();

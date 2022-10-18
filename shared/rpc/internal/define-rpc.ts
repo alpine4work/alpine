@@ -1,8 +1,8 @@
 import {
     ErrorBase,
     InternalError,
+    NotFoundError,
     UnavailableError,
-    UnimplementedError,
     getErrorConstructorForCode,
 } from "~/shared/error/error";
 import {isErrorCode} from "~/shared/error/error-code";
@@ -64,8 +64,18 @@ export function defineRpc<
         input: ObjectSchemaConfigType<InputConfig>,
     ): Promise<ObjectSchemaConfigType<OutputConfig>> => {
         if (typeof window === "undefined") {
-            // TODO(calebmer): Implement server RPC execution
-            throw new UnimplementedError("Server RPC execution is not implemented");
+            // Only executes on the server so it's fine to import a server file.
+            // eslint-disable-next-line import/no-restricted-paths
+            const {getRpcImplementation} = await import("~/server/rpc/all-rpc-implementations");
+
+            const rpcImplementation = getRpcImplementation(name);
+
+            if (!rpcImplementation)
+                throw new NotFoundError(
+                    "Referenced an RPC name that does not have an implementation",
+                );
+
+            return rpcImplementation.dangerouslyExecuteWithoutSchema(input);
         }
 
         const outputPromiseResolver = createPromiseResolver<SchemaSerializedValue>();
