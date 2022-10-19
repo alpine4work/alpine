@@ -534,6 +534,11 @@ export class ObjectSchema<Value> extends Schema<Value> {
     >;
 
     /**
+     * Serialize the value. Will always serialize into an object value.
+     */
+    public declare readonly serialize: (value: Value) => SchemaSerializedObjectValue;
+
+    /**
      * Serialize by assigning object properties directly to the provided
      * target instead of creating a new object.
      */

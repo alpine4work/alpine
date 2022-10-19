@@ -1,46 +1,62 @@
-import {GetServerSidePropsContext, GetServerSidePropsResult} from "next";
 import Head from "next/head";
-import {ComponentProps, useState} from "react";
+import {useState} from "react";
 import {ContentEditor, ContentEditorState} from "~/client/content/content-editor";
 import {sprinkles} from "~/client/design/sprinkles.css";
-import {Document, readDocument} from "~/server/dynamo/documents-table";
+import {createPageComponent} from "~/client/helpers/pages/create-page-component";
+import {readDocument} from "~/server/dynamo/documents-table";
+import {createGetServerSideProps} from "~/server/helpers/pages/create-get-server-side-props";
 import {
     DocumentContentProsemirrorSchema,
+    DocumentContentSchema,
     emptyDocumentContent,
 } from "~/shared/content/document-content-schema";
-import {isId} from "~/shared/id/id";
+import {Schema} from "~/shared/schema/schema";
 
-export async function getServerSideProps(
-    context: GetServerSidePropsContext,
-): Promise<GetServerSidePropsResult<ComponentProps<typeof DocumentPage>>> {
-    const documentId = context.query["document-id"];
-    const document =
-        typeof documentId === "string" && isId(documentId) ? await readDocument(documentId) : null;
+const Page = createPageComponent({
+    query: Schema.object({
+        documentId: Schema.id,
+    }),
+    props: Schema.object({
+        document: Schema.object({
+            id: Schema.id,
+            title: Schema.string,
+            version: Schema.integer,
+            content: DocumentContentSchema,
+        }).nullable(),
+    }),
+    component: function DocumentPage({document}) {
+        const [state, setState] = useState(() =>
+            ContentEditorState.create({
+                schema: DocumentContentProsemirrorSchema,
+                content: document?.content ?? emptyDocumentContent,
+            }),
+        );
+
+        // TODO(calebmer): Get title from content?
+        const title = document && document.title.trim().length > 0 ? document.title : "Untitled";
+
+        return (
+            <>
+                <Head>
+                    <title>{title}</title>
+                </Head>
+                <main className={sprinkles({height: "full"})}>
+                    <ContentEditor
+                        state={state}
+                        onChange={setState}
+                        aria-label="Content editor"
+                        placeholder="Share your ideas…"
+                        className={sprinkles({paddingBottom: "24"})}
+                    />
+                </main>
+            </>
+        );
+    },
+});
+
+export const getServerSideProps = createGetServerSideProps(Page, async context => {
+    const document = await readDocument(context.query.documentId);
     return {props: {document}};
-}
+});
 
-export default function DocumentPage({document}: {document: Document | null}) {
-    const [state, setState] = useState(() =>
-        ContentEditorState.create({
-            schema: DocumentContentProsemirrorSchema,
-            content: document?.content ?? emptyDocumentContent,
-        }),
-    );
-
-    return (
-        <>
-            <Head>
-                <title>Cyberworlds</title>
-            </Head>
-            <main className={sprinkles({height: "full"})}>
-                <ContentEditor
-                    state={state}
-                    onChange={setState}
-                    aria-label="Content editor"
-                    placeholder="Share your ideas…"
-                    className={sprinkles({paddingBottom: "24"})}
-                />
-            </main>
-        </>
-    );
-}
+export default Page;

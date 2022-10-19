@@ -75,6 +75,13 @@ export function defineRpc<
                     "Referenced an RPC name that does not have an implementation",
                 );
 
+            // Since we are executing the RPC in the same process it was defined, we skip
+            // schema serialization and deserialization for performance.
+            //
+            // Arguably we shouldn't skip serialization and deserialization since it may
+            // perform important validation. Perhaps schemas should have a `validate()`
+            // function to run those validations without expensive
+            // serialization/deserialization?
             return rpcImplementation.dangerouslyExecuteWithoutSchema(input);
         }
 

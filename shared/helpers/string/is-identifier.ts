@@ -1,4 +1,4 @@
-const identifierRegexp = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+const identifierRegExp = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
 /**
  * Is the provided string a valid ASCII identifier?
@@ -10,5 +10,5 @@ const identifierRegexp = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
  * - Contains only ASCII letters, numbers, or underscores (`_`)
  */
 export function isIdentifier(string: string): boolean {
-    return identifierRegexp.test(string);
+    return identifierRegExp.test(string);
 }
