@@ -16,7 +16,7 @@ import {TooltipCoordinationContextProvider} from "~/client/design/tooltip";
 import {
     DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
-} from "~/shared/content/document-content-schema";
+} from "~/shared/documents/document-content-schema";
 
 jest.useFakeTimers();
 
@@ -24,10 +24,7 @@ const schema = DocumentWithoutTitleContentProsemirrorSchema;
 
 function TestContentEditor({initialContent}: {initialContent?: Node}) {
     const [state, setState] = useState(() =>
-        ContentEditorState.create({
-            schema,
-            content: initialContent ?? emptyDocumentWithoutTitleContent,
-        }),
+        ContentEditorState.create(initialContent ?? emptyDocumentWithoutTitleContent),
     );
     return (
         <OverlayScopeContextProvider>

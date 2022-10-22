@@ -6,17 +6,11 @@ import {
     ContentEditorState,
     getEditorViewForTest,
 } from "~/client/content/content-editor";
-import {
-    DocumentWithoutTitleContentProsemirrorSchema,
-    emptyDocumentWithoutTitleContent,
-} from "~/shared/content/document-content-schema";
+import {emptyDocumentWithoutTitleContent} from "~/shared/documents/document-content-schema";
 
 function TestContentEditor() {
     const [state, setState] = useState(() =>
-        ContentEditorState.create({
-            schema: DocumentWithoutTitleContentProsemirrorSchema,
-            content: emptyDocumentWithoutTitleContent,
-        }),
+        ContentEditorState.create(emptyDocumentWithoutTitleContent),
     );
     return <ContentEditor aria-label="Test" state={state} onChange={setState} />;
 }

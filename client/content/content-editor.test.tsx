@@ -14,14 +14,11 @@ import {
 import {
     DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
-} from "~/shared/content/document-content-schema";
+} from "~/shared/documents/document-content-schema";
 
 function TestContentEditor() {
     const [state, setState] = useState(() =>
-        ContentEditorState.create({
-            schema: DocumentWithoutTitleContentProsemirrorSchema,
-            content: emptyDocumentWithoutTitleContent,
-        }),
+        ContentEditorState.create(emptyDocumentWithoutTitleContent),
     );
     return <ContentEditor aria-label="Test" state={state} onChange={setState} />;
 }
@@ -54,10 +51,7 @@ test("renders an empty document", () => {
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create({
-                schema: DocumentWithoutTitleContentProsemirrorSchema,
-                content: emptyDocumentWithoutTitleContent,
-            })}
+            state={ContentEditorState.create(emptyDocumentWithoutTitleContent)}
             onChange={() => {}}
         />,
     );
@@ -79,7 +73,7 @@ test("renders an initial editor state", () => {
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create({schema, content})}
+            state={ContentEditorState.create(content)}
             onChange={() => {}}
         />,
     );
@@ -104,7 +98,7 @@ test("rerenders with a changed document", () => {
     const {rerender} = render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create({schema, content: doc1})}
+            state={ContentEditorState.create(doc1)}
             onChange={onTransaction}
         />,
     );
@@ -114,7 +108,7 @@ test("rerenders with a changed document", () => {
     rerender(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create({schema, content: doc2})}
+            state={ContentEditorState.create(doc2)}
             onChange={onTransaction}
         />,
     );
@@ -154,12 +148,7 @@ test("will optimistically update the DOM synchronously", () => {
 
 test("will revert optimistic update if it doesn't match props", () => {
     function NoopContentEditor() {
-        const [state] = useState(() =>
-            ContentEditorState.create({
-                schema: DocumentWithoutTitleContentProsemirrorSchema,
-                content: emptyDocumentWithoutTitleContent,
-            }),
-        );
+        const [state] = useState(() => ContentEditorState.create(emptyDocumentWithoutTitleContent));
         return (
             <ContentEditor aria-label="Test" state={state} onChange={useCallback(() => {}, [])} />
         );

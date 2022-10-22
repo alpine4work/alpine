@@ -1,5 +1,5 @@
 import {useRouter} from "next/router";
-import {emptyDocumentContent} from "~/shared/content/document-content-schema";
+import {emptyDocumentContent} from "~/shared/documents/document-content-schema";
 import {generateId} from "~/shared/id/id";
 import {createDocument} from "~/shared/rpc/documents-rpc-definition";
 

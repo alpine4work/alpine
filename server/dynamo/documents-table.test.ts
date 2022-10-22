@@ -7,6 +7,7 @@ import {
     documentContentCacheEvictionTimeoutMs,
     getDocumentsTableForTest,
     readDocument,
+    readDocumentPreview,
     readInternalDocumentTestCounter,
     updateDocumentContent,
     updateDocumentContentBeforeExecuteTransactionTestCheckpoint,
@@ -15,7 +16,7 @@ import {
     emptyDocumentContent,
     isDocumentContent,
     DocumentContentProsemirrorSchema as schema,
-} from "~/shared/content/document-content-schema";
+} from "~/shared/documents/document-content-schema";
 import {DataLossError, FailedPreconditionError, NotFoundError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {generateId} from "~/shared/id/id";
@@ -1669,16 +1670,16 @@ test("updates the document title whenever it changes", async () => {
         content: emptyDocumentContent,
     });
 
-    {
-        const document = await readDocument(documentId);
-        expect(document?.version).toEqual(0);
-        expect(document?.title).toEqual("");
-        expect(document?.content.toJSON()).toEqual(
-            schema
-                .node("doc", {}, [schema.node("title", {}, []), schema.node("paragraph", {}, [])])
-                .toJSON(),
-        );
-    }
+    expect(massageDocument(await readDocument(documentId))).toEqual({
+        version: 0,
+        content: schema
+            .node("doc", {}, [schema.node("title", {}, []), schema.node("paragraph", {}, [])])
+            .toJSON(),
+    });
+    expect(await readDocumentPreview(documentId)).toEqual({
+        id: documentId,
+        titleWithoutFallback: "",
+    });
 
     await updateDocumentContent({
         id: documentId,
@@ -1687,19 +1688,19 @@ test("updates the document title whenever it changes", async () => {
         clientId: generateId(),
     });
 
-    {
-        const document = await readDocument(documentId);
-        expect(document?.version).toEqual(1);
-        expect(document?.title).toEqual("");
-        expect(document?.content.toJSON()).toEqual(
-            schema
-                .node("doc", {}, [
-                    schema.node("title", {}, []),
-                    schema.node("paragraph", {}, [schema.text("b")]),
-                ])
-                .toJSON(),
-        );
-    }
+    expect(massageDocument(await readDocument(documentId))).toEqual({
+        version: 1,
+        content: schema
+            .node("doc", {}, [
+                schema.node("title", {}, []),
+                schema.node("paragraph", {}, [schema.text("b")]),
+            ])
+            .toJSON(),
+    });
+    expect(await readDocumentPreview(documentId)).toEqual({
+        id: documentId,
+        titleWithoutFallback: "",
+    });
 
     await updateDocumentContent({
         id: documentId,
@@ -1708,19 +1709,19 @@ test("updates the document title whenever it changes", async () => {
         clientId: generateId(),
     });
 
-    {
-        const document = await readDocument(documentId);
-        expect(document?.version).toEqual(2);
-        expect(document?.title).toEqual("f");
-        expect(document?.content.toJSON()).toEqual(
-            schema
-                .node("doc", {}, [
-                    schema.node("title", {}, [schema.text("f")]),
-                    schema.node("paragraph", {}, [schema.text("b")]),
-                ])
-                .toJSON(),
-        );
-    }
+    expect(massageDocument(await readDocument(documentId))).toEqual({
+        version: 2,
+        content: schema
+            .node("doc", {}, [
+                schema.node("title", {}, [schema.text("f")]),
+                schema.node("paragraph", {}, [schema.text("b")]),
+            ])
+            .toJSON(),
+    });
+    expect(await readDocumentPreview(documentId)).toEqual({
+        id: documentId,
+        titleWithoutFallback: "f",
+    });
 
     await updateDocumentContent({
         id: documentId,
@@ -1729,19 +1730,19 @@ test("updates the document title whenever it changes", async () => {
         clientId: generateId(),
     });
 
-    {
-        const document = await readDocument(documentId);
-        expect(document?.version).toEqual(3);
-        expect(document?.title).toEqual("f");
-        expect(document?.content.toJSON()).toEqual(
-            schema
-                .node("doc", {}, [
-                    schema.node("title", {}, [schema.text("f")]),
-                    schema.node("paragraph", {}, [schema.text("ba")]),
-                ])
-                .toJSON(),
-        );
-    }
+    expect(massageDocument(await readDocument(documentId))).toEqual({
+        version: 3,
+        content: schema
+            .node("doc", {}, [
+                schema.node("title", {}, [schema.text("f")]),
+                schema.node("paragraph", {}, [schema.text("ba")]),
+            ])
+            .toJSON(),
+    });
+    expect(await readDocumentPreview(documentId)).toEqual({
+        id: documentId,
+        titleWithoutFallback: "f",
+    });
 
     await updateDocumentContent({
         id: documentId,
@@ -1750,19 +1751,19 @@ test("updates the document title whenever it changes", async () => {
         clientId: generateId(),
     });
 
-    {
-        const document = await readDocument(documentId);
-        expect(document?.version).toEqual(5);
-        expect(document?.title).toEqual("foo");
-        expect(document?.content.toJSON()).toEqual(
-            schema
-                .node("doc", {}, [
-                    schema.node("title", {}, [schema.text("foo")]),
-                    schema.node("paragraph", {}, [schema.text("ba")]),
-                ])
-                .toJSON(),
-        );
-    }
+    expect(massageDocument(await readDocument(documentId))).toEqual({
+        version: 5,
+        content: schema
+            .node("doc", {}, [
+                schema.node("title", {}, [schema.text("foo")]),
+                schema.node("paragraph", {}, [schema.text("b")]),
+            ])
+            .toJSON(),
+    });
+    expect(await readDocumentPreview(documentId)).toEqual({
+        id: documentId,
+        titleWithoutFallback: "foo",
+    });
 
     await updateDocumentContent({
         id: documentId,
@@ -1771,19 +1772,19 @@ test("updates the document title whenever it changes", async () => {
         clientId: generateId(),
     });
 
-    {
-        const document = await readDocument(documentId);
-        expect(document?.version).toEqual(6);
-        expect(document?.title).toEqual("foo");
-        expect(document?.content.toJSON()).toEqual(
-            schema
-                .node("doc", {}, [
-                    schema.node("title", {}, [schema.text("foo")]),
-                    schema.node("paragraph", {}, [schema.text("bar")]),
-                ])
-                .toJSON(),
-        );
-    }
+    expect(massageDocument(await readDocument(documentId))).toEqual({
+        version: 6,
+        content: schema
+            .node("doc", {}, [
+                schema.node("title", {}, [schema.text("foo")]),
+                schema.node("paragraph", {}, [schema.text("bar")]),
+            ])
+            .toJSON(),
+    });
+    expect(await readDocumentPreview(documentId)).toEqual({
+        id: documentId,
+        titleWithoutFallback: "foo",
+    });
 
     await updateDocumentContent({
         id: documentId,
@@ -1803,20 +1804,20 @@ test("updates the document title whenever it changes", async () => {
         clientId: generateId(),
     });
 
-    {
-        const document = await readDocument(documentId);
-        expect(document?.version).toEqual(7);
-        expect(document?.title).toEqual("foo");
-        expect(document?.content.toJSON()).toEqual(
-            schema
-                .node("doc", {}, [
-                    schema.node("title", {}, [schema.text("foo")]),
-                    schema.node("paragraph", {}, [schema.text("bar")]),
-                    schema.node("paragraph", {}, []),
-                ])
-                .toJSON(),
-        );
-    }
+    expect(massageDocument(await readDocument(documentId))).toEqual({
+        version: 7,
+        content: schema
+            .node("doc", {}, [
+                schema.node("title", {}, [schema.text("f")]),
+                schema.node("paragraph", {}, [schema.text("b")]),
+                schema.node("paragraph", {}, []),
+            ])
+            .toJSON(),
+    });
+    expect(await readDocumentPreview(documentId)).toEqual({
+        id: documentId,
+        titleWithoutFallback: "foo",
+    });
 
     await updateDocumentContent({
         id: documentId,
@@ -1825,17 +1826,17 @@ test("updates the document title whenever it changes", async () => {
         clientId: generateId(),
     });
 
-    {
-        const document = await readDocument(documentId);
-        expect(document?.version).toEqual(8);
-        expect(document?.title).toEqual("foobar");
-        expect(document?.content.toJSON()).toEqual(
-            schema
-                .node("doc", {}, [
-                    schema.node("title", {}, [schema.text("foobar")]),
-                    schema.node("paragraph", {}, []),
-                ])
-                .toJSON(),
-        );
-    }
+    expect(massageDocument(await readDocument(documentId))).toEqual({
+        version: 8,
+        content: schema
+            .node("doc", {}, [
+                schema.node("title", {}, [schema.text("foobar")]),
+                schema.node("paragraph", {}, []),
+            ])
+            .toJSON(),
+    });
+    expect(await readDocumentPreview(documentId)).toEqual({
+        id: documentId,
+        titleWithoutFallback: "foobar",
+    });
 });

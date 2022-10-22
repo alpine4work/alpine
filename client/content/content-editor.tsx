@@ -10,7 +10,10 @@ import {EditorState, Plugin, PluginKey, Transaction} from "prosemirror-state";
 import {Step} from "prosemirror-transform";
 import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
 import {
+    PropsWithoutRef,
+    ReactElement,
     Ref,
+    RefAttributes,
     forwardRef,
     useEffect,
     useImperativeHandle,
@@ -72,14 +75,14 @@ function buildPlugins(schema: ContentProsemirrorSchema) {
  * Wraps around ProseMirror's own `EditorState` and provides a controlled
  * interface to the outside world.
  */
-export class ContentEditorState {
+export class ContentEditorState<Content extends Node> {
     /**
      * Creates a new state for our content editor.
      */
-    public static create({schema, content}: {schema: ContentProsemirrorSchema; content: Node}) {
-        assert(content.type.schema === schema);
+    public static create<Content extends Node>(content: Content): ContentEditorState<Content> {
+        assert(content.type.schema.topNodeType === content.type);
 
-        const plugins = buildPlugins(schema);
+        const plugins = buildPlugins(content.type.schema);
 
         return new ContentEditorState(
             EditorState.create({
@@ -92,13 +95,10 @@ export class ContentEditorState {
     /**
      * Creates a new collaborative state for our content editor.
      */
-    public static createCollab({
-        schema,
+    public static createCollab<Content extends Node>({
         version,
         content,
     }: {
-        schema: ContentProsemirrorSchema;
-
         /**
          * The content version for collaborative editing.
          */
@@ -109,18 +109,18 @@ export class ContentEditorState {
          * start with empty content.
          */
         content: Node;
-    }) {
-        assert(content.type.schema === schema);
+    }): ContentEditorState<Content> {
+        assert(content.type.schema.topNodeType === content.type);
 
         const plugins = [
-            ...buildPlugins(schema),
+            ...buildPlugins(content.type.schema),
             collab({
                 clientID: generateId(),
                 version,
             }),
         ];
 
-        const state = new ContentEditorState(
+        const state = new ContentEditorState<Content>(
             EditorState.create({
                 doc: content,
                 plugins,
@@ -138,13 +138,13 @@ export class ContentEditorState {
     }
 
     /**
-     * The current document rendered in the editor.
+     * The current content rendered in the editor.
      *
-     * Our state contains more information than just the document. For instance,
+     * Our state contains more information than just the content. For instance,
      * the cursor position.
      */
-    public get doc(): Node {
-        return this._state.doc;
+    public getContent(): Content {
+        return this._state.doc as Content;
     }
 
     /**
@@ -195,7 +195,7 @@ export class ContentEditorState {
      * May only call this method if the content editor state is collaborative.
      * (Can check with `isCollab()`.)
      */
-    public receiveSteps(clientId: Id, steps: Array<Step>): ContentEditorState {
+    public receiveSteps(clientId: Id, steps: Array<Step>): ContentEditorState<Content> {
         assert(this.isCollab());
 
         const transaction = receiveTransaction(
@@ -213,12 +213,12 @@ export class ContentEditorState {
     }
 }
 
-function wrap(state: EditorState): ContentEditorState {
+function wrap<Content extends Node>(state: EditorState): ContentEditorState<Content> {
     // @ts-expect-error it's ok to wrap/unwrap editor state in this file.
     return new ContentEditorState(state);
 }
 
-function unwrap(state: ContentEditorState): EditorState {
+function unwrap(state: ContentEditorState<Node>): EditorState {
     // @ts-expect-error it's ok to wrap/unwrap editor state in this file.
     return state._state;
 }
@@ -231,17 +231,19 @@ export type ContentEditorRef = {
     blur(): void;
 };
 
-const ContentEditorForwardRef = forwardRef(ContentEditor);
+const ContentEditorForwardRef = forwardRef(ContentEditor) as <Content extends Node>(
+    props: PropsWithoutRef<ContentEditorProps<Content>> & RefAttributes<ContentEditorRef>,
+) => ReactElement;
 export {ContentEditorForwardRef as ContentEditor};
 
-export type ContentEditorProps = {
+export type ContentEditorProps<Content extends Node> = {
     /**
      * The current state of our content editor.
      *
      * Mostly the content editor state is a wrapper around ProseMirror's immutable
      * `EditorState` with some type safety and helper functions.
      */
-    state: ContentEditorState;
+    state: ContentEditorState<Content>;
 
     /**
      * Fired whenever the content editor's state changes.
@@ -251,7 +253,7 @@ export type ContentEditorProps = {
      * update will be reverted.
      */
     onChange: (
-        state: ContentEditorState,
+        state: ContentEditorState<Content>,
         // We send the transaction on change in case the parent wants to respond
         // to some specific action taken in the transaction.
         transaction: Transaction,
@@ -331,7 +333,10 @@ export type ContentEditorProps = {
  *
  * [1]: https://prosemirror.net
  */
-function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
+function ContentEditor<Content extends Node>(
+    props: ContentEditorProps<Content>,
+    ref: Ref<ContentEditorRef>,
+) {
     const {
         state,
         placeholder,
@@ -395,10 +400,11 @@ function ContentEditor(props: ContentEditorProps, ref: Ref<ContentEditorRef>) {
     useLayoutEffect(() => {
         assert(elementRef.current);
 
-        const schema = propsRef.current.state.doc.type.schema;
+        const state = unwrap(propsRef.current.state);
+        const schema = state.doc.type.schema;
 
         const view = new EditorView(elementRef.current, {
-            state: unwrap(propsRef.current.state),
+            state,
 
             domParser: ContentEditorDomParser.fromSchema(schema),
             clipboardSerializer: ContentEditorDomClipboardSerializer.fromSchema(schema),

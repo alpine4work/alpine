@@ -18,7 +18,7 @@ import {
 import {
     emptyDocumentContent,
     DocumentContentProsemirrorSchema as schema,
-} from "~/shared/content/document-content-schema";
+} from "~/shared/documents/document-content-schema";
 import {generateId} from "~/shared/id/id";
 
 jest.useFakeTimers();

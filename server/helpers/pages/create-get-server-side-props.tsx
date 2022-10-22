@@ -11,6 +11,7 @@ import {
     convertUrlSearchParamCaseToIdentifier,
     isUrlSearchParamCase,
 } from "~/server/helpers/pages/url-search-param-case";
+import {BlockInference} from "~/shared/helpers/types/block-inference";
 import {SchemaSerializedObjectValue} from "~/shared/schema/schema";
 
 /**
@@ -24,7 +25,7 @@ export function createGetServerSideProps<Query, Props extends {[key: string]: an
     PageComponent: PageComponent<Query, Props>,
     getProps: (
         context: Omit<GetServerSidePropsContext, "query"> & {query: Query},
-    ) => Promise<GetServerSidePropsResult<Props>>,
+    ) => Promise<GetServerSidePropsResult<BlockInference<Props>>>,
 ): GetServerSideProps<SchemaSerializedObjectValue> {
     const getServerSideProps: GetServerSideProps<SchemaSerializedObjectValue> = async context => {
         const serializedQuery: ParsedUrlQuery = {};
@@ -42,7 +43,7 @@ export function createGetServerSideProps<Query, Props extends {[key: string]: an
 
         const props = await result.props;
 
-        const serializedProps = PageComponent.propsSchema.serialize(props);
+        const serializedProps = PageComponent.propsSchema.serialize(props as Props);
 
         // The page component returned by `createPageComponent` depends on this
         // property on the server so it doesn't need an extra deserialization step.

@@ -14,15 +14,12 @@ import {
 import {
     DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
-} from "~/shared/content/document-content-schema";
+} from "~/shared/documents/document-content-schema";
 import {assert} from "~/shared/helpers/control/assert";
 
 function TestContentEditor() {
     const [state, setState] = useState(() =>
-        ContentEditorState.create({
-            schema: DocumentWithoutTitleContentProsemirrorSchema,
-            content: emptyDocumentWithoutTitleContent,
-        }),
+        ContentEditorState.create(emptyDocumentWithoutTitleContent),
     );
     return <ContentEditor aria-label="Test" state={state} onChange={setState} />;
 }

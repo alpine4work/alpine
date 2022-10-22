@@ -5,11 +5,8 @@ import {sprinkles} from "~/client/design/sprinkles.css";
 import {createPageComponent} from "~/client/helpers/pages/create-page-component";
 import {readDocument} from "~/server/dynamo/documents-table";
 import {createGetServerSideProps} from "~/server/helpers/pages/create-get-server-side-props";
-import {
-    DocumentContentProsemirrorSchema,
-    DocumentContentSchema,
-    emptyDocumentContent,
-} from "~/shared/content/document-content-schema";
+import {DocumentContentSchema} from "~/shared/documents/document-content-schema";
+import {getDocumentContentTitle} from "~/shared/documents/document-title";
 import {Schema} from "~/shared/schema/schema";
 
 const Page = createPageComponent({
@@ -19,26 +16,17 @@ const Page = createPageComponent({
     props: Schema.object({
         document: Schema.object({
             id: Schema.id,
-            title: Schema.string,
             version: Schema.integer,
             content: DocumentContentSchema,
-        }).nullable(),
+        }),
     }),
     component: function DocumentPage({document}) {
-        const [state, setState] = useState(() =>
-            ContentEditorState.create({
-                schema: DocumentContentProsemirrorSchema,
-                content: document?.content ?? emptyDocumentContent,
-            }),
-        );
-
-        // TODO(calebmer): Get title from content?
-        const title = document && document.title.trim().length > 0 ? document.title : "Untitled";
+        const [state, setState] = useState(() => ContentEditorState.create(document.content));
 
         return (
             <>
                 <Head>
-                    <title>{title}</title>
+                    <title>{getDocumentContentTitle(state.getContent())}</title>
                 </Head>
                 <main className={sprinkles({height: "full"})}>
                     <ContentEditor
@@ -56,6 +44,7 @@ const Page = createPageComponent({
 
 export const getServerSideProps = createGetServerSideProps(Page, async context => {
     const document = await readDocument(context.query.documentId);
+    if (!document) return {notFound: true};
     return {props: {document}};
 });
 

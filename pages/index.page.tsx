@@ -5,34 +5,23 @@ import {sprinkles} from "~/client/design/sprinkles.css";
 import {
     DocumentContentProsemirrorSchema,
     emptyDocumentContent,
-} from "~/shared/content/document-content-schema";
+    isDocumentContent,
+} from "~/shared/documents/document-content-schema";
+import {assert} from "~/shared/helpers/control/assert";
 
 export default function Home() {
-    const [state, setState] = useState(() =>
-        ContentEditorState.create({
-            schema: DocumentContentProsemirrorSchema,
-            content: emptyDocumentContent,
-        }),
-    );
+    const [state, setState] = useState(() => ContentEditorState.create(emptyDocumentContent));
 
     useEffect(() => {
         const indexContentJson = localStorage.getItem("indexContentJson");
         if (!indexContentJson) {
-            setState(
-                ContentEditorState.create({
-                    schema: DocumentContentProsemirrorSchema,
-                    content: emptyDocumentContent,
-                }),
-            );
+            setState(ContentEditorState.create(emptyDocumentContent));
         } else {
-            setState(
-                ContentEditorState.create({
-                    schema: DocumentContentProsemirrorSchema,
-                    content: DocumentContentProsemirrorSchema.nodeFromJSON(
-                        JSON.parse(indexContentJson),
-                    ),
-                }),
+            const content = DocumentContentProsemirrorSchema.nodeFromJSON(
+                JSON.parse(indexContentJson),
             );
+            assert(isDocumentContent(content));
+            setState(ContentEditorState.create(content));
         }
     }, []);
 
@@ -47,7 +36,7 @@ export default function Home() {
                     onChange={state => {
                         localStorage.setItem(
                             "indexContentJson",
-                            JSON.stringify(state.doc.toJSON()),
+                            JSON.stringify(state.getContent().toJSON()),
                         );
                         setState(state);
                     }}

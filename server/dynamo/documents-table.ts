@@ -10,7 +10,8 @@ import {
     DocumentContentSchema,
     DocumentContentStepSchema,
     isDocumentContent,
-} from "~/shared/content/document-content-schema";
+} from "~/shared/documents/document-content-schema";
+import {getDocumentContentTitleWithoutFallback} from "~/shared/documents/document-title";
 import {
     DataLossError,
     FailedPreconditionError,
@@ -57,7 +58,7 @@ const DocumentsTable = DynamoTableSchema.new({
                          * We want the document title to be easily accessible so you don't need to load
                          * the snapshot and apply any new steps to get the title.
                          */
-                        title: Schema.string,
+                        titleWithoutFallback: Schema.string,
                     }),
                 },
 
@@ -183,12 +184,6 @@ type DocumentStepBeforeSnapshotItem = DynamoTableItemType<
 
 type DocumentStepItem = DocumentStepAfterSnapshotItem | DocumentStepBeforeSnapshotItem;
 
-function getDocumentContentTitle(content: DocumentContent): string {
-    const childNode = content.child(0);
-    assert(childNode.type.name === "title");
-    return childNode.textContent;
-}
-
 /**
  * Creates a new document with no history using the initial content provided.
  */
@@ -201,7 +196,7 @@ export async function createDocument({id, content}: {id: Id; content: DocumentCo
                     documentId: id,
                     sortRangeType: "Attributes",
                     version: 0,
-                    title: getDocumentContentTitle(content),
+                    titleWithoutFallback: getDocumentContentTitleWithoutFallback(content),
                 },
                 {
                     condition: {
@@ -229,7 +224,6 @@ export async function createDocument({id, content}: {id: Id; content: DocumentCo
 
 export type Document = {
     readonly id: Id;
-    readonly title: string;
     readonly version: number;
     readonly content: DocumentContent;
 };
@@ -240,6 +234,31 @@ export type Document = {
 export async function readDocument(id: Id): Promise<Document | null> {
     const internalDocument = await readInternalDocument(id);
     return internalDocument?.document ?? null;
+}
+
+export type DocumentPreview = {
+    readonly id: Id;
+    readonly titleWithoutFallback: string;
+};
+
+/**
+ * Read a preview of the document with the provided id.
+ *
+ * Cheaper than `readDocument()` since we don't return the full content.
+ */
+export async function readDocumentPreview(id: Id): Promise<DocumentPreview | null> {
+    const attributes = await DocumentsTable.getItem({
+        partitionType: "Document",
+        documentId: id,
+        sortRangeType: "Attributes",
+    });
+
+    if (!attributes) return null;
+
+    return {
+        id,
+        titleWithoutFallback: attributes.titleWithoutFallback,
+    };
 }
 
 type InternalDocument = {
@@ -340,7 +359,6 @@ async function readInternalDocument(id: Id): Promise<InternalDocument | null> {
         snapshot,
         document: {
             id: id,
-            title: attributes.title,
             version: attributes.version,
             content,
         },
@@ -918,7 +936,7 @@ export async function updateDocumentContent({
                         documentId: id,
                         sortRangeType: "Attributes",
                         version: internalDocument.version + newSteps.length,
-                        title: getDocumentContentTitle(content),
+                        titleWithoutFallback: getDocumentContentTitleWithoutFallback(content),
                     },
                     {
                         condition: {

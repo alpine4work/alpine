@@ -20,7 +20,7 @@
                                 },
                                 "optional": false
                             },
-                            "title": {
+                            "titleWithoutFallback": {
                                 "valueSchema": {
                                     "type": "String"
                                 },
