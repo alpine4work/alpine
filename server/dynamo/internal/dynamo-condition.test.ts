@@ -240,21 +240,11 @@ test("compiles in expressions", () => {
 });
 
 test("compiles exists expressions", () => {
-    expect(
-        compile({
-            // @ts-expect-error: Attribute is required
-            a: DynamoConditionExpression.exists(),
-        }),
-    ).toEqual({
+    expect(compile({a: DynamoConditionExpression.exists()})).toEqual({
         string: "attribute_exists(a)",
         variables: {},
     });
-    expect(
-        compile({
-            // @ts-expect-error: Attribute is nullable, not optional
-            b: DynamoConditionExpression.exists(),
-        }),
-    ).toEqual({
+    expect(compile({b: DynamoConditionExpression.exists()})).toEqual({
         string: "attribute_exists(b)",
         variables: {},
     });
@@ -274,12 +264,7 @@ test("compiles exists expressions", () => {
         string: "not attribute_exists(d)",
         variables: {},
     });
-    expect(
-        compile({
-            // @ts-expect-error: Attribute is default, we treat it as if it exists
-            e: DynamoConditionExpression.exists(),
-        }),
-    ).toEqual({
+    expect(compile({e: DynamoConditionExpression.exists()})).toEqual({
         string: "attribute_exists(e)",
         variables: {},
     });
