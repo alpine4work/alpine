@@ -1,11 +1,9 @@
-import Head from "next/head";
-import {useState} from "react";
-import {ContentEditor, ContentEditorState} from "~/client/content/content-editor";
 import {sprinkles} from "~/client/design/sprinkles.css";
+import {DocumentContentEditor} from "~/client/documents/document-content-editor";
 import {createPageComponent} from "~/client/helpers/pages/create-page-component";
 import {readDocument} from "~/server/dynamo/documents-table";
 import {createGetServerSideProps} from "~/server/helpers/pages/create-get-server-side-props";
-import {DocumentModel, getDocumentContentTitle} from "~/shared/documents/document-model";
+import {DocumentModel} from "~/shared/documents/document-model";
 import {Schema} from "~/shared/schema/schema";
 
 const Page = createPageComponent({
@@ -16,25 +14,10 @@ const Page = createPageComponent({
         document: DocumentModel.schema(),
     }),
     component: function DocumentPage({document: initialDocument}) {
-        const [state, setState] = useState(() =>
-            ContentEditorState.create(initialDocument.content),
-        );
-
         return (
-            <>
-                <Head>
-                    <title>{getDocumentContentTitle(state.getContent())}</title>
-                </Head>
-                <main className={sprinkles({height: "full"})}>
-                    <ContentEditor
-                        state={state}
-                        onChange={setState}
-                        aria-label="Content editor"
-                        placeholder="Share your ideas…"
-                        className={sprinkles({paddingBottom: "24"})}
-                    />
-                </main>
-            </>
+            <main className={sprinkles({height: "full"})}>
+                <DocumentContentEditor initialDocument={initialDocument} />
+            </main>
         );
     },
 });

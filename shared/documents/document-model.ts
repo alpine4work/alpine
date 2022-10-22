@@ -40,8 +40,13 @@ export class DocumentModel
 export function getDocumentContentTitleWithoutFallback(content: DocumentContent): string {
     const childNode = content.child(0);
     assert(childNode.type.name === "title");
-    return childNode.textContent;
+    return childNode.textContent.trim();
 }
+
+/**
+ * The title to use for a document when the user hasn't provided a title yet.
+ */
+export const documentFallbackTitle = "Untitled";
 
 /**
  * Get the title of a document.
@@ -58,8 +63,8 @@ export function getDocumentContentTitle(content: DocumentContent): string {
  * Return the title string and if the title is empty then return a fallback
  * name like "Untitled".
  */
-function addFallbackToDocumentTitle(title: string): string {
-    return title.trim().length > 0 ? title : "Untitled";
+export function addFallbackToDocumentTitle(title: string): string {
+    return title.trim().length > 0 ? title : documentFallbackTitle;
 }
 
 /**

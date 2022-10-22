@@ -7,6 +7,7 @@ import {
 import {colorSchemeVars} from "~/shared/design/color-scheme.css";
 import {fontScale, fontWeights} from "~/shared/design/fonts";
 import {parseRemLengthNumber, spacing} from "~/shared/design/spacing";
+import {documentFallbackTitle} from "~/shared/documents/document-model";
 
 export const containerClassName = style({
     height: "100%",
@@ -15,7 +16,7 @@ export const containerClassName = style({
 export const emptyTitleClassName = style({});
 
 globalStyle(`${emptyTitleClassName}[aria-placeholder] > ${titleClassName}::before`, {
-    content: "Untitled",
+    content: documentFallbackTitle,
     position: "absolute",
     top: titlePaddingTop,
     left: "50%",
