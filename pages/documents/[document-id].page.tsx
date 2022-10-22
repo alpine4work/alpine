@@ -5,8 +5,7 @@ import {sprinkles} from "~/client/design/sprinkles.css";
 import {createPageComponent} from "~/client/helpers/pages/create-page-component";
 import {readDocument} from "~/server/dynamo/documents-table";
 import {createGetServerSideProps} from "~/server/helpers/pages/create-get-server-side-props";
-import {DocumentContentSchema} from "~/shared/documents/document-content-schema";
-import {getDocumentContentTitle} from "~/shared/documents/document-title";
+import {DocumentModel, getDocumentContentTitle} from "~/shared/documents/document-model";
 import {Schema} from "~/shared/schema/schema";
 
 const Page = createPageComponent({
@@ -14,14 +13,12 @@ const Page = createPageComponent({
         documentId: Schema.id,
     }),
     props: Schema.object({
-        document: Schema.object({
-            id: Schema.id,
-            version: Schema.integer,
-            content: DocumentContentSchema,
-        }),
+        document: DocumentModel.schema(),
     }),
-    component: function DocumentPage({document}) {
-        const [state, setState] = useState(() => ContentEditorState.create(document.content));
+    component: function DocumentPage({document: initialDocument}) {
+        const [state, setState] = useState(() =>
+            ContentEditorState.create(initialDocument.content),
+        );
 
         return (
             <>

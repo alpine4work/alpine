@@ -11,7 +11,11 @@ import {
     DocumentContentStepSchema,
     isDocumentContent,
 } from "~/shared/documents/document-content-schema";
-import {getDocumentContentTitleWithoutFallback} from "~/shared/documents/document-title";
+import {
+    DocumentModel,
+    DocumentPreviewModel,
+    getDocumentContentTitleWithoutFallback,
+} from "~/shared/documents/document-model";
 import {
     DataLossError,
     FailedPreconditionError,
@@ -222,18 +226,12 @@ export async function createDocument({id, content}: {id: Id; content: DocumentCo
     );
 }
 
-export type Document = {
-    readonly id: Id;
-    readonly version: number;
-    readonly content: DocumentContent;
-};
-
 /**
  * Read the full document with the provided id.
  */
-export async function readDocument(id: Id): Promise<Document | null> {
+export async function readDocument(id: Id): Promise<DocumentModel | null> {
     const internalDocument = await readInternalDocument(id);
-    return internalDocument?.document ?? null;
+    return internalDocument?.model ?? null;
 }
 
 export type DocumentPreview = {
@@ -246,7 +244,7 @@ export type DocumentPreview = {
  *
  * Cheaper than `readDocument()` since we don't return the full content.
  */
-export async function readDocumentPreview(id: Id): Promise<DocumentPreview | null> {
+export async function readDocumentPreview(id: Id): Promise<DocumentPreviewModel | null> {
     const attributes = await DocumentsTable.getItem({
         partitionType: "Document",
         documentId: id,
@@ -255,17 +253,17 @@ export async function readDocumentPreview(id: Id): Promise<DocumentPreview | nul
 
     if (!attributes) return null;
 
-    return {
+    return new DocumentPreviewModel({
         id,
         titleWithoutFallback: attributes.titleWithoutFallback,
-    };
+    });
 }
 
 type InternalDocument = {
     readonly attributes: DocumentAttributesItem;
     readonly stepsAfterSnapshot: ReadonlyArray<DocumentStepAfterSnapshotItem>;
     readonly snapshot: DocumentSnapshotItem;
-    readonly document: Document;
+    readonly model: DocumentModel;
 };
 
 export const readInternalDocumentTestCounter = new TestCounter();
@@ -357,11 +355,11 @@ async function readInternalDocument(id: Id): Promise<InternalDocument | null> {
         attributes,
         stepsAfterSnapshot,
         snapshot,
-        document: {
+        model: new DocumentModel({
             id: id,
             version: attributes.version,
             content,
-        },
+        }),
     };
 }
 
@@ -426,8 +424,8 @@ export class DocumentContentCacheForUpdate {
             if (!internalDocument) return null;
 
             return {
-                version: internalDocument.document.version,
-                content: internalDocument.document.content,
+                version: internalDocument.model.version,
+                content: internalDocument.model.content,
                 stepsAfterInitialSnapshot: new PushOnlyArray(
                     iterableMap(internalDocument.stepsAfterSnapshot, ({step}) => step),
                 ),
