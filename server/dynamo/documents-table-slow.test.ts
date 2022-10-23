@@ -41,7 +41,7 @@ test(
 
         const snapshotVersions = new Set();
 
-        for (let i = 1; i <= 150; i++) {
+        for (let i = 1; i <= 240; i++) {
             const newText = `${i} `;
 
             await updateDocumentContent({
@@ -85,7 +85,7 @@ test(
             }
         }
 
-        expect(Array.from(snapshotVersions)).toEqual([0, 62, 124]);
+        expect(Array.from(snapshotVersions)).toEqual([0, 100, 200]);
     },
     // 2min timeout for this test
     1000 * 60 * 2,
@@ -105,12 +105,13 @@ test(
 
         const snapshotVersions = new Set();
 
-        for (let i = 1; i <= 200; i += 5) {
+        for (let i = 1; i <= 320; i += 6) {
             const newText1 = `${i} `;
             const newText2 = `${i + 1} `;
             const newText3 = `${i + 2} `;
             const newText4 = `${i + 3} `;
             const newText5 = `${i + 4} `;
+            const newText6 = `${i + 5} `;
 
             const step1 = new ReplaceStep(3 + text.length, 3 + text.length, textSlice(newText1));
             text += newText1;
@@ -122,11 +123,13 @@ test(
             text += newText4;
             const step5 = new ReplaceStep(3 + text.length, 3 + text.length, textSlice(newText5));
             text += newText5;
+            const step6 = new ReplaceStep(3 + text.length, 3 + text.length, textSlice(newText6));
+            text += newText6;
 
             await updateDocumentContent({
                 id: documentId,
                 version: i - 1,
-                steps: [step1, step2, step3, step4, step5],
+                steps: [step1, step2, step3, step4, step5, step6],
                 clientId: generateId(),
             });
 
@@ -146,7 +149,7 @@ test(
             );
 
             const document = await readDocument(documentId);
-            expect(document?.version).toEqual(i + 4);
+            expect(document?.version).toEqual(i + 5);
             expect(document?.content.toJSON()).toEqual(
                 schema
                     .node("doc", {}, [
@@ -157,7 +160,7 @@ test(
             );
         }
 
-        expect(Array.from(snapshotVersions)).toEqual([0, 65, 125, 190]);
+        expect(Array.from(snapshotVersions)).toEqual([0, 102, 204, 300]);
     },
     // 2min timeout for this test
     1000 * 60 * 2,
@@ -175,12 +178,13 @@ test(
 
         let text = "";
 
-        for (let i = 1; i <= 150; i += 5) {
+        for (let i = 1; i <= 240; i += 6) {
             const newText1 = `${i} `;
             const newText2 = `${i + 1} `;
             const newText3 = `${i + 2} `;
             const newText4 = `${i + 3} `;
             const newText5 = `${i + 4} `;
+            const newText6 = `${i + 5} `;
 
             const step1 = new ReplaceStep(3 + text.length, 3 + text.length, textSlice(newText1));
             text += newText1;
@@ -192,6 +196,8 @@ test(
             text += newText4;
             const step5 = new ReplaceStep(3 + text.length, 3 + text.length, textSlice(newText5));
             text += newText5;
+            const step6 = new ReplaceStep(3 + text.length, 3 + text.length, textSlice(newText6));
+            text += newText6;
 
             const requestPausePromise =
                 updateDocumentSnapshotBeforeDeletingStepsTestCheckpoint.pauseForTest(documentId);
@@ -199,7 +205,7 @@ test(
             const requestPromise = updateDocumentContent({
                 id: documentId,
                 version: i - 1,
-                steps: [step1, step2, step3, step4, step5],
+                steps: [step1, step2, step3, step4, step5, step6],
                 clientId: generateId(),
             }).then(async () => {
                 // The checkpoint may not be called within the `updateDocumentContent()`
@@ -215,7 +221,7 @@ test(
             // Read the document before the request is unpaused so old steps have not been
             // deleted yet.
             const document = await readDocument(documentId);
-            expect(document?.version).toEqual(i + 4);
+            expect(document?.version).toEqual(i + 5);
             expect(document?.content.toJSON()).toEqual(
                 schema
                     .node("doc", {}, [
@@ -246,12 +252,13 @@ test(
 
         let text = "";
 
-        for (let i = 1; i <= 150; i += 5) {
+        for (let i = 1; i <= 240; i += 6) {
             const newText1 = `${i} `;
             const newText2 = `${i + 1} `;
             const newText3 = `${i + 2} `;
             const newText4 = `${i + 3} `;
             const newText5 = `${i + 4} `;
+            const newText6 = `${i + 5} `;
 
             const initialTextLength = text.length;
             const step1 = new ReplaceStep(
@@ -284,6 +291,12 @@ test(
                 textSlice(newText5),
             );
             text += newText5;
+            const step6 = new ReplaceStep(
+                3 + (text.length - initialTextLength),
+                3 + (text.length - initialTextLength),
+                textSlice(newText6),
+            );
+            text += newText6;
 
             // Make sure to expire the cache. We need to do that so we don't keep all steps
             // in the cache and instead need to go read them from the database.
@@ -292,14 +305,14 @@ test(
             await updateDocumentContent({
                 id: documentId,
                 version: 0,
-                steps: [step1, step2, step3, step4, step5],
+                steps: [step1, step2, step3, step4, step5, step6],
                 clientId: generateId(),
             });
 
             // Read the document before the request is unpaused so old steps have not been
             // deleted yet.
             const document = await readDocument(documentId);
-            expect(document?.version).toEqual(i + 4);
+            expect(document?.version).toEqual(i + 5);
             expect(document?.content.toJSON()).toEqual(
                 schema
                     .node("doc", {}, [

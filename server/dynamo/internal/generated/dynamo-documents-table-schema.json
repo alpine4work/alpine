@@ -29,7 +29,7 @@
                         }
                     }
                 },
-                "StepsAfterSnapshot": {
+                "StepTransactionsAfterSnapshot": {
                     "orderKey": "a1",
                     "sortKeyAttributeByKey": {
                         "version": {
@@ -39,9 +39,12 @@
                     "attributesSchema": {
                         "type": "Object",
                         "propertySchemaByKey": {
-                            "step": {
+                            "steps": {
                                 "valueSchema": {
-                                    "type": "Unknown"
+                                    "type": "Array",
+                                    "itemSchema": {
+                                        "type": "Unknown"
+                                    }
                                 },
                                 "optional": false
                             },
@@ -75,7 +78,7 @@
                         }
                     }
                 },
-                "StepsBeforeSnapshot": {
+                "StepTransactionsBeforeSnapshot": {
                     "orderKey": "a3",
                     "sortKeyAttributeByKey": {
                         "version": {
@@ -85,9 +88,12 @@
                     "attributesSchema": {
                         "type": "Object",
                         "propertySchemaByKey": {
-                            "step": {
+                            "steps": {
                                 "valueSchema": {
-                                    "type": "Unknown"
+                                    "type": "Array",
+                                    "itemSchema": {
+                                        "type": "Unknown"
+                                    }
                                 },
                                 "optional": false
                             },

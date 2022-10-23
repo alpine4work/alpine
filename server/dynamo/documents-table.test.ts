@@ -1,7 +1,6 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
 import {
-    Document,
     DocumentContentCacheForUpdate,
     createDocument,
     documentContentCacheEvictionTimeoutMs,
@@ -17,6 +16,7 @@ import {
     isDocumentContent,
     DocumentContentProsemirrorSchema as schema,
 } from "~/shared/documents/document-content-schema";
+import {DocumentModel} from "~/shared/documents/document-model";
 import {DataLossError, FailedPreconditionError, NotFoundError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {generateId} from "~/shared/id/id";
@@ -30,7 +30,7 @@ function textSlice(text: string) {
 /**
  * Convert document into a form we can do a deep equality test on.
  */
-function massageDocument(document: Document | null) {
+function massageDocument(document: DocumentModel | null) {
     if (!document) return null;
     return {
         version: document.version,
@@ -125,13 +125,13 @@ test("can read a created document", async () => {
         content,
     });
 
-    const document = await readDocument(documentId);
-
-    expect(document).toEqual({
-        id: documentId,
-        title: "Foo bar",
+    expect(massageDocument(await readDocument(documentId))).toEqual({
         version: 0,
-        content,
+        content: content.toJSON(),
+    });
+    expect(await readDocumentPreview(documentId)).toEqual({
+        id: documentId,
+        titleWithoutFallback: "Foo bar",
     });
 });
 
@@ -1756,7 +1756,7 @@ test("updates the document title whenever it changes", async () => {
         content: schema
             .node("doc", {}, [
                 schema.node("title", {}, [schema.text("foo")]),
-                schema.node("paragraph", {}, [schema.text("b")]),
+                schema.node("paragraph", {}, [schema.text("ba")]),
             ])
             .toJSON(),
     });
@@ -1808,8 +1808,8 @@ test("updates the document title whenever it changes", async () => {
         version: 7,
         content: schema
             .node("doc", {}, [
-                schema.node("title", {}, [schema.text("f")]),
-                schema.node("paragraph", {}, [schema.text("b")]),
+                schema.node("title", {}, [schema.text("foo")]),
+                schema.node("paragraph", {}, [schema.text("bar")]),
                 schema.node("paragraph", {}, []),
             ])
             .toJSON(),
