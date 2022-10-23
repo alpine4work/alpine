@@ -179,7 +179,10 @@ async function executeRpcs(executionBatch: Array<RpcExecution>): Promise<void> {
                 throw new InternalError(error.message, {cause: error});
             });
 
-        if (!output.ok) throw deserializeError(output.error);
+        if (!output.ok) {
+            const error = await deserializeError(output.error);
+            throw error;
+        }
 
         if (output.executions.length !== executionBatch.length)
             throw new InternalError(
@@ -189,13 +192,14 @@ async function executeRpcs(executionBatch: Array<RpcExecution>): Promise<void> {
         executionBatch.forEach((execution, index) => {
             // If anything throws while processing the output for a single execution,
             // reject only that execution's promise.
-            try {
-                const executionOutput = output.executions[index]!;
-                if (!executionOutput.ok) throw deserializeError(executionOutput.error);
-
+            const executionOutput = output.executions[index]!;
+            if (!executionOutput.ok) {
+                deserializeError(executionOutput.error).then(
+                    error => execution.outputPromiseResolver.reject(error),
+                    error => execution.outputPromiseResolver.reject(error),
+                );
+            } else {
                 execution.outputPromiseResolver.resolve(executionOutput.output);
-            } catch (error) {
-                execution.outputPromiseResolver.reject(error);
             }
         });
     } catch (error) {

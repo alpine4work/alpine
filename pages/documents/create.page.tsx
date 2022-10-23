@@ -19,7 +19,7 @@ export default function HackyCreateDocumentPage() {
                         content: emptyDocumentContent,
                     });
 
-                    await router.push(`/document/${documentId}`);
+                    await router.push(`/documents/${documentId}`);
                 });
             }}
         >

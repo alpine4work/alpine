@@ -8,8 +8,8 @@ import {typingNetworkThrottleMs} from "~/client/design/timing-constants";
 import {DocumentContent} from "~/shared/documents/document-content-schema";
 import {DocumentModel, getDocumentContentTitle} from "~/shared/documents/document-model";
 import {runAsyncWithoutAwaiting} from "~/shared/helpers/async/run-async-without-awaiting";
+import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {iterableMap} from "~/shared/helpers/iterable/iterable-map";
 import {Id} from "~/shared/id/id";
 import {updateDocumentContent} from "~/shared/rpc/documents-rpc-definition";
 
@@ -49,6 +49,7 @@ function reduce(
             if (action.newVersion <= oldVersion) return state;
 
             const steps = action.steps.slice(action.steps.length - action.newVersion - oldVersion);
+            assert(oldVersion + steps.length === action.newVersion);
 
             return state.receiveSteps(steps);
         }
@@ -77,7 +78,7 @@ export function DocumentContentEditor({initialDocument}: {initialDocument: Docum
     useEffect(() => {
         // If we're already updating then don't send another update mutation. Once
         // the current mutation is done we'll send another.
-        if (isUpdating) return;
+        if (isUpdating || errorState.hasError) return;
 
         // If there are no new sendable steps from this client then don’t send a
         // mutation.
@@ -101,26 +102,17 @@ export function DocumentContentEditor({initialDocument}: {initialDocument: Docum
                     clientId,
                 });
 
-                console.log({
-                    input: {
-                        version,
-                        steps,
-                        clientId,
-                    },
-                    output: {
-                        newVersion,
-                        rebasedSteps,
-                        conflictingSteps,
-                    },
+                // The `prosemirror-collab` module needs to receive steps from our own client
+                // separately from another client's steps.
+                dispatch({
+                    type: "ReceiveSteps",
+                    newVersion: newVersion - rebasedSteps.length,
+                    steps: conflictingSteps,
                 });
-
                 dispatch({
                     type: "ReceiveSteps",
                     newVersion,
-                    steps: [
-                        ...conflictingSteps,
-                        ...iterableMap(rebasedSteps, step => ({step, clientId})),
-                    ],
+                    steps: rebasedSteps.map(step => ({step, clientId})),
                 });
             } catch (error) {
                 setErrorState({hasError: true, error});

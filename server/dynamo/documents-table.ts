@@ -2,6 +2,7 @@ import {Mapping, Step} from "prosemirror-transform";
 import {DynamoConditionExpression} from "~/server/dynamo/internal/dynamo-condition";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo-key-attribute-schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo-table-schema";
+import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is-dynamo-condition-check-error";
 import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry-dynamo-condition-check-errors";
 import {TestCheckpoint} from "~/server/helpers/test/test-checkpoint";
 import {TestCounter} from "~/server/helpers/test/test-counter";
@@ -1098,18 +1099,32 @@ async function maybeUpdateDocumentSnapshotAfterUpdatingContent({
     // to read the document there will be an error then.
     if (!snapshot) return;
 
-    // First, update the snapshot. We can't start moving steps until we know the
-    // snapshot has successfully updated.
-    await DocumentsTable.putItem({
-        partitionType: "Document",
-        documentId: id,
-        sortRangeType: "Snapshot",
-        version: newVersion,
-        content: newContent,
-    });
+    try {
+        // First, update the snapshot. We can't start moving steps until we know the
+        // snapshot has successfully updated.
+        await DocumentsTable.putItem(
+            {
+                partitionType: "Document",
+                documentId: id,
+                sortRangeType: "Snapshot",
+                version: newVersion,
+                content: newContent,
+            },
+            {
+                condition: {
+                    version: snapshot.version,
+                },
+            },
+        );
+    } catch (error) {
+        // If some other process concurrently updated the snapshot, then we don't need
+        // two processes updating the snapshot at once so we can bail out.
+        if (isDynamoConditionCheckError(error)) return;
+        throw error;
+    }
 
-    // Then, for all steps between our snapshot and new version, move them into the
-    // `StepTransactionsBeforeSnapshot` range so in the future when read read the
+    // Then, for all steps before our new snapshot version, move them into the
+    // `StepTransactionsBeforeSnapshot` range so in the future when we read the
     // full document we don't read those steps.
     const stepTransactions = await arrayFromAsyncIterable(
         DocumentsTable.query({
@@ -1117,7 +1132,7 @@ async function maybeUpdateDocumentSnapshotAfterUpdatingContent({
                 partitionType: "Document",
                 documentId: id,
                 sortRangeType: "StepTransactionsAfterSnapshot",
-                version: snapshot.version,
+                version: 0,
             },
             endKey: {
                 partitionType: "Document",

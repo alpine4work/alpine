@@ -1,7 +1,4 @@
-import {
-    ConditionalCheckFailedException,
-    TransactionCanceledException,
-} from "@aws-sdk/client-dynamodb";
+import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is-dynamo-condition-check-error";
 import {DeadlineExceededError} from "~/shared/error/error";
 import {wait} from "~/shared/helpers/async/wait";
 
@@ -60,29 +57,4 @@ export function retryDynamoConditionCheckErrors<Value>(
     };
 
     return attempt(1);
-}
-
-/**
- * Is the provided error a failure due to a DynamoDB condition check?
- *
- * True for failures in `PutItem` and `TransactWriteItems` alike.
- */
-function isDynamoConditionCheckError(error: unknown): boolean {
-    if (!(error instanceof Error)) return false;
-
-    if (error instanceof ConditionalCheckFailedException) return true;
-
-    if (
-        error instanceof TransactionCanceledException &&
-        error.CancellationReasons?.some(
-            cancellationReason => cancellationReason.Code === "ConditionalCheckFailed",
-        )
-    ) {
-        return true;
-    }
-
-    // If this is not a condition check error but we have an `error.cause`
-    // property, recurse into the parent error.
-    if ("cause" in error) return isDynamoConditionCheckError(error.cause);
-    return false;
 }
