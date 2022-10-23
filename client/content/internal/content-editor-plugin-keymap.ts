@@ -14,7 +14,7 @@ import {redo, undo} from "prosemirror-history";
 import {undoInputRule} from "prosemirror-inputrules";
 import {keymap} from "prosemirror-keymap";
 import {Node} from "prosemirror-model";
-import {EditorState, Transaction} from "prosemirror-state";
+import {EditorState, TextSelection, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {createToggleMarkCommand} from "~/client/content/internal/content-editor-prosemirror-helpers";
 import {isMac} from "~/client/helpers/platform/is-mac";
@@ -609,6 +609,25 @@ export function buildKeymapPlugin(schema: ContentProsemirrorSchema) {
         chainCommands(
             indentCommand,
 
+            // When the user hits tab inside of a document title node, move selection to
+            // the next node as if the title and body were two separate inputs as a
+            // convenience.
+            (state, dispatch) => {
+                const {$from, $to} = state.selection;
+
+                // 1. If selection is inside a title.
+                const isSelectionInsideTitle =
+                    $from.node().type.name === "title" && $to.node().type.name === "title";
+
+                if (!isSelectionInsideTitle) return false;
+
+                // 2. Move selection into the next node.
+                const $nextAnchor = state.doc.resolve($from.after() + 1);
+                const selection = TextSelection.between($nextAnchor, $nextAnchor);
+                if (dispatch) dispatch(state.tr.setSelection(selection));
+                return true;
+            },
+
             // Don't move focus if we don't apply a shortcut.
             //
             // TODO(calebmer): Kinda clearly this is pretty bad for accessibility.
@@ -624,6 +643,30 @@ export function buildKeymapPlugin(schema: ContentProsemirrorSchema) {
         "Shift-Tab",
         chainCommands(
             dedentCommand,
+
+            // When the user hits shift-tab inside of a node when the previous node is a
+            // document title, move selection to the document title as if the title and
+            // body were two separate inputs as a convenience.
+            (state, dispatch) => {
+                const {$from, $to} = state.selection;
+
+                // 1. The selection should be in a single node.
+                if ($from.node() !== $to.node()) return false;
+
+                // 2. We should not be the first top-level node.
+                const previousTopLevelPos = $from.before(1);
+                if (previousTopLevelPos === 0) return false;
+
+                // 3. If the last node is a title...
+                const $previousTopLevelPos = state.doc.resolve(previousTopLevelPos - 1);
+                if ($previousTopLevelPos.node().type.name !== "title") return false;
+
+                // 4. Move selection into the title node.
+                const $nextAnchor = state.doc.resolve($previousTopLevelPos.before() + 1);
+                const selection = TextSelection.between($nextAnchor, $nextAnchor);
+                if (dispatch) dispatch(state.tr.setSelection(selection));
+                return true;
+            },
 
             // Don't move focus if we don't apply a shortcut.
             //
