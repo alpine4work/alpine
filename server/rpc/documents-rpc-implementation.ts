@@ -8,6 +8,5 @@ implementRpc(definition.createDocument, async input => {
 });
 
 implementRpc(definition.updateDocumentContent, async input => {
-    await updateDocumentContent(input);
-    return {};
+    return await updateDocumentContent(input);
 });

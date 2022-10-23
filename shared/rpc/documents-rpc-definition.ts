@@ -22,5 +22,14 @@ export const updateDocumentContent = defineRpc({
         steps: Schema.array(DocumentContentStepSchema),
         clientId: Schema.id,
     },
-    output: {},
+    output: {
+        newVersion: Schema.integer,
+        rebasedSteps: Schema.array(DocumentContentStepSchema),
+        conflictingSteps: Schema.array(
+            Schema.object({
+                step: DocumentContentStepSchema,
+                clientId: Schema.id,
+            }),
+        ),
+    },
 });

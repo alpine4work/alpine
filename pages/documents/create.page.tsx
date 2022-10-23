@@ -1,5 +1,6 @@
 import {useRouter} from "next/router";
 import {emptyDocumentContent} from "~/shared/documents/document-content-schema";
+import {runAsyncWithoutAwaiting} from "~/shared/helpers/async/run-async-without-awaiting";
 import {generateId} from "~/shared/id/id";
 import {createDocument} from "~/shared/rpc/documents-rpc-definition";
 
@@ -10,7 +11,7 @@ export default function HackyCreateDocumentPage() {
     return (
         <button
             onClick={() => {
-                void (async () => {
+                runAsyncWithoutAwaiting(async () => {
                     const documentId = generateId();
 
                     await createDocument({
@@ -19,7 +20,7 @@ export default function HackyCreateDocumentPage() {
                     });
 
                     await router.push(`/document/${documentId}`);
-                })();
+                });
             }}
         >
             Create document

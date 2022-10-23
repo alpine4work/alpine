@@ -234,11 +234,6 @@ export async function readDocument(id: Id): Promise<DocumentModel | null> {
     return internalDocument?.model ?? null;
 }
 
-export type DocumentPreview = {
-    readonly id: Id;
-    readonly titleWithoutFallback: string;
-};
-
 /**
  * Read a preview of the document with the provided id.
  *
@@ -406,14 +401,18 @@ export class DocumentContentCacheForUpdate {
          * Some of these steps may be before the current document snapshot if the
          * document snapshot was updated after our cache loaded the document.
          */
-        stepsAfterInitialSnapshot: PushOnlyArraySlice<Step>;
+        stepsAfterInitialSnapshot: PushOnlyArraySlice<{step: Step; clientId: Id}>;
 
         /**
          * Update the cache with the provided content object and steps. We do not
          * validate that the new content or steps are correct and trust the caller to
          * do that!
          */
-        updateCache: (newContent: DocumentContent, newSteps: ReadonlyArray<Step>) => Promise<void>;
+        updateCache: (options: {
+            newContent: DocumentContent;
+            newSteps: ReadonlyArray<Step>;
+            clientId: Id;
+        }) => Promise<void>;
     } | null> {
         let wasEntryCached = true;
 
@@ -427,7 +426,10 @@ export class DocumentContentCacheForUpdate {
                 version: internalDocument.model.version,
                 content: internalDocument.model.content,
                 stepsAfterInitialSnapshot: new PushOnlyArray(
-                    iterableMap(internalDocument.stepsAfterSnapshot, ({step}) => step),
+                    iterableMap(internalDocument.stepsAfterSnapshot, ({step, clientId}) => ({
+                        step,
+                        clientId,
+                    })),
                 ),
             };
         });
@@ -498,7 +500,10 @@ export class DocumentContentCacheForUpdate {
 
                         assert(isDocumentContent(stepResult.doc));
                         content = stepResult.doc;
-                        entry.stepsAfterInitialSnapshot.push(step.step);
+                        entry.stepsAfterInitialSnapshot.push({
+                            step: step.step,
+                            clientId: step.clientId,
+                        });
                     }
 
                     return {
@@ -521,8 +526,8 @@ export class DocumentContentCacheForUpdate {
             // won't see the new values.
             stepsAfterInitialSnapshot: entry.stepsAfterInitialSnapshot.slice(),
 
-            updateCache: async (newContent, newSteps) => {
-                for (const step of newSteps) entry.stepsAfterInitialSnapshot.push(step);
+            updateCache: async ({newContent, newSteps, clientId}) => {
+                for (const step of newSteps) entry.stepsAfterInitialSnapshot.push({step, clientId});
 
                 await this._entries.setEntry(id, async () => ({
                     version: entry.version + newSteps.length,
@@ -549,7 +554,7 @@ type DocumentContentCacheForUpdateEntry = {
      * By only pushing to this array it also means we can efficiently create
      * immutable slices in O(1) time instead of an O(n) time clone.
      */
-    readonly stepsAfterInitialSnapshot: PushOnlyArray<Step>;
+    readonly stepsAfterInitialSnapshot: PushOnlyArray<{step: Step; clientId: Id}>;
 };
 
 /**
@@ -754,8 +759,35 @@ export async function updateDocumentContent({
     steps: ReadonlyArray<Step>;
     clientId: Id;
     cacheOverrideForTest?: DocumentContentCacheForUpdate;
-}) {
-    const {newVersion, newSteps, newContent} = await retryDynamoConditionCheckErrors(async () => {
+}): Promise<{
+    /**
+     * The new version of the document after applying our update.
+     *
+     * If there are no `conflictingSteps` then this should be
+     * `version + steps.length`.
+     */
+    newVersion: number;
+    /**
+     * The `steps` array we passed in but transformed with a rebase against
+     * `conflictingSteps`.
+     *
+     * These steps were applied after `conflictingSteps`.
+     */
+    rebasedSteps: ReadonlyArray<Step>;
+    /**
+     * If the client passed in a `version` that was not equal to the actual version
+     * of the document, then this function will have loaded steps between the
+     * client provided `version` and the actual document version and used those
+     * steps to rebase the client provided `steps`. The steps between the client
+     * `version` and actual version are the conflicting steps and are
+     * returned here.
+     *
+     * Since these steps come from other clients making collaborative edits
+     * `clientId` is included.
+     */
+    conflictingSteps: ReadonlyArray<{step: Step; clientId: Id}>;
+}> {
+    const result = await retryDynamoConditionCheckErrors(async () => {
         if (!Number.isSafeInteger(clientVersion) || clientVersion < 0)
             throw new InvalidArgumentError("Expected a positive integer version number");
 
@@ -783,7 +815,8 @@ export async function updateDocumentContent({
             );
 
         let content = internalDocument.content;
-        let newSteps: ReadonlyArray<Step>;
+        let rebasedSteps: ReadonlyArray<Step>;
+        let conflictingSteps: ReadonlyArray<{step: Step; clientId: Id}>;
 
         // If the client's version is the same as our server version then we can
         // directly apply the client's steps to the content.
@@ -799,7 +832,8 @@ export async function updateDocumentContent({
                 content = stepResult.doc;
             }
 
-            newSteps = clientSteps;
+            rebasedSteps = clientSteps;
+            conflictingSteps = [];
         }
         // If the client is trying to update an older document version then we need to
         // rebase the client steps against steps which were applied before it.
@@ -812,14 +846,13 @@ export async function updateDocumentContent({
             // If we're lucky then the version we're trying to update is after our snapshot
             // so we've already loaded all the steps after the snapshot. Otherwise we need
             // to read new steps.
-            let stepsToRebaseAgainst: Array<Step>;
             if (
                 clientVersion >=
                 internalDocument.version - internalDocument.stepsAfterInitialSnapshot.length
             ) {
                 const stepCount = internalDocument.version - clientVersion;
 
-                stepsToRebaseAgainst = Array.from(
+                conflictingSteps = Array.from(
                     internalDocument.stepsAfterInitialSnapshot.slice(
                         internalDocument.stepsAfterInitialSnapshot.length - stepCount,
                     ),
@@ -834,13 +867,13 @@ export async function updateDocumentContent({
                         1,
                 });
 
-                stepsToRebaseAgainst = [
-                    ...otherSteps.map(({step}) => step),
+                conflictingSteps = [
+                    ...otherSteps.map(({step, clientId}) => ({step, clientId})),
                     ...internalDocument.stepsAfterInitialSnapshot,
                 ];
             }
 
-            assert(stepsToRebaseAgainst.length === internalDocument.version - clientVersion);
+            assert(conflictingSteps.length === internalDocument.version - clientVersion);
 
             const invertedClientSteps = [];
 
@@ -853,8 +886,8 @@ export async function updateDocumentContent({
             {
                 let clientContent = content;
 
-                for (let i = stepsToRebaseAgainst.length - 1; i >= 0; i--) {
-                    const step = stepsToRebaseAgainst[i]!;
+                for (let i = conflictingSteps.length - 1; i >= 0; i--) {
+                    const {step} = conflictingSteps[i]!;
                     const stepResult = step.invert(clientContent).apply(clientContent);
                     if (!stepResult.doc)
                         throw new DataLossError(
@@ -888,10 +921,10 @@ export async function updateDocumentContent({
 
             for (let i = invertedClientSteps.length - 1; i >= 0; i--)
                 mapping.appendMap(invertedClientSteps[i]!.getMap());
-            for (let i = 0; i < stepsToRebaseAgainst.length; i++)
-                mapping.appendMap(stepsToRebaseAgainst[i]!.getMap());
+            for (let i = 0; i < conflictingSteps.length; i++)
+                mapping.appendMap(conflictingSteps[i]!.step.getMap());
 
-            const rebasedSteps = [];
+            const newRebasedSteps = [];
             let mapFrom = clientSteps.length;
 
             for (let i = 0; i < clientSteps.length; i++) {
@@ -912,11 +945,11 @@ export async function updateDocumentContent({
 
                 assert(isDocumentContent(rebasedStepResult.doc));
                 content = rebasedStepResult.doc;
-                rebasedSteps.push(rebasedStep);
+                newRebasedSteps.push(rebasedStep);
                 mapping.appendMap(rebasedStep.getMap());
             }
 
-            newSteps = rebasedSteps;
+            rebasedSteps = newRebasedSteps;
         }
 
         // This checkpoint allows us to write a test against our transaction's
@@ -926,14 +959,14 @@ export async function updateDocumentContent({
             clientId,
         });
 
-        if (newSteps.length > 0) {
+        if (rebasedSteps.length > 0) {
             await DynamoTableSchema.executeTransaction([
                 DocumentsTable.transactionPutItem(
                     {
                         partitionType: "Document",
                         documentId: id,
                         sortRangeType: "Attributes",
-                        version: internalDocument.version + newSteps.length,
+                        version: internalDocument.version + rebasedSteps.length,
                         titleWithoutFallback: getDocumentContentTitleWithoutFallback(content),
                     },
                     {
@@ -943,7 +976,7 @@ export async function updateDocumentContent({
                         },
                     },
                 ),
-                ...newSteps.map((step, index) =>
+                ...rebasedSteps.map((step, index) =>
                     DocumentsTable.transactionPutItem({
                         partitionType: "Document",
                         documentId: id,
@@ -957,15 +990,23 @@ export async function updateDocumentContent({
 
             // Update our cache so that the next update from this process doesn't need to
             // read content from the database.
-            await internalDocument.updateCache(content, newSteps);
+            await internalDocument.updateCache({
+                newContent: content,
+                newSteps: rebasedSteps,
+                clientId,
+            });
         }
 
         return {
-            newVersion: internalDocument.version + newSteps.length,
-            newSteps,
+            oldVersion: internalDocument.version,
+            newVersion: internalDocument.version + rebasedSteps.length,
             newContent: content,
+            rebasedSteps,
+            conflictingSteps,
         };
     });
+
+    const {oldVersion, newVersion, newContent, rebasedSteps, conflictingSteps} = result;
 
     // We add a blocking update to our snapshot within the
     // `updateDocumentContent()` call. We don't pay the price of updating the
@@ -978,10 +1019,16 @@ export async function updateDocumentContent({
     // `updateDocumentContent()` function doesn't seem too bad.
     await maybeUpdateDocumentSnapshotAfterUpdatingContent({
         id,
+        oldVersion,
         newVersion,
-        newSteps,
         newContent,
     });
+
+    return {
+        newVersion,
+        rebasedSteps,
+        conflictingSteps,
+    };
 }
 
 /**
@@ -1001,7 +1048,7 @@ export async function updateDocumentContent({
  * have a few more or a few less steps we added floor(25 / 2) to give some
  * wiggle room.
  *
- * I don't think the number of DynamoDB requests actually matters but it gave
+ * I don't think the number of DynamoDB requests actually matters but it gives
  * us a reasonable way to pick a number.
  *
  * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
@@ -1012,21 +1059,19 @@ export const updateDocumentSnapshotBeforeDeletingStepsTestCheckpoint = new TestC
 
 async function maybeUpdateDocumentSnapshotAfterUpdatingContent({
     id,
+    oldVersion,
     newVersion,
-    newSteps,
     newContent,
 }: {
     id: Id;
+    oldVersion: number;
     newVersion: number;
-    newSteps: ReadonlyArray<Step>;
     newContent: DocumentContent;
 }) {
     // Get the last version before `newVersion` which should trigger a snapshot.
     const lastVersionToTriggerSnapshot =
         Math.floor(newVersion / updateDocumentSnapshotAfterStepCount) *
         updateDocumentSnapshotAfterStepCount;
-
-    const oldVersion = newVersion - newSteps.length;
 
     // If we've already passed the last version number to trigger a snapshot then
     // we don't need to save a new snapshot.
@@ -1079,6 +1124,9 @@ async function maybeUpdateDocumentSnapshotAfterUpdatingContent({
 
     // Our writes should be batched under the hood if we dispatch them
     // in parallel like this.
+    //
+    // TODO(calebmer): Lint rule against `Promise.all()`. Replace with a utility
+    // like `Promise.allSettled()`.
     await Promise.all(
         steps.map(async step => {
             await DocumentsTable.putItem({

@@ -53,7 +53,7 @@ import {
 import {docClassName} from "~/shared/content/content-schema.css";
 import {documentFallbackTitle} from "~/shared/documents/document-model";
 import {assert} from "~/shared/helpers/control/assert";
-import {Id, generateId} from "~/shared/id/id";
+import {Id, generateId, isId} from "~/shared/id/id";
 
 // TODO(calebmer): Implement touch toolbar for mobile.
 
@@ -109,7 +109,7 @@ export class ContentEditorState<Content extends Node> {
          * The initial content in the editor. If no content is provided then we
          * start with empty content.
          */
-        content: Node;
+        content: Content;
     }): ContentEditorState<Content> {
         assert(content.type.schema.topNodeType === content.type);
 
@@ -177,16 +177,20 @@ export class ContentEditorState<Content extends Node> {
         version: number;
         steps: ReadonlyArray<Step>;
         origins: ReadonlyArray<Transaction>;
+        clientId: Id;
     } | null {
         assert(this.isCollab());
 
         const result = sendableSteps(this._state);
         if (!result) return null;
 
+        assert(typeof result.clientID === "string" && isId(result.clientID));
+
         return {
             version: result.version,
             steps: result.steps,
             origins: result.origins,
+            clientId: result.clientID,
         };
     }
 
@@ -196,19 +200,22 @@ export class ContentEditorState<Content extends Node> {
      * May only call this method if the content editor state is collaborative.
      * (Can check with `isCollab()`.)
      */
-    public receiveSteps(clientId: Id, steps: Array<Step>): ContentEditorState<Content> {
+    public receiveSteps(steps: Iterable<{step: Step; clientId: Id}>): ContentEditorState<Content> {
         assert(this.isCollab());
 
-        const transaction = receiveTransaction(
-            this._state,
-            steps,
-            steps.map(() => clientId),
-            {
-                // Users usually prefer this, but it isn't done by default for reasons
-                // of backwards compatibility.
-                mapSelectionBackward: true,
-            },
-        );
+        const stepsWithoutClientId = [];
+        const clientIds = [];
+
+        for (const {step, clientId} of steps) {
+            stepsWithoutClientId.push(step);
+            clientIds.push(clientId);
+        }
+
+        const transaction = receiveTransaction(this._state, stepsWithoutClientId, clientIds, {
+            // Users usually prefer this, but it isn't done by default for reasons
+            // of backwards compatibility.
+            mapSelectionBackward: true,
+        });
 
         return wrap(this._state.apply(transaction));
     }

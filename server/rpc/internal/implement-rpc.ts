@@ -1,5 +1,6 @@
 import {assert} from "~/shared/helpers/control/assert";
 import {quote} from "~/shared/helpers/string/quote";
+import {BlockInference} from "~/shared/helpers/types/block-inference";
 import {Rpc} from "~/shared/rpc/rpc";
 import {SchemaSerializedValue} from "~/shared/schema/schema";
 
@@ -15,7 +16,7 @@ export type RpcImplementation = {
  */
 export function implementRpc<Input, Output>(
     rpc: Rpc<Input, Output>,
-    implementation: (input: Input) => Promise<Output>,
+    implementation: (input: Input) => Promise<BlockInference<Output>>,
 ) {
     assert(
         !rpcImplementationByName.has(rpc.rpcName),
@@ -26,7 +27,7 @@ export function implementRpc<Input, Output>(
         serializedInput: SchemaSerializedValue,
     ): Promise<SchemaSerializedValue> => {
         const input = rpc.inputSchema.deserialize(serializedInput);
-        const output = await implementation(input);
+        const output = (await implementation(input)) as Output;
         return rpc.outputSchema.serialize(output);
     };
 

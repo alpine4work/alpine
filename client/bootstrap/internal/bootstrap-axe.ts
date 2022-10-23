@@ -7,9 +7,12 @@
 
 import React from "react";
 import ReactDom from "react-dom";
+import {runAsyncWithoutAwaiting} from "~/shared/helpers/async/run-async-without-awaiting";
 
 if (process.env.NODE_ENV === "development" && typeof window !== "undefined") {
-    void import("@axe-core/react").then(async ({default: axe}) => {
+    runAsyncWithoutAwaiting(async () => {
+        const {default: axe} = await import("@axe-core/react");
+
         await axe(React, ReactDom, 1000, {
             rules: [
                 // We are building an app with web technology. Apps do not allow users to pinch
