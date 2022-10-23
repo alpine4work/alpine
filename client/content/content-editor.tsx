@@ -51,6 +51,7 @@ import {
     doesUrlStartWithAllowedProtocol,
 } from "~/shared/content/content-schema";
 import {docClassName} from "~/shared/content/content-schema.css";
+import {documentFallbackTitle} from "~/shared/documents/document-model";
 import {assert} from "~/shared/helpers/control/assert";
 import {Id, generateId} from "~/shared/id/id";
 
@@ -555,6 +556,27 @@ function ContentEditor<Content extends Node>(
         updateEditorEmptyClass(actualState);
     }, [lastTransactionTime, state]);
 
+    const [decorationCallbacks, setDecorationCallbacks] = useState<
+        ReadonlySet<(decorationSet: DecorationSet, state: EditorState) => DecorationSet>
+    >(() => new Set());
+
+    useLayoutEffect(() => {
+        assert(viewRef.current);
+        const view = viewRef.current;
+
+        view.setProps({
+            decorations: state => {
+                let decorationSet = DecorationSet.empty;
+
+                for (const decorationCallback of decorationCallbacks) {
+                    decorationSet = decorationCallback(decorationSet, state);
+                }
+
+                return decorationSet;
+            },
+        });
+    }, [decorationCallbacks]);
+
     // Apply `className`s from our `className` prop. Take care to make sure class
     // names added by ProseMirror or other effects continue to be applied.
     useLayoutEffect(() => {
@@ -577,7 +599,7 @@ function ContentEditor<Content extends Node>(
         assert(viewRef.current);
         const viewElement = viewRef.current.dom;
 
-        const addEmptyTitleClassName = isTitleEmpty(state.doc);
+        const addEmptyTitleClassName = isContentTitleEmpty(state.doc);
         if (addEmptyTitleClassName && !viewElement.classList.contains(emptyTitleClassName)) {
             viewElement.classList.add(emptyTitleClassName);
         }
@@ -585,7 +607,7 @@ function ContentEditor<Content extends Node>(
             viewElement.classList.remove(emptyTitleClassName);
         }
 
-        const addEmptyBodyClassName = isBodyEmpty(state.doc);
+        const addEmptyBodyClassName = isContentBodyEmpty(state.doc);
         if (addEmptyBodyClassName && !viewElement.classList.contains(emptyBodyClassName)) {
             viewElement.classList.add(emptyBodyClassName);
         }
@@ -615,15 +637,74 @@ function ContentEditor<Content extends Node>(
         } else {
             viewElement.removeAttribute("aria-labelledby");
         }
+    }, [ariaLabel, ariaLabelledBy, hasEnterCallback]);
 
-        // Our `content-editor.module.css` file uses the `aria-placeholder`
-        // attribute to render placeholder text.
-        if (placeholder) {
-            viewElement.setAttribute("aria-placeholder", placeholder);
-        } else {
+    const isTitleEmpty = isContentTitleEmpty(state.getContent());
+    const isBodyEmpty = isContentBodyEmpty(state.getContent());
+
+    // Set `aria-placeholder` on the editor for accessibility and then
+    // `data-placeholder` on nodes which need to render placeholders.
+    useLayoutEffect(() => {
+        assert(viewRef.current);
+        const viewElement = viewRef.current.dom;
+
+        if (!placeholder) {
             viewElement.removeAttribute("aria-placeholder");
+        } else {
+            viewElement.setAttribute("aria-placeholder", placeholder);
+
+            const placeholderDecorationCallbacks: Array<
+                (decorationSet: DecorationSet, state: EditorState) => DecorationSet
+            > = [];
+
+            if (isTitleEmpty) {
+                placeholderDecorationCallbacks.push((decorationSet, state) => {
+                    return decorationSet.add(state.doc, [
+                        Decoration.node(0, 2, {
+                            "data-placeholder": documentFallbackTitle,
+                        }),
+                    ]);
+                });
+            }
+
+            if (isBodyEmpty) {
+                placeholderDecorationCallbacks.push((decorationSet, state) => {
+                    let from;
+                    if (!state.doc.type.schema.nodes.title) {
+                        from = 0;
+                    } else {
+                        from = state.doc.child(0).nodeSize;
+                    }
+
+                    return decorationSet.add(state.doc, [
+                        Decoration.node(from, from + 2, {
+                            "data-placeholder": placeholder,
+                        }),
+                    ]);
+                });
+            }
+
+            if (placeholderDecorationCallbacks.length > 0) {
+                setDecorationCallbacks(decorationCallbacks => {
+                    const newDecorationCallbacks = new Set(decorationCallbacks);
+                    for (const decorationCallback of placeholderDecorationCallbacks)
+                        newDecorationCallbacks.add(decorationCallback);
+                    return newDecorationCallbacks;
+                });
+            }
+
+            return () => {
+                if (placeholderDecorationCallbacks.length > 0) {
+                    setDecorationCallbacks(decorationCallbacks => {
+                        const newDecorationCallbacks = new Set(decorationCallbacks);
+                        for (const decorationCallback of placeholderDecorationCallbacks)
+                            newDecorationCallbacks.delete(decorationCallback);
+                        return newDecorationCallbacks;
+                    });
+                }
+            };
         }
-    }, [ariaLabel, ariaLabelledBy, hasEnterCallback, placeholder]);
+    }, [isBodyEmpty, isTitleEmpty, placeholder]);
 
     // When the content editor is unfocused give the editor's text selection a
     // light grey background. That way the user can see what will be selected when
@@ -637,14 +718,24 @@ function ContentEditor<Content extends Node>(
         const view = viewRef.current;
         const viewElement = view.dom;
 
-        const currentDecorations = view.someProp("decorations");
+        const blurDecorationCallback = (decorationSet: DecorationSet, state: EditorState) => {
+            return decorationSet.add(state.doc, [
+                Decoration.inline(state.selection.from, state.selection.to, {
+                    class: unfocusedSelectionClassName,
+                }),
+            ]);
+        };
 
         const handleFocus = () => {
             setIsFocused(true);
 
             viewElement.classList.remove(hideSelectionWhileUnfocusedClassName);
 
-            view.setProps({decorations: currentDecorations});
+            setDecorationCallbacks(decorationCallbacks => {
+                const newDecorationCallbacks = new Set(decorationCallbacks);
+                newDecorationCallbacks.delete(blurDecorationCallback);
+                return newDecorationCallbacks;
+            });
         };
 
         const handleBlur = () => {
@@ -652,21 +743,10 @@ function ContentEditor<Content extends Node>(
 
             viewElement.classList.add(hideSelectionWhileUnfocusedClassName);
 
-            view.setProps({
-                decorations: state => {
-                    const decorationSet =
-                        currentDecorations?.(state) ?? DecorationSet.create(state.doc, []);
-
-                    // NOTE(calebmer): There's probably a safe way to merge `DecorationSource`s if
-                    // we ever use a different implementation than `DecorationSet`.
-                    assert(decorationSet instanceof DecorationSet);
-
-                    return decorationSet.add(state.doc, [
-                        Decoration.inline(state.selection.from, state.selection.to, {
-                            class: unfocusedSelectionClassName,
-                        }),
-                    ]);
-                },
+            setDecorationCallbacks(decorationCallbacks => {
+                const newDecorationCallbacks = new Set(decorationCallbacks);
+                newDecorationCallbacks.add(blurDecorationCallback);
+                return newDecorationCallbacks;
             });
         };
 
@@ -681,6 +761,13 @@ function ContentEditor<Content extends Node>(
         return () => {
             viewElement.addEventListener("focus", handleFocus);
             viewElement.addEventListener("blur", handleBlur);
+
+            setDecorationCallbacks(decorationCallbacks => {
+                if (!decorationCallbacks.has(blurDecorationCallback)) return decorationCallbacks;
+                const newDecorationCallbacks = new Set(decorationCallbacks);
+                newDecorationCallbacks.delete(blurDecorationCallback);
+                return newDecorationCallbacks;
+            });
         };
     }, []);
 
@@ -814,14 +901,14 @@ function isCollabPlugin(plugin: Plugin) {
     return plugin.spec.key === collabPluginKey;
 }
 
-function isTitleEmpty(node: Node): boolean {
+function isContentTitleEmpty(node: Node): boolean {
     assert(node.type.name === "doc");
     if (!node.type.schema.nodes.title) return true;
     const firstChildNode = node.child(0);
     return firstChildNode.type.name === "title" && firstChildNode.content.size === 0;
 }
 
-function isBodyEmpty(node: Node): boolean {
+function isContentBodyEmpty(node: Node): boolean {
     assert(node.type.name === "doc");
 
     let bodyChildNode;

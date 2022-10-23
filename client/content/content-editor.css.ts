@@ -1,13 +1,9 @@
 import {globalStyle, style} from "@vanilla-extract/css";
-import {
-    paragraphMargin,
-    titleClassName,
-    titlePaddingTop,
-} from "~/shared/content/content-schema.css";
+import {inputPlaceholderColor} from "~/client/design/input-placeholder-color.css";
+import {paragraphClassName, titleClassName} from "~/shared/content/content-schema.css";
 import {colorSchemeVars} from "~/shared/design/color-scheme.css";
-import {fontScale, fontWeights} from "~/shared/design/fonts";
-import {parseRemLengthNumber, spacing} from "~/shared/design/spacing";
-import {documentFallbackTitle} from "~/shared/documents/document-model";
+import {fontScale} from "~/shared/design/fonts";
+import {parseRemLengthNumber} from "~/shared/design/spacing";
 
 export const containerClassName = style({
     height: "100%",
@@ -15,39 +11,30 @@ export const containerClassName = style({
 
 export const emptyTitleClassName = style({});
 
-globalStyle(`${emptyTitleClassName}[aria-placeholder] > ${titleClassName}::before`, {
-    content: documentFallbackTitle,
-    position: "absolute",
-    top: titlePaddingTop,
-    left: "50%",
-    transform: "translateX(-50%)",
-    width: "100%",
-    maxWidth: spacing["192"],
+globalStyle(`${emptyTitleClassName} > ${titleClassName}[data-placeholder]::before`, {
+    // The `/ ""` is screen reader alt text. So screen readers don't read the
+    // placeholder content.
+    //
+    // Not all browsers support that syntax, though (like Safari), so we provide a
+    // fallback without the `/ ""`.
+    content: ["attr(data-placeholder)", 'attr(data-placeholder) / ""'],
     pointerEvents: "none",
-    color: colorSchemeVars["grey-20"],
-    ...fontScale["2xl"],
-    fontWeight: fontWeights.bold,
+    color: inputPlaceholderColor,
+    position: "absolute",
 });
 
 export const emptyBodyClassName = style({});
 
-globalStyle(`${emptyBodyClassName}[aria-placeholder]::before`, {
-    content: "attr(aria-placeholder)",
-    position: "absolute",
-    top: `${
-        parseRemLengthNumber(titlePaddingTop) +
-        parseRemLengthNumber(fontScale["2xl"].lineHeight) +
-        parseRemLengthNumber(paragraphMargin)
-    }rem`,
-    left: "50%",
-    transform: "translateX(-50%)",
-    width: "100%",
-    maxWidth: spacing["192"],
-    marginLeft: "auto",
-    marginRight: "auto",
+globalStyle(`${emptyBodyClassName} > ${paragraphClassName}[data-placeholder]::before`, {
+    // The `/ ""` is screen reader alt text. So screen readers don't read the
+    // placeholder content.
+    //
+    // Not all browsers support that syntax, though (like Safari), so we provide a
+    // fallback without the `/ ""`.
+    content: ["attr(data-placeholder)", 'attr(data-placeholder) / ""'],
     pointerEvents: "none",
-    color: colorSchemeVars["grey-30"],
-    ...fontScale.base,
+    color: inputPlaceholderColor,
+    position: "absolute",
 });
 
 export const hideSelectionWhileUnfocusedClassName = style({

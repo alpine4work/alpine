@@ -6,6 +6,7 @@
  */
 
 import {globalStyle} from "@vanilla-extract/css";
+import {inputPlaceholderColor} from "~/client/design/input-placeholder-color.css";
 import {colorSchemeVars} from "~/shared/design/color-scheme.css";
 import {fontScale, monospaceFontFamily, sansSerifFontFamily} from "~/shared/design/fonts";
 import {mobilePlatformMediaQuery, remPxByPlatform} from "~/shared/design/spacing";
@@ -71,5 +72,5 @@ globalStyle("code, kbd, samp, pre", {
 });
 
 globalStyle("::placeholder", {
-    color: colorSchemeVars["grey-40"],
+    color: inputPlaceholderColor,
 });
