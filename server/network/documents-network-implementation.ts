@@ -1,5 +1,11 @@
-import {createDocument, updateDocumentContent} from "~/server/dynamo/documents-table";
+import {
+    createDocument,
+    readDocumentPreview,
+    updateDocumentContent,
+} from "~/server/dynamo/documents-table";
+import {implementNetworkChannelAuthorization} from "~/server/network/internal/implement-network-channel";
 import {implementNetworkFunction} from "~/server/network/internal/implement-network-function";
+import {PermissionDeniedError} from "~/shared/error/error";
 import * as definition from "~/shared/network/documents-network-definition";
 
 implementNetworkFunction(definition.createDocument, async input => {
@@ -9,4 +15,10 @@ implementNetworkFunction(definition.createDocument, async input => {
 
 implementNetworkFunction(definition.updateDocumentContent, async input => {
     return await updateDocumentContent(input);
+});
+
+implementNetworkChannelAuthorization(definition.DocumentNetworkChannel, async key => {
+    const documentPreview = await readDocumentPreview(key.documentId);
+    if (!documentPreview)
+        throw new PermissionDeniedError("Can not subscribe to document you do not have access to");
 });

@@ -6,6 +6,8 @@ import {scheduleException} from "~/shared/helpers/async/schedule-exception";
  * Handles any uncaught exceptions. Generally prefer this over `void`ing a
  * promise.
  */
-export function runAsyncWithoutAwaiting(action: () => Promise<void>): void {
-    action().catch(scheduleException);
+export function runPromiseWithoutAwaiting(
+    action: Promise<unknown> | (() => Promise<unknown>),
+): void {
+    (typeof action === "function" ? action() : action).catch(scheduleException);
 }

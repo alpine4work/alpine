@@ -5,13 +5,17 @@ import {useEffect, useReducer, useState} from "react";
 import {ContentEditor, ContentEditorState} from "~/client/content/content-editor";
 import {sprinkles} from "~/client/design/sprinkles.css";
 import {typingNetworkThrottleMs} from "~/client/design/timing-constants";
+import {subscribeToMessagesFromNetworkChannel} from "~/client/network/subscribe-to-messages-from-network-channel";
 import {DocumentContent} from "~/shared/documents/document-content-schema";
 import {DocumentModel, getDocumentContentTitle} from "~/shared/documents/document-model";
-import {runAsyncWithoutAwaiting} from "~/shared/helpers/async/run-async-without-awaiting";
+import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run-promise-without-awaiting";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {Id} from "~/shared/id/id";
-import {updateDocumentContent} from "~/shared/network/documents-network-definition";
+import {
+    DocumentNetworkChannel,
+    updateDocumentContent,
+} from "~/shared/network/documents-network-definition";
 
 type Action = EditAction | ReceiveStepsAction;
 
@@ -92,7 +96,7 @@ export function DocumentContentEditor({initialDocument}: {initialDocument: Docum
         // user experience.
         if (shouldThrottleUpdate(origins)) return;
 
-        runAsyncWithoutAwaiting(async () => {
+        runPromiseWithoutAwaiting(async () => {
             setIsUpdating(true);
             try {
                 const {newVersion, newSteps, conflictingSteps} = await updateDocumentContent({
@@ -124,6 +128,55 @@ export function DocumentContentEditor({initialDocument}: {initialDocument: Docum
         // This effect intentionally doesn’t have a dependency array. It shouldn't
         // need one for correctness.
     });
+
+    // TODO(calebmer): I probably want a custom hook. This is hacky becuz I
+    // am tired.
+    useEffect(() => {
+        let isCancelled = false;
+        let cancel: (() => void) | null = null;
+
+        // TODO(calebmer): Handle errors??
+        runPromiseWithoutAwaiting(
+            subscribeToMessagesFromNetworkChannel(DocumentNetworkChannel, {
+                documentId,
+            }).then(iterator => {
+                if (isCancelled) {
+                    runPromiseWithoutAwaiting(iterator.return());
+                    return;
+                }
+
+                cancel = () => runPromiseWithoutAwaiting(iterator.return());
+
+                const loop = () => {
+                    if (isCancelled) return;
+
+                    runPromiseWithoutAwaiting(
+                        iterator.next().then(result => {
+                            if (result.done) return;
+
+                            dispatch({
+                                type: "ReceiveSteps",
+                                newVersion: result.value.newVersion,
+                                steps: result.value.steps.map(step => ({
+                                    step,
+                                    clientId: result.value.clientId,
+                                })),
+                            });
+
+                            loop();
+                        }),
+                    );
+                };
+
+                loop();
+            }),
+        );
+
+        return () => {
+            isCancelled = true;
+            cancel?.();
+        };
+    }, [documentId]);
 
     return (
         <>

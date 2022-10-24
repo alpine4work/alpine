@@ -7,10 +7,10 @@
 
 import React from "react";
 import ReactDom from "react-dom";
-import {runAsyncWithoutAwaiting} from "~/shared/helpers/async/run-async-without-awaiting";
+import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run-promise-without-awaiting";
 
 if (process.env.NODE_ENV === "development" && typeof window !== "undefined") {
-    runAsyncWithoutAwaiting(async () => {
+    runPromiseWithoutAwaiting(async () => {
         const {default: axe} = await import("@axe-core/react");
 
         await axe(React, ReactDom, 1000, {

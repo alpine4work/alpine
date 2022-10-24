@@ -3,6 +3,7 @@ import path from "path";
 import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo-table-schema";
 import {repoDirectoryPath} from "~/server/helpers/repo-directory-path";
 import {InternalError} from "~/shared/error/error";
+import {runAllPromises} from "~/shared/helpers/async/run-all-promises";
 import {quote} from "~/shared/helpers/string/quote";
 
 const dynamoDirectoryPath = path.join(repoDirectoryPath, "server/dynamo");
@@ -37,7 +38,7 @@ async function importAllDynamoModulesInDirectory(
     const fileNames = await fs.readdir(directoryPath);
     const modulePaths = fileNames.map(moduleName => path.join(directoryPath, moduleName));
 
-    const results = await Promise.allSettled(
+    await runAllPromises(
         modulePaths.map(async modulePath => {
             const moduleStats = await fs.lstat(modulePath);
 
@@ -68,10 +69,4 @@ async function importAllDynamoModulesInDirectory(
             }
         }),
     );
-
-    for (const result of results) {
-        if (result.status === "rejected") {
-            throw result.reason;
-        }
-    }
 }

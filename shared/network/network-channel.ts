@@ -1,5 +1,11 @@
 import {ObjectSchema, UnionSchema} from "~/shared/schema/schema";
 
+export type NetworkChannelKeyType<Channel extends NetworkChannel<any, any>> =
+    Channel extends NetworkChannel<infer Key, any> ? Key : never;
+
+export type NetworkChannelMessageType<Channel extends NetworkChannel<any, any>> =
+    Channel extends NetworkChannel<any, infer Message> ? Message : never;
+
 /**
  * A channel to which messages are published using a [publish-subscribe
  * pattern][1]. Messages are delivered to clients over WebSockets using

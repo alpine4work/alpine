@@ -25,6 +25,7 @@ import {
     InvalidArgumentError,
     NotFoundError,
 } from "~/shared/error/error";
+import {runAllPromises} from "~/shared/helpers/async/run-all-promises";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array-from-async-iterable";
@@ -1090,10 +1091,7 @@ export async function updateDocumentContent({
 
     // TODO(calebmer): Lint rule that all `await`s which can be parallelized are
     // indeed parallelized.
-    //
-    // TODO(calebmer): Lint rule against `Promise.all()` for a similar
-    // `Promise.allSettled()` style utility.
-    await Promise.all([
+    await runAllPromises([
         publishMessageToNetworkChannel(
             DocumentNetworkChannel,
             {documentId: id},
@@ -1223,10 +1221,7 @@ async function maybeUpdateDocumentSnapshotAfterUpdatingContent({
 
     // Our writes should be batched under the hood if we dispatch them
     // in parallel like this.
-    //
-    // TODO(calebmer): Lint rule against `Promise.all()`. Replace with a utility
-    // like `Promise.allSettled()`.
-    await Promise.all(
+    await runAllPromises(
         stepTransactions.map(async stepTransaction => {
             await DocumentsTable.putItem({
                 ...stepTransaction,

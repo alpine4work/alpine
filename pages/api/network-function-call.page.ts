@@ -32,7 +32,7 @@ export default async function executeNetworkFunctions(req: NextApiRequest, res: 
 
                         if (!networkFunctionImplementation)
                             throw new NotFoundError(
-                                "Referenced a network function name that does not have an implementation",
+                                "Could not find an implementation for network function",
                             );
 
                         const output = await networkFunctionImplementation.execute(execution.input);

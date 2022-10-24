@@ -1,6 +1,7 @@
 import Ably from "ably";
 import {assert} from "~/shared/helpers/control/assert";
 import {BlockInference} from "~/shared/helpers/types/block-inference";
+import {getAblyChannelNameForNetworkChannel} from "~/shared/network/helpers/get-ably-channel-name-for-network-channel";
 import {NetworkChannel} from "~/shared/network/network-channel";
 
 assert(process.env.ABLY_API_KEY);
@@ -8,7 +9,7 @@ assert(process.env.ABLY_API_KEY);
 // TODO(calebmer): Enable idempotent message publishing and give all messages an
 // id. Is there a way to automatically generate these idempotent ids? Maybe a hash
 // of the message + a request id?
-const ably = new Ably.Rest.Promise({key: process.env.ABLY_API_KEY});
+const ablyRest = new Ably.Rest.Promise({key: process.env.ABLY_API_KEY});
 
 /**
  * Publish a message to a network channel.
@@ -17,11 +18,11 @@ export async function publishMessageToNetworkChannel<
     Key extends {[key: string]: string},
     Message extends {type: string},
 >(
-    channel: NetworkChannel<Key, Message>,
+    networkChannel: NetworkChannel<Key, Message>,
     key: BlockInference<Key>,
     message: BlockInference<Message>,
 ): Promise<void> {
-    const channelName = getAblyChannelName(channel, key as Key);
+    const ablyChannelName = getAblyChannelNameForNetworkChannel(networkChannel, key);
 
     // Immediately release the Ably channel after creating it so we don't have a
     // memory leak.
@@ -37,34 +38,11 @@ export async function publishMessageToNetworkChannel<
     // we are a paying customer, thanks.
     //
     // [1]: https://github.com/ably/ably-js/blob/369e9b5886d71394c996fc10fc5ab7d518d1363a/src/common/lib/client/rest.ts#L256-L272
-    const ablyChannel = ably.channels.get(channelName);
-    ably.channels.release(channelName);
+    const ablyChannel = ablyRest.channels.get(ablyChannelName);
+    ablyRest.channels.release(ablyChannelName);
 
-    const serializedMessage = channel.messageSchema.serialize(message as Message);
+    const serializedMessage = networkChannel.messageSchema.serialize(message as Message);
 
     // Actually publish the message.
     await ablyChannel.publish("message", serializedMessage);
-}
-
-/**
- * Get the Ably channel name based on a channel definition and a key into
- * that channel.
- */
-function getAblyChannelName<Key extends {[key: string]: string}, Message extends {type: string}>(
-    channel: NetworkChannel<Key, Message>,
-    key: Key,
-) {
-    const serializedKey = channel.keySchema.serialize(key);
-
-    const keyParts = Array.from(channel.keySchema.propertySchemaByKey, ([key, propertySchema]) => {
-        const keyPart = serializedKey[propertySchema.serializedKey ?? key];
-        assert(typeof keyPart === "string");
-        const escapedKeyPart = JSON.stringify(keyPart).replaceAll(":", "\\u003A");
-        assert(escapedKeyPart.startsWith('"') && escapedKeyPart.endsWith('"'));
-        return escapedKeyPart.slice(1, -1);
-    });
-
-    keyParts.unshift(channel.name);
-
-    return keyParts.join(":");
 }

@@ -18,6 +18,7 @@ import {
 } from "~/shared/documents/document-content-schema";
 import {DocumentModel} from "~/shared/documents/document-model";
 import {DataLossError, FailedPreconditionError, NotFoundError} from "~/shared/error/error";
+import {runAllPromises} from "~/shared/helpers/async/run-all-promises";
 import {assert} from "~/shared/helpers/control/assert";
 import {generateId} from "~/shared/id/id";
 
@@ -1217,7 +1218,7 @@ test("updates made in parallel will only read the document once", async () => {
         clientId: generateId(),
     });
 
-    await Promise.all([request1Promise, request2Promise, request3Promise, request4Promise]);
+    await runAllPromises([request1Promise, request2Promise, request3Promise, request4Promise]);
 
     expect(getCount()).toEqual(1);
 

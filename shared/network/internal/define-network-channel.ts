@@ -57,3 +57,10 @@ export function defineNetworkChannel<
 }
 
 const definedNetworkChannelName = new Set<string>();
+
+/**
+ * Get the names of all network channels that have been defined.
+ */
+export function getAllDefinedNetworkChannelNames(): IterableIterator<string> {
+    return definedNetworkChannelName.values();
+}

@@ -10,7 +10,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive";
 export abstract class ErrorBase extends Error {
     public readonly code: ErrorCode;
 
-    constructor(message: string, {cause}: {cause?: Error} = {}) {
+    constructor(message: string, {cause}: {cause?: unknown} = {}) {
         super(message, {cause});
         this.code = this._getCode();
         this.name = getErrorCodeName(this.code) + "Error";

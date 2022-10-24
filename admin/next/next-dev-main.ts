@@ -3,6 +3,7 @@ import {createServer} from "http";
 import next from "next";
 import {prepareLocalstack} from "~/admin/aws/prepare-localstack";
 import {repoDirectoryPath} from "~/server/helpers/repo-directory-path";
+import {runAllPromises} from "~/shared/helpers/async/run-all-promises";
 import {assert} from "~/shared/helpers/control/assert";
 
 assert(process.cwd() === repoDirectoryPath);
@@ -15,7 +16,7 @@ const app = next({dev: true, port});
 const handle = app.getRequestHandler();
 
 let isPrepared = false;
-const preparePromise = Promise.all([app.prepare(), prepareLocalstack()]);
+const preparePromise = runAllPromises([app.prepare(), prepareLocalstack()]);
 preparePromise.then(
     () => {
         isPrepared = true;
