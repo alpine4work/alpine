@@ -102,6 +102,17 @@ const DocumentsTable = DynamoTableSchema.new({
                         steps: Schema.array(DocumentContentStepSchema),
 
                         /**
+                         * The inverse of the steps applied to the document in this transaction.
+                         *
+                         * We need to store inverted steps to be able to restore older versions of the
+                         * document. For instance, when you delete content the inverted step will
+                         * contain the content that was deleted.
+                         *
+                         * This array is in reverse order of `steps`.
+                         */
+                        invertedSteps: Schema.array(DocumentContentStepSchema),
+
+                        /**
                          * An `Id` identifying the client who applied this step.
                          *
                          * We generate a new client id every time the content editor is rendered. This
@@ -153,6 +164,17 @@ const DocumentsTable = DynamoTableSchema.new({
                          * The steps applied to the document.
                          */
                         steps: Schema.array(DocumentContentStepSchema),
+
+                        /**
+                         * The inverse of the steps applied to the document in this transaction.
+                         *
+                         * We need to store inverted steps to be able to restore older versions of the
+                         * document. For instance, when you delete content the inverted step will
+                         * contain the content that was deleted.
+                         *
+                         * This array is in reverse order of `steps`.
+                         */
+                        invertedSteps: Schema.array(DocumentContentStepSchema),
 
                         /**
                          * An `Id` identifying the client who applied this step.
@@ -418,8 +440,9 @@ export class DocumentContentCacheForUpdate {
          * document snapshot was updated after our cache loaded the document.
          */
         readonly stepsAfterInitialSnapshot: PushOnlyArraySlice<{
-            readonly clientId: Id;
             readonly step: Step;
+            readonly invertedStep: Step;
+            readonly clientId: Id;
         }>;
 
         /**
@@ -430,6 +453,7 @@ export class DocumentContentCacheForUpdate {
         updateCache(options: {
             newContent: DocumentContent;
             newSteps: ReadonlyArray<Step>;
+            newInvertedSteps: ReadonlyArray<Step>;
             clientId: Id;
         }): Promise<void>;
     } | null> {
@@ -447,7 +471,15 @@ export class DocumentContentCacheForUpdate {
                 stepsAfterInitialSnapshot: new PushOnlyArray(
                     iterableFlatMap(
                         internalDocument.stepTransactionsAfterSnapshot,
-                        ({clientId, steps}) => iterableMap(steps, step => ({step, clientId})),
+                        ({steps, invertedSteps, clientId}) => {
+                            return iterableMap(steps, (step, i) => {
+                                const invertedStep = invertedSteps[steps.length - i - 1];
+                                if (!invertedStep)
+                                    throw new DataLossError("Missing inverted document step");
+
+                                return {step, invertedStep, clientId};
+                            });
+                        },
                     ),
                 ),
             };
@@ -524,10 +556,17 @@ export class DocumentContentCacheForUpdate {
 
                         version += stepTransaction.steps.length;
 
-                        for (const step of stepTransaction.steps) {
+                        for (let i = 0; i < stepTransaction.steps.length; i++) {
+                            const step = stepTransaction.steps[i]!;
+                            const invertedStep =
+                                stepTransaction.invertedSteps[stepTransaction.steps.length - i - 1];
+                            if (!invertedStep)
+                                throw new DataLossError("Missing inverted document step");
+
                             entry.stepsAfterInitialSnapshot.push({
-                                clientId: stepTransaction.clientId,
                                 step,
+                                invertedStep,
+                                clientId: stepTransaction.clientId,
                             });
                         }
                     }
@@ -552,8 +591,13 @@ export class DocumentContentCacheForUpdate {
             // won't see the new values.
             stepsAfterInitialSnapshot: entry.stepsAfterInitialSnapshot.slice(),
 
-            updateCache: async ({newContent, newSteps, clientId}) => {
-                for (const step of newSteps) entry.stepsAfterInitialSnapshot.push({clientId, step});
+            updateCache: async ({newContent, newSteps, newInvertedSteps, clientId}) => {
+                for (let i = 0; i < newSteps.length; i++) {
+                    const step = newSteps[i]!;
+                    const invertedStep = newInvertedSteps[newSteps.length - i - 1];
+                    assert(invertedStep);
+                    entry.stepsAfterInitialSnapshot.push({step, invertedStep, clientId});
+                }
 
                 await this._entries.setEntry(id, async () => ({
                     version: entry.version + newSteps.length,
@@ -581,8 +625,9 @@ type DocumentContentCacheForUpdateEntry = {
      * immutable slices in O(1) time instead of an O(n) time clone.
      */
     readonly stepsAfterInitialSnapshot: PushOnlyArray<{
-        readonly clientId: Id;
         readonly step: Step;
+        readonly invertedStep: Step;
+        readonly clientId: Id;
     }>;
 };
 
@@ -802,7 +847,7 @@ export async function updateDocumentContent({
      *
      * These steps were applied after `conflictingSteps`.
      */
-    rebasedSteps: ReadonlyArray<Step>;
+    newSteps: ReadonlyArray<Step>;
     /**
      * If the client passed in a `version` that was not equal to the actual version
      * of the document, then this function will have loaded steps between the
@@ -836,12 +881,15 @@ export async function updateDocumentContent({
             );
 
         let content = internalDocument.content;
-        let rebasedSteps: ReadonlyArray<Step>;
-        let conflictingSteps: ReadonlyArray<{step: Step; clientId: Id}>;
+        let newSteps: ReadonlyArray<Step>;
+        let newInvertedSteps: Array<Step>;
+        let conflictingSteps: ReadonlyArray<{step: Step; invertedStep: Step; clientId: Id}>;
 
         // If the client's version is the same as our server version then we can
         // directly apply the client's steps to the content.
         if (clientVersion === internalDocument.version) {
+            const invertedClientSteps = [];
+
             for (const step of clientSteps) {
                 const stepResult = step.apply(content);
                 if (!stepResult.doc)
@@ -849,11 +897,14 @@ export async function updateDocumentContent({
                         `Could not apply step to document: ${stepResult.failed!}`,
                     );
 
+                invertedClientSteps.push(step.invert(content));
+
                 assert(isDocumentContent(stepResult.doc));
                 content = stepResult.doc;
             }
 
-            rebasedSteps = clientSteps;
+            newSteps = clientSteps;
+            newInvertedSteps = invertedClientSteps;
             conflictingSteps = [];
         }
         // If the client is trying to update an older document version then we need to
@@ -888,10 +939,7 @@ export async function updateDocumentContent({
                         1,
                 });
 
-                conflictingSteps = [
-                    ...otherSteps.map(({step, clientId}) => ({step, clientId})),
-                    ...internalDocument.stepsAfterInitialSnapshot,
-                ];
+                conflictingSteps = [...otherSteps, ...internalDocument.stepsAfterInitialSnapshot];
             }
 
             assert(conflictingSteps.length === internalDocument.version - clientVersion);
@@ -908,15 +956,15 @@ export async function updateDocumentContent({
                 let clientContent = content;
 
                 for (let i = conflictingSteps.length - 1; i >= 0; i--) {
-                    const {step} = conflictingSteps[i]!;
-                    const stepResult = step.invert(clientContent).apply(clientContent);
-                    if (!stepResult.doc)
+                    const {invertedStep} = conflictingSteps[i]!;
+                    const invertedStepResult = invertedStep.apply(clientContent);
+                    if (!invertedStepResult.doc)
                         throw new DataLossError(
-                            `Could not apply inverse of saved document step: ${stepResult.failed!}`,
+                            `Could not apply inverse of saved document step: ${invertedStepResult.failed!}`,
                         );
 
-                    assert(isDocumentContent(stepResult.doc));
-                    clientContent = stepResult.doc;
+                    assert(isDocumentContent(invertedStepResult.doc));
+                    clientContent = invertedStepResult.doc;
                 }
 
                 for (const step of clientSteps) {
@@ -926,9 +974,10 @@ export async function updateDocumentContent({
                             `Could not apply step to document: ${stepResult.failed!}`,
                         );
 
+                    invertedClientSteps.push(step.invert(clientContent));
+
                     assert(isDocumentContent(stepResult.doc));
                     clientContent = stepResult.doc;
-                    invertedClientSteps.push(step.invert(clientContent));
                 }
             }
 
@@ -945,7 +994,8 @@ export async function updateDocumentContent({
             for (let i = 0; i < conflictingSteps.length; i++)
                 mapping.appendMap(conflictingSteps[i]!.step.getMap());
 
-            const newRebasedSteps = [];
+            const rebasedSteps = [];
+            const invertedRebasedSteps = [];
             let mapFrom = clientSteps.length;
 
             for (let i = 0; i < clientSteps.length; i++) {
@@ -964,14 +1014,21 @@ export async function updateDocumentContent({
                 // https://github.com/ProseMirror/prosemirror-collab/blob/ed039eb7e62fd0079b51406863931c6f67046881/src/collab.ts#L21
                 if (!rebasedStepResult.doc) continue;
 
+                invertedRebasedSteps.push(rebasedStep.invert(content));
+
                 assert(isDocumentContent(rebasedStepResult.doc));
                 content = rebasedStepResult.doc;
-                newRebasedSteps.push(rebasedStep);
+                rebasedSteps.push(rebasedStep);
                 mapping.appendMap(rebasedStep.getMap());
             }
 
-            rebasedSteps = newRebasedSteps;
+            newSteps = rebasedSteps;
+            newInvertedSteps = invertedRebasedSteps;
         }
+
+        // We want the inverted steps to be stored in reverse order of our steps. We
+        // added the inverted steps in forward step order.
+        newInvertedSteps.reverse();
 
         // This checkpoint allows us to write a test against our transaction's
         // condition.
@@ -980,14 +1037,14 @@ export async function updateDocumentContent({
             clientId,
         });
 
-        if (rebasedSteps.length > 0) {
+        if (newSteps.length > 0) {
             await DynamoTableSchema.executeTransaction([
                 DocumentsTable.transactionPutItem(
                     {
                         partitionType: "Document",
                         documentId: id,
                         sortRangeType: "Attributes",
-                        version: internalDocument.version + rebasedSteps.length,
+                        version: internalDocument.version + newSteps.length,
                         titleWithoutFallback: getDocumentContentTitleWithoutFallback(content),
                     },
                     {
@@ -1002,7 +1059,8 @@ export async function updateDocumentContent({
                     documentId: id,
                     sortRangeType: "StepTransactionsAfterSnapshot",
                     version: internalDocument.version,
-                    steps: rebasedSteps,
+                    steps: newSteps,
+                    invertedSteps: newInvertedSteps,
                     clientId,
                 }),
             ]);
@@ -1011,21 +1069,22 @@ export async function updateDocumentContent({
             // read content from the database.
             await internalDocument.updateCache({
                 newContent: content,
-                newSteps: rebasedSteps,
+                newSteps,
+                newInvertedSteps,
                 clientId,
             });
         }
 
         return {
             oldVersion: internalDocument.version,
-            newVersion: internalDocument.version + rebasedSteps.length,
+            newVersion: internalDocument.version + newSteps.length,
             newContent: content,
-            rebasedSteps,
+            newSteps,
             conflictingSteps,
         };
     });
 
-    const {oldVersion, newVersion, newContent, rebasedSteps, conflictingSteps} = result;
+    const {oldVersion, newVersion, newContent, newSteps, conflictingSteps} = result;
 
     // We add a blocking update to our snapshot within the
     // `updateDocumentContent()` call. We don't pay the price of updating the
@@ -1045,7 +1104,7 @@ export async function updateDocumentContent({
 
     return {
         newVersion,
-        rebasedSteps,
+        newSteps,
         conflictingSteps,
     };
 }
@@ -1188,13 +1247,13 @@ async function readDocumentStepsForValidatedVersionRange({
     id: Id;
     versionStart: number;
     versionEnd: number;
-}): Promise<Array<{step: Step; clientId: Id}>> {
+}): Promise<Array<{step: Step; invertedStep: Step; clientId: Id}>> {
     assert(Number.isSafeInteger(versionStart));
     assert(Number.isSafeInteger(versionEnd));
     assert(versionStart <= versionEnd);
     assert(versionStart >= 0);
 
-    const stepByVersion = new Map<number, {step: Step; clientId: Id}>();
+    const stepByVersion = new Map<number, {step: Step; invertedStep: Step; clientId: Id}>();
 
     const stepTransactionBeforeSnapshotItems = await arrayFromAsyncIterable(
         DocumentsTable.query({
@@ -1217,8 +1276,10 @@ async function readDocumentStepsForValidatedVersionRange({
         for (let i = 0; i < item.steps.length; i++) {
             const version = item.version + i;
             const step = item.steps[i]!;
+            const invertedStep = item.invertedSteps[item.steps.length - i - 1];
+            if (!invertedStep) throw new DataLossError("Missing inverted document step");
 
-            stepByVersion.set(version, {step, clientId: item.clientId});
+            stepByVersion.set(version, {step, invertedStep, clientId: item.clientId});
         }
     }
 
@@ -1246,13 +1307,15 @@ async function readDocumentStepsForValidatedVersionRange({
             for (let i = 0; i < item.steps.length; i++) {
                 const version = item.version + i;
                 const step = item.steps[i]!;
+                const invertedStep = item.invertedSteps[item.steps.length - i - 1];
+                if (!invertedStep) throw new DataLossError("Missing inverted document step");
 
                 // We may have a step in both the before snapshot range and the after snapshot
                 // range while we are updating our snapshot. Prefer items in the before
                 // snapshot range.
                 if (stepByVersion.has(version)) continue;
 
-                stepByVersion.set(version, {step, clientId: item.clientId});
+                stepByVersion.set(version, {step, invertedStep, clientId: item.clientId});
             }
         }
     }

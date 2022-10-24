@@ -4,9 +4,10 @@
  */
 export async function* asyncIterableIteratorMap<Value, NewValue>(
     iterator: AsyncIterableIterator<Value>,
-    map: (value: Value) => NewValue,
+    map: (value: Value, index: number) => NewValue,
 ): AsyncIterableIterator<NewValue> {
+    let index = 0;
     for await (const value of iterator) {
-        yield map(value);
+        yield map(value, index++);
     }
 }

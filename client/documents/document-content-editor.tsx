@@ -95,7 +95,7 @@ export function DocumentContentEditor({initialDocument}: {initialDocument: Docum
         runAsyncWithoutAwaiting(async () => {
             setIsUpdating(true);
             try {
-                const {newVersion, rebasedSteps, conflictingSteps} = await updateDocumentContent({
+                const {newVersion, newSteps, conflictingSteps} = await updateDocumentContent({
                     id: documentId,
                     version,
                     steps,
@@ -106,13 +106,13 @@ export function DocumentContentEditor({initialDocument}: {initialDocument: Docum
                 // separately from another client's steps.
                 dispatch({
                     type: "ReceiveSteps",
-                    newVersion: newVersion - rebasedSteps.length,
+                    newVersion: newVersion - newSteps.length,
                     steps: conflictingSteps,
                 });
                 dispatch({
                     type: "ReceiveSteps",
                     newVersion,
-                    steps: rebasedSteps.map(step => ({step, clientId})),
+                    steps: newSteps.map(step => ({step, clientId})),
                 });
             } catch (error) {
                 setErrorState({hasError: true, error});

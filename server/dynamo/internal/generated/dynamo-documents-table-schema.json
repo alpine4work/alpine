@@ -48,6 +48,15 @@
                                 },
                                 "optional": false
                             },
+                            "invertedSteps": {
+                                "valueSchema": {
+                                    "type": "Array",
+                                    "itemSchema": {
+                                        "type": "Unknown"
+                                    }
+                                },
+                                "optional": false
+                            },
                             "clientId": {
                                 "valueSchema": {
                                     "type": "Id"
@@ -89,6 +98,15 @@
                         "type": "Object",
                         "propertySchemaByKey": {
                             "steps": {
+                                "valueSchema": {
+                                    "type": "Array",
+                                    "itemSchema": {
+                                        "type": "Unknown"
+                                    }
+                                },
+                                "optional": false
+                            },
+                            "invertedSteps": {
                                 "valueSchema": {
                                     "type": "Array",
                                     "itemSchema": {

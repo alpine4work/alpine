@@ -24,6 +24,7 @@ import {generateId} from "~/shared/id/id";
 jest.useFakeTimers();
 
 function textSlice(text: string) {
+    if (text.length === 0) return Slice.empty;
     return new Slice(Fragment.from(schema.text(text)), 0, 0);
 }
 
@@ -1838,5 +1839,136 @@ test("updates the document title whenever it changes", async () => {
     expect(await readDocumentPreview(documentId)).toEqual({
         id: documentId,
         titleWithoutFallback: "foobar",
+    });
+});
+
+test("resolves a conflict when typing in deleted content", async () => {
+    const documentId = generateId();
+
+    await createDocument({
+        id: documentId,
+        content: emptyDocumentContent,
+    });
+
+    await updateDocumentContent({
+        id: documentId,
+        version: 0,
+        steps: [new ReplaceStep(3, 3, textSlice("foo")), new ReplaceStep(6, 6, textSlice("bar"))],
+        clientId: generateId(),
+    });
+
+    expect(massageDocument(await readDocument(documentId))).toEqual({
+        version: 2,
+        content: schema
+            .node("doc", {}, [
+                schema.node("title", {}, []),
+                schema.node("paragraph", {}, [schema.text("foobar")]),
+            ])
+            .toJSON(),
+    });
+
+    await updateDocumentContent({
+        id: documentId,
+        version: 2,
+        steps: [new ReplaceStep(3, 9, textSlice(""))],
+        clientId: generateId(),
+    });
+
+    expect(massageDocument(await readDocument(documentId))).toEqual({
+        version: 3,
+        content: schema
+            .node("doc", {}, [schema.node("title", {}, []), schema.node("paragraph", {}, [])])
+            .toJSON(),
+    });
+
+    await updateDocumentContent({
+        id: documentId,
+        version: 2,
+        steps: [new ReplaceStep(6, 6, textSlice("x"))],
+        clientId: generateId(),
+    });
+
+    expect(massageDocument(await readDocument(documentId))).toEqual({
+        version: 3,
+        content: schema
+            .node("doc", {}, [schema.node("title", {}, []), schema.node("paragraph", {}, [])])
+            .toJSON(),
+    });
+});
+
+test("resolves a conflict when typing in deleted content and the delete action itself was a conflict", async () => {
+    const documentId = generateId();
+
+    await createDocument({
+        id: documentId,
+        content: emptyDocumentContent,
+    });
+
+    await updateDocumentContent({
+        id: documentId,
+        version: 0,
+        steps: [new ReplaceStep(3, 3, textSlice("foo")), new ReplaceStep(6, 6, textSlice("bar"))],
+        clientId: generateId(),
+    });
+
+    expect(massageDocument(await readDocument(documentId))).toEqual({
+        version: 2,
+        content: schema
+            .node("doc", {}, [
+                schema.node("title", {}, []),
+                schema.node("paragraph", {}, [schema.text("foobar")]),
+            ])
+            .toJSON(),
+    });
+
+    await updateDocumentContent({
+        id: documentId,
+        version: 2,
+        steps: [new ReplaceStep(1, 1, textSlice("x"))],
+        clientId: generateId(),
+    });
+
+    expect(massageDocument(await readDocument(documentId))).toEqual({
+        version: 3,
+        content: schema
+            .node("doc", {}, [
+                schema.node("title", {}, [schema.text("x")]),
+                schema.node("paragraph", {}, [schema.text("foobar")]),
+            ])
+            .toJSON(),
+    });
+
+    await updateDocumentContent({
+        id: documentId,
+        version: 2,
+        steps: [new ReplaceStep(3, 9, textSlice(""))],
+        clientId: generateId(),
+    });
+
+    expect(massageDocument(await readDocument(documentId))).toEqual({
+        version: 4,
+        content: schema
+            .node("doc", {}, [
+                schema.node("title", {}, [schema.text("x")]),
+                schema.node("paragraph", {}, []),
+            ])
+            .toJSON(),
+    });
+
+    await updateDocumentContent({
+        id: documentId,
+        version: 2,
+        steps: [new ReplaceStep(6, 6, textSlice("x"))],
+        clientId: generateId(),
+    });
+
+    expect(massageDocument(await readDocument(documentId))).toEqual({
+        version: 4,
+        content: schema
+            .node("doc", {}, [
+                schema.node("title", {}, [schema.text("x")]),
+                schema.node("paragraph", {}, []),
+            ])
+            .toJSON(),
     });
 });

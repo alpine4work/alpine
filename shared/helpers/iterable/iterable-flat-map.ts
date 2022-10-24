@@ -4,12 +4,13 @@
  */
 export function iterableFlatMap<Value, NewValue>(
     iterable: Iterable<Value>,
-    map: (value: Value) => Iterable<NewValue>,
+    map: (value: Value, index: number) => Iterable<NewValue>,
 ): Iterable<NewValue> {
     return {
         [Symbol.iterator]: function* () {
+            let index = 0;
             for (const value of iterable) {
-                yield* map(value);
+                yield* map(value, index++);
             }
         },
     };
