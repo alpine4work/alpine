@@ -2,7 +2,7 @@ import {useRouter} from "next/router";
 import {emptyDocumentContent} from "~/shared/documents/document-content-schema";
 import {runAsyncWithoutAwaiting} from "~/shared/helpers/async/run-async-without-awaiting";
 import {generateId} from "~/shared/id/id";
-import {createDocument} from "~/shared/rpc/documents-rpc-definition";
+import {createDocument} from "~/shared/network/documents-network-definition";
 
 // TODO(calebmer): Get rid of this page and replace it with something proper.
 export default function HackyCreateDocumentPage() {

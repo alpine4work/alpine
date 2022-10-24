@@ -1,6 +1,6 @@
 import {Schema} from "~/shared/schema/schema";
 
-export const RpcEndpointInputSchema = Schema.object({
+export const NetworkFunctionHttpInputSchema = Schema.object({
     executions: Schema.array(
         Schema.object({
             name: Schema.string,
@@ -9,31 +9,31 @@ export const RpcEndpointInputSchema = Schema.object({
     ),
 });
 
-export const RpcEndpointOutputErrorSchema = Schema.object({
+export const NetworkFunctionHttpOutputErrorSchema = Schema.object({
     code: Schema.integer,
     message: Schema.string,
     name: Schema.string.optional(),
     stack: Schema.string.optional(),
 });
 
-export const RpcEndpointOutputExecutionSchema = Schema.result(
+export const NetworkFunctionHttpOutputExecutionSchema = Schema.result(
     Schema.object({
         ok: Schema.value(true),
         output: Schema.unknown,
     }),
     Schema.object({
         ok: Schema.value(false),
-        error: RpcEndpointOutputErrorSchema,
+        error: NetworkFunctionHttpOutputErrorSchema,
     }),
 );
 
-export const RpcEndpointOutputSchema = Schema.result(
+export const NetworkFunctionHttpOutputSchema = Schema.result(
     Schema.object({
         ok: Schema.value(true),
-        executions: Schema.array(RpcEndpointOutputExecutionSchema),
+        executions: Schema.array(NetworkFunctionHttpOutputExecutionSchema),
     }),
     Schema.object({
         ok: Schema.value(false),
-        error: RpcEndpointOutputErrorSchema,
+        error: NetworkFunctionHttpOutputErrorSchema,
     }),
 );

@@ -1,7 +1,7 @@
 import Ably from "ably";
 import {assert} from "~/shared/helpers/control/assert";
 import {BlockInference} from "~/shared/helpers/types/block-inference";
-import {RealtimeChannel} from "~/shared/realtime/realtime-channel";
+import {NetworkChannel} from "~/shared/network/network-channel";
 
 assert(process.env.ABLY_API_KEY);
 
@@ -11,13 +11,13 @@ assert(process.env.ABLY_API_KEY);
 const ably = new Ably.Rest.Promise({key: process.env.ABLY_API_KEY});
 
 /**
- * Publish a message to our realtime channel.
+ * Publish a message to a network channel.
  */
-export async function publishRealtimeMessage<
+export async function publishMessageToNetworkChannel<
     Key extends {[key: string]: string},
     Message extends {type: string},
 >(
-    channel: RealtimeChannel<Key, Message>,
+    channel: NetworkChannel<Key, Message>,
     key: BlockInference<Key>,
     message: BlockInference<Message>,
 ): Promise<void> {
@@ -51,7 +51,7 @@ export async function publishRealtimeMessage<
  * that channel.
  */
 function getAblyChannelName<Key extends {[key: string]: string}, Message extends {type: string}>(
-    channel: RealtimeChannel<Key, Message>,
+    channel: NetworkChannel<Key, Message>,
     key: Key,
 ) {
     const serializedKey = channel.keySchema.serialize(key);

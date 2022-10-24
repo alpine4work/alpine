@@ -13,12 +13,12 @@ import {assert} from "~/shared/helpers/control/assert";
 import {isPlainObject} from "~/shared/helpers/object/is-plain-object";
 import {isIdentifier} from "~/shared/helpers/string/is-identifier";
 import {quote} from "~/shared/helpers/string/quote";
-import {Rpc} from "~/shared/rpc/rpc";
 import {
-    RpcEndpointInputSchema,
-    RpcEndpointOutputErrorSchema,
-    RpcEndpointOutputSchema,
-} from "~/shared/rpc/rpc-endpoint-schema";
+    NetworkFunctionHttpInputSchema,
+    NetworkFunctionHttpOutputErrorSchema,
+    NetworkFunctionHttpOutputSchema,
+} from "~/shared/network/helpers/network-function-http-schema";
+import {NetworkFunction} from "~/shared/network/network-function";
 import {
     ObjectSchemaConfigBase,
     ObjectSchemaConfigType,
@@ -29,21 +29,22 @@ import {
 } from "~/shared/schema/schema";
 
 /**
- * Define the interface for an RPC.
+ * Define the interface for a network function.
  *
- * RPCs must all be defined in `~/shared/rpc`. That way our tooling can pick up
- * all defined RPCs and ensure there is a matching implementation on the
- * server.
+ * Network functions must all be defined in `~/shared/network`. That way our
+ * tooling can pick up all defined network functions and ensure there is a
+ * matching implementation on the server.
  *
- * We define RPCs in separate files so that code splitting works. Importing one
- * RPC only imports the dependencies for that RPC and nothing else.
+ * We define network functions in separate files so that code splitting works.
+ * Importing one network function only imports the dependencies for that
+ * network function and nothing else.
  *
- * An RPC has an input object and an output object. If you already have an
- * object schema, we discourage you from reusing it. Instead nest your object
- * schema in a named property. This will allow you to add more inputs and
- * outputs over time to the RPC.
+ * A network function has an input object and an output object. If you already
+ * have an object schema, we discourage you from reusing it. Instead nest your
+ * object schema in a named property. This will allow you to add more inputs
+ * and outputs over time to the network function.
  */
-export function defineRpc<
+export function defineNetworkFunction<
     InputConfig extends ObjectSchemaConfigBase,
     OutputConfig extends ObjectSchemaConfigBase,
 >({
@@ -54,12 +55,18 @@ export function defineRpc<
     name: string;
     input: InputConfig;
     output: OutputConfig;
-}): Rpc<ObjectSchemaConfigType<InputConfig>, ObjectSchemaConfigType<OutputConfig>> {
-    assert(isIdentifier(name), "RPC name should be a valid identifier");
-    assert(name[0] === name[0]?.toLowerCase(), "RPC name should start with a lower case letter");
+}): NetworkFunction<ObjectSchemaConfigType<InputConfig>, ObjectSchemaConfigType<OutputConfig>> {
+    assert(isIdentifier(name), "Network function name should be a valid identifier");
+    assert(
+        name[0] === name[0]?.toLowerCase(),
+        "Network function name should start with a lower case letter",
+    );
 
-    assert(!definedRpcNames.has(name), quote`A definition for an RPC named ${name} already exists`);
-    definedRpcNames.add(name);
+    assert(
+        !definedNetworkFunctionNames.has(name),
+        quote`A definition for a network function named ${name} already exists`,
+    );
+    definedNetworkFunctionNames.add(name);
 
     const inputSchema = Schema.object(inputConfig);
     const outputSchema = Schema.object(outputConfig);
@@ -68,30 +75,32 @@ export function defineRpc<
         input: ObjectSchemaConfigType<InputConfig>,
     ): Promise<ObjectSchemaConfigType<OutputConfig>> => {
         if (typeof window === "undefined") {
-            // Only executes on the server so it's fine to import a server file.
-            // eslint-disable-next-line import/no-restricted-paths
-            const {getRpcImplementation} = await import("~/server/rpc/all-rpc-implementations");
+            const {getNetworkFunctionImplementation} = await import(
+                // Only executes on the server so it's fine to import a server file.
+                // eslint-disable-next-line import/no-restricted-paths
+                "~/server/network/all-network-implementations"
+            );
 
-            const rpcImplementation = getRpcImplementation(name);
+            const networkFunctionImplementation = getNetworkFunctionImplementation(name);
 
-            if (!rpcImplementation)
+            if (!networkFunctionImplementation)
                 throw new NotFoundError(
-                    "Referenced an RPC name that does not have an implementation",
+                    "Referenced a network function name that does not have an implementation",
                 );
 
-            // Since we are executing the RPC in the same process it was defined, we skip
-            // schema serialization and deserialization for performance.
+            // Since we are executing the network function in the same process it was
+            // defined, we skip schema serialization and deserialization for performance.
             //
-            // Arguably we shouldn't skip serialization and deserialization since it may
-            // perform important validation. Perhaps schemas should have a `validate()`
-            // function to run those validations without expensive
+            // TODO(calebmer): Arguably we shouldn't skip serialization and deserialization
+            // since it may perform important validation. Perhaps schemas should have a
+            // `validate()` function to run those validations without expensive
             // serialization/deserialization?
-            return rpcImplementation.dangerouslyExecuteWithoutSchema(input);
+            return networkFunctionImplementation.dangerouslyExecuteWithoutSchema(input);
         }
 
         const outputPromiseResolver = createPromiseResolver<SchemaSerializedValue>();
 
-        scheduleRpcExecution({
+        scheduleNetworkFunctionExecution({
             name,
             input: inputSchema.serialize(input),
             outputPromiseResolver,
@@ -103,7 +112,7 @@ export function defineRpc<
             return outputSchema.deserialize(output);
         } catch (error) {
             // Reclassify deserialization errors as internal errors if we can't deserialize
-            // the data coming from our RPC endpoint.
+            // the data coming from our network function HTTP endpoint.
             if (error instanceof SchemaDeserializationError) {
                 throw new InternalError(error.message, {cause: error});
             }
@@ -111,45 +120,51 @@ export function defineRpc<
         }
     };
 
+    // Override the JavaScript function name with our network function name. We
+    // need to use `Object.defineProperty()` to override the JavaScript
+    // builtin name.
+    Object.defineProperty(execute, "name", {value: name});
+
     return Object.assign(execute, {
-        rpcName: name,
         inputSchema,
         outputSchema,
     });
 }
 
-const definedRpcNames = new Set<string>();
+const definedNetworkFunctionNames = new Set<string>();
 
 /**
- * Get the names of all RPCs that have been defined.
+ * Get the names of all network functions that have been defined.
  */
-export function getAllDefinedRpcNames(): IterableIterator<string> {
-    return definedRpcNames.values();
+export function getAllDefinedNetworkFunctionNames(): IterableIterator<string> {
+    return definedNetworkFunctionNames.values();
 }
 
-type RpcExecution = {
-    name: string;
-    input: SchemaSerializedValue;
-    outputPromiseResolver: PromiseResolver<SchemaSerializedValue>;
+type NetworkFunctionExecution = {
+    readonly name: string;
+    readonly input: SchemaSerializedValue;
+    readonly outputPromiseResolver: PromiseResolver<SchemaSerializedValue>;
 };
 
-let scheduledRpcExecutionBatch: Array<RpcExecution> | null = null;
+let scheduledNetworkFunctionExecutionBatch: Array<NetworkFunctionExecution> | null = null;
 
-function scheduleRpcExecution(execution: RpcExecution): void {
-    if (scheduledRpcExecutionBatch === null) {
-        scheduledRpcExecutionBatch = [];
+function scheduleNetworkFunctionExecution(execution: NetworkFunctionExecution): void {
+    if (scheduledNetworkFunctionExecutionBatch === null) {
+        scheduledNetworkFunctionExecutionBatch = [];
         scheduleMicrotask(() => {
-            assert(scheduledRpcExecutionBatch !== null);
-            const executionBatch = scheduledRpcExecutionBatch;
-            scheduledRpcExecutionBatch = null;
-            executeRpcs(executionBatch).catch(scheduleException);
+            assert(scheduledNetworkFunctionExecutionBatch !== null);
+            const executionBatch = scheduledNetworkFunctionExecutionBatch;
+            scheduledNetworkFunctionExecutionBatch = null;
+            executeNetworkFunctions(executionBatch).catch(scheduleException);
         });
     }
 
-    scheduledRpcExecutionBatch.push(execution);
+    scheduledNetworkFunctionExecutionBatch.push(execution);
 }
 
-async function executeRpcs(executionBatch: Array<RpcExecution>): Promise<void> {
+async function executeNetworkFunctions(
+    executionBatch: Array<NetworkFunctionExecution>,
+): Promise<void> {
     // If this function throws any error, we want to reject all executions in our
     // batch with that error.
     try {
@@ -160,12 +175,12 @@ async function executeRpcs(executionBatch: Array<RpcExecution>): Promise<void> {
             })),
         };
 
-        const response = await fetch("/api/rpc", {
+        const response = await fetch("/api/network-function-call", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify(RpcEndpointInputSchema.serialize(input)),
+            body: JSON.stringify(NetworkFunctionHttpInputSchema.serialize(input)),
         }).catch(error => {
             // Classify network errors as the `Unavailable` status code.
             throw new UnavailableError(error.message, {cause: error});
@@ -173,7 +188,7 @@ async function executeRpcs(executionBatch: Array<RpcExecution>): Promise<void> {
 
         const output = await response
             .json()
-            .then(output => RpcEndpointOutputSchema.deserialize(output))
+            .then(output => NetworkFunctionHttpOutputSchema.deserialize(output))
             .catch(error => {
                 // If we fail to parse the response body as JSON, classify as `Internal`
                 // status code.
@@ -214,7 +229,7 @@ async function executeRpcs(executionBatch: Array<RpcExecution>): Promise<void> {
 }
 
 async function deserializeError(
-    error: SchemaType<typeof RpcEndpointOutputErrorSchema>,
+    error: SchemaType<typeof NetworkFunctionHttpOutputErrorSchema>,
 ): Promise<ErrorBase> {
     if (!isPlainObject(error)) throw new InternalError("Expected error object");
 

@@ -11,7 +11,7 @@ import {runAsyncWithoutAwaiting} from "~/shared/helpers/async/run-async-without-
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {Id} from "~/shared/id/id";
-import {updateDocumentContent} from "~/shared/rpc/documents-rpc-definition";
+import {updateDocumentContent} from "~/shared/network/documents-network-definition";
 
 type Action = EditAction | ReceiveStepsAction;
 

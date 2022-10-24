@@ -1,32 +1,36 @@
 import type {NextApiRequest, NextApiResponse} from "next";
-import {getRpcImplementation} from "~/server/rpc/all-rpc-implementations";
+import {getNetworkFunctionImplementation} from "~/server/network/all-network-implementations";
 import {ErrorBase, NotFoundError} from "~/shared/error/error";
 import {ErrorCode} from "~/shared/error/error-code";
 import {isHttp500ErrorCode} from "~/shared/error/is-http-500-error-code";
 import {
-    RpcEndpointInputSchema,
-    RpcEndpointOutputErrorSchema,
-    RpcEndpointOutputExecutionSchema,
-    RpcEndpointOutputSchema,
-} from "~/shared/rpc/rpc-endpoint-schema";
+    NetworkFunctionHttpInputSchema,
+    NetworkFunctionHttpOutputErrorSchema,
+    NetworkFunctionHttpOutputExecutionSchema,
+    NetworkFunctionHttpOutputSchema,
+} from "~/shared/network/helpers/network-function-http-schema";
 import {SchemaType} from "~/shared/schema/schema";
 
-export default async function executeRpcs(req: NextApiRequest, res: NextApiResponse) {
+export default async function executeNetworkFunctions(req: NextApiRequest, res: NextApiResponse) {
     try {
-        const input = RpcEndpointInputSchema.deserialize(req.body);
+        const input = NetworkFunctionHttpInputSchema.deserialize(req.body);
 
         const results = await Promise.allSettled(
             input.executions.map(
-                async (execution): Promise<SchemaType<typeof RpcEndpointOutputExecutionSchema>> => {
+                async (
+                    execution,
+                ): Promise<SchemaType<typeof NetworkFunctionHttpOutputExecutionSchema>> => {
                     try {
-                        const rpcImplementation = getRpcImplementation(execution.name);
+                        const networkFunctionImplementation = getNetworkFunctionImplementation(
+                            execution.name,
+                        );
 
-                        if (!rpcImplementation)
+                        if (!networkFunctionImplementation)
                             throw new NotFoundError(
-                                "Referenced an RPC name that does not have an implementation",
+                                "Referenced a network function name that does not have an implementation",
                             );
 
-                        const output = await rpcImplementation.execute(execution.input);
+                        const output = await networkFunctionImplementation.execute(execution.input);
 
                         return {
                             ok: true,
@@ -64,7 +68,7 @@ export default async function executeRpcs(req: NextApiRequest, res: NextApiRespo
                   );
 
         res.status(status).json(
-            RpcEndpointOutputSchema.serialize({
+            NetworkFunctionHttpOutputSchema.serialize({
                 ok: true,
                 executions,
             }),
@@ -74,7 +78,7 @@ export default async function executeRpcs(req: NextApiRequest, res: NextApiRespo
         const status = isHttp500ErrorCode(serializedError.code) ? 500 : 400;
 
         res.status(status).json(
-            RpcEndpointOutputSchema.serialize({
+            NetworkFunctionHttpOutputSchema.serialize({
                 ok: false,
                 error: serializedError,
             }),
@@ -82,7 +86,7 @@ export default async function executeRpcs(req: NextApiRequest, res: NextApiRespo
     }
 }
 
-function serializeError(error: unknown): SchemaType<typeof RpcEndpointOutputErrorSchema> {
+function serializeError(error: unknown): SchemaType<typeof NetworkFunctionHttpOutputErrorSchema> {
     return {
         code: error instanceof ErrorBase ? error.code : ErrorCode.Unknown,
         message: error instanceof Error ? error.message : "",

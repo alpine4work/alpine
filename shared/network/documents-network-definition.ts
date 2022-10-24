@@ -2,10 +2,11 @@ import {
     DocumentContentSchema,
     DocumentContentStepSchema,
 } from "~/shared/documents/document-content-schema";
-import {defineRpc} from "~/shared/rpc/internal/define-rpc";
+import {defineNetworkChannel} from "~/shared/network/internal/define-network-channel";
+import {defineNetworkFunction} from "~/shared/network/internal/define-network-function";
 import {Schema} from "~/shared/schema/schema";
 
-export const createDocument = defineRpc({
+export const createDocument = defineNetworkFunction({
     name: "createDocument",
     input: {
         id: Schema.id,
@@ -14,7 +15,7 @@ export const createDocument = defineRpc({
     output: {},
 });
 
-export const updateDocumentContent = defineRpc({
+export const updateDocumentContent = defineNetworkFunction({
     name: "updateDocumentContent",
     input: {
         id: Schema.id,
@@ -31,5 +32,20 @@ export const updateDocumentContent = defineRpc({
                 clientId: Schema.id,
             }),
         ),
+    },
+});
+
+export const DocumentNetworkChannel = defineNetworkChannel({
+    name: "Document",
+    key: {
+        documentId: Schema.id,
+    },
+    messages: {
+        UpdateContent: Schema.object({
+            type: Schema.value("UpdateContent"),
+            newVersion: Schema.integer,
+            steps: Schema.array(DocumentContentStepSchema),
+            clientId: Schema.id,
+        }),
     },
 });

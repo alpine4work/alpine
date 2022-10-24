@@ -6,7 +6,7 @@ import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is-dynamo-co
 import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry-dynamo-condition-check-errors";
 import {TestCheckpoint} from "~/server/helpers/test/test-checkpoint";
 import {TestCounter} from "~/server/helpers/test/test-counter";
-import {publishRealtimeMessage} from "~/server/realtime/publish-realtime-message";
+import {publishMessageToNetworkChannel} from "~/server/network/publish-message-to-network-channel";
 import {
     DocumentContent,
     DocumentContentSchema,
@@ -32,7 +32,7 @@ import {iterableFlatMap} from "~/shared/helpers/iterable/iterable-flat-map";
 import {iterableMap} from "~/shared/helpers/iterable/iterable-map";
 import {clamp} from "~/shared/helpers/number/clamp";
 import {Id} from "~/shared/id/id";
-import {DocumentRealtimeChannel} from "~/shared/realtime/documents-realtime-definition";
+import {DocumentNetworkChannel} from "~/shared/network/documents-network-definition";
 import {Schema} from "~/shared/schema/schema";
 
 const DocumentsTable = DynamoTableSchema.new({
@@ -1094,8 +1094,8 @@ export async function updateDocumentContent({
     // TODO(calebmer): Lint rule against `Promise.all()` for a similar
     // `Promise.allSettled()` style utility.
     await Promise.all([
-        publishRealtimeMessage(
-            DocumentRealtimeChannel,
+        publishMessageToNetworkChannel(
+            DocumentNetworkChannel,
             {documentId: id},
             {
                 type: "UpdateContent",

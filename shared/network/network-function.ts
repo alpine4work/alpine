@@ -1,0 +1,49 @@
+import {ObjectSchema} from "~/shared/schema/schema";
+
+/**
+ * A function that is implemented on the server and can be called from the
+ * client using an HTTP interface. Also known as a remote procedure which is
+ * executed with a [remote procedure call][1].
+ *
+ * You define network functions in `~/shared/network` with
+ * `defineNetworkFunction()` so the definition can be accessed anywhere in our
+ * codebase.
+ *
+ * [1]: https://en.wikipedia.org/wiki/Remote_procedure_call
+ */
+export interface NetworkFunction<Input, Output> {
+    /**
+     * The function is actually a function! You can call it on either the client or
+     * the server and it will execute.
+     *
+     * The function does depend on some context like the current user. On the
+     * client, this context is available globally. On the server we use
+     * [`AsyncLocalStorage`][1].
+     *
+     * [1]: https://nodejs.org/api/async_context.html#class-asynclocalstorage
+     */
+    (input: Input): Promise<Output>;
+
+    /**
+     * The name used to identify the function on client and server.
+     *
+     * Must be an identifier that starts with a lowercase letter.
+     *
+     * Functions also have a `name` property so we do override the JavaScript
+     * function name with the network name.
+     */
+    readonly name: string;
+
+    /**
+     * Schema for input data to this function. The function input is always an
+     * object. This makes it easy to add new inputs to the function over time.
+     */
+    readonly inputSchema: ObjectSchema<Input>;
+
+    /**
+     * Schema for output data returned by this function. The function output is
+     * always an object. This makes it easy to add new outputs to the function
+     * over time.
+     */
+    readonly outputSchema: ObjectSchema<Output>;
+}

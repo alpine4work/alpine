@@ -10,9 +10,10 @@ import {Schema} from "~/shared/schema/schema";
  * Code naming note: Whenever we refer to full documents product in code we
  * write it as "documents". Whenever we refer to an individual document we
  * write it as "document". This is why we call our model `DocumentModel` but we
- * call our table `DocumentsTable` and our RPCs `documents-rpc-definition.ts`.
- * `DocumentsTable` and `documents-rpc-definition.ts` are referring to the
- * entire documents product.
+ * call our table `DocumentsTable` and our network definitions
+ * `documents-network-definition.ts`. `DocumentsTable` and
+ * `documents-network-definition.ts` are referring to the entire documents
+ * product.
  */
 export class DocumentModel
     extends Model(

@@ -1,7 +1,7 @@
 import {assert} from "~/shared/helpers/control/assert";
 import {isIdentifier} from "~/shared/helpers/string/is-identifier";
 import {quote} from "~/shared/helpers/string/quote";
-import {RealtimeChannel} from "~/shared/realtime/realtime-channel";
+import {NetworkChannel} from "~/shared/network/network-channel";
 import {
     ObjectSchemaConfigBase,
     ObjectSchemaConfigType,
@@ -11,7 +11,7 @@ import {
 } from "~/shared/schema/schema";
 
 /**
- * Defines a realtime channel that our server will publish messages to for the
+ * Defines a network channel that our server will publish messages to for the
  * client to consume.
  *
  * - `key`: Represents the channel key. All values must be strings. Usually
@@ -22,7 +22,7 @@ import {
  *   message type to be a union so you can add new message types to the channel
  *   in the future.
  */
-export function defineRealtimeChannel<
+export function defineNetworkChannel<
     KeyConfig extends ObjectSchemaConfigBase,
     MessageConfig extends UnionSchemaConfigBase<MessageConfig>,
 >({
@@ -33,18 +33,18 @@ export function defineRealtimeChannel<
     name: string;
     key: KeyConfig;
     messages: MessageConfig;
-}): RealtimeChannel<ObjectSchemaConfigType<KeyConfig>, UnionSchemaConfigType<MessageConfig>> {
-    assert(isIdentifier(name), "Realtime channel name should be a valid identifier");
+}): NetworkChannel<ObjectSchemaConfigType<KeyConfig>, UnionSchemaConfigType<MessageConfig>> {
+    assert(isIdentifier(name), "Network channel name should be a valid identifier");
     assert(
         name[0] === name[0]?.toUpperCase(),
-        "Realtime channel name should start with an upper case letter",
+        "Network channel name should start with an upper case letter",
     );
 
     assert(
-        !definedRealtimeChannelName.has(name),
-        quote`A definition for a realtime channel named ${name} already exists`,
+        !definedNetworkChannelName.has(name),
+        quote`A definition for a network channel named ${name} already exists`,
     );
-    definedRealtimeChannelName.add(name);
+    definedNetworkChannelName.add(name);
 
     const keySchema = Schema.object(keyConfig);
     const messageSchema = Schema.union(messageConfig);
@@ -56,4 +56,4 @@ export function defineRealtimeChannel<
     };
 }
 
-const definedRealtimeChannelName = new Set<string>();
+const definedNetworkChannelName = new Set<string>();
