@@ -669,6 +669,9 @@ function ContentEditor<Content extends Node>(
                     return decorationSet.add(state.doc, [
                         Decoration.node(0, 2, {
                             "data-placeholder": documentFallbackTitle,
+                            // For accessibility, if the title is empty add the fallback title as an
+                            // `aria-label`. axe complains when we have an empty `<h1>`.
+                            "aria-label": documentFallbackTitle,
                         }),
                     ]);
                 });
