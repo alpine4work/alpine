@@ -383,24 +383,10 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      * If we receive an object with an unknown `type` property then we throw. This
      * is one case where we aren't future compatible.
      */
-    public static union<
-        Schemas extends {
-            [Key in keyof Schemas]:
-                | (ObjectSchema<any> & {
-                      // We need to put our `Key` type constraint on `deserialize` instead of the
-                      // type parameter so the object type can be covariant instead of invariant.
-                      deserialize: (value: SchemaSerializedValue) => {type: Key};
-                  })
-                | (UnionSchemaVariant<any> & {
-                      schema: {
-                          // We need to put our `Key` type constraint on `deserialize` instead of the
-                          // type parameter so the object type can be covariant instead of invariant.
-                          deserialize: (value: SchemaSerializedValue) => {type: Key};
-                      };
-                  });
-        },
-    >(schemas: Schemas): Schema<SchemaType<Schemas[keyof Schemas]>> {
-        return UnionSchema._new(schemas);
+    public static union<Config extends UnionSchemaConfigBase<Config>>(
+        config: Config,
+    ): UnionSchema<UnionSchemaConfigType<Config>> {
+        return UnionSchema._new(config);
     }
 
     /**
@@ -874,6 +860,30 @@ export class ValueSchema<Value extends string | number | boolean> extends Schema
 }
 
 /**
+ * You need to recursively pass this type into itself when declaring. So
+ * `Config extends UnionSchemaConfigBase<Config>`.
+ */
+export type UnionSchemaConfigBase<Config> = {
+    [Key in keyof Config]:
+        | (ObjectSchema<any> & {
+              // We need to put our `Key` type constraint on `deserialize` instead of the
+              // type parameter so the object type can be covariant instead of invariant.
+              deserialize: (value: SchemaSerializedValue) => {type: Key};
+          })
+        | (UnionSchemaVariant<any> & {
+              schema: {
+                  // We need to put our `Key` type constraint on `deserialize` instead of the
+                  // type parameter so the object type can be covariant instead of invariant.
+                  deserialize: (value: SchemaSerializedValue) => {type: Key};
+              };
+          });
+};
+
+export type UnionSchemaConfigType<Config extends UnionSchemaConfigBase<Config>> = SchemaType<
+    Config[keyof Config]
+>;
+
+/**
  * Schema for a union object value.
  *
  * You should only create this with `Schema.union()`.
@@ -888,7 +898,7 @@ export class UnionSchema<Value extends {readonly type: string}> extends Schema<V
      */
     public readonly variantSchemaByType: ReadonlyMap<
         string,
-        ObjectPropertySchema<unknown, unknown>
+        UnionSchemaVariant<{readonly type: string}>
     >;
 
     private constructor({
@@ -897,7 +907,7 @@ export class UnionSchema<Value extends {readonly type: string}> extends Schema<V
         serialize,
         deserialize,
     }: {
-        variantSchemaByType: ReadonlyMap<string, ObjectPropertySchema<unknown, unknown>>;
+        variantSchemaByType: ReadonlyMap<string, UnionSchemaVariant<{readonly type: string}>>;
         description: SchemaDescription;
         serialize: (value: Value) => SchemaSerializedValue;
         deserialize: (serializedValue: SchemaSerializedValue) => Value;
@@ -913,24 +923,10 @@ export class UnionSchema<Value extends {readonly type: string}> extends Schema<V
     /**
      * Prefer `Schema.union()` which directly calls this method.
      */
-    public static _new<
-        Schemas extends {
-            [Key in keyof Schemas]:
-                | (ObjectSchema<any> & {
-                      // We need to put our `Key` type constraint on `deserialize` instead of the
-                      // type parameter so the object type can be covariant instead of invariant.
-                      deserialize: (value: SchemaSerializedValue) => {type: Key};
-                  })
-                | (UnionSchemaVariant<any> & {
-                      schema: {
-                          // We need to put our `Key` type constraint on `deserialize` instead of the
-                          // type parameter so the object type can be covariant instead of invariant.
-                          deserialize: (value: SchemaSerializedValue) => {type: Key};
-                      };
-                  });
-        },
-    >(schemas: Schemas): Schema<SchemaType<Schemas[keyof Schemas]>> {
-        const schemaEntries = Object.entries(schemas) as Array<
+    public static _new<Config extends UnionSchemaConfigBase<Config>>(
+        config: Config,
+    ): UnionSchema<UnionSchemaConfigType<Config>> {
+        const schemaEntries = Object.entries(config) as Array<
             [string, ObjectSchema<{type: string}> | UnionSchemaVariant<{type: string}>]
         >;
 
@@ -950,7 +946,8 @@ export class UnionSchema<Value extends {readonly type: string}> extends Schema<V
             Array.from(schemaByType, ([type, schema]) => [schema.serializedType, schema]),
         );
 
-        return new Schema<SchemaType<Schemas[keyof Schemas]>>({
+        return new UnionSchema<UnionSchemaConfigType<Config>>({
+            variantSchemaByType: schemaByType,
             description: {
                 type: "Union",
                 variantSchemaByType: Object.fromEntries(

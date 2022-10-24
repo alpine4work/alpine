@@ -11,6 +11,7 @@ import {scheduleException} from "~/shared/helpers/async/schedule-exception";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule-microtask";
 import {assert} from "~/shared/helpers/control/assert";
 import {isPlainObject} from "~/shared/helpers/object/is-plain-object";
+import {isIdentifier} from "~/shared/helpers/string/is-identifier";
 import {quote} from "~/shared/helpers/string/quote";
 import {Rpc} from "~/shared/rpc/rpc";
 import {
@@ -54,6 +55,9 @@ export function defineRpc<
     input: InputConfig;
     output: OutputConfig;
 }): Rpc<ObjectSchemaConfigType<InputConfig>, ObjectSchemaConfigType<OutputConfig>> {
+    assert(isIdentifier(name), "RPC name should be a valid identifier");
+    assert(name[0] === name[0]?.toLowerCase(), "RPC name should start with a lower case letter");
+
     assert(!definedRpcNames.has(name), quote`A definition for an RPC named ${name} already exists`);
     definedRpcNames.add(name);
 

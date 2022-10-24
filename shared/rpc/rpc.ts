@@ -10,6 +10,8 @@ import {ObjectSchema} from "~/shared/schema/schema";
  *
  * [1]: https://en.wikipedia.org/wiki/Remote_procedure_call
  */
+// TODO(calebmer): I don't like having to abbreviate the name "RPC". Consider
+// renaming to "Procedure" or "RemoteProcedure".
 export interface Rpc<Input, Output> {
     (input: Input): Promise<Output>;
     // We call this `rpcName` to disambiguate from the function `name`.

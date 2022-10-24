@@ -6,6 +6,7 @@ import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is-dynamo-co
 import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry-dynamo-condition-check-errors";
 import {TestCheckpoint} from "~/server/helpers/test/test-checkpoint";
 import {TestCounter} from "~/server/helpers/test/test-counter";
+import {publishRealtimeMessage} from "~/server/realtime/publish-realtime-message";
 import {
     DocumentContent,
     DocumentContentSchema,
@@ -31,6 +32,7 @@ import {iterableFlatMap} from "~/shared/helpers/iterable/iterable-flat-map";
 import {iterableMap} from "~/shared/helpers/iterable/iterable-map";
 import {clamp} from "~/shared/helpers/number/clamp";
 import {Id} from "~/shared/id/id";
+import {DocumentRealtimeChannel} from "~/shared/realtime/documents-realtime-definition";
 import {Schema} from "~/shared/schema/schema";
 
 const DocumentsTable = DynamoTableSchema.new({
@@ -1086,21 +1088,38 @@ export async function updateDocumentContent({
 
     const {oldVersion, newVersion, newContent, newSteps, conflictingSteps} = result;
 
-    // We add a blocking update to our snapshot within the
-    // `updateDocumentContent()` call. We don't pay the price of updating the
-    // snapshot every update but rather every N updates (where N is 20-100 steps).
+    // TODO(calebmer): Lint rule that all `await`s which can be parallelized are
+    // indeed parallelized.
     //
-    // We need a blocking update since we can't schedule a background task in a
-    // serverless function. The function will be paused if there is no activity. We
-    // could in the future use a task queue to update the snapshot as a background
-    // job, but occasionally paying the snapshot update price within the
-    // `updateDocumentContent()` function doesn't seem too bad.
-    await maybeUpdateDocumentSnapshotAfterUpdatingContent({
-        id,
-        oldVersion,
-        newVersion,
-        newContent,
-    });
+    // TODO(calebmer): Lint rule against `Promise.all()` for a similar
+    // `Promise.allSettled()` style utility.
+    await Promise.all([
+        publishRealtimeMessage(
+            DocumentRealtimeChannel,
+            {documentId: id},
+            {
+                type: "UpdateContent",
+                newVersion,
+                steps: newSteps,
+                clientId,
+            },
+        ),
+        // We add a blocking update to our snapshot within the
+        // `updateDocumentContent()` call. We don't pay the price of updating the
+        // snapshot every update but rather every N updates (where N is 20-100 steps).
+        //
+        // We need a blocking update since we can't schedule a background task in a
+        // serverless function. The function will be paused if there is no activity. We
+        // could in the future use a task queue to update the snapshot as a background
+        // job, but occasionally paying the snapshot update price within the
+        // `updateDocumentContent()` function doesn't seem too bad.
+        maybeUpdateDocumentSnapshotAfterUpdatingContent({
+            id,
+            oldVersion,
+            newVersion,
+            newContent,
+        }),
+    ]);
 
     return {
         newVersion,
