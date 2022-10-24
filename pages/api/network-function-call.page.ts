@@ -1,6 +1,6 @@
 import type {NextApiRequest, NextApiResponse} from "next";
 import {getNetworkFunctionImplementation} from "~/server/network/all-network-implementations";
-import {ErrorBase, NotFoundError} from "~/shared/error/error";
+import {ErrorBase, InvalidArgumentError, NotFoundError} from "~/shared/error/error";
 import {ErrorCode} from "~/shared/error/error-code";
 import {isHttp500ErrorCode} from "~/shared/error/is-http-500-error-code";
 import {
@@ -13,6 +13,11 @@ import {SchemaType} from "~/shared/schema/schema";
 
 export default async function executeNetworkFunctions(req: NextApiRequest, res: NextApiResponse) {
     try {
+        if (req.method !== "POST")
+            throw new InvalidArgumentError(
+                "Must use POST HTTP method when executing network functions",
+            );
+
         const input = NetworkFunctionHttpInputSchema.deserialize(req.body);
 
         const results = await Promise.allSettled(
