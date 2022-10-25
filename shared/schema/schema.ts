@@ -3,7 +3,6 @@ import {InvalidArgumentError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {hasOwnProperty} from "~/shared/helpers/object/has-own-property";
-import {isPlainObject} from "~/shared/helpers/object/is-plain-object";
 import {isIdentifier} from "~/shared/helpers/string/is-identifier";
 import {Optionalize} from "~/shared/helpers/types/optionalize";
 import {Id, isId} from "~/shared/id/id";
@@ -104,7 +103,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      * Deserializes a value we received from a process boundary. If the value does
      * not match our schema then we throw an error.
      *
-     * May mutate the underlying value during deserialization.
+     * Does not mutate the underlying value during deserialization.
      */
     public readonly deserialize: (serializedValue: SchemaSerializedValue) => Value;
 
@@ -336,13 +335,11 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
                 if (!Array.isArray(value))
                     throw new SchemaDeserializationError("Expected an array");
 
-                for (let index = 0; index < value.length; index++) {
-                    withSchemaDeserializationStackFrame({type: "ArrayIndex", index}, () => {
-                        value[index] = itemSchema.deserialize(value[index]);
+                return value.map((item, index) => {
+                    return withSchemaDeserializationStackFrame({type: "ArrayIndex", index}, () => {
+                        return itemSchema.deserialize(item);
                     });
-                }
-
-                return value;
+                });
             },
         });
     }
@@ -604,57 +601,20 @@ export class ObjectSchema<Value> extends Schema<Value> {
                 if (typeof value !== "object" || value === null)
                     throw new SchemaDeserializationError("Expected an object");
 
-                if (target !== undefined) {
-                    for (const [key, schema] of propertySchemaByKey) {
-                        const serializedKey = schema.serializedKey ?? key;
+                const newValue: any = target ?? {};
 
-                        const keyValue = schema.deserializeProperty(
-                            value as any as SchemaSerializedObjectValue,
-                            serializedKey,
-                        );
+                for (const [key, schema] of propertySchemaByKey) {
+                    const serializedKey = schema.serializedKey ?? key;
 
-                        (target as any)[key] = keyValue;
-                    }
+                    const keyValue = schema.deserializeProperty(
+                        value as any as SchemaSerializedObjectValue,
+                        serializedKey,
+                    );
 
-                    return target as any;
-                } else if (isPlainObject(value)) {
-                    const unknownKeys = new Set(Object.keys(value));
-
-                    for (const [key, schema] of propertySchemaByKey) {
-                        unknownKeys.delete(key);
-                        const serializedKey = schema.serializedKey ?? key;
-
-                        const keyValue = schema.deserializeProperty(value, serializedKey);
-
-                        (value as any)[key] = keyValue;
-                    }
-
-                    // Silently discard keys our schema doesn't know about instead of erring. By
-                    // not erring we are future compatible with new schemas.
-                    //
-                    // We need to delete properties, though, so an attacker doesn't try setting
-                    // `__proto__` or other intrinsic properties.
-                    for (const key of unknownKeys) {
-                        delete (value as any)[key];
-                    }
-
-                    return value as any;
-                } else {
-                    const newValue: {[key: string]: unknown} = {};
-
-                    for (const [key, schema] of propertySchemaByKey) {
-                        const serializedKey = schema.serializedKey ?? key;
-
-                        const keyValue = schema.deserializeProperty(
-                            value as any as SchemaSerializedObjectValue,
-                            serializedKey,
-                        );
-
-                        newValue[key] = keyValue;
-                    }
-
-                    return newValue as any;
+                    newValue[key] = keyValue;
                 }
+
+                return newValue;
             },
         });
     }
@@ -1075,8 +1035,9 @@ export class UnionSchemaVariant<Value extends {readonly type: string}> {
         return withSchemaDeserializationStackFrame(
             {type: "UnionVariant", typeKey: "type", typeValue: this.type},
             () => {
-                value.type = this.type;
-                return this.schema.deserialize(value) as any;
+                return this.schema.deserialize(
+                    value.type !== this.type ? ({...value, type: this.type} as any) : value,
+                ) as any;
             },
         );
     }
