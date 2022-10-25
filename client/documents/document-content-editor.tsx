@@ -139,7 +139,18 @@ function reduceWithAction(state: State, action: Action): State {
     }
 }
 
-export function DocumentContentEditor({initialDocument}: {initialDocument: DocumentModel}) {
+export function DocumentContentEditor({document}: {document: DocumentModel}) {
+    return (
+        <DocumentContentEditorStateful
+            // If a document prop with a different version is passed in then remount our
+            // stateful content editor component.
+            key={document.version}
+            initialDocument={document}
+        />
+    );
+}
+
+function DocumentContentEditorStateful({initialDocument}: {initialDocument: DocumentModel}) {
     const documentId = initialDocument.id;
 
     const [isUpdating, setIsUpdating] = useState(false);

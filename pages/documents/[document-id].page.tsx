@@ -13,10 +13,10 @@ const Page = createPageComponent({
     props: Schema.object({
         document: DocumentModel.schema(),
     }),
-    component: function DocumentPage({document: initialDocument}) {
+    component: function DocumentPage({document}) {
         return (
             <main className={sprinkles({height: "full"})}>
-                <DocumentContentEditor initialDocument={initialDocument} />
+                <DocumentContentEditor document={document} />
             </main>
         );
     },
