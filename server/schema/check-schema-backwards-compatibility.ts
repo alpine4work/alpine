@@ -1,19 +1,20 @@
 import {InternalError} from "~/shared/error/error";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {SchemaDescription} from "~/shared/schema/types/schema-description-types";
+import {SchemaSerializedValueDescription} from "~/shared/schema/types/schema-description-types";
 
 /**
- * Takes two `SchemaDescription`s and verifies that the second `SchemaDescription`
- * is backwards compatible with the first `SchemaDescription`. If the second is not
- * backwards compatible then we will throw an error.
+ * Takes two `SchemaSerializedValueDescription`s and verifies that the second
+ * `SchemaSerializedValueDescription` is backwards compatible with the first
+ * `SchemaSerializedValueDescription`. If the second is not backwards
+ * compatible then we will throw an error.
  *
  * The second schema is considered "backwards compatible" with the first if every
  * value that is accepted by the first schema can also be accepted by the second
  * schema.
  */
-export function checkSchemaDescriptionBackwardsCompatibility(
-    lastSchema: SchemaDescription,
-    nextSchema: SchemaDescription,
+export function checkSchemaBackwardsCompatibility(
+    lastSchema: SchemaSerializedValueDescription,
+    nextSchema: SchemaSerializedValueDescription,
 ): void {
     // Allow value schema to generalize into the full type.
     if (lastSchema.type === "Value") {
@@ -38,7 +39,7 @@ export function checkSchemaDescriptionBackwardsCompatibility(
         case "Id":
         case "Bytes": {
             if (lastSchema.type !== nextSchema.type) {
-                throw new SchemaDescriptionBackwardsIncompatibleError(
+                throw new SchemaBackwardsIncompatibleError(
                     `\`${lastSchema.type}\` type is incompatible with \`${nextSchema.type}\` type`,
                 );
             }
@@ -47,7 +48,7 @@ export function checkSchemaDescriptionBackwardsCompatibility(
         case "Float": {
             // It is safe for an integer to become a float.
             if (lastSchema.type !== "Float" && lastSchema.type !== "Integer") {
-                throw new SchemaDescriptionBackwardsIncompatibleError(
+                throw new SchemaBackwardsIncompatibleError(
                     `\`${lastSchema.type}\` type is incompatible with \`${nextSchema.type}\` type`,
                 );
             }
@@ -56,7 +57,7 @@ export function checkSchemaDescriptionBackwardsCompatibility(
         case "String": {
             // It is safe for an id to become a string.
             if (lastSchema.type !== "String" && lastSchema.type !== "Id") {
-                throw new SchemaDescriptionBackwardsIncompatibleError(
+                throw new SchemaBackwardsIncompatibleError(
                     `\`${lastSchema.type}\` type is incompatible with \`${nextSchema.type}\` type`,
                 );
             }
@@ -64,12 +65,12 @@ export function checkSchemaDescriptionBackwardsCompatibility(
         }
         case "Value": {
             if (lastSchema.type !== "Value") {
-                throw new SchemaDescriptionBackwardsIncompatibleError(
+                throw new SchemaBackwardsIncompatibleError(
                     `\`${lastSchema.type}\` type is incompatible with \`${nextSchema.type}\` type`,
                 );
             }
             if (!Object.is(lastSchema.value, nextSchema.value)) {
-                throw new SchemaDescriptionBackwardsIncompatibleError(
+                throw new SchemaBackwardsIncompatibleError(
                     `\`${JSON.stringify(
                         lastSchema.value,
                     )}\` value is incompatible with \`${JSON.stringify(nextSchema.value)}\` value`,
@@ -79,33 +80,30 @@ export function checkSchemaDescriptionBackwardsCompatibility(
         }
         case "Nullable": {
             if (lastSchema.type === "Nullable") {
-                checkSchemaDescriptionBackwardsCompatibility(lastSchema.schema, nextSchema.schema);
+                checkSchemaBackwardsCompatibility(lastSchema.schema, nextSchema.schema);
                 return;
             }
 
             // If our schema is nullable but the old schema is non-null, that's backwards
             // compatible safe since the new schema is adding a new potential value.
-            checkSchemaDescriptionBackwardsCompatibility(lastSchema, nextSchema.schema);
+            checkSchemaBackwardsCompatibility(lastSchema, nextSchema.schema);
             return;
         }
         case "Array": {
             if (lastSchema.type !== "Array") {
-                throw new SchemaDescriptionBackwardsIncompatibleError(
+                throw new SchemaBackwardsIncompatibleError(
                     `\`${lastSchema.type}\` type is incompatible with \`${nextSchema.type}\` type`,
                 );
             }
 
-            withSchemaDescriptionStackFrame({type: "ArrayIndex"}, () => {
-                checkSchemaDescriptionBackwardsCompatibility(
-                    lastSchema.itemSchema,
-                    nextSchema.itemSchema,
-                );
+            withSchemaSerializedValueDescriptionStackFrame({type: "ArrayIndex"}, () => {
+                checkSchemaBackwardsCompatibility(lastSchema.itemSchema, nextSchema.itemSchema);
             });
             return;
         }
         case "Object": {
             if (lastSchema.type !== "Object") {
-                throw new SchemaDescriptionBackwardsIncompatibleError(
+                throw new SchemaBackwardsIncompatibleError(
                     `\`${lastSchema.type}\` type is incompatible with \`${nextSchema.type}\` type`,
                 );
             }
@@ -117,28 +115,31 @@ export function checkSchemaDescriptionBackwardsCompatibility(
 
                 if (!lastPropertySchema) {
                     if (!nextPropertySchema.optional)
-                        throw new SchemaDescriptionBackwardsIncompatibleError(
+                        throw new SchemaBackwardsIncompatibleError(
                             `Required \`${key}\` property not found`,
                         );
                 } else {
                     if (lastPropertySchema.optional && !nextPropertySchema.optional)
-                        throw new SchemaDescriptionBackwardsIncompatibleError(
+                        throw new SchemaBackwardsIncompatibleError(
                             `Optional \`${key}\` property can not be made required`,
                         );
 
-                    withSchemaDescriptionStackFrame({type: "ObjectProperty", key}, () => {
-                        checkSchemaDescriptionBackwardsCompatibility(
-                            lastPropertySchema.valueSchema,
-                            nextPropertySchema.valueSchema,
-                        );
-                    });
+                    withSchemaSerializedValueDescriptionStackFrame(
+                        {type: "ObjectProperty", key},
+                        () => {
+                            checkSchemaBackwardsCompatibility(
+                                lastPropertySchema.valueSchema,
+                                nextPropertySchema.valueSchema,
+                            );
+                        },
+                    );
                 }
             }
             return;
         }
         case "Union": {
             if (lastSchema.type !== "Union") {
-                throw new SchemaDescriptionBackwardsIncompatibleError(
+                throw new SchemaBackwardsIncompatibleError(
                     `\`${lastSchema.type}\` type is incompatible with \`${nextSchema.type}\` type`,
                 );
             }
@@ -149,17 +150,14 @@ export function checkSchemaDescriptionBackwardsCompatibility(
                 const nextVariantSchema = nextSchema.variantSchemaByType[type];
 
                 if (!nextVariantSchema) {
-                    throw new SchemaDescriptionBackwardsIncompatibleError(
+                    throw new SchemaBackwardsIncompatibleError(
                         `Union variant \`${type}\` not found`,
                     );
                 } else {
-                    withSchemaDescriptionStackFrame(
+                    withSchemaSerializedValueDescriptionStackFrame(
                         {type: "UnionVariant", typeKey: "type", typeValue: type},
                         () => {
-                            checkSchemaDescriptionBackwardsCompatibility(
-                                lastVariantSchema,
-                                nextVariantSchema,
-                            );
+                            checkSchemaBackwardsCompatibility(lastVariantSchema, nextVariantSchema);
                         },
                     );
                 }
@@ -168,25 +166,22 @@ export function checkSchemaDescriptionBackwardsCompatibility(
         }
         case "Result": {
             if (lastSchema.type !== "Result") {
-                throw new SchemaDescriptionBackwardsIncompatibleError(
+                throw new SchemaBackwardsIncompatibleError(
                     `\`${lastSchema.type}\` type is incompatible with \`${nextSchema.type}\` type`,
                 );
             }
 
-            withSchemaDescriptionStackFrame(
+            withSchemaSerializedValueDescriptionStackFrame(
                 {type: "UnionVariant", typeKey: "ok", typeValue: true},
                 () => {
-                    checkSchemaDescriptionBackwardsCompatibility(
-                        lastSchema.okSchema,
-                        nextSchema.okSchema,
-                    );
+                    checkSchemaBackwardsCompatibility(lastSchema.okSchema, nextSchema.okSchema);
                 },
             );
 
-            withSchemaDescriptionStackFrame(
+            withSchemaSerializedValueDescriptionStackFrame(
                 {type: "UnionVariant", typeKey: "ok", typeValue: false},
                 () => {
-                    checkSchemaDescriptionBackwardsCompatibility(
+                    checkSchemaBackwardsCompatibility(
                         lastSchema.errorSchema,
                         nextSchema.errorSchema,
                     );
@@ -204,17 +199,17 @@ export function checkSchemaDescriptionBackwardsCompatibility(
  * An error thrown while checking whether a schema is backwards compatible
  * with another.
  */
-export class SchemaDescriptionBackwardsIncompatibleError extends InternalError {
+export class SchemaBackwardsIncompatibleError extends InternalError {
     constructor(message: string) {
-        const stackString = getSchemaDescriptionStackString();
+        const stackString = getSchemaSerializedValueDescriptionStackString();
 
         super(message);
-        this.name = "SchemaDescriptionBackwardsIncompatibleError";
+        this.name = "SchemaBackwardsIncompatibleError";
         this.message = stackString ? `${message} in \`${stackString}\`` : message;
     }
 }
 
-type SchemaDescriptionStackFrame =
+type SchemaSerializedValueDescriptionStackFrame =
     | {
           readonly type: "ObjectProperty";
           readonly key: string;
@@ -228,27 +223,27 @@ type SchemaDescriptionStackFrame =
           readonly typeValue: string | boolean;
       };
 
-const schemaDescriptionStack: Array<SchemaDescriptionStackFrame> = [];
+const schemaSerializedValueDescriptionStack: Array<SchemaSerializedValueDescriptionStackFrame> = [];
 
-function withSchemaDescriptionStackFrame<Value>(
-    frame: SchemaDescriptionStackFrame,
+function withSchemaSerializedValueDescriptionStackFrame<Value>(
+    frame: SchemaSerializedValueDescriptionStackFrame,
     action: () => Value,
 ): Value {
     try {
-        schemaDescriptionStack.push(frame);
+        schemaSerializedValueDescriptionStack.push(frame);
         const value = action();
         return value;
     } finally {
-        schemaDescriptionStack.pop();
+        schemaSerializedValueDescriptionStack.pop();
     }
 }
 
-function getSchemaDescriptionStackString(): string | null {
-    if (!schemaDescriptionStack.length) return null;
+function getSchemaSerializedValueDescriptionStackString(): string | null {
+    if (!schemaSerializedValueDescriptionStack.length) return null;
 
     let string = "";
 
-    for (const frame of schemaDescriptionStack) {
+    for (const frame of schemaSerializedValueDescriptionStack) {
         switch (frame.type) {
             case "ObjectProperty":
                 string += `.${frame.key}`;

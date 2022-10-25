@@ -7,7 +7,7 @@ import {isIdentifier} from "~/shared/helpers/string/is-identifier";
 import {Optionalize} from "~/shared/helpers/types/optionalize";
 import {Id, isId} from "~/shared/id/id";
 import {
-    SchemaDescription,
+    SchemaSerializedValueDescription,
     SchemaObjectPropertyDescription,
 } from "~/shared/schema/types/schema-description-types";
 
@@ -72,7 +72,7 @@ export type SchemaSerializedArrayValue = ReadonlyArray<SchemaSerializedValue>;
  * [1]: https://en.wikipedia.org/wiki/Covariance_and_contravariance_(computer_science)
  */
 export interface SchemaWithOnlySerialization<Value> {
-    readonly description: SchemaDescription;
+    readonly description: SchemaSerializedValueDescription;
     serialize(value: Value): SchemaSerializedValue;
 }
 
@@ -90,7 +90,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     /**
      * The description of the serialized value returned by this schema.
      */
-    public readonly description: SchemaDescription;
+    public readonly description: SchemaSerializedValueDescription;
 
     /**
      * Serializes a value into a format we can send across process boundaries.
@@ -138,7 +138,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
         serialize,
         deserialize,
     }: {
-        description: SchemaDescription;
+        description: SchemaSerializedValueDescription;
         serialize: (value: Value) => SchemaSerializedValue;
         deserialize: (serializedValue: SchemaSerializedValue) => Value;
     }) {
@@ -546,7 +546,7 @@ export class ObjectSchema<Value> extends Schema<Value> {
         deserializeInto,
     }: {
         propertySchemaByKey: ReadonlyMap<string, ObjectPropertySchema<unknown, unknown>>;
-        description: SchemaDescription;
+        description: SchemaSerializedValueDescription;
         serializeInto: (value: Value, target: {[key: string]: SchemaSerializedValue}) => void;
         deserializeInto: (
             serializedValue: SchemaSerializedValue,
@@ -868,7 +868,7 @@ export class UnionSchema<Value extends {readonly type: string}> extends Schema<V
         deserialize,
     }: {
         variantSchemaByType: ReadonlyMap<string, UnionSchemaVariant<{readonly type: string}>>;
-        description: SchemaDescription;
+        description: SchemaSerializedValueDescription;
         serialize: (value: Value) => SchemaSerializedValue;
         deserialize: (serializedValue: SchemaSerializedValue) => Value;
     }) {

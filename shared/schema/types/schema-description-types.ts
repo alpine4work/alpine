@@ -9,15 +9,15 @@
  * for statically analyzing the `Schema` class (e.g. forwards/backwards
  * compatibility checking code).
  */
-export type SchemaDescription =
-    | SchemaScalarDescription
-    | SchemaNullableDescription
-    | SchemaArrayDescription
-    | SchemaObjectDescription
-    | SchemaUnionDescription
-    | SchemaResultDescription;
+export type SchemaSerializedValueDescription =
+    | SchemaSerializedScalarValueDescription
+    | SchemaSerializedNullableValueDescription
+    | SchemaSerializedArrayValueDescription
+    | SchemaSerializedObjectValueDescription
+    | SchemaSerializedUnionValueDescription
+    | SchemaSerializedResultValueDescription;
 
-export type SchemaScalarDescription =
+export type SchemaSerializedScalarValueDescription =
     | {readonly type: "Unknown"}
     | {readonly type: "Boolean"}
     | {readonly type: "Float"}
@@ -27,17 +27,17 @@ export type SchemaScalarDescription =
     | {readonly type: "Bytes"}
     | {readonly type: "Value"; readonly value: number | boolean | string};
 
-export type SchemaNullableDescription = {
+export type SchemaSerializedNullableValueDescription = {
     readonly type: "Nullable";
-    readonly schema: SchemaDescription;
+    readonly schema: SchemaSerializedValueDescription;
 };
 
-export type SchemaArrayDescription = {
+export type SchemaSerializedArrayValueDescription = {
     readonly type: "Array";
-    readonly itemSchema: SchemaDescription;
+    readonly itemSchema: SchemaSerializedValueDescription;
 };
 
-export type SchemaObjectDescription = {
+export type SchemaSerializedObjectValueDescription = {
     readonly type: "Object";
     readonly propertySchemaByKey: {
         readonly [key: string]: SchemaObjectPropertyDescription;
@@ -45,19 +45,19 @@ export type SchemaObjectDescription = {
 };
 
 export type SchemaObjectPropertyDescription = {
-    readonly valueSchema: SchemaDescription;
+    readonly valueSchema: SchemaSerializedValueDescription;
     readonly optional: boolean;
 };
 
-export type SchemaUnionDescription = {
+export type SchemaSerializedUnionValueDescription = {
     readonly type: "Union";
     readonly variantSchemaByType: {
-        readonly [type: string]: SchemaDescription;
+        readonly [type: string]: SchemaSerializedValueDescription;
     };
 };
 
-export type SchemaResultDescription = {
+export type SchemaSerializedResultValueDescription = {
     readonly type: "Result";
-    readonly okSchema: SchemaDescription;
-    readonly errorSchema: SchemaDescription;
+    readonly okSchema: SchemaSerializedValueDescription;
+    readonly errorSchema: SchemaSerializedValueDescription;
 };
