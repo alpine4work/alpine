@@ -1,4 +1,5 @@
 import {InternalError} from "~/shared/error/error";
+import {omitFromStackTrace} from "~/shared/helpers/control/omit-from-stack-trace";
 
 /**
  * Throws an assertion error if the condition is falsy.
@@ -9,8 +10,11 @@ import {InternalError} from "~/shared/error/error";
  * Integrates with the type system so that assertions refine the type. We have a Babel plugin that
  * automatically generates a message for these function calls.
  */
-export function assert(condition: unknown, message?: string): asserts condition {
-    if (!condition) {
-        throw new InternalError(message ? `Assertion failure: ${message}` : "Assertion failure");
-    }
-}
+export const assert: (condition: unknown, message?: string) => asserts condition =
+    omitFromStackTrace((condition, message) => {
+        if (!condition) {
+            throw new InternalError(
+                message ? `Assertion failure: ${message}` : "Assertion failure",
+            );
+        }
+    });
