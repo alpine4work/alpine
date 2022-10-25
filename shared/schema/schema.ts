@@ -2,7 +2,6 @@ import {base64ToBytes, bytesToBase64} from "byte-base64";
 import {InvalidArgumentError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {omitFromStackTrace} from "~/shared/helpers/control/omit-from-stack-trace";
 import {hasOwnProperty} from "~/shared/helpers/object/has-own-property";
 import {isPlainObject} from "~/shared/helpers/object/is-plain-object";
 import {isIdentifier} from "~/shared/helpers/string/is-identifier";
@@ -146,7 +145,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     }) {
         this.description = description;
         this.serialize = serialize;
-        this.deserialize = omitFromStackTrace(deserialize);
+        this.deserialize = deserialize;
     }
 
     /**
