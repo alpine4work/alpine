@@ -1,4 +1,5 @@
 import {InternalError} from "~/shared/error/error";
+import {omitFromStackTrace} from "~/shared/helpers/control/omit-from-stack-trace";
 
 /**
  * Exhaustiveness check for TypeScript. When you call this function TypeScript
@@ -22,7 +23,7 @@ import {InternalError} from "~/shared/error/error";
  * }
  * ```
  */
-export function exhaustive(value: never): Error {
+export const exhaustive = omitFromStackTrace((value: never): Error => {
     // If this is an object and we can infer a sentinel property then report the
     // sentinel property.
     //
@@ -45,6 +46,6 @@ export function exhaustive(value: never): Error {
     }
 
     return new InternalError("Unexpected value in exhaustive check");
-}
+});
 
 const commonSentinelProperties = ["type", "kind"];
