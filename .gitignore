@@ -34,3 +34,5 @@ yarn-error.log*
 /.local/*
 !/.local/README.md
 
+# Workers
+/collaboration-worker/bundled

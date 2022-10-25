@@ -28,6 +28,8 @@ import {
     SchemaType,
 } from "~/shared/schema/schema";
 
+const APP_ORIGIN = Schema.string.deserialize(process.env.NEXT_PUBLIC_APP_ORIGIN ?? null);
+
 /**
  * Define the interface for a network function.
  *
@@ -74,7 +76,7 @@ export function defineNetworkFunction<
     const execute = async (
         input: ObjectSchemaConfigType<InputConfig>,
     ): Promise<ObjectSchemaConfigType<OutputConfig>> => {
-        if (typeof window === "undefined") {
+        if (typeof fetch === "undefined") {
             const {getNetworkFunctionImplementation} = await import(
                 // Only executes on the server so it's fine to import a server file.
                 // eslint-disable-next-line import/no-restricted-paths
@@ -175,7 +177,7 @@ async function executeNetworkFunctions(
             })),
         };
 
-        const response = await fetch("/api/network-function-call", {
+        const response = await fetch(`${APP_ORIGIN}/api/network-function-call`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -188,7 +190,9 @@ async function executeNetworkFunctions(
 
         const output = await response
             .json()
-            .then(output => NetworkFunctionHttpOutputSchema.deserialize(output))
+            .then(output =>
+                NetworkFunctionHttpOutputSchema.deserialize(output as SchemaSerializedValue),
+            )
             .catch(error => {
                 // If we fail to parse the response body as JSON, classify as `Internal`
                 // status code.

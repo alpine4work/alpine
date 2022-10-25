@@ -51,7 +51,10 @@
         "noImplicitOverride": true,
         "allowJs": true,
         "skipLibCheck": true,
-        "types": ["jest"]
+        // FIXME: the cloudflare worker types aren't getting injected/merged properly?
+        // it seems new types get added fine, but existing ones don't get extended
+        // properly (e.g. websocket.accept(), Reponse.json())
+        "types": ["jest", "@cloudflare/workers-types"]
     },
     "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
     "exclude": ["node_modules"]

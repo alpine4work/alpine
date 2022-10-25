@@ -1,11 +1,12 @@
 import {
     createDocument,
+    readDocument,
     readDocumentPreview,
     updateDocumentContent,
 } from "~/server/dynamo/documents-table";
 import {implementNetworkChannelAuthorization} from "~/server/network/internal/implement-network-channel";
 import {implementNetworkFunction} from "~/server/network/internal/implement-network-function";
-import {PermissionDeniedError} from "~/shared/error/error";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error";
 import * as definition from "~/shared/network/documents-network-definition";
 
 implementNetworkFunction(definition.createDocument, async input => {
@@ -15,6 +16,18 @@ implementNetworkFunction(definition.createDocument, async input => {
 
 implementNetworkFunction(definition.updateDocumentContent, async input => {
     return await updateDocumentContent(input);
+});
+
+implementNetworkFunction(definition.readDocumentForCollaborationWorker, async input => {
+    const document = await readDocument(input.id);
+    if (!document) {
+        throw new NotFoundError("Document does not exist");
+    }
+    return {
+        id: document.id,
+        content: document.content,
+        version: document.version,
+    };
 });
 
 implementNetworkChannelAuthorization(definition.DocumentNetworkChannel, async key => {

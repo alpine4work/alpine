@@ -1,34 +1,14 @@
 import Head from "next/head";
 import {Transaction} from "prosemirror-state";
 import {ReplaceStep, Step} from "prosemirror-transform";
-import {useEffect, useReducer, useState} from "react";
+import {useEffect, useLayoutEffect, useRef, useState} from "react";
 import {ContentEditor, ContentEditorState} from "~/client/content/content-editor";
 import {sprinkles} from "~/client/design/sprinkles.css";
 import {typingNetworkThrottleMs} from "~/client/design/timing-constants";
-import {subscribeToMessagesFromNetworkChannel} from "~/client/network/subscribe-to-messages-from-network-channel";
+import {DocumentCollaborationWorkerConnection} from "~/client/documents/document-collaboration-worker-connection";
 import {DocumentContent} from "~/shared/documents/document-content-schema";
 import {DocumentModel, getDocumentContentTitle} from "~/shared/documents/document-model";
-import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run-promise-without-awaiting";
 import {assert} from "~/shared/helpers/control/assert";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {Id} from "~/shared/id/id";
-import {
-    DocumentNetworkChannel,
-    updateDocumentContent,
-} from "~/shared/network/documents-network-definition";
-
-type Action = EditAction | ReceiveStepsAction;
-
-type EditAction = {
-    readonly type: "Edit";
-    readonly state: ContentEditorState<DocumentContent>;
-};
-
-type ReceiveStepsAction = {
-    readonly type: "ReceiveSteps";
-    readonly newVersion: number;
-    readonly steps: ReadonlyArray<{readonly step: Step; readonly clientId: Id}>;
-};
 
 function getInitialState(initialDocument: DocumentModel): ContentEditorState<DocumentContent> {
     return ContentEditorState.createCollab({
@@ -37,159 +17,60 @@ function getInitialState(initialDocument: DocumentModel): ContentEditorState<Doc
     });
 }
 
-function reduce(
-    state: ContentEditorState<DocumentContent>,
-    action: Action,
-): ContentEditorState<DocumentContent> {
-    switch (action.type) {
-        case "Edit": {
-            return action.state;
-        }
-        // `ReceiveSteps` may be dispatched multiple times with the same steps. Over
-        // HTTP and over WebSockets. Drop steps we have seen before. Assume the server
-        // sends us the same step for the same version.
-        case "ReceiveSteps": {
-            const oldVersion = state.getVersion();
-            if (action.newVersion <= oldVersion) return state;
-
-            const steps = action.steps.slice(action.steps.length - action.newVersion - oldVersion);
-            assert(oldVersion + steps.length === action.newVersion);
-
-            return state.receiveSteps(steps);
-        }
-        default:
-            throw exhaustive(action);
-    }
-}
-
 export function DocumentContentEditor({initialDocument}: {initialDocument: DocumentModel}) {
     const documentId = initialDocument.id;
 
-    const [isUpdating, setIsUpdating] = useState(false);
-    const [state, dispatch] = useReducer(reduce, initialDocument, getInitialState);
+    const [isConnected, setIsConnected] = useState(false);
+    const [state, setState] = useState(() => getInitialState(initialDocument));
 
-    const [errorState, setErrorState] = useState<
-        {hasError: false} | {hasError: true; error: unknown}
-    >({hasError: false});
+    // TODO: not this, probably react-ify the collaboration connection class?
+    const stateRef = useRef<ContentEditorState<DocumentContent>>();
+    useLayoutEffect(() => {
+        stateRef.current = state;
+    }, [state]);
 
-    // TODO(calebmer): We probably want some retry mechanism for the user? But
-    // until the user retries, we don't want an infinite loop where we keep trying
-    // to update the document content.
-    if (errorState.hasError) throw errorState.error;
-
-    const shouldThrottleUpdate = useShouldThrottleUpdate();
-
+    const connectionRef = useRef<DocumentCollaborationWorkerConnection>();
     useEffect(() => {
-        // If we're already updating then don't send another update mutation. Once
-        // the current mutation is done we'll send another.
-        if (isUpdating || errorState.hasError) return;
-
-        // If there are no new sendable steps from this client then don’t send a
-        // mutation.
-        const sendableSteps = state.sendableSteps();
-        if (!sendableSteps) return;
-        const {version, steps, origins, clientId} = sendableSteps;
-
-        // As a performance optimization, we sometimes throttle updates when a user
-        // is typing fast to let a couple steps accumulate before sending a mutation
-        // to our servers. See `shouldThrottleUpdate()` for more info on the desired
-        // user experience.
-        if (shouldThrottleUpdate(origins)) return;
-
-        runPromiseWithoutAwaiting(async () => {
-            setIsUpdating(true);
-            try {
-                const {newVersion, newSteps, conflictingSteps} = await updateDocumentContent({
-                    id: documentId,
-                    version,
-                    steps,
-                    clientId,
-                });
-
-                // The `prosemirror-collab` module needs to receive steps from our own client
-                // separately from another client's steps.
-                dispatch({
-                    type: "ReceiveSteps",
-                    newVersion: newVersion - newSteps.length,
-                    steps: conflictingSteps,
-                });
-                dispatch({
-                    type: "ReceiveSteps",
-                    newVersion,
-                    steps: newSteps.map(step => ({step, clientId})),
-                });
-            } catch (error) {
-                setErrorState({hasError: true, error});
-            } finally {
-                setIsUpdating(false);
-            }
-        });
-
-        // This effect intentionally doesn’t have a dependency array. It shouldn't
-        // need one for correctness.
-    });
-
-    // TODO(calebmer): I probably want a custom hook. This is hacky becuz I
-    // am tired.
-    useEffect(() => {
-        let isCancelled = false;
-        let cancel: (() => void) | null = null;
-
-        // TODO(calebmer): Handle errors??
-        runPromiseWithoutAwaiting(
-            subscribeToMessagesFromNetworkChannel(DocumentNetworkChannel, {
-                documentId,
-            }).then(iterator => {
-                if (isCancelled) {
-                    runPromiseWithoutAwaiting(iterator.return());
-                    return;
-                }
-
-                cancel = () => runPromiseWithoutAwaiting(iterator.return());
-
-                const loop = () => {
-                    if (isCancelled) return;
-
-                    runPromiseWithoutAwaiting(
-                        iterator.next().then(result => {
-                            if (result.done) return;
-
-                            dispatch({
-                                type: "ReceiveSteps",
-                                newVersion: result.value.newVersion,
-                                steps: result.value.steps.map(step => ({
-                                    step,
-                                    clientId: result.value.clientId,
-                                })),
-                            });
-
-                            loop();
-                        }),
-                    );
-                };
-
-                loop();
-            }),
+        const connection = new DocumentCollaborationWorkerConnection(
+            documentId,
+            () => {
+                assert(stateRef.current);
+                return stateRef.current;
+            },
+            setState,
         );
+        connectionRef.current = connection;
+        const unsubscribeFromConnect = connection.onConnect(() => setIsConnected(true));
+        const unsubscribeFromDisconnect = connection.onDisconnect(() => setIsConnected(false));
 
         return () => {
-            isCancelled = true;
-            cancel?.();
+            connectionRef.current = undefined;
+            unsubscribeFromConnect();
+            unsubscribeFromDisconnect();
+            connection.destroy();
         };
     }, [documentId]);
+
+    useEffect(() => {
+        if (connectionRef.current && state) {
+            connectionRef.current.stateDidChange(state);
+        }
+    }, [state]);
 
     return (
         <>
             <Head>
                 <title>{getDocumentContentTitle(state.getContent())}</title>
             </Head>
-            <ContentEditor
-                state={state}
-                onChange={state => dispatch({type: "Edit", state})}
-                aria-label="Document editor"
-                placeholder="Share your ideas…"
-                className={sprinkles({paddingBottom: "24"})}
-            />
+            {isConnected && (
+                <ContentEditor
+                    state={state}
+                    onChange={state => setState(state)}
+                    aria-label="Document editor"
+                    placeholder="Share your ideas…"
+                    className={sprinkles({paddingBottom: "24"})}
+                />
+            )}
         </>
     );
 }

@@ -3,7 +3,9 @@
     "version": "0.1.0",
     "private": true,
     "scripts": {
-        "dev": "NODE_ENV=development node -r ./admin/next/next-register.js admin/next/next-dev-main.ts",
+        "dev": "concurrently --kill-others --prefix-colors blue,magenta --names nextjs,collab 'pnpm run dev:nextjs' 'pnpm run dev:worker'",
+        "dev:nextjs": "NODE_ENV=development node -r ./admin/next/next-register.js admin/next/next-dev-main.ts",
+        "dev:worker": "NODE_ENV=development node -r ./admin/next/next-register.js admin/workers/run-worker.ts",
         "build": "next build",
         "start": "next start",
         "test": "jest --watch",
@@ -19,6 +21,7 @@
         "@babel/plugin-transform-react-jsx": "^7.19.0",
         "@babel/register": "^7.18.9",
         "@babel/runtime": "^7.19.0",
+        "@cloudflare/workers-types": "^3.18.0",
         "@popperjs/core": "^2.11.5",
         "@react-aria/interactions": "^3.10.0",
         "@swc/core": "^1.3.3",
@@ -40,6 +43,7 @@
         "@vanilla-extract/babel-plugin": "^1.2.0",
         "@vanilla-extract/css": "^1.9.1",
         "@vanilla-extract/dynamic": "^2.0.2",
+        "@vanilla-extract/esbuild-plugin": "^2.2.0",
         "@vanilla-extract/next-plugin": "^2.1.0",
         "@vanilla-extract/sprinkles": "^1.5.0",
         "ably": "^1.2.30",
@@ -51,11 +55,13 @@
         "chalk": "4",
         "change-case": "^4.1.2",
         "classnames": "^2.3.1",
+        "concurrently": "^7.5.0",
         "constructs": "^10.1.105",
         "date-fns": "^2.29.2",
         "dedent": "^0.7.0",
         "dotenv": "^16.0.2",
         "dotenv-expand": "^9.0.0",
+        "esbuild": "^0.15.12",
         "eslint": "8.20.0",
         "eslint-config-next": "12.2.3",
         "eslint-config-react-app": "^7.0.1",
@@ -90,7 +96,8 @@
         "react-dom": "18.2.0",
         "tsconfig-paths": "^4.1.0",
         "typescript": "4.7.4",
-        "webpack": "^5.74.0"
+        "webpack": "^5.74.0",
+        "wrangler": "^2.1.13"
     },
     "pnpm": {
         "patchedDependencies": {

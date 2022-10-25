@@ -11,9 +11,11 @@ export abstract class ErrorBase extends Error {
     public readonly code: ErrorCode;
 
     constructor(message: string, {cause}: {cause?: unknown} = {}) {
+        // @ts-expect-error FIXME: Type 'unknown' is not assignable to type 'Error | undefined'
         super(message, {cause});
         this.code = this._getCode();
         this.name = getErrorCodeName(this.code) + "Error";
+        // @ts-expect-error FIXME: Type 'unknown' is not assignable to type 'Error | undefined'
         this.cause = cause;
     }
 

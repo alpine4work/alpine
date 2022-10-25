@@ -3,6 +3,7 @@ import path from "path";
 import {repoDirectoryPath} from "~/server/helpers/repo-directory-path";
 import {UnknownError} from "~/shared/error/error";
 import {isNotNullishOrFalse} from "~/shared/helpers/control/is-not-nullish-or-false";
+import {noop} from "~/shared/helpers/control/noop";
 import {quote} from "~/shared/helpers/string/quote";
 
 const nodeModulesBinDirectoryPath = path.join(repoDirectoryPath, "node_modules/.bin");
@@ -24,6 +25,8 @@ export async function runProcess(
     args: ProcessArgs,
     {
         cwd = repoDirectoryPath,
+        onStdoutData = noop,
+        onStderrData = noop,
         env,
     }: {
         /**
@@ -31,6 +34,14 @@ export async function runProcess(
          * directory of our code repository.
          */
         cwd?: string;
+        /**
+         * Called when the process writes to stdout.
+         */
+        onStdoutData?: (data: string) => void;
+        /**
+         * Called when the process writes to stderr.
+         */
+        onStderrData?: (data: string) => void;
         /**
          * Extra environment variables to set when running the subprocess.
          */
@@ -57,11 +68,15 @@ export async function runProcess(
     let stderr = "";
 
     subprocess.stdout.on("data", chunk => {
-        stdout += chunk.toString("utf8");
+        const string = chunk.toString("utf8");
+        stdout += string;
+        onStdoutData(string);
     });
 
     subprocess.stderr.on("data", chunk => {
-        stderr += chunk.toString("utf8");
+        const string = chunk.toString("utf8");
+        stderr += string;
+        onStderrData(string);
     });
 
     await new Promise<void>((resolve, reject) => {

@@ -9,8 +9,8 @@ import {assert} from "~/shared/helpers/control/assert";
 assert(process.cwd() === repoDirectoryPath);
 assert(process.env.NODE_ENV === "development");
 
-assert(process.env.PORT);
-const port = parseInt(process.env.PORT, 10);
+assert(process.env.APP_PORT);
+const port = parseInt(process.env.APP_PORT, 10);
 
 const app = next({dev: true, port});
 const handle = app.getRequestHandler();

@@ -35,6 +35,18 @@ export const updateDocumentContent = defineNetworkFunction({
     },
 });
 
+export const readDocumentForCollaborationWorker = defineNetworkFunction({
+    name: "readDocumentForCollaborationWorker",
+    input: {
+        id: Schema.id,
+    },
+    output: {
+        id: Schema.id,
+        content: DocumentContentSchema,
+        version: Schema.integer,
+    },
+});
+
 export const DocumentNetworkChannel = defineNetworkChannel({
     name: "Document",
     key: {
