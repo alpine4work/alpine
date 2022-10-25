@@ -235,6 +235,7 @@ export const DocumentWithoutTitleContentStepSchema = Schema.unknown.transform<St
         try {
             content = Step.fromJSON(DocumentWithoutTitleContentProsemirrorSchema, unknownValue);
         } catch {
+            console.log("ERROR", unknownValue);
             throw new SchemaDeserializationError("Invalid document content step");
         }
 
@@ -326,6 +327,7 @@ export const DocumentContentStepSchema = Schema.unknown.transform<Step>({
         try {
             content = Step.fromJSON(DocumentContentProsemirrorSchema, unknownValue);
         } catch {
+            console.log("ERROR", unknownValue);
             throw new SchemaDeserializationError("Invalid document content step");
         }
 

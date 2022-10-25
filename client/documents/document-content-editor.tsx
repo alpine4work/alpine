@@ -8,7 +8,9 @@ import {typingNetworkThrottleMs} from "~/client/design/timing-constants";
 import {subscribeToMessagesFromNetworkChannel} from "~/client/network/subscribe-to-messages-from-network-channel";
 import {DocumentContent} from "~/shared/documents/document-content-schema";
 import {DocumentModel, getDocumentContentTitle} from "~/shared/documents/document-model";
+import {CancelledError} from "~/shared/error/error";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run-promise-without-awaiting";
+import {scheduleException} from "~/shared/helpers/async/schedule-exception";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {Id} from "~/shared/id/id";
@@ -17,11 +19,33 @@ import {
     updateDocumentContent,
 } from "~/shared/network/documents-network-definition";
 
+type State = {
+    editorState: ContentEditorState<DocumentContent>;
+    /**
+     * We may get `ReceiveSteps` actions out of order. If we see an action for a
+     * future version we put it in this array and re-apply the action when older
+     * steps are applied.
+     */
+    pendingActions: Array<ReceiveStepsAction>;
+};
+
+function getInitialState(initialDocument: DocumentModel): State {
+    const editorState = ContentEditorState.createCollab({
+        version: initialDocument.version,
+        content: initialDocument.content,
+    });
+
+    return {
+        editorState,
+        pendingActions: [],
+    };
+}
+
 type Action = EditAction | ReceiveStepsAction;
 
 type EditAction = {
     readonly type: "Edit";
-    readonly state: ContentEditorState<DocumentContent>;
+    readonly editorState: ContentEditorState<DocumentContent>;
 };
 
 type ReceiveStepsAction = {
@@ -30,32 +54,87 @@ type ReceiveStepsAction = {
     readonly steps: ReadonlyArray<{readonly step: Step; readonly clientId: Id}>;
 };
 
-function getInitialState(initialDocument: DocumentModel): ContentEditorState<DocumentContent> {
-    return ContentEditorState.createCollab({
-        version: initialDocument.version,
-        content: initialDocument.content,
+function reduce(state: State, action: Action): State {
+    const oldVersion = state.editorState.getVersion();
+    state = reduceWithAction(state, action);
+    const newVersion = state.editorState.getVersion();
+
+    // If the version changed then we want to retry our pending actions since they
+    // may be ok to run now.
+    if (oldVersion === newVersion) return state;
+
+    // We may receive actions out of order, but make sure we run them in order
+    // now.
+    const pendingActions = [...state.pendingActions].sort((pendingAction1, pendingAction2) => {
+        const baseVersion1 = pendingAction1.newVersion - pendingAction1.steps.length;
+        const baseVersion2 = pendingAction2.newVersion - pendingAction2.steps.length;
+        return baseVersion1 - baseVersion2;
     });
+
+    // We are going to try and run all pending actions. If actions are still
+    // pending they will be put back into this array.
+    state = {...state, pendingActions: []};
+
+    return pendingActions.reduce(reduceWithAction, state);
 }
 
-function reduce(
-    state: ContentEditorState<DocumentContent>,
-    action: Action,
-): ContentEditorState<DocumentContent> {
+function reduceWithAction(state: State, action: Action): State {
     switch (action.type) {
         case "Edit": {
-            return action.state;
+            return {
+                ...state,
+                editorState: action.editorState,
+            };
         }
-        // `ReceiveSteps` may be dispatched multiple times with the same steps. Over
-        // HTTP and over WebSockets. Drop steps we have seen before. Assume the server
-        // sends us the same step for the same version.
         case "ReceiveSteps": {
-            const oldVersion = state.getVersion();
+            const oldVersion = state.editorState.getVersion();
             if (action.newVersion <= oldVersion) return state;
 
+            // If we received an action that's applied on a future version of our content,
+            // we can't commit it until our local state has caught up. So stick it in
+            // pending actions and we'll come back to it.
+            if (oldVersion < action.newVersion - action.steps.length) {
+                return {
+                    ...state,
+                    pendingActions: [...state.pendingActions, action],
+                };
+            }
+
+            // We may dispatch this action multiple times with the same steps. Remove any
+            // steps we've already seen.
             const steps = action.steps.slice(action.steps.length - action.newVersion - oldVersion);
             assert(oldVersion + steps.length === action.newVersion);
 
-            return state.receiveSteps(steps);
+            // If we've already seen all the steps, no change is needed.
+            if (steps.length === 0) return state;
+
+            let editorState = state.editorState;
+            let stepTransaction: Array<{step: Step; clientId: Id}> = [];
+
+            // `prosemirror-collab` needs steps from our `clientId` to be at the beginning
+            // of the `receiveSteps()` call. So call `receiveSteps()` whenever the
+            // `clientId` of our steps change.
+            //
+            // Arguably, this is a bug in `prosemirror-collab`.
+            //
+            // Here is the code which requires our steps to be first this:
+            // https://github.com/ProseMirror/prosemirror-collab/blob/94df0cc9288960e7e64dc9721abbf8f656df444f/src/collab.ts#L125-L129
+            for (const {step, clientId} of steps) {
+                if (
+                    stepTransaction.length > 0 &&
+                    stepTransaction[stepTransaction.length - 1]!.clientId !== clientId
+                ) {
+                    editorState = editorState.receiveSteps(stepTransaction);
+                    stepTransaction = [];
+                }
+
+                stepTransaction.push({step, clientId});
+            }
+
+            editorState = editorState.receiveSteps(stepTransaction);
+            stepTransaction = [];
+
+            return {...state, editorState};
         }
         default:
             throw exhaustive(action);
@@ -86,7 +165,7 @@ export function DocumentContentEditor({initialDocument}: {initialDocument: Docum
 
         // If there are no new sendable steps from this client then don’t send a
         // mutation.
-        const sendableSteps = state.sendableSteps();
+        const sendableSteps = state.editorState.sendableSteps();
         if (!sendableSteps) return;
         const {version, steps, origins, clientId} = sendableSteps;
 
@@ -106,17 +185,10 @@ export function DocumentContentEditor({initialDocument}: {initialDocument: Docum
                     clientId,
                 });
 
-                // The `prosemirror-collab` module needs to receive steps from our own client
-                // separately from another client's steps.
-                dispatch({
-                    type: "ReceiveSteps",
-                    newVersion: newVersion - newSteps.length,
-                    steps: conflictingSteps,
-                });
                 dispatch({
                     type: "ReceiveSteps",
                     newVersion,
-                    steps: newSteps.map(step => ({step, clientId})),
+                    steps: [...conflictingSteps, ...newSteps.map(step => ({step, clientId}))],
                 });
             } catch (error) {
                 setErrorState({hasError: true, error});
@@ -132,60 +204,63 @@ export function DocumentContentEditor({initialDocument}: {initialDocument: Docum
     // TODO(calebmer): I probably want a custom hook. This is hacky becuz I
     // am tired.
     useEffect(() => {
-        let isCancelled = false;
-        let cancel: (() => void) | null = null;
+        const abortController = new AbortController();
 
         // TODO(calebmer): Handle errors??
-        runPromiseWithoutAwaiting(
-            subscribeToMessagesFromNetworkChannel(DocumentNetworkChannel, {
-                documentId,
-            }).then(iterator => {
-                if (isCancelled) {
-                    runPromiseWithoutAwaiting(iterator.return());
-                    return;
-                }
-
-                cancel = () => runPromiseWithoutAwaiting(iterator.return());
-
-                const loop = () => {
-                    if (isCancelled) return;
-
-                    runPromiseWithoutAwaiting(
-                        iterator.next().then(result => {
-                            if (result.done) return;
-
-                            dispatch({
-                                type: "ReceiveSteps",
-                                newVersion: result.value.newVersion,
-                                steps: result.value.steps.map(step => ({
-                                    step,
-                                    clientId: result.value.clientId,
-                                })),
-                            });
-
-                            loop();
-                        }),
-                    );
-                };
-
-                loop();
-            }),
+        const iterator = subscribeToMessagesFromNetworkChannel(
+            DocumentNetworkChannel,
+            {documentId},
+            {signal: abortController.signal},
         );
+
+        let isCancelled = false;
+        const cancelError = new CancelledError("Unsubscribed from network channel");
+        const cancel = () => abortController.abort(cancelError);
+
+        const loop = () => {
+            if (isCancelled) return;
+
+            iterator.next().then(
+                result => {
+                    if (isCancelled || result.done) return;
+
+                    dispatch({
+                        type: "ReceiveSteps",
+                        newVersion: result.value.newVersion,
+                        steps: result.value.steps.map(step => ({
+                            step,
+                            clientId: result.value.clientId,
+                        })),
+                    });
+
+                    loop();
+                },
+                error => {
+                    // If this is the error from our `AbortSignal` then we can ignore it since
+                    // it's expected.
+                    if (error === cancelError) return;
+
+                    scheduleException(error);
+                },
+            );
+        };
+
+        loop();
 
         return () => {
             isCancelled = true;
-            cancel?.();
+            cancel();
         };
     }, [documentId]);
 
     return (
         <>
             <Head>
-                <title>{getDocumentContentTitle(state.getContent())}</title>
+                <title>{getDocumentContentTitle(state.editorState.getContent())}</title>
             </Head>
             <ContentEditor
-                state={state}
-                onChange={state => dispatch({type: "Edit", state})}
+                state={state.editorState}
+                onChange={editorState => dispatch({type: "Edit", editorState})}
                 aria-label="Document editor"
                 placeholder="Share your ideas…"
                 className={sprinkles({paddingBottom: "24"})}

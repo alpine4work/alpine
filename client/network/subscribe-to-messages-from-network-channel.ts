@@ -1,10 +1,9 @@
 import Ably from "ably";
 import {InternalError} from "~/shared/error/error";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise-resolver";
+import {createPromiseResolver} from "~/shared/helpers/async/promise-resolver";
+import {waitForAbort} from "~/shared/helpers/async/wait-for-abort";
 import {waitMicrotask} from "~/shared/helpers/async/wait-microtask";
 import {assert} from "~/shared/helpers/control/assert";
-import {unwrapResultPromise} from "~/shared/helpers/control/capture-result-promise";
-import {Result} from "~/shared/helpers/control/result";
 import {asyncIterableIteratorMap} from "~/shared/helpers/iterable/async-iterable-iterator-map";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get-or-set-default-map-value";
 import {BlockInference} from "~/shared/helpers/types/block-inference";
@@ -133,10 +132,10 @@ class AblyRealtimeClient {
      * count reaches zero we will clean up the memory for the channel and detach it
      * so we stop getting messages.
      */
-    private _getAttachedChannelAndIncrementReferenceCount(channelName: string): {
-        channelPromise: Promise<Ably.Types.RealtimeChannelPromise>;
+    private _getAttachedChannelAndIncrementReferenceCount(channelName: string): Promise<{
+        channel: Ably.Types.RealtimeChannelPromise;
         decrementReferenceCount: () => Promise<void>;
-    } {
+    }> {
         const attachedChannel = getOrSetDefaultMapValue(
             this._attachedChannelByName,
             channelName,
@@ -160,31 +159,36 @@ class AblyRealtimeClient {
 
         attachedChannel.referenceCount++;
 
-        return {
-            channelPromise: attachedChannel.channelPromise,
-            decrementReferenceCount: async () => {
-                attachedChannel.referenceCount--;
+        let channel: Ably.Types.RealtimeChannelPromise | null = null;
 
-                if (attachedChannel.referenceCount === 0) {
-                    this._attachedChannelByName.delete(channelName);
+        const decrementReferenceCount = async () => {
+            attachedChannel.referenceCount--;
 
-                    // Release from Ably as well so we don't have a memory leak since Ably keeps
-                    // around references to channel objects.
-                    this._client?.channels.release(channelName);
+            // Once all references have been removed...
+            if (attachedChannel.referenceCount === 0) {
+                // Remove from our channel map.
+                this._attachedChannelByName.delete(channelName);
 
-                    // Ignore any errors in the channel promise. If there was an error then the
-                    // channel did not successfully attach so we don't have to detach it.
-                    let channel;
-                    try {
-                        channel = await attachedChannel.channelPromise;
-                    } catch {
-                        channel = null;
-                    }
+                // If our channel successfully resolved, then we need to detach it so we stop
+                // getting realtime messages.
+                await channel?.detach();
 
-                    await channel?.detach();
-                }
-            },
+                // Release from Ably as well so we don't have a memory leak since Ably keeps
+                // around references to channel objects.
+                this._client?.channels.release(channelName);
+            }
         };
+
+        return attachedChannel.channelPromise.then(
+            resolvedChannel => {
+                channel = resolvedChannel;
+                return {channel, decrementReferenceCount};
+            },
+            async error => {
+                await decrementReferenceCount();
+                throw error;
+            },
+        );
     }
 
     /**
@@ -198,12 +202,10 @@ class AblyRealtimeClient {
         channelName: string,
         listener: (message: SchemaSerializedValue) => void,
     ): Promise<() => Promise<void>> {
-        const {channelPromise, decrementReferenceCount} =
-            this._getAttachedChannelAndIncrementReferenceCount(channelName);
+        const {channel, decrementReferenceCount} =
+            await this._getAttachedChannelAndIncrementReferenceCount(channelName);
 
         try {
-            const channel = await channelPromise;
-
             const handleMessage = (message: Ably.Types.Message) => {
                 // Ignore message names we're unfamiliar with so we can evolve the
                 // protocol in the future.
@@ -235,25 +237,21 @@ const ablyRealtimeClient = new AblyRealtimeClient();
  * Subscribe to all messages from the provided network channel with the
  * provided key. Returns an async iterator so we can process messages with a
  * `for await ()` loop.
+ *
+ * To stop receiving messages, you should pass in an `AbortSignal`
  */
-export async function subscribeToMessagesFromNetworkChannel<
+export function subscribeToMessagesFromNetworkChannel<
     Key extends {[key: string]: string},
     Message extends {type: string},
 >(
     networkChannel: NetworkChannel<Key, Message>,
     key: BlockInference<Key>,
-): Promise<
-    AsyncIterableIterator<Message> & {
-        return(): void;
-        throw(error: unknown): void;
-    }
-> {
+    {signal}: {signal: AbortSignal},
+): AsyncIterableIterator<Message> {
     const ablyChannelName = getAblyChannelNameForNetworkChannel(networkChannel, key);
 
-    const iterator = await subscribeToMessagesFromAblyChannel(ablyChannelName);
-
-    const mappedIterator: AsyncIterableIterator<Message> = asyncIterableIteratorMap(
-        iterator,
+    return asyncIterableIteratorMap(
+        subscribeToMessagesFromAblyChannel(ablyChannelName, {signal}),
         message => {
             try {
                 return networkChannel.messageSchema.deserialize(message);
@@ -267,109 +265,32 @@ export async function subscribeToMessagesFromNetworkChannel<
             }
         },
     );
-
-    // eslint-disable-next-line @typescript-eslint/unbound-method
-    assert(mappedIterator.return);
-    // eslint-disable-next-line @typescript-eslint/unbound-method
-    assert(mappedIterator.throw);
-
-    return mappedIterator as any;
 }
 
-async function subscribeToMessagesFromAblyChannel(channelName: string): Promise<
-    AsyncIterableIterator<SchemaSerializedValue> & {
-        return(): void;
-        throw(error: unknown): void;
-    }
-> {
-    type Step = IteratorResult<SchemaSerializedValue, undefined>;
+async function* subscribeToMessagesFromAblyChannel(
+    channelName: string,
+    {signal}: {signal: AbortSignal},
+): AsyncIterableIterator<SchemaSerializedValue> {
+    let nextPromiseResolver = createPromiseResolver<SchemaSerializedValue>();
 
-    // We use a `Result` so that we can create a fresh `Promise` every
-    // time `next()` is called so that unhandled rejections are detected
-    // separately for each `next()` call.
-    let finalResult: Result<Step, unknown> | null = null;
+    const handleMessage = (message: SchemaSerializedValue) => {
+        nextPromiseResolver.resolve(message);
+        nextPromiseResolver = createPromiseResolver();
+    };
 
-    const resolverQueue: Array<PromiseResolver<Step>> = [];
-    const messageQueue: Array<SchemaSerializedValue> = [];
+    const unsubscribe = await ablyRealtimeClient.subscribe(channelName, handleMessage);
 
-    function handleMessage(message: SchemaSerializedValue) {
-        if (finalResult !== null) return;
+    try {
+        const abortPromise = waitForAbort(signal);
 
-        const resolver = resolverQueue.shift();
-        if (resolver) {
-            resolver.resolve({done: false, value: message});
-        } else {
-            messageQueue.push(message);
+        while (true) {
+            // Our promise resolver awaits forever if there are no new messages. So we race
+            // it with an `AbortSignal` so we can abort subscribing to messages.
+            const message = await Promise.race([nextPromiseResolver.promise, abortPromise]);
+
+            yield message;
         }
+    } finally {
+        await unsubscribe();
     }
-
-    const actuallyUnsubscribe = await ablyRealtimeClient.subscribe(channelName, handleMessage);
-
-    let isUnsubscribed = false;
-
-    // Once the iterator has finished (`return` or `throw` was called) then
-    // unsubscribe from the channel.
-    //
-    // We should only unsubscribe once since we'll only subscribe once.
-    const unsubscribe = async () => {
-        if (isUnsubscribed) return;
-        isUnsubscribed = true;
-
-        await actuallyUnsubscribe();
-    };
-
-    const iterator: AsyncIterableIterator<SchemaSerializedValue> & {
-        return(): void;
-        throw(error: unknown): void;
-    } = {
-        [Symbol.asyncIterator]: () => iterator,
-        next: () => {
-            // One of the queues must be empty at all times. If both queues have
-            // an item at the same time then we have a bug in our code.
-            assert(resolverQueue.length === 0 || messageQueue.length === 0);
-
-            // When we end we return the same result forever.
-            if (finalResult !== null) return unwrapResultPromise(finalResult);
-
-            // Exhaust the response queue in the case where we haven’t had
-            // resolvers waiting for values.
-            const message = messageQueue.shift();
-            if (message) return Promise.resolve({done: false, value: message});
-
-            // If we have no ready responses then create a resolver which will be
-            // called the next time we get data.
-            const resolver = createPromiseResolver<Step>();
-            resolverQueue.push(resolver);
-            return resolver.promise;
-        },
-        return: () => {
-            // When we end we return the same result forever.
-            if (finalResult !== null) return unwrapResultPromise(finalResult);
-
-            const result: Step = {done: true, value: undefined};
-            finalResult = {ok: true, value: result};
-            for (const {resolve} of resolverQueue) resolve(result);
-            resolverQueue.length = 0;
-            messageQueue.length = 0;
-
-            // Unsubscribe after exhausting our resolver queue. If unsubscribing
-            // fails we don't want those promises to hang.
-            return unsubscribe().then(() => Promise.resolve(result));
-        },
-        throw: (error: unknown) => {
-            // When we end we return the same result forever.
-            if (finalResult !== null) return unwrapResultPromise(finalResult);
-
-            finalResult = {ok: false, error};
-            for (const {reject} of resolverQueue) reject(error);
-            resolverQueue.length = 0;
-            messageQueue.length = 0;
-
-            // Unsubscribe after exhausting our resolver queue. If unsubscribing
-            // fails we don't want those promises to hang.
-            return unsubscribe().then(() => Promise.reject(error));
-        },
-    };
-
-    return iterator;
 }

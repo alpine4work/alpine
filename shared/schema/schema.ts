@@ -992,27 +992,18 @@ export class UnionSchema<Value extends {readonly type: string}> extends Schema<V
                 // Use the type to select the schema we'll use to parse the value.
                 const serializedType: string = value.type;
 
-                const deserializedValue = withSchemaDeserializationStackFrame(
-                    {type: "UnionVariant", typeKey: "type", typeValue: serializedType},
-                    () => {
-                        // Always use the serialized type name, never use the current type name in
-                        // code. We don't have code that will serialize using the current type name.
-                        //
-                        // This makes static analysis on the schema a bit easier. Since we don't need
-                        // to consider two possible types.
-                        //
-                        // We may want to consider a migration path in the future where both types are
-                        // temporarily allowed until one type fully replaces the other.
-                        const schema = schemaBySerializedType.get(serializedType);
-                        if (schema === undefined) return null;
-                        return schema.deserialize(value) as any;
-                    },
-                );
+                // Always use the serialized type name, never use the current type name in
+                // code. We don't have code that will serialize using the current type name.
+                //
+                // This makes static analysis on the schema a bit easier. Since we don't need
+                // to consider two possible types.
+                //
+                // We may want to consider a migration path in the future where both types are
+                // temporarily allowed until one type fully replaces the other.
+                const schema = schemaBySerializedType.get(serializedType);
+                if (schema === undefined) throw new SchemaDeserializationError("Unknown type");
 
-                if (deserializedValue === null)
-                    throw new SchemaDeserializationError("Unknown type");
-
-                return deserializedValue;
+                return schema.deserialize(value) as any;
             },
         });
     }
