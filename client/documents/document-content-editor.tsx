@@ -3,12 +3,10 @@ import {Step} from "prosemirror-transform";
 import {useEffect, useReducer, useState} from "react";
 import {ContentEditor, ContentEditorState} from "~/client/content/content-editor";
 import {sprinkles} from "~/client/design/sprinkles.css";
-import {subscribeToMessagesFromNetworkChannel} from "~/client/network/subscribe-to-messages-from-network-channel";
+import {useNetworkChannel} from "~/client/network/use-network-channel";
 import {DocumentContent} from "~/shared/documents/document-content-schema";
 import {DocumentModel, getDocumentContentTitle} from "~/shared/documents/document-model";
-import {CancelledError} from "~/shared/error/error";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run-promise-without-awaiting";
-import {scheduleException} from "~/shared/helpers/async/schedule-exception";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {Id} from "~/shared/id/id";
@@ -202,57 +200,16 @@ function DocumentContentEditorStateful({initialDocument}: {initialDocument: Docu
         // need one for correctness.
     });
 
-    // TODO(calebmer): I probably want a custom hook. This is hacky becuz I
-    // am tired.
-    useEffect(() => {
-        const abortController = new AbortController();
-
-        // TODO(calebmer): Handle errors??
-        const iterator = subscribeToMessagesFromNetworkChannel(
-            DocumentNetworkChannel,
-            {documentId},
-            {signal: abortController.signal},
-        );
-
-        let isCancelled = false;
-        const cancelError = new CancelledError("Unsubscribed from network channel");
-        const cancel = () => abortController.abort(cancelError);
-
-        const loop = () => {
-            if (isCancelled) return;
-
-            iterator.next().then(
-                result => {
-                    if (isCancelled || result.done) return;
-
-                    dispatch({
-                        type: "ReceiveSteps",
-                        newVersion: result.value.newVersion,
-                        steps: result.value.steps.map(step => ({
-                            step,
-                            clientId: result.value.clientId,
-                        })),
-                    });
-
-                    loop();
-                },
-                error => {
-                    // If this is the error from our `AbortSignal` then we can ignore it since
-                    // it's expected.
-                    if (error === cancelError) return;
-
-                    scheduleException(error);
-                },
-            );
-        };
-
-        loop();
-
-        return () => {
-            isCancelled = true;
-            cancel();
-        };
-    }, [documentId]);
+    useNetworkChannel(DocumentNetworkChannel, {documentId}, message => {
+        dispatch({
+            type: "ReceiveSteps",
+            newVersion: message.newVersion,
+            steps: message.steps.map(step => ({
+                step,
+                clientId: message.clientId,
+            })),
+        });
+    });
 
     return (
         <>

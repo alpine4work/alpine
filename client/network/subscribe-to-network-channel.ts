@@ -240,7 +240,7 @@ const ablyRealtimeClient = new AblyRealtimeClient();
  *
  * To stop receiving messages, you should pass in an `AbortSignal`
  */
-export function subscribeToMessagesFromNetworkChannel<
+export function subscribeToNetworkChannel<
     Key extends {[key: string]: string},
     Message extends {type: string},
 >(
@@ -250,24 +250,21 @@ export function subscribeToMessagesFromNetworkChannel<
 ): AsyncIterableIterator<Message> {
     const ablyChannelName = getAblyChannelNameForNetworkChannel(networkChannel, key);
 
-    return asyncIterableIteratorMap(
-        subscribeToMessagesFromAblyChannel(ablyChannelName, {signal}),
-        message => {
-            try {
-                return networkChannel.messageSchema.deserialize(message);
-            } catch (error) {
-                // Reclassify deserialization errors as internal errors if we can't deserialize
-                // the data coming from our network channel WebSocket.
-                if (error instanceof SchemaDeserializationError) {
-                    throw new InternalError(error.message, {cause: error});
-                }
-                throw error;
+    return asyncIterableIteratorMap(subscribeToAblyChannel(ablyChannelName, {signal}), message => {
+        try {
+            return networkChannel.messageSchema.deserialize(message);
+        } catch (error) {
+            // Reclassify deserialization errors as internal errors if we can't deserialize
+            // the data coming from our network channel WebSocket.
+            if (error instanceof SchemaDeserializationError) {
+                throw new InternalError(error.message, {cause: error});
             }
-        },
-    );
+            throw error;
+        }
+    });
 }
 
-async function* subscribeToMessagesFromAblyChannel(
+async function* subscribeToAblyChannel(
     channelName: string,
     {signal}: {signal: AbortSignal},
 ): AsyncIterableIterator<SchemaSerializedValue> {

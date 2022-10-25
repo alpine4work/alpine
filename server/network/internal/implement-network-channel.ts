@@ -12,7 +12,7 @@ export type NetworkChannelImplementation = {
  * Implements authorization for a network channel on the server. Network
  * channels are defined in `~/shared/network` and authorization is implemented
  * in `~/server/network`. Any code in `~/server` can publish a message to a
- * channel with `publishMessageToNetworkChannel()`.
+ * channel with `publishToNetworkChannel()`.
  *
  * Throw a `PermissionDeniedError` error if the current user is unauthorized to
  * access a channel.

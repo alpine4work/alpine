@@ -12,8 +12,8 @@ export type NetworkChannelMessageType<Channel extends NetworkChannel<any, any>> 
  * [Ably][2].
  *
  * Currently, you may only publish messages on the server using the
- * `publishMessageToNetworkChannel()` function and you may only subscribe to
- * messages on the client using the `subscribeToMessagesFromNetworkChannel()`
+ * `publishToNetworkChannel()` function and you may only subscribe to
+ * messages on the client using the `subscribeToNetworkChannel()`
  * function.
  *
  * The server is allowed to publish any message. We assume it's properly

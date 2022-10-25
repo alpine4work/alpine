@@ -14,7 +14,7 @@ const ablyRest = new Ably.Rest.Promise({key: process.env.ABLY_API_KEY});
 /**
  * Publish a message to a network channel.
  */
-export async function publishMessageToNetworkChannel<
+export async function publishToNetworkChannel<
     Key extends {[key: string]: string},
     Message extends {type: string},
 >(

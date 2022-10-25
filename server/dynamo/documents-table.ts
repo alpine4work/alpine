@@ -6,7 +6,7 @@ import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is-dynamo-co
 import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry-dynamo-condition-check-errors";
 import {TestCheckpoint} from "~/server/helpers/test/test-checkpoint";
 import {TestCounter} from "~/server/helpers/test/test-counter";
-import {publishMessageToNetworkChannel} from "~/server/network/publish-message-to-network-channel";
+import {publishToNetworkChannel} from "~/server/network/publish-to-network-channel";
 import {
     DocumentContent,
     DocumentContentSchema,
@@ -1092,7 +1092,7 @@ export async function updateDocumentContent({
     // TODO(calebmer): Lint rule that all `await`s which can be parallelized are
     // indeed parallelized.
     await runAllPromises([
-        publishMessageToNetworkChannel(
+        publishToNetworkChannel(
             DocumentNetworkChannel,
             {documentId: id},
             {
