@@ -2,7 +2,6 @@ import {base64ToBytes, bytesToBase64} from "byte-base64";
 import {InvalidArgumentError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {omitFromStackTrace} from "~/shared/helpers/control/omit-from-stack-trace";
 import {hasOwnProperty} from "~/shared/helpers/object/has-own-property";
 import {isPlainObject} from "~/shared/helpers/object/is-plain-object";
 import {isIdentifier} from "~/shared/helpers/string/is-identifier";
@@ -167,11 +166,11 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     public static boolean = new Schema<boolean>({
         description: {type: "Boolean"},
         serialize: value => value,
-        deserialize: omitFromStackTrace(value => {
+        deserialize: value => {
             if (typeof value !== "boolean")
                 throw new SchemaDeserializationError("Expected boolean");
             return value;
-        }),
+        },
     });
 
     /**
@@ -184,10 +183,10 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     public static float = new Schema<number>({
         description: {type: "Float"},
         serialize: value => value,
-        deserialize: omitFromStackTrace(value => {
+        deserialize: value => {
             if (typeof value !== "number") throw new SchemaDeserializationError("Expected number");
             return value;
-        }),
+        },
     });
 
     /**
@@ -203,14 +202,14 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
             assert(Number.isSafeInteger(value));
             return value;
         },
-        deserialize: omitFromStackTrace(value => {
+        deserialize: value => {
             if (typeof value !== "number") throw new SchemaDeserializationError("Expected number");
 
             if (!Number.isSafeInteger(value))
                 throw new SchemaDeserializationError("Expected number");
 
             return value;
-        }),
+        },
     });
 
     /**
@@ -219,10 +218,10 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     public static string = new Schema<string>({
         description: {type: "String"},
         serialize: value => value,
-        deserialize: omitFromStackTrace(value => {
+        deserialize: value => {
             if (typeof value !== "string") throw new SchemaDeserializationError("Expected string");
             return value;
-        }),
+        },
     });
 
     /**
@@ -231,11 +230,11 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     public static id = new Schema<Id>({
         description: {type: "Id"},
         serialize: value => value,
-        deserialize: omitFromStackTrace(value => {
+        deserialize: value => {
             if (typeof value !== "string") throw new SchemaDeserializationError("Expected string");
             if (!isId(value)) throw new SchemaDeserializationError("Expected id");
             return value;
-        }),
+        },
     });
 
     /**
@@ -251,7 +250,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
         serialize: value => {
             return new JsonStringifiableUint8Array(value);
         },
-        deserialize: omitFromStackTrace(value => {
+        deserialize: value => {
             if (value instanceof Uint8Array) return value;
 
             if (typeof value !== "string")
@@ -262,7 +261,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
             } catch {
                 throw new SchemaDeserializationError("Unable to parse base64 string");
             }
-        }),
+        },
     });
 
     /**
@@ -278,10 +277,10 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
                 if (value === null) return null;
                 return this.serialize(value);
             },
-            deserialize: omitFromStackTrace(value => {
+            deserialize: value => {
                 if (value === null) return null;
                 return this.deserialize(value);
-            }),
+            },
         });
     }
 
@@ -333,7 +332,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
                 itemSchema: itemSchema.description,
             },
             serialize: value => value.map(item => itemSchema.serialize(item)),
-            deserialize: omitFromStackTrace(value => {
+            deserialize: value => {
                 if (!Array.isArray(value))
                     throw new SchemaDeserializationError("Expected an array");
 
@@ -344,7 +343,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
                 }
 
                 return value;
-            }),
+            },
         });
     }
 
@@ -423,7 +422,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
                     return errorSchema.serialize(value);
                 }
             },
-            deserialize: omitFromStackTrace(value => {
+            deserialize: value => {
                 if (typeof value !== "object" || value === null)
                     throw new SchemaDeserializationError("Expected an object");
 
@@ -441,7 +440,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
                         () => errorSchema.deserialize(value),
                     );
                 }
-            }),
+            },
         });
     }
 
@@ -841,13 +840,13 @@ export class ValueSchema<Value extends string | number | boolean> extends Schema
         super({
             description: {type: "Value", value},
             serialize: value => value,
-            deserialize: omitFromStackTrace(actualValue => {
+            deserialize: actualValue => {
                 if (!Object.is(value, actualValue))
                     throw new SchemaDeserializationError(
                         `Expected value to be ${JSON.stringify(value)}`,
                     );
                 return actualValue as Value;
-            }),
+            },
         });
         this.value = value;
     }
