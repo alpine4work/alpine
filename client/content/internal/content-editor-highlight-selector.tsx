@@ -279,7 +279,7 @@ function ContentEditorHighlightSelectorButton({
                                 alignItems="center"
                                 width="4"
                                 height="4"
-                                borderRadius="sm"
+                                borderRadius="small"
                                 color="grey-100"
                                 backgroundColor={
                                     highlightColor

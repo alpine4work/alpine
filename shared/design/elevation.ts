@@ -14,12 +14,5 @@ export const elevation = {
         "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1), 0 0 1px rgb(0 0 0 / 0.3)",
     "elevation-40":
         "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1), 0 0 1px rgb(0 0 0 / 0.3)",
-    "elevation-50": "0 25px 50px -12px rgb(0 0 0 / 0.25), 0 0 1px rgb(0 0 0 / 0.2)",
+    "elevation-50": "0 25px 50px -12px rgb(0 0 0 / 0.25), 0 0 1px rgb(0 0 0 / 0.3)",
 } as const;
-
-/**
- * Save as `elevation-20` but with less opacity because tooltips are smaller
- * and lighter.
- */
-export const tooltipBoxShadow =
-    "0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05), 0 0 1px rgb(0 0 0 / 0.3)";

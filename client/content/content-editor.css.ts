@@ -52,13 +52,13 @@ export const unfocusedSelectionClassName = style({
     // the height of the operating system text selection. Only tested on MacOS so
     // far. Maybe there's a better way?
     paddingTop: `calc(${
-        (parseRemLengthNumber(fontScale.base.lineHeight) -
-            parseRemLengthNumber(fontScale.base.fontSize)) /
+        (parseRemLengthNumber(fontScale.body.lineHeight) -
+            parseRemLengthNumber(fontScale.body.fontSize)) /
         2
     }rem - 2px)`,
     paddingBottom: `calc(${
-        (parseRemLengthNumber(fontScale.base.lineHeight) -
-            parseRemLengthNumber(fontScale.base.fontSize)) /
+        (parseRemLengthNumber(fontScale.body.lineHeight) -
+            parseRemLengthNumber(fontScale.body.fontSize)) /
         2
     }rem - 1px)`,
 });

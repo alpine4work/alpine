@@ -14,7 +14,7 @@ import {assert} from "~/shared/helpers/control/assert";
 
 // Since we use the `fontScale.base` line height as our default, let's make
 // sure the font size is 1rem.
-assert(fontScale.base.fontSize === "1rem");
+assert(fontScale.body.fontSize === "1rem");
 
 globalStyle(":root", {
     backgroundColor: colorSchemeVars["grey-0"],
@@ -23,8 +23,8 @@ globalStyle(":root", {
 
     // Change the size of 1rem based on whether we're on desktop or mobile.
     fontSize: remPxByPlatform.desktop,
-    lineHeight: fontScale.base.lineHeight,
-    letterSpacing: fontScale.base.letterSpacing,
+    lineHeight: fontScale.body.lineHeight,
+    letterSpacing: fontScale.body.letterSpacing,
     "@media": {
         [mobilePlatformMediaQuery]: {
             fontSize: remPxByPlatform.mobile,
@@ -44,9 +44,7 @@ globalStyle(":root", {
 globalStyle("body", {
     // Actually use `sm` as the default size. We want our default font to be
     // ideal for system text not user content.
-    fontSize: fontScale.sm.fontSize,
-    lineHeight: fontScale.sm.lineHeight,
-    letterSpacing: fontScale.sm.letterSpacing,
+    ...fontScale.small,
 });
 
 globalStyle("html, body, #__next", {

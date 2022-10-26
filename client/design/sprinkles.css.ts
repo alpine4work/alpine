@@ -54,7 +54,7 @@ const properties = defineProperties({
         userSelect: ["auto", "none", "text", "all"],
         borderRadius: {
             none: "0rem",
-            sm: "0.125rem",
+            small: "0.125rem",
             base: "0.25rem",
             full: "9999px",
         },
@@ -142,7 +142,7 @@ const responsiveProperties = defineProperties({
         maxHeight: spacingWithPercentages,
 
         // We intend for font properties to be used with the `font` shorthand. So you
-        // can say `font="sm"` and get the appropriate size, line height, and letter
+        // can say `font="small"` and get the appropriate size, line height, and letter
         // spacing at once.
         fontSize: mapObjectValues(fontScale, ({fontSize}) => fontSize),
         lineHeight: mapObjectValues(fontScale, ({lineHeight}) => lineHeight),

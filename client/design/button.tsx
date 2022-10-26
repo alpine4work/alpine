@@ -31,7 +31,7 @@ function Button(
                     backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
                     borderRadius: "base",
                     color: "grey-100",
-                    font: "sm",
+                    font: "small",
                     // You may notice our button doesn't have a pointer cursor. See:
                     // https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
                     cursor: "default",

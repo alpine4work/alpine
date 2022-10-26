@@ -20,45 +20,60 @@ export const monospaceFontFamily =
  * The font scale for our product.
  */
 export const fontScale = {
-    xs: {
-        fontSize: "0.5rem",
+    tiny: {
+        fontSize: "0.625rem",
         lineHeight: "1rem",
-        letterSpacing: "0.04em",
+        letterSpacing: "0.03em",
     },
-    sm: {
+    small: {
         fontSize: "0.75rem",
-        lineHeight: "1.125rem",
-        letterSpacing: "0.01em",
+        lineHeight: "1rem",
+        letterSpacing: "0.02em",
     },
-    base: {
+    body: {
         fontSize: "1rem",
         lineHeight: "1.5rem",
         letterSpacing: "0em",
     },
-    lg: {
-        fontSize: "1.5rem",
+    heading5: {
+        fontSize: "1.25rem",
         lineHeight: "2rem",
         letterSpacing: "0em",
     },
-    xl: {
-        fontSize: "2rem",
+    heading4: {
+        fontSize: "1.75rem",
+        lineHeight: "2rem",
+        letterSpacing: "0em",
+    },
+    heading3: {
+        fontSize: "2.25rem",
         lineHeight: "2.5rem",
         letterSpacing: "0em",
     },
-    "2xl": {
+    heading2: {
         fontSize: "3rem",
-        lineHeight: "3.5rem",
+        lineHeight: "3rem",
         letterSpacing: "0em",
     },
-    "3xl": {
-        fontSize: "4rem",
+    heading1: {
+        fontSize: "4.25rem",
         lineHeight: "4.5rem",
-        letterSpacing: "-0.01em",
+        letterSpacing: "0em",
     },
-    "4xl": {
-        fontSize: "6rem",
-        lineHeight: "6.5rem",
-        letterSpacing: "-0.02em",
+    hero3: {
+        fontSize: "5.625rem",
+        lineHeight: "5.5rem",
+        letterSpacing: "0em",
+    },
+    hero2: {
+        fontSize: "7.5rem",
+        lineHeight: "7rem",
+        letterSpacing: "0em",
+    },
+    hero1: {
+        fontSize: "10rem",
+        lineHeight: "9rem",
+        letterSpacing: "0em",
     },
 } as const;
 

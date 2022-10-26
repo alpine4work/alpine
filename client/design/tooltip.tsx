@@ -31,7 +31,6 @@ import {
     uninterruptedThoughtLimitMs,
 } from "~/client/design/timing-constants";
 import {useIsMounted} from "~/client/helpers/lifecycle/use-is-mounted";
-import {tooltipBoxShadow} from "~/shared/design/elevation";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {isDeepEqual} from "~/shared/helpers/control/is-deep-equal";
@@ -533,7 +532,7 @@ function Tooltip(
                 visible={visible}
                 placement={placement}
                 canFlip={canFlip}
-                offset="1.5"
+                offset="2"
                 overlay={
                     <Box
                         ref={tooltipRef}
@@ -545,10 +544,11 @@ function Tooltip(
                         <Box
                             paddingX="1.5"
                             paddingY="0.5"
-                            font="sm"
+                            font="small"
                             color="grey-100"
-                            backgroundColor={{light: "grey-0", dark: "grey-10"}}
+                            backgroundColor={{light: "grey-0", dark: "grey-5"}}
                             borderRadius="base"
+                            boxShadow="elevation-10"
                             className={
                                 state.isFadingOut
                                     ? overlayAnimateFadeOutClassName
@@ -556,7 +556,6 @@ function Tooltip(
                                     ? overlayAnimateFadeInClassName
                                     : undefined
                             }
-                            style={{boxShadow: tooltipBoxShadow}}
                         >
                             {content}
                         </Box>

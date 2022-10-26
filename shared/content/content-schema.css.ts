@@ -32,7 +32,7 @@ export const titlePaddingTop = spacing["24"];
 
 export const titleClassName = style({
     ...blockStyles,
-    ...fontScale["2xl"],
+    ...fontScale.heading2,
     fontWeight: fontWeights.bold,
     paddingTop: titlePaddingTop,
     marginBottom: paragraphMargin,
@@ -40,14 +40,14 @@ export const titleClassName = style({
 
 export const paragraphClassName = style({
     ...blockStyles,
-    ...fontScale.base,
+    ...fontScale.body,
     marginTop: paragraphMargin,
     marginBottom: paragraphMargin,
 });
 
 export const headingLevel1ClassName = style({
     ...blockStyles,
-    ...fontScale.xl,
+    ...fontScale.heading3,
     fontWeight: fontWeights.bold,
     marginTop: headerTopMargin,
     marginBottom: paragraphMargin,
@@ -55,7 +55,7 @@ export const headingLevel1ClassName = style({
 
 export const headingLevel2ClassName = style({
     ...blockStyles,
-    ...fontScale.lg,
+    ...fontScale.heading4,
     fontWeight: fontWeights.bold,
     marginTop: headerTopMargin,
     marginBottom: paragraphMargin,
@@ -63,7 +63,7 @@ export const headingLevel2ClassName = style({
 
 export const headingLevel3ClassName = style({
     ...blockStyles,
-    ...fontScale.base,
+    ...fontScale.heading5,
     fontWeight: fontWeights.bold,
     marginTop: headerTopMargin,
     marginBottom: paragraphMargin,
@@ -133,7 +133,7 @@ export const orderedListItemClassName = style({
             left: `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${spacing["6"]})`,
             textAlign: "right",
             transform: "translateX(-100%)",
-            ...fontScale.base,
+            ...fontScale.body,
             fontVariantNumeric: "tabular-nums",
         },
     },
