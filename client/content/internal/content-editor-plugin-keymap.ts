@@ -688,7 +688,7 @@ export function buildKeymapPlugin(schema: ContentProsemirrorSchema) {
     keys.set("Mod-shift-k", createToggleMarkCommand(schema.mark("code")));
 
     // Highlight overlay
-    if (schema.nodes.highlight) {
+    if (schema.marks.highlight) {
         keys.set("Mod-shift-h", (state, dispatch) => {
             // Only open highlight color selector if we're selecting some text.
             if (state.selection.from === state.selection.to) {
