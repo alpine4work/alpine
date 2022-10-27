@@ -1,10 +1,28 @@
 import {ObjectSchema, UnionSchema} from "~/shared/schema/schema";
 
-export type NetworkChannelKeyType<Channel extends NetworkChannel<any, any>> =
-    Channel extends NetworkChannel<infer Key, any> ? Key : never;
+export type NetworkChannelKeyType<Definition extends NetworkChannel<any, any>> =
+    Definition extends NetworkChannel<infer Key, any> ? Key : never;
 
-export type NetworkChannelMessageType<Channel extends NetworkChannel<any, any>> =
-    Channel extends NetworkChannel<any, infer Message> ? Message : never;
+export type NetworkChannelMessageType<Definition extends NetworkChannel<any, any>> =
+    Definition extends NetworkChannel<any, infer Message> ? Message : never;
+
+export interface NetworkChannelBase<Key extends {[key: string]: string}> {
+    /**
+     * The name of the channel.
+     *
+     * Must be an identifier that starts with an uppercase letter.
+     */
+    readonly name: string;
+
+    /**
+     * The schema for the channel key. All properties in the key should be strings.
+     * The key identifies the specific object messages in the channel are about. It
+     * controls message filtering (on the message broker side) and authentication.
+     * Clients will only get messages from the channel for the specific,
+     * requested, key.
+     */
+    readonly keySchema: ObjectSchema<Key>;
+}
 
 /**
  * A channel to which messages are published using a [publish-subscribe
@@ -23,26 +41,8 @@ export type NetworkChannelMessageType<Channel extends NetworkChannel<any, any>> 
  * [1]: https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern
  * [2]: https://ably.com
  */
-export interface NetworkChannel<
-    Key extends {[key: string]: string},
-    Message extends {type: string},
-> {
-    /**
-     * The name of the channel.
-     *
-     * Must be an identifier that starts with an uppercase letter.
-     */
-    readonly name: string;
-
-    /**
-     * The schema for the channel key. All properties in the key should be strings.
-     * The key identifies the specific object messages in the channel are about. It
-     * controls message filtering (on the message broker side) and authentication.
-     * Clients will only get messages from the channel for the specific,
-     * requested, key.
-     */
-    readonly keySchema: ObjectSchema<Key>;
-
+export interface NetworkChannel<Key extends {[key: string]: string}, Message extends {type: string}>
+    extends NetworkChannelBase<Key> {
     /**
      * The schema for a message published on the channel. When subscribing to a
      * channel, the client gets every message.

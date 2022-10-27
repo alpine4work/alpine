@@ -1,3 +1,4 @@
+import {getSessionFromAsyncLocalStorage} from "~/server/session/session-async-local-storage";
 import {assert} from "~/shared/helpers/control/assert";
 import {quote} from "~/shared/helpers/string/quote";
 import {BlockInference} from "~/shared/helpers/types/block-inference";
@@ -27,6 +28,8 @@ export function implementNetworkFunction<Input, Output>(
     const execute = async (
         serializedInput: SchemaSerializedValue,
     ): Promise<SchemaSerializedValue> => {
+        console.log("DEBUG 5", getSessionFromAsyncLocalStorage());
+
         const input = networkFunction.inputSchema.deserialize(serializedInput);
         const output = (await implementation(input)) as Output;
         return networkFunction.outputSchema.serialize(output);

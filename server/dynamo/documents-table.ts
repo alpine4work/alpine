@@ -33,7 +33,7 @@ import {iterableFlatMap} from "~/shared/helpers/iterable/iterable-flat-map";
 import {iterableMap} from "~/shared/helpers/iterable/iterable-map";
 import {clamp} from "~/shared/helpers/number/clamp";
 import {Id} from "~/shared/id/id";
-import {DocumentNetworkChannel} from "~/shared/network/documents-network-definition";
+import {DocumentChannel} from "~/shared/network/documents-network-definition";
 import {Schema} from "~/shared/schema/schema";
 
 const DocumentsTable = DynamoTableSchema.new({
@@ -1093,7 +1093,7 @@ export async function updateDocumentContent({
     // indeed parallelized.
     await runAllPromises([
         publishToNetworkChannel(
-            DocumentNetworkChannel,
+            DocumentChannel,
             {documentId: id},
             {
                 type: "UpdateContent",

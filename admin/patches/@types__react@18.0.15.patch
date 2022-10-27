@@ -1,0 +1,44 @@
+diff --git a/index.d.ts b/index.d.ts
+index 50f1817d786262b69d1ea72fba99c37ca8169ebb..d1c167e161d8360d3d70b53e236d706cc591f2ef 100755
+--- a/index.d.ts
++++ b/index.d.ts
+@@ -62,6 +62,8 @@ type VoidOrUndefinedOnly = void | { [UNDEFINED_VOID_ONLY]: never };
+ export = React;
+ export as namespace React;
+ 
++declare const MEMO: unique symbol;
++
+ declare namespace React {
+     //
+     // React Elements
+@@ -879,6 +881,12 @@ declare namespace React {
+         current: T;
+     }
+ 
++    /**
++     * A value that has been memoized by `useMemo()` or `useCallback()` and so is safe to use as an
++     * effect dependency.
++     */
++    type Memo<T> = T & {[MEMO]: never};
++
+     // This will technically work if you give a Consumer<T> or Provider<T> but it's deprecated and warns
+     /**
+      * Accepts a context object (the value returned from `React.createContext`) and returns the current
+@@ -1080,7 +1088,7 @@ declare namespace React {
+     // A specific function type would not trigger implicit any.
+     // See https://github.com/DefinitelyTyped/DefinitelyTyped/issues/52873#issuecomment-845806435 for a comparison between `Function` and more specific types.
+     // tslint:disable-next-line ban-types
+-    function useCallback<T extends Function>(callback: T, deps: DependencyList): T;
++    function useCallback<T extends Function>(callback: T, deps: DependencyList): Memo<T>;
+     /**
+      * `useMemo` will only recompute the memoized value when one of the `deps` has changed.
+      *
+@@ -1088,7 +1096,7 @@ declare namespace React {
+      * @see https://reactjs.org/docs/hooks-reference.html#usememo
+      */
+     // allow undefined, but don't make it optional as that is very likely a mistake
+-    function useMemo<T>(factory: () => T, deps: DependencyList | undefined): T;
++    function useMemo<T>(factory: () => T, deps: DependencyList | undefined): Memo<T>;
+     /**
+      * `useDebugValue` can be used to display a label for custom hooks in React DevTools.
+      *

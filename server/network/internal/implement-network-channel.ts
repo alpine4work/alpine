@@ -1,11 +1,12 @@
-import {InvalidArgumentError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {quote} from "~/shared/helpers/string/quote";
 import {NetworkChannel} from "~/shared/network/network-channel";
-import {SchemaSerializedValue} from "~/shared/schema/schema";
+import {ObjectSchema} from "~/shared/schema/schema";
 
-export type NetworkChannelImplementation = {
-    authorize(channelName: string): Promise<void>;
+export type NetworkChannelImplementation<Key extends {[key: string]: string}> = {
+    readonly type: "Channel";
+    readonly keySchema: ObjectSchema<Key>;
+    authorize(key: Key): Promise<void>;
 };
 
 /**
@@ -20,47 +21,22 @@ export type NetworkChannelImplementation = {
 export function implementNetworkChannelAuthorization<
     Key extends {[key: string]: string},
     Message extends {type: string},
->(networkChannel: NetworkChannel<Key, Message>, implementation: (key: Key) => Promise<void>) {
+>(channel: NetworkChannel<Key, Message>, authorize: (key: Key) => Promise<void>) {
     assert(
-        !networkChannelImplementationByName.has(networkChannel.name),
-        quote`An implementation for network channel ${networkChannel.name} already exists`,
+        !networkChannelImplementationByName.has(channel.name),
+        quote`An implementation for network channel ${channel.name} already exists`,
     );
 
-    const authorize = async (channelName: string): Promise<void> => {
-        const channelNameParts = channelName.split(":");
-
-        if (channelNameParts[0] !== "network")
-            throw new InvalidArgumentError(
-                'Expected channel name to be in the "network" namespace',
-            );
-
-        if (!channelNameParts[1])
-            throw new InvalidArgumentError(
-                "Expected network channel name to be second part of channel name",
-            );
-
-        for (const channelNamePart of channelNameParts)
-            if (channelNamePart.includes("*"))
-                throw new InvalidArgumentError("Unexpected wildcard channel name part");
-
-        const serializedKey: SchemaSerializedValue = {};
-
-        let index = 2;
-        for (const [key, propertySchema] of networkChannel.keySchema.propertySchemaByKey) {
-            (serializedKey as any)[propertySchema.serializedKey ?? key] = channelNameParts[index++];
-        }
-
-        const key = networkChannel.keySchema.deserialize(serializedKey);
-
-        await implementation(key);
+    const implementation: NetworkChannelImplementation<Key> = {
+        type: "Channel",
+        keySchema: channel.keySchema,
+        authorize,
     };
 
-    networkChannelImplementationByName.set(networkChannel.name, {
-        authorize,
-    });
+    networkChannelImplementationByName.set(channel.name, implementation);
 }
 
-const networkChannelImplementationByName = new Map<string, NetworkChannelImplementation>();
+const networkChannelImplementationByName = new Map<string, NetworkChannelImplementation<any>>();
 
 /**
  * Get the names of all network functions that have been implemented.
@@ -77,6 +53,6 @@ export function getAllImplementedNetworkChannelNames(): IterableIterator<string>
  */
 export function getNetworkChannelImplementationIfExists(
     name: string,
-): NetworkChannelImplementation | null {
+): NetworkChannelImplementation<any> | null {
     return networkChannelImplementationByName.get(name) ?? null;
 }

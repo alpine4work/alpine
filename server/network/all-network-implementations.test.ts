@@ -2,6 +2,7 @@ import "~/server/network/all-network-implementations";
 
 import {getAllImplementedNetworkChannelNames} from "~/server/network/internal/implement-network-channel";
 import {getAllImplementedNetworkFunctionNames} from "~/server/network/internal/implement-network-function";
+import {getAllImplementedNetworkPresenceChannelNames} from "~/server/network/internal/implement-network-presence-channel";
 import {InternalError} from "~/shared/error/error";
 import {quote} from "~/shared/helpers/string/quote";
 // Allow this test to look at all defined network channels.
@@ -10,6 +11,9 @@ import {getAllDefinedNetworkChannelNames} from "~/shared/network/internal/define
 // Allow this test to look at all defined network functions.
 // eslint-disable-next-line no-internal-imports
 import {getAllDefinedNetworkFunctionNames} from "~/shared/network/internal/define-network-function";
+// Allow this test to look at all defined network functions.
+// eslint-disable-next-line no-internal-imports
+import {getAllDefinedNetworkPresenceChannelNames} from "~/shared/network/internal/define-network-presence-channel";
 
 test("all network function definitions have implementations", async () => {
     const allDefinedNetworkFunctionNames = getAllDefinedNetworkFunctionNames();
@@ -32,6 +36,21 @@ test("all network channel definitions have implementations", async () => {
         if (!allImplementedNetworkChannelNames.has(definedNetworkChannelName)) {
             throw new InternalError(
                 quote`Network channel ${definedNetworkChannelName} was defined but not implemented`,
+            );
+        }
+    }
+});
+
+test("all network presence channel definitions have implementations", async () => {
+    const allDefinedNetworkPresenceChannelNames = getAllDefinedNetworkPresenceChannelNames();
+    const allImplementedNetworkPresenceChannelNames = new Set(
+        getAllImplementedNetworkPresenceChannelNames(),
+    );
+
+    for (const definedNetworkPresenceChannelName of allDefinedNetworkPresenceChannelNames) {
+        if (!allImplementedNetworkPresenceChannelNames.has(definedNetworkPresenceChannelName)) {
+            throw new InternalError(
+                quote`Network presence channel ${definedNetworkPresenceChannelName} was defined but not implemented`,
             );
         }
     }

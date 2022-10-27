@@ -1,6 +1,7 @@
 import {assert} from "~/shared/helpers/control/assert";
 import {isIdentifier} from "~/shared/helpers/string/is-identifier";
 import {quote} from "~/shared/helpers/string/quote";
+import {hasDefinedNetworkPresenceChannelName} from "~/shared/network/internal/define-network-presence-channel";
 import {NetworkChannel} from "~/shared/network/network-channel";
 import {
     ObjectSchemaConfigBase,
@@ -40,9 +41,15 @@ export function defineNetworkChannel<
         "Network channel name should start with an upper case letter",
     );
 
+    // Channel names across our channels and specialized `NetworkPresenceChannel`s
+    // should be unique.
     assert(
         !definedNetworkChannelName.has(name),
         quote`A definition for a network channel named ${name} already exists`,
+    );
+    assert(
+        !hasDefinedNetworkPresenceChannelName(name),
+        quote`A definition for a network presence channel named ${name} already exists`,
     );
     definedNetworkChannelName.add(name);
 
@@ -63,4 +70,11 @@ const definedNetworkChannelName = new Set<string>();
  */
 export function getAllDefinedNetworkChannelNames(): IterableIterator<string> {
     return definedNetworkChannelName.values();
+}
+
+/**
+ * Has a network channel been defined with the provided name?
+ */
+export function hasDefinedNetworkChannelName(name: string): boolean {
+    return definedNetworkChannelName.has(name);
 }

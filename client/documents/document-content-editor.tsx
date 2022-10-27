@@ -4,6 +4,7 @@ import {useEffect, useReducer, useState} from "react";
 import {ContentEditor, ContentEditorState} from "~/client/content/content-editor";
 import {sprinkles} from "~/client/design/sprinkles.css";
 import {useNetworkChannel} from "~/client/network/use-network-channel";
+import {useNetworkPresenceChannel} from "~/client/network/use-network-presence-channel";
 import {DocumentContent} from "~/shared/documents/document-content-schema";
 import {DocumentModel, getDocumentContentTitle} from "~/shared/documents/document-model";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run-promise-without-awaiting";
@@ -11,7 +12,8 @@ import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {Id} from "~/shared/id/id";
 import {
-    DocumentNetworkChannel,
+    DocumentChannel,
+    DocumentEditorPresenceChannel,
     updateDocumentContent,
 } from "~/shared/network/documents-network-definition";
 
@@ -200,7 +202,7 @@ function DocumentContentEditorStateful({initialDocument}: {initialDocument: Docu
         // need one for correctness.
     });
 
-    useNetworkChannel(DocumentNetworkChannel, {documentId}, message => {
+    useNetworkChannel(DocumentChannel, {documentId}, message => {
         dispatch({
             type: "ReceiveSteps",
             newVersion: message.newVersion,
@@ -210,6 +212,14 @@ function DocumentContentEditorStateful({initialDocument}: {initialDocument: Docu
             })),
         });
     });
+
+    useNetworkPresenceChannel(
+        DocumentEditorPresenceChannel,
+        {documentId},
+        {
+            version: state.editorState.getVersion(),
+        },
+    );
 
     return (
         <>

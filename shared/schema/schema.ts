@@ -7,9 +7,11 @@ import {isIdentifier} from "~/shared/helpers/string/is-identifier";
 import {Optionalize} from "~/shared/helpers/types/optionalize";
 import {Id, isId} from "~/shared/id/id";
 import {
-    SchemaSerializedValueDescription,
     SchemaSerializedObjectValuePropertyDescription,
+    SchemaSerializedValueDescription,
 } from "~/shared/schema/types/schema-description-types";
+
+// TODO(calebmer): Rename serialize/deserialize to encode/decode.
 
 /**
  * Get the underlying type of a schema object.

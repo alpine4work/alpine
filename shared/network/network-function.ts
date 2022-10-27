@@ -1,5 +1,11 @@
 import {ObjectSchema} from "~/shared/schema/schema";
 
+export type NetworkFunctionInputType<Definition extends NetworkFunction<any, any>> =
+    Definition extends NetworkFunction<infer Input, any> ? Input : never;
+
+export type NetworkFunctionOutputType<Definition extends NetworkFunction<any, any>> =
+    Definition extends NetworkFunction<any, infer Output> ? Output : never;
+
 /**
  * A function that is implemented on the server and can be called from the
  * client using an HTTP interface. Also known as a remote procedure which is

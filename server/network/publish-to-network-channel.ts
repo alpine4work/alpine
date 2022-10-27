@@ -18,11 +18,11 @@ export async function publishToNetworkChannel<
     Key extends {[key: string]: string},
     Message extends {type: string},
 >(
-    networkChannel: NetworkChannel<Key, Message>,
+    channel: NetworkChannel<Key, Message>,
     key: BlockInference<Key>,
     message: BlockInference<Message>,
 ): Promise<void> {
-    const ablyChannelName = getAblyChannelNameForNetworkChannel(networkChannel, key);
+    const ablyChannelName = getAblyChannelNameForNetworkChannel(channel, key);
 
     // Immediately release the Ably channel after creating it so we don't have a
     // memory leak.
@@ -41,7 +41,7 @@ export async function publishToNetworkChannel<
     const ablyChannel = ablyRest.channels.get(ablyChannelName);
     ablyRest.channels.release(ablyChannelName);
 
-    const serializedMessage = networkChannel.messageSchema.serialize(message as Message);
+    const serializedMessage = channel.messageSchema.serialize(message as Message);
 
     // Actually publish the message.
     await ablyChannel.publish("message", serializedMessage);
