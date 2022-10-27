@@ -40,11 +40,11 @@ export type SchemaSerializedArrayValueDescription = {
 export type SchemaSerializedObjectValueDescription = {
     readonly type: "Object";
     readonly propertySchemaByKey: {
-        readonly [key: string]: SchemaObjectPropertyDescription;
+        readonly [key: string]: SchemaSerializedObjectValuePropertyDescription;
     };
 };
 
-export type SchemaObjectPropertyDescription = {
+export type SchemaSerializedObjectValuePropertyDescription = {
     readonly valueSchema: SchemaSerializedValueDescription;
     readonly optional: boolean;
 };

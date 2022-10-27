@@ -8,7 +8,7 @@ import {Optionalize} from "~/shared/helpers/types/optionalize";
 import {Id, isId} from "~/shared/id/id";
 import {
     SchemaSerializedValueDescription,
-    SchemaObjectPropertyDescription,
+    SchemaSerializedObjectValuePropertyDescription,
 } from "~/shared/schema/types/schema-description-types";
 
 /**
@@ -644,7 +644,7 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
     /**
      * The description of the serialized property written by this schema.
      */
-    readonly description: SchemaObjectPropertyDescription;
+    readonly description: SchemaSerializedObjectValuePropertyDescription;
 
     /**
      * The schema for our underlying value. Useful for static analysis.
@@ -688,7 +688,7 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
     }: {
         serializedKey: string | null;
         valueSchema: Schema<SchemaValue>;
-        description: SchemaObjectPropertyDescription;
+        description: SchemaSerializedObjectValuePropertyDescription;
         serializeProperty: (
             object: {[key: string]: SchemaSerializedValue | undefined},
             key: string,
