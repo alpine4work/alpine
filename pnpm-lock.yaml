@@ -14,6 +14,7 @@ specifiers:
   '@babel/plugin-transform-react-jsx': ^7.19.0
   '@babel/register': ^7.18.9
   '@babel/runtime': ^7.19.0
+  '@next/font': ^13.0.0
   '@popperjs/core': ^2.11.5
   '@react-aria/interactions': ^3.10.0
   '@swc/core': ^1.3.3
@@ -96,6 +97,7 @@ dependencies:
   '@babel/plugin-transform-react-jsx': 7.19.0_@babel+core@7.19.1
   '@babel/register': 7.18.9_@babel+core@7.19.1
   '@babel/runtime': 7.19.0
+  '@next/font': 13.0.0
   '@popperjs/core': 2.11.5
   '@react-aria/interactions': 3.10.0_react@18.2.0
   '@swc/core': 1.3.3
@@ -2649,6 +2651,10 @@ packages:
     resolution: {integrity: sha512-z+gnX4Zizatqatc6f4CQrcC9oN8Us3Vrq/OLyc98h7K/eWctrnV91zFZodmJHUjx0cITY8uYM7LXD7IdYkg3kg==}
     dependencies:
       glob: 7.1.7
+    dev: false
+
+  /@next/font/13.0.0:
+    resolution: {integrity: sha512-r5dYkgMD1Qmoip1OhJSrqCSQdZ4eshkQPfe1hhQiKbZoXIbViJksPRLC6GVOgEQE6W4+CXuAXR6IYBy5M6Rixg==}
     dev: false
 
   /@next/swc-android-arm-eabi/13.0.0:

@@ -8,7 +8,7 @@
 import {globalStyle} from "@vanilla-extract/css";
 import {inputPlaceholderColor} from "~/client/design/input-placeholder-color.css";
 import {colorSchemeVars} from "~/shared/design/color-scheme.css";
-import {fontScale, monospaceFontFamily, sansSerifFontFamily} from "~/shared/design/fonts";
+import {fontScale, fonts} from "~/shared/design/fonts";
 import {mobilePlatformMediaQuery, remPxByPlatform} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
 
@@ -19,21 +19,21 @@ assert(fontScale.body.fontSize === "1rem");
 globalStyle(":root", {
     backgroundColor: colorSchemeVars["grey-0"],
     color: colorSchemeVars["grey-100"],
-    fontFamily: sansSerifFontFamily,
+
+    // As a fallback use a system font stack.
+    fontFamily:
+        'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
 
     // Change the size of 1rem based on whether we're on desktop or mobile.
     fontSize: remPxByPlatform.desktop,
     lineHeight: fontScale.body.lineHeight,
     letterSpacing: fontScale.body.letterSpacing,
+
     "@media": {
         [mobilePlatformMediaQuery]: {
             fontSize: remPxByPlatform.mobile,
         },
     },
-
-    // Nicer looking text rendering.
-    WebkitFontSmoothing: "antialiased",
-    MozOsxFontSmoothing: "grayscale",
 
     // By default we don't allow selecting any text. Instead individual elements
     // must opt-into text selection. This makes our UI feel more native. In a
@@ -66,7 +66,7 @@ globalStyle("*", {
 });
 
 globalStyle("code, kbd, samp, pre", {
-    fontFamily: monospaceFontFamily,
+    ...fonts.code,
 });
 
 globalStyle("::placeholder", {

@@ -16,7 +16,7 @@ import {
     lightColorSchemeSelector,
 } from "~/shared/design/color-scheme.css";
 import {elevation} from "~/shared/design/elevation";
-import {fontScale, fontWeights} from "~/shared/design/fonts";
+import {fontScale} from "~/shared/design/fonts";
 import {mobilePlatformMediaQuery, spacing} from "~/shared/design/spacing";
 import {mapObjectValues} from "~/shared/helpers/object/map-object-values";
 
@@ -147,7 +147,6 @@ const responsiveProperties = defineProperties({
         fontSize: mapObjectValues(fontScale, ({fontSize}) => fontSize),
         lineHeight: mapObjectValues(fontScale, ({lineHeight}) => lineHeight),
         letterSpacing: mapObjectValues(fontScale, ({letterSpacing}) => letterSpacing),
-        fontWeight: fontWeights,
     },
     shorthands: {
         padding: ["paddingTop", "paddingBottom", "paddingLeft", "paddingRight"],
