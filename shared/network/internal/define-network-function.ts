@@ -3,6 +3,7 @@ import {
     InternalError,
     NotFoundError,
     UnavailableError,
+    UnimplementedError,
     getErrorConstructorForCode,
 } from "~/shared/error/error";
 import {isErrorCode} from "~/shared/error/error-code";
@@ -88,14 +89,7 @@ export function defineNetworkFunction<
                     "Referenced a network function name that does not have an implementation",
                 );
 
-            // Since we are executing the network function in the same process it was
-            // defined, we skip schema serialization and deserialization for performance.
-            //
-            // TODO(calebmer): Arguably we shouldn't skip serialization and deserialization
-            // since it may perform important validation. Perhaps schemas should have a
-            // `validate()` function to run those validations without expensive
-            // serialization/deserialization?
-            return networkFunctionImplementation.dangerouslyExecuteWithoutSchema(input);
+            throw new UnimplementedError("Server session context propagation not yet implemented");
         }
 
         const outputPromiseResolver = createPromiseResolver<SchemaSerializedValue>();

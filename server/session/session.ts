@@ -11,9 +11,9 @@ import {Schema, SchemaType} from "~/shared/schema/schema";
  *
  * [1]: https://www.npmjs.com/package/cookie-session
  */
-export type SessionCookie = SchemaType<typeof SessionCookieSchema>;
+export type Session = SchemaType<typeof SessionSchema>;
 
-const SessionCookieSchema = Schema.object({
+const SessionSchema = Schema.object({
     browserId: Schema.id,
 });
 
@@ -48,16 +48,16 @@ async function runCookieSessionMiddleware(
 /**
  * Sets the session cookie on the request.
  */
-export async function setSessionCookie(
+export async function setSession(
     context: {req: IncomingMessage; res: ServerResponse},
-    sessionCookie: SessionCookie,
+    sessionCookie: Session,
 ): Promise<void> {
     await runCookieSessionMiddleware(context.req, context.res);
 
-    (context.req as any).session = SessionCookieSchema.serialize(sessionCookie);
+    (context.req as any).session = SessionSchema.serialize(sessionCookie);
 }
 
-function getDefaultSessionCookie(): SessionCookie {
+function getDefaultSessionCookie(): Session {
     return {
         browserId: generateId(),
     };
@@ -67,15 +67,15 @@ function getDefaultSessionCookie(): SessionCookie {
  * Gets the session cookie for the request. If the session cookie has not been
  * set, we initialize a default session cookie.
  */
-export async function getSessionCookie(context: {
+export async function getSession(context: {
     req: IncomingMessage;
     res: ServerResponse;
-}): Promise<SessionCookie> {
+}): Promise<Session> {
     await runCookieSessionMiddleware(context.req, context.res);
 
     if (!(context.req as any).session.isPopulated) {
         (context.req as any).session = getDefaultSessionCookie();
     }
 
-    return SessionCookieSchema.deserialize((context.req as any).session);
+    return SessionSchema.deserialize((context.req as any).session);
 }

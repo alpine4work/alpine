@@ -1,9 +1,6 @@
 import type {NextApiRequest, NextApiResponse} from "next";
 import {getNetworkFunctionImplementation} from "~/server/network/all-network-implementations";
-import {
-    getSessionFromAsyncLocalStorage,
-    withSessionInAsyncLocalStorage,
-} from "~/server/session/session-async-local-storage";
+import {getSession} from "~/server/session/session";
 import {ErrorBase, InvalidArgumentError, NotFoundError} from "~/shared/error/error";
 import {ErrorCode} from "~/shared/error/error-code";
 import {isHttp500ErrorCode} from "~/shared/error/is-http-500-error-code";
@@ -15,104 +12,89 @@ import {
 } from "~/shared/network/helpers/network-function-http-schema";
 import {SchemaType} from "~/shared/schema/schema";
 
-export default function executeNetworkFunctions(req: NextApiRequest, res: NextApiResponse) {
-    return withSessionInAsyncLocalStorage({req, res}, async () => {
-        try {
-            console.log("HEEEERREE??", req.body.executions, getSessionFromAsyncLocalStorage());
-        } catch (error) {
-            console.error("HEEERREE?", req.body.executions, error);
-        }
+export default async function executeNetworkFunctions(req: NextApiRequest, res: NextApiResponse) {
+    try {
+        const session = await getSession({req, res});
 
-        console.log("DEBUG 1", getSessionFromAsyncLocalStorage());
+        if (req.method !== "POST")
+            throw new InvalidArgumentError(
+                "Must use POST HTTP method when executing network functions",
+            );
 
-        try {
-            if (req.method !== "POST")
-                throw new InvalidArgumentError(
-                    "Must use POST HTTP method when executing network functions",
-                );
+        const input = NetworkFunctionHttpInputSchema.deserialize(req.body);
 
-            console.log("DEBUG 2", getSessionFromAsyncLocalStorage());
+        const results = await Promise.allSettled(
+            input.executions.map(
+                async (
+                    execution,
+                ): Promise<SchemaType<typeof NetworkFunctionHttpOutputExecutionSchema>> => {
+                    try {
+                        const networkFunctionImplementation = getNetworkFunctionImplementation(
+                            execution.name,
+                        );
 
-            const input = NetworkFunctionHttpInputSchema.deserialize(req.body);
-
-            const results = await Promise.allSettled(
-                input.executions.map(
-                    async (
-                        execution,
-                    ): Promise<SchemaType<typeof NetworkFunctionHttpOutputExecutionSchema>> => {
-                        console.log("DEBUG 3", getSessionFromAsyncLocalStorage());
-
-                        try {
-                            const networkFunctionImplementation = getNetworkFunctionImplementation(
-                                execution.name,
+                        if (!networkFunctionImplementation)
+                            throw new NotFoundError(
+                                "Could not find an implementation for network function",
                             );
 
-                            if (!networkFunctionImplementation)
-                                throw new NotFoundError(
-                                    "Could not find an implementation for network function",
-                                );
+                        const output = await networkFunctionImplementation.execute(
+                            session,
+                            execution.input,
+                        );
 
-                            console.log("DEBUG 4", getSessionFromAsyncLocalStorage());
+                        return {
+                            ok: true,
+                            output,
+                        };
+                    } catch (error) {
+                        return {
+                            ok: false,
+                            error: serializeError(error),
+                        };
+                    }
+                },
+            ),
+        );
 
-                            const output = await networkFunctionImplementation.execute(
-                                execution.input,
-                            );
+        const executions = results.map(result => {
+            if (result.status === "rejected") throw result.reason;
+            return result.value;
+        });
 
-                            console.log("DEBUG 8", getSessionFromAsyncLocalStorage());
+        const status =
+            executions.length === 0
+                ? 200
+                : executions.reduce(
+                      (status, execution) =>
+                          Math.min(
+                              status,
+                              execution.ok
+                                  ? 200
+                                  : isHttp500ErrorCode(execution.error.code)
+                                  ? 500
+                                  : 400,
+                          ),
+                      500,
+                  );
 
-                            return {
-                                ok: true,
-                                output,
-                            };
-                        } catch (error) {
-                            return {
-                                ok: false,
-                                error: serializeError(error),
-                            };
-                        }
-                    },
-                ),
-            );
+        res.status(status).json(
+            NetworkFunctionHttpOutputSchema.serialize({
+                ok: true,
+                executions,
+            }),
+        );
+    } catch (error) {
+        const serializedError = serializeError(error);
+        const status = isHttp500ErrorCode(serializedError.code) ? 500 : 400;
 
-            const executions = results.map(result => {
-                if (result.status === "rejected") throw result.reason;
-                return result.value;
-            });
-
-            const status =
-                executions.length === 0
-                    ? 200
-                    : executions.reduce(
-                          (status, execution) =>
-                              Math.min(
-                                  status,
-                                  execution.ok
-                                      ? 200
-                                      : isHttp500ErrorCode(execution.error.code)
-                                      ? 500
-                                      : 400,
-                              ),
-                          500,
-                      );
-
-            res.status(status).json(
-                NetworkFunctionHttpOutputSchema.serialize({
-                    ok: true,
-                    executions,
-                }),
-            );
-        } catch (error) {
-            const serializedError = serializeError(error);
-            const status = isHttp500ErrorCode(serializedError.code) ? 500 : 400;
-
-            res.status(status).json(
-                NetworkFunctionHttpOutputSchema.serialize({
-                    ok: false,
-                    error: serializedError,
-                }),
-            );
-        }
-    });
+        res.status(status).json(
+            NetworkFunctionHttpOutputSchema.serialize({
+                ok: false,
+                error: serializedError,
+            }),
+        );
+    }
 }
 
 function serializeError(error: unknown): SchemaType<typeof NetworkFunctionHttpOutputErrorSchema> {

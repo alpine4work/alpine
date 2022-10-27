@@ -1,14 +1,12 @@
 import * as jwt from "jsonwebtoken";
 import {authorizeNetworkChannel} from "~/server/network/internal/authorize-network-channel";
 import {implementNetworkFunction} from "~/server/network/internal/implement-network-function";
-import {getSessionFromAsyncLocalStorage} from "~/server/session/session-async-local-storage";
 import {InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run-all-promises";
 import {assert} from "~/shared/helpers/control/assert";
 import {isDeepEqual} from "~/shared/helpers/control/is-deep-equal";
 import {isPlainObject} from "~/shared/helpers/object/is-plain-object";
 import * as definition from "~/shared/network/ably-network-definition";
-import {getSession} from "~/shared/session/session";
 
 assert(process.env.ABLY_API_KEY);
 
@@ -22,9 +20,7 @@ const [ablyApiKeyId = "", ablyApiKeySecret = ""] = process.env.ABLY_API_KEY.spli
 assert(ablyApiKeyId.length > 0);
 assert(ablyApiKeySecret.length > 0);
 
-implementNetworkFunction(definition.authenticateAbly, async input => {
-    console.log("DEBUG 6", getSessionFromAsyncLocalStorage());
-
+implementNetworkFunction(definition.authenticateAbly, async (input, session) => {
     let capability: unknown;
     try {
         capability =
@@ -63,11 +59,9 @@ implementNetworkFunction(definition.authenticateAbly, async input => {
         }),
     );
 
-    console.log("DEBUG 7", getSessionFromAsyncLocalStorage());
-
     // We use the browser id as the Ably client id. An attacker can't spoof the
     // browser id because it is a part of our signed session cookie.
-    const ablyClientId = getSession().browserId;
+    const ablyClientId = session.browserId;
 
     // Yay! All our channels are authorized. Send a short-lived JWT token to the
     // client for subscribing to Ably messages.

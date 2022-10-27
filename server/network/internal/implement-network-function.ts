@@ -1,4 +1,4 @@
-import {getSessionFromAsyncLocalStorage} from "~/server/session/session-async-local-storage";
+import {Session} from "~/server/session/session";
 import {assert} from "~/shared/helpers/control/assert";
 import {quote} from "~/shared/helpers/string/quote";
 import {BlockInference} from "~/shared/helpers/types/block-inference";
@@ -6,8 +6,7 @@ import {NetworkFunction} from "~/shared/network/network-function";
 import {SchemaSerializedValue} from "~/shared/schema/schema";
 
 export type NetworkFunctionImplementation = {
-    execute(input: SchemaSerializedValue): Promise<SchemaSerializedValue>;
-    dangerouslyExecuteWithoutSchema(input: any): Promise<any>;
+    execute(session: Session, input: SchemaSerializedValue): Promise<SchemaSerializedValue>;
 };
 
 /**
@@ -18,7 +17,7 @@ export type NetworkFunctionImplementation = {
  */
 export function implementNetworkFunction<Input, Output>(
     networkFunction: NetworkFunction<Input, Output>,
-    implementation: (input: Input) => Promise<BlockInference<Output>>,
+    implementation: (input: Input, session: Session) => Promise<BlockInference<Output>>,
 ) {
     assert(
         !networkFunctionImplementationByName.has(networkFunction.name),
@@ -26,18 +25,16 @@ export function implementNetworkFunction<Input, Output>(
     );
 
     const execute = async (
+        session: Session,
         serializedInput: SchemaSerializedValue,
     ): Promise<SchemaSerializedValue> => {
-        console.log("DEBUG 5", getSessionFromAsyncLocalStorage());
-
         const input = networkFunction.inputSchema.deserialize(serializedInput);
-        const output = (await implementation(input)) as Output;
+        const output = (await implementation(input, session)) as Output;
         return networkFunction.outputSchema.serialize(output);
     };
 
     networkFunctionImplementationByName.set(networkFunction.name, {
         execute,
-        dangerouslyExecuteWithoutSchema: implementation,
     });
 }
 
