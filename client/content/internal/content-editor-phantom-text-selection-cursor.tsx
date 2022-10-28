@@ -15,6 +15,11 @@ export function ContentEditorPhantomTextSelectionCursor({
     viewRef: RefObject<EditorView | null>;
     phantomTextSelection: ContentEditorPhantomTextSelection;
 }) {
+    const backgroundColor = {
+        light: `${phantomTextSelection.color}-50`,
+        dark: `${phantomTextSelection.color}-40`,
+    } as const;
+
     return (
         <div
             ref={useContentEditorTracker({
@@ -37,7 +42,7 @@ export function ContentEditorPhantomTextSelectionCursor({
                 width: "0.5",
                 position: "absolute",
                 pointerEvents: "none",
-                backgroundColor: `${phantomTextSelection.color}-50`,
+                backgroundColor,
             })}
             style={{
                 transform: `translateX(-50%)`,
@@ -46,9 +51,9 @@ export function ContentEditorPhantomTextSelectionCursor({
             <div
                 className={sprinkles({
                     position: "absolute",
-                    width: "1",
-                    height: "1",
-                    backgroundColor: `${phantomTextSelection.color}-50`,
+                    width: "1.5",
+                    height: "1.5",
+                    backgroundColor,
                 })}
                 style={{
                     top: 0,

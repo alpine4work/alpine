@@ -301,12 +301,16 @@ class AblyRealtimeClient {
                         });
 
                     try {
+                        assert(this._client && this._client.connection.id);
+                        const key = `${this._client.auth.clientId}:${this._client.connection.id}`;
+
                         hasEnteredWithPresenceState = true;
                         await channel.presence.enter(presenceState);
 
                         let hasLeft = false;
 
                         return {
+                            key,
                             update: async presenceState => {
                                 if (hasLeft) return;
                                 await channel.presence.update(presenceState);
@@ -385,22 +389,20 @@ class AblyRealtimeClient {
             let nextPromiseResolver = createPromiseResolver();
 
             const handleMessage = (message: Ably.Types.PresenceMessage) => {
-                const connectionKey = `${message.clientId}:${message.connectionId}`;
+                const key = `${message.clientId}:${message.connectionId}`;
 
-                const ourConnectionKey =
-                    this._client && this._client.connection.id !== undefined
-                        ? `${this._client.auth.clientId}:${this._client.connection.id}`
-                        : null;
+                assert(this._client && this._client.connection.id);
+                const ourKey = `${this._client.auth.clientId}:${this._client.connection.id}`;
 
                 switch (message.action) {
                     case "present":
                     case "enter":
                     case "update": {
                         // Don't include our presence state in the map.
-                        if (ourConnectionKey && connectionKey === ourConnectionKey) break;
+                        if (ourKey && key === ourKey) break;
 
                         presenceStateByConnectionKey = presenceStateByConnectionKey.set(
-                            connectionKey,
+                            key,
                             message.data,
                         );
 
@@ -409,8 +411,7 @@ class AblyRealtimeClient {
                         break;
                     }
                     case "leave": {
-                        presenceStateByConnectionKey =
-                            presenceStateByConnectionKey.delete(connectionKey);
+                        presenceStateByConnectionKey = presenceStateByConnectionKey.delete(key);
 
                         nextPromiseResolver.resolve();
                         nextPromiseResolver = createPromiseResolver();
@@ -461,6 +462,7 @@ class AblyRealtimeClient {
 export const ablyRealtimeClient = new AblyRealtimeClient();
 
 export type AblyRealtimeClientPresenceSession = {
+    readonly key: string;
     update(presenceState: SchemaSerializedValue): Promise<void>;
     leave(): Promise<void>;
 };

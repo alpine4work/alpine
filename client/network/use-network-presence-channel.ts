@@ -27,7 +27,10 @@ export function useNetworkPresenceChannel<Key extends {[key: string]: string}, S
     channel: NetworkPresenceChannel<Key, State>,
     unstableKey: BlockInference<Key>,
     unstableState: BlockInference<State> | null,
-): Iterable<State & {readonly key: string}> {
+): {
+    ourPresenceStateKey: string | null;
+    presenceStates: Iterable<State & {readonly key: string}>;
+} {
     const unstableSerializedState = useMemo(
         () =>
             unstableState !== null ? channel.stateSchema.serialize(unstableState as State) : null,
@@ -55,6 +58,7 @@ export function useNetworkPresenceChannel<Key extends {[key: string]: string}, S
     // retry button.
     if (errorState.hasError) throw errorState.error;
 
+    const [ourPresenceStateKey, setOurPresenceStateKey] = useState<string | null>(null);
     const [presenceSessionState, setPresenceSessionState] = useState<{
         currentSerializedState: SchemaSerializedValue;
         readonly promise: Promise<AblyRealtimeClientPresenceSession>;
@@ -75,7 +79,9 @@ export function useNetworkPresenceChannel<Key extends {[key: string]: string}, S
             currentSerializedState,
         );
 
-        presenceSessionPromise.catch(error => setErrorState({hasError: true, error}));
+        presenceSessionPromise
+            .then(({key}) => setOurPresenceStateKey(key))
+            .catch(error => setErrorState({hasError: true, error}));
 
         setPresenceSessionState({
             currentSerializedState,
@@ -169,5 +175,5 @@ export function useNetworkPresenceChannel<Key extends {[key: string]: string}, S
         error: error => setErrorState({hasError: true, error}),
     });
 
-    return presenceStates;
+    return {ourPresenceStateKey, presenceStates};
 }

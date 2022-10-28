@@ -1,3 +1,4 @@
+import {TextSelection} from "prosemirror-state";
 import {Mapping, Step} from "prosemirror-transform";
 import {DynamoConditionExpression} from "~/server/dynamo/internal/dynamo-condition";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo-key-attribute-schema";
@@ -33,8 +34,11 @@ import {iterableFlatMap} from "~/shared/helpers/iterable/iterable-flat-map";
 import {iterableMap} from "~/shared/helpers/iterable/iterable-map";
 import {clamp} from "~/shared/helpers/number/clamp";
 import {Id} from "~/shared/id/id";
-import {DocumentChannel} from "~/shared/network/documents-network-definition";
-import {Schema} from "~/shared/schema/schema";
+import {
+    DocumentChannel,
+    DocumentEditorPresenceUpdateSchema,
+} from "~/shared/network/documents-network-definition";
+import {Schema, SchemaType} from "~/shared/schema/schema";
 
 const DocumentsTable = DynamoTableSchema.new({
     name: "Documents",
@@ -803,6 +807,17 @@ export const updateDocumentContentBeforeExecuteTransactionTestCheckpoint = new T
     clientId: Id;
 }>();
 
+declare module "prosemirror-transform" {
+    interface Mapping {
+        // We know this exists but `prosemirror-transform` marks it as internal:
+        // https://github.com/ProseMirror/prosemirror-transform/blob/4372fb6de489ee6c8c6a8756682a9464ecde8f1b/src/map.ts#L221-L225
+        //
+        // We want to call this function in the same place as `prosemirror-collab`:
+        // https://github.com/ProseMirror/prosemirror-collab/blob/94df0cc9288960e7e64dc9721abbf8f656df444f/src/collab.ts#L22
+        setMirror(n: number, m: number): void;
+    }
+}
+
 /**
  * Updates our document by applying some steps.
  *
@@ -829,12 +844,14 @@ export async function updateDocumentContent({
     version: clientVersion,
     steps: clientSteps,
     clientId,
+    editorPresenceUpdate,
     cacheOverrideForTest,
 }: {
     id: Id;
     version: number;
     steps: ReadonlyArray<Step>;
     clientId: Id;
+    editorPresenceUpdate?: SchemaType<typeof DocumentEditorPresenceUpdateSchema>;
     cacheOverrideForTest?: DocumentContentCacheForUpdate;
 }): Promise<{
     /**
@@ -863,7 +880,26 @@ export async function updateDocumentContent({
      * `clientId` is included.
      */
     conflictingSteps: ReadonlyArray<{step: Step; clientId: Id}>;
+    /**
+     * The same `editorPresenceUpdate` sent in the `DocumentChannel` update for
+     * this message.
+     *
+     * It is not necessarily the same as the `editorPresenceUpdate` in `input`
+     * since the selection may have been transformed.
+     */
+    newEditorPresenceUpdate: SchemaType<typeof DocumentEditorPresenceUpdateSchema> | null;
 }> {
+    // TODO(calebmer): We need to validate that `editorPresenceUpdate.presenceStateKey`
+    // starts with the session browser id!! This is important for permissions. Otherwise a
+    // user could use this method to impersonate another user's presence update.
+
+    if (editorPresenceUpdate?.presenceState) {
+        if (editorPresenceUpdate.presenceState.version !== clientVersion)
+            throw new InvalidArgumentError(
+                "Editor presence update version should match the client version",
+            );
+    }
+
     const result = await retryDynamoConditionCheckErrors(async () => {
         if (!Number.isSafeInteger(clientVersion) || clientVersion < 0)
             throw new InvalidArgumentError("Expected a positive integer version number");
@@ -887,6 +923,7 @@ export async function updateDocumentContent({
         let newSteps: ReadonlyArray<Step>;
         let newInvertedSteps: Array<Step>;
         let conflictingSteps: ReadonlyArray<{step: Step; invertedStep: Step; clientId: Id}>;
+        let newEditorPresenceUpdateTextSelection: TextSelection | null;
 
         // If the client's version is the same as our server version then we can
         // directly apply the client's steps to the content.
@@ -909,6 +946,24 @@ export async function updateDocumentContent({
             newSteps = clientSteps;
             newInvertedSteps = invertedClientSteps;
             conflictingSteps = [];
+
+            // We don't need to transform the selection when there's no conflict so just
+            // validate it.
+            if (!editorPresenceUpdate?.presenceState.textSelection) {
+                newEditorPresenceUpdateTextSelection = null;
+            } else {
+                try {
+                    newEditorPresenceUpdateTextSelection = new TextSelection(
+                        content.resolve(editorPresenceUpdate.presenceState.textSelection.anchor),
+                        content.resolve(editorPresenceUpdate.presenceState.textSelection.head),
+                    );
+                } catch (error) {
+                    if (!(error instanceof RangeError)) throw error;
+                    throw new InvalidArgumentError(
+                        "Editor presence update selection positions are outside the document's contents",
+                    );
+                }
+            }
         }
         // If the client is trying to update an older document version then we need to
         // rebase the client steps against steps which were applied before it.
@@ -982,6 +1037,29 @@ export async function updateDocumentContent({
                     assert(isDocumentContent(stepResult.doc));
                     clientContent = stepResult.doc;
                 }
+
+                // When there's a conflict, initialize the presence update selection with the
+                // document content as the client sees it. We will need to map this selection
+                // before returning!
+                if (!editorPresenceUpdate?.presenceState.textSelection) {
+                    newEditorPresenceUpdateTextSelection = null;
+                } else {
+                    try {
+                        newEditorPresenceUpdateTextSelection = new TextSelection(
+                            clientContent.resolve(
+                                editorPresenceUpdate.presenceState.textSelection.anchor,
+                            ),
+                            clientContent.resolve(
+                                editorPresenceUpdate.presenceState.textSelection.head,
+                            ),
+                        );
+                    } catch (error) {
+                        if (!(error instanceof RangeError)) throw error;
+                        throw new InvalidArgumentError(
+                            "Editor presence update selection positions are outside the document's contents",
+                        );
+                    }
+                }
             }
 
             // See the guide for information on how to rebase a chain of steps against
@@ -1023,10 +1101,20 @@ export async function updateDocumentContent({
                 content = rebasedStepResult.doc;
                 rebasedSteps.push(rebasedStep);
                 mapping.appendMap(rebasedStep.getMap());
+                mapping.setMirror(mapFrom, mapping.maps.length - 1);
             }
 
             newSteps = rebasedSteps;
             newInvertedSteps = invertedRebasedSteps;
+
+            // Map our selection which is using positions from client content to a
+            // selection on the new document with resolved conflicts. While mapping we may
+            // lose the selection so in that case update to null.
+            if (newEditorPresenceUpdateTextSelection) {
+                const selection = newEditorPresenceUpdateTextSelection.map(content, mapping);
+                newEditorPresenceUpdateTextSelection =
+                    selection instanceof TextSelection ? selection : null;
+            }
         }
 
         // We want the inverted steps to be stored in reverse order of our steps. We
@@ -1084,10 +1172,33 @@ export async function updateDocumentContent({
             newContent: content,
             newSteps,
             conflictingSteps,
+            newEditorPresenceUpdateTextSelection,
         };
     });
 
-    const {oldVersion, newVersion, newContent, newSteps, conflictingSteps} = result;
+    const {
+        oldVersion,
+        newVersion,
+        newContent,
+        newSteps,
+        conflictingSteps,
+        newEditorPresenceUpdateTextSelection,
+    } = result;
+
+    const newEditorPresenceUpdate = editorPresenceUpdate
+        ? {
+              presenceStateKey: editorPresenceUpdate.presenceStateKey,
+              presenceState: {
+                  version: newVersion,
+                  textSelection: newEditorPresenceUpdateTextSelection
+                      ? {
+                            anchor: newEditorPresenceUpdateTextSelection.$anchor.pos,
+                            head: newEditorPresenceUpdateTextSelection.$head.pos,
+                        }
+                      : null,
+              },
+          }
+        : null;
 
     // TODO(calebmer): Lint rule that all `await`s which can be parallelized are
     // indeed parallelized.
@@ -1100,6 +1211,7 @@ export async function updateDocumentContent({
                 newVersion,
                 steps: newSteps,
                 clientId,
+                editorPresenceUpdate: newEditorPresenceUpdate,
             },
         ),
         // We add a blocking update to our snapshot within the
@@ -1123,6 +1235,7 @@ export async function updateDocumentContent({
         newVersion,
         newSteps,
         conflictingSteps,
+        newEditorPresenceUpdate,
     };
 }
 
