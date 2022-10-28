@@ -16,6 +16,7 @@ import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run-promise-with
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {isDeepEqual} from "~/shared/helpers/control/is-deep-equal";
+import {Lazy} from "~/shared/helpers/control/lazy";
 import {Id} from "~/shared/id/id";
 import {
     DocumentChannel,
@@ -43,7 +44,8 @@ type State = {
      */
     readonly rememberedSteps: ReadonlyArray<{
         readonly step: Step;
-        readonly getContentBeforeStep: () => DocumentContent;
+        readonly contentBeforeStep: Lazy<DocumentContent>;
+        readonly contentAfterStep: Lazy<DocumentContent>;
     }>;
     /**
      * The current text selection to broadcast over presence and the version at
@@ -214,32 +216,36 @@ function reduceWithAction(oldState: State, action: Action): State {
             editorState = editorState.receiveSteps(stepTransaction);
             stepTransaction = [];
 
-            // Whenever we receive steps, we add them to our `rememberedSteps` array. When
-            // we receive steps we also require a `discardRememberedStepsBeforeVersion` so
-            // at the same time we can throw away remembered steps we don't need anymore.
-            let rememberedSteps = [
-                ...oldState.rememberedSteps,
-                ...steps.map(({step}, index) => ({
-                    step,
-                    getContentBeforeStep: () => {
-                        let content = oldState.editorState.getContent();
+            // Whenever we receive steps, we add them to our `rememberedSteps` array.
+            //
+            // We also throw away steps we don't need anymore based on
+            // `discardRememberedStepsBeforeVersion`.
+            let rememberedSteps;
+            {
+                let content = new Lazy(() => oldState.editorState.getContent());
+                const stepsWithContent = steps.map(({step}) => {
+                    const previousContent = content;
 
-                        for (let i = 0; i < index; i++) {
-                            const previousStep = steps[i]!;
-                            const stepResult = previousStep.step.apply(content);
-                            assert(stepResult.doc);
-                            assert(isDocumentContent(stepResult.doc));
-                            content = stepResult.doc;
-                        }
+                    content = new Lazy(() => {
+                        const stepResult = step.apply(previousContent.get());
+                        assert(stepResult.doc);
+                        assert(isDocumentContent(stepResult.doc));
+                        return stepResult.doc;
+                    });
 
-                        return content;
-                    },
-                })),
-            ];
-            rememberedSteps = rememberedSteps.slice(
-                rememberedSteps.length -
-                    (editorState.getVersion() - action.discardRememberedStepsBeforeVersion),
-            );
+                    return {
+                        step,
+                        contentBeforeStep: previousContent,
+                        contentAfterStep: content,
+                    };
+                });
+
+                rememberedSteps = [...oldState.rememberedSteps, ...stepsWithContent];
+                rememberedSteps = rememberedSteps.slice(
+                    rememberedSteps.length -
+                        (editorState.getVersion() - action.discardRememberedStepsBeforeVersion),
+                );
+            }
 
             return {
                 ...oldState,
@@ -400,7 +406,7 @@ function DocumentContentEditorStateful({initialDocument}: {initialDocument: Docu
     // TODO(calebmer): The pricing limits on presence from Ably are...not great. We
     // probably need to migrate presence to Cloudflare Workers eventually.
     // https://faqs.ably.com/why-do-you-have-a-limit-on-the-number-of-members-present-on-a-channel
-    const {ourPresenceStateKey, presenceStates: presenceStatesWithoutOverrides} =
+    const {ourPresenceStateKey, presenceStates: presenceStatesFromPresenceChannel} =
         useNetworkPresenceChannel(
             DocumentEditorPresenceChannel,
             {documentId},
@@ -415,18 +421,40 @@ function DocumentContentEditorStateful({initialDocument}: {initialDocument: Docu
                 : null,
         );
 
+    // The presence states we get from our presence channel may be outdated in a
+    // couple of ways:
+    //
+    // 1. We send some presence updates over `DocumentChannel` instead of
+    //    `DocumentEditorPresenceChannel` for performance.
+    // 2. When the document updates and the cursor needs to move, we do not send an
+    //    update to `DocumentEditorPresenceChannel` as this would cause a
+    //    thundering herd of presence updates.
+    // 3. Theoretically possible but not supported as of 2022-10-28: We get a
+    //    selection at a future version than what's in this editor. Keep an eye out
+    //    for this happening in practice! We'll need to add support if it happens.
+    //
+    // There may be some performance optimizations we could be doing here. If you
+    // have 100 cursors but only 1 is moving you only need to recompute that 1.
     const {smallestPresenceStateVersion, presenceStates} = useMemo(() => {
         let smallestPresenceStateVersion = null;
 
-        const presenceStates: Array<
+        let presenceStates: Array<
             NetworkPresenceChannelStateType<typeof DocumentEditorPresenceChannel> & {
                 readonly key: string;
             }
         > = [];
 
-        for (let presenceState of presenceStatesWithoutOverrides) {
-            // If we have a presence state override at a later version than the state from
-            // our presence channel, use the override.
+        for (let presenceState of presenceStatesFromPresenceChannel) {
+            /* ========================================================================== *\
+             * 1. Apply presence state overrides                                          *
+            \* ========================================================================== */
+
+            // For performance, we send selection updates that happen at the same time
+            // as content updates over the "update content" realtime message and we DO NOT
+            // send an update over the presence channel.
+            //
+            // Then here in client code we merge presence state updates from the realtime
+            // message with presence state from our presence channel.
             const presenceStateOverride = state.presenceStateByKeyOverride.get(presenceState.key);
             if (presenceStateOverride && presenceStateOverride.version > presenceState.version) {
                 // If the override has no text selection, then this override acts as if the
@@ -442,6 +470,9 @@ function DocumentContentEditorStateful({initialDocument}: {initialDocument: Docu
 
             // Record the smallest presence state version before mapping the selections
             // forward.
+            //
+            // We use this to remember steps after this version. And to fetch steps after
+            // this version if we haven't seen them.
             if (
                 smallestPresenceStateVersion === null ||
                 presenceState.version < smallestPresenceStateVersion
@@ -449,39 +480,44 @@ function DocumentContentEditorStateful({initialDocument}: {initialDocument: Docu
                 smallestPresenceStateVersion = presenceState.version;
             }
 
-            // If our presence state is behind the editor version then we can fast forward
-            // it to the editor version if we have enough `rememberedSteps`!
+            /* ========================================================================== *\
+             * 2. Fast-forward outdated presence states                                   *
+            \* ========================================================================== */
+
+            // We don't update presence states if the document changes but the selection
+            // doesn't move. Instead clients are responsible for updating selections that
+            // didn't move to the new document locally.
             //
-            // TODO(calebmer): Can we cache this?
+            // We may not have enough `rememberedSteps` to fast-forward the presence state.
+            // In this case we will drop the presence state in the next step. We then fetch
+            // steps required to fast-forward the presence state asynchronously.
+            //
+            // It's important that we record `smallestPresenceStateVersion` before this
+            // step since we're about to update all our presence state versions.
             const editorVersion = state.editorState.getVersion();
             if (
                 presenceState.version < editorVersion &&
                 presenceState.version >= editorVersion - state.rememberedSteps.length
             ) {
-                let content =
+                const oldContent =
                     state.rememberedSteps[
                         state.rememberedSteps.length - (editorVersion - presenceState.version)
-                    ]!.getContentBeforeStep();
+                    ]!.contentBeforeStep.get();
 
                 let selection: TextSelection | null = new TextSelection(
-                    content.resolve(presenceState.textSelection.anchor),
-                    content.resolve(presenceState.textSelection.head),
+                    oldContent.resolve(presenceState.textSelection.anchor),
+                    oldContent.resolve(presenceState.textSelection.head),
                 );
 
                 for (let version = presenceState.version; version < editorVersion; version++) {
                     if (!selection) break;
 
-                    const {step} =
+                    const {step, contentAfterStep} =
                         state.rememberedSteps[
                             state.rememberedSteps.length - (editorVersion - version)
                         ]!;
 
-                    const stepResult = step.apply(content);
-                    assert(stepResult.doc);
-                    assert(isDocumentContent(stepResult.doc));
-                    content = stepResult.doc;
-
-                    const newSelection = selection.map(stepResult.doc, step.getMap());
+                    const newSelection = selection.map(contentAfterStep.get(), step.getMap());
                     selection = newSelection instanceof TextSelection ? newSelection : null;
                 }
 
@@ -502,9 +538,64 @@ function DocumentContentEditorStateful({initialDocument}: {initialDocument: Docu
             presenceStates.push(presenceState);
         }
 
+        /* ========================================================================== *\
+         * 3. Apply local, unconfirmed, steps to presence states                      *
+        \* ========================================================================== */
+
+        // Other clients do not know about our local, unconfirmed, steps in
+        // `sendableSteps()`. So we need to apply those steps to every single presence
+        // state.
+        const sendableSteps = state.editorState.sendableSteps();
+        if (sendableSteps) {
+            let version = state.editorState.getVersion();
+
+            for (const origin of sendableSteps.origins) {
+                const newPresenceStates: Array<
+                    NetworkPresenceChannelStateType<typeof DocumentEditorPresenceChannel> & {
+                        readonly key: string;
+                    }
+                > = [];
+
+                for (const presenceState of presenceStates) {
+                    // Ignore any presence states that are not at the current version.
+                    //
+                    // This has the side effect of discarding:
+                    //
+                    // 1. Presence states at a future version.
+                    // 2. Presence states that we couldn't catch up in step 2 because we don't have
+                    //    enough `rememberedSteps`.
+                    //
+                    // TODO(calebmer): If we have a race condition and a client has reported that
+                    // they are at a future version we ignore those cursors right now. Is that
+                    // correct?
+                    if (presenceState.version !== version) continue;
+
+                    const selection = new TextSelection(
+                        origin.before.resolve(presenceState.textSelection.anchor),
+                        origin.before.resolve(presenceState.textSelection.head),
+                    );
+
+                    const newSelection = selection.map(origin.doc, origin.mapping);
+                    if (!(selection instanceof TextSelection)) continue;
+
+                    newPresenceStates.push({
+                        key: presenceState.key,
+                        version: version + origin.steps.length,
+                        textSelection: {
+                            anchor: newSelection.$anchor.pos,
+                            head: newSelection.$head.pos,
+                        },
+                    });
+                }
+
+                presenceStates = newPresenceStates;
+                version += origin.steps.length;
+            }
+        }
+
         return {smallestPresenceStateVersion, presenceStates};
     }, [
-        presenceStatesWithoutOverrides,
+        presenceStatesFromPresenceChannel,
         state.editorState,
         state.presenceStateByKeyOverride,
         state.rememberedSteps,
@@ -526,9 +617,6 @@ function DocumentContentEditorStateful({initialDocument}: {initialDocument: Docu
         );
 
         for (const presenceState of presenceStates) {
-            // TODO(calebmer): Presence states in the past and future.
-            if (presenceState.version !== state.editorState.getVersion()) continue;
-
             const color =
                 filteredThemeColors[murmurhash.v3(presenceState.key) % filteredThemeColors.length]!;
 
@@ -541,7 +629,7 @@ function DocumentContentEditorStateful({initialDocument}: {initialDocument: Docu
         }
 
         return phantomTextSelections;
-    }, [presenceStates, state.editorState]);
+    }, [presenceStates]);
 
     return (
         <>
