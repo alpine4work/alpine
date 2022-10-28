@@ -23,6 +23,7 @@ import {
     DocumentEditorPresenceUpdateSchema,
     updateDocumentContent,
 } from "~/shared/network/documents-network-definition";
+import {NetworkPresenceChannelStateType} from "~/shared/network/network-presence-channel";
 import {SchemaType} from "~/shared/schema/schema";
 
 type State = {
@@ -351,19 +352,49 @@ function DocumentContentEditorStateful({initialDocument}: {initialDocument: Docu
     // TODO(calebmer): The pricing limits on presence from Ably are...not great. We
     // probably need to migrate presence to Cloudflare Workers eventually.
     // https://faqs.ably.com/why-do-you-have-a-limit-on-the-number-of-members-present-on-a-channel
-    const {ourPresenceStateKey, presenceStates} = useNetworkPresenceChannel(
-        DocumentEditorPresenceChannel,
-        {documentId},
-        state.selectionForPresence.textSelection
-            ? {
-                  version: state.selectionForPresence.version,
-                  textSelection: {
-                      anchor: state.selectionForPresence.textSelection.$anchor.pos,
-                      head: state.selectionForPresence.textSelection.$head.pos,
-                  },
-              }
-            : null,
-    );
+    const {ourPresenceStateKey, presenceStates: presenceStatesWithoutOverrides} =
+        useNetworkPresenceChannel(
+            DocumentEditorPresenceChannel,
+            {documentId},
+            state.selectionForPresence.textSelection
+                ? {
+                      version: state.selectionForPresence.version,
+                      textSelection: {
+                          anchor: state.selectionForPresence.textSelection.$anchor.pos,
+                          head: state.selectionForPresence.textSelection.$head.pos,
+                      },
+                  }
+                : null,
+        );
+
+    const presenceStates = useMemo(() => {
+        const presenceStates: Array<
+            NetworkPresenceChannelStateType<typeof DocumentEditorPresenceChannel> & {
+                readonly key: string;
+            }
+        > = [];
+
+        for (const presenceState of presenceStatesWithoutOverrides) {
+            // If we have a presence state override at a later version than the state from
+            // our presence channel, use the override.
+            const presenceStateOverride = state.presenceStateByKeyOverride.get(presenceState.key);
+            if (presenceStateOverride && presenceStateOverride.version > presenceState.version) {
+                // If the override has no text selection, then this override acts as if the
+                // presence state left the channel.
+                if (!presenceStateOverride.textSelection) continue;
+
+                presenceStates.push({
+                    key: presenceState.key,
+                    version: presenceStateOverride.version,
+                    textSelection: presenceStateOverride.textSelection,
+                });
+            } else {
+                presenceStates.push(presenceState);
+            }
+        }
+
+        return presenceStates;
+    }, [presenceStatesWithoutOverrides, state.presenceStateByKeyOverride]);
 
     // Transform the presence states of our connected clients into cursor
     // decorations. We drop any cursors from before our document loaded because we
@@ -382,22 +413,7 @@ function DocumentContentEditorStateful({initialDocument}: {initialDocument: Docu
 
         const editorVersion = state.editorState.getVersion();
 
-        for (let presenceState of presenceStates) {
-            // If we have a presence state override at a later version than the state from
-            // our presence channel, use the override.
-            const presenceStateOverride = state.presenceStateByKeyOverride.get(presenceState.key);
-            if (presenceStateOverride && presenceStateOverride.version > presenceState.version) {
-                // If the override has no text selection, then this override acts as if the
-                // presence state left the channel.
-                if (!presenceStateOverride.textSelection) continue;
-
-                presenceState = {
-                    key: presenceState.key,
-                    version: presenceStateOverride.version,
-                    textSelection: presenceStateOverride.textSelection,
-                };
-            }
-
+        for (const presenceState of presenceStates) {
             // TODO(calebmer): Presence states in the past and future.
             if (presenceState.version !== editorVersion) continue;
 
@@ -413,7 +429,7 @@ function DocumentContentEditorStateful({initialDocument}: {initialDocument: Docu
         }
 
         return phantomTextSelections;
-    }, [presenceStates, state.editorState, state.presenceStateByKeyOverride]);
+    }, [presenceStates, state.editorState]);
 
     return (
         <>
