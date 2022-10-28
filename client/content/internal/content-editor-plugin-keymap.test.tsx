@@ -11,10 +11,7 @@ import {
     ContentEditorState,
     getEditorViewForTest,
 } from "~/client/content/content-editor";
-import {
-    DocumentWithoutTitleContentProsemirrorSchema,
-    emptyDocumentWithoutTitleContent,
-} from "~/shared/documents/document-content-schema";
+import {emptyDocumentWithoutTitleContent} from "~/shared/documents/document-content-schema";
 import {assert} from "~/shared/helpers/control/assert";
 
 function TestContentEditor() {

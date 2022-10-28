@@ -1,5 +1,6 @@
 import type {NextApiRequest, NextApiResponse} from "next";
 import {getNetworkFunctionImplementation} from "~/server/network/all-network-implementations";
+import {getSession} from "~/server/session/session";
 import {ErrorBase, InvalidArgumentError, NotFoundError} from "~/shared/error/error";
 import {ErrorCode} from "~/shared/error/error-code";
 import {isHttp500ErrorCode} from "~/shared/error/is-http-500-error-code";
@@ -13,6 +14,8 @@ import {SchemaType} from "~/shared/schema/schema";
 
 export default async function executeNetworkFunctions(req: NextApiRequest, res: NextApiResponse) {
     try {
+        const session = await getSession({req, res});
+
         if (req.method !== "POST")
             throw new InvalidArgumentError(
                 "Must use POST HTTP method when executing network functions",
@@ -35,7 +38,10 @@ export default async function executeNetworkFunctions(req: NextApiRequest, res: 
                                 "Could not find an implementation for network function",
                             );
 
-                        const output = await networkFunctionImplementation.execute(execution.input);
+                        const output = await networkFunctionImplementation.execute(
+                            session,
+                            execution.input,
+                        );
 
                         return {
                             ok: true,

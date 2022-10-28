@@ -2,16 +2,16 @@ import {base64ToBytes, bytesToBase64} from "byte-base64";
 import {InvalidArgumentError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {omitFromStackTrace} from "~/shared/helpers/control/omit-from-stack-trace";
 import {hasOwnProperty} from "~/shared/helpers/object/has-own-property";
-import {isPlainObject} from "~/shared/helpers/object/is-plain-object";
 import {isIdentifier} from "~/shared/helpers/string/is-identifier";
 import {Optionalize} from "~/shared/helpers/types/optionalize";
 import {Id, isId} from "~/shared/id/id";
 import {
-    SchemaDescription,
-    SchemaObjectPropertyDescription,
+    SchemaSerializedObjectValuePropertyDescription,
+    SchemaSerializedValueDescription,
 } from "~/shared/schema/types/schema-description-types";
+
+// TODO(calebmer): Rename serialize/deserialize to encode/decode.
 
 /**
  * Get the underlying type of a schema object.
@@ -74,7 +74,7 @@ export type SchemaSerializedArrayValue = ReadonlyArray<SchemaSerializedValue>;
  * [1]: https://en.wikipedia.org/wiki/Covariance_and_contravariance_(computer_science)
  */
 export interface SchemaWithOnlySerialization<Value> {
-    readonly description: SchemaDescription;
+    readonly description: SchemaSerializedValueDescription;
     serialize(value: Value): SchemaSerializedValue;
 }
 
@@ -92,7 +92,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     /**
      * The description of the serialized value returned by this schema.
      */
-    public readonly description: SchemaDescription;
+    public readonly description: SchemaSerializedValueDescription;
 
     /**
      * Serializes a value into a format we can send across process boundaries.
@@ -105,7 +105,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      * Deserializes a value we received from a process boundary. If the value does
      * not match our schema then we throw an error.
      *
-     * May mutate the underlying value during deserialization.
+     * Does not mutate the underlying value during deserialization.
      */
     public readonly deserialize: (serializedValue: SchemaSerializedValue) => Value;
 
@@ -140,7 +140,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
         serialize,
         deserialize,
     }: {
-        description: SchemaDescription;
+        description: SchemaSerializedValueDescription;
         serialize: (value: Value) => SchemaSerializedValue;
         deserialize: (serializedValue: SchemaSerializedValue) => Value;
     }) {
@@ -167,11 +167,11 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     public static boolean = new Schema<boolean>({
         description: {type: "Boolean"},
         serialize: value => value,
-        deserialize: omitFromStackTrace(value => {
+        deserialize: value => {
             if (typeof value !== "boolean")
                 throw new SchemaDeserializationError("Expected boolean");
             return value;
-        }),
+        },
     });
 
     /**
@@ -184,10 +184,10 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     public static float = new Schema<number>({
         description: {type: "Float"},
         serialize: value => value,
-        deserialize: omitFromStackTrace(value => {
+        deserialize: value => {
             if (typeof value !== "number") throw new SchemaDeserializationError("Expected number");
             return value;
-        }),
+        },
     });
 
     /**
@@ -203,14 +203,14 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
             assert(Number.isSafeInteger(value));
             return value;
         },
-        deserialize: omitFromStackTrace(value => {
+        deserialize: value => {
             if (typeof value !== "number") throw new SchemaDeserializationError("Expected number");
 
             if (!Number.isSafeInteger(value))
                 throw new SchemaDeserializationError("Expected number");
 
             return value;
-        }),
+        },
     });
 
     /**
@@ -219,10 +219,10 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     public static string = new Schema<string>({
         description: {type: "String"},
         serialize: value => value,
-        deserialize: omitFromStackTrace(value => {
+        deserialize: value => {
             if (typeof value !== "string") throw new SchemaDeserializationError("Expected string");
             return value;
-        }),
+        },
     });
 
     /**
@@ -231,11 +231,11 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     public static id = new Schema<Id>({
         description: {type: "Id"},
         serialize: value => value,
-        deserialize: omitFromStackTrace(value => {
+        deserialize: value => {
             if (typeof value !== "string") throw new SchemaDeserializationError("Expected string");
             if (!isId(value)) throw new SchemaDeserializationError("Expected id");
             return value;
-        }),
+        },
     });
 
     /**
@@ -251,7 +251,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
         serialize: value => {
             return new JsonStringifiableUint8Array(value);
         },
-        deserialize: omitFromStackTrace(value => {
+        deserialize: value => {
             if (value instanceof Uint8Array) return value;
 
             if (typeof value !== "string")
@@ -262,7 +262,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
             } catch {
                 throw new SchemaDeserializationError("Unable to parse base64 string");
             }
-        }),
+        },
     });
 
     /**
@@ -278,10 +278,10 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
                 if (value === null) return null;
                 return this.serialize(value);
             },
-            deserialize: omitFromStackTrace(value => {
+            deserialize: value => {
                 if (value === null) return null;
                 return this.deserialize(value);
-            }),
+            },
         });
     }
 
@@ -333,18 +333,16 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
                 itemSchema: itemSchema.description,
             },
             serialize: value => value.map(item => itemSchema.serialize(item)),
-            deserialize: omitFromStackTrace(value => {
+            deserialize: value => {
                 if (!Array.isArray(value))
                     throw new SchemaDeserializationError("Expected an array");
 
-                for (let index = 0; index < value.length; index++) {
-                    withSchemaDeserializationStackFrame({type: "ArrayIndex", index}, () => {
-                        value[index] = itemSchema.deserialize(value[index]);
+                return value.map((item, index) => {
+                    return withSchemaDeserializationStackFrame({type: "ArrayIndex", index}, () => {
+                        return itemSchema.deserialize(item);
                     });
-                }
-
-                return value;
-            }),
+                });
+            },
         });
     }
 
@@ -423,7 +421,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
                     return errorSchema.serialize(value);
                 }
             },
-            deserialize: omitFromStackTrace(value => {
+            deserialize: value => {
                 if (typeof value !== "object" || value === null)
                     throw new SchemaDeserializationError("Expected an object");
 
@@ -441,7 +439,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
                         () => errorSchema.deserialize(value),
                     );
                 }
-            }),
+            },
         });
     }
 
@@ -550,7 +548,7 @@ export class ObjectSchema<Value> extends Schema<Value> {
         deserializeInto,
     }: {
         propertySchemaByKey: ReadonlyMap<string, ObjectPropertySchema<unknown, unknown>>;
-        description: SchemaDescription;
+        description: SchemaSerializedValueDescription;
         serializeInto: (value: Value, target: {[key: string]: SchemaSerializedValue}) => void;
         deserializeInto: (
             serializedValue: SchemaSerializedValue,
@@ -605,57 +603,20 @@ export class ObjectSchema<Value> extends Schema<Value> {
                 if (typeof value !== "object" || value === null)
                     throw new SchemaDeserializationError("Expected an object");
 
-                if (target !== undefined) {
-                    for (const [key, schema] of propertySchemaByKey) {
-                        const serializedKey = schema.serializedKey ?? key;
+                const newValue: any = target ?? {};
 
-                        const keyValue = schema.deserializeProperty(
-                            value as any as SchemaSerializedObjectValue,
-                            serializedKey,
-                        );
+                for (const [key, schema] of propertySchemaByKey) {
+                    const serializedKey = schema.serializedKey ?? key;
 
-                        (target as any)[key] = keyValue;
-                    }
+                    const keyValue = schema.deserializeProperty(
+                        value as any as SchemaSerializedObjectValue,
+                        serializedKey,
+                    );
 
-                    return target as any;
-                } else if (isPlainObject(value)) {
-                    const unknownKeys = new Set(Object.keys(value));
-
-                    for (const [key, schema] of propertySchemaByKey) {
-                        unknownKeys.delete(key);
-                        const serializedKey = schema.serializedKey ?? key;
-
-                        const keyValue = schema.deserializeProperty(value, serializedKey);
-
-                        (value as any)[key] = keyValue;
-                    }
-
-                    // Silently discard keys our schema doesn't know about instead of erring. By
-                    // not erring we are future compatible with new schemas.
-                    //
-                    // We need to delete properties, though, so an attacker doesn't try setting
-                    // `__proto__` or other intrinsic properties.
-                    for (const key of unknownKeys) {
-                        delete (value as any)[key];
-                    }
-
-                    return value as any;
-                } else {
-                    const newValue: {[key: string]: unknown} = {};
-
-                    for (const [key, schema] of propertySchemaByKey) {
-                        const serializedKey = schema.serializedKey ?? key;
-
-                        const keyValue = schema.deserializeProperty(
-                            value as any as SchemaSerializedObjectValue,
-                            serializedKey,
-                        );
-
-                        newValue[key] = keyValue;
-                    }
-
-                    return newValue as any;
+                    newValue[key] = keyValue;
                 }
+
+                return newValue;
             },
         });
     }
@@ -685,7 +646,7 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
     /**
      * The description of the serialized property written by this schema.
      */
-    readonly description: SchemaObjectPropertyDescription;
+    readonly description: SchemaSerializedObjectValuePropertyDescription;
 
     /**
      * The schema for our underlying value. Useful for static analysis.
@@ -729,7 +690,7 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
     }: {
         serializedKey: string | null;
         valueSchema: Schema<SchemaValue>;
-        description: SchemaObjectPropertyDescription;
+        description: SchemaSerializedObjectValuePropertyDescription;
         serializeProperty: (
             object: {[key: string]: SchemaSerializedValue | undefined},
             key: string,
@@ -841,13 +802,13 @@ export class ValueSchema<Value extends string | number | boolean> extends Schema
         super({
             description: {type: "Value", value},
             serialize: value => value,
-            deserialize: omitFromStackTrace(actualValue => {
+            deserialize: actualValue => {
                 if (!Object.is(value, actualValue))
                     throw new SchemaDeserializationError(
                         `Expected value to be ${JSON.stringify(value)}`,
                     );
                 return actualValue as Value;
-            }),
+            },
         });
         this.value = value;
     }
@@ -909,7 +870,7 @@ export class UnionSchema<Value extends {readonly type: string}> extends Schema<V
         deserialize,
     }: {
         variantSchemaByType: ReadonlyMap<string, UnionSchemaVariant<{readonly type: string}>>;
-        description: SchemaDescription;
+        description: SchemaSerializedValueDescription;
         serialize: (value: Value) => SchemaSerializedValue;
         deserialize: (serializedValue: SchemaSerializedValue) => Value;
     }) {
@@ -993,27 +954,18 @@ export class UnionSchema<Value extends {readonly type: string}> extends Schema<V
                 // Use the type to select the schema we'll use to parse the value.
                 const serializedType: string = value.type;
 
-                const deserializedValue = withSchemaDeserializationStackFrame(
-                    {type: "UnionVariant", typeKey: "type", typeValue: serializedType},
-                    () => {
-                        // Always use the serialized type name, never use the current type name in
-                        // code. We don't have code that will serialize using the current type name.
-                        //
-                        // This makes static analysis on the schema a bit easier. Since we don't need
-                        // to consider two possible types.
-                        //
-                        // We may want to consider a migration path in the future where both types are
-                        // temporarily allowed until one type fully replaces the other.
-                        const schema = schemaBySerializedType.get(serializedType);
-                        if (schema === undefined) return null;
-                        return schema.deserialize(value) as any;
-                    },
-                );
+                // Always use the serialized type name, never use the current type name in
+                // code. We don't have code that will serialize using the current type name.
+                //
+                // This makes static analysis on the schema a bit easier. Since we don't need
+                // to consider two possible types.
+                //
+                // We may want to consider a migration path in the future where both types are
+                // temporarily allowed until one type fully replaces the other.
+                const schema = schemaBySerializedType.get(serializedType);
+                if (schema === undefined) throw new SchemaDeserializationError("Unknown type");
 
-                if (deserializedValue === null)
-                    throw new SchemaDeserializationError("Unknown type");
-
-                return deserializedValue;
+                return schema.deserialize(value) as any;
             },
         });
     }
@@ -1085,8 +1037,9 @@ export class UnionSchemaVariant<Value extends {readonly type: string}> {
         return withSchemaDeserializationStackFrame(
             {type: "UnionVariant", typeKey: "type", typeValue: this.type},
             () => {
-                value.type = this.type;
-                return this.schema.deserialize(value) as any;
+                return this.schema.deserialize(
+                    value.type !== this.type ? ({...value, type: this.type} as any) : value,
+                ) as any;
             },
         );
     }

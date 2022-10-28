@@ -1,7 +1,7 @@
 import {
-    SchemaDescriptionBackwardsIncompatibleError,
-    checkSchemaDescriptionBackwardsCompatibility,
-} from "~/server/schema/check-schema-description-backwards-compatibility";
+    SchemaBackwardsIncompatibleError,
+    checkSchemaBackwardsCompatibility,
+} from "~/server/schema/check-schema-backwards-compatibility";
 import {BlockInference} from "~/shared/helpers/types/block-inference";
 import {generateId} from "~/shared/id/id";
 import {Schema, SchemaDeserializationError} from "~/shared/schema/schema";
@@ -19,10 +19,7 @@ function testCase<LastValue, NextValue>({
 }) {
     if (isBackwardsCompatible) {
         expect(() => {
-            checkSchemaDescriptionBackwardsCompatibility(
-                lastSchema.description,
-                nextSchema.description,
-            );
+            checkSchemaBackwardsCompatibility(lastSchema.description, nextSchema.description);
         }).not.toThrow();
 
         for (const sampleValue of sampleValues) {
@@ -32,11 +29,8 @@ function testCase<LastValue, NextValue>({
         }
     } else {
         expect(() => {
-            checkSchemaDescriptionBackwardsCompatibility(
-                lastSchema.description,
-                nextSchema.description,
-            );
-        }).toThrow(SchemaDescriptionBackwardsIncompatibleError);
+            checkSchemaBackwardsCompatibility(lastSchema.description, nextSchema.description);
+        }).toThrow(SchemaBackwardsIncompatibleError);
 
         for (const sampleValue of sampleValues) {
             expect(() => {

@@ -634,7 +634,7 @@ test("union does not look at a type property in the prototype", () => {
     expect(validate(schema, new Test())).toEqual(false);
 });
 
-test.only("union variants can be renamed", () => {
+test("union variants can be renamed", () => {
     const schema = Schema.union({
         foo: Schema.object({
             type: Schema.value("foo"),

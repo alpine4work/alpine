@@ -1,11 +1,14 @@
 import "~/client/bootstrap/bootstrap";
 
+import {Fira_Code, Inter} from "@next/font/google";
+import classNames from "classnames";
 import type {AppProps} from "next/app";
 import Head from "next/head";
 import {IconContext} from "phosphor-react";
 import {ReactNode} from "react";
 import {InitializeColorSchemeScript} from "~/client/design/color-scheme";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
+import {sprinkles} from "~/client/design/sprinkles.css";
 import {TooltipCoordinationContextProvider} from "~/client/design/tooltip";
 import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use-is-initial-app-render";
 import {spacing} from "~/shared/design/spacing";
@@ -13,9 +16,19 @@ import {spacing} from "~/shared/design/spacing";
 // TODO(calebmer): Aggressively show error dialog if unhandled error occurs.
 // Like Next.js in dev. Maybe it should be dismissable? Like Next.js.
 
+const inter = Inter({weight: "variable", subsets: ["latin"], variable: "--inter"});
+const firaCode = Fira_Code({weight: "variable", subsets: ["latin"], variable: "--fira-code"});
+
 export default function App({Component, pageProps}: AppProps) {
     return (
-        <>
+        <div
+            className={classNames(
+                sprinkles({height: "full"}),
+                inter.className,
+                inter.variable,
+                firaCode.variable,
+            )}
+        >
             <Head>
                 <InitializeColorSchemeScript />
                 <meta
@@ -27,7 +40,7 @@ export default function App({Component, pageProps}: AppProps) {
                 (children, decorator) => decorator(children),
                 <Component {...pageProps} />,
             )}
-        </>
+        </div>
     );
 }
 

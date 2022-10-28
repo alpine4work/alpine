@@ -243,6 +243,19 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
         // editors. I often find myself frustrated by the inherited styles.
 
         /**
+         * Text written in a monospace font with a background of the same color as a
+         * code block. For consistency with the code block allows you to reference
+         * names normally written in a monospace font (code mostly).
+         */
+        // NOTE(calebmer): This needs to be defined before `bold` and other styles so
+        // that in the DOM `code` will wrap other styles.
+        code: {
+            inclusive: false,
+            toDOM: () => ["code", {class: codeClassName}, 0],
+            parseDOM: [{tag: "code"}],
+        },
+
+        /**
          * Emphasize some text to let the user know it's important. Bolded text is
          * typically more eye catching than italics.
          */
@@ -288,17 +301,6 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
             inclusive: false,
             toDOM: () => ["del", {class: strikeClassName}, 0],
             parseDOM: [{tag: "del"}],
-        },
-
-        /**
-         * Text written in a monospace font with a background of the same color as a
-         * code block. For consistency with the code block allows you to reference
-         * names normally written in a monospace font (code mostly).
-         */
-        code: {
-            inclusive: false,
-            toDOM: () => ["code", {class: codeClassName}, 0],
-            parseDOM: [{tag: "code"}],
         },
 
         /**

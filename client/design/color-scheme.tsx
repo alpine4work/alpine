@@ -1,5 +1,4 @@
 import {useEffect, useState} from "react";
-import {InternalError} from "~/shared/error/error";
 import {scheduleException} from "~/shared/helpers/async/schedule-exception";
 import {assert} from "~/shared/helpers/control/assert";
 

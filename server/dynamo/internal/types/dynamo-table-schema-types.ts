@@ -7,7 +7,7 @@ import type {OrderKey} from "~/shared/helpers/sort/order-key";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge-object-intersection";
 import {UnionToTuple} from "~/shared/helpers/types/union-to-tuple";
 import type {ObjectSchema, SchemaType} from "~/shared/schema/schema";
-import {SchemaDescription} from "~/shared/schema/types/schema-description-types";
+import {SchemaSerializedValueDescription} from "~/shared/schema/types/schema-description-types";
 
 /**
  * Types for the `DynamoTableSchema` file. These types get a little complicated. So
@@ -318,7 +318,7 @@ export namespace DynamoTableSchemaTypes {
             readonly sortKeyAttributeByKey: {
                 readonly [key: string]: DynamoKeyAttributeSchemaDescription;
             };
-            readonly attributesSchema: SchemaDescription;
+            readonly attributesSchema: SchemaSerializedValueDescription;
         };
 
         export type KeyType<Config extends ConfigBase> = KeyAttributes.Type<

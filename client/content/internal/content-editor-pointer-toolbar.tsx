@@ -575,11 +575,9 @@ function ContentEditorPointerToolbarButton({
             // Don't allow flipping the tooltip down into selection content.
             canFlip={false}
             content={
-                <Box>
+                <Box paddingY="0.5">
                     {description}
-                    <Box color="grey-60" style={{marginTop: "-0.125rem"}}>
-                        {keyboardShortcut}
-                    </Box>
+                    <Box color="grey-60">{keyboardShortcut}</Box>
                 </Box>
             }
         >

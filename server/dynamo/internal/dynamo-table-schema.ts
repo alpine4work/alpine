@@ -18,7 +18,7 @@ import {
 import {globalDynamoClient} from "~/server/dynamo/internal/global-dynamo-client";
 import {DynamoTableSchemaTypes} from "~/server/dynamo/internal/types/dynamo-table-schema-types";
 import {repoDirectoryPath} from "~/server/helpers/repo-directory-path";
-import {checkSchemaDescriptionBackwardsCompatibility} from "~/server/schema/check-schema-description-backwards-compatibility";
+import {checkSchemaBackwardsCompatibility} from "~/server/schema/check-schema-backwards-compatibility";
 import {DataLossError, InvalidArgumentError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {isDeepEqual} from "~/shared/helpers/control/is-deep-equal";
@@ -120,7 +120,7 @@ export class DynamoTableSchema<
      *   last schema description that we loaded from the git repo. If no `OrderKey`
      *   exists in that description for the sort range then we generate a new one.
      * - Fully serializable to JSON. So does not contain `Schema` objects but
-     *   rather contains a `SchemaDescription`.
+     *   rather contains a `SchemaSerializedValueDescription`.
      */
     private readonly _description: DynamoTableSchemaTypes.Description;
 
@@ -979,7 +979,7 @@ function checkDynamoTableSortRangeSchemaDescriptionBackwardsCompatibility(
     if (lastDescription.orderKey !== nextDescription.orderKey)
         throw new InvalidArgumentError(`Incompatible order key for sort range \`${type}\``);
 
-    checkSchemaDescriptionBackwardsCompatibility(
+    checkSchemaBackwardsCompatibility(
         lastDescription.attributesSchema,
         nextDescription.attributesSchema,
     );

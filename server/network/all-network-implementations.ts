@@ -13,12 +13,16 @@ import {
     NetworkFunctionImplementation,
     getNetworkFunctionImplementationIfExists,
 } from "~/server/network/internal/implement-network-function";
+import {
+    NetworkPresenceChannelImplementation,
+    getNetworkPresenceChannelImplementationIfExists,
+} from "~/server/network/internal/implement-network-presence-channel";
 
 /**
  * Get the implementation for a network function with the given name.
  *
  * Importing this module also imports all network function implementations so
- * we know that all network function implementations exist.
+ * we know that all implementations exist.
  */
 export function getNetworkFunctionImplementation(
     name: string,
@@ -30,8 +34,22 @@ export function getNetworkFunctionImplementation(
  * Get the implementation for a network channel with the given name.
  *
  * Importing this module also imports all network channel implementations so
- * we know that all network function implementations exist.
+ * we know that all implementations exist.
  */
-export function getNetworkChannelImplementation(name: string): NetworkChannelImplementation | null {
+export function getNetworkChannelImplementation(
+    name: string,
+): NetworkChannelImplementation<any> | null {
     return getNetworkChannelImplementationIfExists(name);
+}
+
+/**
+ * Get the implementation for a network presence channel with the given name.
+ *
+ * Importing this module also imports all network presence channel
+ * implementations so we know that all implementations exist.
+ */
+export function getNetworkPresenceChannelImplementation(
+    name: string,
+): NetworkPresenceChannelImplementation<any> | null {
+    return getNetworkPresenceChannelImplementationIfExists(name);
 }

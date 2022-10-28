@@ -1,7 +1,7 @@
 import {createVar, globalStyle, style} from "@vanilla-extract/css";
 import {colorByHighlightColor} from "~/shared/content/highlight-color";
 import {colorSchemeVars} from "~/shared/design/color-scheme.css";
-import {fontScale, fontWeights, monospaceFontFamily} from "~/shared/design/fonts";
+import {fontScale, fonts} from "~/shared/design/fonts";
 import {
     mobilePlatformMediaQuery,
     parseRemLengthNumber,
@@ -10,8 +10,8 @@ import {
 } from "~/shared/design/spacing";
 import {mapObjectValues} from "~/shared/helpers/object/map-object-values";
 
-export const paragraphMargin = spacing["3"];
-const headerTopMargin = spacing["8"];
+const paragraphBottomMargin = spacing["3"];
+const headerTopMargin = spacing["6"];
 
 export const docClassName = style({
     position: "relative",
@@ -32,41 +32,38 @@ export const titlePaddingTop = spacing["24"];
 
 export const titleClassName = style({
     ...blockStyles,
-    ...fontScale["2xl"],
-    fontWeight: fontWeights.bold,
+    ...fonts.primarySemiBold,
+    ...fontScale.heading2,
     paddingTop: titlePaddingTop,
-    marginBottom: paragraphMargin,
 });
 
 export const paragraphClassName = style({
     ...blockStyles,
-    ...fontScale.base,
-    marginTop: paragraphMargin,
-    marginBottom: paragraphMargin,
+    ...fonts.primary,
+    ...fontScale.body,
+    marginBottom: paragraphBottomMargin,
 });
 
 export const headingLevel1ClassName = style({
     ...blockStyles,
-    ...fontScale.xl,
-    fontWeight: fontWeights.bold,
+    ...fonts.primarySemiBold,
+    ...fontScale.heading3,
     marginTop: headerTopMargin,
-    marginBottom: paragraphMargin,
 });
 
 export const headingLevel2ClassName = style({
     ...blockStyles,
-    ...fontScale.lg,
-    fontWeight: fontWeights.bold,
+    ...fonts.primarySemiBold,
+    ...fontScale.heading4,
     marginTop: headerTopMargin,
-    marginBottom: paragraphMargin,
 });
 
 export const headingLevel3ClassName = style({
     ...blockStyles,
-    ...fontScale.base,
-    fontWeight: fontWeights.bold,
+    ...fonts.primarySemiBold,
+    ...fontScale.heading5,
     marginTop: headerTopMargin,
-    marginBottom: paragraphMargin,
+    marginBottom: spacing["0.5"],
 });
 
 const quoteBlockIndentation = spacing["4"];
@@ -133,7 +130,7 @@ export const orderedListItemClassName = style({
             left: `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${spacing["6"]})`,
             textAlign: "right",
             transform: "translateX(-100%)",
-            ...fontScale.base,
+            ...fontScale.body,
             fontVariantNumeric: "tabular-nums",
         },
     },
@@ -225,21 +222,8 @@ export const dividerClassName = style({
     borderColor: colorSchemeVars["grey-20"],
 });
 
-export const boldClassName = style({
-    fontWeight: fontWeights.bold,
-});
-
-export const italicClassName = style({
-    fontStyle: "italic",
-});
-
-export const strikeClassName = style({
-    textDecorationLine: "line-through",
-    textDecorationThickness: 1,
-});
-
 export const codeClassName = style({
-    fontFamily: monospaceFontFamily,
+    ...fonts.code,
     fontSize: `${(remPxByPlatform.desktop - 1) / remPxByPlatform.desktop}em`,
     // The line height isn't `fontScale.base.lineHeight` because I've observed that
     // it grows the paragraph container as a whole to a larger height than
@@ -254,6 +238,24 @@ export const codeClassName = style({
     paddingLeft: spacing["1"],
     paddingRight: spacing["1"],
     borderRadius: spacing["1"],
+});
+
+export const boldClassName = style({
+    ...fonts.primaryBold,
+    selectors: {
+        [`${codeClassName} &`]: {
+            ...fonts.codeBold,
+        },
+    },
+});
+
+export const italicClassName = style({
+    fontStyle: "italic",
+});
+
+export const strikeClassName = style({
+    textDecorationLine: "line-through",
+    textDecorationThickness: 1,
 });
 
 export const highlightClassNameByColor = mapObjectValues(colorByHighlightColor, color =>

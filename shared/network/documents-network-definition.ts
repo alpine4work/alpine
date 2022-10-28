@@ -4,6 +4,7 @@ import {
 } from "~/shared/documents/document-content-schema";
 import {defineNetworkChannel} from "~/shared/network/internal/define-network-channel";
 import {defineNetworkFunction} from "~/shared/network/internal/define-network-function";
+import {defineNetworkPresenceChannel} from "~/shared/network/internal/define-network-presence-channel";
 import {Schema} from "~/shared/schema/schema";
 
 export const createDocument = defineNetworkFunction({
@@ -47,7 +48,7 @@ export const readDocumentForCollaborationWorker = defineNetworkFunction({
     },
 });
 
-export const DocumentNetworkChannel = defineNetworkChannel({
+export const DocumentChannel = defineNetworkChannel({
     name: "Document",
     key: {
         documentId: Schema.id,
@@ -59,5 +60,15 @@ export const DocumentNetworkChannel = defineNetworkChannel({
             steps: Schema.array(DocumentContentStepSchema),
             clientId: Schema.id,
         }),
+    },
+});
+
+export const DocumentEditorPresenceChannel = defineNetworkPresenceChannel({
+    name: "DocumentEditorPresence",
+    key: {
+        documentId: Schema.id,
+    },
+    state: {
+        version: Schema.integer,
     },
 });

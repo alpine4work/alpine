@@ -33,12 +33,3 @@ export const uninterruptedThoughtLimitMs = 1000;
  * taking quick action and doesn't appear to need extra context.
  */
 export const presentExtraContextAfterDelayMs = 500;
-
-/**
- * Estimated milliseconds a below average typist would take to type a longer
- * than average word.
- *
- * This is useful as a constant for throttling network requests while a user is
- * typing if you want to send a network request at about every word.
- */
-export const typingNetworkThrottleMs = 1500;

@@ -1,9 +1,10 @@
 import * as jwt from "jsonwebtoken";
-import {getNetworkChannelImplementation} from "~/server/network/all-network-implementations";
+import {authorizeNetworkChannel} from "~/server/network/internal/authorize-network-channel";
 import {implementNetworkFunction} from "~/server/network/internal/implement-network-function";
-import {InvalidArgumentError, NotFoundError, PermissionDeniedError} from "~/shared/error/error";
+import {InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run-all-promises";
 import {assert} from "~/shared/helpers/control/assert";
+import {isDeepEqual} from "~/shared/helpers/control/is-deep-equal";
 import {isPlainObject} from "~/shared/helpers/object/is-plain-object";
 import * as definition from "~/shared/network/ably-network-definition";
 
@@ -19,7 +20,7 @@ const [ablyApiKeyId = "", ablyApiKeySecret = ""] = process.env.ABLY_API_KEY.spli
 assert(ablyApiKeyId.length > 0);
 assert(ablyApiKeySecret.length > 0);
 
-implementNetworkFunction(definition.authenticateAbly, async input => {
+implementNetworkFunction(definition.authenticateAbly, async (input, session) => {
     let capability: unknown;
     try {
         capability =
@@ -39,51 +40,39 @@ implementNetworkFunction(definition.authenticateAbly, async input => {
     // access a particular channel.
     await runAllPromises(
         Object.entries(capability).map(async ([channelName, channelCapabilities]) => {
-            const channelNameParts = channelName.split(":");
-
-            if (channelNameParts[0] !== "network")
-                throw new PermissionDeniedError(
-                    'Not authorized to subscribe to Ably channels outside of the "network" namespace',
+            if (!Array.isArray(channelCapabilities))
+                throw new InvalidArgumentError(
+                    'Expected "capability" values to be an array of capability operations',
                 );
 
-            if (!channelNameParts[1])
-                throw new InvalidArgumentError("Missing network channel name in Ably channel name");
+            // Actually run the authorization function for our `NetworkChannel` or
+            // `NetworkPresenceChannel`. This function will throw if we don't have access.
+            const {channelType} = await authorizeNetworkChannel(channelName);
 
-            for (const channelNamePart of channelNameParts)
-                if (channelNamePart.includes("*"))
-                    throw new PermissionDeniedError(
-                        "Not authorized to subscribe to wildcard Ably channel names",
-                    );
+            const expectedChannelCapabilities =
+                channelType === "PresenceChannel"
+                    ? new Set(["subscribe", "presence"])
+                    : new Set(["subscribe"]);
 
-            if (
-                !Array.isArray(channelCapabilities) ||
-                channelCapabilities.length !== 1 ||
-                channelCapabilities[0] !== "subscribe"
-            ) {
+            if (!isDeepEqual(new Set(channelCapabilities), expectedChannelCapabilities))
                 throw new PermissionDeniedError("Only permitted to subscribe to an Ably channel");
-            }
-
-            const networkChannelImplementation = getNetworkChannelImplementation(
-                channelNameParts[1],
-            );
-
-            if (!networkChannelImplementation)
-                throw new NotFoundError("Could not find an implementation for network channel");
-
-            await networkChannelImplementation.authorize(channelName);
         }),
     );
+
+    // We use the browser id as the Ably client id. An attacker can't spoof the
+    // browser id because it is a part of our signed session cookie.
+    const ablyClientId = session.browserId;
 
     // Yay! All our channels are authorized. Send a short-lived JWT token to the
     // client for subscribing to Ably messages.
     const token = await new Promise<string>((resolve, reject) => {
         jwt.sign(
-            {"x-ably-capability": JSON.stringify(capability)},
+            {"x-ably-capability": JSON.stringify(capability), "x-ably-clientId": ablyClientId},
             ablyApiKeySecret,
             {keyid: ablyApiKeyId, expiresIn: "10m"},
             (error, token) => {
                 if (error) reject(error);
-                else resolve(token!); // eslint-disable-line @typescript-eslint/no-unnecessary-type-assertion
+                else resolve(token!);
             },
         );
     });

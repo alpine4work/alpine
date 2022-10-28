@@ -1,15 +1,15 @@
 import {assert} from "~/shared/helpers/control/assert";
 import {BlockInference} from "~/shared/helpers/types/block-inference";
-import {NetworkChannel} from "~/shared/network/network-channel";
+import {NetworkChannelBase} from "~/shared/network/network-channel";
 
 /**
  * Get the Ably channel name based on a channel definition and a key into
  * that channel.
  */
-export function getAblyChannelNameForNetworkChannel<
-    Key extends {[key: string]: string},
-    Message extends {type: string},
->(channel: NetworkChannel<Key, Message>, key: BlockInference<Key>) {
+export function getAblyChannelNameForNetworkChannel<Key extends {[key: string]: string}>(
+    channel: NetworkChannelBase<Key>,
+    key: BlockInference<Key>,
+) {
     const serializedKey = channel.keySchema.serialize(key as Key);
 
     // Channel names start with the `network` namespace and our channel name. Then

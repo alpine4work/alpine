@@ -25,6 +25,6 @@ export const colorByHighlightColor: {readonly [K in HighlightColor]: Color} = {
     [HighlightColor.Red]: "red-20",
     [HighlightColor.Orange]: "orange-20",
     [HighlightColor.Green]: "green-20",
-    [HighlightColor.Blue]: "indigo-20",
+    [HighlightColor.Blue]: "blue-20",
     [HighlightColor.Purple]: "purple-20",
 };
