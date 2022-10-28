@@ -12,11 +12,15 @@ export type WebsocketClientState =
           readonly socket: WebSocket;
       };
 
-const RECONNECT_TIMEOUT_BASE_MS = 1200;
-const MAX_RECONNECT_TIMEOUT_MS = 2500;
-const MESSAGE_RECONNECT_TIMEOUT_MS = 30000;
+const reconnectTimeoutBaseMs = 1200;
+const maxReconnectTimeoutMs = 2500;
+const messageReconnectTimeoutMs = 30000;
 
 export class WebSocketClient<ReceivedMessage, SentMessage> {
+    static httpToWs(url: string) {
+        return url.replace(/^http(s?):\/\//, "ws$1://");
+    }
+
     private shouldConnect = false;
     private state: WebsocketClientState = {type: "disconnected"};
     private readonly connectEvent = new EventEmitter();
@@ -60,10 +64,10 @@ export class WebSocketClient<ReceivedMessage, SentMessage> {
                 return;
             }
 
-            if (MESSAGE_RECONNECT_TIMEOUT_MS < Date.now() - this.lastMessageReceived) {
+            if (messageReconnectTimeoutMs < Date.now() - this.lastMessageReceived) {
                 socket.close();
             }
-        }, MESSAGE_RECONNECT_TIMEOUT_MS / 2);
+        }, messageReconnectTimeoutMs / 2);
 
         socket.addEventListener("message", event => {
             this.lastMessageReceived = Date.now();
@@ -76,7 +80,7 @@ export class WebSocketClient<ReceivedMessage, SentMessage> {
             }
             if (data === "pong") {
                 clearTimeout(pingTimeout);
-                pingTimeout = setTimeout(sendPing, MESSAGE_RECONNECT_TIMEOUT_MS / 2);
+                pingTimeout = setTimeout(sendPing, messageReconnectTimeoutMs / 2);
                 return;
             }
             const message = this.receivedMessageSchema.deserialize(JSON.parse(data));
@@ -100,7 +104,7 @@ export class WebSocketClient<ReceivedMessage, SentMessage> {
                 }
                 setTimeout(() => {
                     this.setupConnection();
-                }, Math.min(MAX_RECONNECT_TIMEOUT_MS, Math.log10(this.unsuccessfulReconnects + 1) * RECONNECT_TIMEOUT_BASE_MS));
+                }, Math.min(maxReconnectTimeoutMs, Math.log10(this.unsuccessfulReconnects + 1) * reconnectTimeoutBaseMs));
             }
         };
 
@@ -118,7 +122,7 @@ export class WebSocketClient<ReceivedMessage, SentMessage> {
                     this.pendingMessages = [];
                 }
                 this.connectEvent.emit();
-                pingTimeout = setTimeout(sendPing, MESSAGE_RECONNECT_TIMEOUT_MS / 2);
+                pingTimeout = setTimeout(sendPing, messageReconnectTimeoutMs / 2);
             }
         });
     }

@@ -1,6 +1,6 @@
-name = "edit-worker"
+name = "worker"
 compatibility_date = "2022-10-21"
-main = "./bundled/collaboration-worker.js"
+main = "./bundled/worker.js"
 
 [durable_objects]
 bindings = [

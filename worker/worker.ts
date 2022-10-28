@@ -1,6 +1,6 @@
 import {Schema} from "~/shared/schema/schema";
 
-const APP_ORIGIN = Schema.string.deserialize(process.env.NEXT_PUBLIC_APP_ORIGIN ?? null);
+const appOrigin = Schema.string.deserialize(process.env.NEXT_PUBLIC_APP_ORIGIN ?? null);
 
 interface Env {
     DocumentCollaborationDurableObject: DurableObjectNamespace;
@@ -11,7 +11,7 @@ const worker = {
         try {
             const originalResponse = await handleRequest(request, env);
             const response = new Response(originalResponse.body, originalResponse);
-            response.headers.set("access-control-allow-origin", APP_ORIGIN);
+            response.headers.set("access-control-allow-origin", appOrigin);
             return response;
         } catch (err) {
             console.log(`error handling ${request.method} ${request.url}:`, err);
@@ -44,5 +44,6 @@ async function handleRequest(request: Request, env: Env) {
     }
 }
 
-// export the durable object so cloudflare can pick it up
-export {DocumentCollaborationDurableObject} from "~/collaboration-worker/document-collaboration-durable-object";
+// export the durable object so cloudflare can pick it up. in the future, we should maybe use
+// separate bundles for each DO
+export {DocumentCollaborationDurableObject} from "~/worker/document-collaboration/document-collaboration-durable-object";

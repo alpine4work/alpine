@@ -161,6 +161,11 @@ module.exports = {
                         except: ["./node_modules", "./server", "./shared"],
                     },
                     {
+                        target: "./worker",
+                        from: "./",
+                        except: ["./node_modules", "./worker", "./shared"],
+                    },
+                    {
                         target: "./pages",
                         from: "./",
                         // NOTE: `./pages` is not configured to import from itself. The

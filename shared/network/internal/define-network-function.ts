@@ -29,7 +29,7 @@ import {
     SchemaType,
 } from "~/shared/schema/schema";
 
-const APP_ORIGIN = Schema.string.deserialize(process.env.NEXT_PUBLIC_APP_ORIGIN ?? null);
+const appOrigin = Schema.string.deserialize(process.env.NEXT_PUBLIC_APP_ORIGIN ?? null);
 
 /**
  * Define the interface for a network function.
@@ -171,7 +171,7 @@ async function executeNetworkFunctions(
             })),
         };
 
-        const response = await fetch(`${APP_ORIGIN}/api/network-function-call`, {
+        const response = await fetch(`${appOrigin}/api/network-function-call`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

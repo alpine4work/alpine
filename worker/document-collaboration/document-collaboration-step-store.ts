@@ -1,21 +1,22 @@
-import {DurableObjectValue} from "~/collaboration-worker/durable-object-value";
 import {
     DocumentCollaborationCommittedStep,
     DocumentCollaborationCommittedStepSchema,
 } from "~/shared/documents/document-collaboration-schema";
 import {assert} from "~/shared/helpers/control/assert";
+import {encodeElenInteger} from "~/shared/helpers/number/elen-integer";
 import {Id} from "~/shared/id/id";
 import {Schema, SchemaSerializedValue, SchemaType} from "~/shared/schema/schema";
+import {DurableObjectValue} from "~/worker/helpers/durable-object-value";
 
 export const DocumentCollaborationStepRangeSchema = Schema.object({
-    startAfter: Schema.integer,
-    end: Schema.integer,
+    startAfterVersion: Schema.integer,
+    endVersion: Schema.integer,
 });
 export type DocumentCollaborationStepRange = SchemaType<
     typeof DocumentCollaborationStepRangeSchema
 >;
 
-const KEY_PREFIX = "s";
+const keyPrefix = "s";
 
 // TODO: add some sort of in-memory cache so we don't have to pay money for most step reads?
 // TODO: accept steps larger than 128kb by chunking steps across several keys
@@ -23,17 +24,17 @@ export class DocumentCollaborationStepStore {
     constructor(
         private readonly state: DurableObjectState,
         private readonly documentId: Id,
-        private readonly versionsRange: DurableObjectValue<DocumentCollaborationStepRange>,
+        private readonly stepRange: DurableObjectValue<DocumentCollaborationStepRange>,
     ) {}
 
     private getStepKeyForVersion(version: number): string {
-        return `${KEY_PREFIX}-${version.toString(16).padStart(16, "0")}`;
+        return `${keyPrefix}-${encodeElenInteger(version)}`;
     }
 
     async readStepsSince(
         startAfter: number,
     ): Promise<ReadonlyArray<DocumentCollaborationCommittedStep>> {
-        return this.readStepsBetween(startAfter, this.versionsRange.get().end);
+        return this.readStepsBetween(startAfter, this.stepRange.get().endVersion);
     }
 
     async readStepsBetween(
@@ -43,11 +44,11 @@ export class DocumentCollaborationStepStore {
         assert(startAfter < end);
 
         return this.state.blockConcurrencyWhile(async () => {
-            const versionsRange = this.versionsRange.get();
+            const versionsRange = this.stepRange.get();
 
             // TODO: fetch earlier steps from server on-demand
-            assert(startAfter >= versionsRange.startAfter, "cannot fetch earlier steps");
-            assert(end <= versionsRange.end, "cannot fetch versions from the future");
+            assert(startAfter >= versionsRange.startAfterVersion, "cannot fetch earlier steps");
+            assert(end <= versionsRange.endVersion, "cannot fetch versions from the future");
 
             const rawSteps = await this.state.storage.list({
                 startAfter: this.getStepKeyForVersion(startAfter),
@@ -70,7 +71,7 @@ export class DocumentCollaborationStepStore {
 
     writeCommittedSteps(steps: ReadonlyArray<DocumentCollaborationCommittedStep>) {
         assert(steps.length);
-        let prevVersion = this.versionsRange.get().end;
+        let prevVersion = this.stepRange.get().endVersion;
         for (const step of steps) {
             assert(step.version === prevVersion + 1);
             prevVersion++;
@@ -79,9 +80,9 @@ export class DocumentCollaborationStepStore {
                 DocumentCollaborationCommittedStepSchema.serialize(step),
             );
         }
-        this.versionsRange.set({
-            ...this.versionsRange.get(),
-            end: prevVersion,
+        this.stepRange.set({
+            ...this.stepRange.get(),
+            endVersion: prevVersion,
         });
     }
 }

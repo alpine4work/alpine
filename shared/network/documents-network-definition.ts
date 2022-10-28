@@ -2,6 +2,7 @@ import {
     DocumentContentSchema,
     DocumentContentStepSchema,
 } from "~/shared/documents/document-content-schema";
+import {DocumentModel} from "~/shared/documents/document-model";
 import {defineNetworkChannel} from "~/shared/network/internal/define-network-channel";
 import {defineNetworkFunction} from "~/shared/network/internal/define-network-function";
 import {defineNetworkPresenceChannel} from "~/shared/network/internal/define-network-presence-channel";
@@ -36,15 +37,13 @@ export const updateDocumentContent = defineNetworkFunction({
     },
 });
 
-export const readDocumentForCollaborationWorker = defineNetworkFunction({
-    name: "readDocumentForCollaborationWorker",
+export const readDocument = defineNetworkFunction({
+    name: "readDocument",
     input: {
         id: Schema.id,
     },
     output: {
-        id: Schema.id,
-        content: DocumentContentSchema,
-        version: Schema.integer,
+        document: DocumentModel.schema().nullable(),
     },
 });
 

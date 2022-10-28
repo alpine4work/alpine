@@ -1,30 +1,42 @@
 import Head from "next/head";
 import {Step} from "prosemirror-transform";
-import {useEffect, useReducer, useState} from "react";
+import {useEffect, useReducer, useRef} from "react";
 import {ContentEditor, ContentEditorState} from "~/client/content/content-editor";
 import {sprinkles} from "~/client/design/sprinkles.css";
-import {useNetworkChannel} from "~/client/network/use-network-channel";
+import {useEvent} from "~/client/helpers/lifecycle/use-event";
+import {WebSocketClient} from "~/client/helpers/websocket-client";
 import {useNetworkPresenceChannel} from "~/client/network/use-network-presence-channel";
+import {
+    DocumentCollaborationMessageFromClient,
+    DocumentCollaborationMessageFromClientSchema,
+    DocumentCollaborationMessageFromServer,
+    DocumentCollaborationMessageFromServerSchema,
+} from "~/shared/documents/document-collaboration-schema";
 import {DocumentContent} from "~/shared/documents/document-content-schema";
 import {DocumentModel, getDocumentContentTitle} from "~/shared/documents/document-model";
-import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run-promise-without-awaiting";
 import {assert} from "~/shared/helpers/control/assert";
+import {cast} from "~/shared/helpers/control/cast";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {Id} from "~/shared/id/id";
-import {
-    DocumentChannel,
-    DocumentEditorPresenceChannel,
-    updateDocumentContent,
-} from "~/shared/network/documents-network-definition";
+import {Id, generateId} from "~/shared/id/id";
+import {DocumentEditorPresenceChannel} from "~/shared/network/documents-network-definition";
+import {Schema} from "~/shared/schema/schema";
+
+const workerOrigin = Schema.string.deserialize(process.env.NEXT_PUBLIC_WORKER_ORIGIN ?? null);
+
+type DocumentCollaborationWebSocketClient = WebSocketClient<
+    DocumentCollaborationMessageFromServer,
+    DocumentCollaborationMessageFromClient
+>;
 
 type State = {
     editorState: ContentEditorState<DocumentContent>;
-    /**
-     * We may get `ReceiveSteps` actions out of order. If we see an action for a
-     * future version we put it in this array and re-apply the action when older
-     * steps are applied.
-     */
-    pendingActions: Array<ReceiveStepsAction>;
+    isConnected: boolean;
+    pendingRequest: {
+        readonly requestId: Id;
+        readonly steps: ReadonlyArray<Step>;
+        readonly clientId: Id;
+        readonly version: number;
+    } | null;
 };
 
 function getInitialState(initialDocument: DocumentModel): State {
@@ -35,104 +47,81 @@ function getInitialState(initialDocument: DocumentModel): State {
 
     return {
         editorState,
-        pendingActions: [],
+        isConnected: false,
+        pendingRequest: null,
     };
 }
 
-type Action = EditAction | ReceiveStepsAction;
+type Action = EditAction | SetIsConnectedAction | HandleMessageAction;
 
 type EditAction = {
     readonly type: "Edit";
     readonly editorState: ContentEditorState<DocumentContent>;
 };
 
-type ReceiveStepsAction = {
-    readonly type: "ReceiveSteps";
-    readonly newVersion: number;
-    readonly steps: ReadonlyArray<{readonly step: Step; readonly clientId: Id}>;
+type SetIsConnectedAction = {
+    readonly type: "SetIsConnected";
+    readonly isConnected: boolean;
+};
+
+type HandleMessageAction = {
+    readonly type: "HandleMessage";
+    readonly message: DocumentCollaborationMessageFromServer;
 };
 
 function reduce(state: State, action: Action): State {
-    const oldVersion = state.editorState.getVersion();
-    state = reduceWithAction(state, action);
-    const newVersion = state.editorState.getVersion();
-
-    // If the version changed then we want to retry our pending actions since they
-    // may be ok to run now.
-    if (oldVersion === newVersion) return state;
-
-    // We may receive actions out of order, but make sure we run them in order
-    // now.
-    const pendingActions = [...state.pendingActions].sort((pendingAction1, pendingAction2) => {
-        const baseVersion1 = pendingAction1.newVersion - pendingAction1.steps.length;
-        const baseVersion2 = pendingAction2.newVersion - pendingAction2.steps.length;
-        return baseVersion1 - baseVersion2;
-    });
-
-    // We are going to try and run all pending actions. If actions are still
-    // pending they will be put back into this array.
-    state = {...state, pendingActions: []};
-
-    return pendingActions.reduce(reduceWithAction, state);
-}
-
-function reduceWithAction(state: State, action: Action): State {
     switch (action.type) {
         case "Edit": {
-            return {
-                ...state,
-                editorState: action.editorState,
-            };
-        }
-        case "ReceiveSteps": {
-            const oldVersion = state.editorState.getVersion();
-            if (action.newVersion <= oldVersion) return state;
-
-            // If we received an action that's applied on a future version of our content,
-            // we can't commit it until our local state has caught up. So stick it in
-            // pending actions and we'll come back to it.
-            if (oldVersion < action.newVersion - action.steps.length) {
+            if (state.pendingRequest) {
                 return {
                     ...state,
-                    pendingActions: [...state.pendingActions, action],
+                    editorState: action.editorState,
                 };
             }
 
-            // We may dispatch this action multiple times with the same steps. Remove any
-            // steps we've already seen.
-            const steps = action.steps.slice(action.steps.length - action.newVersion - oldVersion);
-            assert(oldVersion + steps.length === action.newVersion);
+            const toSend = action.editorState.sendableSteps();
+            return {
+                ...state,
+                editorState: action.editorState,
+                pendingRequest: toSend
+                    ? {
+                          steps: toSend.steps,
+                          version: toSend.version,
+                          clientId: toSend.clientId,
+                          requestId: generateId(),
+                      }
+                    : null,
+            };
+        }
+        case "SetIsConnected":
+            return {...state, isConnected: action.isConnected};
+        case "HandleMessage": {
+            const message = action.message;
+            // replace with exhaustive switch when we have more message types
+            cast<"steps">(message.type);
 
-            // If we've already seen all the steps, no change is needed.
-            if (steps.length === 0) return state;
+            // websocket messages should always be delivered in order.
+            // we're more likely to error out and disconnect (and therefore reconnect
+            // and re-request missing messages) than get out-of-order messages.
+            assert(message.version === state.editorState.getVersion());
 
-            let editorState = state.editorState;
-            let stepTransaction: Array<{step: Step; clientId: Id}> = [];
+            const isResponseToCurrentPendingRequest =
+                state.pendingRequest?.requestId === message.requestId;
 
-            // `prosemirror-collab` needs steps from our `clientId` to be at the beginning
-            // of the `receiveSteps()` call. So call `receiveSteps()` whenever the
-            // `clientId` of our steps change.
-            //
-            // Arguably, this is a bug in `prosemirror-collab`.
-            //
-            // Here is the code which requires our steps to be first this:
-            // https://github.com/ProseMirror/prosemirror-collab/blob/94df0cc9288960e7e64dc9721abbf8f656df444f/src/collab.ts#L125-L129
-            for (const {step, clientId} of steps) {
-                if (
-                    stepTransaction.length > 0 &&
-                    stepTransaction[stepTransaction.length - 1]!.clientId !== clientId
-                ) {
-                    editorState = editorState.receiveSteps(stepTransaction);
-                    stepTransaction = [];
-                }
+            const newState: State = {
+                ...state,
+                editorState: state.editorState.receiveSteps(
+                    message.steps.map(step => ({step, clientId: message.clientId})),
+                ),
+                pendingRequest: isResponseToCurrentPendingRequest ? null : state.pendingRequest,
+            };
 
-                stepTransaction.push({step, clientId});
+            if (isResponseToCurrentPendingRequest) {
+                // state just changed, so let's treat this as an 'edit' so we can send out
+                // any more steps to the server:
+                return reduce(newState, {type: "Edit", editorState: newState.editorState});
             }
-
-            editorState = editorState.receiveSteps(stepTransaction);
-            stepTransaction = [];
-
-            return {...state, editorState};
+            return newState;
         }
         default:
             throw exhaustive(action);
@@ -153,65 +142,51 @@ export function DocumentContentEditor({document}: {document: DocumentModel}) {
 function DocumentContentEditorStateful({initialDocument}: {initialDocument: DocumentModel}) {
     const documentId = initialDocument.id;
 
-    const [isUpdating, setIsUpdating] = useState(false);
     const [state, dispatch] = useReducer(reduce, initialDocument, getInitialState);
 
-    const [errorState, setErrorState] = useState<
-        {hasError: false} | {hasError: true; error: unknown}
-    >({hasError: false});
+    const connectionRef = useRef<DocumentCollaborationWebSocketClient>();
 
-    // TODO(calebmer): We probably want some retry mechanism for the user? But
-    // until the user retries, we don't want an infinite loop where we keep trying
-    // to update the document content.
-    if (errorState.hasError) throw errorState.error;
+    const onConnect = useEvent((socket: DocumentCollaborationWebSocketClient) => {
+        socket.send({type: "listenSince", version: state.editorState.getVersion()});
+    });
 
     useEffect(() => {
-        // If we're already updating then don't send another update mutation. Once
-        // the current mutation is done we'll send another.
-        if (isUpdating || errorState.hasError) return;
+        const socket = new WebSocketClient(
+            DocumentCollaborationMessageFromServerSchema,
+            DocumentCollaborationMessageFromClientSchema,
+            WebSocketClient.httpToWs(`${workerOrigin}/documents/${documentId}/ws`),
+        );
 
-        // If there are no new sendable steps from this client then don’t send a
-        // mutation.
-        const sendableSteps = state.editorState.sendableSteps();
-        if (!sendableSteps) return;
-        const {version, steps, clientId} = sendableSteps;
+        connectionRef.current = socket;
 
-        runPromiseWithoutAwaiting(async () => {
-            setIsUpdating(true);
-            try {
-                const {newVersion, newSteps, conflictingSteps} = await updateDocumentContent({
-                    id: documentId,
-                    version,
-                    steps,
-                    clientId,
-                });
-
-                dispatch({
-                    type: "ReceiveSteps",
-                    newVersion,
-                    steps: [...conflictingSteps, ...newSteps.map(step => ({step, clientId}))],
-                });
-            } catch (error) {
-                setErrorState({hasError: true, error});
-            } finally {
-                setIsUpdating(false);
-            }
+        const unsubscribeConnect = socket.onConnect(() => {
+            dispatch({type: "SetIsConnected", isConnected: true});
+            onConnect(socket);
+        });
+        const unsubscribeDisconnect = socket.onDisconnect(() => {
+            dispatch({type: "SetIsConnected", isConnected: false});
+        });
+        const unsubscribeMessage = socket.onMessage(message => {
+            dispatch({type: "HandleMessage", message});
         });
 
-        // This effect intentionally doesn’t have a dependency array. It shouldn't
-        // need one for correctness.
-    });
+        socket.connect();
 
-    useNetworkChannel(DocumentChannel, {documentId}, message => {
-        dispatch({
-            type: "ReceiveSteps",
-            newVersion: message.newVersion,
-            steps: message.steps.map(step => ({
-                step,
-                clientId: message.clientId,
-            })),
-        });
-    });
+        return () => {
+            unsubscribeConnect();
+            unsubscribeDisconnect();
+            unsubscribeMessage();
+            socket.disconnect();
+            connectionRef.current = undefined;
+        };
+    }, [documentId, onConnect]);
+
+    useEffect(() => {
+        if (state.pendingRequest) {
+            assert(connectionRef.current);
+            connectionRef.current.send({type: "steps", ...state.pendingRequest});
+        }
+    }, [state.pendingRequest]);
 
     useNetworkPresenceChannel(
         DocumentEditorPresenceChannel,

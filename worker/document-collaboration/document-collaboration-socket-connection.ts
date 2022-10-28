@@ -1,4 +1,3 @@
-import {DocumentCollaborationDurableObject} from "~/collaboration-worker/document-collaboration-durable-object";
 import {
     DocumentCollaborationMessageFromClient,
     DocumentCollaborationMessageFromClientSchema,
@@ -9,6 +8,7 @@ import {assert} from "~/shared/helpers/control/assert";
 import {EventEmitter, Unsubscribe} from "~/shared/helpers/control/event-emitter";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {generateId} from "~/shared/id/id";
+import {DocumentCollaborationDurableObject} from "~/worker/document-collaboration/document-collaboration-durable-object";
 
 export class DocumentCollaborationSocketConnection {
     private closeEvent = new EventEmitter();
@@ -63,14 +63,20 @@ export class DocumentCollaborationSocketConnection {
                     steps: (await this.session.steps.readStepsSince(message.version)).map(
                         step => step.step,
                     ),
-                    // TODO: populate this correctly
-                    clientId: generateId(),
                     version: message.version,
+                    // TODO: populate these two correctly
+                    clientId: generateId(),
+                    requestId: generateId(),
                 });
                 return;
             }
             case "steps": {
-                await this.session.updateDocument(message.version, message.steps, message.clientId);
+                await this.session.updateDocument(
+                    message.version,
+                    message.steps,
+                    message.clientId,
+                    message.requestId,
+                );
                 return;
             }
             default: {

@@ -6,11 +6,9 @@ import {repoDirectoryPath} from "~/server/helpers/repo-directory-path";
 import {runProcess} from "~/server/helpers/run-process";
 import {Schema} from "~/shared/schema/schema";
 
-const SHOULD_PRINT_DEPS = false;
+const shouldPrintDeps = false;
 
-const COLLABORATION_WORKER_PORT = Schema.string.deserialize(
-    process.env.COLLABORATION_WORKER_PORT ?? null,
-);
+const workerPort = Schema.string.deserialize(process.env.WORKER_PORT ?? null);
 
 const printDepsPlugin: Plugin = {
     name: "printDeps",
@@ -20,7 +18,7 @@ const printDepsPlugin: Plugin = {
             const imported = args.path.replace(/^~\//, "");
             const importer = path
                 .relative(repoDirectoryPath, args.importer)
-                .replace(/\.[tj]sx?$/, "");
+                .replace(/\.(t|m?j)sx?$/, "");
             console.log(`${JSON.stringify(importer)} -> ${JSON.stringify(imported)}`);
             return undefined;
         });
@@ -29,15 +27,12 @@ const printDepsPlugin: Plugin = {
 
 async function buildWorker({watch = false, minify = false} = {}) {
     return await esbuild({
-        entryPoints: ["collaboration-worker/collaboration-worker.ts"],
-        outfile: "collaboration-worker/bundled/collaboration-worker.js",
+        entryPoints: ["worker/worker.ts"],
+        outfile: "worker/bundled/worker.js",
         bundle: true,
         format: "esm",
         target: "es2019",
-        plugins: [
-            vanillaExtractPlugin() as Plugin,
-            ...(SHOULD_PRINT_DEPS ? [printDepsPlugin] : []),
-        ],
+        plugins: [vanillaExtractPlugin() as Plugin, ...(shouldPrintDeps ? [printDepsPlugin] : [])],
         sourcemap: "inline",
         define: Object.fromEntries(
             Object.entries(process.env).map(([key, value]) => [
@@ -53,24 +48,28 @@ async function buildWorker({watch = false, minify = false} = {}) {
 
 async function runWorker() {
     console.log("building worker...");
-    await buildWorker({watch: true});
+    const builder = await buildWorker({watch: true});
     console.log("starting wrangler...");
-    await runProcess(
-        "./node_modules/.bin/wrangler",
-        [
-            "dev",
-            "--config",
-            "./collaboration-worker/wrangler.toml",
-            "--no-bundle",
-            "--port",
-            COLLABORATION_WORKER_PORT,
-            "--local",
-        ],
-        {
-            onStdoutData: data => process.stdout.write(data),
-            onStderrData: data => process.stderr.write(data),
-        },
-    );
+    try {
+        await runProcess(
+            "./node_modules/.bin/wrangler",
+            [
+                "dev",
+                "--config",
+                "./worker/wrangler.toml",
+                "--no-bundle",
+                "--port",
+                workerPort,
+                "--local",
+            ],
+            {
+                onStdoutData: data => process.stdout.write(data),
+                onStderrData: data => process.stderr.write(data),
+            },
+        );
+    } finally {
+        builder.stop?.();
+    }
 }
 
 runWorker().catch(error => {

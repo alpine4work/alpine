@@ -1,11 +1,11 @@
 import {Mapping, Step} from "prosemirror-transform";
-import {DocumentCollaborationSocketConnection} from "~/collaboration-worker/document-collaboration-socket-connection";
+import {DocumentCollaborationSocketConnection} from "~/worker/document-collaboration/document-collaboration-socket-connection";
 import {
     DocumentCollaborationStepRange,
     DocumentCollaborationStepRangeSchema,
     DocumentCollaborationStepStore,
-} from "~/collaboration-worker/document-collaboration-step-store";
-import {DurableObjectValue} from "~/collaboration-worker/durable-object-value";
+} from "~/worker/document-collaboration/document-collaboration-step-store";
+import {DurableObjectValue} from "~/worker/helpers/durable-object-value";
 import {
     DocumentCollaborationCommittedStep,
     DocumentCollaborationMessageFromServer,
@@ -15,7 +15,7 @@ import {DocumentContent, isDocumentContent} from "~/shared/documents/document-co
 import {DataLossError, FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {Id} from "~/shared/id/id";
-import {readDocumentForCollaborationWorker} from "~/shared/network/documents-network-definition";
+import {readDocument} from "~/shared/network/documents-network-definition";
 import {Schema} from "~/shared/schema/schema";
 
 export class DocumentCollaborationDurableObject {
@@ -52,14 +52,15 @@ export class DocumentCollaborationDurableObject {
         }
 
         await this.state.blockConcurrencyWhile(async () => {
-            const document = await readDocumentForCollaborationWorker({id: documentId});
+            const {document} = await readDocument({id: documentId});
+            assert(document, "document must exist");
             this.documentId.set(documentId);
 
             this.versionsRange = await DurableObjectValue.create(
                 this.state.storage,
                 "versionsRange",
                 DocumentCollaborationStepRangeSchema,
-                () => ({startAfter: document.version, end: document.version}),
+                () => ({startAfterVersion: document.version, endVersion: document.version}),
             );
 
             this.steps = new DocumentCollaborationStepStore(
@@ -68,9 +69,9 @@ export class DocumentCollaborationDurableObject {
                 this.versionsRange,
             );
 
-            const {startAfter, end} = this.versionsRange.get();
-            assert(startAfter <= document.version);
-            if (end > document.version) {
+            const {startAfterVersion, endVersion} = this.versionsRange.get();
+            assert(startAfterVersion <= document.version);
+            if (endVersion > document.version) {
                 // we have ops that our durable object has seen but the source-of-truth server
                 // hasn't, so lets fast-forward our snapshot:
                 let content = document.content;
@@ -85,7 +86,7 @@ export class DocumentCollaborationDurableObject {
     }
 
     getSnapshotVersion(): number {
-        return this.versionsRange.get().end;
+        return this.versionsRange.get().endVersion;
     }
 
     async fetch(request: Request): Promise<Response> {
@@ -131,7 +132,12 @@ export class DocumentCollaborationDurableObject {
      * Copy pasted & modified from documents-table.ts
      */
     // TODO: update this with changes from latest version
-    async updateDocument(clientVersion: number, clientSteps: ReadonlyArray<Step>, clientId: Id) {
+    async updateDocument(
+        clientVersion: number,
+        clientSteps: ReadonlyArray<Step>,
+        clientId: Id,
+        clientRequestId: Id,
+    ) {
         await this.state.blockConcurrencyWhile(async () => {
             if (!Number.isSafeInteger(clientVersion) || clientVersion < 0)
                 throw new InvalidArgumentError("Expected a positive integer version number");
@@ -252,6 +258,7 @@ export class DocumentCollaborationDurableObject {
                 steps: newSteps,
                 version: oldVersion,
                 clientId,
+                requestId: clientRequestId,
             });
         });
     }

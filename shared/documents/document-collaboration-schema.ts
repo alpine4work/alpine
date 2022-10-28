@@ -20,6 +20,7 @@ const DocumentCollaborationStepsMessageFromServerSchema = Schema.object({
     steps: Schema.array(DocumentContentStepSchema),
     clientId: Schema.id,
     version: Schema.integer,
+    requestId: Schema.id,
 });
 
 export const DocumentCollaborationMessageFromServerSchema = Schema.union({
@@ -42,6 +43,7 @@ const DocumentCollaborationStepsMessageFromClientSchema = Schema.object({
     version: Schema.integer,
     clientId: Schema.id,
     steps: Schema.array(DocumentContentStepSchema),
+    requestId: Schema.id,
 });
 
 export const DocumentCollaborationMessageFromClientSchema = Schema.union({

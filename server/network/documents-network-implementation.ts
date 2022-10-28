@@ -19,15 +19,9 @@ implementNetworkFunction(definition.updateDocumentContent, async input => {
     return await updateDocumentContent(input);
 });
 
-implementNetworkFunction(definition.readDocumentForCollaborationWorker, async input => {
-    const document = await readDocument(input.id);
-    if (!document) {
-        throw new NotFoundError("Document does not exist");
-    }
+implementNetworkFunction(definition.readDocument, async input => {
     return {
-        id: document.id,
-        content: document.content,
-        version: document.version,
+        document: await readDocument(input.id),
     };
 });
 
