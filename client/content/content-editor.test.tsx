@@ -6,11 +6,8 @@ import {EditorState, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import React, {useCallback, useState} from "react";
 import {act} from "react-dom/test-utils";
-import {
-    ContentEditor,
-    ContentEditorState,
-    getEditorViewForTest,
-} from "~/client/content/content-editor";
+import {ContentEditor, getEditorViewForTest} from "~/client/content/content-editor";
+import {ContentEditorState} from "~/client/content/content-editor-state";
 import {
     DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,

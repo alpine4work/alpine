@@ -3,11 +3,8 @@
 import "prosemirror-view/style/prosemirror.css";
 
 import classNames from "classnames";
-import {collab, getVersion, receiveTransaction, sendableSteps} from "prosemirror-collab";
-import {history} from "prosemirror-history";
 import {Node, Slice} from "prosemirror-model";
-import {EditorState, Plugin, PluginKey, TextSelection, Transaction} from "prosemirror-state";
-import {Step} from "prosemirror-transform";
+import {EditorState, Transaction} from "prosemirror-state";
 import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
 import {
     PropsWithoutRef,
@@ -21,6 +18,7 @@ import {
     useRef,
     useState,
 } from "react";
+import {ContentEditorState} from "~/client/content/content-editor-state";
 import {
     containerClassName,
     emptyBodyClassName,
@@ -38,25 +36,19 @@ import {
 import {createContentEditorMarkNodeViewConstructor} from "~/client/content/internal/content-editor-link-node-view";
 import {createContentEditorOrderedListItemNodeView} from "~/client/content/internal/content-editor-ordered-list-item-node-view";
 import {ContentEditorPhantomTextSelectionCursor} from "~/client/content/internal/content-editor-phantom-text-selection-cursor";
-import {buildInputRulesPlugin} from "~/client/content/internal/content-editor-plugin-input-rules";
 import {
-    buildKeymapPlugin,
     openKeyboardHighlightFloaterMetaKey,
     openKeyboardLinkFloaterMetaKey,
 } from "~/client/content/internal/content-editor-plugin-keymap";
 import {trimSpacesFromRange} from "~/client/content/internal/content-editor-prosemirror-helpers";
 import {FocusRingPortal} from "~/client/design/focus-ring";
 import {isMac} from "~/client/helpers/platform/is-mac";
-import {
-    ContentProsemirrorSchema,
-    doesUrlStartWithAllowedProtocol,
-} from "~/shared/content/content-schema";
+import {doesUrlStartWithAllowedProtocol} from "~/shared/content/content-schema";
 import {docClassName} from "~/shared/content/content-schema.css";
 import {colorSchemeVars} from "~/shared/design/color-scheme.css";
 import {ThemeColor} from "~/shared/design/theme-colors";
 import {documentFallbackTitle} from "~/shared/documents/document-model";
 import {assert} from "~/shared/helpers/control/assert";
-import {Id, generateId, isId} from "~/shared/id/id";
 
 // TODO(calebmer): Implement touch toolbar for mobile.
 
@@ -64,171 +56,6 @@ declare module "prosemirror-model" {
     // Augment `NodeType` with the undocumented `groups` array.
     interface NodeType {
         readonly groups: ReadonlyArray<string>;
-    }
-}
-
-function buildPlugins(schema: ContentProsemirrorSchema) {
-    return [history(), buildInputRulesPlugin(schema), buildKeymapPlugin(schema)];
-}
-
-/**
- * Represents the entire state of our `<ContentEditor>` component.
- *
- * We have a wrapper to require the user of certain plugins.
- *
- * Wraps around ProseMirror's own `EditorState` and provides a controlled
- * interface to the outside world.
- */
-export class ContentEditorState<Content extends Node> {
-    /**
-     * Creates a new state for our content editor.
-     */
-    public static create<Content extends Node>(content: Content): ContentEditorState<Content> {
-        assert(content.type.schema.topNodeType === content.type);
-
-        const plugins = buildPlugins(content.type.schema);
-
-        return new ContentEditorState(
-            EditorState.create({
-                doc: content,
-                plugins,
-            }),
-        );
-    }
-
-    /**
-     * Creates a new collaborative state for our content editor.
-     */
-    public static createCollab<Content extends Node>({
-        version,
-        content,
-    }: {
-        /**
-         * The content version for collaborative editing.
-         */
-        version: number;
-
-        /**
-         * The initial content in the editor. If no content is provided then we
-         * start with empty content.
-         */
-        content: Content;
-    }): ContentEditorState<Content> {
-        assert(content.type.schema.topNodeType === content.type);
-
-        const plugins = [
-            ...buildPlugins(content.type.schema),
-            collab({
-                clientID: generateId(),
-                version,
-            }),
-        ];
-
-        const state = new ContentEditorState<Content>(
-            EditorState.create({
-                doc: content,
-                plugins,
-            }),
-        );
-
-        assert(state.isCollab());
-        return state;
-    }
-
-    private readonly _state: EditorState;
-
-    private constructor(state: EditorState) {
-        this._state = state;
-    }
-
-    /**
-     * The current content rendered in the editor.
-     *
-     * Our state contains more information than just the content. For instance,
-     * the cursor position.
-     */
-    public getContent(): Content {
-        return this._state.doc as Content;
-    }
-
-    /**
-     * Get the current text selection if it exists.
-     */
-    public getTextSelection(): TextSelection | null {
-        if (!(this._state.selection instanceof TextSelection)) return null;
-        return this._state.selection;
-    }
-
-    /**
-     * Is this content editor state collaborative?
-     */
-    public isCollab() {
-        return isCollabPlugin(this._state.plugins[this._state.plugins.length - 1]!);
-    }
-
-    /**
-     * Get the current version of our content for collaborative editing.
-     *
-     * May only call this method if the content editor state is collaborative.
-     * (Can check with `isCollab()`.)
-     */
-    public getVersion(): number {
-        assert(this.isCollab());
-        return getVersion(this._state);
-    }
-
-    /**
-     * Provides the unconfirmed steps for this content that we need to send to
-     * a central authority.
-     *
-     * May only call this method if the content editor state is collaborative.
-     * (Can check with `isCollab()`.)
-     */
-    public sendableSteps(): {
-        version: number;
-        steps: ReadonlyArray<Step>;
-        origins: ReadonlyArray<Transaction>;
-        clientId: Id;
-    } | null {
-        assert(this.isCollab());
-
-        const result = sendableSteps(this._state);
-        if (!result) return null;
-
-        assert(typeof result.clientID === "string" && isId(result.clientID));
-
-        return {
-            version: result.version,
-            steps: result.steps,
-            origins: result.origins,
-            clientId: result.clientID,
-        };
-    }
-
-    /**
-     * Receive steps that originated from a `sendableSteps()` call.
-     *
-     * May only call this method if the content editor state is collaborative.
-     * (Can check with `isCollab()`.)
-     */
-    public receiveSteps(steps: Iterable<{step: Step; clientId: Id}>): ContentEditorState<Content> {
-        assert(this.isCollab());
-
-        const stepsWithoutClientId = [];
-        const clientIds = [];
-
-        for (const {step, clientId} of steps) {
-            stepsWithoutClientId.push(step);
-            clientIds.push(clientId);
-        }
-
-        const transaction = receiveTransaction(this._state, stepsWithoutClientId, clientIds, {
-            // Users usually prefer this, but it isn't done by default for reasons
-            // of backwards compatibility.
-            mapSelectionBackward: true,
-        });
-
-        return wrap(this._state.apply(transaction));
     }
 }
 
@@ -987,20 +814,6 @@ function handleLinkPaste(view: EditorView, event: ClipboardEvent): boolean {
     const range = trimSpacesFromRange(state.doc, state.selection);
     view.dispatch(state.tr.addMark(range.from, range.to, state.schema.mark("link", {url})));
     return true;
-}
-
-let collabPluginKey: PluginKey;
-
-/**
- * Is the provided plugin a `prosemirror-collab` plugin?
- */
-function isCollabPlugin(plugin: Plugin) {
-    if (collabPluginKey === undefined) {
-        const {key} = collab().spec;
-        assert(key);
-        collabPluginKey = key;
-    }
-    return plugin.spec.key === collabPluginKey;
 }
 
 function isContentTitleEmpty(node: Node): boolean {

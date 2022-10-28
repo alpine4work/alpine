@@ -1,11 +1,8 @@
 import {fireEvent, render, screen} from "@testing-library/react";
 import {EditorView} from "prosemirror-view";
 import React, {useState} from "react";
-import {
-    ContentEditor,
-    ContentEditorState,
-    getEditorViewForTest,
-} from "~/client/content/content-editor";
+import {ContentEditor, getEditorViewForTest} from "~/client/content/content-editor";
+import {ContentEditorState} from "~/client/content/content-editor-state";
 import {emptyDocumentWithoutTitleContent} from "~/shared/documents/document-content-schema";
 
 function TestContentEditor() {

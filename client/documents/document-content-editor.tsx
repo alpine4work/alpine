@@ -3,11 +3,8 @@ import Head from "next/head";
 import {TextSelection} from "prosemirror-state";
 import {Step} from "prosemirror-transform";
 import {useEffect, useMemo, useReducer, useState} from "react";
-import {
-    ContentEditor,
-    ContentEditorPhantomTextSelection,
-    ContentEditorState,
-} from "~/client/content/content-editor";
+import {ContentEditor, ContentEditorPhantomTextSelection} from "~/client/content/content-editor";
+import {ContentEditorState} from "~/client/content/content-editor-state";
 import {sprinkles} from "~/client/design/sprinkles.css";
 import {useNetworkChannel} from "~/client/network/use-network-channel";
 import {useNetworkPresenceChannel} from "~/client/network/use-network-presence-channel";
@@ -278,6 +275,8 @@ function DocumentContentEditorStateful({initialDocument}: {initialDocument: Docu
         );
 
         for (const presenceState of presenceStates) {
+            console.log(presenceState.key, presenceState.version, state.editorState.getVersion());
+
             if (presenceState.version !== state.editorState.getVersion()) continue;
 
             const color =
