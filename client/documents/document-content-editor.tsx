@@ -1,10 +1,18 @@
+import murmurhash from "murmurhash";
 import Head from "next/head";
+import {TextSelection} from "prosemirror-state";
 import {Step} from "prosemirror-transform";
-import {useEffect, useReducer, useState} from "react";
-import {ContentEditor, ContentEditorState} from "~/client/content/content-editor";
+import {useEffect, useMemo, useReducer, useState} from "react";
+import {
+    ContentEditor,
+    ContentEditorPhantomTextSelection,
+    ContentEditorState,
+} from "~/client/content/content-editor";
 import {sprinkles} from "~/client/design/sprinkles.css";
 import {useNetworkChannel} from "~/client/network/use-network-channel";
 import {useNetworkPresenceChannel} from "~/client/network/use-network-presence-channel";
+import {defaultThemeColor} from "~/shared/design/color-scheme.css";
+import {themeColors} from "~/shared/design/theme-colors";
 import {DocumentContent} from "~/shared/documents/document-content-schema";
 import {DocumentModel, getDocumentContentTitle} from "~/shared/documents/document-model";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run-promise-without-awaiting";
@@ -18,13 +26,28 @@ import {
 } from "~/shared/network/documents-network-definition";
 
 type State = {
-    editorState: ContentEditorState<DocumentContent>;
+    /**
+     * The current state of the editor.
+     */
+    readonly editorState: ContentEditorState<DocumentContent>;
+    /**
+     * The current text selection to broadcast over presence and the version at
+     * which the selection was recorded.
+     *
+     * We only broadcast a selection update when the user makes a change to keep
+     * the number of updates low. Other clients will rebase the selection forward
+     * to display it on their editor.
+     */
+    readonly presenceSelection: {
+        readonly version: number;
+        readonly selection: TextSelection;
+    } | null;
     /**
      * We may get `ReceiveSteps` actions out of order. If we see an action for a
      * future version we put it in this array and re-apply the action when older
      * steps are applied.
      */
-    pendingActions: Array<ReceiveStepsAction>;
+    readonly pendingActions: Array<ReceiveStepsAction>;
 };
 
 function getInitialState(initialDocument: DocumentModel): State {
@@ -35,6 +58,7 @@ function getInitialState(initialDocument: DocumentModel): State {
 
     return {
         editorState,
+        presenceSelection: null,
         pendingActions: [],
     };
 }
@@ -79,9 +103,17 @@ function reduce(state: State, action: Action): State {
 function reduceWithAction(state: State, action: Action): State {
     switch (action.type) {
         case "Edit": {
+            const textSelection = action.editorState.getTextSelection();
+
             return {
                 ...state,
                 editorState: action.editorState,
+                presenceSelection: textSelection
+                    ? {
+                          version: action.editorState.getVersion(),
+                          selection: textSelection,
+                      }
+                    : null,
             };
         }
         case "ReceiveSteps": {
@@ -213,13 +245,54 @@ function DocumentContentEditorStateful({initialDocument}: {initialDocument: Docu
         });
     });
 
-    useNetworkPresenceChannel(
+    // TODO(calebmer): The pricing limits on presence from Ably are...not great. We
+    // probably need to migrate presence to Cloudflare Workers eventually.
+    // https://faqs.ably.com/why-do-you-have-a-limit-on-the-number-of-members-present-on-a-channel
+    const presenceStates = useNetworkPresenceChannel(
         DocumentEditorPresenceChannel,
         {documentId},
-        {
-            version: state.editorState.getVersion(),
-        },
+        state.presenceSelection
+            ? {
+                  version: state.presenceSelection.version,
+                  selection: {
+                      anchor: state.presenceSelection.selection.$anchor.pos,
+                      head: state.presenceSelection.selection.$head.pos,
+                  },
+              }
+            : null,
     );
+
+    // Transform the presence states of our connected clients into cursor
+    // decorations. We drop any cursors from before our document loaded because we
+    // don't have the steps to map their positions.
+    //
+    // TODO(calebmer): Load older steps from the backend so we can map cursors at
+    // older positions.
+    const phantomTextSelections = useMemo(() => {
+        const phantomTextSelections: Array<ContentEditorPhantomTextSelection> = [];
+
+        const filteredThemeColors = themeColors.filter(
+            // TODO(calebmer): When the theme color is configurable, we should use that
+            // instead of the default theme color.
+            themeColor => themeColor !== defaultThemeColor && themeColor !== "yellow",
+        );
+
+        for (const presenceState of presenceStates) {
+            if (presenceState.version !== state.editorState.getVersion()) continue;
+
+            const color =
+                filteredThemeColors[murmurhash.v3(presenceState.key) % filteredThemeColors.length]!;
+
+            phantomTextSelections.push({
+                key: presenceState.key,
+                color,
+                anchor: presenceState.selection.anchor,
+                head: presenceState.selection.head,
+            });
+        }
+
+        return phantomTextSelections;
+    }, [presenceStates, state.editorState]);
 
     return (
         <>
@@ -232,6 +305,7 @@ function DocumentContentEditorStateful({initialDocument}: {initialDocument: Docu
                 aria-label="Document editor"
                 placeholder="Share your ideas…"
                 className={sprinkles({paddingBottom: "24"})}
+                phantomTextSelections={phantomTextSelections}
             />
         </>
     );

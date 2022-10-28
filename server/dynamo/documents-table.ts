@@ -775,8 +775,8 @@ class PushOnlyArraySlice<Item> implements Iterable<Item> {
 
     constructor(array: PushOnlyArray<Item>, start: number, end: number) {
         this._array = array;
-        this._start = clamp(Math.floor(start), 0, array.length);
-        this._end = clamp(Math.floor(end), this._start, array.length);
+        this._start = clamp(0, Math.floor(start), array.length);
+        this._end = clamp(this._start, Math.floor(end), array.length);
     }
 
     public get length() {
@@ -786,8 +786,8 @@ class PushOnlyArraySlice<Item> implements Iterable<Item> {
     public slice(start: number = 0, end: number = this.length): PushOnlyArraySlice<Item> {
         return new PushOnlyArraySlice(
             this._array,
-            this._start + clamp(start, 0, this.length),
-            this._start + clamp(end, 0, this.length),
+            this._start + clamp(0, start, this.length),
+            this._start + clamp(0, end, this.length),
         );
     }
 

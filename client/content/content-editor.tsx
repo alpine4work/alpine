@@ -6,7 +6,7 @@ import classNames from "classnames";
 import {collab, getVersion, receiveTransaction, sendableSteps} from "prosemirror-collab";
 import {history} from "prosemirror-history";
 import {Node, Slice} from "prosemirror-model";
-import {EditorState, Plugin, PluginKey, Transaction} from "prosemirror-state";
+import {EditorState, Plugin, PluginKey, TextSelection, Transaction} from "prosemirror-state";
 import {Step} from "prosemirror-transform";
 import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
 import {
@@ -26,7 +26,7 @@ import {
     emptyBodyClassName,
     emptyTitleClassName,
     hideSelectionWhileUnfocusedClassName,
-    unfocusedSelectionClassName,
+    inlineElementPaddingToLineHeightClassName,
 } from "~/client/content/content-editor.css";
 import {createContentEditorCheckListItemNodeView} from "~/client/content/internal/content-editor-check-list-item-node-view";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content-editor-dom-clipboard-serializer";
@@ -37,6 +37,7 @@ import {
 } from "~/client/content/internal/content-editor-floater";
 import {createContentEditorMarkNodeViewConstructor} from "~/client/content/internal/content-editor-link-node-view";
 import {createContentEditorOrderedListItemNodeView} from "~/client/content/internal/content-editor-ordered-list-item-node-view";
+import {ContentEditorPhantomTextSelectionCursor} from "~/client/content/internal/content-editor-phantom-text-selection-cursor";
 import {buildInputRulesPlugin} from "~/client/content/internal/content-editor-plugin-input-rules";
 import {
     buildKeymapPlugin,
@@ -51,6 +52,8 @@ import {
     doesUrlStartWithAllowedProtocol,
 } from "~/shared/content/content-schema";
 import {docClassName} from "~/shared/content/content-schema.css";
+import {colorSchemeVars} from "~/shared/design/color-scheme.css";
+import {ThemeColor} from "~/shared/design/theme-colors";
 import {documentFallbackTitle} from "~/shared/documents/document-model";
 import {assert} from "~/shared/helpers/control/assert";
 import {Id, generateId, isId} from "~/shared/id/id";
@@ -146,6 +149,14 @@ export class ContentEditorState<Content extends Node> {
      */
     public getContent(): Content {
         return this._state.doc as Content;
+    }
+
+    /**
+     * Get the current text selection if it exists.
+     */
+    public getTextSelection(): TextSelection | null {
+        if (!(this._state.selection instanceof TextSelection)) return null;
+        return this._state.selection;
     }
 
     /**
@@ -313,6 +324,12 @@ export type ContentEditorProps<Content extends Node> = {
      * Fired when the user presses the escape key.
      */
     onEscape?: () => void;
+
+    /**
+     * Phantom text selections decorations that render on top of the editor and
+     * represent the cursor position of other users.
+     */
+    phantomTextSelections?: ReadonlyArray<ContentEditorPhantomTextSelection>;
 } & (
     | {
           /**
@@ -331,6 +348,13 @@ export type ContentEditorProps<Content extends Node> = {
           "aria-label"?: undefined;
       }
 );
+
+export type ContentEditorPhantomTextSelection = {
+    readonly key: string;
+    readonly color: ThemeColor;
+    readonly anchor: number;
+    readonly head: number;
+};
 
 /**
  * A rich text collaborative editor powered by [ProseMirror][1].
@@ -354,6 +378,7 @@ function ContentEditor<Content extends Node>(
         "aria-labelledby": ariaLabelledBy,
         onFocus,
         onBlur,
+        phantomTextSelections,
     } = props;
     const hasEnterCallback = typeof props.onEnter === "function";
 
@@ -731,7 +756,8 @@ function ContentEditor<Content extends Node>(
         const blurDecorationCallback = (decorationSet: DecorationSet, state: EditorState) => {
             return decorationSet.add(state.doc, [
                 Decoration.inline(state.selection.from, state.selection.to, {
-                    class: unfocusedSelectionClassName,
+                    class: inlineElementPaddingToLineHeightClassName,
+                    style: `background-color:${colorSchemeVars["grey-selection"]}`,
                 }),
             ]);
         };
@@ -811,6 +837,64 @@ function ContentEditor<Content extends Node>(
         }
     }, [lastTransactionTime]);
 
+    // Highlights the selection of all our phantom text selections using the
+    // ProseMirror decoration feature. We render `phantomTextSelections` in two
+    // parts:
+    //
+    // 1. The phantom text selection (only if the selection is not empty)
+    // 2. The text selection cursor head
+    //
+    // 1 is rendered using the PromiseMirror decoration feature. 2 is rendered as
+    // standard React components since inserting an element into the DOM between
+    // some characters breaks kerning. Which causes some jitter when user quickly
+    // moves their phantom cursor around.
+    useLayoutEffect(() => {
+        if (!phantomTextSelections || phantomTextSelections.length === 0) return;
+
+        const decorations: Array<Decoration> = [];
+
+        for (const phantomTextSelection of phantomTextSelections) {
+            if (phantomTextSelection.anchor !== phantomTextSelection.head) {
+                const from = Math.min(phantomTextSelection.anchor, phantomTextSelection.head);
+                const to = Math.max(phantomTextSelection.anchor, phantomTextSelection.head);
+
+                decorations.push(
+                    Decoration.inline(from, to, {
+                        class: inlineElementPaddingToLineHeightClassName,
+                        style: `background-color:${
+                            colorSchemeVars[`${phantomTextSelection.color}-selection`]
+                        }`,
+                    }),
+                );
+            }
+        }
+
+        if (decorations.length === 0) return;
+
+        const decorationCallback = (decorationSet: DecorationSet, state: EditorState) => {
+            return decorationSet.add(
+                state.doc,
+                // We need to copy the array since it looks like `DecorationSet.add()`
+                // mutates it?
+                [...decorations],
+            );
+        };
+
+        setDecorationCallbacks(decorationCallbacks => {
+            const newDecorationCallbacks = new Set(decorationCallbacks);
+            newDecorationCallbacks.add(decorationCallback);
+            return newDecorationCallbacks;
+        });
+
+        return () => {
+            setDecorationCallbacks(decorationCallbacks => {
+                const newDecorationCallbacks = new Set(decorationCallbacks);
+                newDecorationCallbacks.delete(decorationCallback);
+                return newDecorationCallbacks;
+            });
+        };
+    }, [phantomTextSelections]);
+
     return (
         <>
             <div
@@ -834,6 +918,14 @@ function ContentEditor<Content extends Node>(
                 // after "bar".)
                 <FocusRingPortal element={selectedNodeElement} />
             )}
+            {phantomTextSelections?.map(phantomTextSelection => (
+                <ContentEditorPhantomTextSelectionCursor
+                    key={phantomTextSelection.key}
+                    state={unwrap(state)}
+                    viewRef={viewRef}
+                    phantomTextSelection={phantomTextSelection}
+                />
+            ))}
         </>
     );
 }

@@ -11,10 +11,10 @@ export abstract class ErrorBase extends Error {
     public readonly code: ErrorCode;
 
     constructor(message: string, {cause}: {cause?: unknown} = {}) {
-        super(message, {cause});
+        super(message, {cause: cause as any});
         this.code = this._getCode();
         this.name = getErrorCodeName(this.code) + "Error";
-        this.cause = cause;
+        this.cause = cause as any;
     }
 
     protected abstract _getCode(): ErrorCode;

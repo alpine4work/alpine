@@ -21,7 +21,10 @@ export function InitializeColorSchemeScript() {
 
 export type ColorScheme = "light" | "dark";
 
-function getColorScheme(): ColorScheme | null {
+/**
+ * Get the current color scheme without listening to future updates.
+ */
+export function getColorSchemeWithoutListening(): ColorScheme | null {
     if (typeof document === "undefined") return null;
     return document.documentElement.dataset.colorScheme === "dark" ? "dark" : "light";
 }
@@ -53,17 +56,21 @@ function setColorScheme(colorScheme: ColorScheme) {
 export function toggleColorScheme() {
     assert(typeof document !== "undefined", "Can not toggle color scheme on the server");
 
-    const colorScheme = getColorScheme();
+    const colorScheme = getColorSchemeWithoutListening();
     assert(colorScheme);
 
     setColorScheme(colorScheme === "dark" ? "light" : "dark");
 }
 
+/**
+ * Get the color scheme and re-render the component when the color
+ * scheme changes.
+ */
 export function useColorScheme(): ColorScheme | null {
     const [colorScheme, setColorScheme] = useState<ColorScheme | null>(null);
 
     useEffect(() => {
-        setColorScheme(getColorScheme());
+        setColorScheme(getColorSchemeWithoutListening());
 
         colorSchemeListeners.add(setColorScheme);
         return () => {

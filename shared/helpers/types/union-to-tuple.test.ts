@@ -2,8 +2,11 @@ import {expectTypeOf} from "expect-type";
 import {UnionToTuple} from "~/shared/helpers/types/union-to-tuple";
 
 test("converts a union to a tuple", () => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const tuple: UnionToTuple<"a" | "b" | "c"> = ["a", "b", "c"];
+    // Hoping using `keyof` will make tuple order deterministic?
+    type Union = keyof {a: true; b: true; c: true};
 
-    expectTypeOf<UnionToTuple<"a" | "b" | "c">>().toEqualTypeOf<["a", "b", "c"]>();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const tuple: UnionToTuple<Union> = ["a", "b", "c"];
+
+    expectTypeOf<UnionToTuple<Union>>().toEqualTypeOf<["a", "b", "c"]>();
 });

@@ -58,5 +58,9 @@ export const DocumentEditorPresenceChannel = defineNetworkPresenceChannel({
     },
     state: {
         version: Schema.integer,
+        selection: Schema.object({
+            anchor: Schema.integer,
+            head: Schema.integer,
+        }),
     },
 });

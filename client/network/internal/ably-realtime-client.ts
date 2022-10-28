@@ -99,6 +99,11 @@ class AblyRealtimeClient {
                     };
 
                     this._client = new Ably.Realtime.Promise({
+                        // Reduced message cost since we aren't charged for receiving an
+                        // echo message:
+                        // https://faqs.ably.com/how-does-ably-count-messages
+                        echoMessages: false,
+
                         // Ably errors should reject promises so we will see them through that. We
                         // don't also need to log them.
                         //
@@ -369,21 +374,18 @@ class AblyRealtimeClient {
     public async *subscribeToPresenceStates(
         channelName: string,
         {signal}: {signal: AbortSignal},
-    ): AsyncIterableIterator<ImmutableMap<`${string}:${string}`, SchemaSerializedValue>> {
+    ): AsyncIterableIterator<ImmutableMap<string, SchemaSerializedValue>> {
         const {channel, decrementReferenceCount} =
             await this._getAttachedChannelAndIncrementReferenceCount(channelName, {
                 capabilityOperations: ["subscribe", "presence"],
             });
 
         try {
-            let presenceStateByConnectionKey = ImmutableMap.empty<
-                `${string}:${string}`,
-                SchemaSerializedValue
-            >();
+            let presenceStateByConnectionKey = ImmutableMap.empty<string, SchemaSerializedValue>();
             let nextPromiseResolver = createPromiseResolver();
 
             const handleMessage = (message: Ably.Types.PresenceMessage) => {
-                const connectionKey: `${string}:${string}` = `${message.clientId}:${message.connectionId}`;
+                const connectionKey = `${message.clientId}:${message.connectionId}`;
 
                 const ourConnectionKey =
                     this._client && this._client.connection.id !== undefined

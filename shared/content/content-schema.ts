@@ -22,7 +22,7 @@ import {clamp} from "~/shared/helpers/number/clamp";
 export const maxListItemIndentation = 5;
 
 export function clampListItemIndentation(indent: unknown): number {
-    return typeof indent === "number" ? clamp(Math.floor(indent), 0, maxListItemIndentation) : 0;
+    return typeof indent === "number" ? clamp(0, Math.floor(indent), maxListItemIndentation) : 0;
 }
 
 const allowedLinkProtocols: ReadonlySet<string> = new Set(["http", "https"]);

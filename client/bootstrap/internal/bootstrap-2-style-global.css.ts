@@ -72,3 +72,11 @@ globalStyle("code, kbd, samp, pre", {
 globalStyle("::placeholder", {
     color: inputPlaceholderColor,
 });
+
+globalStyle("::selection", {
+    background: colorSchemeVars["theme-selection"],
+});
+
+globalStyle("::-moz-selection", {
+    background: colorSchemeVars["theme-selection"],
+});
