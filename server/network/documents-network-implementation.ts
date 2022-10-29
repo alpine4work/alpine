@@ -1,5 +1,6 @@
 import {
     createDocument,
+    readDocumentContentSteps,
     readDocumentPreview,
     updateDocumentContent,
 } from "~/server/dynamo/documents-table";
@@ -16,6 +17,11 @@ implementNetworkFunction(definition.createDocument, async input => {
 
 implementNetworkFunction(definition.updateDocumentContent, async input => {
     return await updateDocumentContent(input);
+});
+
+implementNetworkFunction(definition.readDocumentContentSteps, async input => {
+    const steps = await readDocumentContentSteps(input);
+    return {steps};
 });
 
 implementNetworkChannelAuthorization(definition.DocumentChannel, async key => {

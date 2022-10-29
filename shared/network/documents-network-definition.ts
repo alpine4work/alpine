@@ -52,6 +52,24 @@ export const updateDocumentContent = defineNetworkFunction({
     },
 });
 
+export const readDocumentContentSteps = defineNetworkFunction({
+    name: "readDocumentContentSteps",
+    input: {
+        id: Schema.id,
+        startVersion: Schema.integer,
+        endVersion: Schema.integer,
+    },
+    output: {
+        steps: Schema.array(
+            Schema.object({
+                step: DocumentContentStepSchema,
+                invertedStep: DocumentContentStepSchema,
+                clientId: Schema.id,
+            }),
+        ),
+    },
+});
+
 export const DocumentChannel = defineNetworkChannel({
     name: "Document",
     key: {

@@ -22,6 +22,7 @@ import {
     DocumentChannel,
     DocumentEditorPresenceChannel,
     DocumentEditorPresenceUpdateSchema,
+    readDocumentContentSteps,
     updateDocumentContent,
 } from "~/shared/network/documents-network-definition";
 import {NetworkPresenceChannelStateType} from "~/shared/network/network-presence-channel";
@@ -92,7 +93,11 @@ function getInitialState(initialDocument: DocumentModel): State {
     };
 }
 
-type Action = EditAction | ReceiveStepsAction | ReconcileSelectionForPresenceAction;
+type Action =
+    | EditAction
+    | ReceiveStepsAction
+    | ReconcileSelectionForPresenceAction
+    | AugmentRememberedStepsAction;
 
 type EditAction = {
     readonly type: "Edit";
@@ -112,6 +117,15 @@ type ReconcileSelectionForPresenceAction = {
     readonly editorPresenceUpdate:
         | SchemaType<typeof DocumentEditorPresenceUpdateSchema>["presenceState"]
         | null;
+};
+
+type AugmentRememberedStepsAction = {
+    readonly type: "AugmentRememberedSteps";
+    readonly startVersion: number;
+    readonly steps: ReadonlyArray<{
+        readonly step: Step;
+        readonly invertedStep: Step;
+    }>;
 };
 
 function reduce(state: State, action: Action): State {
@@ -223,7 +237,7 @@ function reduceWithAction(oldState: State, action: Action): State {
             let rememberedSteps;
             {
                 let content = new Lazy(() => oldState.editorState.getContent());
-                const stepsWithContent = steps.map(({step}) => {
+                const newRememberedSteps = steps.map(({step}) => {
                     const previousContent = content;
 
                     content = new Lazy(() => {
@@ -240,7 +254,7 @@ function reduceWithAction(oldState: State, action: Action): State {
                     };
                 });
 
-                rememberedSteps = [...oldState.rememberedSteps, ...stepsWithContent];
+                rememberedSteps = [...oldState.rememberedSteps, ...newRememberedSteps];
                 rememberedSteps = rememberedSteps.slice(
                     rememberedSteps.length -
                         (editorState.getVersion() - action.discardRememberedStepsBeforeVersion),
@@ -291,6 +305,42 @@ function reduceWithAction(oldState: State, action: Action): State {
             return {
                 ...oldState,
                 selectionForPresence,
+            };
+        }
+        // If we are missing some remembered steps for fast-forwarding presence states
+        // then we have an effect which fetches those steps from the server. This
+        // action integrates the old steps into our state.
+        case "AugmentRememberedSteps": {
+            assert(
+                action.startVersion + action.steps.length ===
+                    oldState.editorState.getVersion() - oldState.rememberedSteps.length,
+            );
+
+            let content =
+                oldState.rememberedSteps[oldState.rememberedSteps.length - 1]?.contentBeforeStep ??
+                new Lazy(() => oldState.editorState.getContent());
+            const newRememberedSteps = [...action.steps].reverse().map(({step, invertedStep}) => {
+                const previousContent = content;
+
+                content = new Lazy(() => {
+                    const stepResult = invertedStep.apply(previousContent.get());
+                    assert(stepResult.doc);
+                    assert(isDocumentContent(stepResult.doc));
+                    return stepResult.doc;
+                });
+
+                return {
+                    step,
+                    contentBeforeStep: content,
+                    contentAfterStep: previousContent,
+                };
+            });
+
+            newRememberedSteps.reverse();
+
+            return {
+                ...oldState,
+                rememberedSteps: [...newRememberedSteps, ...oldState.rememberedSteps],
             };
         }
         default:
@@ -481,7 +531,7 @@ function DocumentContentEditorStateful({initialDocument}: {initialDocument: Docu
             }
 
             /* ========================================================================== *\
-             * 2. Fast-forward outdated presence states                                   *
+             * 2. Fast-forward outdated presence states if we can, otherwise drop         *
             \* ========================================================================== */
 
             // We don't update presence states if the document changes but the selection
@@ -489,7 +539,7 @@ function DocumentContentEditorStateful({initialDocument}: {initialDocument: Docu
             // didn't move to the new document locally.
             //
             // We may not have enough `rememberedSteps` to fast-forward the presence state.
-            // In this case we will drop the presence state in the next step. We then fetch
+            // In this case we will drop the presence state. We then fetch
             // steps required to fast-forward the presence state asynchronously.
             //
             // It's important that we record `smallestPresenceStateVersion` before this
@@ -535,6 +585,20 @@ function DocumentContentEditorStateful({initialDocument}: {initialDocument: Docu
                 };
             }
 
+            // Drop any presence states that are not at the current version.
+            //
+            // There are two kinds of states we expect to discard here:
+            //
+            // 1. Presence states at a future version.
+            // 2. Presence states that we couldn't catch because we don't have enough
+            //    `rememberedSteps`. We will try to fetch more `rememberedSteps` to
+            //    render these.
+            //
+            // TODO(calebmer): If we have a race condition and a client has reported that
+            // they are at a future version we ignore those cursors right now. Is that
+            // correct?
+            if (presenceState.version !== editorVersion) continue;
+
             presenceStates.push(presenceState);
         }
 
@@ -557,19 +621,6 @@ function DocumentContentEditorStateful({initialDocument}: {initialDocument: Docu
                 > = [];
 
                 for (const presenceState of presenceStates) {
-                    // Ignore any presence states that are not at the current version.
-                    //
-                    // This has the side effect of discarding:
-                    //
-                    // 1. Presence states at a future version.
-                    // 2. Presence states that we couldn't catch up in step 2 because we don't have
-                    //    enough `rememberedSteps`.
-                    //
-                    // TODO(calebmer): If we have a race condition and a client has reported that
-                    // they are at a future version we ignore those cursors right now. Is that
-                    // correct?
-                    if (presenceState.version !== version) continue;
-
                     const selection = new TextSelection(
                         origin.before.resolve(presenceState.textSelection.anchor),
                         origin.before.resolve(presenceState.textSelection.head),
@@ -630,6 +681,43 @@ function DocumentContentEditorStateful({initialDocument}: {initialDocument: Docu
 
         return phantomTextSelections;
     }, [presenceStates]);
+
+    // If we have a presence state with a version earlier than our last remembered
+    // version, then send a network request to load the steps our client is missing
+    // so we can render the older presence state.
+    const lastRememberedVersion = state.editorState.getVersion() - state.rememberedSteps.length;
+    useEffect(() => {
+        if (smallestPresenceStateVersion === null) return;
+        if (lastRememberedVersion <= smallestPresenceStateVersion) return;
+
+        let isCancelled = false;
+
+        runPromiseWithoutAwaiting(async () => {
+            try {
+                const {steps} = await readDocumentContentSteps({
+                    id: documentId,
+                    startVersion: smallestPresenceStateVersion,
+                    endVersion: lastRememberedVersion - 1,
+                });
+
+                if (isCancelled) return;
+
+                dispatch({
+                    type: "AugmentRememberedSteps",
+                    startVersion: smallestPresenceStateVersion,
+                    steps,
+                });
+            } catch (error) {
+                setErrorState({hasError: true, error});
+            }
+        });
+
+        return () => {
+            isCancelled = true;
+        };
+        // Important: Be careful about what you put in this dependency array! New
+        // dependencies will cause extra network requests which may not be necessary.
+    }, [documentId, lastRememberedVersion, smallestPresenceStateVersion]);
 
     return (
         <>

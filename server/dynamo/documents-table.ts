@@ -988,10 +988,10 @@ export async function updateDocumentContent({
                     ),
                 );
             } else {
-                const otherSteps = await readDocumentStepsForValidatedVersionRange({
+                const otherSteps = await readDocumentContentStepsForValidatedVersionRange({
                     id,
-                    versionStart: clientVersion,
-                    versionEnd:
+                    startVersion: clientVersion,
+                    endVersion:
                         internalDocument.version -
                         internalDocument.stepsAfterInitialSnapshot.length -
                         1,
@@ -1351,34 +1351,66 @@ async function maybeUpdateDocumentSnapshotAfterUpdatingContent({
 }
 
 /**
- * Reads all steps between `versionStart` and `versionEnd` inclusive.
+ * Reads all steps between `startVersion` and `endVersion` inclusive.
+ */
+export async function readDocumentContentSteps({
+    id,
+    startVersion,
+    endVersion,
+}: {
+    id: Id;
+    startVersion: number;
+    endVersion: number;
+}) {
+    // TODO(calebmer): Authorization!!!
+
+    const document = await DocumentsTable.getPartialItem(
+        {partitionType: "Document", documentId: id, sortRangeType: "Attributes"},
+        {attributes: ["version"]},
+    );
+
+    if (!document) throw new NotFoundError("Document does not exist");
+
+    if (startVersion < 0) throw new InvalidArgumentError("Start version is less than zero");
+    if (startVersion > endVersion)
+        throw new InvalidArgumentError("End version is greater than start version");
+    if (endVersion > document.version)
+        throw new FailedPreconditionError(
+            "End version is greater than the last version in the document",
+        );
+
+    return readDocumentContentStepsForValidatedVersionRange({id, startVersion, endVersion});
+}
+
+/**
+ * Reads all steps between `versionStart` and `endVersion` inclusive.
  *
- * We assume you have checked that `versionEnd` is a version that exists! We
- * will throw a `DataLossError` if we don't find steps up to `versionEnd`.
+ * We assume you have checked that `endVersion` is a version that exists! We
+ * will throw a `DataLossError` if we don't find steps up to `endVersion`.
  *
- * We also assert that `versionStart` is less than `versionEnd` and
+ * We also assert that `versionStart` is less than `endVersion` and
  * `versionStart` is greater than zero.
  *
  * We call this function "for validated version range" because we assume
- * `versionStart` and `versionEnd` are valid.
+ * `versionStart` and `endVersion` are valid.
  *
  * We start by looking in the `StepsBeforeSnapshot` range since it has all our
  * historical steps. If we can't find all the steps we need then we check the
  * `StepsAfterSnapshot` range.
  */
-async function readDocumentStepsForValidatedVersionRange({
+async function readDocumentContentStepsForValidatedVersionRange({
     id,
-    versionStart,
-    versionEnd,
+    startVersion,
+    endVersion,
 }: {
     id: Id;
-    versionStart: number;
-    versionEnd: number;
+    startVersion: number;
+    endVersion: number;
 }): Promise<Array<{step: Step; invertedStep: Step; clientId: Id}>> {
-    assert(Number.isSafeInteger(versionStart));
-    assert(Number.isSafeInteger(versionEnd));
-    assert(versionStart <= versionEnd);
-    assert(versionStart >= 0);
+    assert(Number.isSafeInteger(startVersion));
+    assert(Number.isSafeInteger(endVersion));
+    assert(startVersion <= endVersion);
+    assert(startVersion >= 0);
 
     const stepByVersion = new Map<number, {step: Step; invertedStep: Step; clientId: Id}>();
 
@@ -1388,13 +1420,13 @@ async function readDocumentStepsForValidatedVersionRange({
                 partitionType: "Document",
                 documentId: id,
                 sortRangeType: "StepTransactionsBeforeSnapshot",
-                version: versionStart,
+                version: startVersion,
             },
             endKey: {
                 partitionType: "Document",
                 documentId: id,
                 sortRangeType: "StepTransactionsBeforeSnapshot",
-                version: versionEnd,
+                version: endVersion,
             },
         }),
     );
@@ -1412,20 +1444,20 @@ async function readDocumentStepsForValidatedVersionRange({
 
     // Did we get all the steps from our before snapshot range? If yes we don't
     // need to query the after snapshot range.
-    if (stepByVersion.size < versionEnd - versionStart) {
+    if (stepByVersion.size < endVersion - startVersion) {
         const stepTransactionAfterSnapshotItems = await arrayFromAsyncIterable(
             DocumentsTable.query({
                 startKey: {
                     partitionType: "Document",
                     documentId: id,
                     sortRangeType: "StepTransactionsAfterSnapshot",
-                    version: versionStart,
+                    version: startVersion,
                 },
                 endKey: {
                     partitionType: "Document",
                     documentId: id,
                     sortRangeType: "StepTransactionsAfterSnapshot",
-                    version: versionEnd,
+                    version: endVersion,
                 },
             }),
         );
@@ -1449,7 +1481,7 @@ async function readDocumentStepsForValidatedVersionRange({
 
     const steps = [];
 
-    for (let version = versionStart; version <= versionEnd; version++) {
+    for (let version = startVersion; version <= endVersion; version++) {
         const step = stepByVersion.get(version);
         if (!step) throw new DataLossError("Missing a document step");
         steps.push(step);

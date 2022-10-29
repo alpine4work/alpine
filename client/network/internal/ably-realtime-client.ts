@@ -437,6 +437,9 @@ class AblyRealtimeClient {
                 handleMessage(message);
             }
 
+            // Yield the initial presence state.
+            yield presenceStateByConnectionKey;
+
             await channel.presence.subscribe(handleMessage);
 
             try {
