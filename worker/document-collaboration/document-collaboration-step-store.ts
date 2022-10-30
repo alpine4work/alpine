@@ -11,6 +11,7 @@ import {DurableObjectValue} from "~/worker/helpers/durable-object-value";
 export const DocumentCollaborationStepRangeSchema = Schema.object({
     startAfterVersion: Schema.integer,
     endVersion: Schema.integer,
+    lastSyncedVersion: Schema.integer,
 });
 export type DocumentCollaborationStepRange = SchemaType<
     typeof DocumentCollaborationStepRangeSchema

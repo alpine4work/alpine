@@ -14,24 +14,49 @@ import {
 import {DocumentContent, isDocumentContent} from "~/shared/documents/document-content-schema";
 import {DataLossError, FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
-import {Id} from "~/shared/id/id";
-import {getDocument} from "~/shared/network/documents-network-definition";
-import {Schema} from "~/shared/schema/schema";
+import {generateId, Id} from "~/shared/id/id";
+import {getDocument, updateDocumentContent} from "~/shared/network/documents-network-definition";
+import {Schema, SchemaType} from "~/shared/schema/schema";
+import {cast} from "~/shared/helpers/control/cast";
+import {logger} from "~/shared/logger";
+import {exhaustive} from "~/shared/helpers/control/exhaustive";
+
+// sync every 3 seconds:
+const syncDelayMs = 3_000;
+// destroy durable objects after 1 hour of inactivity:
+const destroyDelayMs = 60 * 60 * 1000;
+
+const DocumentCollaborationDurableObjectAlarmSchema = Schema.union({
+    sync: Schema.object({
+        type: Schema.value("sync"),
+    }),
+    destroy: Schema.object({
+        type: Schema.value("destroy"),
+    }),
+});
+type DocumentCollaborationDurableObjectAlarm = SchemaType<
+    typeof DocumentCollaborationDurableObjectAlarmSchema
+>;
+
+type InitializedState = {
+    readonly versionsRange: DurableObjectValue<DocumentCollaborationStepRange>;
+    readonly steps: DocumentCollaborationStepStore;
+    readonly documentId: Id;
+    snapshot: DocumentContent;
+    readonly alarmData: DurableObjectValue<DocumentCollaborationDurableObjectAlarm | null>;
+};
 
 export class DocumentCollaborationDurableObject {
     // these are all initialized asynchronously, but it's convenient to assume
     // they exist. be careful!
     documentId!: DurableObjectValue<Id | null>;
-    versionsRange!: DurableObjectValue<DocumentCollaborationStepRange>;
-    steps!: DocumentCollaborationStepStore;
-    snapshot!: DocumentContent;
-
     connections = new Set<DocumentCollaborationSocketConnection>();
+    initializedState: InitializedState | null = null;
 
-    constructor(private readonly state: DurableObjectState) {
-        void this.state.blockConcurrencyWhile(async () => {
+    constructor(private readonly object: DurableObjectState) {
+        void this.object.blockConcurrencyWhile(async () => {
             this.documentId = await DurableObjectValue.createNullable(
-                this.state.storage,
+                this.object.storage,
                 "documentId",
                 Schema.id,
             );
@@ -42,56 +67,88 @@ export class DocumentCollaborationDurableObject {
         });
     }
 
-    async initializeIfNeeded(documentId: Id) {
+    getState() {
+        assert(this.initializedState, "object must be initialized");
+        return this.initializedState;
+    }
+
+    async initializeIfNeeded(documentId: Id): Promise<InitializedState> {
         if (this.documentId.get()) {
             assert(this.documentId.get() === documentId);
         }
 
-        if (this.snapshot) {
-            return;
+        if (this.initializedState) {
+            return this.initializedState;
         }
 
-        await this.state.blockConcurrencyWhile(async () => {
+        return await this.object.blockConcurrencyWhile(async () => {
             const {document} = await getDocument({id: documentId});
             assert(document, "document must exist");
             this.documentId.set(documentId);
 
-            this.versionsRange = await DurableObjectValue.create(
-                this.state.storage,
+            const versionsRange = await DurableObjectValue.create(
+                this.object.storage,
                 "versionsRange",
                 DocumentCollaborationStepRangeSchema,
-                () => ({startAfterVersion: document.version, endVersion: document.version}),
+                () => ({
+                    startAfterVersion: document.version,
+                    endVersion: document.version,
+                    lastSyncedVersion: document.version,
+                }),
             );
 
-            this.steps = new DocumentCollaborationStepStore(
-                this.state,
+            const steps = new DocumentCollaborationStepStore(
+                this.object,
                 documentId,
-                this.versionsRange,
+                versionsRange,
             );
 
-            const {startAfterVersion, endVersion} = this.versionsRange.get();
+            const alarmData = await DurableObjectValue.createNullable(
+                this.object.storage,
+                "alarmData",
+                DocumentCollaborationDurableObjectAlarmSchema,
+            );
+
+            const {startAfterVersion, endVersion} = versionsRange.get();
             assert(startAfterVersion <= document.version);
+
+            let snapshot;
             if (endVersion > document.version) {
                 // we have ops that our durable object has seen but the source-of-truth server
                 // hasn't, so lets fast-forward our snapshot:
                 let content = document.content;
-                for (const {step} of await this.steps.readStepsSince(document.version)) {
+                for (const {step} of await steps.readStepsSince(document.version)) {
                     content = applyStepToContent(content, step);
                 }
-                this.snapshot = content;
+                snapshot = content;
             } else {
-                this.snapshot = document.content;
+                snapshot = document.content;
             }
+
+            logger.info(`initialized at version ${document.version}`);
+
+            this.initializedState = {
+                snapshot,
+                versionsRange,
+                steps,
+                alarmData,
+                documentId,
+            };
+
+            // in the absence of anything else happening, make sure we tear down this DO eventually
+            await this.scheduleDestroy();
+
+            return this.initializedState;
         });
     }
 
     getSnapshotVersion(): number {
-        return this.versionsRange.get().endVersion;
+        return this.getState().versionsRange.get().endVersion;
     }
 
     async fetch(request: Request): Promise<Response> {
         const documentId = Schema.id.deserialize(request.headers.get("x-document-id"));
-        await this.initializeIfNeeded(documentId);
+        const state = await this.initializeIfNeeded(documentId);
 
         const url = new URL(request.url);
         const path = url.pathname.slice(1).split("/");
@@ -116,16 +173,117 @@ export class DocumentCollaborationDurableObject {
                 return new Response(null, {status: 101, webSocket: clientSocket});
             }
             case "read-snapshot": {
-                console.log(this);
                 return DocumentCollaborationReadSnapshotResponse.send({
                     version: this.getSnapshotVersion(),
-                    snapshot: this.snapshot,
+                    snapshot: state.snapshot,
                 });
             }
             default: {
                 return new Response("document route not found", {status: 404});
             }
         }
+    }
+
+    async alarm() {
+        const state = this.initializedState;
+        assert(state, "object must be initialized!");
+
+        const alarm = state.alarmData.get();
+        if (!alarm) return;
+
+        switch (alarm.type) {
+            case "sync": {
+                const {endVersion, lastSyncedVersion} = state.versionsRange.get();
+                if (endVersion === lastSyncedVersion) {
+                    this.onSyncComplete(endVersion);
+                    return;
+                }
+
+                const unsyncedSteps = await state.steps.readStepsSince(lastSyncedVersion);
+                logger.info(`writing ${unsyncedSteps.length} steps back to server...`);
+                const {newVersion} = await updateDocumentContent({
+                    id: state.documentId,
+                    version: lastSyncedVersion,
+                    steps: unsyncedSteps.map(({step}) => step),
+                    clientId: generateId(),
+                    fastForwardOnly: true,
+                });
+
+                assert(newVersion === endVersion);
+                state.versionsRange.setIn("lastSyncedVersion", newVersion);
+                state.alarmData.set(null);
+                logger.info(`synced up to v${newVersion}`);
+
+                this.onSyncComplete(newVersion);
+
+                return;
+            }
+            case "destroy": {
+                logger.info("destroy alarm triggered");
+                const {endVersion, lastSyncedVersion} = state.versionsRange.get();
+                if (endVersion !== lastSyncedVersion) {
+                    await this.scheduleSync();
+                    return;
+                }
+                if (this.connections.size) {
+                    // we still have sockets connected! let's wait a while longer to try and destroy:
+                    logger.info("sockets still present, re-scheduling");
+                    this.object.storage.deleteAlarm();
+                    await this.scheduleDestroy();
+                    return;
+                }
+
+                logger.info("no connections or unwritten writes, destroying storage...");
+                await this.object.storage.deleteAll();
+                this.initializedState = null;
+                return;
+            }
+            default:
+                throw exhaustive(alarm);
+        }
+    }
+
+    async hasAlarm(): Promise<boolean> {
+        return (await this.object.storage.getAlarm()) !== null;
+    }
+
+    async scheduleSync() {
+        const currentAlarm = this.getState().alarmData.get();
+
+        if ((await this.hasAlarm()) && currentAlarm && currentAlarm.type === "sync") {
+            logger.debug("sync already scheduled, skipping");
+            return;
+        }
+
+        this.getState().alarmData.set({type: "sync"});
+        this.object.storage.setAlarm(Date.now() + syncDelayMs);
+        logger.debug("scheduled sync");
+    }
+
+    async onSyncComplete(syncedVersion: number) {
+        const state = this.getState();
+        this.getState().alarmData.set(null);
+
+        if (state.versionsRange.get().endVersion !== syncedVersion) {
+            logger.info("more writes found after sync, scheduling sync");
+            await this.scheduleSync();
+        } else {
+            logger.info("all writes flushed successfully, scheduling destroy");
+            await this.scheduleDestroy();
+        }
+    }
+
+    async scheduleDestroy(): Promise<void> {
+        const currentAlarm = this.getState().alarmData.get();
+
+        if ((await this.hasAlarm()) && currentAlarm) {
+            logger.debug("alarm already scheduled, skipping schedule destroy");
+            return;
+        }
+
+        this.getState().alarmData.set({type: "destroy"});
+        this.object.storage.setAlarm(Date.now() + destroyDelayMs);
+        logger.debug("scheduled destory");
     }
 
     /**
@@ -138,7 +296,7 @@ export class DocumentCollaborationDurableObject {
         clientId: Id,
         clientRequestId: Id,
     ) {
-        await this.state.blockConcurrencyWhile(async () => {
+        await this.object.blockConcurrencyWhile(async () => {
             if (!Number.isSafeInteger(clientVersion) || clientVersion < 0)
                 throw new InvalidArgumentError("Expected a positive integer version number");
 
@@ -147,7 +305,9 @@ export class DocumentCollaborationDurableObject {
                     "Can not update document with steps at version ahead of the document's current version",
                 );
 
-            let newContent = this.snapshot;
+            const state = this.getState();
+
+            let newContent = state.snapshot;
             let newSteps: ReadonlyArray<Step>;
 
             // If the client's version is the same as our server version then we can
@@ -166,7 +326,7 @@ export class DocumentCollaborationDurableObject {
 
                 // Get the steps that were applied to bring our document from the provided
                 // version to the document's current version.
-                const stepsToRebaseAgainst = await this.steps.readStepsSince(clientVersion);
+                const stepsToRebaseAgainst = await state.steps.readStepsSince(clientVersion);
                 assert(stepsToRebaseAgainst.length === this.getSnapshotVersion() - clientVersion);
 
                 const invertedClientSteps = [];
@@ -250,8 +410,10 @@ export class DocumentCollaborationDurableObject {
             );
             assert(committedSteps[committedSteps.length - 1]?.version === newVersion);
 
-            this.steps.writeCommittedSteps(committedSteps);
-            this.snapshot = newContent;
+            state.steps.writeCommittedSteps(committedSteps);
+            state.snapshot = newContent;
+
+            await this.scheduleSync();
 
             this.broadcastToClients({
                 type: "steps",

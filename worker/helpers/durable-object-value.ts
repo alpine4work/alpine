@@ -53,4 +53,11 @@ export class DurableObjectValue<T> {
         void this.storage.put(this.key, this.schema.serialize(newValue));
         this.cachedValue = newValue;
     }
+
+    setIn<K extends keyof T>(key: K, value: T[K]): void {
+        this.set({
+            ...this.cachedValue,
+            [key]: value,
+        });
+    }
 }

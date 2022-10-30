@@ -1,3 +1,4 @@
+import {logger} from "~/shared/logger";
 import {Schema} from "~/shared/schema/schema";
 
 const appOrigin = Schema.string.deserialize(process.env.NEXT_PUBLIC_APP_ORIGIN ?? null);
@@ -9,12 +10,13 @@ interface Env {
 const worker = {
     async fetch(request: Request, env: Env, ctx: ExecutionContext) {
         try {
+            logger.info(`request to ${request.url}`);
             const originalResponse = await handleRequest(request, env);
             const response = new Response(originalResponse.body, originalResponse);
             response.headers.set("access-control-allow-origin", appOrigin);
             return response;
         } catch (err) {
-            console.log(`error handling ${request.method} ${request.url}:`, err);
+            logger.warn(`error handling ${request.method} ${request.url}:`, err);
             throw err;
         }
     },

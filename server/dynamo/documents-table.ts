@@ -826,6 +826,7 @@ export async function updateDocumentContent({
     clientId,
     editorPresenceUpdate,
     cacheOverrideForTest,
+    fastForwardOnly = false,
 }: {
     id: Id;
     version: number;
@@ -833,6 +834,7 @@ export async function updateDocumentContent({
     clientId: Id;
     editorPresenceUpdate?: SchemaType<typeof DocumentEditorPresenceUpdateSchema>;
     cacheOverrideForTest?: DocumentContentCacheForUpdate;
+    fastForwardOnly?: boolean;
 }): Promise<{
     /**
      * The new version of the document after applying our update.
@@ -948,6 +950,9 @@ export async function updateDocumentContent({
         // If the client is trying to update an older document version then we need to
         // rebase the client steps against steps which were applied before it.
         else {
+            if (fastForwardOnly) {
+                throw new InvalidArgumentError("Non-fast-forward update received");
+            }
             assert(clientVersion < internalDocument.version);
 
             // Get the steps that were applied to bring our document from the provided

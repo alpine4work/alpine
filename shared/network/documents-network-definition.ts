@@ -39,6 +39,7 @@ export const updateDocumentContent = defineNetworkFunction({
         steps: Schema.array(DocumentContentStepSchema),
         clientId: Schema.id,
         editorPresenceUpdate: DocumentEditorPresenceUpdateSchema.optional(),
+        fastForwardOnly: Schema.boolean.optional(),
     },
     output: {
         newVersion: Schema.integer,
