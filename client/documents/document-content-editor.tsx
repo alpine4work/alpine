@@ -152,6 +152,20 @@ function reduce(state: State, action: Action): State {
     return pendingActions.reduce(reduceWithAction, state);
 }
 
+function getContentWithoutSendableSteps(
+    state: ContentEditorState<DocumentContent>,
+): DocumentContent {
+    const sendableSteps = state.sendableSteps();
+
+    if (sendableSteps && sendableSteps.origins[0]) {
+        const content = sendableSteps.origins[0].before;
+        assert(isDocumentContent(content));
+        return content;
+    }
+
+    return state.getContent();
+}
+
 function reduceWithAction(oldState: State, action: Action): State {
     switch (action.type) {
         case "Edit": {
@@ -236,7 +250,8 @@ function reduceWithAction(oldState: State, action: Action): State {
             // `discardRememberedStepsBeforeVersion`.
             let rememberedSteps;
             {
-                let content = new Lazy(() => oldState.editorState.getContent());
+                let content = new Lazy(() => getContentWithoutSendableSteps(oldState.editorState));
+
                 const newRememberedSteps = steps.map(({step}) => {
                     const previousContent = content;
 
@@ -318,7 +333,8 @@ function reduceWithAction(oldState: State, action: Action): State {
 
             let content =
                 oldState.rememberedSteps[oldState.rememberedSteps.length - 1]?.contentBeforeStep ??
-                new Lazy(() => oldState.editorState.getContent());
+                new Lazy(() => getContentWithoutSendableSteps(oldState.editorState));
+
             const newRememberedSteps = [...action.steps].reverse().map(({step, invertedStep}) => {
                 const previousContent = content;
 
