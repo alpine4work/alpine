@@ -26,7 +26,7 @@ import {
 import {NetworkPresenceChannelStateType} from "~/shared/network/network-presence-channel";
 import {SchemaType} from "~/shared/schema/schema";
 
-export type State = {
+type State = {
     /**
      * We may get `ReceiveSteps` actions out of order. If we see an action for a
      * future version we put it in this array and re-apply the action when older
@@ -73,7 +73,7 @@ export type State = {
     >;
 };
 
-export function getInitialState(initialDocument: DocumentModel): State {
+function getInitialState(initialDocument: DocumentModel): State {
     const editorState = ContentEditorState.createCollab({
         version: initialDocument.version,
         content: initialDocument.content,
@@ -91,7 +91,7 @@ export function getInitialState(initialDocument: DocumentModel): State {
     };
 }
 
-export type Action =
+type Action =
     | EditAction
     | ReceiveStepsAction
     | ReconcileSelectionForPresenceAction
@@ -126,7 +126,7 @@ type AugmentRememberedStepsAction = {
     }>;
 };
 
-export function reduce(state: State, action: Action): State {
+function reduce(state: State, action: Action): State {
     const oldVersion = state.editorState.getVersion();
     state = reduceWithAction(state, action);
     const newVersion = state.editorState.getVersion();
@@ -725,7 +725,7 @@ export function useDocumentContentEditorAblyContentSync(initialDocument: Documen
     return {
         phantomTextSelections,
         editorState: state.editorState,
-        onEdit: (editorState: ContentEditorState<DocumentContent>) =>
+        onChangeEditorState: (editorState: ContentEditorState<DocumentContent>) =>
             dispatch({type: "Edit", editorState}),
     };
 }

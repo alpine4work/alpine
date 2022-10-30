@@ -1,5 +1,4 @@
 import Head from "next/head";
-import {useReducer, useState} from "react";
 import {ContentEditor} from "~/client/content/content-editor";
 import {sprinkles} from "~/client/design/sprinkles.css";
 import {useDocumentContentEditorAblyContentSync} from "~/client/documents/document-content-editor-ably";
@@ -17,7 +16,7 @@ export function DocumentContentEditor({document}: {document: DocumentModel}) {
 }
 
 function DocumentContentEditorStateful({initialDocument}: {initialDocument: DocumentModel}) {
-    const {phantomTextSelections, editorState, onEdit} =
+    const {phantomTextSelections, editorState, onChangeEditorState} =
         useDocumentContentEditorAblyContentSync(initialDocument);
 
     return (
@@ -27,7 +26,7 @@ function DocumentContentEditorStateful({initialDocument}: {initialDocument: Docu
             </Head>
             <ContentEditor
                 state={editorState}
-                onChange={onEdit}
+                onChange={onChangeEditorState}
                 aria-label="Document editor"
                 placeholder="Share your ideas…"
                 className={sprinkles({paddingBottom: "24"})}
