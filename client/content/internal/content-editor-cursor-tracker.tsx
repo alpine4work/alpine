@@ -3,8 +3,10 @@ import {EditorView} from "prosemirror-view";
 import {Memo, Ref, RefObject, forwardRef, useCallback, useLayoutEffect, useRef} from "react";
 import {Box} from "~/client/design/box";
 import {useMergedRef} from "~/client/design/helpers/use-merged-ref";
+import {scheduleException} from "~/shared/helpers/async/schedule-exception";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule-microtask";
 import {assert} from "~/shared/helpers/control/assert";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get-or-set-default-map-value";
 
 const ContentEditorCursorTrackerForwardRef = forwardRef(ContentEditorCursorTracker);
 export {ContentEditorCursorTrackerForwardRef as ContentEditorCursorTracker};
@@ -115,15 +117,73 @@ export function useContentEditorTracker({
             onUpdatePosition?.();
         };
 
+        let removeResizeListener: (() => void) | null;
+
         // In React, child component effects run before parent component effects. So
         // `viewRef` is assigned after our effect runs. By scheduling a microtask we
         // wait until our parent's effect runs.
-        scheduleMicrotask(run);
+        scheduleMicrotask(() => {
+            if (isCancelled) return;
+
+            // Make sure that whenever our view element resizes, we update the position of
+            // our tracker.
+            assert(viewRef.current);
+            const viewElement = viewRef.current.dom;
+            addResizeListenerForElement(viewElement, run);
+            removeResizeListener = () => removeResizeListenerForElement(viewElement, run);
+
+            run();
+        });
 
         return () => {
             isCancelled = true;
+            removeResizeListener?.();
         };
     }, [onUpdatePosition, pos, shouldUseLineHeight, side, state.doc, viewRef]);
 
     return localRef;
+}
+
+const resizeListenersByElement = new Map<Element, Set<(entry: ResizeObserverEntry) => void>>();
+let resizeObserver: ResizeObserver | undefined;
+
+function addResizeListenerForElement(element: Element, listener: () => void) {
+    if (!resizeObserver) {
+        resizeObserver = new ResizeObserver(entries => {
+            for (const entry of entries) {
+                const resizeListeners = resizeListenersByElement.get(entry.target);
+                if (resizeListeners) {
+                    for (const listener of resizeListeners) {
+                        try {
+                            listener(entry);
+                        } catch (error) {
+                            scheduleException(error);
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    const resizeListeners = getOrSetDefaultMapValue(
+        resizeListenersByElement,
+        element,
+        () => new Set(),
+    );
+
+    resizeListeners.add(listener);
+
+    if (resizeListeners.size === 1) resizeObserver.observe(element);
+}
+
+function removeResizeListenerForElement(element: Element, listener: () => void) {
+    const resizeListeners = resizeListenersByElement.get(element);
+    if (!resizeListeners) return;
+
+    resizeListeners.delete(listener);
+
+    if (resizeListeners.size === 0) {
+        resizeListenersByElement.delete(element);
+        resizeObserver?.unobserve(element);
+    }
 }
