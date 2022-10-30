@@ -23,7 +23,7 @@ import {scheduleMicrotask} from "~/shared/helpers/async/schedule-microtask";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {isDeepEqual} from "~/shared/helpers/control/is-deep-equal";
-import {iterableMap} from "~/shared/helpers/iterable/iterable-map";
+import {mapIterable} from "~/shared/helpers/iterable/map-iterable";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get-or-set-default-map-value";
 import {quote} from "~/shared/helpers/string/quote";
 import {
@@ -184,7 +184,7 @@ export class DynamoClient {
             ExpressionAttributeValues:
                 expressionAttributeValues && expressionAttributeValues.size > 0
                     ? Object.fromEntries(
-                          iterableMap(expressionAttributeValues, ([name, value]) => [
+                          mapIterable(expressionAttributeValues, ([name, value]) => [
                               name,
                               intoDynamoAttributeValue(value),
                           ]),
@@ -228,7 +228,7 @@ export class DynamoClient {
             ExpressionAttributeValues:
                 expressionAttributeValues && expressionAttributeValues.size > 0
                     ? Object.fromEntries(
-                          iterableMap(expressionAttributeValues, ([name, value]) => [
+                          mapIterable(expressionAttributeValues, ([name, value]) => [
                               name,
                               intoDynamoAttributeValue(value),
                           ]),
@@ -286,7 +286,7 @@ export class DynamoClient {
                     expressionAttributeValues &&
                     expressionAttributeValues.size > 0
                         ? Object.fromEntries(
-                              iterableMap(expressionAttributeValues, ([name, value]) => [
+                              mapIterable(expressionAttributeValues, ([name, value]) => [
                                   name,
                                   intoDynamoAttributeValue(value),
                               ]),
@@ -324,7 +324,7 @@ export class DynamoClient {
                     expressionAttributeValues &&
                     expressionAttributeValues.size > 0
                         ? Object.fromEntries(
-                              iterableMap(expressionAttributeValues, ([name, value]) => [
+                              mapIterable(expressionAttributeValues, ([name, value]) => [
                                   name,
                                   intoDynamoAttributeValue(value),
                               ]),
@@ -362,7 +362,7 @@ export class DynamoClient {
                     expressionAttributeValues &&
                     expressionAttributeValues.size > 0
                         ? Object.fromEntries(
-                              iterableMap(expressionAttributeValues, ([name, value]) => [
+                              mapIterable(expressionAttributeValues, ([name, value]) => [
                                   name,
                                   intoDynamoAttributeValue(value),
                               ]),
@@ -390,6 +390,7 @@ export class DynamoClient {
         sortKey,
         consistency = "Eventual",
         limit,
+        descending = false,
     }: {
         tableName: string;
         partitionKey: {
@@ -403,6 +404,7 @@ export class DynamoClient {
         };
         consistency?: DynamoReadConsistency;
         limit?: number;
+        descending?: boolean;
     }): AsyncIterableIterator<SchemaSerializedObjectValue> {
         const keyConditionExpression =
             sortKey.startValue !== undefined && sortKey.endValue !== undefined
@@ -429,6 +431,7 @@ export class DynamoClient {
                 // If we have a limit of 100 and we scanned 40 rows in our previous queries,
                 // then our new limit is 60 since we don't want to exceed our initial limit.
                 Limit: limit !== undefined ? limit - totalScannedCount : undefined,
+                ScanIndexForward: !descending,
                 KeyConditionExpression: keyConditionExpression,
                 ExpressionAttributeValues: expressionAttributeValues,
                 ExclusiveStartKey: lastEvaluatedKey,

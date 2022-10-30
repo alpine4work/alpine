@@ -1,6 +1,6 @@
 import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
-import {Ref, RefObject, forwardRef, useLayoutEffect, useRef} from "react";
+import {Memo, Ref, RefObject, forwardRef, useCallback, useLayoutEffect, useRef} from "react";
 import {Box} from "~/client/design/box";
 import {useMergedRef} from "~/client/design/helpers/use-merged-ref";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule-microtask";
@@ -23,12 +23,45 @@ function ContentEditorCursorTracker(
     },
     foreignRef: Ref<HTMLDivElement>,
 ) {
-    const localRef = useRef<HTMLDivElement>(null);
-
     const onUpdatePositionRef = useRef(onUpdatePosition);
     useLayoutEffect(() => {
         onUpdatePositionRef.current = onUpdatePosition;
     });
+
+    const localRef = useContentEditorTracker({
+        state,
+        viewRef,
+        pos,
+        onUpdatePosition: useCallback(() => onUpdatePositionRef.current?.(), []),
+    });
+
+    return (
+        <Box
+            ref={useMergedRef(localRef, foreignRef)}
+            width="0"
+            position="absolute"
+            pointerEvents="none"
+        />
+    );
+}
+
+export function useContentEditorTracker({
+    state,
+    viewRef,
+    pos,
+    side,
+    onUpdatePosition,
+    shouldUseLineHeight = false,
+}: {
+    state: EditorState;
+    viewRef: RefObject<EditorView | null>;
+    pos: number;
+    /** See the documentation for `coordsAtPos()` for what this does. */
+    side?: number;
+    onUpdatePosition?: Memo<() => void>;
+    shouldUseLineHeight?: boolean;
+}) {
+    const localRef = useRef<HTMLDivElement>(null);
 
     useLayoutEffect(() => {
         let isCancelled = false;
@@ -50,14 +83,36 @@ function ContentEditorCursorTracker(
 
             // `coords` are relative to the viewport, so get our offset parent's viewport
             // rect so we can correctly position our selection target in the offset parent.
-            const coords = viewRef.current.coordsAtPos(pos);
+            const coords = viewRef.current.coordsAtPos(pos, side);
             const offsetParentRect = localRef.current.offsetParent.getBoundingClientRect();
 
-            localRef.current.style.top = `${coords.top - offsetParentRect.top}px`;
-            localRef.current.style.height = `${coords.bottom - coords.top}px`;
+            // Calculate the line height of the parent element if we want to use the line
+            // height as the height of our tracker instead of the content height.
+            let lineHeightIfShouldBeUsed = null;
+            if (shouldUseLineHeight) {
+                const {node} = viewRef.current.domAtPos(pos, side);
+                const parentElement = node instanceof Element ? node : node.parentElement;
+                const lineHeightString = parentElement
+                    ? getComputedStyle(parentElement).lineHeight
+                    : null;
+                lineHeightIfShouldBeUsed = lineHeightString?.endsWith("px")
+                    ? parseInt(lineHeightString.slice(0, -2), 10)
+                    : null;
+            }
+
+            const contentHeight = coords.bottom - coords.top;
+            const finalHeight =
+                lineHeightIfShouldBeUsed !== null
+                    ? Math.max(contentHeight, lineHeightIfShouldBeUsed)
+                    : contentHeight;
+
+            localRef.current.style.top = `${
+                coords.top - offsetParentRect.top - (finalHeight - contentHeight) / 2
+            }px`;
+            localRef.current.style.height = `${finalHeight}px`;
             localRef.current.style.left = `${coords.left - offsetParentRect.left}px`;
 
-            onUpdatePositionRef.current?.();
+            onUpdatePosition?.();
         };
 
         // In React, child component effects run before parent component effects. So
@@ -68,14 +123,7 @@ function ContentEditorCursorTracker(
         return () => {
             isCancelled = true;
         };
-    }, [pos, state.doc, viewRef]);
+    }, [onUpdatePosition, pos, shouldUseLineHeight, side, state.doc, viewRef]);
 
-    return (
-        <Box
-            ref={useMergedRef(localRef, foreignRef)}
-            width="0"
-            position="absolute"
-            pointerEvents="none"
-        />
-    );
+    return localRef;
 }

@@ -1,5 +1,5 @@
 import {assert} from "~/shared/helpers/control/assert";
-import {iterableMap} from "~/shared/helpers/iterable/iterable-map";
+import {mapIterable} from "~/shared/helpers/iterable/map-iterable";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get-or-set-default-map-value";
 import {NonUndefined} from "~/shared/helpers/types/non-undefined";
 import {
@@ -312,7 +312,7 @@ export class DynamoConditionExpressionCompilationContext {
      * Get a map of all variables assignments in this context.
      */
     public iterateVariables(): Iterable<[string, SchemaSerializedValue]> {
-        return iterableMap(this._variableNameByValue, ([value, name]) => [name, value]);
+        return mapIterable(this._variableNameByValue, ([value, name]) => [name, value]);
     }
 }
 

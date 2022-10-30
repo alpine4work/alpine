@@ -32,7 +32,7 @@
                 "StepTransactionsAfterSnapshot": {
                     "orderKey": "a1",
                     "sortKeyAttributeByKey": {
-                        "version": {
+                        "startVersion": {
                             "type": "Integer"
                         }
                     },
@@ -90,7 +90,7 @@
                 "StepTransactionsBeforeSnapshot": {
                     "orderKey": "a3",
                     "sortKeyAttributeByKey": {
-                        "version": {
+                        "startVersion": {
                             "type": "Integer"
                         }
                     },

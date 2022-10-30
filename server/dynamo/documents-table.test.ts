@@ -1,13 +1,14 @@
 import {Fragment, Slice} from "prosemirror-model";
-import {ReplaceStep} from "prosemirror-transform";
+import {ReplaceStep, Step} from "prosemirror-transform";
 import {
     DocumentContentCacheForUpdate,
     createDocument,
     documentContentCacheEvictionTimeoutMs,
+    getDocument,
+    getDocumentContentSteps,
+    getDocumentPreview,
     getDocumentsTableForTest,
-    readDocument,
-    readDocumentPreview,
-    readInternalDocumentTestCounter,
+    getInternalDocumentTestCounter,
     updateDocumentContent,
     updateDocumentContentBeforeExecuteTransactionTestCheckpoint,
 } from "~/server/dynamo/documents-table";
@@ -127,11 +128,11 @@ test("can read a created document", async () => {
         content,
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 0,
         content: content.toJSON(),
     });
-    expect(await readDocumentPreview(documentId)).toEqual({
+    expect(await getDocumentPreview(documentId)).toEqual({
         id: documentId,
         titleWithoutFallback: "Foo bar",
     });
@@ -152,7 +153,7 @@ test("can update a document with a single step", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -169,7 +170,7 @@ test("can update a document with a single step", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -186,7 +187,7 @@ test("can update a document with a single step", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 3,
         content: schema
             .node("doc", {}, [
@@ -212,7 +213,7 @@ test("can update a document with multiple steps", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -233,7 +234,7 @@ test("can update a document with multiple steps", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 4,
         content: schema
             .node("doc", {}, [
@@ -259,7 +260,7 @@ test("can not update a document if the version is greater than the current versi
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -278,7 +279,7 @@ test("can not update a document if the version is greater than the current versi
         });
     }).rejects.toThrow(FailedPreconditionError);
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -304,7 +305,7 @@ test("can update a document if the version is one less than the current version"
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -321,7 +322,7 @@ test("can update a document if the version is one less than the current version"
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -338,7 +339,7 @@ test("can update a document if the version is one less than the current version"
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 3,
         content: schema
             .node("doc", {}, [
@@ -364,7 +365,7 @@ test("can update a document if the version is many steps behind the current vers
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -402,7 +403,7 @@ test("can update a document if the version is many steps behind the current vers
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 5,
         content: schema
             .node("doc", {}, [
@@ -419,7 +420,7 @@ test("can update a document if the version is many steps behind the current vers
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 6,
         content: schema
             .node("doc", {}, [
@@ -445,7 +446,7 @@ test("can update a document with many steps if the version is one less than the 
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -462,7 +463,7 @@ test("can update a document with many steps if the version is one less than the 
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -484,7 +485,7 @@ test("can update a document with many steps if the version is one less than the 
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 6,
         content: schema
             .node("doc", {}, [
@@ -510,7 +511,7 @@ test("can update a document with many steps if the version is many steps behind 
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -548,7 +549,7 @@ test("can update a document with many steps if the version is many steps behind 
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 5,
         content: schema
             .node("doc", {}, [
@@ -570,7 +571,7 @@ test("can update a document with many steps if the version is many steps behind 
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 9,
         content: schema
             .node("doc", {}, [
@@ -596,7 +597,7 @@ test("when two document updates race the loser will rebase", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -621,7 +622,7 @@ test("when two document updates race the loser will rebase", async () => {
 
     const {unpause: unpauseRequest2} = await request2PausePromise;
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -638,7 +639,7 @@ test("when two document updates race the loser will rebase", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -652,7 +653,7 @@ test("when two document updates race the loser will rebase", async () => {
 
     await request2Promise;
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 3,
         content: schema
             .node("doc", {}, [
@@ -678,7 +679,7 @@ test("can not apply an invalid step", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -697,7 +698,7 @@ test("can not apply an invalid step", async () => {
         });
     }).rejects.toThrow(FailedPreconditionError);
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -723,7 +724,7 @@ test("can not apply an invalid step even when rebasing", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -740,7 +741,7 @@ test("can not apply an invalid step even when rebasing", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -759,7 +760,7 @@ test("can not apply an invalid step even when rebasing", async () => {
         });
     }).rejects.toThrow(FailedPreconditionError);
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -785,7 +786,7 @@ test("a single rebased step may end up as a noop", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -802,7 +803,7 @@ test("a single rebased step may end up as a noop", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -819,7 +820,7 @@ test("a single rebased step may end up as a noop", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -845,7 +846,7 @@ test("many rebased steps may end up as a noop", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -862,7 +863,7 @@ test("many rebased steps may end up as a noop", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -883,7 +884,7 @@ test("many rebased steps may end up as a noop", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -909,7 +910,7 @@ test("some rebased steps may end up as a noop", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -926,7 +927,7 @@ test("some rebased steps may end up as a noop", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -947,7 +948,7 @@ test("some rebased steps may end up as a noop", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 3,
         content: schema
             .node("doc", {}, [
@@ -966,7 +967,7 @@ test("reads the document on first update but not on subsequent updates", async (
         content: emptyDocumentContent,
     });
 
-    const {getCount} = readInternalDocumentTestCounter.recordForTest(documentId);
+    const {getCount} = getInternalDocumentTestCounter.recordForTest(documentId);
     expect(getCount()).toEqual(0);
 
     await updateDocumentContent({
@@ -978,7 +979,7 @@ test("reads the document on first update but not on subsequent updates", async (
 
     expect(getCount()).toEqual(1);
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -999,7 +1000,7 @@ test("reads the document on first update but not on subsequent updates", async (
 
     expect(getCount()).toEqual(2);
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -1020,7 +1021,7 @@ test("reads the document on first update but not on subsequent updates", async (
 
     expect(getCount()).toEqual(3);
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 3,
         content: schema
             .node("doc", {}, [
@@ -1041,7 +1042,7 @@ test("reads the document on first update but not on subsequent updates", async (
 
     expect(getCount()).toEqual(4);
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 4,
         content: schema
             .node("doc", {}, [
@@ -1070,7 +1071,7 @@ test("can't update a document that doesn't exist", async () => {
 test("won't cache a document that doesn't exist when updating", async () => {
     const documentId = generateId();
 
-    const {getCount} = readInternalDocumentTestCounter.recordForTest(documentId);
+    const {getCount} = getInternalDocumentTestCounter.recordForTest(documentId);
     expect(getCount()).toEqual(0);
 
     await expect(async () => {
@@ -1111,7 +1112,7 @@ test("can't read a corrupted document", async () => {
     });
 
     await expect(async () => {
-        await readDocument(documentId);
+        await getDocument(documentId);
     }).rejects.toThrow(DataLossError);
 });
 
@@ -1153,7 +1154,7 @@ test("won't cache a corrupted document while updating", async () => {
         sortRangeType: "Snapshot",
     });
 
-    const {getCount} = readInternalDocumentTestCounter.recordForTest(documentId);
+    const {getCount} = getInternalDocumentTestCounter.recordForTest(documentId);
     expect(getCount()).toEqual(0);
 
     await expect(async () => {
@@ -1187,7 +1188,7 @@ test("updates made in parallel will only read the document once", async () => {
         content: emptyDocumentContent,
     });
 
-    const {getCount} = readInternalDocumentTestCounter.recordForTest(documentId);
+    const {getCount} = getInternalDocumentTestCounter.recordForTest(documentId);
     expect(getCount()).toEqual(0);
 
     const request1Promise = updateDocumentContent({
@@ -1223,7 +1224,7 @@ test("updates made in parallel will only read the document once", async () => {
     expect(getCount()).toEqual(1);
 
     {
-        const document = await readDocument(documentId);
+        const document = await getDocument(documentId);
         expect(document?.version).toEqual(4);
         expect(document?.content.child(1).textContent.split("").sort().join("")).toEqual("abcd");
     }
@@ -1237,7 +1238,7 @@ test("if a document was deleted in the database then the cache will pick that up
         content: emptyDocumentContent,
     });
 
-    const {getCount} = readInternalDocumentTestCounter.recordForTest(documentId);
+    const {getCount} = getInternalDocumentTestCounter.recordForTest(documentId);
     expect(getCount()).toEqual(0);
 
     await updateDocumentContent({
@@ -1277,7 +1278,7 @@ test("updates may happen with different caches", async () => {
         content: emptyDocumentContent,
     });
 
-    const {getCount} = readInternalDocumentTestCounter.recordForTest(documentId);
+    const {getCount} = getInternalDocumentTestCounter.recordForTest(documentId);
     expect(getCount()).toEqual(0);
 
     await updateDocumentContent({
@@ -1289,7 +1290,7 @@ test("updates may happen with different caches", async () => {
 
     expect(getCount()).toEqual(1);
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -1310,7 +1311,7 @@ test("updates may happen with different caches", async () => {
 
     expect(getCount()).toEqual(2);
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -1332,7 +1333,7 @@ test("updates may happen with different caches", async () => {
 
     expect(getCount()).toEqual(4);
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 3,
         content: schema
             .node("doc", {}, [
@@ -1354,7 +1355,7 @@ test("updates may happen with different caches", async () => {
 
     expect(getCount()).toEqual(5);
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 4,
         content: schema
             .node("doc", {}, [
@@ -1375,7 +1376,7 @@ test("updates may happen with different caches", async () => {
 
     expect(getCount()).toEqual(6);
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 5,
         content: schema
             .node("doc", {}, [
@@ -1397,7 +1398,7 @@ test("updates may happen with different caches", async () => {
 
     expect(getCount()).toEqual(7);
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 6,
         content: schema
             .node("doc", {}, [
@@ -1418,7 +1419,7 @@ test("reads the document again after an expiration timer fires", async () => {
         content: emptyDocumentContent,
     });
 
-    const {getCount} = readInternalDocumentTestCounter.recordForTest(documentId);
+    const {getCount} = getInternalDocumentTestCounter.recordForTest(documentId);
     expect(getCount()).toEqual(0);
 
     await updateDocumentContent({
@@ -1430,7 +1431,7 @@ test("reads the document again after an expiration timer fires", async () => {
 
     expect(getCount()).toEqual(1);
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -1451,7 +1452,7 @@ test("reads the document again after an expiration timer fires", async () => {
 
     expect(getCount()).toEqual(2);
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -1474,7 +1475,7 @@ test("reads the document again after an expiration timer fires", async () => {
 
     expect(getCount()).toEqual(4);
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 3,
         content: schema
             .node("doc", {}, [
@@ -1495,7 +1496,7 @@ test("reads the document again after an expiration timer fires", async () => {
 
     expect(getCount()).toEqual(5);
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 4,
         content: schema
             .node("doc", {}, [
@@ -1516,7 +1517,7 @@ test("resets the timer eviction timer on every update", async () => {
         content: emptyDocumentContent,
     });
 
-    const {getCount} = readInternalDocumentTestCounter.recordForTest(documentId);
+    const {getCount} = getInternalDocumentTestCounter.recordForTest(documentId);
     expect(getCount()).toEqual(0);
 
     await updateDocumentContent({
@@ -1528,7 +1529,7 @@ test("resets the timer eviction timer on every update", async () => {
 
     expect(getCount()).toEqual(1);
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -1551,7 +1552,7 @@ test("resets the timer eviction timer on every update", async () => {
 
     expect(getCount()).toEqual(3);
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -1576,7 +1577,7 @@ test("resets the timer eviction timer on every update", async () => {
 
     expect(getCount()).toEqual(4);
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 3,
         content: schema
             .node("doc", {}, [
@@ -1601,7 +1602,7 @@ test("resets the timer eviction timer on every update", async () => {
 
     expect(getCount()).toEqual(5);
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 4,
         content: schema
             .node("doc", {}, [
@@ -1626,7 +1627,7 @@ test("resets the timer eviction timer on every update", async () => {
 
     expect(getCount()).toEqual(6);
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 5,
         content: schema
             .node("doc", {}, [
@@ -1651,7 +1652,7 @@ test("resets the timer eviction timer on every update", async () => {
 
     expect(getCount()).toEqual(8);
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 6,
         content: schema
             .node("doc", {}, [
@@ -1672,13 +1673,13 @@ test("updates the document title whenever it changes", async () => {
         content: emptyDocumentContent,
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 0,
         content: schema
             .node("doc", {}, [schema.node("title", {}, []), schema.node("paragraph", {}, [])])
             .toJSON(),
     });
-    expect(await readDocumentPreview(documentId)).toEqual({
+    expect(await getDocumentPreview(documentId)).toEqual({
         id: documentId,
         titleWithoutFallback: "",
     });
@@ -1690,7 +1691,7 @@ test("updates the document title whenever it changes", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -1699,7 +1700,7 @@ test("updates the document title whenever it changes", async () => {
             ])
             .toJSON(),
     });
-    expect(await readDocumentPreview(documentId)).toEqual({
+    expect(await getDocumentPreview(documentId)).toEqual({
         id: documentId,
         titleWithoutFallback: "",
     });
@@ -1711,7 +1712,7 @@ test("updates the document title whenever it changes", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -1720,7 +1721,7 @@ test("updates the document title whenever it changes", async () => {
             ])
             .toJSON(),
     });
-    expect(await readDocumentPreview(documentId)).toEqual({
+    expect(await getDocumentPreview(documentId)).toEqual({
         id: documentId,
         titleWithoutFallback: "f",
     });
@@ -1732,7 +1733,7 @@ test("updates the document title whenever it changes", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 3,
         content: schema
             .node("doc", {}, [
@@ -1741,7 +1742,7 @@ test("updates the document title whenever it changes", async () => {
             ])
             .toJSON(),
     });
-    expect(await readDocumentPreview(documentId)).toEqual({
+    expect(await getDocumentPreview(documentId)).toEqual({
         id: documentId,
         titleWithoutFallback: "f",
     });
@@ -1753,7 +1754,7 @@ test("updates the document title whenever it changes", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 5,
         content: schema
             .node("doc", {}, [
@@ -1762,7 +1763,7 @@ test("updates the document title whenever it changes", async () => {
             ])
             .toJSON(),
     });
-    expect(await readDocumentPreview(documentId)).toEqual({
+    expect(await getDocumentPreview(documentId)).toEqual({
         id: documentId,
         titleWithoutFallback: "foo",
     });
@@ -1774,7 +1775,7 @@ test("updates the document title whenever it changes", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 6,
         content: schema
             .node("doc", {}, [
@@ -1783,7 +1784,7 @@ test("updates the document title whenever it changes", async () => {
             ])
             .toJSON(),
     });
-    expect(await readDocumentPreview(documentId)).toEqual({
+    expect(await getDocumentPreview(documentId)).toEqual({
         id: documentId,
         titleWithoutFallback: "foo",
     });
@@ -1806,7 +1807,7 @@ test("updates the document title whenever it changes", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 7,
         content: schema
             .node("doc", {}, [
@@ -1816,7 +1817,7 @@ test("updates the document title whenever it changes", async () => {
             ])
             .toJSON(),
     });
-    expect(await readDocumentPreview(documentId)).toEqual({
+    expect(await getDocumentPreview(documentId)).toEqual({
         id: documentId,
         titleWithoutFallback: "foo",
     });
@@ -1828,7 +1829,7 @@ test("updates the document title whenever it changes", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 8,
         content: schema
             .node("doc", {}, [
@@ -1837,7 +1838,7 @@ test("updates the document title whenever it changes", async () => {
             ])
             .toJSON(),
     });
-    expect(await readDocumentPreview(documentId)).toEqual({
+    expect(await getDocumentPreview(documentId)).toEqual({
         id: documentId,
         titleWithoutFallback: "foobar",
     });
@@ -1858,7 +1859,7 @@ test("resolves a conflict when typing in deleted content", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -1875,7 +1876,7 @@ test("resolves a conflict when typing in deleted content", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 3,
         content: schema
             .node("doc", {}, [schema.node("title", {}, []), schema.node("paragraph", {}, [])])
@@ -1889,7 +1890,7 @@ test("resolves a conflict when typing in deleted content", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 3,
         content: schema
             .node("doc", {}, [schema.node("title", {}, []), schema.node("paragraph", {}, [])])
@@ -1912,7 +1913,7 @@ test("resolves a conflict when typing in deleted content and the delete action i
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -1929,7 +1930,7 @@ test("resolves a conflict when typing in deleted content and the delete action i
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 3,
         content: schema
             .node("doc", {}, [
@@ -1946,7 +1947,7 @@ test("resolves a conflict when typing in deleted content and the delete action i
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 4,
         content: schema
             .node("doc", {}, [
@@ -1963,7 +1964,7 @@ test("resolves a conflict when typing in deleted content and the delete action i
         clientId: generateId(),
     });
 
-    expect(massageDocument(await readDocument(documentId))).toEqual({
+    expect(massageDocument(await getDocument(documentId))).toEqual({
         version: 4,
         content: schema
             .node("doc", {}, [
@@ -1972,4 +1973,269 @@ test("resolves a conflict when typing in deleted content and the delete action i
             ])
             .toJSON(),
     });
+});
+
+test("can read steps in a single transaction with many steps", async () => {
+    const documentId = generateId();
+
+    await createDocument({
+        id: documentId,
+        content: emptyDocumentContent,
+    });
+
+    await updateDocumentContent({
+        id: documentId,
+        version: 0,
+        steps: [
+            new ReplaceStep(3, 3, textSlice("a")),
+            new ReplaceStep(4, 4, textSlice("b")),
+            new ReplaceStep(5, 5, textSlice("c")),
+            new ReplaceStep(6, 6, textSlice("d")),
+            new ReplaceStep(7, 7, textSlice("e")),
+            new ReplaceStep(8, 8, textSlice("f")),
+        ],
+        clientId: generateId(),
+    });
+
+    const massageSteps = (steps: Array<{step: Step}>) => steps.map(({step}) => step.toJSON());
+
+    expect(
+        massageSteps(
+            await getDocumentContentSteps({id: documentId, startVersion: 0, endVersion: 6}),
+        ),
+    ).toEqual(
+        [
+            new ReplaceStep(3, 3, textSlice("a")),
+            new ReplaceStep(4, 4, textSlice("b")),
+            new ReplaceStep(5, 5, textSlice("c")),
+            new ReplaceStep(6, 6, textSlice("d")),
+            new ReplaceStep(7, 7, textSlice("e")),
+            new ReplaceStep(8, 8, textSlice("f")),
+        ].map(step => step.toJSON()),
+    );
+
+    expect(
+        massageSteps(
+            await getDocumentContentSteps({id: documentId, startVersion: 1, endVersion: 5}),
+        ),
+    ).toEqual(
+        [
+            new ReplaceStep(4, 4, textSlice("b")),
+            new ReplaceStep(5, 5, textSlice("c")),
+            new ReplaceStep(6, 6, textSlice("d")),
+            new ReplaceStep(7, 7, textSlice("e")),
+        ].map(step => step.toJSON()),
+    );
+
+    expect(
+        massageSteps(
+            await getDocumentContentSteps({id: documentId, startVersion: 2, endVersion: 4}),
+        ),
+    ).toEqual(
+        [new ReplaceStep(5, 5, textSlice("c")), new ReplaceStep(6, 6, textSlice("d"))].map(step =>
+            step.toJSON(),
+        ),
+    );
+
+    expect(
+        massageSteps(
+            await getDocumentContentSteps({id: documentId, startVersion: 3, endVersion: 5}),
+        ),
+    ).toEqual(
+        [new ReplaceStep(6, 6, textSlice("d")), new ReplaceStep(7, 7, textSlice("e"))].map(step =>
+            step.toJSON(),
+        ),
+    );
+
+    expect(
+        massageSteps(
+            await getDocumentContentSteps({id: documentId, startVersion: 2, endVersion: 3}),
+        ),
+    ).toEqual([new ReplaceStep(5, 5, textSlice("c"))].map(step => step.toJSON()));
+});
+
+test("can read steps in individual transactions of single steps", async () => {
+    const documentId = generateId();
+
+    await createDocument({
+        id: documentId,
+        content: emptyDocumentContent,
+    });
+
+    await updateDocumentContent({
+        id: documentId,
+        version: 0,
+        steps: [new ReplaceStep(3, 3, textSlice("a"))],
+        clientId: generateId(),
+    });
+    await updateDocumentContent({
+        id: documentId,
+        version: 1,
+        steps: [new ReplaceStep(4, 4, textSlice("b"))],
+        clientId: generateId(),
+    });
+    await updateDocumentContent({
+        id: documentId,
+        version: 2,
+        steps: [new ReplaceStep(5, 5, textSlice("c"))],
+        clientId: generateId(),
+    });
+    await updateDocumentContent({
+        id: documentId,
+        version: 3,
+        steps: [new ReplaceStep(6, 6, textSlice("d"))],
+        clientId: generateId(),
+    });
+    await updateDocumentContent({
+        id: documentId,
+        version: 4,
+        steps: [new ReplaceStep(7, 7, textSlice("e"))],
+        clientId: generateId(),
+    });
+    await updateDocumentContent({
+        id: documentId,
+        version: 5,
+        steps: [new ReplaceStep(8, 8, textSlice("f"))],
+        clientId: generateId(),
+    });
+
+    const massageSteps = (steps: Array<{step: Step}>) => steps.map(({step}) => step.toJSON());
+
+    expect(
+        massageSteps(
+            await getDocumentContentSteps({id: documentId, startVersion: 0, endVersion: 6}),
+        ),
+    ).toEqual(
+        [
+            new ReplaceStep(3, 3, textSlice("a")),
+            new ReplaceStep(4, 4, textSlice("b")),
+            new ReplaceStep(5, 5, textSlice("c")),
+            new ReplaceStep(6, 6, textSlice("d")),
+            new ReplaceStep(7, 7, textSlice("e")),
+            new ReplaceStep(8, 8, textSlice("f")),
+        ].map(step => step.toJSON()),
+    );
+
+    expect(
+        massageSteps(
+            await getDocumentContentSteps({id: documentId, startVersion: 1, endVersion: 5}),
+        ),
+    ).toEqual(
+        [
+            new ReplaceStep(4, 4, textSlice("b")),
+            new ReplaceStep(5, 5, textSlice("c")),
+            new ReplaceStep(6, 6, textSlice("d")),
+            new ReplaceStep(7, 7, textSlice("e")),
+        ].map(step => step.toJSON()),
+    );
+
+    expect(
+        massageSteps(
+            await getDocumentContentSteps({id: documentId, startVersion: 2, endVersion: 4}),
+        ),
+    ).toEqual(
+        [new ReplaceStep(5, 5, textSlice("c")), new ReplaceStep(6, 6, textSlice("d"))].map(step =>
+            step.toJSON(),
+        ),
+    );
+
+    expect(
+        massageSteps(
+            await getDocumentContentSteps({id: documentId, startVersion: 3, endVersion: 5}),
+        ),
+    ).toEqual(
+        [new ReplaceStep(6, 6, textSlice("d")), new ReplaceStep(7, 7, textSlice("e"))].map(step =>
+            step.toJSON(),
+        ),
+    );
+
+    expect(
+        massageSteps(
+            await getDocumentContentSteps({id: documentId, startVersion: 2, endVersion: 3}),
+        ),
+    ).toEqual([new ReplaceStep(5, 5, textSlice("c"))].map(step => step.toJSON()));
+});
+
+test("can read steps in a couple multi-step transactions", async () => {
+    const documentId = generateId();
+
+    await createDocument({
+        id: documentId,
+        content: emptyDocumentContent,
+    });
+
+    await updateDocumentContent({
+        id: documentId,
+        version: 0,
+        steps: [new ReplaceStep(3, 3, textSlice("a")), new ReplaceStep(4, 4, textSlice("b"))],
+        clientId: generateId(),
+    });
+    await updateDocumentContent({
+        id: documentId,
+        version: 2,
+        steps: [new ReplaceStep(5, 5, textSlice("c")), new ReplaceStep(6, 6, textSlice("d"))],
+        clientId: generateId(),
+    });
+    await updateDocumentContent({
+        id: documentId,
+        version: 4,
+        steps: [new ReplaceStep(7, 7, textSlice("e")), new ReplaceStep(8, 8, textSlice("f"))],
+        clientId: generateId(),
+    });
+
+    const massageSteps = (steps: Array<{step: Step}>) => steps.map(({step}) => step.toJSON());
+
+    expect(
+        massageSteps(
+            await getDocumentContentSteps({id: documentId, startVersion: 0, endVersion: 6}),
+        ),
+    ).toEqual(
+        [
+            new ReplaceStep(3, 3, textSlice("a")),
+            new ReplaceStep(4, 4, textSlice("b")),
+            new ReplaceStep(5, 5, textSlice("c")),
+            new ReplaceStep(6, 6, textSlice("d")),
+            new ReplaceStep(7, 7, textSlice("e")),
+            new ReplaceStep(8, 8, textSlice("f")),
+        ].map(step => step.toJSON()),
+    );
+
+    expect(
+        massageSteps(
+            await getDocumentContentSteps({id: documentId, startVersion: 1, endVersion: 5}),
+        ),
+    ).toEqual(
+        [
+            new ReplaceStep(4, 4, textSlice("b")),
+            new ReplaceStep(5, 5, textSlice("c")),
+            new ReplaceStep(6, 6, textSlice("d")),
+            new ReplaceStep(7, 7, textSlice("e")),
+        ].map(step => step.toJSON()),
+    );
+
+    expect(
+        massageSteps(
+            await getDocumentContentSteps({id: documentId, startVersion: 2, endVersion: 4}),
+        ),
+    ).toEqual(
+        [new ReplaceStep(5, 5, textSlice("c")), new ReplaceStep(6, 6, textSlice("d"))].map(step =>
+            step.toJSON(),
+        ),
+    );
+
+    expect(
+        massageSteps(
+            await getDocumentContentSteps({id: documentId, startVersion: 3, endVersion: 5}),
+        ),
+    ).toEqual(
+        [new ReplaceStep(6, 6, textSlice("d")), new ReplaceStep(7, 7, textSlice("e"))].map(step =>
+            step.toJSON(),
+        ),
+    );
+
+    expect(
+        massageSteps(
+            await getDocumentContentSteps({id: documentId, startVersion: 2, endVersion: 3}),
+        ),
+    ).toEqual([new ReplaceStep(5, 5, textSlice("c"))].map(step => step.toJSON()));
 });

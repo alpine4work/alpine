@@ -1,13 +1,14 @@
 import {
     createDocument,
-    readDocument,
-    readDocumentPreview,
+    getDocument,
+    getDocumentContentSteps,
+    getDocumentPreview,
     updateDocumentContent,
 } from "~/server/dynamo/documents-table";
 import {implementNetworkChannelAuthorization} from "~/server/network/internal/implement-network-channel";
 import {implementNetworkFunction} from "~/server/network/internal/implement-network-function";
 import {implementNetworkPresenceChannelAuthorization} from "~/server/network/internal/implement-network-presence-channel";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error";
+import {PermissionDeniedError} from "~/shared/error/error";
 import * as definition from "~/shared/network/documents-network-definition";
 
 implementNetworkFunction(definition.createDocument, async input => {
@@ -19,14 +20,19 @@ implementNetworkFunction(definition.updateDocumentContent, async input => {
     return await updateDocumentContent(input);
 });
 
-implementNetworkFunction(definition.readDocument, async input => {
+implementNetworkFunction(definition.getDocument, async input => {
     return {
-        document: await readDocument(input.id),
+        document: await getDocument(input.id),
     };
 });
 
+implementNetworkFunction(definition.getDocumentContentSteps, async input => {
+    const steps = await getDocumentContentSteps(input);
+    return {steps};
+});
+
 implementNetworkChannelAuthorization(definition.DocumentChannel, async key => {
-    const documentPreview = await readDocumentPreview(key.documentId);
+    const documentPreview = await getDocumentPreview(key.documentId);
     if (!documentPreview)
         throw new PermissionDeniedError("Can not subscribe to document you do not have access to");
 });
@@ -34,7 +40,7 @@ implementNetworkChannelAuthorization(definition.DocumentChannel, async key => {
 implementNetworkPresenceChannelAuthorization(
     definition.DocumentEditorPresenceChannel,
     async key => {
-        const documentPreview = await readDocumentPreview(key.documentId);
+        const documentPreview = await getDocumentPreview(key.documentId);
         if (!documentPreview)
             throw new PermissionDeniedError(
                 "Can not subscribe to document you do not have access to",

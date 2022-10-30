@@ -99,6 +99,11 @@ class AblyRealtimeClient {
                     };
 
                     this._client = new Ably.Realtime.Promise({
+                        // Reduced message cost since we aren't charged for receiving an
+                        // echo message:
+                        // https://faqs.ably.com/how-does-ably-count-messages
+                        echoMessages: false,
+
                         // Ably errors should reject promises so we will see them through that. We
                         // don't also need to log them.
                         //
@@ -296,12 +301,16 @@ class AblyRealtimeClient {
                         });
 
                     try {
+                        assert(this._client && this._client.connection.id);
+                        const key = `${this._client.auth.clientId}:${this._client.connection.id}`;
+
                         hasEnteredWithPresenceState = true;
                         await channel.presence.enter(presenceState);
 
                         let hasLeft = false;
 
                         return {
+                            key,
                             update: async presenceState => {
                                 if (hasLeft) return;
                                 await channel.presence.update(presenceState);
@@ -369,36 +378,31 @@ class AblyRealtimeClient {
     public async *subscribeToPresenceStates(
         channelName: string,
         {signal}: {signal: AbortSignal},
-    ): AsyncIterableIterator<ImmutableMap<`${string}:${string}`, SchemaSerializedValue>> {
+    ): AsyncIterableIterator<ImmutableMap<string, SchemaSerializedValue>> {
         const {channel, decrementReferenceCount} =
             await this._getAttachedChannelAndIncrementReferenceCount(channelName, {
                 capabilityOperations: ["subscribe", "presence"],
             });
 
         try {
-            let presenceStateByConnectionKey = ImmutableMap.empty<
-                `${string}:${string}`,
-                SchemaSerializedValue
-            >();
+            let presenceStateByConnectionKey = ImmutableMap.empty<string, SchemaSerializedValue>();
             let nextPromiseResolver = createPromiseResolver();
 
             const handleMessage = (message: Ably.Types.PresenceMessage) => {
-                const connectionKey: `${string}:${string}` = `${message.clientId}:${message.connectionId}`;
+                const key = `${message.clientId}:${message.connectionId}`;
 
-                const ourConnectionKey =
-                    this._client && this._client.connection.id !== undefined
-                        ? `${this._client.auth.clientId}:${this._client.connection.id}`
-                        : null;
+                assert(this._client && this._client.connection.id);
+                const ourKey = `${this._client.auth.clientId}:${this._client.connection.id}`;
 
                 switch (message.action) {
                     case "present":
                     case "enter":
                     case "update": {
                         // Don't include our presence state in the map.
-                        if (ourConnectionKey && connectionKey === ourConnectionKey) break;
+                        if (ourKey && key === ourKey) break;
 
                         presenceStateByConnectionKey = presenceStateByConnectionKey.set(
-                            connectionKey,
+                            key,
                             message.data,
                         );
 
@@ -407,8 +411,7 @@ class AblyRealtimeClient {
                         break;
                     }
                     case "leave": {
-                        presenceStateByConnectionKey =
-                            presenceStateByConnectionKey.delete(connectionKey);
+                        presenceStateByConnectionKey = presenceStateByConnectionKey.delete(key);
 
                         nextPromiseResolver.resolve();
                         nextPromiseResolver = createPromiseResolver();
@@ -433,6 +436,9 @@ class AblyRealtimeClient {
             for (const message of await channel.presence.get()) {
                 handleMessage(message);
             }
+
+            // Yield the initial presence state.
+            yield presenceStateByConnectionKey;
 
             await channel.presence.subscribe(handleMessage);
 
@@ -459,6 +465,7 @@ class AblyRealtimeClient {
 export const ablyRealtimeClient = new AblyRealtimeClient();
 
 export type AblyRealtimeClientPresenceSession = {
+    readonly key: string;
     update(presenceState: SchemaSerializedValue): Promise<void>;
     leave(): Promise<void>;
 };

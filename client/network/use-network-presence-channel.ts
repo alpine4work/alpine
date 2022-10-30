@@ -11,12 +11,6 @@ import {getAblyChannelNameForNetworkChannel} from "~/shared/network/helpers/get-
 import {NetworkPresenceChannel} from "~/shared/network/network-presence-channel";
 import {SchemaSerializedValue} from "~/shared/schema/schema";
 
-export type NetworkPresenceStateEntry<State> = {
-    readonly clientId: string;
-    readonly connectionId: string;
-    readonly state: State;
-};
-
 /**
  * This hook sends presence state for our client to other clients and returns
  * the presence state for every other client.
@@ -25,19 +19,28 @@ export type NetworkPresenceStateEntry<State> = {
  * clients can publish whatever state they want to our presence channel.
  * Perform your own validations on the client before using states from other
  * clients for anything that is critical to get right.
+ *
+ * If state is set to null then our client will leave the presence channel but
+ * stay subscribed to it.
  */
 export function useNetworkPresenceChannel<Key extends {[key: string]: string}, State>(
     channel: NetworkPresenceChannel<Key, State>,
     unstableKey: BlockInference<Key>,
-    unstableState: BlockInference<State>,
-): Iterable<NetworkPresenceStateEntry<State>> {
+    unstableState: BlockInference<State> | null,
+): {
+    ourPresenceStateKey: string | null;
+    presenceStates: Iterable<State & {readonly key: string}>;
+} {
     const unstableSerializedState = useMemo(
-        () => channel.stateSchema.serialize(unstableState as State),
+        () =>
+            unstableState !== null ? channel.stateSchema.serialize(unstableState as State) : null,
         [channel.stateSchema, unstableState],
     );
 
     const key = useStableJsonValue(unstableKey);
     const serializedState = useStableJsonValue(unstableSerializedState);
+
+    const isSerializedStateNull = serializedState === null;
 
     // For accessing the current state without taking a dependency on the
     // state object.
@@ -55,6 +58,7 @@ export function useNetworkPresenceChannel<Key extends {[key: string]: string}, S
     // retry button.
     if (errorState.hasError) throw errorState.error;
 
+    const [ourPresenceStateKey, setOurPresenceStateKey] = useState<string | null>(null);
     const [presenceSessionState, setPresenceSessionState] = useState<{
         currentSerializedState: SchemaSerializedValue;
         readonly promise: Promise<AblyRealtimeClientPresenceSession>;
@@ -62,6 +66,10 @@ export function useNetworkPresenceChannel<Key extends {[key: string]: string}, S
 
     // Start a new presence session whenever the channel key changes.
     useEffect(() => {
+        // If state is set to null, then don't create a presence session and/or leave
+        // the previous presence session!
+        if (isSerializedStateNull) return;
+
         const channelName = getAblyChannelNameForNetworkChannel(channel, key);
 
         const currentSerializedState = serializedStateRef.current;
@@ -71,7 +79,9 @@ export function useNetworkPresenceChannel<Key extends {[key: string]: string}, S
             currentSerializedState,
         );
 
-        presenceSessionPromise.catch(error => setErrorState({hasError: true, error}));
+        presenceSessionPromise
+            .then(({key}) => setOurPresenceStateKey(key))
+            .catch(error => setErrorState({hasError: true, error}));
 
         setPresenceSessionState({
             currentSerializedState,
@@ -96,12 +106,12 @@ export function useNetworkPresenceChannel<Key extends {[key: string]: string}, S
                 }
             });
         };
-    }, [channel, key]);
+    }, [channel, isSerializedStateNull, key]);
 
     // Whenever we get a new `serializedState` we want an effect to run that
     // updates our presence session state.
     useEffect(() => {
-        if (!presenceSessionState) return;
+        if (!presenceSessionState || serializedState === null) return;
 
         let isCancelled = false;
 
@@ -135,9 +145,9 @@ export function useNetworkPresenceChannel<Key extends {[key: string]: string}, S
         };
     }, [presenceSessionState, serializedState]);
 
-    const [presenceStates, setPresenceStates] = useState<
-        Iterable<NetworkPresenceStateEntry<State>>
-    >([]);
+    const [presenceStates, setPresenceStates] = useState<Iterable<State & {readonly key: string}>>(
+        [],
+    );
 
     useAsyncIterable({
         iterable: useCallback(
@@ -149,20 +159,15 @@ export function useNetworkPresenceChannel<Key extends {[key: string]: string}, S
         ),
         next: states => {
             setPresenceStates({
-                [Symbol.iterator]: function* (): IterableIterator<
-                    NetworkPresenceStateEntry<State>
-                > {
-                    for (const [connectionKey, serializedState] of states) {
-                        const [clientId = "", connectionId = ""] = connectionKey.split(":", 2);
-
+                [Symbol.iterator]: function* (): IterableIterator<State & {readonly key: string}> {
+                    for (const [key, serializedState] of states) {
                         // We don't reclassify `SchemaDeserializationError` to `InternalError` here
                         // because presence states aren't validated by the server. So an untrusted
                         // client could send whatever it wants. This means most of the time a
                         // deserialization error is an internal error but in the rare case of a
                         // malicious actor, it is not.
                         const state = channel.stateSchema.deserialize(serializedState);
-
-                        yield {clientId, connectionId, state};
+                        yield {...state, key};
                     }
                 },
             });
@@ -170,5 +175,5 @@ export function useNetworkPresenceChannel<Key extends {[key: string]: string}, S
         error: error => setErrorState({hasError: true, error}),
     });
 
-    return presenceStates;
+    return {ourPresenceStateKey, presenceStates};
 }

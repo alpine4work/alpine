@@ -1,6 +1,7 @@
 import {assignVars, createGlobalTheme, globalStyle, style} from "@vanilla-extract/css";
 import assert from "assert";
-import {colors} from "~/shared/design/colors";
+import {Color, colors} from "~/shared/design/colors";
+import {ThemeColor, themeColors} from "~/shared/design/theme-colors";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get-or-set-default-map-value";
 
 /**
@@ -70,16 +71,49 @@ const invertedColors = Object.fromEntries<string>(
     Array.from(invertedColorByShadeByName, ([name, invertedColorByShade]) =>
         Array.from(invertedColorByShade, ([shade, color]) => [`${name}-${shade}`, color] as const),
     ).flat(),
-) as {readonly [Color in keyof typeof colors]: string};
+) as {readonly [C in Color]: `#${string}`};
+
+const selectionColors = Object.fromEntries(
+    [...themeColors, "grey" as const].map(themeColor => {
+        const selectionAlpha = 1 / 2;
+        const selectionAlphaHex = Math.round(selectionAlpha * 255)
+            .toString(16)
+            .padStart(2, "0");
+
+        const colorHexCode: `#${string}` = colors[`${themeColor}-20`];
+        return [`${themeColor}-selection`, `${colorHexCode}${selectionAlphaHex}`];
+    }),
+) as {readonly [C in ThemeColor | "grey" as `${C}-selection`]: `#${string}`};
+
+// The inverted selection color also uses the 20 shade for selection colors but
+// with a lower opacity. We use the 20 shade since it's less saturated than the
+// darker shades. Less saturated colors look better as selection colors.
+const invertedSelectionColors = Object.fromEntries(
+    [...themeColors, "grey" as const].map(themeColor => {
+        const selectionAlpha = 1 / 4;
+        const selectionAlphaHex = Math.round(selectionAlpha * 255)
+            .toString(16)
+            .padStart(2, "0");
+
+        const colorHexCode: `#${string}` = colors[`${themeColor}-20`];
+        return [`${themeColor}-selection`, `${colorHexCode}${selectionAlphaHex}`];
+    }),
+) as {readonly [C in ThemeColor | "grey" as `${C}-selection`]: `#${string}`};
 
 /**
  * Colors that switch dynamically between light and dark mode depending on
  * the context.
  */
-const baseColorSchemeVars = createGlobalTheme(":root", colors);
+const baseColorSchemeVars = createGlobalTheme(":root", {
+    ...colors,
+    ...selectionColors,
+});
 
 globalStyle(darkColorSchemeSelector, {
-    vars: assignVars(baseColorSchemeVars, invertedColors),
+    vars: assignVars(baseColorSchemeVars, {
+        ...invertedColors,
+        ...invertedSelectionColors,
+    }),
 });
 
 /**
@@ -90,35 +124,45 @@ globalStyle(darkColorSchemeSelector, {
  * prefer the variable colors.
  */
 const constantColors = Object.fromEntries(
-    Object.entries(colors).map(([shade, color]) => [`${shade}-const`, color]),
-) as {[Shade in keyof typeof colors as `${Shade}-const`]: typeof colors[Shade]};
+    Object.entries(colors).map(([colorName, colorHexCode]) => [`${colorName}-const`, colorHexCode]),
+) as {[C in Color as `${C}-const`]: typeof colors[C]};
+
+/**
+ * The default color theme when the user is not within a space.
+ */
+export const defaultThemeColor: ThemeColor = "indigo";
+
+function createTheme(color: ThemeColor) {
+    return {
+        "theme-5": baseColorSchemeVars[`${color}-5`],
+        "theme-10": baseColorSchemeVars[`${color}-10`],
+        "theme-20": baseColorSchemeVars[`${color}-20`],
+        "theme-30": baseColorSchemeVars[`${color}-30`],
+        "theme-40": baseColorSchemeVars[`${color}-40`],
+        "theme-50": baseColorSchemeVars[`${color}-50`],
+        "theme-60": baseColorSchemeVars[`${color}-60`],
+        "theme-70": baseColorSchemeVars[`${color}-70`],
+        "theme-80": baseColorSchemeVars[`${color}-80`],
+        "theme-90": baseColorSchemeVars[`${color}-90`],
+        "theme-selection": baseColorSchemeVars[`${color}-selection`],
+        "theme-5-const": constantColors[`${color}-5-const`],
+        "theme-10-const": constantColors[`${color}-10-const`],
+        "theme-20-const": constantColors[`${color}-20-const`],
+        "theme-30-const": constantColors[`${color}-30-const`],
+        "theme-40-const": constantColors[`${color}-40-const`],
+        "theme-50-const": constantColors[`${color}-50-const`],
+        "theme-60-const": constantColors[`${color}-60-const`],
+        "theme-70-const": constantColors[`${color}-70-const`],
+        "theme-80-const": constantColors[`${color}-80-const`],
+        "theme-90-const": constantColors[`${color}-90-const`],
+    };
+}
 
 /**
  * Color variables that are set to some user determined theme value.
  */
 // TODO(calebmer): Allow switching theme color vars based on workspace settings.
-const themeColorSchemeVars = createGlobalTheme(":root", {
-    "theme-5": baseColorSchemeVars["indigo-5"],
-    "theme-10": baseColorSchemeVars["indigo-10"],
-    "theme-20": baseColorSchemeVars["indigo-20"],
-    "theme-30": baseColorSchemeVars["indigo-30"],
-    "theme-40": baseColorSchemeVars["indigo-40"],
-    "theme-50": baseColorSchemeVars["indigo-50"],
-    "theme-60": baseColorSchemeVars["indigo-60"],
-    "theme-70": baseColorSchemeVars["indigo-70"],
-    "theme-80": baseColorSchemeVars["indigo-80"],
-    "theme-90": baseColorSchemeVars["indigo-90"],
-    "theme-5-const": constantColors["indigo-5-const"],
-    "theme-10-const": constantColors["indigo-10-const"],
-    "theme-20-const": constantColors["indigo-20-const"],
-    "theme-30-const": constantColors["indigo-30-const"],
-    "theme-40-const": constantColors["indigo-40-const"],
-    "theme-50-const": constantColors["indigo-50-const"],
-    "theme-60-const": constantColors["indigo-60-const"],
-    "theme-70-const": constantColors["indigo-70-const"],
-    "theme-80-const": constantColors["indigo-80-const"],
-    "theme-90-const": constantColors["indigo-90-const"],
-});
+const themeColorSchemeVars = createGlobalTheme(":root", createTheme(defaultThemeColor));
 
 export const colorSchemeVars = {
     ...baseColorSchemeVars,

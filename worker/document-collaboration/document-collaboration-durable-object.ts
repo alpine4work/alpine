@@ -15,7 +15,7 @@ import {DocumentContent, isDocumentContent} from "~/shared/documents/document-co
 import {DataLossError, FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {Id} from "~/shared/id/id";
-import {readDocument} from "~/shared/network/documents-network-definition";
+import {getDocument} from "~/shared/network/documents-network-definition";
 import {Schema} from "~/shared/schema/schema";
 
 export class DocumentCollaborationDurableObject {
@@ -52,7 +52,7 @@ export class DocumentCollaborationDurableObject {
         }
 
         await this.state.blockConcurrencyWhile(async () => {
-            const {document} = await readDocument({id: documentId});
+            const {document} = await getDocument({id: documentId});
             assert(document, "document must exist");
             this.documentId.set(documentId);
 

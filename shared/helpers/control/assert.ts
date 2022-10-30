@@ -10,6 +10,9 @@ import {omitFromStackTrace} from "~/shared/helpers/control/omit-from-stack-trace
  * Integrates with the type system so that assertions refine the type. We have a Babel plugin that
  * automatically generates a message for these function calls.
  */
+// TODO(calebmer): Lint rule that the right `assert()` is being imported.
+// TODO(calebmer): Maybe inline `omitFromStackTrace()` since `assert()` is called
+// a lot in performance critical code?
 export const assert: (condition: unknown, message?: string) => asserts condition =
     omitFromStackTrace((condition, message) => {
         if (!condition) {

@@ -6,11 +6,8 @@ import {EditorState, TextSelection, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import React, {useState} from "react";
 import {act} from "react-dom/test-utils";
-import {
-    ContentEditor,
-    ContentEditorState,
-    getEditorViewForTest,
-} from "~/client/content/content-editor";
+import {ContentEditor, getEditorViewForTest} from "~/client/content/content-editor";
+import {ContentEditorState} from "~/client/content/content-editor-state";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {TooltipCoordinationContextProvider} from "~/client/design/tooltip";
 import {

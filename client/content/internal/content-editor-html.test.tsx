@@ -1,11 +1,8 @@
 import {fireEvent, render, screen} from "@testing-library/react";
 import {Mark, Node} from "prosemirror-model";
 import React, {useState} from "react";
-import {
-    ContentEditor,
-    ContentEditorState,
-    getEditorViewForTest,
-} from "~/client/content/content-editor";
+import {ContentEditor, getEditorViewForTest} from "~/client/content/content-editor";
+import {ContentEditorState} from "~/client/content/content-editor-state";
 import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use-is-initial-app-render";
 import {
     DocumentWithoutTitleContentProsemirrorSchema,

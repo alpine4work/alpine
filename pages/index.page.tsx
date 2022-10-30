@@ -1,6 +1,7 @@
 import Head from "next/head";
 import {useEffect, useState} from "react";
-import {ContentEditor, ContentEditorState} from "~/client/content/content-editor";
+import {ContentEditor} from "~/client/content/content-editor";
+import {ContentEditorState} from "~/client/content/content-editor-state";
 import {sprinkles} from "~/client/design/sprinkles.css";
 import {
     DocumentContentProsemirrorSchema,

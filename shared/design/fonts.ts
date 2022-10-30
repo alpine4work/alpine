@@ -58,8 +58,6 @@ export const fonts = {
 };
 
 /**
- * The font scale for our product.
- *
  * Line height is 1.4x for all sizes except `small`. For `small` the line
  * height is 1rem because `small` is our default font size for UI text (e.g.
  * button labels) and we want it to play nice with our spacing scale.
@@ -67,6 +65,11 @@ export const fonts = {
  * It's more important that our line heights make our typography look good than
  * to match our spacing scale. If we want text to fit in our spacing scale, use
  * a container that fits it to the right size.
+ */
+export const bodyFontAndHeaderFontLineHeight = "1.5em" as const;
+
+/**
+ * The font scale for our product.
  *
  * To determine letter spacing we use Inter's [dynamic metrics][1] for the font
  * size on desktop machines. We should consider:
@@ -79,7 +82,7 @@ export const fonts = {
 export const fontScale = {
     tiny: {
         fontSize: "0.625rem",
-        lineHeight: "0.875rem",
+        lineHeight: bodyFontAndHeaderFontLineHeight,
         letterSpacing: "0.01em",
     },
     small: {
@@ -89,47 +92,47 @@ export const fontScale = {
     },
     body: {
         fontSize: "1rem",
-        lineHeight: "1.5rem",
+        lineHeight: bodyFontAndHeaderFontLineHeight,
         letterSpacing: "-0.011em",
     },
     heading5: {
         fontSize: "1.25rem",
-        lineHeight: "1.75rem",
+        lineHeight: bodyFontAndHeaderFontLineHeight,
         letterSpacing: "-0.017em",
     },
     heading4: {
         fontSize: "1.75rem",
-        lineHeight: "2.45rem",
+        lineHeight: bodyFontAndHeaderFontLineHeight,
         letterSpacing: "-0.021em",
     },
     heading3: {
         fontSize: "2.25rem",
-        lineHeight: "3.15rem",
+        lineHeight: bodyFontAndHeaderFontLineHeight,
         letterSpacing: "-0.022em",
     },
     heading2: {
         fontSize: "3rem",
-        lineHeight: "4.2rem",
+        lineHeight: bodyFontAndHeaderFontLineHeight,
         letterSpacing: "-0.022em",
     },
     heading1: {
         fontSize: "4.25rem",
-        lineHeight: "5.95rem",
+        lineHeight: bodyFontAndHeaderFontLineHeight,
         letterSpacing: "-0.022em",
     },
     hero3: {
         fontSize: "5.625rem",
-        lineHeight: "7.875rem",
+        lineHeight: bodyFontAndHeaderFontLineHeight,
         letterSpacing: "-0.022em",
     },
     hero2: {
         fontSize: "7.5rem",
-        lineHeight: "10.5rem",
+        lineHeight: bodyFontAndHeaderFontLineHeight,
         letterSpacing: "-0.022em",
     },
     hero1: {
         fontSize: "10rem",
-        lineHeight: "14rem",
+        lineHeight: bodyFontAndHeaderFontLineHeight,
         letterSpacing: "-0.022em",
     },
 } as const;

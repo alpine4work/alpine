@@ -10,7 +10,7 @@ import {
 } from "~/shared/design/spacing";
 import {mapObjectValues} from "~/shared/helpers/object/map-object-values";
 
-const paragraphBottomMargin = spacing["3"];
+const paragraphMargin = spacing["3"];
 const headerTopMargin = spacing["6"];
 
 export const docClassName = style({
@@ -35,13 +35,15 @@ export const titleClassName = style({
     ...fonts.primarySemiBold,
     ...fontScale.heading2,
     paddingTop: titlePaddingTop,
+    marginBottom: paragraphMargin,
 });
 
 export const paragraphClassName = style({
     ...blockStyles,
     ...fonts.primary,
     ...fontScale.body,
-    marginBottom: paragraphBottomMargin,
+    marginTop: paragraphMargin,
+    marginBottom: paragraphMargin,
 });
 
 export const headingLevel1ClassName = style({
@@ -49,6 +51,7 @@ export const headingLevel1ClassName = style({
     ...fonts.primarySemiBold,
     ...fontScale.heading3,
     marginTop: headerTopMargin,
+    marginBottom: paragraphMargin,
 });
 
 export const headingLevel2ClassName = style({
@@ -56,6 +59,7 @@ export const headingLevel2ClassName = style({
     ...fonts.primarySemiBold,
     ...fontScale.heading4,
     marginTop: headerTopMargin,
+    marginBottom: paragraphMargin,
 });
 
 export const headingLevel3ClassName = style({
@@ -63,7 +67,7 @@ export const headingLevel3ClassName = style({
     ...fonts.primarySemiBold,
     ...fontScale.heading5,
     marginTop: headerTopMargin,
-    marginBottom: spacing["0.5"],
+    marginBottom: paragraphMargin,
 });
 
 const quoteBlockIndentation = spacing["4"];

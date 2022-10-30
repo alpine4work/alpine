@@ -1,3 +1,6 @@
+/**
+ * Any color in our pallette.
+ */
 export type Color = keyof typeof colors;
 
 /**
