@@ -1,5 +1,5 @@
 import {Step} from "prosemirror-transform";
-import {useEffect, useReducer, useRef} from "react";
+import {useEffect, useMemo, useReducer, useRef} from "react";
 import {ContentEditorState} from "~/client/content/content-editor-state";
 import {useEvent} from "~/client/helpers/lifecycle/use-event";
 import {WebSocketClient} from "~/client/helpers/websocket-client";
@@ -171,4 +171,11 @@ export function useDocumentContentEditorDurableObjectSync(initialDocument: Docum
             connectionRef.current.send({type: "steps", ...state.pendingRequest});
         }
     }, [state.pendingRequest]);
+
+    return {
+        editorState: state.editorState,
+        onEdit: (editorState: ContentEditorState<DocumentContent>) =>
+            dispatch({type: "Edit", editorState}),
+        phantomTextSelections: useMemo(() => [], []),
+    };
 }
