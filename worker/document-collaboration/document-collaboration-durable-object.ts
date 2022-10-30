@@ -46,9 +46,21 @@ type InitializedState = {
     readonly alarmData: DurableObjectValue<DocumentCollaborationDurableObjectAlarm | null>;
 };
 
+/**
+ * Each document collaboration DO represents an edit session. Only one may exist per document at a
+ * time. The lifecycle of the DO is:
+ * 1. A request is received that causes the DO to get initialized
+ * 2. Clients create websocket connections to the DO
+ * 3. Edits come in. These update an internal copy of the snapshot, have conflicts resolved, get
+ *    written to the object's persistent storage, and get broadcast to other connections
+ * 4. Periodically, these updates get written back to dynamo DB
+ * 5. After a period of inactivity, the DO destroys itself
+ *
+ * Each of these steps is roughly transactional, but the DO can be reset (have memory wiped) at any
+ * point between the steps. It's important to write any information that needs to persist a memory
+ * wipe to the durable storage.
+ */
 export class DocumentCollaborationDurableObject {
-    // these are all initialized asynchronously, but it's convenient to assume
-    // they exist. be careful!
     documentId!: DurableObjectValue<Id | null>;
     connections = new Set<DocumentCollaborationSocketConnection>();
     initializedState: InitializedState | null = null;
