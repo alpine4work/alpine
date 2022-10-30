@@ -3,7 +3,6 @@ import {useReducer, useState} from "react";
 import {ContentEditor} from "~/client/content/content-editor";
 import {sprinkles} from "~/client/design/sprinkles.css";
 import {useDocumentContentEditorAblyContentSync} from "~/client/documents/document-content-editor-ably";
-import {getInitialState, reduce} from "~/client/documents/document-content-editor-state";
 import {DocumentModel, getDocumentContentTitle} from "~/shared/documents/document-model";
 
 export function DocumentContentEditor({document}: {document: DocumentModel}) {
@@ -18,24 +17,17 @@ export function DocumentContentEditor({document}: {document: DocumentModel}) {
 }
 
 function DocumentContentEditorStateful({initialDocument}: {initialDocument: DocumentModel}) {
-    const documentId = initialDocument.id;
-
-    const [state, dispatch] = useReducer(reduce, initialDocument, getInitialState);
-
-    const {phantomTextSelections} = useDocumentContentEditorAblyContentSync(
-        documentId,
-        state,
-        dispatch,
-    );
+    const {phantomTextSelections, editorState, onEdit} =
+        useDocumentContentEditorAblyContentSync(initialDocument);
 
     return (
         <>
             <Head>
-                <title>{getDocumentContentTitle(state.editorState.getContent())}</title>
+                <title>{getDocumentContentTitle(editorState.getContent())}</title>
             </Head>
             <ContentEditor
-                state={state.editorState}
-                onChange={editorState => dispatch({type: "Edit", editorState})}
+                state={editorState}
+                onChange={onEdit}
                 aria-label="Document editor"
                 placeholder="Share your ideas…"
                 className={sprinkles({paddingBottom: "24"})}
