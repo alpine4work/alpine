@@ -43,6 +43,13 @@ export async function publishToNetworkChannel<
 
     const serializedMessage = channel.messageSchema.serialize(message as Message);
 
+    // If we are in a Jest testing environment, then don't actually publish messages
+    // over Ably that will count towards our quota. We shouldn't have Ably
+    // subscribers either in Jest tests.
+    //
+    // If we want to test messages with Jest, we should have some kind of mock.
+    if (typeof jest !== "undefined") return;
+
     // Actually publish the message.
     await ablyChannel.publish("message", serializedMessage);
 }

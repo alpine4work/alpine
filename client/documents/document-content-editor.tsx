@@ -22,7 +22,7 @@ import {
     DocumentChannel,
     DocumentEditorPresenceChannel,
     DocumentEditorPresenceUpdateSchema,
-    readDocumentContentSteps,
+    getDocumentContentSteps,
     updateDocumentContent,
 } from "~/shared/network/documents-network-definition";
 import {NetworkPresenceChannelStateType} from "~/shared/network/network-presence-channel";
@@ -694,10 +694,10 @@ function DocumentContentEditorStateful({initialDocument}: {initialDocument: Docu
 
         runPromiseWithoutAwaiting(async () => {
             try {
-                const {steps} = await readDocumentContentSteps({
+                const {steps} = await getDocumentContentSteps({
                     id: documentId,
                     startVersion: smallestPresenceStateVersion,
-                    endVersion: lastRememberedVersion - 1,
+                    endVersion: lastRememberedVersion,
                 });
 
                 if (isCancelled) return;

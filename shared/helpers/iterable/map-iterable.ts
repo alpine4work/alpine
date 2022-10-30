@@ -2,7 +2,7 @@
  * Map each individual value of an iterable. Same as `Array.map()` but
  * for iterables.
  */
-export function iterableMap<Value, NewValue>(
+export function mapIterable<Value, NewValue>(
     iterable: Iterable<Value>,
     map: (value: Value, index: number) => NewValue,
 ): Iterable<NewValue> {

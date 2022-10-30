@@ -1,7 +1,7 @@
 import {sprinkles} from "~/client/design/sprinkles.css";
 import {DocumentContentEditor} from "~/client/documents/document-content-editor";
 import {createPageComponent} from "~/client/helpers/pages/create-page-component";
-import {readDocument} from "~/server/dynamo/documents-table";
+import {getDocument} from "~/server/dynamo/documents-table";
 import {createGetServerSideProps} from "~/server/helpers/pages/create-get-server-side-props";
 import {DocumentModel} from "~/shared/documents/document-model";
 import {Schema} from "~/shared/schema/schema";
@@ -23,7 +23,7 @@ const Page = createPageComponent({
 });
 
 export const getServerSideProps = createGetServerSideProps(Page, async context => {
-    const document = await readDocument(context.query.documentId);
+    const document = await getDocument(context.query.documentId);
     if (!document) return {notFound: true};
     return {props: {document}};
 });

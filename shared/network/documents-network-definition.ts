@@ -52,8 +52,8 @@ export const updateDocumentContent = defineNetworkFunction({
     },
 });
 
-export const readDocumentContentSteps = defineNetworkFunction({
-    name: "readDocumentContentSteps",
+export const getDocumentContentSteps = defineNetworkFunction({
+    name: "getDocumentContentSteps",
     input: {
         id: Schema.id,
         startVersion: Schema.integer,

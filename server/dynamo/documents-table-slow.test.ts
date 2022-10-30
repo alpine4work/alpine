@@ -10,8 +10,9 @@ import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
 import {
     createDocument,
+    getDocument,
+    getDocumentContentSteps,
     getDocumentsTableForTest,
-    readDocument,
     updateDocumentContent,
     updateDocumentSnapshotBeforeDeletingStepsTestCheckpoint,
 } from "~/server/dynamo/documents-table";
@@ -27,7 +28,7 @@ function textSlice(text: string) {
     return new Slice(Fragment.from(schema.text(text)), 0, 0);
 }
 
-test(
+test.only(
     "snapshot updates after many steps committed individually",
     async () => {
         const documentId = generateId();
@@ -69,7 +70,7 @@ test(
                     )?.version,
                 );
 
-                const document = await readDocument(documentId);
+                const document = await getDocument(documentId);
                 expect(document?.version).toEqual(i);
                 expect(document?.content.toJSON()).toEqual(
                     schema
@@ -86,6 +87,33 @@ test(
         }
 
         expect(Array.from(snapshotVersions)).toEqual([0, 100, 200]);
+
+        // Some tests to make sure we can read steps across a snapshot boundary.
+
+        expect(
+            (await getDocumentContentSteps({id: documentId, startVersion: 0, endVersion: 240}))
+                .length,
+        ).toEqual(240);
+
+        expect(
+            (await getDocumentContentSteps({id: documentId, startVersion: 10, endVersion: 20}))
+                .length,
+        ).toEqual(10);
+
+        expect(
+            (await getDocumentContentSteps({id: documentId, startVersion: 110, endVersion: 120}))
+                .length,
+        ).toEqual(10);
+
+        expect(
+            (await getDocumentContentSteps({id: documentId, startVersion: 210, endVersion: 220}))
+                .length,
+        ).toEqual(10);
+
+        expect(
+            (await getDocumentContentSteps({id: documentId, startVersion: 180, endVersion: 220}))
+                .length,
+        ).toEqual(40);
     },
     // 2min timeout for this test
     1000 * 60 * 2,
@@ -148,7 +176,7 @@ test(
                 )?.version,
             );
 
-            const document = await readDocument(documentId);
+            const document = await getDocument(documentId);
             expect(document?.version).toEqual(i + 5);
             expect(document?.content.toJSON()).toEqual(
                 schema
@@ -220,7 +248,7 @@ test(
 
             // Read the document before the request is unpaused so old steps have not been
             // deleted yet.
-            const document = await readDocument(documentId);
+            const document = await getDocument(documentId);
             expect(document?.version).toEqual(i + 5);
             expect(document?.content.toJSON()).toEqual(
                 schema
@@ -311,7 +339,7 @@ test(
 
             // Read the document before the request is unpaused so old steps have not been
             // deleted yet.
-            const document = await readDocument(documentId);
+            const document = await getDocument(documentId);
             expect(document?.version).toEqual(i + 5);
             expect(document?.content.toJSON()).toEqual(
                 schema

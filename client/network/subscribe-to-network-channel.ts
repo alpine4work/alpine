@@ -1,6 +1,6 @@
 import {ablyRealtimeClient} from "~/client/network/internal/ably-realtime-client";
 import {InternalError} from "~/shared/error/error";
-import {asyncIterableIteratorMap} from "~/shared/helpers/iterable/async-iterable-iterator-map";
+import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map-async-iterable-iterator";
 import {BlockInference} from "~/shared/helpers/types/block-inference";
 import {getAblyChannelNameForNetworkChannel} from "~/shared/network/helpers/get-ably-channel-name-for-network-channel";
 import {NetworkChannel} from "~/shared/network/network-channel";
@@ -23,7 +23,7 @@ export function subscribeToNetworkChannel<
 ): AsyncIterableIterator<Message> {
     const ablyChannelName = getAblyChannelNameForNetworkChannel(channel, key);
 
-    return asyncIterableIteratorMap(
+    return mapAsyncIterableIterator(
         ablyRealtimeClient.subscribeToMessages(ablyChannelName, {signal}),
         message => {
             try {

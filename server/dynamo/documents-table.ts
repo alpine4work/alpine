@@ -30,8 +30,8 @@ import {runAllPromises} from "~/shared/helpers/async/run-all-promises";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array-from-async-iterable";
-import {iterableFlatMap} from "~/shared/helpers/iterable/iterable-flat-map";
-import {iterableMap} from "~/shared/helpers/iterable/iterable-map";
+import {flatMapIterable} from "~/shared/helpers/iterable/flat-map-iterable";
+import {mapIterable} from "~/shared/helpers/iterable/map-iterable";
 import {clamp} from "~/shared/helpers/number/clamp";
 import {Id} from "~/shared/id/id";
 import {
@@ -97,10 +97,12 @@ const DocumentsTable = DynamoTableSchema.new({
                 StepTransactionsAfterSnapshot: {
                     sortKeyAttributes: {
                         /**
-                         * The version this step transaction is applied onto. The document version will
-                         * always be one greater than the latest step.
+                         * The version this step transaction is applied onto.
+                         *
+                         * The document version after the transaction will be
+                         * `startVersion + steps.length`.
                          */
-                        version: DynamoKeyAttributeSchema.integer,
+                        startVersion: DynamoKeyAttributeSchema.integer,
                     },
                     attributes: Schema.object({
                         /**
@@ -161,10 +163,12 @@ const DocumentsTable = DynamoTableSchema.new({
                 StepTransactionsBeforeSnapshot: {
                     sortKeyAttributes: {
                         /**
-                         * The version this step is applied onto. The document version will always be
-                         * one greater than the latest step.
+                         * The version this step transaction is applied onto.
+                         *
+                         * The document version after the transaction will be
+                         * `startVersion + steps.length`.
                          */
-                        version: DynamoKeyAttributeSchema.integer,
+                        startVersion: DynamoKeyAttributeSchema.integer,
                     },
                     attributes: Schema.object({
                         /**
@@ -215,6 +219,16 @@ type DocumentStepTransactionAfterSnapshotItem = DynamoTableItemType<
     "StepTransactionsAfterSnapshot"
 >;
 
+type DocumentStepTransactionBeforeSnapshotItem = DynamoTableItemType<
+    typeof DocumentsTable,
+    "Document",
+    "StepTransactionsBeforeSnapshot"
+>;
+
+type DocumentStepTransactionItem =
+    | DocumentStepTransactionAfterSnapshotItem
+    | DocumentStepTransactionBeforeSnapshotItem;
+
 type DocumentSnapshotItem = DynamoTableItemType<typeof DocumentsTable, "Document", "Snapshot">;
 
 /**
@@ -256,19 +270,19 @@ export async function createDocument({id, content}: {id: Id; content: DocumentCo
 }
 
 /**
- * Read the full document with the provided id.
+ * Get the full document with the provided id.
  */
-export async function readDocument(id: Id): Promise<DocumentModel | null> {
-    const internalDocument = await readInternalDocument(id);
+export async function getDocument(id: Id): Promise<DocumentModel | null> {
+    const internalDocument = await getInternalDocument(id);
     return internalDocument?.model ?? null;
 }
 
 /**
- * Read a preview of the document with the provided id.
+ * Get a preview of the document with the provided id.
  *
- * Cheaper than `readDocument()` since we don't return the full content.
+ * Cheaper than `getDocument()` since we don't return the full content.
  */
-export async function readDocumentPreview(id: Id): Promise<DocumentPreviewModel | null> {
+export async function getDocumentPreview(id: Id): Promise<DocumentPreviewModel | null> {
     const attributes = await DocumentsTable.getItem({
         partitionType: "Document",
         documentId: id,
@@ -290,16 +304,16 @@ type InternalDocument = {
     readonly model: DocumentModel;
 };
 
-export const readInternalDocumentTestCounter = new TestCounter();
+export const getInternalDocumentTestCounter = new TestCounter();
 
 /**
- * Read the full document with the provided id.
+ * Get the full document with the provided id.
  *
  * Not only returns the `Document` but also returns some of the document's
  * internal representation.
  */
-async function readInternalDocument(id: Id): Promise<InternalDocument | null> {
-    readInternalDocumentTestCounter.incrementForTest(id);
+async function getInternalDocument(id: Id): Promise<InternalDocument | null> {
+    getInternalDocumentTestCounter.incrementForTest(id);
 
     let attributes: DocumentAttributesItem | null = null;
     let stepTransactionsAfterSnapshot: Array<DocumentStepTransactionAfterSnapshotItem> = [];
@@ -353,11 +367,11 @@ async function readInternalDocument(id: Id): Promise<InternalDocument | null> {
     //
     // Drop any steps before the snapshot.
     stepTransactionsAfterSnapshot = stepTransactionsAfterSnapshot.filter(stepTransaction => {
-        if (stepTransaction.version < snapshot.version) {
+        if (stepTransaction.startVersion < snapshot.version) {
             // We assume step transactions are applied to the snapshot atomically. We don't
             // support some steps in a transaction being before the snapshot and some steps
             // in a transaction being after the snapshot. It's all or nothing for now.
-            if (stepTransaction.version + stepTransaction.steps.length > snapshot.version)
+            if (stepTransaction.startVersion + stepTransaction.steps.length > snapshot.version)
                 throw new DataLossError(
                     "Document snapshot version is in the middle of a step transaction",
                 );
@@ -372,7 +386,7 @@ async function readInternalDocument(id: Id): Promise<InternalDocument | null> {
     let content = snapshot.content;
 
     for (const stepTransaction of stepTransactionsAfterSnapshot) {
-        if (stepTransaction.version !== version)
+        if (stepTransaction.startVersion !== version)
             throw new DataLossError(
                 "Mismatched document snapshot version and step transaction version",
             );
@@ -436,7 +450,7 @@ export const documentContentCacheEvictionTimeoutMs = 1000 * 60 * 5;
 export class DocumentContentCacheForUpdate {
     private readonly _entries = new DocumentContentCacheForUpdateEntries();
 
-    public async readAndCacheDocument(id: Id): Promise<{
+    public async getAndCacheDocument(id: Id): Promise<{
         readonly version: number;
         readonly content: DocumentContent;
 
@@ -469,17 +483,17 @@ export class DocumentContentCacheForUpdate {
         const nullableEntry = await this._entries.getOrSetEntry(id, async () => {
             wasEntryCached = false;
 
-            const internalDocument = await readInternalDocument(id);
+            const internalDocument = await getInternalDocument(id);
             if (!internalDocument) return null;
 
             return {
                 version: internalDocument.model.version,
                 content: internalDocument.model.content,
                 stepsAfterInitialSnapshot: new PushOnlyArray(
-                    iterableFlatMap(
+                    flatMapIterable(
                         internalDocument.stepTransactionsAfterSnapshot,
                         ({steps, invertedSteps, clientId}) => {
-                            return iterableMap(steps, (step, i) => {
+                            return mapIterable(steps, (step, i) => {
                                 const invertedStep = invertedSteps[steps.length - i - 1];
                                 if (!invertedStep)
                                     throw new DataLossError("Missing inverted document step");
@@ -523,59 +537,25 @@ export class DocumentContentCacheForUpdate {
             // load the steps we are missing and apply them to our content.
             if (entry.version < attributes.version) {
                 const nullableEntry = await this._entries.setEntry(id, async () => {
-                    const stepTransactions = await arrayFromAsyncIterable(
-                        DocumentsTable.query({
-                            startKey: {
-                                partitionType: "Document",
-                                documentId: id,
-                                sortRangeType: "StepTransactionsAfterSnapshot",
-                                version: entry.version,
-                            },
-                            endKey: {
-                                partitionType: "Document",
-                                documentId: id,
-                                sortRangeType: "StepTransactionsAfterSnapshot",
-                                version: attributes.version - 1,
-                            },
-                        }),
-                    );
+                    const steps = await getDocumentStepsBetweenValidatedVersionRange({
+                        id,
+                        startVersion: entry.version,
+                        endVersion: attributes.version,
+                    });
 
-                    let version = entry.version;
                     let content = entry.content;
 
-                    // Make sure we have all the right steps and apply them to our cached content.
-                    for (const stepTransaction of stepTransactions) {
-                        if (stepTransaction.version !== version)
+                    for (const step of steps) {
+                        const stepResult = step.step.apply(content);
+                        if (!stepResult.doc)
                             throw new DataLossError(
-                                "Mismatched document snapshot version and step transaction version",
+                                `Step after document snapshot could not be applied: ${stepResult.failed!}`,
                             );
 
-                        for (const step of stepTransaction.steps) {
-                            const stepResult = step.apply(content);
-                            if (!stepResult.doc)
-                                throw new DataLossError(
-                                    `Step after document snapshot could not be applied: ${stepResult.failed!}`,
-                                );
+                        assert(isDocumentContent(stepResult.doc));
+                        content = stepResult.doc;
 
-                            assert(isDocumentContent(stepResult.doc));
-                            content = stepResult.doc;
-                        }
-
-                        version += stepTransaction.steps.length;
-
-                        for (let i = 0; i < stepTransaction.steps.length; i++) {
-                            const step = stepTransaction.steps[i]!;
-                            const invertedStep =
-                                stepTransaction.invertedSteps[stepTransaction.steps.length - i - 1];
-                            if (!invertedStep)
-                                throw new DataLossError("Missing inverted document step");
-
-                            entry.stepsAfterInitialSnapshot.push({
-                                step,
-                                invertedStep,
-                                clientId: stepTransaction.clientId,
-                            });
-                        }
+                        entry.stepsAfterInitialSnapshot.push(step);
                     }
 
                     return {
@@ -910,7 +890,7 @@ export async function updateDocumentContent({
             "Can only override the cache in Jest tests",
         );
 
-        const internalDocument = await cache.readAndCacheDocument(id);
+        const internalDocument = await cache.getAndCacheDocument(id);
         if (!internalDocument)
             throw new NotFoundError("Can not update document that doesn't exist");
 
@@ -988,13 +968,12 @@ export async function updateDocumentContent({
                     ),
                 );
             } else {
-                const otherSteps = await readDocumentContentStepsForValidatedVersionRange({
+                const otherSteps = await getDocumentStepsBetweenValidatedVersionRange({
                     id,
                     startVersion: clientVersion,
                     endVersion:
                         internalDocument.version -
-                        internalDocument.stepsAfterInitialSnapshot.length -
-                        1,
+                        internalDocument.stepsAfterInitialSnapshot.length,
                 });
 
                 conflictingSteps = [...otherSteps, ...internalDocument.stepsAfterInitialSnapshot];
@@ -1149,7 +1128,7 @@ export async function updateDocumentContent({
                     partitionType: "Document",
                     documentId: id,
                     sortRangeType: "StepTransactionsAfterSnapshot",
-                    version: internalDocument.version,
+                    startVersion: internalDocument.version,
                     steps: newSteps,
                     invertedSteps: newInvertedSteps,
                     clientId,
@@ -1321,13 +1300,13 @@ async function maybeUpdateDocumentSnapshotAfterUpdatingContent({
                 partitionType: "Document",
                 documentId: id,
                 sortRangeType: "StepTransactionsAfterSnapshot",
-                version: 0,
+                startVersion: 0,
             },
             endKey: {
                 partitionType: "Document",
                 documentId: id,
                 sortRangeType: "StepTransactionsAfterSnapshot",
-                version: newVersion - 1,
+                startVersion: newVersion - 1,
             },
         }),
     );
@@ -1351,9 +1330,9 @@ async function maybeUpdateDocumentSnapshotAfterUpdatingContent({
 }
 
 /**
- * Reads all steps between `startVersion` and `endVersion` inclusive.
+ * Reads all steps between `startVersion` (inclusive) and `endVersion` (exclusive).
  */
-export async function readDocumentContentSteps({
+export async function getDocumentContentSteps({
     id,
     startVersion,
     endVersion,
@@ -1374,16 +1353,18 @@ export async function readDocumentContentSteps({
     if (startVersion < 0) throw new InvalidArgumentError("Start version is less than zero");
     if (startVersion > endVersion)
         throw new InvalidArgumentError("End version is greater than start version");
+    if (startVersion === endVersion)
+        throw new InvalidArgumentError("Start version is equal to end version");
     if (endVersion > document.version)
         throw new FailedPreconditionError(
             "End version is greater than the last version in the document",
         );
 
-    return readDocumentContentStepsForValidatedVersionRange({id, startVersion, endVersion});
+    return getDocumentStepsBetweenValidatedVersionRange({id, startVersion, endVersion});
 }
 
 /**
- * Reads all steps between `versionStart` and `endVersion` inclusive.
+ * Reads all steps between `versionStart` (inclusive) and `endVersion` (exclusive).
  *
  * We assume you have checked that `endVersion` is a version that exists! We
  * will throw a `DataLossError` if we don't find steps up to `endVersion`.
@@ -1398,7 +1379,7 @@ export async function readDocumentContentSteps({
  * historical steps. If we can't find all the steps we need then we check the
  * `StepsAfterSnapshot` range.
  */
-async function readDocumentContentStepsForValidatedVersionRange({
+async function getDocumentStepsBetweenValidatedVersionRange({
     id,
     startVersion,
     endVersion,
@@ -1407,85 +1388,353 @@ async function readDocumentContentStepsForValidatedVersionRange({
     startVersion: number;
     endVersion: number;
 }): Promise<Array<{step: Step; invertedStep: Step; clientId: Id}>> {
-    assert(Number.isSafeInteger(startVersion));
-    assert(Number.isSafeInteger(endVersion));
-    assert(startVersion <= endVersion);
-    assert(startVersion >= 0);
-
     const stepByVersion = new Map<number, {step: Step; invertedStep: Step; clientId: Id}>();
 
-    const stepTransactionBeforeSnapshotItems = await arrayFromAsyncIterable(
-        DocumentsTable.query({
-            startKey: {
-                partitionType: "Document",
-                documentId: id,
-                sortRangeType: "StepTransactionsBeforeSnapshot",
-                version: startVersion,
-            },
-            endKey: {
-                partitionType: "Document",
-                documentId: id,
-                sortRangeType: "StepTransactionsBeforeSnapshot",
-                version: endVersion,
-            },
-        }),
-    );
-
-    for (const item of stepTransactionBeforeSnapshotItems) {
-        for (let i = 0; i < item.steps.length; i++) {
-            const version = item.version + i;
-            const step = item.steps[i]!;
-            const invertedStep = item.invertedSteps[item.steps.length - i - 1];
+    for await (const stepTransaction of getDocumentStepTransactionsBetweenValidatedVersionRange({
+        id,
+        startVersion,
+        endVersion,
+    })) {
+        for (let i = 0; i < stepTransaction.steps.length; i++) {
+            const version = stepTransaction.startVersion + i;
+            const step = stepTransaction.steps[i]!;
+            const invertedStep =
+                stepTransaction.invertedSteps[stepTransaction.steps.length - i - 1];
             if (!invertedStep) throw new DataLossError("Missing inverted document step");
 
-            stepByVersion.set(version, {step, invertedStep, clientId: item.clientId});
-        }
-    }
-
-    // Did we get all the steps from our before snapshot range? If yes we don't
-    // need to query the after snapshot range.
-    if (stepByVersion.size < endVersion - startVersion) {
-        const stepTransactionAfterSnapshotItems = await arrayFromAsyncIterable(
-            DocumentsTable.query({
-                startKey: {
-                    partitionType: "Document",
-                    documentId: id,
-                    sortRangeType: "StepTransactionsAfterSnapshot",
-                    version: startVersion,
-                },
-                endKey: {
-                    partitionType: "Document",
-                    documentId: id,
-                    sortRangeType: "StepTransactionsAfterSnapshot",
-                    version: endVersion,
-                },
-            }),
-        );
-
-        for (const item of stepTransactionAfterSnapshotItems) {
-            for (let i = 0; i < item.steps.length; i++) {
-                const version = item.version + i;
-                const step = item.steps[i]!;
-                const invertedStep = item.invertedSteps[item.steps.length - i - 1];
-                if (!invertedStep) throw new DataLossError("Missing inverted document step");
-
-                // We may have a step in both the before snapshot range and the after snapshot
-                // range while we are updating our snapshot. Prefer items in the before
-                // snapshot range.
-                if (stepByVersion.has(version)) continue;
-
-                stepByVersion.set(version, {step, invertedStep, clientId: item.clientId});
+            // We may get steps outside of the version range because they are in a
+            // transaction that intersects with our version range. Don't set those steps to
+            // our map.
+            if (startVersion <= version && version < endVersion) {
+                stepByVersion.set(version, {
+                    step,
+                    invertedStep,
+                    clientId: stepTransaction.clientId,
+                });
             }
         }
     }
 
     const steps = [];
 
-    for (let version = startVersion; version <= endVersion; version++) {
+    for (let version = startVersion; version < endVersion; version++) {
         const step = stepByVersion.get(version);
         if (!step) throw new DataLossError("Missing a document step");
         steps.push(step);
     }
 
     return steps;
+}
+
+/**
+ * Gets all step transactions between a `startVersion` (inclusive) and an `endVersion`
+ * (exclusive).
+ *
+ * We assume both versions exist in the document and that `startVersion` is
+ * less than `endVersion`. If you violate these assumptions you will get
+ * `DataLossError`s and `InternalError`s.
+ *
+ * Returns an async iterator that yields step transactions immediately when we
+ * get them in no particular order.
+ */
+async function* getDocumentStepTransactionsBetweenValidatedVersionRange({
+    id,
+    startVersion,
+    endVersion,
+}: {
+    id: Id;
+    startVersion: number;
+    endVersion: number;
+}): AsyncIterableIterator<DocumentStepTransactionItem> {
+    assert(Number.isSafeInteger(startVersion));
+    assert(Number.isSafeInteger(endVersion));
+    assert(startVersion < endVersion);
+    assert(startVersion >= 0);
+
+    const stepTransactionContainingStartVersion =
+        await getDocumentStepTransactionContainingValidatedVersion(id, startVersion);
+
+    yield stepTransactionContainingStartVersion;
+
+    // If the transaction containing our start version also contains our end
+    // version then we're done!
+    //
+    // As an optimization, we could start the request to get
+    // `stepTransactionContainingEndVersion` AFTER this short circuit so that if we
+    // only need one transaction we don't need to make the extra requests. However,
+    // we expect most of the time when you call this function you need more than
+    // one transaction.
+    if (
+        endVersion <=
+        stepTransactionContainingStartVersion.startVersion +
+            stepTransactionContainingStartVersion.steps.length
+    ) {
+        return;
+    }
+
+    switch (stepTransactionContainingStartVersion.sortRangeType) {
+        // If we start in the after snapshot range then we will also end in the after
+        // snapshot range.
+        case "StepTransactionsAfterSnapshot": {
+            for await (const stepTransaction of DocumentsTable.query({
+                startKey: {
+                    partitionType: "Document",
+                    documentId: id,
+                    sortRangeType: "StepTransactionsAfterSnapshot",
+                    startVersion:
+                        stepTransactionContainingStartVersion.startVersion +
+                        stepTransactionContainingStartVersion.steps.length,
+                },
+                endKey: {
+                    partitionType: "Document",
+                    documentId: id,
+                    sortRangeType: "StepTransactionsAfterSnapshot",
+                    startVersion: endVersion - 1,
+                },
+            })) {
+                yield stepTransaction;
+            }
+            return;
+        }
+        // If we start in the before snapshot range then we might not have all the
+        // steps we need in the before snapshot range. So query the before snapshot
+        // range and then determine if we also need to query the after snapshot range.
+        case "StepTransactionsBeforeSnapshot": {
+            const stepTransactionBeforeSnapshotIterator = DocumentsTable.query({
+                startKey: {
+                    partitionType: "Document",
+                    documentId: id,
+                    sortRangeType: "StepTransactionsBeforeSnapshot",
+                    startVersion:
+                        stepTransactionContainingStartVersion.startVersion +
+                        stepTransactionContainingStartVersion.steps.length,
+                },
+                endKey: {
+                    partitionType: "Document",
+                    documentId: id,
+                    sortRangeType: "StepTransactionsBeforeSnapshot",
+                    startVersion: endVersion - 1,
+                },
+            });
+
+            let lastStepTransactionBeforeSnapshot = null;
+
+            for await (const stepTransaction of stepTransactionBeforeSnapshotIterator) {
+                lastStepTransactionBeforeSnapshot = stepTransaction;
+                yield stepTransaction;
+            }
+
+            // If the last step transaction we found in the before snapshot range contains
+            // the end version then we're done! Otherwise we need to continue querying in
+            // the after snapshot range.
+            if (
+                lastStepTransactionBeforeSnapshot &&
+                endVersion <=
+                    lastStepTransactionBeforeSnapshot.startVersion +
+                        lastStepTransactionBeforeSnapshot.steps.length
+            ) {
+                return;
+            }
+
+            const stepTransactionAfterSnapshotIterator = DocumentsTable.query({
+                startKey: {
+                    partitionType: "Document",
+                    documentId: id,
+                    sortRangeType: "StepTransactionsAfterSnapshot",
+                    startVersion:
+                        stepTransactionContainingStartVersion.startVersion +
+                        stepTransactionContainingStartVersion.steps.length,
+                },
+                endKey: {
+                    partitionType: "Document",
+                    documentId: id,
+                    sortRangeType: "StepTransactionsAfterSnapshot",
+                    startVersion: endVersion - 1,
+                },
+            });
+
+            yield* stepTransactionAfterSnapshotIterator;
+            return;
+        }
+        default:
+            throw exhaustive(stepTransactionContainingStartVersion);
+    }
+}
+
+/**
+ * Get the step transaction which contains `version` in the provided document.
+ *
+ * Throws a `DataLossError` if the `version` does not exist in the document.
+ * You're responsible for validating that `version` exists in the document
+ * before calling this function. Hence why the name says "validated" version.
+ */
+// Given the way we layout our documents table, we can't query
+// `transaction.startVersion = version`. Since a transaction may contain
+// multiple steps and hence multiple versions. We don't know where the
+// transaction boundaries lie without querying the table.
+//
+// Given the way DynamoDB works we also can't query
+// `transaction.startVersion >= version AND version < transaction.startVersion + transaction.steps.length`
+// since we have to query on sort keys (of which `transaction.steps` is not a
+// part of).
+//
+// So the way this function is implemented is:
+//
+// 1. We query the `StepTransactionsBeforeSnapshot` sort range for the
+//    transaction containing this version.
+// 2. We query the `StepTransactionsAfterSnapshot` sort range for the
+//    transaction containing this version.
+//
+// To query those sort ranges, we use `transaction.startVersion BETWEEN 0 AND version`
+// in reverse with a limit of one. The first transaction in that range should
+// contain our version.
+async function getDocumentStepTransactionContainingValidatedVersion(
+    id: Id,
+    version: number,
+): Promise<DocumentStepTransactionItem> {
+    assert(Number.isSafeInteger(version));
+
+    const queryStepTransactionsBeforeSnapshot = async () => {
+        // Find the transaction which contains `version`. To do this, we need to query
+        // `transaction.startVersion BETWEEN 0 AND version` in descending order and
+        // return the first transaction we find.
+        //
+        // To understand why this works consider two cases:
+        //
+        // 1. The step for `version` is the first step of a transaction (the
+        //    transaction's `startVersion`).
+        // 2. The step for `version` is in the middle of some transaction.
+        //
+        // Now consider the following four transactions in the
+        // `StepTransactionsBeforeSnapshot` sort range:
+        //
+        // ```
+        // transaction1: startVersion = 0
+        // transaction2: startVersion = 5
+        // transaction3: startVersion = 6
+        // transaction4: startVersion = 9
+        // ```
+        //
+        // For case 1: We want to get a range of steps starting at version 6. So we
+        // query `transaction.startVersion BETWEEN 0 AND 6` in descending order. The
+        // last transaction in this range is `transaction3` which contains version 6 so
+        // we're good.
+        //
+        // For case 2: We want to get a range of steps starting at version 8. So we
+        // query `transaction.startVersion BETWEEN 0 AND 8` in descending order. The
+        // last transaction in this range is `transaction3` which contains version 8 so
+        // we're good.
+        const stepTransactionBeforeSnapshotContainingVersionArray = await arrayFromAsyncIterable(
+            DocumentsTable.query({
+                limit: 1,
+                descending: true,
+                startKey: {
+                    partitionType: "Document",
+                    documentId: id,
+                    sortRangeType: "StepTransactionsBeforeSnapshot",
+                    startVersion: 0,
+                },
+                endKey: {
+                    partitionType: "Document",
+                    documentId: id,
+                    sortRangeType: "StepTransactionsBeforeSnapshot",
+                    startVersion: version,
+                },
+            }),
+        );
+
+        assert(stepTransactionBeforeSnapshotContainingVersionArray.length <= 1);
+        const stepTransactionBeforeSnapshotContainingVersion =
+            stepTransactionBeforeSnapshotContainingVersionArray[0];
+
+        if (!stepTransactionBeforeSnapshotContainingVersion) return null;
+
+        const actuallyContainsVersion =
+            stepTransactionBeforeSnapshotContainingVersion.startVersion <= version &&
+            version <
+                stepTransactionBeforeSnapshotContainingVersion.startVersion +
+                    stepTransactionBeforeSnapshotContainingVersion.steps.length;
+
+        // The last transaction in our `transaction.startVersion BETWEEN 0 AND version`
+        // range might not actually contain the version we are looking for!
+        //
+        // This will happen if `version` is after the snapshot version.
+        //
+        // Since in our `StepTransactionsBeforeSnapshot` sort range we will have
+        // transactions from version 0 to the snapshot version. So if `version` is
+        // after the snapshot version then we will return the first transaction after
+        // the snapshot version.
+        if (!actuallyContainsVersion) return null;
+
+        return stepTransactionBeforeSnapshotContainingVersion;
+    };
+
+    const queryStepTransactionsAfterSnapshot = async () => {
+        // Same as the query above but on the `StepTransactionsAfterSnapshot` sort
+        // range instead of the `StepTransactionsBeforeSnapshot` sort range.
+        const stepTransactionAfterSnapshotContainingVersionArray = await arrayFromAsyncIterable(
+            DocumentsTable.query({
+                limit: 1,
+                descending: true,
+                startKey: {
+                    partitionType: "Document",
+                    documentId: id,
+                    sortRangeType: "StepTransactionsAfterSnapshot",
+                    startVersion: 0,
+                },
+                endKey: {
+                    partitionType: "Document",
+                    documentId: id,
+                    sortRangeType: "StepTransactionsAfterSnapshot",
+                    startVersion: version,
+                },
+            }),
+        );
+
+        assert(stepTransactionAfterSnapshotContainingVersionArray.length <= 1);
+        const stepTransactionAfterSnapshotContainingVersion =
+            stepTransactionAfterSnapshotContainingVersionArray[0];
+        if (!stepTransactionAfterSnapshotContainingVersion) return null;
+
+        const actuallyContainsVersion =
+            stepTransactionAfterSnapshotContainingVersion.startVersion <= version &&
+            version <
+                stepTransactionAfterSnapshotContainingVersion.startVersion +
+                    stepTransactionAfterSnapshotContainingVersion.steps.length;
+
+        // The last transaction in our `transaction.startVersion BETWEEN 0 AND version`
+        // range might not actually contain the version we are looking for!
+        //
+        // This will happen while we are updating the snapshot.
+        //
+        // Consider two adjacent transactions, `transaction1` and `transaction2`.
+        // `transaction1` comes before `transaction2`. The version we are looking for
+        // is in `transaction2`. But our query will give us `transaction1` if we are in
+        // the following state:
+        //
+        // 1. We deleted `transaction2` from `StepTransactionsAfterSnapshot` and moved
+        //    it to `StepTransactionsBeforeSnapshot`.
+        // 2. We have not yet deleted `transaction1` from
+        //    `StepTransactionsAfterSnapshot`.
+        //
+        // In this case we need to scan `StepTransactionsBeforeSnapshot` for
+        // `transaction2` which.
+        if (!actuallyContainsVersion) return null;
+
+        return stepTransactionAfterSnapshotContainingVersion;
+    };
+
+    const [stepTransactionBeforeSnapshot, stepTransactionAfterSnapshot] = await runAllPromises([
+        queryStepTransactionsBeforeSnapshot(),
+        queryStepTransactionsAfterSnapshot(),
+    ]);
+
+    // If we have both `stepTransactionBeforeSnapshot` and
+    // `stepTransactionAfterSnapshot` then return the transaction from before the
+    // snapshot since that's the new canonical transaction and soon we should
+    // delete the step transaction after the snapshot.
+    if (stepTransactionBeforeSnapshot) return stepTransactionBeforeSnapshot;
+    if (stepTransactionAfterSnapshot) return stepTransactionAfterSnapshot;
+
+    throw new DataLossError("Could not find step transaction containing step");
 }

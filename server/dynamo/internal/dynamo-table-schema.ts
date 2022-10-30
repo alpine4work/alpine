@@ -22,7 +22,7 @@ import {checkSchemaBackwardsCompatibility} from "~/server/schema/check-schema-ba
 import {DataLossError, InvalidArgumentError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {isDeepEqual} from "~/shared/helpers/control/is-deep-equal";
-import {asyncIterableIteratorMap} from "~/shared/helpers/iterable/async-iterable-iterator-map";
+import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map-async-iterable-iterator";
 import {mapObjectValues} from "~/shared/helpers/object/map-object-values";
 import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order-key";
 import {defaultCompareStrings} from "~/shared/helpers/string/default-compare-strings";
@@ -336,7 +336,11 @@ export class DynamoTableSchema<
      */
     public async getPartialItem<
         Key extends Types["Key"],
-        Attributes extends string & keyof (Types["Item"] & Key),
+        // Here, `keyof (Types["Item"] & Key)` ends up giving us the type
+        // `keyof Types["Item"]` which isn't what we want. We only want the keys of the
+        // item for the provided `Key`. However, we've found a different implementation
+        // of `keyof` that works for us. See `KeyofImplementedWithConditionalType`.
+        Attributes extends string & KeyofImplementedWithConditionalType<Types["Item"] & Key>,
     >(
         key: Key,
         {
@@ -658,11 +662,13 @@ export class DynamoTableSchema<
         startKey,
         endKey,
         limit,
+        descending,
         consistency,
     }: {
         startKey: StartKey;
         endKey: EndKey;
         limit?: number;
+        descending?: boolean;
         consistency?: DynamoReadConsistency;
     }): AsyncIterableIterator<
         MergeObjectIntersection<
@@ -694,9 +700,10 @@ export class DynamoTableSchema<
             },
             consistency,
             limit,
+            descending,
         });
 
-        return asyncIterableIteratorMap(iterator, serializedItem => {
+        return mapAsyncIterableIterator(iterator, serializedItem => {
             assert(typeof serializedItem.partitionKey === "string");
             assert(typeof serializedItem.sortKey === "string");
 
@@ -984,3 +991,9 @@ function checkDynamoTableSortRangeSchemaDescriptionBackwardsCompatibility(
         nextDescription.attributesSchema,
     );
 }
+
+/**
+ * An alternative implementation of `keyof T` that seems to work in
+ * `getPartialItem()` whereas `keyof` doesn't.
+ */
+type KeyofImplementedWithConditionalType<T> = T extends {[K in infer U]: any} ? U : never;
