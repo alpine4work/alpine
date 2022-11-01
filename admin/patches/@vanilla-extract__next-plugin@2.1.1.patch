@@ -1,0 +1,105 @@
+diff --git a/dist/vanilla-extract-next-plugin.cjs.dev.js b/dist/vanilla-extract-next-plugin.cjs.dev.js
+index 09e1996d6012f766b47df17e9011caf74aa9837d..b99450830ba5c096102fb0352f2343468845f6f3 100644
+--- a/dist/vanilla-extract-next-plugin.cjs.dev.js
++++ b/dist/vanilla-extract-next-plugin.cjs.dev.js
+@@ -37,17 +37,21 @@ const createVanillaExtractPlugin = (pluginOptions = {}) => (nextConfig = {}) =>
+     cssRules.unshift({
+       test: /\.vanilla\.css$/i,
+       sideEffects: true,
+-      use: loaders.getGlobalCssLoader({
+-        assetPrefix: config.assetPrefix,
+-        isClient: !isServer,
+-        isServer,
+-        isDevelopment: dev,
+-        future: nextConfig.future || {},
+-        experimental: nextConfig.experimental || {}
+-      }, () => css.lazyPostCSS(dir, getSupportedBrowsers(dir, dev)), [])
++      use: [
++        require.resolve('next/dist/build/webpack/loaders/next-flight-css-dev-loader'),
++        ...loaders.getGlobalCssLoader({
++          assetPrefix: config.assetPrefix,
++          isClient: !isServer,
++          isServer,
++          isDevelopment: dev,
++          future: nextConfig.future || {},
++          experimental: nextConfig.experimental || {},
++          hasAppDir: true,
++        }, () => css.lazyPostCSS(dir, getSupportedBrowsers(dir, dev)), [])
++      ],
+     });
+     config.plugins.push(new webpackPlugin.VanillaExtractPlugin({
+-      outputCss: !isServer,
++      outputCss: true,
+       ...pluginOptions
+     }));
+ 
+diff --git a/dist/vanilla-extract-next-plugin.cjs.prod.js b/dist/vanilla-extract-next-plugin.cjs.prod.js
+index 09e1996d6012f766b47df17e9011caf74aa9837d..b99450830ba5c096102fb0352f2343468845f6f3 100644
+--- a/dist/vanilla-extract-next-plugin.cjs.prod.js
++++ b/dist/vanilla-extract-next-plugin.cjs.prod.js
+@@ -37,17 +37,21 @@ const createVanillaExtractPlugin = (pluginOptions = {}) => (nextConfig = {}) =>
+     cssRules.unshift({
+       test: /\.vanilla\.css$/i,
+       sideEffects: true,
+-      use: loaders.getGlobalCssLoader({
+-        assetPrefix: config.assetPrefix,
+-        isClient: !isServer,
+-        isServer,
+-        isDevelopment: dev,
+-        future: nextConfig.future || {},
+-        experimental: nextConfig.experimental || {}
+-      }, () => css.lazyPostCSS(dir, getSupportedBrowsers(dir, dev)), [])
++      use: [
++        require.resolve('next/dist/build/webpack/loaders/next-flight-css-dev-loader'),
++        ...loaders.getGlobalCssLoader({
++          assetPrefix: config.assetPrefix,
++          isClient: !isServer,
++          isServer,
++          isDevelopment: dev,
++          future: nextConfig.future || {},
++          experimental: nextConfig.experimental || {},
++          hasAppDir: true,
++        }, () => css.lazyPostCSS(dir, getSupportedBrowsers(dir, dev)), [])
++      ],
+     });
+     config.plugins.push(new webpackPlugin.VanillaExtractPlugin({
+-      outputCss: !isServer,
++      outputCss: true,
+       ...pluginOptions
+     }));
+ 
+diff --git a/dist/vanilla-extract-next-plugin.esm.js b/dist/vanilla-extract-next-plugin.esm.js
+index 83af576d3d02f0c642dd3e60cd5dee717dc63b60..ee7c5ca1310857256df2358d8a02060bfb88aff4 100644
+--- a/dist/vanilla-extract-next-plugin.esm.js
++++ b/dist/vanilla-extract-next-plugin.esm.js
+@@ -29,17 +29,21 @@ const createVanillaExtractPlugin = (pluginOptions = {}) => (nextConfig = {}) =>
+     cssRules.unshift({
+       test: /\.vanilla\.css$/i,
+       sideEffects: true,
+-      use: getGlobalCssLoader({
+-        assetPrefix: config.assetPrefix,
+-        isClient: !isServer,
+-        isServer,
+-        isDevelopment: dev,
+-        future: nextConfig.future || {},
+-        experimental: nextConfig.experimental || {}
+-      }, () => lazyPostCSS(dir, getSupportedBrowsers(dir, dev)), [])
++      use: [
++        require.resolve('next/dist/build/webpack/loaders/next-flight-css-dev-loader'),
++        ...getGlobalCssLoader({
++          assetPrefix: config.assetPrefix,
++          isClient: !isServer,
++          isServer,
++          isDevelopment: dev,
++          future: nextConfig.future || {},
++          experimental: nextConfig.experimental || {},
++          hasAppDir: true,
++        }, () => lazyPostCSS(dir, getSupportedBrowsers(dir, dev)), [])
++      ],
+     });
+     config.plugins.push(new VanillaExtractPlugin({
+-      outputCss: !isServer,
++      outputCss: true,
+       ...pluginOptions
+     }));
+ 

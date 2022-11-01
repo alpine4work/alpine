@@ -1,3 +1,5 @@
+"use client";
+
 import {IconContext} from "phosphor-react";
 import {Ref, forwardRef, useRef} from "react";
 import {AriaButtonProps, mergeProps, useButton, useHover} from "react-aria";

@@ -139,7 +139,7 @@ module.exports = {
         // our system. We treat top level directories as different execution
         // environments. We don't want code in `client` to be evaluated in
         // `server` for instance since `client` code might depend on the DOM and
-        // vice-versa. The Next.js `pages` directory is where we bring `client`
+        // vice-versa. The Next.js `app` directory is where we bring `client`
         // and `server` code together to render pages.
         "import/no-restricted-paths": [
             "error",
@@ -167,6 +167,18 @@ module.exports = {
                         // design here is only Next.js should import pages since adding
                         // files to the pages directory may influence routing.
                         except: ["./node_modules", "./shared", "./client", "./public", "./server"],
+                    },
+                    {
+                        target: "./app",
+                        from: "./",
+                        except: [
+                            "./node_modules",
+                            "./app",
+                            "./shared",
+                            "./client",
+                            "./public",
+                            "./server",
+                        ],
                     },
                     {
                         target: "./integration",
@@ -329,9 +341,14 @@ module.exports = {
             },
         },
         {
-            files: ["pages/**/*.page.*"],
+            files: [
+                "pages/**/*",
+                ...["page", "layout", "loading", "error", "template", "head"].map(
+                    name => `app/**/${name}.*`,
+                ),
+            ],
             rules: {
-                // Next.js uses default exports in the `./pages` directory to figure out
+                // Next.js uses default exports in the `./app` directory to figure out
                 // what to render.
                 "import/no-default-export": "off",
             },

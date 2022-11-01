@@ -1,4 +1,6 @@
-import {useRouter} from "next/router";
+"use client";
+
+import {useRouter} from "next/navigation";
 import {emptyDocumentContent} from "~/shared/documents/document-content-schema";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run-promise-without-awaiting";
 import {generateId} from "~/shared/id/id";
@@ -19,7 +21,7 @@ export default function HackyCreateDocumentPage() {
                         content: emptyDocumentContent,
                     });
 
-                    await router.push(`/documents/${documentId}`);
+                    router.push(`/documents/${documentId}`);
                 });
             }}
         >

@@ -1,35 +1,44 @@
-import {useRouter} from "next/router";
-import {useCallback, useMemo} from "react";
+import {usePathname, useRouter, useSearchParams} from "next/navigation";
+import {useCallback, useEffect, useRef} from "react";
 
 /**
  * Convenient React-style state for a string that is persisted in the URL's
  * search parameters.
  */
+// TODO(calebmer): This is much slower now with React server components. Maybe
+// find a different strategy for updating this state? Can we make it client
+// only.
 export function useUrlSearchParamState(
     searchParamName: string,
 ): [value: string | null, setValue: (value: string | null) => void] {
     const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
 
-    const value = useMemo(() => {
-        // If Next.js is rendering the page with SSG, search params are
-        // not available.
-        if (!router.isReady) return null;
+    const pathnameAndSearchParamsRef = useRef({pathname, searchParams});
+    useEffect(() => {
+        pathnameAndSearchParamsRef.current = {pathname, searchParams};
+    });
 
-        const url = new URL(`https://www.example.com${router.asPath}`);
-        return url.searchParams.get(searchParamName);
-    }, [router.isReady, router.asPath, searchParamName]);
+    const value = searchParams.get(searchParamName);
 
     const setValue = useCallback(
         (value: string | null) => {
-            const url = new URL(`https://www.example.com${router.asPath}`);
+            const {searchParams, pathname} = pathnameAndSearchParamsRef.current;
+
+            const newSearchParams = new URLSearchParams(searchParams);
 
             if (value !== null) {
-                url.searchParams.set(searchParamName, value);
+                newSearchParams.set(searchParamName, value);
             } else {
-                url.searchParams.delete(searchParamName);
+                newSearchParams.delete(searchParamName);
             }
 
-            void router.replace(`${url.pathname}${url.hash}${url.search}`);
+            const newSearchParamsString = newSearchParams.toString();
+
+            router.replace(
+                `${pathname}${newSearchParamsString.length > 0 ? `?${newSearchParamsString}` : ""}`,
+            );
         },
         [searchParamName, router],
     );
