@@ -1,6 +1,4 @@
-import * as cdk from "aws-cdk-lib";
 import {paramCase} from "change-case";
-import {Construct} from "constructs";
 import fs from "fs-extra";
 import isCi from "is-ci";
 import path from "path";
@@ -158,27 +156,8 @@ export class DynamoTableSchema<
         allConstructedDynamoTableSchemas.set(this._config.name, this);
     }
 
-    public addAwsResources(scope: Construct) {
-        new cdk.aws_dynamodb.Table(scope, `${this._config.name}Table`, {
-            tableName: this._config.name,
-            partitionKey: {
-                name: "partitionKey",
-                type: cdk.aws_dynamodb.AttributeType.STRING,
-            },
-            sortKey: {
-                name: "sortKey",
-                type: cdk.aws_dynamodb.AttributeType.STRING,
-            },
-
-            // If we have predictable traffic patterns then provisioned billing mode may be
-            // cheaper. If we're consistently utilizing 100% provisioned capacity (very
-            // unlikely) then provisioned billing mode is ~7x cheaper.
-            //
-            // Reconsider billing mode when we have traffic.
-            //
-            // https://www.serverless.com/blog/dynamodb-on-demand-serverless
-            billingMode: cdk.aws_dynamodb.BillingMode.PAY_PER_REQUEST,
-        });
+    public getName() {
+        return this._config.name;
     }
 
     /**

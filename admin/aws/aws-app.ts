@@ -1,7 +1,7 @@
 import * as cdk from "aws-cdk-lib";
 import {Construct} from "constructs";
 import path from "path";
-import {addAllDynamoAwsResources} from "~/server/dynamo/add-all-dynamo-aws-resources";
+import {addAllDynamoAwsResources} from "~/admin/aws/internal/add-all-dynamo-aws-resources";
 import {repoDirectoryPath} from "~/server/helpers/repo-directory-path";
 
 const outputDirectoryPath = path.join(repoDirectoryPath, "admin/aws/output");

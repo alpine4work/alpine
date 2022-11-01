@@ -1,4 +1,4 @@
-import {importAllDynamoModules} from "~/server/dynamo/internal/import-all-dynamo-modules";
+import {importAllDynamoModules} from "~/admin/aws/internal/import-all-dynamo-modules";
 import {noop} from "~/shared/helpers/control/noop";
 
 // When we run tests we set the Jest `afterEach` and friends hooks to `noop` so
