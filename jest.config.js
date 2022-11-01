@@ -1,5 +1,7 @@
 "use strict";
 
+// TODO(calebmer): Fix tests
+
 const nextJest = require("next/jest");
 
 const createJestConfig = nextJest({dir: "./"});

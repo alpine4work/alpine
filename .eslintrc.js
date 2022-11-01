@@ -1,7 +1,8 @@
 "use strict";
 
+/** @type {import('eslint').Linter.Config} */
 module.exports = {
-    extends: ["react-app", "next/core-web-vitals"],
+    extends: ["@remix-run/eslint-config", "@remix-run/eslint-config/node"],
     plugins: ["@typescript-eslint", "jest", "jest-dom", "testing-library"],
     reportUnusedDisableDirectives: true,
     rules: {
@@ -161,11 +162,11 @@ module.exports = {
                         except: ["./node_modules", "./server", "./shared"],
                     },
                     {
-                        target: "./pages",
+                        target: "./app",
                         from: "./",
-                        // NOTE: `./pages` is not configured to import from itself. The
-                        // design here is only Next.js should import pages since adding
-                        // files to the pages directory may influence routing.
+                        // NOTE: `./app` is not configured to import from itself. The
+                        // design here is only Remix should import routes since adding
+                        // files to the `./app` directory may influence routing.
                         except: ["./node_modules", "./shared", "./client", "./public", "./server"],
                     },
                     {
@@ -214,11 +215,6 @@ module.exports = {
         // Require a line to deliniate import declarations from the code which will
         // actually be evaluated.
         "import/newline-after-import": "warn",
-
-        // Conflicts with the Next.js `<Link><a>...</a></Link>` component style.
-        // Could we have a better eslint rule or a custom link component and
-        // re-enable this?
-        "jsx-a11y/anchor-is-valid": "off",
 
         // Use the exhaustive deps lint rule on some custom hooks.
         //
@@ -329,9 +325,9 @@ module.exports = {
             },
         },
         {
-            files: ["pages/**/*.page.*"],
+            files: ["app/**/*"],
             rules: {
-                // Next.js uses default exports in the `./pages` directory to figure out
+                // Remix uses default exports in the `./app` directory to figure out
                 // what to render.
                 "import/no-default-export": "off",
             },

@@ -1,6 +1,8 @@
 # npm
 /node_modules
 
-# Next.js
-/.next
-/build
+# Remix
+/.cache
+/functions/\[\[path\]\].js
+/functions/\[\[path\]\].js.map
+/public/build

@@ -12,9 +12,9 @@
          *                                 Language                                   *
         \* ========================================================================== */
 
-        "target": "es5",
+        "target": "es2019",
         "lib": ["dom", "dom.iterable", "esnext"],
-        "jsx": "preserve",
+        "jsx": "react-jsx",
         "downlevelIteration": true,
         "useDefineForClassFields": true,
 
@@ -53,6 +53,6 @@
         "skipLibCheck": true,
         "types": ["jest"]
     },
-    "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
+    "include": ["remix-env.d.ts", "**/*.ts", "**/*.tsx"],
     "exclude": ["node_modules"]
 }

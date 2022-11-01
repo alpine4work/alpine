@@ -6,10 +6,11 @@
 # Testing
 /coverage
 
-# Next.js
-/.next/
-/out/
-/build/
+# Remix
+/.cache
+/functions/\[\[path\]\].js
+/functions/\[\[path\]\].js.map
+/public/build
 
 # Misc
 .DS_Store
@@ -23,9 +24,6 @@ yarn-error.log*
 
 # Local env files
 .env*.local
-
-# Vercel
-.vercel
 
 # TypeScript
 *.tsbuildinfo
