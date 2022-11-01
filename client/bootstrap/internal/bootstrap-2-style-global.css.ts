@@ -47,7 +47,7 @@ globalStyle("body", {
     ...fontScale.small,
 });
 
-globalStyle("html, body", {
+globalStyle("html, body, #__next", {
     height: "100%",
 });
 

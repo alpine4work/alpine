@@ -1,7 +1,3 @@
-// TODO(calebmer): When we start to build an actual design playground, does this
-// all need to be client side rendered?
-"use client";
-
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
 import {OverlayPlacement} from "~/client/design/overlay";

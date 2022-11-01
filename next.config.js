@@ -5,9 +5,17 @@ const {createVanillaExtractPlugin} = require("@vanilla-extract/next-plugin");
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    experimental: {
-        appDir: true,
-    },
+    // Require pages to include `.page` in the extension. This serves a couple
+    // purposes:
+    //
+    // 1. It's pretty clear when you're exposing code to the open internet.
+    // 2. Easier to globally search for page files.
+    // 3. Allows non-page files in the `pages` directory like tests.
+    //
+    // In general, try to put non-page code in `frontend`, `backend`, or `shared`.
+    // Avoids potential security concerns where non-page code is accessible to
+    // the public internet.
+    pageExtensions: ["tsx", "ts", "jsx", "js", "mjs"].map(ext => `page.${ext}`),
 
     poweredByHeader: false,
     reactStrictMode: true,
@@ -33,7 +41,7 @@ const nextConfig = {
             }),
         );
 
-        // If we are building the client, don't accidentally bundle files in the
+        // If we are building the client, don’t accidentally bundle files in the
         // server directory.
         if (!isServer) {
             config.plugins.push(

@@ -1,44 +1,35 @@
-import {usePathname, useRouter, useSearchParams} from "next/navigation";
-import {useCallback, useEffect, useRef} from "react";
+import {useRouter} from "next/router";
+import {useCallback, useMemo} from "react";
 
 /**
  * Convenient React-style state for a string that is persisted in the URL's
  * search parameters.
  */
-// TODO(calebmer): This is much slower now with React server components. Maybe
-// find a different strategy for updating this state? Can we make it client
-// only.
 export function useUrlSearchParamState(
     searchParamName: string,
 ): [value: string | null, setValue: (value: string | null) => void] {
     const router = useRouter();
-    const pathname = usePathname();
-    const searchParams = useSearchParams();
 
-    const pathnameAndSearchParamsRef = useRef({pathname, searchParams});
-    useEffect(() => {
-        pathnameAndSearchParamsRef.current = {pathname, searchParams};
-    });
+    const value = useMemo(() => {
+        // If Next.js is rendering the page with SSG, search params are
+        // not available.
+        if (!router.isReady) return null;
 
-    const value = searchParams.get(searchParamName);
+        const url = new URL(`https://www.example.com${router.asPath}`);
+        return url.searchParams.get(searchParamName);
+    }, [router.isReady, router.asPath, searchParamName]);
 
     const setValue = useCallback(
         (value: string | null) => {
-            const {searchParams, pathname} = pathnameAndSearchParamsRef.current;
-
-            const newSearchParams = new URLSearchParams(searchParams);
+            const url = new URL(`https://www.example.com${router.asPath}`);
 
             if (value !== null) {
-                newSearchParams.set(searchParamName, value);
+                url.searchParams.set(searchParamName, value);
             } else {
-                newSearchParams.delete(searchParamName);
+                url.searchParams.delete(searchParamName);
             }
 
-            const newSearchParamsString = newSearchParams.toString();
-
-            router.replace(
-                `${pathname}${newSearchParamsString.length > 0 ? `?${newSearchParamsString}` : ""}`,
-            );
+            void router.replace(`${url.pathname}${url.hash}${url.search}`);
         },
         [searchParamName, router],
     );

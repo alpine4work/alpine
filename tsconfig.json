@@ -40,7 +40,6 @@
         // instead of performing the Node.js module resolution algorithm.
         "baseUrl": "./.null",
         "paths": {"~/*": ["../*"]},
-        "plugins": [{"name": "next"}],
 
         /* ========================================================================== *\
          *                              Type Checking                                 *
@@ -54,6 +53,6 @@
         "skipLibCheck": true,
         "types": ["jest"]
     },
-    "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+    "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
     "exclude": ["node_modules"]
 }
