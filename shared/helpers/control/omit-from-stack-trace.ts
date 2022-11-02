@@ -13,8 +13,8 @@ export function omitFromStackTrace<Args extends Array<unknown>, Return>(
         try {
             return fn(...args);
         } catch (error) {
-            if (error instanceof Error && Error.captureStackTrace) {
-                Error.captureStackTrace(error, wrappedFn);
+            if (error instanceof Error && (Error as any).captureStackTrace) {
+                (Error as any).captureStackTrace(error, wrappedFn);
             }
             throw error;
         }

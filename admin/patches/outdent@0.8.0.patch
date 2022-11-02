@@ -51,7 +51,7 @@ index 7b55ef3b1c4129e26d6b842b0462a6455845c975..ca13e0204ad78f714abc35395c235980
 @@ -250,17 +250,5 @@ export default defaultOutdent;
  // import {outdent} from 'outdent';
  export { defaultOutdent as outdent };
- 
+
 -// In CommonJS environments, enable `var outdent = require('outdent');` by
 -// replacing the exports object.
 -// Make sure that our replacement includes the named exports from above.

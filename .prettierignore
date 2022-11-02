@@ -1,6 +1,9 @@
 # npm
 /node_modules
 
+# Bazel
+/bazel-*
+
 # Remix
 /.cache
 /functions/\[\[path\]\].js

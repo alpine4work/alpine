@@ -1,7 +1,7 @@
 import {assignVars, createGlobalTheme, globalStyle, style} from "@vanilla-extract/css";
-import assert from "assert";
 import {Color, colors} from "~/shared/design/colors";
 import {ThemeColor, themeColors} from "~/shared/design/theme-colors";
+import {assert} from "~/shared/helpers/control/assert";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get-or-set-default-map-value";
 
 /**
@@ -100,11 +100,18 @@ const invertedSelectionColors = Object.fromEntries(
     }),
 ) as {readonly [C in ThemeColor | "grey" as `${C}-selection`]: `#${string}`};
 
+// Copied from `@vanilla-extract/private` since TypeScript needs an annotation
+// for exported variables to generate a declaration and we don't want to import
+// from a private package.
+export type CssVarFunction = `var(--${string})` | `var(--${string}, ${string | number})`;
+
 /**
  * Colors that switch dynamically between light and dark mode depending on
  * the context.
  */
-const baseColorSchemeVars = createGlobalTheme(":root", {
+const baseColorSchemeVars: {
+    [K in keyof typeof colors | keyof typeof selectionColors]: CssVarFunction;
+} = createGlobalTheme(":root", {
     ...colors,
     ...selectionColors,
 });
@@ -125,7 +132,7 @@ globalStyle(darkColorSchemeSelector, {
  */
 const constantColors = Object.fromEntries(
     Object.entries(colors).map(([colorName, colorHexCode]) => [`${colorName}-const`, colorHexCode]),
-) as {[C in Color as `${C}-const`]: typeof colors[C]};
+) as {[C in Color as `${C}-const`]: string};
 
 /**
  * The default color theme when the user is not within a space.
@@ -162,7 +169,8 @@ function createTheme(color: ThemeColor) {
  * Color variables that are set to some user determined theme value.
  */
 // TODO(calebmer): Allow switching theme color vars based on workspace settings.
-const themeColorSchemeVars = createGlobalTheme(":root", createTheme(defaultThemeColor));
+const themeColorSchemeVars: {[K in keyof ReturnType<typeof createTheme>]: CssVarFunction} =
+    createGlobalTheme(":root", createTheme(defaultThemeColor));
 
 export const colorSchemeVars = {
     ...baseColorSchemeVars,

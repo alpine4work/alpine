@@ -77,8 +77,9 @@ export function defineNetworkFunction<
         if (typeof window === "undefined") {
             const {getNetworkFunctionImplementation} = await import(
                 // Only executes on the server so it's fine to import a server file.
-                // eslint-disable-next-line import/no-restricted-paths
-                "~/server/network/all-network-implementations"
+                // We cast to `as any` to break TypeScript's static analysis but our bundler
+                // should still import the right file.
+                "~/server/network/all-network-implementations" as any
             );
 
             const networkFunctionImplementation = getNetworkFunctionImplementation(name);
@@ -180,7 +181,7 @@ async function executeNetworkFunctions(
         });
 
         const output = await response
-            .json<SchemaSerializedValue>()
+            .json()
             .then(output => NetworkFunctionHttpOutputSchema.deserialize(output))
             .catch(error => {
                 // If we fail to parse the response body as JSON, classify as `Internal`

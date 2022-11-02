@@ -4,9 +4,7 @@
          *                                 Compiler                                   *
         \* ========================================================================== */
 
-        // We use Babel for compilation, not the TypeScript compiler.
-        "noEmit": true,
-        "incremental": true,
+        "declaration": true,
 
         /* ========================================================================== *\
          *                                 Language                                   *
@@ -50,9 +48,8 @@
         "noPropertyAccessFromIndexSignature": false,
         "noImplicitOverride": true,
         "allowJs": true,
-        "skipLibCheck": true,
-        "types": ["jest"]
+        "skipLibCheck": true
     },
     "include": ["remix-env.d.ts", "**/*.ts", "**/*.tsx"],
-    "exclude": ["node_modules"]
+    "exclude": ["node_modules", "bazel-*"]
 }

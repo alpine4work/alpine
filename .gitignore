@@ -3,6 +3,9 @@
 /.pnp
 .pnp.js
 
+# Bazel
+/bazel-*
+
 # Testing
 /coverage
 

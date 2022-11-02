@@ -1,0 +1,6 @@
+# Show the stdout/stderr of failed tests for debugging why they failed.
+test --test_output=errors
+
+# We only want to build tests when testing multiple targets. For example
+# `bazel test //...` shouldn’t build the iOS app.
+test --build_tests_only

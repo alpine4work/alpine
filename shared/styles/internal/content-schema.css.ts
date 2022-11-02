@@ -7,7 +7,7 @@ import {
     spacing,
 } from "~/shared/design/spacing";
 import {mapObjectValues} from "~/shared/helpers/object/map-object-values";
-import {colorSchemeVars} from "~/shared/styles/internal/color-scheme.css";
+import {CssVarFunction, colorSchemeVars} from "~/shared/styles/internal/color-scheme.css";
 import {fontScale, fonts} from "~/shared/styles/internal/fonts.css";
 
 const paragraphMargin = spacing["3"];
@@ -95,7 +95,7 @@ export const quoteBlockClassName = style({
 // roman numerals.
 
 const listItemIndentation = spacing["8"];
-export const listItemIndentationVar = createVar();
+export const listItemIndentationVar: CssVarFunction = createVar();
 
 const bulletListItemBulletSize = spacing["1.5"];
 

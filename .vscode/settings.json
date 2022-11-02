@@ -19,5 +19,14 @@
     "typescript.enablePromptUseWorkspaceTsdk": true,
     "javascript.preferences.importModuleSpecifier": "non-relative",
     "typescript.preferences.importModuleSpecifier": "non-relative",
-    "eslint.options": {"rulePaths": ["./admin/eslint/rules"]}
+    "eslint.options": {"rulePaths": ["./admin/eslint/rules"]},
+
+    /* ========================================================================== *\
+     *                                 Markdown                                   *
+    \* ========================================================================== */
+
+    "[markdown]": {
+        "editor.wordWrap": "wordWrapColumn",
+        "editor.wordWrapColumn": 100
+    }
 }
