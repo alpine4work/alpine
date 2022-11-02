@@ -1,6 +1,5 @@
-import type {NextApiRequest, NextApiResponse} from "next";
 import {getNetworkFunctionImplementation} from "~/server/network/all-network-implementations";
-import {getSession} from "~/server/session/session";
+import {commitSession, getSession} from "~/server/session/session";
 import {ErrorBase, InvalidArgumentError, NotFoundError} from "~/shared/error/error";
 import {ErrorCode} from "~/shared/error/error-code";
 import {isHttp500ErrorCode} from "~/shared/error/is-http-500-error-code";
@@ -12,16 +11,16 @@ import {
 } from "~/shared/network/helpers/network-function-http-schema";
 import {SchemaType} from "~/shared/schema/schema";
 
-export default async function executeNetworkFunctions(req: NextApiRequest, res: NextApiResponse) {
+export async function action({request}: {request: Request}) {
     try {
-        const session = await getSession({req, res});
+        const session = await getSession(request);
 
-        if (req.method !== "POST")
+        if (request.method !== "POST")
             throw new InvalidArgumentError(
                 "Must use POST HTTP method when executing network functions",
             );
 
-        const input = NetworkFunctionHttpInputSchema.deserialize(req.body);
+        const input = NetworkFunctionHttpInputSchema.deserialize(await request.json());
 
         const results = await Promise.allSettled(
             input.executions.map(
@@ -78,21 +77,40 @@ export default async function executeNetworkFunctions(req: NextApiRequest, res: 
                       500,
                   );
 
-        res.status(status).json(
-            NetworkFunctionHttpOutputSchema.serialize({
-                ok: true,
-                executions,
-            }),
+        return new Response(
+            JSON.stringify(
+                NetworkFunctionHttpOutputSchema.serialize({
+                    ok: true,
+                    executions,
+                }),
+            ),
+            {
+                status,
+                headers: {
+                    "Content-Type": "application/json",
+                    // TODO(calebmer): This only changes the cookie when we initialize the
+                    // `browserId`. Come up with a better design for cookies here.
+                    "Set-Cookie": await commitSession(request, session),
+                },
+            },
         );
     } catch (error) {
         const serializedError = serializeError(error);
         const status = isHttp500ErrorCode(serializedError.code) ? 500 : 400;
 
-        res.status(status).json(
-            NetworkFunctionHttpOutputSchema.serialize({
-                ok: false,
-                error: serializedError,
-            }),
+        return new Response(
+            JSON.stringify(
+                NetworkFunctionHttpOutputSchema.serialize({
+                    ok: false,
+                    error: serializedError,
+                }),
+            ),
+            {
+                status,
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            },
         );
     }
 }

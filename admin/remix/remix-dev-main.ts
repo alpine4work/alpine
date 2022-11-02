@@ -6,7 +6,7 @@ import http from "http";
 import path from "path";
 import stripAnsi from "strip-ansi";
 import {prepareLocalstack} from "~/admin/aws/prepare-localstack";
-import {repoDirectoryPath} from "~/server/helpers/repo-directory-path";
+import {repoDirectoryPath} from "~/admin/helpers/repo-directory-path";
 import {createPromiseResolver} from "~/shared/helpers/async/promise-resolver";
 import {assert} from "~/shared/helpers/control/assert";
 

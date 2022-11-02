@@ -36,7 +36,9 @@ export abstract class DynamoConditionExpression<Value> {
     /**
      * Converts a condition into an expression.
      */
-    public static from<Value>(condition: DynamoCondition<Value>): DynamoConditionExpression<Value> {
+    public static from<Value extends {[key: string]: any}>(
+        condition: DynamoCondition<Value>,
+    ): DynamoConditionExpression<Value> {
         if (condition instanceof DynamoConditionExpression) return condition;
         return DynamoConditionExpression.object(condition);
     }
@@ -46,7 +48,7 @@ export abstract class DynamoConditionExpression<Value> {
      * together. If the value is not a condition expression then that's the same as
      * `DynamoConditionExpression.eq()`.
      */
-    public static object<Value>(
+    public static object<Value extends {[key: string]: any}>(
         condition: DynamoConditionObject<Value>,
     ): DynamoConditionExpression<Value> {
         const [firstEntry, ...otherEntries] = Object.entries(condition).filter(

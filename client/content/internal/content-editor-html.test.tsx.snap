@@ -4,17 +4,17 @@ exports[`bold 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-editor_emptyTitleClassName__ub7ugv1 content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv3"
+  class="ProseMirror content-editor_emptyTitleClassName__1kmr0sb1 content-schema_docClassName__14cqkx70 content-editor_hideSelectionWhileUnfocusedClassName__1kmr0sb3"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <p
-    class="content-schema_paragraphClassName__neu0lc2"
+    class="content-schema_paragraphClassName__14cqkx72"
   >
     Hello 
     <strong
-      class="content-schema_boldClassName__neu0lch"
+      class="content-schema_boldClassName__14cqkx7i"
     >
       world
     </strong>
@@ -135,17 +135,17 @@ exports[`bullet list plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-editor_emptyTitleClassName__ub7ugv1 content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv3"
+  class="ProseMirror content-editor_emptyTitleClassName__1kmr0sb1 content-schema_docClassName__14cqkx70 content-editor_hideSelectionWhileUnfocusedClassName__1kmr0sb3"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <div
-    class="content-schema_listItemClassName__neu0lc8 content-schema_bulletListItemClassName__neu0lc9"
-    style="--listItemIndentationVar__neu0lc7:0"
+    class="content-schema_listItemClassName__14cqkx78 content-schema_bulletListItemClassName__14cqkx79"
+    style="--listItemIndentationVar__14cqkx77:0"
   >
     <p
-      class="content-schema_paragraphClassName__neu0lc2"
+      class="content-schema_paragraphClassName__14cqkx72"
     >
       Hello world!
     </p>
@@ -185,37 +185,37 @@ exports[`bullet list with multiple items 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-editor_emptyTitleClassName__ub7ugv1 content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv3"
+  class="ProseMirror content-editor_emptyTitleClassName__1kmr0sb1 content-schema_docClassName__14cqkx70 content-editor_hideSelectionWhileUnfocusedClassName__1kmr0sb3"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <div
-    class="content-schema_listItemClassName__neu0lc8 content-schema_bulletListItemClassName__neu0lc9"
-    style="--listItemIndentationVar__neu0lc7:0"
+    class="content-schema_listItemClassName__14cqkx78 content-schema_bulletListItemClassName__14cqkx79"
+    style="--listItemIndentationVar__14cqkx77:0"
   >
     <p
-      class="content-schema_paragraphClassName__neu0lc2"
+      class="content-schema_paragraphClassName__14cqkx72"
     >
       Item 1
     </p>
   </div>
   <div
-    class="content-schema_listItemClassName__neu0lc8 content-schema_bulletListItemClassName__neu0lc9"
-    style="--listItemIndentationVar__neu0lc7:0"
+    class="content-schema_listItemClassName__14cqkx78 content-schema_bulletListItemClassName__14cqkx79"
+    style="--listItemIndentationVar__14cqkx77:0"
   >
     <p
-      class="content-schema_paragraphClassName__neu0lc2"
+      class="content-schema_paragraphClassName__14cqkx72"
     >
       Item 2
     </p>
   </div>
   <div
-    class="content-schema_listItemClassName__neu0lc8 content-schema_bulletListItemClassName__neu0lc9"
-    style="--listItemIndentationVar__neu0lc7:0"
+    class="content-schema_listItemClassName__14cqkx78 content-schema_bulletListItemClassName__14cqkx79"
+    style="--listItemIndentationVar__14cqkx77:0"
   >
     <p
-      class="content-schema_paragraphClassName__neu0lc2"
+      class="content-schema_paragraphClassName__14cqkx72"
     >
       Item 3
     </p>
@@ -249,47 +249,47 @@ exports[`bullet list with sub-list 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-editor_emptyTitleClassName__ub7ugv1 content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv3"
+  class="ProseMirror content-editor_emptyTitleClassName__1kmr0sb1 content-schema_docClassName__14cqkx70 content-editor_hideSelectionWhileUnfocusedClassName__1kmr0sb3"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <div
-    class="content-schema_listItemClassName__neu0lc8 content-schema_bulletListItemClassName__neu0lc9"
-    style="--listItemIndentationVar__neu0lc7:0"
+    class="content-schema_listItemClassName__14cqkx78 content-schema_bulletListItemClassName__14cqkx79"
+    style="--listItemIndentationVar__14cqkx77:0"
   >
     <p
-      class="content-schema_paragraphClassName__neu0lc2"
+      class="content-schema_paragraphClassName__14cqkx72"
     >
       Test
     </p>
   </div>
   <div
-    class="content-schema_listItemClassName__neu0lc8 content-schema_bulletListItemClassName__neu0lc9"
-    style="--listItemIndentationVar__neu0lc7:1"
+    class="content-schema_listItemClassName__14cqkx78 content-schema_bulletListItemClassName__14cqkx79"
+    style="--listItemIndentationVar__14cqkx77:1"
   >
     <p
-      class="content-schema_paragraphClassName__neu0lc2"
+      class="content-schema_paragraphClassName__14cqkx72"
     >
       Item 1
     </p>
   </div>
   <div
-    class="content-schema_listItemClassName__neu0lc8 content-schema_bulletListItemClassName__neu0lc9"
-    style="--listItemIndentationVar__neu0lc7:1"
+    class="content-schema_listItemClassName__14cqkx78 content-schema_bulletListItemClassName__14cqkx79"
+    style="--listItemIndentationVar__14cqkx77:1"
   >
     <p
-      class="content-schema_paragraphClassName__neu0lc2"
+      class="content-schema_paragraphClassName__14cqkx72"
     >
       Item 2
     </p>
   </div>
   <div
-    class="content-schema_listItemClassName__neu0lc8 content-schema_bulletListItemClassName__neu0lc9"
-    style="--listItemIndentationVar__neu0lc7:1"
+    class="content-schema_listItemClassName__14cqkx78 content-schema_bulletListItemClassName__14cqkx79"
+    style="--listItemIndentationVar__14cqkx77:1"
   >
     <p
-      class="content-schema_paragraphClassName__neu0lc2"
+      class="content-schema_paragraphClassName__14cqkx72"
     >
       Item 3
     </p>
@@ -301,53 +301,53 @@ exports[`bullet list with sub-list of another type 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-editor_emptyTitleClassName__ub7ugv1 content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv3"
+  class="ProseMirror content-editor_emptyTitleClassName__1kmr0sb1 content-schema_docClassName__14cqkx70 content-editor_hideSelectionWhileUnfocusedClassName__1kmr0sb3"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <div
-    class="content-schema_listItemClassName__neu0lc8 content-schema_bulletListItemClassName__neu0lc9"
-    style="--listItemIndentationVar__neu0lc7:0"
+    class="content-schema_listItemClassName__14cqkx78 content-schema_bulletListItemClassName__14cqkx79"
+    style="--listItemIndentationVar__14cqkx77:0"
   >
     <p
-      class="content-schema_paragraphClassName__neu0lc2"
+      class="content-schema_paragraphClassName__14cqkx72"
     >
       Test
     </p>
   </div>
   <div
-    class="content-schema_listItemClassName__neu0lc8 content-schema_orderedListItemClassName__neu0lca"
+    class="content-schema_listItemClassName__14cqkx78 content-schema_orderedListItemClassName__14cqkx7a"
     data-list-indent="1"
     data-list-number="0"
-    style="--listItemIndentationVar__neu0lc7:1"
+    style="--listItemIndentationVar__14cqkx77:1"
   >
     <p
-      class="content-schema_paragraphClassName__neu0lc2"
+      class="content-schema_paragraphClassName__14cqkx72"
     >
       Item 1
     </p>
   </div>
   <div
-    class="content-schema_listItemClassName__neu0lc8 content-schema_orderedListItemClassName__neu0lca"
+    class="content-schema_listItemClassName__14cqkx78 content-schema_orderedListItemClassName__14cqkx7a"
     data-list-indent="1"
     data-list-number="0"
-    style="--listItemIndentationVar__neu0lc7:1"
+    style="--listItemIndentationVar__14cqkx77:1"
   >
     <p
-      class="content-schema_paragraphClassName__neu0lc2"
+      class="content-schema_paragraphClassName__14cqkx72"
     >
       Item 2
     </p>
   </div>
   <div
-    class="content-schema_listItemClassName__neu0lc8 content-schema_orderedListItemClassName__neu0lca"
+    class="content-schema_listItemClassName__14cqkx78 content-schema_orderedListItemClassName__14cqkx7a"
     data-list-indent="1"
     data-list-number="0"
-    style="--listItemIndentationVar__neu0lc7:1"
+    style="--listItemIndentationVar__14cqkx77:1"
   >
     <p
-      class="content-schema_paragraphClassName__neu0lc2"
+      class="content-schema_paragraphClassName__14cqkx72"
     >
       Item 3
     </p>
@@ -417,17 +417,17 @@ exports[`can put hard breaks inside list items 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-editor_emptyTitleClassName__ub7ugv1 content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv3"
+  class="ProseMirror content-editor_emptyTitleClassName__1kmr0sb1 content-schema_docClassName__14cqkx70 content-editor_hideSelectionWhileUnfocusedClassName__1kmr0sb3"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <div
-    class="content-schema_listItemClassName__neu0lc8 content-schema_bulletListItemClassName__neu0lc9"
-    style="--listItemIndentationVar__neu0lc7:0"
+    class="content-schema_listItemClassName__14cqkx78 content-schema_bulletListItemClassName__14cqkx79"
+    style="--listItemIndentationVar__14cqkx77:0"
   >
     <p
-      class="content-schema_paragraphClassName__neu0lc2"
+      class="content-schema_paragraphClassName__14cqkx72"
     >
       Hello…
       <br />
@@ -455,13 +455,13 @@ exports[`can put hard breaks inside paragraphs 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-editor_emptyTitleClassName__ub7ugv1 content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv3"
+  class="ProseMirror content-editor_emptyTitleClassName__1kmr0sb1 content-schema_docClassName__14cqkx70 content-editor_hideSelectionWhileUnfocusedClassName__1kmr0sb3"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <p
-    class="content-schema_paragraphClassName__neu0lc2"
+    class="content-schema_paragraphClassName__14cqkx72"
   >
     Hello…
     <br />
@@ -484,22 +484,22 @@ exports[`can put multiple paragraphs inside list items 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-editor_emptyTitleClassName__ub7ugv1 content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv3"
+  class="ProseMirror content-editor_emptyTitleClassName__1kmr0sb1 content-schema_docClassName__14cqkx70 content-editor_hideSelectionWhileUnfocusedClassName__1kmr0sb3"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <div
-    class="content-schema_listItemClassName__neu0lc8 content-schema_bulletListItemClassName__neu0lc9"
-    style="--listItemIndentationVar__neu0lc7:0"
+    class="content-schema_listItemClassName__14cqkx78 content-schema_bulletListItemClassName__14cqkx79"
+    style="--listItemIndentationVar__14cqkx77:0"
   >
     <p
-      class="content-schema_paragraphClassName__neu0lc2"
+      class="content-schema_paragraphClassName__14cqkx72"
     >
       Hello…
     </p>
     <p
-      class="content-schema_paragraphClassName__neu0lc2"
+      class="content-schema_paragraphClassName__14cqkx72"
     >
       …world!
     </p>
@@ -652,20 +652,20 @@ exports[`check list (checked) plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-editor_emptyTitleClassName__ub7ugv1 content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv3"
+  class="ProseMirror content-editor_emptyTitleClassName__1kmr0sb1 content-schema_docClassName__14cqkx70 content-editor_hideSelectionWhileUnfocusedClassName__1kmr0sb3"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <div
-    class="content-schema_listItemClassName__neu0lc8 content-schema_checkListItemCheckedClassName__neu0lcb"
-    style="--listItemIndentationVar__neu0lc7:0"
+    class="content-schema_listItemClassName__14cqkx78 content-schema_checkListItemCheckedClassName__14cqkx7b"
+    style="--listItemIndentationVar__14cqkx77:0"
   >
     <div
-      class="content-schema_checkListItemCheckboxContainerClassName__neu0lcd"
+      class="content-schema_checkListItemCheckboxContainerClassName__14cqkx7d"
     >
       <div
-        class="content-schema_checkListItemCheckboxClassName__neu0lce"
+        class="content-schema_checkListItemCheckboxClassName__14cqkx7e"
       >
         <svg
           height="100%"
@@ -690,10 +690,10 @@ exports[`check list (checked) plain 1`] = `
       </div>
     </div>
     <div
-      class="content-schema_checkListItemContentClassName__neu0lcc"
+      class="content-schema_checkListItemContentClassName__14cqkx7c"
     >
       <p
-        class="content-schema_paragraphClassName__neu0lc2"
+        class="content-schema_paragraphClassName__14cqkx72"
       >
         Hello world!
       </p>
@@ -864,20 +864,20 @@ exports[`check list (unchecked) plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-editor_emptyTitleClassName__ub7ugv1 content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv3"
+  class="ProseMirror content-editor_emptyTitleClassName__1kmr0sb1 content-schema_docClassName__14cqkx70 content-editor_hideSelectionWhileUnfocusedClassName__1kmr0sb3"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <div
-    class="content-schema_listItemClassName__neu0lc8"
-    style="--listItemIndentationVar__neu0lc7:0"
+    class="content-schema_listItemClassName__14cqkx78"
+    style="--listItemIndentationVar__14cqkx77:0"
   >
     <div
-      class="content-schema_checkListItemCheckboxContainerClassName__neu0lcd"
+      class="content-schema_checkListItemCheckboxContainerClassName__14cqkx7d"
     >
       <div
-        class="content-schema_checkListItemCheckboxClassName__neu0lce"
+        class="content-schema_checkListItemCheckboxClassName__14cqkx7e"
       >
         <svg
           height="100%"
@@ -902,10 +902,10 @@ exports[`check list (unchecked) plain 1`] = `
       </div>
     </div>
     <div
-      class="content-schema_checkListItemContentClassName__neu0lcc"
+      class="content-schema_checkListItemContentClassName__14cqkx7c"
     >
       <p
-        class="content-schema_paragraphClassName__neu0lc2"
+        class="content-schema_paragraphClassName__14cqkx72"
       >
         Hello world!
       </p>
@@ -954,20 +954,20 @@ exports[`check list with multiple items 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-editor_emptyTitleClassName__ub7ugv1 content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv3"
+  class="ProseMirror content-editor_emptyTitleClassName__1kmr0sb1 content-schema_docClassName__14cqkx70 content-editor_hideSelectionWhileUnfocusedClassName__1kmr0sb3"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <div
-    class="content-schema_listItemClassName__neu0lc8 content-schema_checkListItemCheckedClassName__neu0lcb"
-    style="--listItemIndentationVar__neu0lc7:0"
+    class="content-schema_listItemClassName__14cqkx78 content-schema_checkListItemCheckedClassName__14cqkx7b"
+    style="--listItemIndentationVar__14cqkx77:0"
   >
     <div
-      class="content-schema_checkListItemCheckboxContainerClassName__neu0lcd"
+      class="content-schema_checkListItemCheckboxContainerClassName__14cqkx7d"
     >
       <div
-        class="content-schema_checkListItemCheckboxClassName__neu0lce"
+        class="content-schema_checkListItemCheckboxClassName__14cqkx7e"
       >
         <svg
           height="100%"
@@ -992,24 +992,24 @@ exports[`check list with multiple items 1`] = `
       </div>
     </div>
     <div
-      class="content-schema_checkListItemContentClassName__neu0lcc"
+      class="content-schema_checkListItemContentClassName__14cqkx7c"
     >
       <p
-        class="content-schema_paragraphClassName__neu0lc2"
+        class="content-schema_paragraphClassName__14cqkx72"
       >
         Item 1
       </p>
     </div>
   </div>
   <div
-    class="content-schema_listItemClassName__neu0lc8"
-    style="--listItemIndentationVar__neu0lc7:0"
+    class="content-schema_listItemClassName__14cqkx78"
+    style="--listItemIndentationVar__14cqkx77:0"
   >
     <div
-      class="content-schema_checkListItemCheckboxContainerClassName__neu0lcd"
+      class="content-schema_checkListItemCheckboxContainerClassName__14cqkx7d"
     >
       <div
-        class="content-schema_checkListItemCheckboxClassName__neu0lce"
+        class="content-schema_checkListItemCheckboxClassName__14cqkx7e"
       >
         <svg
           height="100%"
@@ -1034,24 +1034,24 @@ exports[`check list with multiple items 1`] = `
       </div>
     </div>
     <div
-      class="content-schema_checkListItemContentClassName__neu0lcc"
+      class="content-schema_checkListItemContentClassName__14cqkx7c"
     >
       <p
-        class="content-schema_paragraphClassName__neu0lc2"
+        class="content-schema_paragraphClassName__14cqkx72"
       >
         Item 2
       </p>
     </div>
   </div>
   <div
-    class="content-schema_listItemClassName__neu0lc8 content-schema_checkListItemCheckedClassName__neu0lcb"
-    style="--listItemIndentationVar__neu0lc7:0"
+    class="content-schema_listItemClassName__14cqkx78 content-schema_checkListItemCheckedClassName__14cqkx7b"
+    style="--listItemIndentationVar__14cqkx77:0"
   >
     <div
-      class="content-schema_checkListItemCheckboxContainerClassName__neu0lcd"
+      class="content-schema_checkListItemCheckboxContainerClassName__14cqkx7d"
     >
       <div
-        class="content-schema_checkListItemCheckboxClassName__neu0lce"
+        class="content-schema_checkListItemCheckboxClassName__14cqkx7e"
       >
         <svg
           height="100%"
@@ -1076,10 +1076,10 @@ exports[`check list with multiple items 1`] = `
       </div>
     </div>
     <div
-      class="content-schema_checkListItemContentClassName__neu0lcc"
+      class="content-schema_checkListItemContentClassName__14cqkx7c"
     >
       <p
-        class="content-schema_paragraphClassName__neu0lc2"
+        class="content-schema_paragraphClassName__14cqkx72"
       >
         Item 3
       </p>
@@ -1128,20 +1128,20 @@ exports[`check list with sub-list 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-editor_emptyTitleClassName__ub7ugv1 content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv3"
+  class="ProseMirror content-editor_emptyTitleClassName__1kmr0sb1 content-schema_docClassName__14cqkx70 content-editor_hideSelectionWhileUnfocusedClassName__1kmr0sb3"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <div
-    class="content-schema_listItemClassName__neu0lc8 content-schema_checkListItemCheckedClassName__neu0lcb"
-    style="--listItemIndentationVar__neu0lc7:0"
+    class="content-schema_listItemClassName__14cqkx78 content-schema_checkListItemCheckedClassName__14cqkx7b"
+    style="--listItemIndentationVar__14cqkx77:0"
   >
     <div
-      class="content-schema_checkListItemCheckboxContainerClassName__neu0lcd"
+      class="content-schema_checkListItemCheckboxContainerClassName__14cqkx7d"
     >
       <div
-        class="content-schema_checkListItemCheckboxClassName__neu0lce"
+        class="content-schema_checkListItemCheckboxClassName__14cqkx7e"
       >
         <svg
           height="100%"
@@ -1166,24 +1166,24 @@ exports[`check list with sub-list 1`] = `
       </div>
     </div>
     <div
-      class="content-schema_checkListItemContentClassName__neu0lcc"
+      class="content-schema_checkListItemContentClassName__14cqkx7c"
     >
       <p
-        class="content-schema_paragraphClassName__neu0lc2"
+        class="content-schema_paragraphClassName__14cqkx72"
       >
         Test
       </p>
     </div>
   </div>
   <div
-    class="content-schema_listItemClassName__neu0lc8 content-schema_checkListItemCheckedClassName__neu0lcb"
-    style="--listItemIndentationVar__neu0lc7:1"
+    class="content-schema_listItemClassName__14cqkx78 content-schema_checkListItemCheckedClassName__14cqkx7b"
+    style="--listItemIndentationVar__14cqkx77:1"
   >
     <div
-      class="content-schema_checkListItemCheckboxContainerClassName__neu0lcd"
+      class="content-schema_checkListItemCheckboxContainerClassName__14cqkx7d"
     >
       <div
-        class="content-schema_checkListItemCheckboxClassName__neu0lce"
+        class="content-schema_checkListItemCheckboxClassName__14cqkx7e"
       >
         <svg
           height="100%"
@@ -1208,24 +1208,24 @@ exports[`check list with sub-list 1`] = `
       </div>
     </div>
     <div
-      class="content-schema_checkListItemContentClassName__neu0lcc"
+      class="content-schema_checkListItemContentClassName__14cqkx7c"
     >
       <p
-        class="content-schema_paragraphClassName__neu0lc2"
+        class="content-schema_paragraphClassName__14cqkx72"
       >
         Item 1
       </p>
     </div>
   </div>
   <div
-    class="content-schema_listItemClassName__neu0lc8"
-    style="--listItemIndentationVar__neu0lc7:1"
+    class="content-schema_listItemClassName__14cqkx78"
+    style="--listItemIndentationVar__14cqkx77:1"
   >
     <div
-      class="content-schema_checkListItemCheckboxContainerClassName__neu0lcd"
+      class="content-schema_checkListItemCheckboxContainerClassName__14cqkx7d"
     >
       <div
-        class="content-schema_checkListItemCheckboxClassName__neu0lce"
+        class="content-schema_checkListItemCheckboxClassName__14cqkx7e"
       >
         <svg
           height="100%"
@@ -1250,24 +1250,24 @@ exports[`check list with sub-list 1`] = `
       </div>
     </div>
     <div
-      class="content-schema_checkListItemContentClassName__neu0lcc"
+      class="content-schema_checkListItemContentClassName__14cqkx7c"
     >
       <p
-        class="content-schema_paragraphClassName__neu0lc2"
+        class="content-schema_paragraphClassName__14cqkx72"
       >
         Item 2
       </p>
     </div>
   </div>
   <div
-    class="content-schema_listItemClassName__neu0lc8 content-schema_checkListItemCheckedClassName__neu0lcb"
-    style="--listItemIndentationVar__neu0lc7:1"
+    class="content-schema_listItemClassName__14cqkx78 content-schema_checkListItemCheckedClassName__14cqkx7b"
+    style="--listItemIndentationVar__14cqkx77:1"
   >
     <div
-      class="content-schema_checkListItemCheckboxContainerClassName__neu0lcd"
+      class="content-schema_checkListItemCheckboxContainerClassName__14cqkx7d"
     >
       <div
-        class="content-schema_checkListItemCheckboxClassName__neu0lce"
+        class="content-schema_checkListItemCheckboxClassName__14cqkx7e"
       >
         <svg
           height="100%"
@@ -1292,10 +1292,10 @@ exports[`check list with sub-list 1`] = `
       </div>
     </div>
     <div
-      class="content-schema_checkListItemContentClassName__neu0lcc"
+      class="content-schema_checkListItemContentClassName__14cqkx7c"
     >
       <p
-        class="content-schema_paragraphClassName__neu0lc2"
+        class="content-schema_paragraphClassName__14cqkx72"
       >
         Item 3
       </p>
@@ -1308,20 +1308,20 @@ exports[`check list with sub-list of another type 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-editor_emptyTitleClassName__ub7ugv1 content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv3"
+  class="ProseMirror content-editor_emptyTitleClassName__1kmr0sb1 content-schema_docClassName__14cqkx70 content-editor_hideSelectionWhileUnfocusedClassName__1kmr0sb3"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <div
-    class="content-schema_listItemClassName__neu0lc8 content-schema_checkListItemCheckedClassName__neu0lcb"
-    style="--listItemIndentationVar__neu0lc7:0"
+    class="content-schema_listItemClassName__14cqkx78 content-schema_checkListItemCheckedClassName__14cqkx7b"
+    style="--listItemIndentationVar__14cqkx77:0"
   >
     <div
-      class="content-schema_checkListItemCheckboxContainerClassName__neu0lcd"
+      class="content-schema_checkListItemCheckboxContainerClassName__14cqkx7d"
     >
       <div
-        class="content-schema_checkListItemCheckboxClassName__neu0lce"
+        class="content-schema_checkListItemCheckboxClassName__14cqkx7e"
       >
         <svg
           height="100%"
@@ -1346,47 +1346,47 @@ exports[`check list with sub-list of another type 1`] = `
       </div>
     </div>
     <div
-      class="content-schema_checkListItemContentClassName__neu0lcc"
+      class="content-schema_checkListItemContentClassName__14cqkx7c"
     >
       <p
-        class="content-schema_paragraphClassName__neu0lc2"
+        class="content-schema_paragraphClassName__14cqkx72"
       >
         Test
       </p>
     </div>
   </div>
   <div
-    class="content-schema_listItemClassName__neu0lc8 content-schema_orderedListItemClassName__neu0lca"
+    class="content-schema_listItemClassName__14cqkx78 content-schema_orderedListItemClassName__14cqkx7a"
     data-list-indent="1"
     data-list-number="0"
-    style="--listItemIndentationVar__neu0lc7:1"
+    style="--listItemIndentationVar__14cqkx77:1"
   >
     <p
-      class="content-schema_paragraphClassName__neu0lc2"
+      class="content-schema_paragraphClassName__14cqkx72"
     >
       Item 1
     </p>
   </div>
   <div
-    class="content-schema_listItemClassName__neu0lc8 content-schema_orderedListItemClassName__neu0lca"
+    class="content-schema_listItemClassName__14cqkx78 content-schema_orderedListItemClassName__14cqkx7a"
     data-list-indent="1"
     data-list-number="0"
-    style="--listItemIndentationVar__neu0lc7:1"
+    style="--listItemIndentationVar__14cqkx77:1"
   >
     <p
-      class="content-schema_paragraphClassName__neu0lc2"
+      class="content-schema_paragraphClassName__14cqkx72"
     >
       Item 2
     </p>
   </div>
   <div
-    class="content-schema_listItemClassName__neu0lc8 content-schema_orderedListItemClassName__neu0lca"
+    class="content-schema_listItemClassName__14cqkx78 content-schema_orderedListItemClassName__14cqkx7a"
     data-list-indent="1"
     data-list-number="0"
-    style="--listItemIndentationVar__neu0lc7:1"
+    style="--listItemIndentationVar__14cqkx77:1"
   >
     <p
-      class="content-schema_paragraphClassName__neu0lc2"
+      class="content-schema_paragraphClassName__14cqkx72"
     >
       Item 3
     </p>
@@ -1480,17 +1480,17 @@ exports[`code 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-editor_emptyTitleClassName__ub7ugv1 content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv3"
+  class="ProseMirror content-editor_emptyTitleClassName__1kmr0sb1 content-schema_docClassName__14cqkx70 content-editor_hideSelectionWhileUnfocusedClassName__1kmr0sb3"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <p
-    class="content-schema_paragraphClassName__neu0lc2"
+    class="content-schema_paragraphClassName__14cqkx72"
   >
     Hello 
     <code
-      class="content-schema_codeClassName__neu0lck"
+      class="content-schema_codeClassName__14cqkx7h"
     >
       world
     </code>
@@ -1511,7 +1511,7 @@ exports[`code plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-editor_emptyTitleClassName__ub7ugv1 content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv3"
+  class="ProseMirror content-editor_emptyTitleClassName__1kmr0sb1 content-schema_docClassName__14cqkx70 content-editor_hideSelectionWhileUnfocusedClassName__1kmr0sb3"
   contenteditable="true"
   role="textbox"
   translate="no"
@@ -1550,13 +1550,13 @@ exports[`divider empty 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-editor_emptyTitleClassName__ub7ugv1 content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv3"
+  class="ProseMirror content-editor_emptyTitleClassName__1kmr0sb1 content-schema_docClassName__14cqkx70 content-editor_hideSelectionWhileUnfocusedClassName__1kmr0sb3"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <hr
-    class="content-schema_dividerClassName__neu0lcg ProseMirror-selectednode"
+    class="content-schema_dividerClassName__14cqkx7g ProseMirror-selectednode"
     draggable="true"
   />
 </div>
@@ -1644,13 +1644,13 @@ exports[`heading 1 plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-editor_emptyTitleClassName__ub7ugv1 content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv3"
+  class="ProseMirror content-editor_emptyTitleClassName__1kmr0sb1 content-schema_docClassName__14cqkx70 content-editor_hideSelectionWhileUnfocusedClassName__1kmr0sb3"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <h2
-    class="content-schema_headingLevel1ClassName__neu0lc3"
+    class="content-schema_headingLevel1ClassName__14cqkx73"
   >
     Hello world!
   </h2>
@@ -1753,13 +1753,13 @@ exports[`heading 2 plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-editor_emptyTitleClassName__ub7ugv1 content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv3"
+  class="ProseMirror content-editor_emptyTitleClassName__1kmr0sb1 content-schema_docClassName__14cqkx70 content-editor_hideSelectionWhileUnfocusedClassName__1kmr0sb3"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <h3
-    class="content-schema_headingLevel2ClassName__neu0lc4"
+    class="content-schema_headingLevel2ClassName__14cqkx74"
   >
     Hello world!
   </h3>
@@ -1862,13 +1862,13 @@ exports[`heading 3 plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-editor_emptyTitleClassName__ub7ugv1 content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv3"
+  class="ProseMirror content-editor_emptyTitleClassName__1kmr0sb1 content-schema_docClassName__14cqkx70 content-editor_hideSelectionWhileUnfocusedClassName__1kmr0sb3"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <h4
-    class="content-schema_headingLevel3ClassName__neu0lc5"
+    class="content-schema_headingLevel3ClassName__14cqkx75"
   >
     Hello world!
   </h4>
@@ -1899,17 +1899,17 @@ exports[`highlight 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-editor_emptyTitleClassName__ub7ugv1 content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv3"
+  class="ProseMirror content-editor_emptyTitleClassName__1kmr0sb1 content-schema_docClassName__14cqkx70 content-editor_hideSelectionWhileUnfocusedClassName__1kmr0sb3"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <p
-    class="content-schema_paragraphClassName__neu0lc2"
+    class="content-schema_paragraphClassName__14cqkx72"
   >
     Hello 
     <mark
-      class="content-schema_highlightClassNameByColor__neu0lcn"
+      class="content-schema_highlightClassNameByColor__14cqkx7n"
       data-highlight-color="green"
     >
       world
@@ -1937,17 +1937,17 @@ exports[`italic 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-editor_emptyTitleClassName__ub7ugv1 content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv3"
+  class="ProseMirror content-editor_emptyTitleClassName__1kmr0sb1 content-schema_docClassName__14cqkx70 content-editor_hideSelectionWhileUnfocusedClassName__1kmr0sb3"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <p
-    class="content-schema_paragraphClassName__neu0lc2"
+    class="content-schema_paragraphClassName__14cqkx72"
   >
     Hello 
     <em
-      class="content-schema_italicClassName__neu0lci"
+      class="content-schema_italicClassName__14cqkx7j"
     >
       world
     </em>
@@ -1972,17 +1972,17 @@ exports[`link (XSS vulnerability) 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-editor_emptyTitleClassName__ub7ugv1 content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv3"
+  class="ProseMirror content-editor_emptyTitleClassName__1kmr0sb1 content-schema_docClassName__14cqkx70 content-editor_hideSelectionWhileUnfocusedClassName__1kmr0sb3"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <p
-    class="content-schema_paragraphClassName__neu0lc2"
+    class="content-schema_paragraphClassName__14cqkx72"
   >
     Hello 
     <a
-      class="content-schema_linkClassName__neu0lcq"
+      class="content-schema_linkClassName__14cqkx7q"
       href="about:blank#blocked"
       rel="noopener noreferrer"
       target="_blank"
@@ -1998,17 +1998,17 @@ exports[`link 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-editor_emptyTitleClassName__ub7ugv1 content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv3"
+  class="ProseMirror content-editor_emptyTitleClassName__1kmr0sb1 content-schema_docClassName__14cqkx70 content-editor_hideSelectionWhileUnfocusedClassName__1kmr0sb3"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <p
-    class="content-schema_paragraphClassName__neu0lc2"
+    class="content-schema_paragraphClassName__14cqkx72"
   >
     Hello 
     <a
-      class="content-schema_linkClassName__neu0lcq"
+      class="content-schema_linkClassName__14cqkx7q"
       href="https://example.com/"
       rel="noopener noreferrer"
       target="_blank"
@@ -2136,19 +2136,19 @@ exports[`ordered list plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-editor_emptyTitleClassName__ub7ugv1 content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv3"
+  class="ProseMirror content-editor_emptyTitleClassName__1kmr0sb1 content-schema_docClassName__14cqkx70 content-editor_hideSelectionWhileUnfocusedClassName__1kmr0sb3"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <div
-    class="content-schema_listItemClassName__neu0lc8 content-schema_orderedListItemClassName__neu0lca"
+    class="content-schema_listItemClassName__14cqkx78 content-schema_orderedListItemClassName__14cqkx7a"
     data-list-indent="0"
     data-list-number="0"
-    style="--listItemIndentationVar__neu0lc7:0"
+    style="--listItemIndentationVar__14cqkx77:0"
   >
     <p
-      class="content-schema_paragraphClassName__neu0lc2"
+      class="content-schema_paragraphClassName__14cqkx72"
     >
       Hello world!
     </p>
@@ -2188,43 +2188,43 @@ exports[`ordered list with multiple items 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-editor_emptyTitleClassName__ub7ugv1 content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv3"
+  class="ProseMirror content-editor_emptyTitleClassName__1kmr0sb1 content-schema_docClassName__14cqkx70 content-editor_hideSelectionWhileUnfocusedClassName__1kmr0sb3"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <div
-    class="content-schema_listItemClassName__neu0lc8 content-schema_orderedListItemClassName__neu0lca"
+    class="content-schema_listItemClassName__14cqkx78 content-schema_orderedListItemClassName__14cqkx7a"
     data-list-indent="0"
     data-list-number="0"
-    style="--listItemIndentationVar__neu0lc7:0"
+    style="--listItemIndentationVar__14cqkx77:0"
   >
     <p
-      class="content-schema_paragraphClassName__neu0lc2"
+      class="content-schema_paragraphClassName__14cqkx72"
     >
       Item 1
     </p>
   </div>
   <div
-    class="content-schema_listItemClassName__neu0lc8 content-schema_orderedListItemClassName__neu0lca"
+    class="content-schema_listItemClassName__14cqkx78 content-schema_orderedListItemClassName__14cqkx7a"
     data-list-indent="0"
     data-list-number="0"
-    style="--listItemIndentationVar__neu0lc7:0"
+    style="--listItemIndentationVar__14cqkx77:0"
   >
     <p
-      class="content-schema_paragraphClassName__neu0lc2"
+      class="content-schema_paragraphClassName__14cqkx72"
     >
       Item 2
     </p>
   </div>
   <div
-    class="content-schema_listItemClassName__neu0lc8 content-schema_orderedListItemClassName__neu0lca"
+    class="content-schema_listItemClassName__14cqkx78 content-schema_orderedListItemClassName__14cqkx7a"
     data-list-indent="0"
     data-list-number="0"
-    style="--listItemIndentationVar__neu0lc7:0"
+    style="--listItemIndentationVar__14cqkx77:0"
   >
     <p
-      class="content-schema_paragraphClassName__neu0lc2"
+      class="content-schema_paragraphClassName__14cqkx72"
     >
       Item 3
     </p>
@@ -2258,55 +2258,55 @@ exports[`ordered list with sub-list 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-editor_emptyTitleClassName__ub7ugv1 content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv3"
+  class="ProseMirror content-editor_emptyTitleClassName__1kmr0sb1 content-schema_docClassName__14cqkx70 content-editor_hideSelectionWhileUnfocusedClassName__1kmr0sb3"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <div
-    class="content-schema_listItemClassName__neu0lc8 content-schema_orderedListItemClassName__neu0lca"
+    class="content-schema_listItemClassName__14cqkx78 content-schema_orderedListItemClassName__14cqkx7a"
     data-list-indent="0"
     data-list-number="0"
-    style="--listItemIndentationVar__neu0lc7:0"
+    style="--listItemIndentationVar__14cqkx77:0"
   >
     <p
-      class="content-schema_paragraphClassName__neu0lc2"
+      class="content-schema_paragraphClassName__14cqkx72"
     >
       Test
     </p>
   </div>
   <div
-    class="content-schema_listItemClassName__neu0lc8 content-schema_orderedListItemClassName__neu0lca"
+    class="content-schema_listItemClassName__14cqkx78 content-schema_orderedListItemClassName__14cqkx7a"
     data-list-indent="1"
     data-list-number="0"
-    style="--listItemIndentationVar__neu0lc7:1"
+    style="--listItemIndentationVar__14cqkx77:1"
   >
     <p
-      class="content-schema_paragraphClassName__neu0lc2"
+      class="content-schema_paragraphClassName__14cqkx72"
     >
       Item 1
     </p>
   </div>
   <div
-    class="content-schema_listItemClassName__neu0lc8 content-schema_orderedListItemClassName__neu0lca"
+    class="content-schema_listItemClassName__14cqkx78 content-schema_orderedListItemClassName__14cqkx7a"
     data-list-indent="1"
     data-list-number="0"
-    style="--listItemIndentationVar__neu0lc7:1"
+    style="--listItemIndentationVar__14cqkx77:1"
   >
     <p
-      class="content-schema_paragraphClassName__neu0lc2"
+      class="content-schema_paragraphClassName__14cqkx72"
     >
       Item 2
     </p>
   </div>
   <div
-    class="content-schema_listItemClassName__neu0lc8 content-schema_orderedListItemClassName__neu0lca"
+    class="content-schema_listItemClassName__14cqkx78 content-schema_orderedListItemClassName__14cqkx7a"
     data-list-indent="1"
     data-list-number="0"
-    style="--listItemIndentationVar__neu0lc7:1"
+    style="--listItemIndentationVar__14cqkx77:1"
   >
     <p
-      class="content-schema_paragraphClassName__neu0lc2"
+      class="content-schema_paragraphClassName__14cqkx72"
     >
       Item 3
     </p>
@@ -2318,32 +2318,32 @@ exports[`ordered list with sub-list of another type 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-editor_emptyTitleClassName__ub7ugv1 content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv3"
+  class="ProseMirror content-editor_emptyTitleClassName__1kmr0sb1 content-schema_docClassName__14cqkx70 content-editor_hideSelectionWhileUnfocusedClassName__1kmr0sb3"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <div
-    class="content-schema_listItemClassName__neu0lc8 content-schema_orderedListItemClassName__neu0lca"
+    class="content-schema_listItemClassName__14cqkx78 content-schema_orderedListItemClassName__14cqkx7a"
     data-list-indent="0"
     data-list-number="0"
-    style="--listItemIndentationVar__neu0lc7:0"
+    style="--listItemIndentationVar__14cqkx77:0"
   >
     <p
-      class="content-schema_paragraphClassName__neu0lc2"
+      class="content-schema_paragraphClassName__14cqkx72"
     >
       Test
     </p>
   </div>
   <div
-    class="content-schema_listItemClassName__neu0lc8 content-schema_checkListItemCheckedClassName__neu0lcb"
-    style="--listItemIndentationVar__neu0lc7:1"
+    class="content-schema_listItemClassName__14cqkx78 content-schema_checkListItemCheckedClassName__14cqkx7b"
+    style="--listItemIndentationVar__14cqkx77:1"
   >
     <div
-      class="content-schema_checkListItemCheckboxContainerClassName__neu0lcd"
+      class="content-schema_checkListItemCheckboxContainerClassName__14cqkx7d"
     >
       <div
-        class="content-schema_checkListItemCheckboxClassName__neu0lce"
+        class="content-schema_checkListItemCheckboxClassName__14cqkx7e"
       >
         <svg
           height="100%"
@@ -2368,24 +2368,24 @@ exports[`ordered list with sub-list of another type 1`] = `
       </div>
     </div>
     <div
-      class="content-schema_checkListItemContentClassName__neu0lcc"
+      class="content-schema_checkListItemContentClassName__14cqkx7c"
     >
       <p
-        class="content-schema_paragraphClassName__neu0lc2"
+        class="content-schema_paragraphClassName__14cqkx72"
       >
         Item 1
       </p>
     </div>
   </div>
   <div
-    class="content-schema_listItemClassName__neu0lc8"
-    style="--listItemIndentationVar__neu0lc7:1"
+    class="content-schema_listItemClassName__14cqkx78"
+    style="--listItemIndentationVar__14cqkx77:1"
   >
     <div
-      class="content-schema_checkListItemCheckboxContainerClassName__neu0lcd"
+      class="content-schema_checkListItemCheckboxContainerClassName__14cqkx7d"
     >
       <div
-        class="content-schema_checkListItemCheckboxClassName__neu0lce"
+        class="content-schema_checkListItemCheckboxClassName__14cqkx7e"
       >
         <svg
           height="100%"
@@ -2410,24 +2410,24 @@ exports[`ordered list with sub-list of another type 1`] = `
       </div>
     </div>
     <div
-      class="content-schema_checkListItemContentClassName__neu0lcc"
+      class="content-schema_checkListItemContentClassName__14cqkx7c"
     >
       <p
-        class="content-schema_paragraphClassName__neu0lc2"
+        class="content-schema_paragraphClassName__14cqkx72"
       >
         Item 2
       </p>
     </div>
   </div>
   <div
-    class="content-schema_listItemClassName__neu0lc8 content-schema_checkListItemCheckedClassName__neu0lcb"
-    style="--listItemIndentationVar__neu0lc7:1"
+    class="content-schema_listItemClassName__14cqkx78 content-schema_checkListItemCheckedClassName__14cqkx7b"
+    style="--listItemIndentationVar__14cqkx77:1"
   >
     <div
-      class="content-schema_checkListItemCheckboxContainerClassName__neu0lcd"
+      class="content-schema_checkListItemCheckboxContainerClassName__14cqkx7d"
     >
       <div
-        class="content-schema_checkListItemCheckboxClassName__neu0lce"
+        class="content-schema_checkListItemCheckboxClassName__14cqkx7e"
       >
         <svg
           height="100%"
@@ -2452,10 +2452,10 @@ exports[`ordered list with sub-list of another type 1`] = `
       </div>
     </div>
     <div
-      class="content-schema_checkListItemContentClassName__neu0lcc"
+      class="content-schema_checkListItemContentClassName__14cqkx7c"
     >
       <p
-        class="content-schema_paragraphClassName__neu0lc2"
+        class="content-schema_paragraphClassName__14cqkx72"
       >
         Item 3
       </p>
@@ -2612,13 +2612,13 @@ exports[`paragraph plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-editor_emptyTitleClassName__ub7ugv1 content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv3"
+  class="ProseMirror content-editor_emptyTitleClassName__1kmr0sb1 content-schema_docClassName__14cqkx70 content-editor_hideSelectionWhileUnfocusedClassName__1kmr0sb3"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <p
-    class="content-schema_paragraphClassName__neu0lc2"
+    class="content-schema_paragraphClassName__14cqkx72"
   >
     Hello world!
   </p>
@@ -2733,16 +2733,16 @@ exports[`quote plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-editor_emptyTitleClassName__ub7ugv1 content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv3"
+  class="ProseMirror content-editor_emptyTitleClassName__1kmr0sb1 content-schema_docClassName__14cqkx70 content-editor_hideSelectionWhileUnfocusedClassName__1kmr0sb3"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <blockquote
-    class="content-schema_quoteBlockClassName__neu0lc6"
+    class="content-schema_quoteBlockClassName__14cqkx76"
   >
     <p
-      class="content-schema_paragraphClassName__neu0lc2"
+      class="content-schema_paragraphClassName__14cqkx72"
     >
       Hello world!
     </p>
@@ -2778,17 +2778,17 @@ exports[`strike 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content-editor_emptyTitleClassName__ub7ugv1 content-schema_docClassName__neu0lc0 content-editor_hideSelectionWhileUnfocusedClassName__ub7ugv3"
+  class="ProseMirror content-editor_emptyTitleClassName__1kmr0sb1 content-schema_docClassName__14cqkx70 content-editor_hideSelectionWhileUnfocusedClassName__1kmr0sb3"
   contenteditable="true"
   role="textbox"
   translate="no"
 >
   <p
-    class="content-schema_paragraphClassName__neu0lc2"
+    class="content-schema_paragraphClassName__14cqkx72"
   >
     Hello 
     <del
-      class="content-schema_strikeClassName__neu0lcj"
+      class="content-schema_strikeClassName__14cqkx7k"
     >
       world
     </del>

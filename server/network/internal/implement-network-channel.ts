@@ -1,3 +1,5 @@
+import "~/server/helpers/server-only.server";
+
 import {assert} from "~/shared/helpers/control/assert";
 import {quote} from "~/shared/helpers/string/quote";
 import {NetworkChannel} from "~/shared/network/network-channel";

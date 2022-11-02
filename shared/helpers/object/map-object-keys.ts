@@ -10,7 +10,7 @@ export function mapObjectKeys<Value, NewKeyValue>(
     map: (keyValue: Value[keyof Value], key: string) => NewKeyValue,
 ): {[Key in keyof Value]: NewKeyValue} {
     return Object.fromEntries(
-        Object.entries(value).map(([key, keyValue]) => {
+        Object.entries<any>(value as any).map(([key, keyValue]) => {
             const newKeyValue = map(keyValue, key);
             return [key, newKeyValue];
         }),

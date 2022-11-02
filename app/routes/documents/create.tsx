@@ -1,12 +1,11 @@
-import {useRouter} from "next/router";
+import {useNavigate} from "react-router-dom";
 import {emptyDocumentContent} from "~/shared/documents/document-content-schema";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run-promise-without-awaiting";
 import {generateId} from "~/shared/id/id";
 import {createDocument} from "~/shared/network/documents-network-definition";
 
-// TODO(calebmer): Get rid of this page and replace it with something proper.
-export default function HackyCreateDocumentPage() {
-    const router = useRouter();
+export default function CreateDocumentRoute() {
+    const navigate = useNavigate();
 
     return (
         <button
@@ -19,7 +18,7 @@ export default function HackyCreateDocumentPage() {
                         content: emptyDocumentContent,
                     });
 
-                    await router.push(`/documents/${documentId}`);
+                    navigate(`/documents/${documentId}`);
                 });
             }}
         >

@@ -1,7 +1,4 @@
-import {
-    ConditionalCheckFailedException,
-    TransactionCanceledException,
-} from "@aws-sdk/client-dynamodb";
+import {isPlainObject} from "~/shared/helpers/object/is-plain-object";
 
 /**
  * Is the provided error a failure due to a DynamoDB condition check?
@@ -9,21 +6,30 @@ import {
  * True for failures in `PutItem` and `TransactWriteItems` alike.
  */
 export function isDynamoConditionCheckError(error: unknown): boolean {
-    if (!(error instanceof Error)) return false;
+    // Recurse into the error's cause if there is one. `classifyDynamoError()` will
+    // put the raw error JSON from the response in the cause property.
+    if (error instanceof Error && "cause" in error) return isDynamoConditionCheckError(error.cause);
 
-    if (error instanceof ConditionalCheckFailedException) return true;
+    if (!isPlainObject(error)) return false;
 
+    // If an individual `PutItem` request's condition failed we get this
+    // error code.
+    if (error.__type === "ConditionalCheckFailedException") return true;
+
+    // If a transaction check in `TransactWriteItems` failed then we get this error
+    // code. Check to make sure one of the cancellation reasons was specifically a
+    // condition check failure.
     if (
-        error instanceof TransactionCanceledException &&
-        error.CancellationReasons?.some(
-            cancellationReason => cancellationReason.Code === "ConditionalCheckFailed",
+        error.__type === "TransactionCanceledException" &&
+        Array.isArray(error.CancellationReasons) &&
+        error.CancellationReasons.some(
+            cancellationReason =>
+                isPlainObject(cancellationReason) &&
+                cancellationReason.Code === "ConditionalCheckFailed",
         )
     ) {
         return true;
     }
 
-    // If this is not a condition check error but we have an `error.cause`
-    // property, recurse into the parent error.
-    if ("cause" in error) return isDynamoConditionCheckError(error.cause);
     return false;
 }

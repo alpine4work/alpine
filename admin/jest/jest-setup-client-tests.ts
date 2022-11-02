@@ -6,6 +6,7 @@
 // ```
 import "@testing-library/jest-dom";
 
+import {ResizeObserver as ResizeObserverPolyfill} from "@juggle/resize-observer";
 import {InternalError} from "~/shared/error/error";
 
 // Pretend we are on a Mac for tests. Most of our programmers use Mac for
@@ -72,6 +73,13 @@ if (!window.matchMedia) {
         addEventListener: jest.fn(),
         removeEventListener: jest.fn(),
     }));
+} else {
+    throw new InternalError("Yay! jsdom supports this now, we can remove our polyfill");
+}
+
+// Polyfill: https://developer.mozilla.org/en-US/docs/Web/API/ResizeObserver
+if (!window.ResizeObserver) {
+    window.ResizeObserver = ResizeObserverPolyfill;
 } else {
     throw new InternalError("Yay! jsdom supports this now, we can remove our polyfill");
 }

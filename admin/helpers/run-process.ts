@@ -1,6 +1,6 @@
 import {spawn} from "child_process";
 import path from "path";
-import {repoDirectoryPath} from "~/server/helpers/repo-directory-path";
+import {repoDirectoryPath} from "~/admin/helpers/repo-directory-path";
 import {UnknownError} from "~/shared/error/error";
 import {isNotNullishOrFalse} from "~/shared/helpers/control/is-not-nullish-or-false";
 import {quote} from "~/shared/helpers/string/quote";

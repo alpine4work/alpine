@@ -1,24 +1,4 @@
-import {
-    ConditionalCheckFailedException,
-    DuplicateItemException,
-    IdempotentParameterMismatchException,
-    IndexNotFoundException,
-    InternalServerError,
-    ItemCollectionSizeLimitExceededException,
-    ProvisionedThroughputExceededException,
-    RequestLimitExceeded,
-    ResourceNotFoundException,
-    TableNotFoundException,
-    TransactionCanceledException,
-    TransactionConflictException,
-    TransactionInProgressException,
-} from "@aws-sdk/client-dynamodb";
-import {
-    ErrorBase,
-    InternalError,
-    UnknownError,
-    getErrorConstructorForCode,
-} from "~/shared/error/error";
+import {ErrorBase, UnknownError, getErrorConstructorForCode} from "~/shared/error/error";
 import {ErrorCode} from "~/shared/error/error-code";
 
 /**
@@ -27,48 +7,50 @@ import {ErrorCode} from "~/shared/error/error-code";
  *
  * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html
  */
-export function classifyDynamoError(error: unknown): ErrorBase {
-    if (!(error instanceof Error)) return new InternalError("DynamoDB threw a non-Error object");
-
+export function classifyDynamoError(error: {__type?: string; Message?: string}): ErrorBase {
     let errorCode: ErrorCode | null = null;
-    if (error instanceof InternalServerError) {
+    if (error.__type === "InternalServerError") {
         errorCode = ErrorCode.Internal;
-    } else if (error instanceof RequestLimitExceeded) {
+    } else if (error.__type === "RequestLimitExceeded") {
         errorCode = ErrorCode.Unavailable;
-    } else if (error instanceof ProvisionedThroughputExceededException) {
+    } else if (error.__type === "ProvisionedThroughputExceededException") {
         errorCode = ErrorCode.Unavailable;
-    } else if (error instanceof ItemCollectionSizeLimitExceededException) {
+    } else if (error.__type === "ItemCollectionSizeLimitExceededException") {
         errorCode = ErrorCode.ResourceExhausted;
-    } else if (error instanceof ConditionalCheckFailedException) {
+    } else if (error.__type === "ConditionalCheckFailedException") {
         errorCode = ErrorCode.FailedPrecondition;
-    } else if (error instanceof TransactionConflictException) {
+    } else if (error.__type === "TransactionConflictException") {
         errorCode = ErrorCode.Unavailable;
-    } else if (error instanceof DuplicateItemException) {
+    } else if (error.__type === "DuplicateItemException") {
         errorCode = ErrorCode.FailedPrecondition;
-    } else if (error instanceof IdempotentParameterMismatchException) {
+    } else if (error.__type === "IdempotentParameterMismatchException") {
         errorCode = ErrorCode.FailedPrecondition;
-    } else if (error instanceof TransactionInProgressException) {
+    } else if (error.__type === "TransactionInProgressException") {
         errorCode = ErrorCode.Unavailable;
-    } else if (error instanceof TransactionCanceledException) {
+    } else if (error.__type === "TransactionCanceledException") {
         errorCode = ErrorCode.FailedPrecondition;
     } else if (
-        error instanceof ResourceNotFoundException ||
-        error instanceof TableNotFoundException ||
-        error instanceof IndexNotFoundException
+        error.__type === "ResourceNotFoundException" ||
+        error.__type === "TableNotFoundException" ||
+        error.__type === "IndexNotFoundException"
     ) {
         // Our code should only references resources that exist. It's not a client
         // error if we don't.
         errorCode = ErrorCode.Internal;
     }
 
+    const message = `DynamoDB ${error.__type ? error.__type : "unknown error"}${
+        error.Message ? `: ${error.Message}` : ""
+    }`;
+
     if (errorCode !== null) {
         const ErrorConstructor = getErrorConstructorForCode(errorCode);
-        return new ErrorConstructor(error.message, {cause: error});
+        return new ErrorConstructor(message, {cause: error});
     }
 
     if (process.env.NODE_ENV === "test" || process.env.NODE_ENV === "development") {
         // eslint-disable-next-line no-console
         console.warn("Unclassified DynamoDB error:", error);
     }
-    return new UnknownError(error.message, {cause: error});
+    return new UnknownError(message, {cause: error});
 }

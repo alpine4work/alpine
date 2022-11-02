@@ -1,4 +1,4 @@
-import * as jwt from "jsonwebtoken";
+import {SignJWT} from "jose";
 import {ablyApiKey} from "~/server/env/env-variables";
 import {authorizeNetworkChannel} from "~/server/network/internal/authorize-network-channel";
 import {implementNetworkFunction} from "~/server/network/internal/implement-network-function";
@@ -64,17 +64,14 @@ implementNetworkFunction(definition.authenticateAbly, async (input, session) => 
 
     // Yay! All our channels are authorized. Send a short-lived JWT token to the
     // client for subscribing to Ably messages.
-    const token = await new Promise<string>((resolve, reject) => {
-        jwt.sign(
-            {"x-ably-capability": JSON.stringify(capability), "x-ably-clientId": ablyClientId},
-            ablyApiKeySecret,
-            {keyid: ablyApiKeyId, expiresIn: "10m"},
-            (error, token) => {
-                if (error) reject(error);
-                else resolve(token!);
-            },
-        );
-    });
+    const token = await new SignJWT({
+        "x-ably-capability": JSON.stringify(capability),
+        "x-ably-clientId": ablyClientId,
+    })
+        .setProtectedHeader({alg: "ES256", typ: "JWT", kid: ablyApiKeyId})
+        .setIssuedAt()
+        .setExpirationTime("10m")
+        .sign(Buffer.from(ablyApiKeySecret));
 
     return {token};
 });

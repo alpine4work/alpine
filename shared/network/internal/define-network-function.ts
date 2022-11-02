@@ -169,7 +169,7 @@ async function executeNetworkFunctions(
             })),
         };
 
-        const response = await fetch("/api/network-function-call", {
+        const response = await fetch("/network/call", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -181,7 +181,7 @@ async function executeNetworkFunctions(
         });
 
         const output = await response
-            .json()
+            .json<SchemaSerializedValue>()
             .then(output => NetworkFunctionHttpOutputSchema.deserialize(output))
             .catch(error => {
                 // If we fail to parse the response body as JSON, classify as `Internal`
@@ -233,24 +233,6 @@ async function deserializeError(
     if (typeof error.code !== "number" || !isErrorCode(error.code))
         throw new InternalError("Invalid code on error object");
 
-    // In development, we want to show the Next.js error overlay on a server
-    // error. So use the internal dev overlay function to format server errors.
-    if (process.env.NODE_ENV === "development") {
-        const {getServerError} = await import(
-            // @ts-expect-error: Importing an internal file from Next.js like we do here:
-            // https://github.com/vercel/next.js/blob/6249307b75ebd21bbf86895cde177d8c6f82fe94/packages/next/client/index.tsx#L830-L832
-            "next/dist/compiled/@next/react-dev-overlay/dist/client"
-        );
-        const devError = getServerError(error as any, "server");
-
-        // Massage the error Next.js creates into an `ErrorBase` with the
-        // appropriate status code.
-        devError.code = error.code;
-        Object.setPrototypeOf(devError, getErrorConstructorForCode(error.code).prototype);
-
-        throw devError;
-    } else {
-        const ErrorConstructor = getErrorConstructorForCode(error.code);
-        throw new ErrorConstructor(error.message);
-    }
+    const ErrorConstructor = getErrorConstructorForCode(error.code);
+    throw new ErrorConstructor(error.message);
 }

@@ -12,7 +12,9 @@ import {
 import {HighlightColor, isHighlightColor} from "~/shared/content/highlight-color";
 import {assert} from "~/shared/helpers/control/assert";
 import {Schema, SchemaDeserializationError} from "~/shared/schema/schema";
-import {
+import {contentSchemaStyles} from "~/shared/styles/styles";
+
+const {
     checkListItemCheckedClassName,
     dividerClassName,
     headingLevel1ClassName,
@@ -22,7 +24,7 @@ import {
     listItemClassName,
     listItemIndentationVar,
     titleClassName,
-} from "~/shared/styles/styles";
+} = contentSchemaStyles;
 
 const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
     nodes: {

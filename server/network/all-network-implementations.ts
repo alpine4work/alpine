@@ -1,6 +1,8 @@
 // TODO(calebmer): Some kind of test or codegen to ensure all network function
 // implementations are actually imported.
 
+import "~/server/helpers/server-only.server";
+
 import "~/server/network/ably-network-implementation";
 import "~/server/network/documents-network-implementation";
 import "~/shared/network/all-network-definitions";

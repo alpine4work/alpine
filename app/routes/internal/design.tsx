@@ -1,4 +1,3 @@
-import {MetaFunction} from "@remix-run/cloudflare";
 import {Moon, Sun} from "phosphor-react";
 import {Box} from "~/client/design/box";
 import {toggleColorScheme, useColorScheme} from "~/client/design/color-scheme";
@@ -10,11 +9,11 @@ import {
     hiddenIfLightColorSchemeClassName,
 } from "~/shared/styles/styles";
 
-export const meta: MetaFunction = () => {
+export function meta() {
     return {
         title: "Cyberworlds Design Playground",
     };
-};
+}
 
 export default function DesignPlaygroundRoute() {
     return (

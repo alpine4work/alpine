@@ -1,9 +1,7 @@
-import {paramCase} from "change-case";
-import fs from "fs-extra";
-import isCi from "is-ci";
-import path from "path";
+import "~/server/helpers/server-only.server";
+
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo-transaction-entry";
-import {DynamoReadConsistency} from "~/server/dynamo/internal/dynamo-client";
+import {DynamoReadConsistency, dynamoClient} from "~/server/dynamo/internal/dynamo-client";
 import {
     DynamoCondition,
     DynamoConditionExpression,
@@ -13,9 +11,7 @@ import {
     DynamoKeyAttribute,
     dynamoKeySeparator,
 } from "~/server/dynamo/internal/dynamo-key-attribute-schema";
-import {globalDynamoClient} from "~/server/dynamo/internal/global-dynamo-client";
 import {DynamoTableSchemaTypes} from "~/server/dynamo/internal/types/dynamo-table-schema-types";
-import {repoDirectoryPath} from "~/server/helpers/repo-directory-path";
 import {checkSchemaBackwardsCompatibility} from "~/server/schema/check-schema-backwards-compatibility";
 import {DataLossError, InvalidArgumentError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
@@ -39,13 +35,19 @@ import {
  * last schema used to write to the database. Then we will record the schema in
  * code as the schema to which data in the database should adhere.
  */
+// TODO(calebmer): Backwards compatibility checking in a way that works with
+// Cloudflare workers.
+// const isSchemaEvolutionEnabled =
+//     (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test")&& !isCi;
 const isSchemaEvolutionEnabled =
-    (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test") && !isCi;
+    process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test";
 
-const dynamoGeneratedDirectoryPath = path.join(
-    repoDirectoryPath,
-    "server/dynamo/internal/generated",
-);
+// TODO(calebmer): Backwards compatibility checking in a way that works with
+// Cloudflare workers.
+// const dynamoGeneratedDirectoryPath = path.join(
+//     repoDirectoryPath,
+//     "server/dynamo/internal/generated",
+// );
 
 export type DynamoTableSchemaGetTypes<Schema extends DynamoTableSchema<any>> =
     Schema extends DynamoTableSchema<infer Types> ? Types : never;
@@ -123,11 +125,6 @@ export class DynamoTableSchema<
     private readonly _description: DynamoTableSchemaTypes.Description;
 
     /**
-     * The file path to where the description object is serialized on disk.
-     */
-    private readonly _descriptionPath: string;
-
-    /**
      * Have we serialized our description to disk yet? We wait for the first write
      * against our database to do this.
      *
@@ -145,11 +142,8 @@ export class DynamoTableSchema<
     private constructor(config: DynamoTableSchemaTypes.ConfigBase) {
         this._config = config;
 
-        const {descriptionPath, description} = getAndCheckDynamoTableSchemaDescriptions(
-            this._config,
-        );
+        const {description} = getAndCheckDynamoTableSchemaDescriptions(this._config);
 
-        this._descriptionPath = descriptionPath;
         this._description = description;
 
         assert(!allConstructedDynamoTableSchemas.has(this._config.name));
@@ -282,7 +276,7 @@ export class DynamoTableSchema<
     ): Promise<MergeObjectIntersection<Types["Item"] & Key> | null> {
         const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
 
-        const serializedItem = await globalDynamoClient.getItem({
+        const serializedItem = await dynamoClient.getItem({
             tableName: this._config.name,
             key: {partitionKey, sortKey},
             consistency,
@@ -346,7 +340,7 @@ export class DynamoTableSchema<
             projectionExpressionEntries.push(serializedKey);
         }
 
-        const serializedItem = await globalDynamoClient.getItem({
+        const serializedItem = await dynamoClient.getItem({
             tableName: this._config.name,
             key: {partitionKey, sortKey},
             consistency,
@@ -415,7 +409,7 @@ export class DynamoTableSchema<
         attributesSchema.serializeInto(item, serializedItem);
 
         if (condition === undefined) {
-            return globalDynamoClient.putItem({
+            return dynamoClient.putItem({
                 tableName: this._config.name,
                 key: {partitionKey, sortKey},
                 item: serializedItem,
@@ -428,7 +422,7 @@ export class DynamoTableSchema<
                 conditionCompilationContext,
             );
 
-            return globalDynamoClient.putItem({
+            return dynamoClient.putItem({
                 tableName: this._config.name,
                 key: {partitionKey, sortKey},
                 item: serializedItem,
@@ -467,7 +461,7 @@ export class DynamoTableSchema<
         const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
 
         if (condition === undefined) {
-            return globalDynamoClient.deleteItem({
+            return dynamoClient.deleteItem({
                 tableName: this._config.name,
                 key: {partitionKey, sortKey},
             });
@@ -479,7 +473,7 @@ export class DynamoTableSchema<
                 conditionCompilationContext,
             );
 
-            return globalDynamoClient.deleteItem({
+            return dynamoClient.deleteItem({
                 tableName: this._config.name,
                 key: {partitionKey, sortKey},
                 conditionExpression: conditionExpressionString,
@@ -499,7 +493,7 @@ export class DynamoTableSchema<
         entries: ReadonlyArray<DynamoTransactionEntry>,
         options?: {clientRequestToken?: string},
     ): Promise<void> {
-        await globalDynamoClient.executeTransaction(entries, options);
+        await dynamoClient.executeTransaction(entries, options);
     }
 
     /**
@@ -525,7 +519,7 @@ export class DynamoTableSchema<
         attributesSchema.serializeInto(item, serializedItem);
 
         if (condition === undefined) {
-            return globalDynamoClient.transactionPutItem({
+            return dynamoClient.transactionPutItem({
                 tableName: this._config.name,
                 item: serializedItem,
             });
@@ -537,7 +531,7 @@ export class DynamoTableSchema<
                 conditionCompilationContext,
             );
 
-            return globalDynamoClient.transactionPutItem({
+            return dynamoClient.transactionPutItem({
                 tableName: this._config.name,
                 item: serializedItem,
                 conditionExpression: conditionExpressionString,
@@ -566,7 +560,7 @@ export class DynamoTableSchema<
         const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
 
         if (condition === undefined) {
-            return globalDynamoClient.transactionDeleteItem({
+            return dynamoClient.transactionDeleteItem({
                 tableName: this._config.name,
                 key: {partitionKey, sortKey},
             });
@@ -578,7 +572,7 @@ export class DynamoTableSchema<
                 conditionCompilationContext,
             );
 
-            return globalDynamoClient.transactionDeleteItem({
+            return dynamoClient.transactionDeleteItem({
                 tableName: this._config.name,
                 key: {partitionKey, sortKey},
                 conditionExpression: conditionExpressionString,
@@ -612,7 +606,7 @@ export class DynamoTableSchema<
             conditionCompilationContext,
         );
 
-        return globalDynamoClient.transactionConditionCheck({
+        return dynamoClient.transactionConditionCheck({
             tableName: this._config.name,
             key: {partitionKey, sortKey},
             conditionExpression: conditionExpressionString,
@@ -666,7 +660,7 @@ export class DynamoTableSchema<
                 "The partition key of our start key and end key should be the same",
             );
 
-        const iterator = globalDynamoClient.query({
+        const iterator = dynamoClient.query({
             tableName: this._config.name,
             partitionKey: {
                 name: "partitionKey",
@@ -722,7 +716,9 @@ export class DynamoTableSchema<
         if (!isSchemaEvolutionEnabled) return;
         if (this._hasCommitDescription) return;
 
-        fs.writeFileSync(this._descriptionPath, JSON.stringify(this._description, null, 4));
+        // TODO(calebmer): Backwards compatibility checking in a way that works with
+        // Cloudflare workers.
+        // fs.writeFileSync(this._descriptionPath, JSON.stringify(this._description, null, 4));
         this._hasCommitDescription = true;
     }
 }
@@ -763,18 +759,22 @@ export function getAllConstructedDynamoTableSchemas(): Array<
  * `OrderKey`s of the existing sort ranges.
  */
 function getAndCheckDynamoTableSchemaDescriptions(config: DynamoTableSchemaTypes.ConfigBase): {
-    descriptionPath: string;
     lastDescription: DynamoTableSchemaTypes.Description | null;
     description: DynamoTableSchemaTypes.Description;
 } {
-    const descriptionPath = path.join(
-        dynamoGeneratedDirectoryPath,
-        `dynamo-${paramCase(config.name)}-table-schema.json`,
-    );
+    // TODO(calebmer): Backwards compatibility checking in a way that works with
+    // Cloudflare workers.
+    // const descriptionPath = path.join(
+    //     dynamoGeneratedDirectoryPath,
+    //     `dynamo-${paramCase(config.name)}-table-schema.json`,
+    // );
 
-    const lastDescription: DynamoTableSchemaTypes.Description = fs.existsSync(descriptionPath)
-        ? JSON.parse(fs.readFileSync(descriptionPath, "utf8"))
-        : null;
+    // TODO(calebmer): Backwards compatibility checking in a way that works with
+    // Cloudflare workers.
+    // const lastDescription: DynamoTableSchemaTypes.Description | null = fs.existsSync(descriptionPath)
+    //     ? JSON.parse(fs.readFileSync(descriptionPath, "utf8"))
+    //     : null;
+    const lastDescription = null as DynamoTableSchemaTypes.Description | null;
 
     const description: DynamoTableSchemaTypes.Description = {
         name: config.name,
@@ -885,7 +885,9 @@ function getAndCheckDynamoTableSchemaDescriptions(config: DynamoTableSchemaTypes
     }
 
     return {
-        descriptionPath,
+        // TODO(calebmer): Backwards compatibility checking in a way that works with
+        // Cloudflare workers.
+        // descriptionPath,
         lastDescription,
         description,
     };

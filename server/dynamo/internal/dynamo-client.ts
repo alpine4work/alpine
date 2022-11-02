@@ -1,19 +1,9 @@
-import {
-    AttributeValue,
-    BatchGetItemCommand,
-    BatchWriteItemCommand,
-    DeleteItemCommand,
-    DynamoDBClient,
-    GetItemCommand,
-    KeysAndAttributes,
-    PutItemCommand,
-    QueryCommand,
-    TransactWriteItemsCommand,
-    WriteRequest,
-} from "@aws-sdk/client-dynamodb";
-import {Command, MetadataBearer} from "@aws-sdk/types";
-import {expectTypeOf} from "expect-type";
+// IMPORTANT: We are only importing `@aws-sdk` for types. Use `aws-client.ts`
+// for executing any AWS commands.
+import type * as types from "@aws-sdk/client-dynamodb";
 import jsonStableStringify from "json-stable-stringify";
+import {awsClient} from "~/server/aws/aws-client";
+import {localstackEdgePort} from "~/server/aws/localstack-edge-port";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo-transaction-entry";
 import {classifyDynamoError} from "~/server/dynamo/internal/classify-dynamo-error";
 import {DeadlineExceededError, InternalError, InvalidArgumentError} from "~/shared/error/error";
@@ -35,33 +25,12 @@ import {
 export type DynamoReadConsistency = "Eventual" | "Strong";
 
 /**
- * The interface of a DynamoDB client from the AWS SDK that our client wrapper
- * uses.
- *
- * Having this as an interface is useful for writing tests against a mock
- * client.
- */
-export interface DynamoWrappedClientInterface {
-    send<InputType extends object, OutputType extends MetadataBearer>(
-        command: Command<object, InputType, MetadataBearer, OutputType, object>,
-    ): Promise<OutputType>;
-}
-
-// Make sure the actual AWS SDK DynamoDB client matches our interface.
-expectTypeOf<DynamoDBClient>().toMatchTypeOf<DynamoWrappedClientInterface>();
-
-/**
  * Our client interface to DynamoDB.
  *
  * Wraps the AWS SDK DynamoDB client with some extra functionality like command
  * batching.
  */
-export class DynamoClient {
-    /**
-     * The underlying DynamoDB client from the AWS SDK.
-     */
-    private readonly _client: DynamoWrappedClientInterface;
-
+class DynamoClient {
     /**
      * Batchers for the [`GetItem`][1] command.
      *
@@ -83,14 +52,12 @@ export class DynamoClient {
      */
     private readonly _writeItemBatcher: DynamoClientWriteItemBatcher;
 
-    constructor(client: DynamoWrappedClientInterface) {
-        this._client = classifyDynamoWrappedClientErrors(client);
-
+    constructor() {
         this._getItemBatcherByConsistency = {
-            Eventual: new DynamoClientGetItemBatcher(this._client, "Eventual"),
-            Strong: new DynamoClientGetItemBatcher(this._client, "Strong"),
+            Eventual: new DynamoClientGetItemBatcher("Eventual"),
+            Strong: new DynamoClientGetItemBatcher("Strong"),
         };
-        this._writeItemBatcher = new DynamoClientWriteItemBatcher(this._client);
+        this._writeItemBatcher = new DynamoClientWriteItemBatcher();
     }
 
     /**
@@ -125,14 +92,15 @@ export class DynamoClient {
             return batcher.getItem(tableName, key);
         }
 
-        const command = new GetItemCommand({
-            TableName: tableName,
-            Key: intoDynamoAttributeValueObject(key),
-            ConsistentRead: consistency === "Strong",
-            ProjectionExpression: projectionExpression,
-        });
-
-        const output = await this._client.send(command);
+        const output = await executeDynamoCommand<types.GetItemInput, types.GetItemOutput>(
+            "GetItem",
+            {
+                TableName: tableName,
+                Key: intoDynamoAttributeValueObject(key),
+                ConsistentRead: consistency === "Strong",
+                ProjectionExpression: projectionExpression,
+            },
+        );
 
         if (!output.Item) return null;
         return fromDynamoAttributeValueObject(output.Item);
@@ -177,7 +145,7 @@ export class DynamoClient {
         if (conditionExpression === undefined)
             return this._writeItemBatcher.putItem(tableName, key, item);
 
-        const command = new PutItemCommand({
+        await executeDynamoCommand<types.PutItemInput, types.PutItemOutput>("PutItem", {
             TableName: tableName,
             Item: intoDynamoAttributeValueObject(item),
             ConditionExpression: conditionExpression,
@@ -191,8 +159,6 @@ export class DynamoClient {
                       )
                     : undefined,
         });
-
-        await this._client.send(command);
     }
 
     /**
@@ -221,7 +187,7 @@ export class DynamoClient {
         if (conditionExpression === undefined)
             return this._writeItemBatcher.deleteItem(tableName, key);
 
-        const command = new DeleteItemCommand({
+        await executeDynamoCommand<types.DeleteItemInput, types.DeleteItemOutput>("DeleteItem", {
             TableName: tableName,
             Key: intoDynamoAttributeValueObject(key),
             ConditionExpression: conditionExpression,
@@ -235,8 +201,6 @@ export class DynamoClient {
                       )
                     : undefined,
         });
-
-        await this._client.send(command);
     }
 
     /**
@@ -250,12 +214,13 @@ export class DynamoClient {
         entries: ReadonlyArray<DynamoTransactionEntry>,
         {clientRequestToken}: {clientRequestToken?: string} = {},
     ): Promise<void> {
-        const command = new TransactWriteItemsCommand({
-            TransactItems: entries.map(entry => entry._getTransactItemForClient(this)),
-            ClientRequestToken: clientRequestToken,
-        });
-
-        await this._client.send(command);
+        await executeDynamoCommand<types.TransactWriteItemsInput, types.TransactWriteItemsOutput>(
+            "TransactWriteItems",
+            {
+                TransactItems: entries.map(entry => entry._getTransactItemForClient(this)),
+                ClientRequestToken: clientRequestToken,
+            },
+        );
     }
 
     /**
@@ -422,22 +387,23 @@ export class DynamoClient {
         });
 
         let totalScannedCount = 0;
-        let lastEvaluatedKey: {[key: string]: AttributeValue} | undefined;
+        let lastEvaluatedKey: {[key: string]: types.AttributeValue} | undefined;
 
         do {
-            const command: QueryCommand = new QueryCommand({
-                TableName: tableName,
-                ConsistentRead: consistency === "Strong",
-                // If we have a limit of 100 and we scanned 40 rows in our previous queries,
-                // then our new limit is 60 since we don't want to exceed our initial limit.
-                Limit: limit !== undefined ? limit - totalScannedCount : undefined,
-                ScanIndexForward: !descending,
-                KeyConditionExpression: keyConditionExpression,
-                ExpressionAttributeValues: expressionAttributeValues,
-                ExclusiveStartKey: lastEvaluatedKey,
-            });
-
-            const output = await this._client.send(command);
+            const output = await executeDynamoCommand<types.QueryInput, types.QueryOutput>(
+                "Query",
+                {
+                    TableName: tableName,
+                    ConsistentRead: consistency === "Strong",
+                    // If we have a limit of 100 and we scanned 40 rows in our previous queries,
+                    // then our new limit is 60 since we don't want to exceed our initial limit.
+                    Limit: limit !== undefined ? limit - totalScannedCount : undefined,
+                    ScanIndexForward: !descending,
+                    KeyConditionExpression: keyConditionExpression,
+                    ExpressionAttributeValues: expressionAttributeValues,
+                    ExclusiveStartKey: lastEvaluatedKey,
+                },
+            );
 
             totalScannedCount += output.ScannedCount ?? 0;
             lastEvaluatedKey = output.LastEvaluatedKey;
@@ -749,12 +715,10 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
     null,
     SchemaSerializedObjectValue | null
 > {
-    private readonly _client: DynamoWrappedClientInterface;
     private readonly _consistency: DynamoReadConsistency;
 
-    constructor(client: DynamoWrappedClientInterface, consistency: DynamoReadConsistency) {
+    constructor(consistency: DynamoReadConsistency) {
         super({maxBatchItemCount: 100});
-        this._client = client;
         this._consistency = consistency;
     }
 
@@ -765,26 +729,24 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
     protected async _sendBatchCommand(
         batch: DynamoClientBatch<null, SchemaSerializedObjectValue | null>,
     ) {
-        const command = new BatchGetItemCommand({
+        const output = await executeDynamoCommand<
+            types.BatchGetItemInput,
+            types.BatchGetItemOutput
+        >("BatchGetItem", {
             RequestItems: Object.fromEntries(
-                Array.from(
-                    batch.tableBatches,
-                    ([tableName, tableBatch]): [string, KeysAndAttributes] => {
-                        return [
-                            tableName,
-                            {
-                                ConsistentRead: this._consistency === "Strong",
-                                Keys: Array.from(tableBatch.keyBatches.values(), ({key}) =>
-                                    intoDynamoAttributeValueObject(key),
-                                ),
-                            },
-                        ];
-                    },
-                ),
+                Array.from(batch.tableBatches, ([tableName, tableBatch]) => {
+                    return [
+                        tableName,
+                        {
+                            ConsistentRead: this._consistency === "Strong",
+                            Keys: Array.from(tableBatch.keyBatches.values(), ({key}) =>
+                                intoDynamoAttributeValueObject(key),
+                            ),
+                        },
+                    ];
+                }),
             ),
         });
-
-        const output = await this._client.send(command);
 
         for (const [tableName, items] of Object.entries(output.Responses ?? {})) {
             const tableBatch = batch.tableBatches.get(tableName);
@@ -903,11 +865,8 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
     DynamoClientWriteItemBatchAction,
     void
 > {
-    private readonly _client: DynamoWrappedClientInterface;
-
-    constructor(client: DynamoWrappedClientInterface) {
+    constructor() {
         super({maxBatchItemCount: 25});
-        this._client = client;
     }
 
     public putItem(
@@ -925,40 +884,38 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
     protected async _sendBatchCommand(
         batch: DynamoClientBatch<DynamoClientWriteItemBatchAction, void>,
     ) {
-        const command = new BatchWriteItemCommand({
+        const output = await executeDynamoCommand<
+            types.BatchWriteItemInput,
+            types.BatchWriteItemOutput
+        >("BatchWriteItem", {
             RequestItems: Object.fromEntries(
-                Array.from(
-                    batch.tableBatches,
-                    ([tableName, tableBatch]): [string, Array<WriteRequest>] => {
-                        return [
-                            tableName,
-                            Array.from(tableBatch.keyBatches.values(), ({key, input}) => {
-                                switch (input.action) {
-                                    case "Put": {
-                                        return {
-                                            PutRequest: {
-                                                Item: intoDynamoAttributeValueObject(input.item),
-                                            },
-                                        };
-                                    }
-                                    case "Delete": {
-                                        return {
-                                            DeleteRequest: {
-                                                Key: intoDynamoAttributeValueObject(key),
-                                            },
-                                        };
-                                    }
-                                    default:
-                                        throw exhaustive(input);
+                Array.from(batch.tableBatches, ([tableName, tableBatch]) => {
+                    return [
+                        tableName,
+                        Array.from(tableBatch.keyBatches.values(), ({key, input}) => {
+                            switch (input.action) {
+                                case "Put": {
+                                    return {
+                                        PutRequest: {
+                                            Item: intoDynamoAttributeValueObject(input.item),
+                                        },
+                                    };
                                 }
-                            }),
-                        ];
-                    },
-                ),
+                                case "Delete": {
+                                    return {
+                                        DeleteRequest: {
+                                            Key: intoDynamoAttributeValueObject(key),
+                                        },
+                                    };
+                                }
+                                default:
+                                    throw exhaustive(input);
+                            }
+                        }),
+                    ];
+                }),
             ),
         });
-
-        const output = await this._client.send(command);
 
         const unprocessedBatch: DynamoClientBatch<DynamoClientWriteItemBatchAction, void> = {
             itemCount: 0,
@@ -987,7 +944,7 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
                 for (const unprocessedItem of unprocessedItems) {
                     let key: SchemaSerializedObjectValue;
                     if (unprocessedItem.PutRequest?.Item) {
-                        const newKey: {[key: string]: AttributeValue} = {};
+                        const newKey: {[key: string]: types.AttributeValue} = {};
 
                         for (const keyAttribute of tableBatch.keyAttributes) {
                             const keyAttributeValue = unprocessedItem.PutRequest.Item[keyAttribute];
@@ -1039,6 +996,30 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
     }
 }
 
+export const dynamoClient = new DynamoClient();
+
+const dynamoUrl = `http://127.0.0.1:${localstackEdgePort}`;
+
+async function executeDynamoCommand<Input = never, Output = unknown>(
+    command: string,
+    input: Input,
+): Promise<Output> {
+    const response = await awsClient.fetch(dynamoUrl, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-amz-json-1.0",
+            "X-Amz-Target": `DynamoDB_20120810.${command}`,
+        },
+        body: JSON.stringify(input),
+    });
+
+    const output: any = await response.json();
+
+    if (response.status !== 200) throw classifyDynamoError(output);
+
+    return output;
+}
+
 /**
  * The DynamoDB API has this awkward format where the type for all values must
  * be tagged. This function converts from our serialized value format to
@@ -1052,7 +1033,7 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
 // We could also likely build a faster serialization/deserialization API into
 // `Schema`. For instance, what if `Schema` generated code that directly wrote
 // to our DynamoDB stream in the right attribute value? So fast.
-function intoDynamoAttributeValue(value: SchemaSerializedValue): AttributeValue {
+function intoDynamoAttributeValue(value: SchemaSerializedValue): types.AttributeValue {
     switch (typeof value) {
         case "boolean":
             return {BOOL: value};
@@ -1072,9 +1053,9 @@ function intoDynamoAttributeValue(value: SchemaSerializedValue): AttributeValue 
 }
 
 function intoDynamoAttributeValueObject(value: SchemaSerializedObjectValue): {
-    [key: string]: AttributeValue;
+    [key: string]: types.AttributeValue;
 } {
-    const newObject: {[key: string]: AttributeValue} = {};
+    const newObject: {[key: string]: types.AttributeValue} = {};
 
     for (const [key, keyValue] of Object.entries(value)) {
         if (keyValue === undefined) continue;
@@ -1089,7 +1070,7 @@ function intoDynamoAttributeValueObject(value: SchemaSerializedObjectValue): {
  * be tagged. This function converts from the DynamoDB attribute value format
  * to our serialized value format.
  */
-function fromDynamoAttributeValue(value: AttributeValue): SchemaSerializedValue {
+function fromDynamoAttributeValue(value: types.AttributeValue): SchemaSerializedValue {
     if (value.NULL !== undefined) return null;
     if (value.BOOL !== undefined) return value.BOOL;
     if (value.N !== undefined) return JSON.parse(value.N);
@@ -1102,7 +1083,7 @@ function fromDynamoAttributeValue(value: AttributeValue): SchemaSerializedValue 
 }
 
 function fromDynamoAttributeValueObject(value: {
-    [key: string]: AttributeValue;
+    [key: string]: types.AttributeValue;
 }): SchemaSerializedObjectValue {
     const newObject: {[key: string]: SchemaSerializedValue} = {};
 
@@ -1112,15 +1093,4 @@ function fromDynamoAttributeValueObject(value: {
     }
 
     return newObject;
-}
-
-function classifyDynamoWrappedClientErrors(
-    client: DynamoWrappedClientInterface,
-): DynamoWrappedClientInterface {
-    return {
-        send: command =>
-            client.send(command).catch(error => {
-                throw classifyDynamoError(error);
-            }),
-    };
 }
