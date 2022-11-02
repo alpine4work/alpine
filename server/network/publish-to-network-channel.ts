@@ -47,7 +47,7 @@ export async function publishToNetworkChannel<
 
     const body = await response.json<{error: {code?: string; message: string}}>();
 
-    if (response.status !== 200) {
+    if (response.status >= 400) {
         throw new UnknownError(
             `Ably error${body.error.code ? ` (code ${body.error.code})` : ""}: ${
                 body.error.message

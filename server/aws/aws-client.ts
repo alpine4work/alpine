@@ -1,5 +1,3 @@
-import "~/server/helpers/server-only.server";
-
 import {AwsClient} from "aws4fetch";
 import {awsAccessKeyId, awsSecretAccessKey} from "~/server/env/env-variables";
 

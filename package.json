@@ -109,7 +109,9 @@
             "@types/react@18.0.15": "admin/patches/@types__react@18.0.15.patch",
             "outdent@0.8.0": "admin/patches/outdent@0.8.0.patch",
             "media-query-parser@2.0.2": "admin/patches/media-query-parser@2.0.2.patch",
-            "esbuild-jest@0.5.0": "admin/patches/esbuild-jest@0.5.0.patch"
+            "esbuild-jest@0.5.0": "admin/patches/esbuild-jest@0.5.0.patch",
+            "ably@1.2.30": "admin/patches/ably@1.2.30.patch",
+            "@remix-run/dev@1.7.4": "admin/patches/@remix-run__dev@1.7.4.patch"
         },
         "allowedDeprecatedVersions": {
             "@types/keyv": "4.2.0",

@@ -1,5 +1,3 @@
-import "~/server/helpers/server-only.server";
-
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo-transaction-entry";
 import {DynamoReadConsistency, dynamoClient} from "~/server/dynamo/internal/dynamo-client";
 import {

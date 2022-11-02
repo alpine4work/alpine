@@ -18,7 +18,7 @@ const port = 3000;
 const wranglerDevPort = 3001;
 
 // When true we log everything printed to Wrangler stdout.
-const debugWrangler = false;
+const debugWrangler = true;
 
 const nodeModulesBinDirectoryPath = path.join(repoDirectoryPath, "node_modules/.bin");
 
@@ -92,6 +92,8 @@ async function runRemix() {
     subprocess.stderr.on("data", chunk => {
         const chunkString: string = chunk.toString("utf8");
 
+        // TODO(calebmer): We should render build errors in the browser. Right now we
+        // render the previous build.
         if (/Build failed/.test(chunkString)) {
             // If the Remix build failed we want to resolve our promise but we want to
             // report we shouldn't expect a Wrangler server restart.

@@ -1,0 +1,14 @@
+diff --git a/build/ably-commonjs.js b/build/ably-commonjs.js
+index 42a50c9a8d3c44372eb82390e5da86299c746f0d..0e15973da59402d0398949a50632f5ccf6dcc177 100644
+--- a/build/ably-commonjs.js
++++ b/build/ably-commonjs.js
+@@ -15,7 +15,8 @@
+ 		exports["Ably"] = factory();
+ 	else
+ 		root["Ably"] = factory();
+-})(window, function() {
++// NOTE(calebmer): Reference to `window` breaks in Cloudflare workers.
++})(typeof window !== 'undefined' ? window : null, function() {
+ return /******/ (function(modules) { // webpackBootstrap
+ /******/ 	// The module cache
+ /******/ 	var installedModules = {};

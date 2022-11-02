@@ -68,10 +68,10 @@ implementNetworkFunction(definition.authenticateAbly, async (input, session) => 
         "x-ably-capability": JSON.stringify(capability),
         "x-ably-clientId": ablyClientId,
     })
-        .setProtectedHeader({alg: "ES256", typ: "JWT", kid: ablyApiKeyId})
+        .setProtectedHeader({alg: "HS256", typ: "JWT", kid: ablyApiKeyId})
         .setIssuedAt()
         .setExpirationTime("10m")
-        .sign(Buffer.from(ablyApiKeySecret));
+        .sign(new TextEncoder().encode(ablyApiKeySecret));
 
     return {token};
 });

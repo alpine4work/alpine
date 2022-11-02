@@ -1,6 +1,9 @@
-import "~/server/helpers/server-only.server";
-
 import {assert} from "~/shared/helpers/control/assert";
+
+assert(
+    typeof window === "undefined",
+    "Env variables are present on the client! This means secrets may have been leaked",
+);
 
 type EnvVariables = {
     cookieSessionSecret: string;

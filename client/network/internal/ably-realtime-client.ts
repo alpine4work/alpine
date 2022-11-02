@@ -1,4 +1,4 @@
-import Ably from "ably";
+import Ably from "ably/build/ably-commonjs";
 import {InternalError} from "~/shared/error/error";
 import {createPromiseResolver} from "~/shared/helpers/async/promise-resolver";
 import {waitForAbort} from "~/shared/helpers/async/wait-for-abort";

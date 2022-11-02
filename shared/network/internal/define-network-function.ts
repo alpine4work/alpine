@@ -6,12 +6,11 @@ import {
     UnimplementedError,
     getErrorConstructorForCode,
 } from "~/shared/error/error";
-import {isErrorCode} from "~/shared/error/error-code";
+import {ErrorCode, isErrorCode} from "~/shared/error/error-code";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise-resolver";
 import {scheduleException} from "~/shared/helpers/async/schedule-exception";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule-microtask";
 import {assert} from "~/shared/helpers/control/assert";
-import {isPlainObject} from "~/shared/helpers/object/is-plain-object";
 import {isIdentifier} from "~/shared/helpers/string/is-identifier";
 import {quote} from "~/shared/helpers/string/quote";
 import {
@@ -223,16 +222,23 @@ async function executeNetworkFunctions(
 }
 
 async function deserializeError(
-    error: SchemaType<typeof NetworkFunctionHttpOutputErrorSchema>,
+    serializedError: SchemaType<typeof NetworkFunctionHttpOutputErrorSchema>,
 ): Promise<ErrorBase> {
-    if (!isPlainObject(error)) throw new InternalError("Expected error object");
+    const code = isErrorCode(serializedError.code) ? serializedError.code : ErrorCode.Unknown;
+    const ErrorConstructor = getErrorConstructorForCode(code);
+    const error = new ErrorConstructor(serializedError.message);
 
-    if (typeof error.message !== "string")
-        throw new InternalError("Missing message string on error object");
+    // If a stack trace was serialized with the error (in development we include a
+    // stack trace) then assign it to the error.
+    if (serializedError.stack) {
+        const errorStackPrefix = `${serializedError.name ?? error.name}: ${error.message}\n`;
 
-    if (typeof error.code !== "number" || !isErrorCode(error.code))
-        throw new InternalError("Invalid code on error object");
+        const errorStackWithoutPrefix = serializedError.stack.startsWith(errorStackPrefix)
+            ? serializedError.stack.slice(errorStackPrefix.length)
+            : serializedError.stack;
 
-    const ErrorConstructor = getErrorConstructorForCode(error.code);
-    throw new ErrorConstructor(error.message);
+        error.stack = `${errorStackPrefix}\nServer stack trace:\n${errorStackWithoutPrefix}`;
+    }
+
+    throw error;
 }
