@@ -2,13 +2,13 @@ import Head from "next/head";
 import {useEffect, useState} from "react";
 import {ContentEditor} from "~/client/content/content-editor";
 import {ContentEditorState} from "~/client/content/content-editor-state";
-import {sprinkles} from "~/client/design/sprinkles.css";
 import {
     DocumentContentProsemirrorSchema,
     emptyDocumentContent,
     isDocumentContent,
 } from "~/shared/documents/document-content-schema";
 import {assert} from "~/shared/helpers/control/assert";
+import {sprinkles} from "~/shared/styles/styles";
 
 export default function Home() {
     const [state, setState] = useState(() => ContentEditorState.create(emptyDocumentContent));

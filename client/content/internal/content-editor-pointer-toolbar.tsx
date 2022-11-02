@@ -35,13 +35,6 @@ import {useLifecycleRef} from "~/client/design/helpers/use-lifecycle-ref";
 import {useOutsidePress} from "~/client/design/helpers/use-outside-press";
 import {Overlay, OverlayRef} from "~/client/design/overlay";
 import {OverlayAnimated} from "~/client/design/overlay-animated";
-import {
-    overlayAnimateContainerClassName,
-    overlayAnimateFadeInClassName,
-    overlayAnimateFadeOutClassName,
-    overlayFadeAnimationDurationMs,
-} from "~/client/design/overlay-animated.css";
-import {sprinkles} from "~/client/design/sprinkles.css";
 import {uninterruptedThoughtLimitMs} from "~/client/design/timing-constants";
 import {Tooltip, TooltipRef} from "~/client/design/tooltip";
 import {useConstant} from "~/client/helpers/lifecycle/use-constant";
@@ -49,6 +42,13 @@ import {isMac} from "~/client/helpers/platform/is-mac";
 import {ContentProsemirrorSchema} from "~/shared/content/content-schema";
 import {spacing} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
+import {
+    overlayAnimateContainerClassName,
+    overlayAnimateFadeInClassName,
+    overlayAnimateFadeOutClassName,
+    overlayFadeAnimationDurationMs,
+    sprinkles,
+} from "~/shared/styles/styles";
 
 export function ContentEditorPointerToolbar({
     state,

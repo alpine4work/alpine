@@ -1,7 +1,7 @@
 import {globalStyle, style} from "@vanilla-extract/css";
-import {inputPlaceholderColor} from "~/client/design/input-placeholder-color.css";
-import {paragraphClassName, titleClassName} from "~/shared/content/content-schema.css";
-import {bodyFontAndHeaderFontLineHeight} from "~/shared/design/fonts";
+import {paragraphClassName, titleClassName} from "~/shared/styles/internal/content-schema.css";
+import {bodyFontAndHeaderFontLineHeight} from "~/shared/styles/internal/fonts.css";
+import {inputPlaceholderColor} from "~/shared/styles/internal/input-placeholder-color.css";
 
 export const containerClassName = style({
     height: "100%",

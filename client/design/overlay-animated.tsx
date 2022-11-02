@@ -1,15 +1,15 @@
 import {Ref, forwardRef, useEffect, useRef, useState} from "react";
 import {useElementWithRef} from "~/client/design/helpers/use-element-with-ref";
 import {Overlay, OverlayProps, OverlayRef} from "~/client/design/overlay";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use-layout-effect-without-server-side-warning";
+import {assert} from "~/shared/helpers/control/assert";
+import {isDeepEqual} from "~/shared/helpers/control/is-deep-equal";
 import {
     overlayAnimateContainerClassName,
     overlayAnimateFadeInClassName,
     overlayAnimateFadeOutClassName,
     overlayFadeAnimationDurationMs,
-} from "~/client/design/overlay-animated.css";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use-layout-effect-without-server-side-warning";
-import {assert} from "~/shared/helpers/control/assert";
-import {isDeepEqual} from "~/shared/helpers/control/is-deep-equal";
+} from "~/shared/styles/styles";
 
 const OverlayAnimatedForwardRef = forwardRef(OverlayAnimated);
 export {OverlayAnimatedForwardRef as OverlayAnimated};

@@ -1,5 +1,5 @@
 {
-    "app": "node -r ./admin/next/next-register.js ./admin/aws/aws-synth-main.ts",
+    "app": "node -r ./admin/remix/remix-register.js ./admin/aws/aws-synth-main.ts",
     "output": "./admin/aws/output",
     "context": {
         "@aws-cdk/aws-apigateway:usagePlanKeyOrderInsensitiveId": true,

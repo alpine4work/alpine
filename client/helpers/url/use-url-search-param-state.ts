@@ -1,5 +1,5 @@
-import {useRouter} from "next/router";
-import {useCallback, useMemo} from "react";
+import {useCallback, useEffect, useMemo, useRef} from "react";
+import {useLocation, useNavigate} from "react-router-dom";
 
 /**
  * Convenient React-style state for a string that is persisted in the URL's
@@ -8,30 +8,32 @@ import {useCallback, useMemo} from "react";
 export function useUrlSearchParamState(
     searchParamName: string,
 ): [value: string | null, setValue: (value: string | null) => void] {
-    const router = useRouter();
+    const location = useLocation();
+    const navigate = useNavigate();
+
+    const locationRef = useRef(location);
+    useEffect(() => {
+        locationRef.current = location;
+    });
 
     const value = useMemo(() => {
-        // If Next.js is rendering the page with SSG, search params are
-        // not available.
-        if (!router.isReady) return null;
-
-        const url = new URL(`https://www.example.com${router.asPath}`);
-        return url.searchParams.get(searchParamName);
-    }, [router.isReady, router.asPath, searchParamName]);
+        const searchParams = new URLSearchParams(location.search);
+        return searchParams.get(searchParamName);
+    }, [location.search, searchParamName]);
 
     const setValue = useCallback(
         (value: string | null) => {
-            const url = new URL(`https://www.example.com${router.asPath}`);
+            const searchParams = new URLSearchParams(locationRef.current.search);
 
             if (value !== null) {
-                url.searchParams.set(searchParamName, value);
+                searchParams.set(searchParamName, value);
             } else {
-                url.searchParams.delete(searchParamName);
+                searchParams.delete(searchParamName);
             }
 
-            void router.replace(`${url.pathname}${url.hash}${url.search}`);
+            navigate({search: searchParams.toString()});
         },
-        [searchParamName, router],
+        [navigate, searchParamName],
     );
 
     return [value, setValue];

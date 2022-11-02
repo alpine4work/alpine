@@ -1,13 +1,11 @@
 import {DynamoDBClient} from "@aws-sdk/client-dynamodb";
+import {localstackEdgePort} from "~/server/aws/localstack-edge-port";
 import {DynamoClient} from "~/server/dynamo/internal/dynamo-client";
-import {assert} from "~/shared/helpers/control/assert";
-
-assert(process.env.LOCALSTACK_EDGE_PORT);
-const localstackEdgePort = parseInt(process.env.LOCALSTACK_EDGE_PORT, 10);
+import {awsRegion} from "~/server/env/env-variables";
 
 export const globalDynamoClient = new DynamoClient(
     new DynamoDBClient({
-        region: "us-east-1",
+        region: awsRegion,
         endpoint: `http://localhost:${localstackEdgePort}`,
     }),
 );

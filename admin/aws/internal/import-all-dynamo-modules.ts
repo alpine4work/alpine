@@ -54,7 +54,7 @@ async function importAllDynamoModulesInDirectory(
                 // Ignore the test canary file unless we were told to not ignore it
                 (options.shouldNotIgnoreTestCanaryFile || modulePath !== ignoredTestCanaryFilePath)
             ) {
-                const importedModule = await import(modulePath);
+                const importedModule = require(modulePath);
 
                 for (const [moduleExportName, moduleExportValue] of Object.entries(
                     importedModule,

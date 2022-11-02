@@ -2,63 +2,87 @@
  * Our body font family is [Inter][1] and our code font family is
  * [Fira Code][2] (with ligatures disabled).
  *
- * We use the `@next/font` library to bring these fonts into our project since
- * that library applies many performance optimizations. However we can't use
- * that library in `.css.ts` files so we import the fonts in our
- * `_app.page.tsx` file.
- *
- * In `_app.page.tsx` we set Inter as the body font globally and we set
- * Fira Code to a CSS variable we use when there's a monospace font.
- *
  * [1]: https://rsms.me/inter
  * [2]: https://github.com/tonsky/FiraCode
  */
 
-// TODO(calebmer): Some characters aren't quite working with `@next/font`.
-// https://github.com/vercel/next.js/issues/41923
+import {fontFace} from "@vanilla-extract/css";
+
+const interFontFace = fontFace({
+    src: "url(/fonts/inter.woff2) format('woff2')",
+    fontStyle: "normal",
+    fontWeight: "100 900",
+});
+
+const interFallbackFontFace = fontFace({
+    src: 'local("Arial")',
+    // Values taken from the fallback font `@next/font` generates. See:
+    // https://beta.nextjs.org/docs/optimizing/fonts
+    // https://github.com/vercel/next.js/blob/a6b40317294308f2d67240b789a8bbfcca694703/packages/font/src/google/loader.ts#L138-L148
+    ascentOverride: "90.00%",
+    descentOverride: "22.43%",
+    lineGapOverride: "0.00%",
+    sizeAdjust: "107.64%",
+});
+
+const firaCodeFontFace = fontFace({
+    src: "url(/fonts/fira-code.woff2) format('woff2')",
+    fontStyle: "normal",
+    fontWeight: "300 700",
+});
+
+const firaCodeFallbackFontFace = fontFace({
+    src: 'local("Arial")',
+    // Values taken from the fallback font `@next/font` generates. See:
+    // https://beta.nextjs.org/docs/optimizing/fonts
+    // https://github.com/vercel/next.js/blob/a6b40317294308f2d67240b789a8bbfcca694703/packages/font/src/google/loader.ts#L138-L148
+    ascentOverride: "75.29%",
+    descentOverride: "24.49%",
+    lineGapOverride: "0.00%",
+    sizeAdjust: "131.49%",
+});
+
+const interFontFamily = `${interFontFace}, ${interFallbackFontFace}`;
+const firaCodeFontFamily = `${firaCodeFontFace}, ${firaCodeFallbackFontFace}`;
 
 /**
  * The fonts available in our product.
- *
- * We use `@next/font` to make our fonts available. This library needs to run
- * in browser code (as opposed to `.css.ts`) so font families are assigned to
- * CSS variables in `_app.page.tsx`.
  */
 export const fonts = {
     primary: {
-        fontFamily: "var(--inter)",
+        fontFamily: interFontFamily,
         fontWeight: 400,
         fontStyle: "normal",
     },
     primaryMedium: {
-        fontFamily: "var(--inter)",
+        fontFamily: interFontFamily,
         fontWeight: 500,
         fontStyle: "normal",
     },
     primarySemiBold: {
-        fontFamily: "var(--inter)",
+        fontFamily: interFontFamily,
         fontWeight: 600,
         fontStyle: "normal",
     },
     primaryBold: {
-        fontFamily: "var(--inter)",
+        fontFamily: interFontFamily,
         fontWeight: 700,
         fontStyle: "normal",
     },
     code: {
-        fontFamily: "var(--fira-code)",
+        fontFamily: firaCodeFontFamily,
         fontWeight: 400,
         fontStyle: "normal",
     },
     codeBold: {
-        fontFamily: "var(--fira-code)",
+        fontFamily: firaCodeFontFamily,
         fontWeight: 700,
         fontStyle: "normal",
     },
 };
 
 /**
- * Line height is 1.4x for all sizes except `small`. For `small` the line
+ * Line height is 1.5x for all sizes except `small`. For `small` the line
  * height is 1rem because `small` is our default font size for UI text (e.g.
  * button labels) and we want it to play nice with our spacing scale.
  *

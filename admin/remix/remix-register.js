@@ -9,6 +9,20 @@
 
 "use strict";
 
-require("esbuild-register");
+const vanillaExtractModuleRegExp = /\.css\.(js|jsx|ts|tsx|mjs)$/;
 
-// TODO(calebmer): This script may need special support for `.css.ts` files?
+require("esbuild-register/dist/node").register({
+    target: `node${process.version.slice(1)}`,
+    // We compile `vanilla-extract` files with Babel because we need a custom
+    // Babel plugin.
+    hookMatcher: fileName => !vanillaExtractModuleRegExp.test(fileName),
+});
+
+// Compile CSS files with Babel so we can use the `vanilla-extract` Babel plugin.
+require("@babel/register")({
+    only: [vanillaExtractModuleRegExp],
+    ignore: [/node_modules/],
+    extensions: [".js", ".jsx", ".ts", ".tsx", ".mjs"],
+    presets: ["@babel/env", "@babel/typescript"],
+    plugins: ["@vanilla-extract/babel-plugin"],
+});

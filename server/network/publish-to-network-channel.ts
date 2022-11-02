@@ -1,15 +1,13 @@
 import Ably from "ably";
-import {assert} from "~/shared/helpers/control/assert";
+import {ablyApiKey} from "~/server/env/env-variables";
 import {BlockInference} from "~/shared/helpers/types/block-inference";
 import {getAblyChannelNameForNetworkChannel} from "~/shared/network/helpers/get-ably-channel-name-for-network-channel";
 import {NetworkChannel} from "~/shared/network/network-channel";
 
-assert(process.env.ABLY_API_KEY);
-
 // TODO(calebmer): Enable idempotent message publishing and give all messages an
 // id. Is there a way to automatically generate these idempotent ids? Maybe a hash
 // of the message + a request id?
-const ablyRest = new Ably.Rest.Promise({key: process.env.ABLY_API_KEY});
+const ablyRest = new Ably.Rest.Promise({key: ablyApiKey});
 
 /**
  * Publish a message to a network channel.

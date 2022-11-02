@@ -5,10 +5,10 @@ import {RefObject, useRef, useState} from "react";
 import {useButton, useHover} from "react-aria";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus-ring";
-import {sprinkles} from "~/client/design/sprinkles.css";
 import {Tooltip} from "~/client/design/tooltip";
 import {spacing} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
+import {sprinkles} from "~/shared/styles/styles";
 
 export function ContentEditorLinkInput({
     viewRef,

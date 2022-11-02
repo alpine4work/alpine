@@ -3,8 +3,8 @@ import {EditorView} from "prosemirror-view";
 import {RefObject} from "react";
 import {ContentEditorPhantomTextSelection} from "~/client/content/content-editor";
 import {useContentEditorTracker} from "~/client/content/internal/content-editor-cursor-tracker";
-import {sprinkles} from "~/client/design/sprinkles.css";
 import {spacing} from "~/shared/design/spacing";
+import {sprinkles} from "~/shared/styles/styles";
 
 export function ContentEditorPhantomTextSelectionCursor({
     state,

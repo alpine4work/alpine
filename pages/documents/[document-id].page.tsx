@@ -1,10 +1,10 @@
-import {sprinkles} from "~/client/design/sprinkles.css";
 import {DocumentContentEditor} from "~/client/documents/document-content-editor";
 import {createPageComponent} from "~/client/helpers/pages/create-page-component";
 import {getDocument} from "~/server/dynamo/documents-table";
 import {createGetServerSideProps} from "~/server/helpers/pages/create-get-server-side-props";
 import {DocumentModel} from "~/shared/documents/document-model";
 import {Schema} from "~/shared/schema/schema";
+import {sprinkles} from "~/shared/styles/styles";
 
 const Page = createPageComponent({
     query: Schema.object({

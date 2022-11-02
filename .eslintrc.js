@@ -136,6 +136,9 @@ module.exports = {
             },
         ],
 
+        // Inconvenient to annotate every type import with `import type`.
+        "@typescript-eslint/consistent-type-imports": "off",
+
         // This is a pretty important lint rule. It defines the module boundaries of
         // our system. We treat top level directories as different execution
         // environments. We don't want code in `client` to be evaluated in

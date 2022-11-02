@@ -21,12 +21,6 @@ import {useElementWithRef} from "~/client/design/helpers/use-element-with-ref";
 import {useLifecycleRef} from "~/client/design/helpers/use-lifecycle-ref";
 import {Overlay, OverlayPlacement, OverlayRef} from "~/client/design/overlay";
 import {
-    overlayAnimateContainerClassName,
-    overlayAnimateFadeInClassName,
-    overlayAnimateFadeOutClassName,
-    overlayFadeAnimationDurationMs,
-} from "~/client/design/overlay-animated.css";
-import {
     presentExtraContextAfterDelayMs,
     uninterruptedThoughtLimitMs,
 } from "~/client/design/timing-constants";
@@ -34,6 +28,12 @@ import {useIsMounted} from "~/client/helpers/lifecycle/use-is-mounted";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {isDeepEqual} from "~/shared/helpers/control/is-deep-equal";
+import {
+    overlayAnimateContainerClassName,
+    overlayAnimateFadeInClassName,
+    overlayAnimateFadeOutClassName,
+    overlayFadeAnimationDurationMs,
+} from "~/shared/styles/styles";
 
 type TooltipState =
     // Tooltip is definitely not visible.

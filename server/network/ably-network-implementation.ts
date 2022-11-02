@@ -1,4 +1,5 @@
 import * as jwt from "jsonwebtoken";
+import {ablyApiKey} from "~/server/env/env-variables";
 import {authorizeNetworkChannel} from "~/server/network/internal/authorize-network-channel";
 import {implementNetworkFunction} from "~/server/network/internal/implement-network-function";
 import {InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error";
@@ -8,15 +9,13 @@ import {isDeepEqual} from "~/shared/helpers/control/is-deep-equal";
 import {isPlainObject} from "~/shared/helpers/object/is-plain-object";
 import * as definition from "~/shared/network/ably-network-definition";
 
-assert(process.env.ABLY_API_KEY);
-
 /**
  * Splits our [Ably API key][1] into the ID and secret part. The ID part is
  * included in JWTs we generate and the secret part is used to sign the JWTs.
  *
  * [1]: https://faqs.ably.com/what-is-an-app-api-key
  */
-const [ablyApiKeyId = "", ablyApiKeySecret = ""] = process.env.ABLY_API_KEY.split(":");
+const [ablyApiKeyId = "", ablyApiKeySecret = ""] = ablyApiKey.split(":");
 assert(ablyApiKeyId.length > 0);
 assert(ablyApiKeySecret.length > 0);
 

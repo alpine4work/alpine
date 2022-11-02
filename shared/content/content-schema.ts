@@ -1,7 +1,10 @@
 import {assignInlineVars} from "@vanilla-extract/dynamic";
 import classNames from "classnames";
 import {Node, ParseRule, Schema, SchemaSpec} from "prosemirror-model";
-import {
+import {clamp} from "~/shared/helpers/number/clamp";
+import {contentSchemaStyles} from "~/shared/styles/styles";
+
+const {
     boldClassName,
     bulletListItemClassName,
     codeClassName,
@@ -13,8 +16,7 @@ import {
     paragraphClassName,
     quoteBlockClassName,
     strikeClassName,
-} from "~/shared/content/content-schema.css";
-import {clamp} from "~/shared/helpers/number/clamp";
+} = contentSchemaStyles;
 
 /**
  * The maximum level of indentation for a list item.

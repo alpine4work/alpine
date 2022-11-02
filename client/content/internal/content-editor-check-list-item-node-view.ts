@@ -1,12 +1,14 @@
 import {Check} from "phosphor-react";
 import {DOMSerializer, Node} from "prosemirror-model";
 import {EditorView, NodeView} from "prosemirror-view";
-import {
+import {contentSchemaStyles} from "~/shared/styles/styles";
+
+const {
     checkListItemCheckboxClassName,
     checkListItemCheckboxContainerClassName,
     checkListItemCheckboxPressedClassName,
     checkListItemContentClassName,
-} from "~/shared/content/content-schema.css";
+} = contentSchemaStyles;
 
 export function createContentEditorCheckListItemNodeView(
     node: Node,

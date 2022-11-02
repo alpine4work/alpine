@@ -3,9 +3,7 @@
     "version": "0.1.0",
     "private": true,
     "scripts": {
-        "dev": "NODE_ENV=development node -r ./admin/remix/remix-register.js admin/remix/remix-dev.ts",
-        "build": "next build",
-        "start": "next start",
+        "dev": "NODE_ENV=development node -r ./admin/remix/remix-register.js admin/remix/remix-dev-main.ts",
         "test": "jest --watch",
         "check": "tsc",
         "lint": "next lint --rulesdir admin/eslint/rules"
@@ -15,6 +13,9 @@
         "@aws-sdk/types": "^3.198.0",
         "@axe-core/react": "4.4.3",
         "@babel/core": "^7.19.6",
+        "@babel/preset-env": "^7.19.4",
+        "@babel/preset-typescript": "^7.18.6",
+        "@babel/register": "^7.18.9",
         "@babel/runtime": "^7.20.0",
         "@cloudflare/workers-types": "^3.18.0",
         "@popperjs/core": "^2.11.6",
@@ -40,8 +41,10 @@
         "@types/testing-library__jest-dom": "^5.14.5",
         "@typescript-eslint/eslint-plugin": "^5.41.0",
         "@typescript-eslint/parser": "^5.41.0",
+        "@vanilla-extract/babel-plugin": "^1.2.0",
         "@vanilla-extract/css": "^1.9.1",
         "@vanilla-extract/dynamic": "^2.0.2",
+        "@vanilla-extract/esbuild-plugin": "^2.2.0",
         "@vanilla-extract/sprinkles": "^1.5.0",
         "ably": "^1.2.30",
         "aws-cdk": "2.43.1",
@@ -75,8 +78,9 @@
         "jest-environment-jsdom": "^28.1.3",
         "json-stable-stringify": "^1.0.1",
         "jsonwebtoken": "^8.5.1",
+        "media-query-parser": "2.0.2",
         "murmurhash": "^2.0.1",
-        "npm-run-all": "^4.1.5",
+        "outdent": "0.8.0",
         "phosphor-react": "^1.4.1",
         "pretty-ms": "7",
         "prosemirror-collab": "^1.3.0",
@@ -91,6 +95,7 @@
         "react": "18.2.0",
         "react-aria": "^3.20.0",
         "react-dom": "18.2.0",
+        "react-router-dom": "6.3.0",
         "strip-ansi": "6",
         "typescript": "4.7.4",
         "wrangler": "^2.1.13"
@@ -98,7 +103,9 @@
     "pnpm": {
         "patchedDependencies": {
             "prosemirror-view@1.27.2": "admin/patches/prosemirror-view@1.27.2.patch",
-            "@types/react@18.0.15": "admin/patches/@types__react@18.0.15.patch"
+            "@types/react@18.0.15": "admin/patches/@types__react@18.0.15.patch",
+            "outdent@0.8.0": "admin/patches/outdent@0.8.0.patch",
+            "media-query-parser@2.0.2": "admin/patches/media-query-parser@2.0.2.patch"
         },
         "allowedDeprecatedVersions": {
             "@types/keyv": "4.2.0",

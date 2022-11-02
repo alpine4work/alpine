@@ -1,8 +1,8 @@
 import Head from "next/head";
 import {ContentEditor} from "~/client/content/content-editor";
-import {sprinkles} from "~/client/design/sprinkles.css";
 import {useDocumentContentEditorAblyContentSync} from "~/client/documents/document-content-editor-ably";
 import {DocumentModel, getDocumentContentTitle} from "~/shared/documents/document-model";
+import {sprinkles} from "~/shared/styles/styles";
 
 export function DocumentContentEditor({document}: {document: DocumentModel}) {
     return (

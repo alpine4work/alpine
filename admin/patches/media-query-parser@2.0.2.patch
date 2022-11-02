@@ -1,0 +1,45 @@
+diff --git a/dist/index.js b/dist/index.js
+index 455c0ffeb3a02e3d468bf8ce2fadd2f08100c9ce..a91f013ca22213ffba0235d9bdc1da3f1c45f867 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -641,7 +641,9 @@ var consumeNumber = function consumeNumber(str, index) {
+ 
+   var numberString = String.fromCharCode.apply(null, numberChars);
+   var value = flag === 'number' ? parseFloat(numberString) : parseInt(numberString);
+-  if (value === -0) value = 0;
++  // NOTE(calebmer): `value === -0` is the same as `value === 0`. esbuild warns
++  // when we have `value === -0` so switch to the equivalent form.
++  if (value === 0) value = 0;
+   return Number.isNaN(value) ? null : [index - 1, value, flag];
+ };
+ var consumeIdentUnsafe = function consumeIdentUnsafe(str, index) {
+diff --git a/dist/media-query-parser.esm.js b/dist/media-query-parser.esm.js
+index 45aa15317e0c00135532b6d7ba83492c06a19ea7..948cb23a63b13f517ad3f88df8bcb3d13d3fb37c 100644
+--- a/dist/media-query-parser.esm.js
++++ b/dist/media-query-parser.esm.js
+@@ -637,7 +637,9 @@ var consumeNumber = function consumeNumber(str, index) {
+ 
+   var numberString = String.fromCharCode.apply(null, numberChars);
+   var value = flag === 'number' ? parseFloat(numberString) : parseInt(numberString);
+-  if (value === -0) value = 0;
++  // NOTE(calebmer): `value === -0` is the same as `value === 0`. esbuild warns
++  // when we have `value === -0` so switch to the equivalent form.
++  if (value === 0) value = 0;
+   return Number.isNaN(value) ? null : [index - 1, value, flag];
+ };
+ var consumeIdentUnsafe = function consumeIdentUnsafe(str, index) {
+diff --git a/dist/media-query-parser.umd.js b/dist/media-query-parser.umd.js
+index c93d96dfc621f49b8ec3fac0e1656957b3cdf786..1952140dca2a1b66deefaf4ec1f186a33691ef2f 100644
+--- a/dist/media-query-parser.umd.js
++++ b/dist/media-query-parser.umd.js
+@@ -643,7 +643,9 @@
+ 
+       var numberString = String.fromCharCode.apply(null, numberChars);
+       var value = flag === 'number' ? parseFloat(numberString) : parseInt(numberString);
+-      if (value === -0) value = 0;
++      // NOTE(calebmer): `value === -0` is the same as `value === 0`. esbuild warns
++      // when we have `value === -0` so switch to the equivalent form.
++      if (value === 0) value = 0;
+       return Number.isNaN(value) ? null : [index - 1, value, flag];
+     };
+     var consumeIdentUnsafe = function consumeIdentUnsafe(str, index) {

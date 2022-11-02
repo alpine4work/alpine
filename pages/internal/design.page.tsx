@@ -4,11 +4,11 @@ import {Box} from "~/client/design/box";
 import {toggleColorScheme, useColorScheme} from "~/client/design/color-scheme";
 import {IconButton} from "~/client/design/icon-button";
 import {DesignPlaygroundTooltipPage} from "~/client/design/playground/design-playground-tooltip-page";
+import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {
     hiddenIfDarkColorSchemeClassName,
     hiddenIfLightColorSchemeClassName,
-} from "~/shared/design/color-scheme.css";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
+} from "~/shared/styles/styles";
 
 export default function DesignPlayground() {
     return (

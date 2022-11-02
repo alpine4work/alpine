@@ -1,7 +1,5 @@
 import {createVar, globalStyle, style} from "@vanilla-extract/css";
 import {colorByHighlightColor} from "~/shared/content/highlight-color";
-import {colorSchemeVars} from "~/shared/design/color-scheme.css";
-import {fontScale, fonts} from "~/shared/design/fonts";
 import {
     mobilePlatformMediaQuery,
     parseRemLengthNumber,
@@ -9,6 +7,8 @@ import {
     spacing,
 } from "~/shared/design/spacing";
 import {mapObjectValues} from "~/shared/helpers/object/map-object-values";
+import {colorSchemeVars} from "~/shared/styles/internal/color-scheme.css";
+import {fontScale, fonts} from "~/shared/styles/internal/fonts.css";
 
 const paragraphMargin = spacing["3"];
 const headerTopMargin = spacing["6"];

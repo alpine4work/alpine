@@ -1,0 +1,70 @@
+diff --git a/lib/index.js b/lib/index.js
+index 9b9ebeb67546a85db7bb7db0073f90de641f2263..b1f7390469ecb0e8349f3dcddb9dc17aa805515a 100644
+--- a/lib/index.js
++++ b/lib/index.js
+@@ -160,15 +160,6 @@ exports.outdent = defaultOutdent;
+ // Named exports.  Simple and preferred.
+ // import outdent from 'outdent';
+ exports.default = defaultOutdent;
+-if (typeof module !== "undefined") {
+-    // In webpack harmony-modules environments, module.exports is read-only,
+-    // so we fail gracefully.
+-    try {
+-        module.exports = defaultOutdent;
+-        Object.defineProperty(defaultOutdent, "__esModule", { value: true });
+-        defaultOutdent.default = defaultOutdent;
+-        defaultOutdent.outdent = defaultOutdent;
+-    }
+-    catch (e) { }
+-}
++// NOTE(calebmer): Remove CommonJS compatibility code. It doesn't play nice
++// with esbuild.
+ //# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/lib-module/index.js b/lib-module/index.js
+index 23a1f10d93c7f900295927b953eeed6e37074281..651887cddad626b8e95834fa07c3a5a16094368b 100644
+--- a/lib-module/index.js
++++ b/lib-module/index.js
+@@ -158,15 +158,6 @@ var defaultOutdent = createInstance({
+ export default defaultOutdent;
+ // import {outdent} from 'outdent';
+ export { defaultOutdent as outdent };
+-if (typeof module !== "undefined") {
+-    // In webpack harmony-modules environments, module.exports is read-only,
+-    // so we fail gracefully.
+-    try {
+-        module.exports = defaultOutdent;
+-        Object.defineProperty(defaultOutdent, "__esModule", { value: true });
+-        defaultOutdent.default = defaultOutdent;
+-        defaultOutdent.outdent = defaultOutdent;
+-    }
+-    catch (e) { }
+-}
++// NOTE(calebmer): Remove CommonJS compatibility code. It doesn't play nice
++// with esbuild.
+ //# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/src/index.ts b/src/index.ts
+index 7b55ef3b1c4129e26d6b842b0462a6455845c975..ca13e0204ad78f714abc35395c235980e6df20a5 100644
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -250,17 +250,5 @@ export default defaultOutdent;
+ // import {outdent} from 'outdent';
+ export { defaultOutdent as outdent };
+ 
+-// In CommonJS environments, enable `var outdent = require('outdent');` by
+-// replacing the exports object.
+-// Make sure that our replacement includes the named exports from above.
+-declare var module: any;
+-if (typeof module !== "undefined") {
+-  // In webpack harmony-modules environments, module.exports is read-only,
+-  // so we fail gracefully.
+-  try {
+-    module.exports = defaultOutdent;
+-    Object.defineProperty(defaultOutdent, "__esModule", { value: true });
+-    (defaultOutdent as any).default = defaultOutdent;
+-    (defaultOutdent as any).outdent = defaultOutdent;
+-  } catch (e) {}
+-}
++// NOTE(calebmer): Remove CommonJS compatibility code. It doesn't play nice
++// with esbuild.

@@ -6,11 +6,11 @@
  */
 
 import {globalStyle} from "@vanilla-extract/css";
-import {inputPlaceholderColor} from "~/client/design/input-placeholder-color.css";
-import {colorSchemeVars} from "~/shared/design/color-scheme.css";
-import {fontScale, fonts} from "~/shared/design/fonts";
 import {mobilePlatformMediaQuery, remPxByPlatform} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
+import {colorSchemeVars} from "~/shared/styles/internal/color-scheme.css";
+import {fontScale, fonts} from "~/shared/styles/internal/fonts.css";
+import {inputPlaceholderColor} from "~/shared/styles/internal/input-placeholder-color.css";
 
 // Since we use the `fontScale.base` line height as our default, let's make
 // sure the font size is 1rem.
@@ -19,10 +19,7 @@ assert(fontScale.body.fontSize === "1rem");
 globalStyle(":root", {
     backgroundColor: colorSchemeVars["grey-0"],
     color: colorSchemeVars["grey-100"],
-
-    // As a fallback use a system font stack.
-    fontFamily:
-        'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
+    ...fonts.primary,
 
     // Change the size of 1rem based on whether we're on desktop or mobile.
     fontSize: remPxByPlatform.desktop,

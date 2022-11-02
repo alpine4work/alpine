@@ -19,12 +19,12 @@ import {Box} from "~/client/design/box";
 import {useOutsidePress} from "~/client/design/helpers/use-outside-press";
 import {OverlayRef} from "~/client/design/overlay";
 import {OverlayAnimated} from "~/client/design/overlay-animated";
-import {overlayFadeAnimationDurationMs} from "~/client/design/overlay-animated.css";
 import {uninterruptedThoughtLimitMs} from "~/client/design/timing-constants";
 import {useConstant} from "~/client/helpers/lifecycle/use-constant";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule-microtask";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {overlayFadeAnimationDurationMs} from "~/shared/styles/styles";
 
 export type ContentEditorPointerToolbarFloaterState = {
     readonly type: "PointerToolbar";

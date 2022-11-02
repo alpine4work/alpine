@@ -1,7 +1,3 @@
-// ProseMirror includes some lightweight styling that's required for it to
-// work correctly.
-import "prosemirror-view/style/prosemirror.css";
-
 import classNames from "classnames";
 import {Node, Slice} from "prosemirror-model";
 import {EditorState, Transaction} from "prosemirror-state";
@@ -19,13 +15,6 @@ import {
     useState,
 } from "react";
 import {ContentEditorState} from "~/client/content/content-editor-state";
-import {
-    containerClassName,
-    emptyBodyClassName,
-    emptyTitleClassName,
-    hideSelectionWhileUnfocusedClassName,
-    inlineElementPaddingToLineHeightClassName,
-} from "~/client/content/content-editor.css";
 import {createContentEditorCheckListItemNodeView} from "~/client/content/internal/content-editor-check-list-item-node-view";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content-editor-dom-clipboard-serializer";
 import {ContentEditorDomParser} from "~/client/content/internal/content-editor-dom-parser";
@@ -44,11 +33,20 @@ import {trimSpacesFromRange} from "~/client/content/internal/content-editor-pros
 import {FocusRingPortal} from "~/client/design/focus-ring";
 import {isMac} from "~/client/helpers/platform/is-mac";
 import {doesUrlStartWithAllowedProtocol} from "~/shared/content/content-schema";
-import {docClassName} from "~/shared/content/content-schema.css";
-import {colorSchemeVars} from "~/shared/design/color-scheme.css";
 import {ThemeColor} from "~/shared/design/theme-colors";
 import {documentFallbackTitle} from "~/shared/documents/document-model";
 import {assert} from "~/shared/helpers/control/assert";
+import {colorSchemeVars, contentEditorStyles, contentSchemaStyles} from "~/shared/styles/styles";
+
+const {docClassName} = contentSchemaStyles;
+
+const {
+    containerClassName,
+    emptyBodyClassName,
+    emptyTitleClassName,
+    hideSelectionWhileUnfocusedClassName,
+    inlineElementPaddingToLineHeightClassName,
+} = contentEditorStyles;
 
 // TODO(calebmer): Implement touch toolbar for mobile.
 

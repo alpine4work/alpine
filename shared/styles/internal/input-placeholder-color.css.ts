@@ -1,4 +1,4 @@
-import {colorSchemeVars} from "~/shared/design/color-scheme.css";
+import {colorSchemeVars} from "~/shared/styles/internal/color-scheme.css";
 
 /**
  * The color of input placeholder text.

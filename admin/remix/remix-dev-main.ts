@@ -1,8 +1,11 @@
+import {vanillaExtractPlugin} from "@vanilla-extract/esbuild-plugin";
 import chalk from "chalk";
 import {spawn} from "child_process";
+import * as esbuild from "esbuild";
 import http from "http";
 import path from "path";
 import stripAnsi from "strip-ansi";
+import {prepareLocalstack} from "~/admin/aws/prepare-localstack";
 import {repoDirectoryPath} from "~/server/helpers/repo-directory-path";
 import {createPromiseResolver} from "~/shared/helpers/async/promise-resolver";
 import {assert} from "~/shared/helpers/control/assert";
@@ -40,7 +43,7 @@ async function cleanup() {
  * If there is an ongoing build we will set this to an unresolved promise. We
  * will resolve the promise once the build finishes.
  */
-let remixBuildPromiseResolver = createPromiseResolver();
+let remixBuildPromiseResolver = createPromiseResolver<{shouldWaitForServerRestart: boolean}>();
 
 /**
  * Runs Remix in watch mode. This will compile all assets with esbuild and
@@ -66,8 +69,9 @@ async function runRemix() {
             assert(!remixBuildPromiseResolver.isSettled());
         } else if (/Built in/.test(chunkString)) {
             // Resolve our Remix build promise after the initial build.
-            assert(!remixBuildPromiseResolver.isSettled());
-            remixBuildPromiseResolver.resolve();
+            if (!remixBuildPromiseResolver.isSettled()) {
+                remixBuildPromiseResolver.resolve({shouldWaitForServerRestart: true});
+            }
         } else if (/File changed/.test(chunkString) || /Rebuilding/.test(chunkString)) {
             // If Remix reports that a file changed, start a new build promise.
             if (remixBuildPromiseResolver.isSettled()) {
@@ -76,8 +80,9 @@ async function runRemix() {
         } else if (/Rebuilt in/.test(chunkString)) {
             // Once Remix reports it has finished building, resolve our new rebuild
             // promise.
-            assert(!remixBuildPromiseResolver.isSettled());
-            remixBuildPromiseResolver.resolve();
+            if (!remixBuildPromiseResolver.isSettled()) {
+                remixBuildPromiseResolver.resolve({shouldWaitForServerRestart: true});
+            }
         }
 
         // Forward the chunk string to stdout.
@@ -85,8 +90,18 @@ async function runRemix() {
     });
 
     subprocess.stderr.on("data", chunk => {
-        // Forward anything on stderr to our process stderr.
-        process.stderr.write(chunk);
+        const chunkString: string = chunk.toString("utf8");
+
+        if (/Build failed/.test(chunkString)) {
+            // If the Remix build failed we want to resolve our promise but we want to
+            // report we shouldn't expect a Wrangler server restart.
+            if (!remixBuildPromiseResolver.isSettled()) {
+                remixBuildPromiseResolver.resolve({shouldWaitForServerRestart: false});
+            }
+        }
+
+        // Forward the chunk string to stderr.
+        process.stderr.write(chunkString);
     });
 
     await new Promise<void>((resolve, reject) => {
@@ -111,24 +126,42 @@ async function runWrangler() {
     // eslint-disable-next-line no-console
     console.log(`Server listening on ${chalk.bold.underline(`http://${prettyHost}:${port}`)}`);
 
+    const createPromiseResolverWithTimeout = () => {
+        const promiseResolver = createPromiseResolver();
+
+        // Timeout the `wranglerServer` promise after some seconds because the Wrangler
+        // logs can be a bit finicky.
+        const timeoutId = setTimeout(() => {
+            promiseResolver.resolve();
+        }, 2000);
+
+        promiseResolver.promise.finally(() => clearTimeout(timeoutId));
+
+        return promiseResolver;
+    };
+
     let wranglerServer = {
         remixBuildPromise: remixBuildPromiseResolver.promise,
-        promiseResolver: createPromiseResolver(),
+        promiseResolver: createPromiseResolverWithTimeout(),
     };
 
     /**
      * Whenever we see a new Remix build promise, we want to create a new worker
      * build promise that finishes when Wrangler reports the worker was compiled.
      */
-    const waitForWorkerBuild = () => {
+    const waitForWorkerBuild = async () => {
         if (wranglerServer.remixBuildPromise !== remixBuildPromiseResolver.promise) {
             wranglerServer = {
                 remixBuildPromise: remixBuildPromiseResolver.promise,
-                promiseResolver: createPromiseResolver(),
+                promiseResolver: createPromiseResolverWithTimeout(),
             };
         }
 
-        return wranglerServer.promiseResolver.promise;
+        const ourWranglerServer = wranglerServer;
+
+        const {shouldWaitForServerRestart} = await ourWranglerServer.remixBuildPromise;
+        if (!shouldWaitForServerRestart) return;
+        await ourWranglerServer.promiseResolver.promise;
     };
 
     // We proxy all requests to `wrangler` so that if we detect that Remix is
@@ -173,9 +206,9 @@ async function runWrangler() {
                     // Retry connection errors with exponential backoff because the Wrangler dev
                     // server may be restarting.
                     if (error.code === "ECONNREFUSED" || error.code === "ECONNRESET") {
-                        const delayMs = 10 * 2 ** (attemptNumber - 1);
+                        const delayMs = 100;
 
-                        if (delayMs <= 1000 * 10) {
+                        if (attemptNumber < 20) {
                             setTimeout(() => {
                                 attempt(attemptNumber + 1);
                             }, delayMs);
@@ -240,11 +273,25 @@ async function runWrangler() {
     subprocess.stderr.on("data", chunk => {
         const chunkString: string = chunk.toString("utf8");
 
-        // Strip ANSI codes when debugging Wrangler since it prints codes that do
-        // things like try and clear the previous line of your terminal.
-        if (debugWrangler) {
-            process.stderr.write(stripAnsi(chunkString));
+        // Quiet some repetitive messages while not debugging wrangler.
+        if (!debugWrangler) {
+            // If the developer wants access to the debugger they can go to
+            // `chrome://inspect`.
+            if (
+                /Debugger listening on/.test(chunkString) ||
+                /For help, see: https:\/\/nodejs.org\/en\/docs\/inspector/.test(chunkString) ||
+                /Debugger attached/.test(chunkString)
+            ) {
+                return;
+            }
+
+            // We are not passing `--inspect` in? Unclear why this warning is logged.
+            if (/Passing --inspect is unnecessary/.test(chunkString)) {
+                return;
+            }
         }
+
+        process.stderr.write(stripAnsi(chunkString));
     });
 
     await new Promise<void>((resolve, reject) => {
@@ -258,10 +305,36 @@ async function runWrangler() {
     };
 }
 
+async function runVanillaExtract() {
+    const builder = await esbuild.build({
+        entryPoints: [path.join(repoDirectoryPath, "shared/styles/internal/styles.ts")],
+        outfile: path.join(repoDirectoryPath, "shared/styles/styles.js"),
+        bundle: true,
+        splitting: false,
+        sourcemap: true,
+        format: "esm",
+        // Leave font face `url()`s alone.
+        external: ["*.woff2"],
+        plugins: [vanillaExtractPlugin({identifiers: "debug"}) as esbuild.Plugin],
+        watch: true,
+    });
+
+    return async () => {
+        builder.stop?.();
+    };
+}
+
 async function run() {
-    const results = await Promise.allSettled<Array<Promise<() => Promise<void>>>>([
-        runRemix(),
+    const vanillaExtractPlugin = runVanillaExtract();
+
+    // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
+    const results = await Promise.allSettled<Array<Promise<void | (() => Promise<void>)>>>([
+        vanillaExtractPlugin,
+        // Wait for vanilla extract to run before starting the
+        // Remix builder.
+        vanillaExtractPlugin.then(() => runRemix()),
         runWrangler(),
+        prepareLocalstack(),
     ]);
 
     const errors = [];
@@ -270,7 +343,9 @@ async function run() {
         if (result.status === "rejected") {
             errors.push(result.reason);
         } else {
-            cleanupListeners.push(result.value);
+            if (typeof result.value === "function") {
+                cleanupListeners.push(result.value);
+            }
         }
     }
 

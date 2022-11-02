@@ -6,7 +6,6 @@ import {ContentEditorPhantomTextSelection} from "~/client/content/content-editor
 import {ContentEditorState} from "~/client/content/content-editor-state";
 import {useNetworkChannel} from "~/client/network/use-network-channel";
 import {useNetworkPresenceChannel} from "~/client/network/use-network-presence-channel";
-import {defaultThemeColor} from "~/shared/design/color-scheme.css";
 import {themeColors} from "~/shared/design/theme-colors";
 import {DocumentContent, isDocumentContent} from "~/shared/documents/document-content-schema";
 import {DocumentModel} from "~/shared/documents/document-model";
@@ -25,6 +24,7 @@ import {
 } from "~/shared/network/documents-network-definition";
 import {NetworkPresenceChannelStateType} from "~/shared/network/network-presence-channel";
 import {SchemaType} from "~/shared/schema/schema";
+import {defaultThemeColor} from "~/shared/styles/styles";
 
 type State = {
     /**

@@ -1,10 +1,7 @@
 import chalk from "chalk";
 import prettyMilliseconds from "pretty-ms";
+import {localstackEdgePort} from "~/server/aws/localstack-edge-port";
 import {runProcess} from "~/server/helpers/run-process";
-import {assert} from "~/shared/helpers/control/assert";
-
-assert(process.env.LOCALSTACK_EDGE_PORT);
-const localstackEdgePort = parseInt(process.env.LOCALSTACK_EDGE_PORT, 10);
 
 /**
  * Starts localstack (if its not already started) and deploys our resources using
@@ -22,7 +19,7 @@ export async function prepareLocalstack() {
 
     // eslint-disable-next-line no-console
     console.log(
-        `${chalk.cyan("info")}  - localstack ready on http://localhost:${localstackEdgePort}`,
+        `☁️  LocalStack listening on ${chalk.underline(`http://localhost:${localstackEdgePort}`)}`,
     );
 
     const startTime = process.hrtime.bigint();
@@ -30,25 +27,24 @@ export async function prepareLocalstack() {
     try {
         await runProcess("cdklocal", ["deploy"], {
             env: {
+                LOCALSTACK_HOSTNAME: "127.0.0.1",
                 EDGE_PORT: localstackEdgePort.toString(),
             },
         });
     } catch {
         // eslint-disable-next-line no-console
-        console.log(
-            `${chalk.magenta(
-                "event",
-            )} - bootstrapping localstack environment, this may take a while...`,
-        );
+        console.log("☁️  Bootstrapping LocalStack environment, this may take a while...");
 
         await runProcess("cdklocal", ["bootstrap"], {
             env: {
+                LOCALSTACK_HOSTNAME: "127.0.0.1",
                 EDGE_PORT: localstackEdgePort.toString(),
             },
         });
 
         await runProcess("cdklocal", ["deploy"], {
             env: {
+                LOCALSTACK_HOSTNAME: "127.0.0.1",
                 EDGE_PORT: localstackEdgePort.toString(),
             },
         });
@@ -57,9 +53,5 @@ export async function prepareLocalstack() {
     const durationMs = Number((process.hrtime.bigint() - startTime) / BigInt("1000000"));
 
     // eslint-disable-next-line no-console
-    console.log(
-        `${chalk.magenta("event")} - deployed aws resources to localstack in ${prettyMilliseconds(
-            durationMs,
-        )}`,
-    );
+    console.log(`☁️  Deployed AWS resources to LocalStack in ${prettyMilliseconds(durationMs)}`);
 }

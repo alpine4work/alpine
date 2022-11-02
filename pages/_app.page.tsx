@@ -8,10 +8,10 @@ import {IconContext} from "phosphor-react";
 import {ReactNode} from "react";
 import {InitializeColorSchemeScript} from "~/client/design/color-scheme";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
-import {sprinkles} from "~/client/design/sprinkles.css";
 import {TooltipCoordinationContextProvider} from "~/client/design/tooltip";
 import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use-is-initial-app-render";
 import {spacing} from "~/shared/design/spacing";
+import {sprinkles} from "~/shared/styles/styles";
 
 // TODO(calebmer): Aggressively show error dialog if unhandled error occurs.
 // Like Next.js in dev. Maybe it should be dismissable? Like Next.js.

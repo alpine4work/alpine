@@ -10,15 +10,15 @@
  */
 
 import {createSprinkles, defineProperties} from "@vanilla-extract/sprinkles";
+import {elevation} from "~/shared/design/elevation";
+import {mobilePlatformMediaQuery, spacing} from "~/shared/design/spacing";
+import {mapObjectValues} from "~/shared/helpers/object/map-object-values";
 import {
     colorSchemeVars,
     darkColorSchemeSelector,
     lightColorSchemeSelector,
-} from "~/shared/design/color-scheme.css";
-import {elevation} from "~/shared/design/elevation";
-import {fontScale} from "~/shared/design/fonts";
-import {mobilePlatformMediaQuery, spacing} from "~/shared/design/spacing";
-import {mapObjectValues} from "~/shared/helpers/object/map-object-values";
+} from "~/shared/styles/internal/color-scheme.css";
+import {fontScale} from "~/shared/styles/internal/fonts.css";
 
 const properties = defineProperties({
     properties: {
