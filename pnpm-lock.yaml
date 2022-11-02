@@ -21,7 +21,7 @@ patchedDependencies:
     path: admin/patches/ably@1.2.30.patch
   '@remix-run/dev@1.7.4':
     hash: dboidi7swranxaegoaw26vgebu
-    path: patches/@remix-run__dev@1.7.4.patch
+    path: admin/patches/@remix-run__dev@1.7.4.patch
 
 specifiers:
   '@aws-sdk/client-dynamodb': ^3.201.0
