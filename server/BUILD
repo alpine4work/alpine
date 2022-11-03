@@ -1,4 +1,4 @@
-load("//admin/bazel:ts_project.bzl", "ts_project")
+load("//admin/bazel:ts-project.bzl", "ts_project")
 
 ts_project(
     name = "server",

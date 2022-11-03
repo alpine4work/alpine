@@ -3,7 +3,7 @@
 /** @type {import('@remix-run/dev').AppConfig} */
 module.exports = {
     serverBuildTarget: "cloudflare-pages",
-    server: "./server.ts",
+    server: "./app/server.js",
     ignoredRouteFiles: ["**/.*"],
     watchPaths: () => ["./client/**/*", "./server/**/*", "./shared/**/*"],
 };

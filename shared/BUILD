@@ -1,11 +1,13 @@
 load("@aspect_rules_esbuild//esbuild:defs.bzl", "esbuild")
-load("//admin/bazel:ts_project.bzl", "ts_project")
-load("//admin/bazel:ts_glob.bzl", "ts_glob")
+load("@aspect_rules_js//js:defs.bzl", "js_library")
+load("//admin/bazel:ts-project.bzl", "ts_project")
+load("//admin/bazel:ts-glob.bzl", "ts_glob")
 
 ts_project(
     name = "shared",
     visibility = ["//visibility:public"],
     deps = [
+        ":styles",
         "//:node_modules/@types/functional-red-black-tree",
         "//:node_modules/@vanilla-extract/css",
         "//:node_modules/@vanilla-extract/dynamic",
@@ -20,7 +22,7 @@ ts_project(
 )
 
 esbuild(
-    name = "styles",
+    name = "styles_bundle",
     srcs = ts_glob(["styles/internal/**/*"]),
     config = "styles/internal/styles-esbuild-config-plugins.js",
     entry_point = "styles/internal/styles.ts",
@@ -33,5 +35,13 @@ esbuild(
     splitting = False,
     deps = [
         "//:node_modules/@vanilla-extract/esbuild-plugin",
+    ],
+)
+
+js_library(
+    name = "styles",
+    srcs = [
+        "styles/styles.d.ts",
+        ":styles_bundle",
     ],
 )

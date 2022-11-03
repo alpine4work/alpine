@@ -25,9 +25,6 @@ patchedDependencies:
   ably@1.2.30:
     hash: ozrsrdeumrtiea7xh3yi5cytre
     path: admin/patches/ably@1.2.30.patch
-  '@remix-run/dev@1.7.4':
-    hash: dboidi7swranxaegoaw26vgebu
-    path: admin/patches/@remix-run__dev@1.7.4.patch
   browserify-zlib@0.1.4:
     hash: lhhf4zowvg4ngxldsy5aala7hu
     path: admin/patches/browserify-zlib@0.1.4.patch
@@ -37,6 +34,9 @@ patchedDependencies:
   '@vanilla-extract/sprinkles@1.5.0':
     hash: njeywewejjkyja35mwody6s2pu
     path: admin/patches/@vanilla-extract__sprinkles@1.5.0.patch
+  '@remix-run/dev@1.7.5':
+    hash: whs4qyypclfkfjl4mxtrhselsq
+    path: admin/patches/@remix-run__dev@1.7.5.patch
 
 specifiers:
   '@aws-sdk/client-dynamodb': ^3.201.0
@@ -46,15 +46,16 @@ specifiers:
   '@babel/preset-typescript': ^7.18.6
   '@babel/register': ^7.18.9
   '@babel/runtime': ^7.20.0
+  '@bazel/worker': ^5.7.1
   '@cloudflare/workers-types': ^3.18.0
   '@juggle/resize-observer': ^3.4.0
   '@popperjs/core': ^2.11.6
   '@react-aria/interactions': ^3.12.0
-  '@remix-run/cloudflare': ^1.7.4
-  '@remix-run/cloudflare-pages': ^1.7.4
-  '@remix-run/dev': ^1.7.4
-  '@remix-run/eslint-config': ^1.7.4
-  '@remix-run/react': ^1.7.4
+  '@remix-run/cloudflare': ^1.7.5
+  '@remix-run/cloudflare-pages': ^1.7.5
+  '@remix-run/dev': ^1.7.5
+  '@remix-run/eslint-config': ^1.7.5
+  '@remix-run/react': ^1.7.5
   '@testing-library/jest-dom': ^5.16.5
   '@testing-library/react': ^13.4.0
   '@types/cookie-session': ^2.0.44
@@ -133,7 +134,7 @@ specifiers:
   react-router-dom: 6.3.0
   strip-ansi: '6'
   typescript: 4.8.2
-  wrangler: ^2.1.13
+  wrangler: ^2.1.15
 
 dependencies:
   '@aws-sdk/client-dynamodb': 3.201.0
@@ -143,15 +144,16 @@ dependencies:
   '@babel/preset-typescript': 7.18.6_@babel+core@7.19.6
   '@babel/register': 7.18.9_@babel+core@7.19.6
   '@babel/runtime': 7.20.0
+  '@bazel/worker': 5.7.1
   '@cloudflare/workers-types': 3.18.0
   '@juggle/resize-observer': 3.4.0
   '@popperjs/core': 2.11.6
   '@react-aria/interactions': 3.12.0_react@18.2.0
-  '@remix-run/cloudflare': 1.7.4_dp7lsxfcjoxmh2gy56a7syibgu
-  '@remix-run/cloudflare-pages': 1.7.4_dp7lsxfcjoxmh2gy56a7syibgu
-  '@remix-run/dev': 1.7.4_dboidi7swranxaegoaw26vgebu_biqbaboplfbrettd7655fr4n2y
-  '@remix-run/eslint-config': 1.7.4_db2uus5apvvjwcmlzmwtgvasei
-  '@remix-run/react': 1.7.4_biqbaboplfbrettd7655fr4n2y
+  '@remix-run/cloudflare': 1.7.5_dp7lsxfcjoxmh2gy56a7syibgu
+  '@remix-run/cloudflare-pages': 1.7.5_dp7lsxfcjoxmh2gy56a7syibgu
+  '@remix-run/dev': 1.7.5_whs4qyypclfkfjl4mxtrhselsq_biqbaboplfbrettd7655fr4n2y
+  '@remix-run/eslint-config': 1.7.5_db2uus5apvvjwcmlzmwtgvasei
+  '@remix-run/react': 1.7.5_biqbaboplfbrettd7655fr4n2y
   '@testing-library/jest-dom': 5.16.5
   '@testing-library/react': 13.4.0_biqbaboplfbrettd7655fr4n2y
   '@types/cookie-session': 2.0.44
@@ -230,7 +232,7 @@ dependencies:
   react-router-dom: 6.3.0_biqbaboplfbrettd7655fr4n2y
   strip-ansi: 6.0.1
   typescript: 4.8.2
-  wrangler: 2.1.13
+  wrangler: 2.1.15
 
 packages:
 
@@ -2284,6 +2286,12 @@ packages:
     resolution: {integrity: sha512-wMue2Sy4GAVTk6Ic4tJVcnfdau+gx2EnG7S+uAEe+TWJFqE4YoWN4/H8MSLj4eYJKxGg26lZwboEniNiNwZQ6Q==}
     dev: false
 
+  /@bazel/worker/5.7.1:
+    resolution: {integrity: sha512-UndmQVRqK0t0NMNl8I1P5XmxzdPvMA0X6jufszpfwy5gyzjOxeiOIzmC0ALCOx78CuJqOB/8WOI1pwTRmhd0tg==}
+    dependencies:
+      google-protobuf: 3.21.2
+    dev: false
+
   /@bcoe/v8-coverage/0.2.3:
     resolution: {integrity: sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==}
     dev: false
@@ -4125,39 +4133,39 @@ packages:
       react: 18.2.0
     dev: false
 
-  /@remix-run/cloudflare-pages/1.7.4_dp7lsxfcjoxmh2gy56a7syibgu:
-    resolution: {integrity: sha512-wswvO0fPtMrK+PBHD+oA/smDCjZ93QPPOjXwziWi5BwDoOvTdLNWBcnl8lapmKplgoleaxZOcqDqjyZ7Tr7UpQ==}
+  /@remix-run/cloudflare-pages/1.7.5_dp7lsxfcjoxmh2gy56a7syibgu:
+    resolution: {integrity: sha512-ObyuloVdWPYoSlCONIx+jBi3msB6JZbYsowXGBD6zQEHvpTCvzZuMURP9mdshdSCsuhVQ1pRPakruigjs8uisw==}
     engines: {node: '>=14'}
     peerDependencies:
       '@cloudflare/workers-types': ^3.0.0
     dependencies:
       '@cloudflare/workers-types': 3.18.0
-      '@remix-run/cloudflare': 1.7.4_dp7lsxfcjoxmh2gy56a7syibgu
+      '@remix-run/cloudflare': 1.7.5_dp7lsxfcjoxmh2gy56a7syibgu
     transitivePeerDependencies:
       - react
       - react-dom
     dev: false
 
-  /@remix-run/cloudflare/1.7.4_dp7lsxfcjoxmh2gy56a7syibgu:
-    resolution: {integrity: sha512-//UET9jxrr0lSdJCWav8waR0EYR4NmBZy3GWSsSFFAEJgb6tZaASq1h7NJfZhPdJ4j/Jp64f+YTzWmQahKF8UA==}
+  /@remix-run/cloudflare/1.7.5_dp7lsxfcjoxmh2gy56a7syibgu:
+    resolution: {integrity: sha512-KcXiG2guNx98B13P8dD8BJQImntv7vYAhM1+oRFs6KsdLFL6gCgIcvvfQ0/ijbuiA0XZlkvVzObbm8xRAIK98Q==}
     engines: {node: '>=14'}
     peerDependencies:
       '@cloudflare/workers-types': ^2.0.0 || ^3.0.0
     dependencies:
       '@cloudflare/kv-asset-handler': 0.1.3
       '@cloudflare/workers-types': 3.18.0
-      '@remix-run/server-runtime': 1.7.4_biqbaboplfbrettd7655fr4n2y
+      '@remix-run/server-runtime': 1.7.5_biqbaboplfbrettd7655fr4n2y
     transitivePeerDependencies:
       - react
       - react-dom
     dev: false
 
-  /@remix-run/dev/1.7.4_dboidi7swranxaegoaw26vgebu_biqbaboplfbrettd7655fr4n2y:
-    resolution: {integrity: sha512-VZCZMd3mmIKfXKOsbCiNMuyAt0U68NKwPwJmgpqbjKrbWcupOku0yjR5uDC7HYN5jkJJygBu4R1L+PWb6k/okQ==}
+  /@remix-run/dev/1.7.5_whs4qyypclfkfjl4mxtrhselsq_biqbaboplfbrettd7655fr4n2y:
+    resolution: {integrity: sha512-z/HEMi6e2eO6DvCrH+rNbqNohD5m1QMzVfXoIG976jw6Pn72PTaiGFNtDc5vNB2IjVuRAu1j0X9TbWLmU/+fOw==}
     engines: {node: '>=14'}
     hasBin: true
     peerDependencies:
-      '@remix-run/serve': 1.7.4
+      '@remix-run/serve': 1.7.5
     peerDependenciesMeta:
       '@remix-run/serve':
         optional: true
@@ -4168,7 +4176,7 @@ packages:
       '@babel/preset-typescript': 7.18.6_@babel+core@7.19.6
       '@esbuild-plugins/node-modules-polyfill': 0.1.4_esbuild@0.14.51
       '@npmcli/package-json': 2.0.0
-      '@remix-run/server-runtime': 1.7.4_biqbaboplfbrettd7655fr4n2y
+      '@remix-run/server-runtime': 1.7.5_biqbaboplfbrettd7655fr4n2y
       '@yarnpkg/esbuild-plugin-pnp': 3.0.0-rc.11_esbuild@0.14.51
       arg: 5.0.2
       cacache: 15.3.0
@@ -4213,8 +4221,8 @@ packages:
     dev: false
     patched: true
 
-  /@remix-run/eslint-config/1.7.4_db2uus5apvvjwcmlzmwtgvasei:
-    resolution: {integrity: sha512-1E/UR6vdEJP5a/r1OdZAL2f1OM/TwbNAyryYUQoOAF8zrm1hI8JVsOi1MrNlJVadYCl66HHfTM96iJcjMWVpHQ==}
+  /@remix-run/eslint-config/1.7.5_db2uus5apvvjwcmlzmwtgvasei:
+    resolution: {integrity: sha512-gxR3xYD3pq4Dz4fC+6F0ndaxBNVihBT6PyP5JRyWdzVnomkq5QVv/FxEJXuzwl4AgPOUlWZXCWX3gUWVFq/2tQ==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
     peerDependencies:
       eslint: ^8.0.0
@@ -4249,8 +4257,8 @@ packages:
       - supports-color
     dev: false
 
-  /@remix-run/react/1.7.4_biqbaboplfbrettd7655fr4n2y:
-    resolution: {integrity: sha512-oLbcaeiSgnd1CL28Y97ddapPmfOjRV+sAzipQr+69xqok0O+3Cj+7LN7JWDfaf/rzEm8NB+39kqJTfUjwStMXQ==}
+  /@remix-run/react/1.7.5_biqbaboplfbrettd7655fr4n2y:
+    resolution: {integrity: sha512-KJVdTJee3muDJ3hZh8IVg3JbSfmaH4NiCpp8ewPopszf8xu+ecUH/rP/3mZ5Ge7D+AhmFOr/7eiFjgpkN8vhsQ==}
     engines: {node: '>=14'}
     peerDependencies:
       react: '>=16.8 || 18'
@@ -4262,8 +4270,8 @@ packages:
       react-router-dom: 6.3.0_biqbaboplfbrettd7655fr4n2y
     dev: false
 
-  /@remix-run/server-runtime/1.7.4_biqbaboplfbrettd7655fr4n2y:
-    resolution: {integrity: sha512-zGM1HI8sS73SPAXGFR7unV9ZlYPefbCokeXmLNB0lZevPeQ/ZBCNvNCZIeS7Fyal/FykCG9cB4Rd/pzdUbHCUA==}
+  /@remix-run/server-runtime/1.7.5_biqbaboplfbrettd7655fr4n2y:
+    resolution: {integrity: sha512-wy/1UDUjN1AoZBAee12rV1gbq+N6RfHetarHLoEIHWrKx3oLb0Ik+MQmjD6PbyO41JdOVQ2tn+euJHJY7sz48g==}
     engines: {node: '>=14'}
     peerDependencies:
       react: '>=16.8 || 18'
@@ -7799,6 +7807,10 @@ packages:
 
   /globrex/0.1.2:
     resolution: {integrity: sha512-uHJgbwAMwNFf5mLst7IWLNg14x1CkeqglJb/K3doi4dw6q2IvAAmM/Y81kevy83wP+Sst+nutFTYOGg3d1lsxg==}
+    dev: false
+
+  /google-protobuf/3.21.2:
+    resolution: {integrity: sha512-3MSOYFO5U9mPGikIYCzK0SaThypfGgS6bHqrUGXG3DPHCrb+txNqeEcns1W0lkGfk0rCyNXm7xB9rMxnCiZOoA==}
     dev: false
 
   /got/11.8.5:
@@ -12479,8 +12491,8 @@ packages:
     engines: {node: '>=0.10.0'}
     dev: false
 
-  /wrangler/2.1.13:
-    resolution: {integrity: sha512-FWarJ9pBaXOU/wj3BoLo1Azi4VvadD0PfDIYfvY9hoKVyPMSr4dpPNUGgtMhsVuDp7K9mdixnmGEJxR7pbs3kQ==}
+  /wrangler/2.1.15:
+    resolution: {integrity: sha512-5iqtFNo+zbu1FTnQQU/1Y+WWxIEuPIy71fe0uvqqFl0pSlkAtZJ+ufw8UYVxf2Mprw4ia4mSDdhV+hHpZO1sLQ==}
     engines: {node: '>=16.13.0'}
     hasBin: true
     dependencies:

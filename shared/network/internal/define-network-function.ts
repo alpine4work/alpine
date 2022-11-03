@@ -1,7 +1,6 @@
 import {
     ErrorBase,
     InternalError,
-    NotFoundError,
     UnavailableError,
     UnimplementedError,
     getErrorConstructorForCode,
@@ -74,22 +73,10 @@ export function defineNetworkFunction<
     const execute = async (
         input: ObjectSchemaConfigType<InputConfig>,
     ): Promise<ObjectSchemaConfigType<OutputConfig>> => {
-        if (typeof window === "undefined") {
-            const {getNetworkFunctionImplementation} = await import(
-                // Only executes on the server so it's fine to import a server file.
-                // We cast to `as any` to break TypeScript's static analysis but our bundler
-                // should still import the right file.
-                "~/server/network/all-network-implementations" as any
-            );
-
-            const networkFunctionImplementation = getNetworkFunctionImplementation(name);
-
-            if (!networkFunctionImplementation)
-                throw new NotFoundError(
-                    "Referenced a network function name that does not have an implementation",
-                );
-
-            throw new UnimplementedError("Server session context propagation not yet implemented");
+        if (typeof document === "undefined") {
+            // NOTE(calebmer): Implement this with dependency injection so there's no
+            // chance server code is bundled in with client code.
+            throw new UnimplementedError("Server network function not yet implemented");
         }
 
         const outputPromiseResolver = createPromiseResolver<SchemaSerializedValue>();
@@ -181,7 +168,7 @@ async function executeNetworkFunctions(
         });
 
         const output = await response
-            .json()
+            .json<SchemaSerializedValue>()
             .then(output => NetworkFunctionHttpOutputSchema.deserialize(output))
             .catch(error => {
                 // If we fail to parse the response body as JSON, classify as `Internal`

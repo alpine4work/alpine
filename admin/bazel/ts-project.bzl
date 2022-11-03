@@ -8,9 +8,14 @@ load("@aspect_rules_ts//ts:defs.bzl", _ts_project = "ts_project")
 load("@aspect_rules_js//js:providers.bzl", "JsInfo")
 load("@npm//:prettier/package_json.bzl", prettier_bin = "bin")
 load("@npm//:eslint/package_json.bzl", eslint_bin = "bin")
-load("//admin/bazel:ts_glob.bzl", "ts_glob")
+load("//admin/bazel:ts-glob.bzl", "ts_glob")
 
-def ts_project(name, srcs = None, deps = None, **kwargs):
+def ts_project(
+        name,
+        srcs = None,
+        lint_and_format_srcs = None,
+        deps = None,
+        **kwargs):
     """
     Macro for creating a TypeScript project that implements some codebase conventions.
 
@@ -19,6 +24,8 @@ def ts_project(name, srcs = None, deps = None, **kwargs):
     Args:
         name: The name of the project.
         srcs: Any sources for the project. Defaults to `ts_glob(["**/*"])`.
+        lint_and_format_srcs: Sources to run lint and format tests for. Defaults to all
+        JavaScript, TypeScript, JSON, and Markdown files.
         deps: Any code this project needs to run.
         **kwargs: Arguments that will be forwarded to `ts_project()` from `aspect_rules_ts`.
     """
@@ -40,15 +47,46 @@ def ts_project(name, srcs = None, deps = None, **kwargs):
         **kwargs
     )
 
+    ts_lint_and_format_test(
+        name = name,
+        srcs = lint_and_format_srcs,
+        deps = deps,
+    )
+
+def ts_lint_and_format_test(
+        name,
+        srcs = None,
+        deps = []):
+    """
+    Macro that creates tests that will lint and format the provided sources.
+
+    Args:
+        name: The name to derive our test names from.
+        srcs: The files to lint and check formatting of.
+        deps: Any dependencies of these source files. Needed since linting also
+        performs type checking.
+    """
+
+    if not srcs:
+        srcs = native.glob([
+            "**/*.js",
+            "**/*.jsx",
+            "**/*.ts",
+            "**/*.tsx",
+            "**/*.mjs",
+            "**/*.json",
+            "**/*.md",
+        ])
+
     prettier_bin.prettier_test(
         name = "{}_format_test".format(name),
         args = ["--check"] + [src.replace("$", "$$") for src in srcs],
         chdir = native.package_name(),
         copy_data_to_bin = False,
-        data = srcs + [
+        data = _dedupe_labels(srcs + [
             "//:prettier.config.js",
             "//:.prettierignore",
-        ],
+        ]),
     )
 
     _ts_typings(
@@ -60,15 +98,15 @@ def ts_project(name, srcs = None, deps = None, **kwargs):
         name = "{}_lint_test".format(name),
         args = [
             "--rulesdir",
-            "{}/admin/eslint/rules".format("/".join([".." for segment in native.package_name().split("/")])),
+            "{}/admin/eslint/rules".format("." if native.package_name() == "" else "/".join([".." for segment in native.package_name().split("/")])),
             "--max-warnings",
             "0",
             # Bazel will strip color if necessary.
             "--color",
-        ] + [src.replace("$", "$$") for src in srcs],
+        ] + [src.replace("$", "$$") for src in srcs if src.endswith(".js") or src.endswith(".jsx") or src.endswith(".ts") or src.endswith(".tsx") or src.endswith(".mjs")],
         chdir = native.package_name(),
         copy_data_to_bin = False,
-        data = ts_glob(["**/*"]) + [
+        data = _dedupe_labels(srcs + [
             "//:node_modules/@remix-run/eslint-config",
             "//:node_modules/@typescript-eslint/eslint-plugin",
             "//:node_modules/eslint-plugin-jest",
@@ -84,8 +122,20 @@ def ts_project(name, srcs = None, deps = None, **kwargs):
             # Include the type information of our dependencies since we use type-aware
             # lint rules.
             ":{}_deps_typings".format(name),
-        ],
+        ]),
     )
+
+def _dedupe_labels(labels):
+    return {_normalize_label(label): None for label in labels}.keys()
+
+def _normalize_label(label):
+    if label.startswith("//") or label.startswith("@"):
+        return label
+
+    if label.startswith(":"):
+        return "//{}{}".format(native.package_name(), label)
+
+    return "//{}:{}".format(native.package_name(), label)
 
 def _ts_typings_impl(ctx):
     typings = []

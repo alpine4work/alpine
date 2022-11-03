@@ -1,7 +1,9 @@
-load("//admin/bazel:ts_project.bzl", "ts_project")
+load("@aspect_rules_js//js:defs.bzl", "js_binary")
+load("//admin/bazel:ts-project.bzl", "ts_project")
 
 ts_project(
     name = "app",
+    visibility = ["//:__pkg__"],
     deps = [
         "//:node_modules/@axe-core/react",
         "//:node_modules/@cloudflare/workers-types",
@@ -11,4 +13,15 @@ ts_project(
         "//server",
         "//shared",
     ],
+)
+
+js_binary(
+    name = "remix_compiler",
+    copy_data_to_bin = False,
+    data = [
+        "//:node_modules/@bazel/worker",
+        "//:node_modules/@remix-run/dev",
+    ],
+    entry_point = "compiler/remix-compiler.js",
+    visibility = ["//:__pkg__"],
 )
