@@ -5,11 +5,16 @@ load("//admin/bazel:helpers/ts_glob.bzl", "ts_glob")
 
 ts_project(
     name = "shared",
-    srcs = ts_glob(["**/*"]),
+    srcs = ts_glob(
+        ["**/*"],
+        exclude = ["styles/internal/styles-esbuild-config-plugins.js"],
+    ),
+    allow_js = True,
     declaration = True,
     resolve_json_module = True,
     transpiler = swc_transpiler,
     tsconfig = "//:tsconfig",
+    visibility = ["//visibility:public"],
     deps = [
         "//:node_modules/@types/functional-red-black-tree",
         "//:node_modules/@vanilla-extract/css",

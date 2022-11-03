@@ -1,4 +1,4 @@
-import {Link, X} from "phosphor-react";
+import {Link as LinkIcon, X} from "phosphor-react";
 import {Mark} from "prosemirror-model";
 import {EditorView} from "prosemirror-view";
 import {RefObject, useRef, useState} from "react";
@@ -75,7 +75,7 @@ export function ContentEditorLinkInput({
                 }
             }}
         >
-            <Link
+            <LinkIcon
                 color="currentColor"
                 size={spacing["4"]}
                 className={sprinkles({
@@ -90,7 +90,7 @@ export function ContentEditorLinkInput({
                 ref={inputRef}
                 type="text"
                 className={sprinkles({
-                    flex: 1,
+                    flex: "1",
                     height: "full",
                     paddingLeft: "8",
                     paddingRight: "1",

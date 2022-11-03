@@ -628,7 +628,7 @@ class DocumentContentCacheForUpdateEntries {
     private readonly _entryByDocumentId = new Map<
         Id,
         {
-            evictionTimeoutId: NodeJS.Timer;
+            evictionTimeoutId: number;
             evict: () => void;
             promise: Promise<DocumentContentCacheForUpdateEntry | null>;
         }
@@ -684,7 +684,7 @@ class DocumentContentCacheForUpdateEntries {
 
         const evictionTimeoutId = setTimeout(() => {
             evict();
-        }, documentContentCacheEvictionTimeoutMs);
+        }, documentContentCacheEvictionTimeoutMs) as any as number;
 
         const nextEntry = {
             evictionTimeoutId,

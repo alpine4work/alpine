@@ -2,7 +2,7 @@
 Helper function for getting a glob of TypeScript files.
 """
 
-def ts_glob(include):
+def ts_glob(include, exclude = []):
     """
     `glob()` but with all the supported TypeScript file extensions.
 
@@ -11,13 +11,15 @@ def ts_glob(include):
     Args:
         include: Globs paths to include. Don't add a file extension, file
         extensions will be added by the macro.
+        exclude: Glob paths to exclude. This list will not be modified,
+        include file extensions.
 
     Returns:
         A list of files matching the glob.
     """
 
     actual_include = []
-    actual_exclude = []
+    actual_exclude = [path for path in exclude]
 
     for path in include:
         actual_include.append("{}.js".format(path))

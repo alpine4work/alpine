@@ -117,7 +117,8 @@
             "ably@1.2.30": "admin/patches/ably@1.2.30.patch",
             "@remix-run/dev@1.7.4": "admin/patches/@remix-run__dev@1.7.4.patch",
             "browserify-zlib@0.1.4": "admin/patches/browserify-zlib@0.1.4.patch",
-            "@vanilla-extract/integration@5.0.1": "admin/patches/@vanilla-extract__integration@5.0.1.patch"
+            "@vanilla-extract/integration@5.0.1": "admin/patches/@vanilla-extract__integration@5.0.1.patch",
+            "@vanilla-extract/sprinkles@1.5.0": "admin/patches/@vanilla-extract__sprinkles@1.5.0.patch"
         },
         "allowedDeprecatedVersions": {
             "@types/keyv": "4.2.0",

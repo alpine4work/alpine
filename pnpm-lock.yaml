@@ -34,6 +34,9 @@ patchedDependencies:
   '@vanilla-extract/integration@5.0.1':
     hash: ok2sribgugkvcqq57ho2d6btxm
     path: admin/patches/@vanilla-extract__integration@5.0.1.patch
+  '@vanilla-extract/sprinkles@1.5.0':
+    hash: njeywewejjkyja35mwody6s2pu
+    path: admin/patches/@vanilla-extract__sprinkles@1.5.0.patch
 
 specifiers:
   '@aws-sdk/client-dynamodb': ^3.201.0
@@ -170,7 +173,7 @@ dependencies:
   '@vanilla-extract/dynamic': 2.0.2
   '@vanilla-extract/esbuild-plugin': 2.1.0
   '@vanilla-extract/integration': 5.0.1_ok2sribgugkvcqq57ho2d6btxm
-  '@vanilla-extract/sprinkles': 1.5.0_@vanilla-extract+css@1.9.1
+  '@vanilla-extract/sprinkles': 1.5.0_njeywewejjkyja35mwody6s2pu_@vanilla-extract+css@1.9.1
   ably: 1.2.30_ozrsrdeumrtiea7xh3yi5cytre
   aws-cdk: 2.43.1
   aws-cdk-lib: 2.42.0_constructs@10.1.143
@@ -4898,13 +4901,14 @@ packages:
     resolution: {integrity: sha512-17kVyLq3ePTKOkveHxXuIJZtGYs+cSoev7BlP+Lf4916qfDhk/HBjvlYDe8egrea7LNPHKwSZJK/bzZC+Q6AwQ==}
     dev: false
 
-  /@vanilla-extract/sprinkles/1.5.0_@vanilla-extract+css@1.9.1:
+  /@vanilla-extract/sprinkles/1.5.0_njeywewejjkyja35mwody6s2pu_@vanilla-extract+css@1.9.1:
     resolution: {integrity: sha512-W58f2Rzz5lLmk0jbhgStVlZl5wEiPB1Ur3fRvUaBM+MrifZ3qskmFq/CiH//fEYeG5Dh9vF1qRviMMH46cX9Nw==}
     peerDependencies:
       '@vanilla-extract/css': ^1.0.0
     dependencies:
       '@vanilla-extract/css': 1.9.1
     dev: false
+    patched: true
 
   /@web3-storage/multipart-parser/1.0.0:
     resolution: {integrity: sha512-BEO6al7BYqcnfX15W2cnGR+Q566ACXAT9UQykORCWW80lmkpWsnEob6zJS1ZVBKsSJC8+7vJkHwlp+lXG1UCdw==}

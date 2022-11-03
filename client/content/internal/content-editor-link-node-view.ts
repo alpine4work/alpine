@@ -37,11 +37,11 @@ export function createContentEditorMarkNodeViewConstructor({
             );
         });
 
-        let pointerEnterDelayTimeoutId: NodeJS.Timeout | null = null;
+        let pointerEnterDelayTimeoutId: number | null = null;
 
         dom.addEventListener("pointerenter", event => {
             if (pointerEnterDelayTimeoutId) {
-                clearTimeout(pointerEnterDelayTimeoutId);
+                window.clearTimeout(pointerEnterDelayTimeoutId);
                 pointerEnterDelayTimeoutId = null;
             }
 
@@ -80,7 +80,7 @@ export function createContentEditorMarkNodeViewConstructor({
 
             onPointerEnter(mark);
 
-            pointerEnterDelayTimeoutId = setTimeout(() => {
+            pointerEnterDelayTimeoutId = window.setTimeout(() => {
                 onPointerEnterAfterDelay({
                     mark,
                     range: {
