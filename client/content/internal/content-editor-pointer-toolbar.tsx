@@ -1,7 +1,7 @@
 import {useHover, useInteractionModality} from "@react-aria/interactions";
 import {
     IconContext,
-    Link,
+    Link as LinkIcon,
     ListBullets,
     ListChecks,
     ListNumbers,
@@ -718,7 +718,7 @@ function ContentEditorPointerToolbarLinkButton({
                         return false;
                     }}
                 >
-                    <Link />
+                    <LinkIcon />
                 </ContentEditorPointerToolbarButton>
             </Box>
         </OverlayAnimated>

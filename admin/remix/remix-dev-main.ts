@@ -317,7 +317,7 @@ async function runVanillaExtract() {
         format: "esm",
         // Leave font face `url()`s alone.
         external: ["*.woff2"],
-        plugins: [vanillaExtractPlugin({identifiers: "debug"}) as esbuild.Plugin],
+        plugins: [vanillaExtractPlugin({identifiers: "debug"})],
         watch: true,
     });
 

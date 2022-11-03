@@ -1,15 +1,9 @@
-load("@aspect_rules_swc//swc:defs.bzl", "swc_transpiler")
-load("@aspect_rules_ts//ts:defs.bzl", "ts_project")
 load("@aspect_rules_esbuild//esbuild:defs.bzl", "esbuild")
-load("//admin/bazel:helpers/ts_glob.bzl", "ts_glob")
+load("//admin/bazel:ts_project.bzl", "ts_project")
+load("//admin/bazel:ts_glob.bzl", "ts_glob")
 
 ts_project(
     name = "shared",
-    srcs = ts_glob(["**/*"]),
-    declaration = True,
-    resolve_json_module = True,
-    transpiler = swc_transpiler,
-    tsconfig = "//:tsconfig",
     visibility = ["//visibility:public"],
     deps = [
         "//:node_modules/@types/functional-red-black-tree",

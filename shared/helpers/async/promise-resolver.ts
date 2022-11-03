@@ -10,10 +10,7 @@ export type PromiseResolver<T> = {
  * function is inconvenient. Using a promise resolver inverts the promise so you
  * can call the resolver functions anywhere.
  */
-export function createPromiseResolver<
-    // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
-    T = void,
->(): PromiseResolver<T> {
+export function createPromiseResolver<T = void>(): PromiseResolver<T> {
     let isSettled = false;
     let resolve: (value: T) => void;
     let reject: (error: unknown) => void;

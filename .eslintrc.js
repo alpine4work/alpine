@@ -185,14 +185,6 @@ module.exports = {
         // across files.
         "import/no-default-export": "warn",
 
-        // Always add an extension to your import if you aren't importing a
-        // JavaScript file.
-        "import/extensions": [
-            "warn",
-            "always",
-            {js: "never", jsx: "never", ts: "never", tsx: "never"},
-        ],
-
         // Don't allow importing packages that aren't explicitly declared in our
         // `package.json`. While technically possible to import a transitive
         // dependency at runtime, we don't want to implicitly depend on this

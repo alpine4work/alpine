@@ -1,9 +1,9 @@
 import fs from "fs-extra";
 import path from "path";
+import {repoDirectoryPath} from "~/admin/helpers/repo-directory-path";
 // Allow access to DynamoDB internals from `admin/aws`.
 // eslint-disable-next-line no-internal-imports
 import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo-table-schema";
-import {repoDirectoryPath} from "~/admin/helpers/repo-directory-path";
 import {InternalError} from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run-all-promises";
 import {quote} from "~/shared/helpers/string/quote";

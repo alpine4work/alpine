@@ -1,7 +1,7 @@
 import chalk from "chalk";
 import prettyMilliseconds from "pretty-ms";
-import {localstackEdgePort} from "~/server/aws/localstack-edge-port";
 import {runProcess} from "~/admin/helpers/run-process";
+import {localstackEdgePort} from "~/server/aws/localstack-edge-port";
 
 /**
  * Starts localstack (if its not already started) and deploys our resources using
