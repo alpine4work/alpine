@@ -22,16 +22,10 @@ def ts_glob(include, exclude = []):
     actual_exclude = [path for path in exclude]
 
     for path in include:
-        actual_include.append("{}.js".format(path))
-        actual_include.append("{}.jsx".format(path))
         actual_include.append("{}.ts".format(path))
         actual_include.append("{}.tsx".format(path))
-        actual_include.append("{}.mjs".format(path))
 
-        actual_exclude.append("{}.test.js".format(path))
-        actual_exclude.append("{}.test.jsx".format(path))
         actual_exclude.append("{}.test.ts".format(path))
         actual_exclude.append("{}.test.tsx".format(path))
-        actual_exclude.append("{}.test.mjs".format(path))
 
     return native.glob(actual_include, exclude = actual_exclude)

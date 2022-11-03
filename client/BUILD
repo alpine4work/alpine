@@ -5,7 +5,6 @@ load("//admin/bazel:helpers/ts_glob.bzl", "ts_glob")
 ts_project(
     name = "client",
     srcs = ts_glob(["**/*"]),
-    allow_js = True,
     declaration = True,
     resolve_json_module = True,
     transpiler = swc_transpiler,
