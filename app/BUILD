@@ -3,26 +3,20 @@ load("@aspect_rules_ts//ts:defs.bzl", "ts_project")
 load("//admin/bazel:helpers/ts_glob.bzl", "ts_glob")
 
 ts_project(
-    name = "server",
+    name = "app",
     srcs = ts_glob(["**/*"]),
     allow_js = True,
     declaration = True,
     resolve_json_module = True,
     transpiler = swc_transpiler,
     tsconfig = "//:tsconfig",
-    visibility = ["//visibility:public"],
     deps = [
-        "//:node_modules/@aws-sdk/client-dynamodb",
+        "//:node_modules/@axe-core/react",
         "//:node_modules/@cloudflare/workers-types",
         "//:node_modules/@remix-run/cloudflare",
         "//:node_modules/@remix-run/dev",
-        "//:node_modules/@types/jest",
-        "//:node_modules/@types/json-stable-stringify",
-        "//:node_modules/aws4fetch",
-        "//:node_modules/jose",
-        "//:node_modules/json-stable-stringify",
-        "//:node_modules/prosemirror-state",
-        "//:node_modules/prosemirror-transform",
+        "//client",
+        "//server",
         "//shared",
     ],
 )

@@ -50,6 +50,6 @@
         "allowJs": true,
         "skipLibCheck": true
     },
-    "include": ["remix-env.d.ts", "**/*.ts", "**/*.tsx"],
+    "include": ["**/*.ts", "**/*.tsx"],
     "exclude": ["node_modules", "bazel-*"]
 }

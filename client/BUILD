@@ -10,6 +10,7 @@ ts_project(
     resolve_json_module = True,
     transpiler = swc_transpiler,
     tsconfig = "//:tsconfig",
+    visibility = ["//visibility:public"],
     deps = [
         "//:node_modules/@popperjs/core",
         "//:node_modules/@react-aria/interactions",
