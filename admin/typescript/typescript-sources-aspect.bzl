@@ -48,6 +48,9 @@ def _ts_sources_aspect_impl(target, ctx):
         for dep in ctx.rule.attr.deps:
             transitive_sources.append(dep[TsSourcesInfo].transitive_sources)
 
+            if JsInfo in dep:
+                transitive_sources.append(dep[JsInfo].transitive_npm_linked_package_files)
+
     return [TsSourcesInfo(
         sources = depset(sources),
         transitive_sources = depset(sources, transitive = transitive_sources),

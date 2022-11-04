@@ -3,4 +3,6 @@
 workspace_path=$(cd $(dirname $0)/../.. && pwd)
 cd $workspace_path
 
-./node_modules/.bin/ibazel run //app:app_dev
+bazel build --ui_event_filters=-info @npm__at_bazel_ibazel__0.16.2//:pkg
+ibazel="./bazel-cyberworlds/external/npm__at_bazel_ibazel__0.16.2/package/bin/$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m)/ibazel"
+$ibazel run //app:app_dev
