@@ -168,8 +168,8 @@ async function executeNetworkFunctions(
         });
 
         const output = await response
-            .json<SchemaSerializedValue>()
-            .then(output => NetworkFunctionHttpOutputSchema.deserialize(output))
+            .json()
+            .then(output => NetworkFunctionHttpOutputSchema.deserialize(output as any))
             .catch(error => {
                 // If we fail to parse the response body as JSON, classify as `Internal`
                 // status code.

@@ -15,25 +15,25 @@ import {BlockInference} from "~/shared/helpers/types/block-inference";
  * `getOrSetDefaultMapValue()`.
  */
 export class DefaultMap<Key, Value> extends Map<Key, Value> {
-    private readonly _getDefault: (key: Key) => Value;
+    public readonly getDefault: (key: Key) => Value;
 
     constructor(
         getDefault: (key: Key) => Value,
         entries?: ReadonlyArray<readonly [Key, Value]> | null,
     ) {
         super(entries);
-        this._getDefault = getDefault;
+        this.getDefault = getDefault;
     }
 
     /**
      * Get the existing value for this map entry or set a new entry using the
      * default function provided in the constructor.
      */
-    getOrSetDefault(key: Key): Value {
+    public getOrSetDefault(key: Key): Value {
         return getOrSetDefaultMapValue(
             this,
             key,
-            this._getDefault as (key: Key) => BlockInference<Value>,
+            this.getDefault as (key: Key) => BlockInference<Value>,
         );
     }
 }

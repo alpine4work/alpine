@@ -43,7 +43,7 @@ const isSchemaEvolutionEnabled =
 // TODO(calebmer): Backwards compatibility checking in a way that works with
 // Cloudflare workers.
 // const dynamoGeneratedDirectoryPath = path.join(
-//     repoDirectoryPath,
+//     workspacePath,
 //     "server/dynamo/internal/generated",
 // );
 

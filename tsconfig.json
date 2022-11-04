@@ -1,30 +1,55 @@
 {
-  "compilerOptions": {
-    "declaration": true,
-    "target": "es2019",
-    "lib": ["dom", "dom.iterable", "esnext"],
-    "jsx": "react-jsx",
-    "downlevelIteration": true,
-    "useDefineForClassFields": true,
-    "module": "esnext",
-    "moduleResolution": "node",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "forceConsistentCasingInFileNames": true,
-    "baseUrl": "./.null",
-    "paths": {
-      "~/*": ["../*"]
+    "compilerOptions": {
+        /* ========================================================================== *\
+         *                                 Compiler                                   *
+        \* ========================================================================== */
+
+        "noEmit": true,
+
+        /* ========================================================================== *\
+         *                                 Language                                   *
+        \* ========================================================================== */
+
+        "target": "es2019",
+        "lib": ["dom", "dom.iterable", "esnext"],
+        "jsx": "react-jsx",
+        "downlevelIteration": true,
+        "useDefineForClassFields": true,
+
+        /* ========================================================================== *\
+         *                                  Module                                    *
+        \* ========================================================================== */
+
+        "module": "esnext",
+        "moduleResolution": "node",
+        "resolveJsonModule": true,
+        "isolatedModules": true,
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+        "forceConsistentCasingInFileNames": true,
+
+        // We want to use absolute style imports for the files in our codebase using
+        // the `~/` sigil. However, in order to configure the TypeScript `paths`
+        // property we need to set a `baseUrl`. Since there's no folder we want to
+        // treat as a "root" folder that overrides `node_modules`, point `baseUrl`
+        // to a file that doesn't exist. If we pointed `baseUrl` to `./node_modules`
+        // that would break `tsconfig-paths` which is used by Cypress among other
+        // things since module resolution would always look at `node_modules`
+        // instead of performing the Node.js module resolution algorithm.
+        "baseUrl": "./.null",
+        "paths": {"~/*": ["../*"]},
+
+        /* ========================================================================== *\
+         *                              Type Checking                                 *
+        \* ========================================================================== */
+
+        "strict": true,
+        "noUncheckedIndexedAccess": true,
+        "noPropertyAccessFromIndexSignature": false,
+        "noImplicitOverride": true,
+        "allowJs": true,
+        "skipLibCheck": true
     },
-    "strict": true,
-    "noUncheckedIndexedAccess": true,
-    "noPropertyAccessFromIndexSignature": false,
-    "noImplicitOverride": true,
-    "skipLibCheck": true,
-    "allowJs": true,
-    "noEmit": true
-  },
-  "include": ["**/*.ts", "**/*.tsx"],
-  "exclude": ["node_modules", "bazel-*"]
+    "include": ["**/*.ts", "**/*.tsx"],
+    "exclude": ["node_modules", "bazel-*"]
 }

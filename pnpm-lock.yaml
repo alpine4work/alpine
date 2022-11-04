@@ -35,7 +35,7 @@ patchedDependencies:
     hash: njeywewejjkyja35mwody6s2pu
     path: admin/patches/@vanilla-extract__sprinkles@1.5.0.patch
   '@remix-run/dev@1.7.5':
-    hash: whs4qyypclfkfjl4mxtrhselsq
+    hash: 7nna6mvsvrxee47ftzh7m4vwzq
     path: admin/patches/@remix-run__dev@1.7.5.patch
 
 specifiers:
@@ -151,7 +151,7 @@ dependencies:
   '@react-aria/interactions': 3.12.0_react@18.2.0
   '@remix-run/cloudflare': 1.7.5_dp7lsxfcjoxmh2gy56a7syibgu
   '@remix-run/cloudflare-pages': 1.7.5_dp7lsxfcjoxmh2gy56a7syibgu
-  '@remix-run/dev': 1.7.5_whs4qyypclfkfjl4mxtrhselsq_biqbaboplfbrettd7655fr4n2y
+  '@remix-run/dev': 1.7.5_7nna6mvsvrxee47ftzh7m4vwzq_biqbaboplfbrettd7655fr4n2y
   '@remix-run/eslint-config': 1.7.5_db2uus5apvvjwcmlzmwtgvasei
   '@remix-run/react': 1.7.5_biqbaboplfbrettd7655fr4n2y
   '@testing-library/jest-dom': 5.16.5
@@ -4160,7 +4160,7 @@ packages:
       - react-dom
     dev: false
 
-  /@remix-run/dev/1.7.5_whs4qyypclfkfjl4mxtrhselsq_biqbaboplfbrettd7655fr4n2y:
+  /@remix-run/dev/1.7.5_7nna6mvsvrxee47ftzh7m4vwzq_biqbaboplfbrettd7655fr4n2y:
     resolution: {integrity: sha512-z/HEMi6e2eO6DvCrH+rNbqNohD5m1QMzVfXoIG976jw6Pn72PTaiGFNtDc5vNB2IjVuRAu1j0X9TbWLmU/+fOw==}
     engines: {node: '>=14'}
     hasBin: true

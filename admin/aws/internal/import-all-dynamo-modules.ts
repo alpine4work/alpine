@@ -1,6 +1,6 @@
 import fs from "fs-extra";
 import path from "path";
-import {repoDirectoryPath} from "~/admin/helpers/repo-directory-path";
+import {workspacePath} from "~/admin/helpers/workspace-path";
 // Allow access to DynamoDB internals from `admin/aws`.
 // eslint-disable-next-line no-internal-imports
 import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo-table-schema";
@@ -8,7 +8,7 @@ import {InternalError} from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run-all-promises";
 import {quote} from "~/shared/helpers/string/quote";
 
-const dynamoDirectoryPath = path.join(repoDirectoryPath, "server/dynamo");
+const dynamoDirectoryPath = path.join(workspacePath, "server/dynamo");
 
 /**
  * We ignore this file since it intentionally exports an instance of
@@ -16,7 +16,7 @@ const dynamoDirectoryPath = path.join(repoDirectoryPath, "server/dynamo");
  * including this module, and checks that we threw an error.
  */
 const ignoredTestCanaryFilePath = path.join(
-    repoDirectoryPath,
+    workspacePath,
     "server/dynamo/internal/import-all-dynamo-modules-test-canary.ts",
 );
 
@@ -62,7 +62,7 @@ async function importAllDynamoModulesInDirectory(
                     if (moduleExportValue instanceof DynamoTableSchema) {
                         throw new InternalError(
                             quote`Module ${path.relative(
-                                repoDirectoryPath,
+                                workspacePath,
                                 modulePath,
                             )} exports a "DynamoTableSchema" as ${moduleExportName}, DynamoDB table schemas should be private to the module`,
                         );

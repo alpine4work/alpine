@@ -1,7 +1,6 @@
 load("@aspect_rules_esbuild//esbuild:defs.bzl", "esbuild")
 load("@aspect_rules_js//js:defs.bzl", "js_library")
-load("//admin/bazel:ts-project.bzl", "ts_project")
-load("//admin/bazel:ts-glob.bzl", "ts_glob")
+load("//admin/typescript:typescript.bzl", "ts_glob", "ts_project")
 
 ts_project(
     name = "shared",

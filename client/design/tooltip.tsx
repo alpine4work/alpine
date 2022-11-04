@@ -35,8 +35,6 @@ import {
     overlayFadeAnimationDurationMs,
 } from "~/shared/styles/styles";
 
-console.log("test5");
-
 type TooltipState =
     // Tooltip is definitely not visible.
     | {

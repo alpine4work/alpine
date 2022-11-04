@@ -1,4 +1,4 @@
-import {Links, LiveReload, Meta, Outlet, Scripts, ScrollRestoration} from "@remix-run/react";
+import {Links, Meta, Outlet, Scripts, ScrollRestoration} from "@remix-run/react";
 import {IconContext} from "phosphor-react";
 import prosemirrorStylesHref from "prosemirror-view/style/prosemirror.css";
 import {
@@ -28,7 +28,7 @@ export function links() {
     ];
 }
 
-export default function App() {
+export default function Root() {
     const outlet = (
         <IconContext.Provider value={{color: "currentColor", size: spacing["5"]}}>
             <AppInitialRenderContextProvider>
@@ -52,7 +52,6 @@ export default function App() {
                 {outlet}
                 <ScrollRestoration />
                 <Scripts />
-                <LiveReload />
             </body>
         </html>
     );

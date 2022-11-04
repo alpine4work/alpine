@@ -1,0 +1,20 @@
+{
+    "$schema": "http://json.schemastore.org/swcrc",
+    "env": {
+        "targets": {
+            "node": "18.9.1"
+        }
+    },
+    "jsc": {
+        "baseUrl": "./.null",
+        "paths": {
+            "~/*": ["../*"]
+        },
+        "parser": {
+            "syntax": "typescript"
+        }
+    },
+    "module": {
+        "type": "commonjs"
+    }
+}

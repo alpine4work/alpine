@@ -1,11 +1,11 @@
 import {spawn} from "child_process";
 import path from "path";
-import {repoDirectoryPath} from "~/admin/helpers/repo-directory-path";
+import {workspacePath} from "~/admin/helpers/workspace-path";
 import {UnknownError} from "~/shared/error/error";
 import {isNotNullishOrFalse} from "~/shared/helpers/control/is-not-nullish-or-false";
 import {quote} from "~/shared/helpers/string/quote";
 
-const nodeModulesBinDirectoryPath = path.join(repoDirectoryPath, "node_modules/.bin");
+const nodeModulesBinDirectoryPath = path.join(workspacePath, "node_modules/.bin");
 
 type ProcessArgs = Array<string | undefined | null | false | ProcessArgs>;
 
@@ -23,7 +23,7 @@ export async function runProcess(
     command: string,
     args: ProcessArgs,
     {
-        cwd = repoDirectoryPath,
+        cwd = workspacePath,
         env,
     }: {
         /**

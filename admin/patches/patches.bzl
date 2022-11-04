@@ -2,7 +2,7 @@
 Patches for `node_modules` generated with `pnpm patch`.
 """
 
-PATCHES = {
+NPM_PATCHES = {
     "@remix-run/dev@1.7.5": ["//admin/patches:@remix-run__dev@1.7.5.patch"],
     "@types/react@18.0.15": ["//admin/patches:@types__react@18.0.15.patch"],
     "@vanilla-extract/integration@5.0.1": ["//admin/patches:@vanilla-extract__integration@5.0.1.patch"],

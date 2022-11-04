@@ -1,7 +1,8 @@
-load("//admin/bazel:ts-project.bzl", "ts_project")
+load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "admin",
+    visibility = [":__subpackages__"],
     deps = [
         "//:node_modules/@juggle/resize-observer",
         "//:node_modules/@types/fs-extra",

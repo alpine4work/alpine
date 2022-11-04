@@ -1,6 +1,6 @@
 """
-A macro for creating `ts_project()`s in the style of our codebase. Along with
-any related tests for the project.
+Macros for building TypeScript projects in the style of our codebase. Along
+with any related tests for the project.
 """
 
 load("@aspect_rules_swc//swc:defs.bzl", "swc_transpiler")
@@ -8,7 +8,6 @@ load("@aspect_rules_ts//ts:defs.bzl", _ts_project = "ts_project")
 load("@aspect_rules_js//js:providers.bzl", "JsInfo")
 load("@npm//:prettier/package_json.bzl", prettier_bin = "bin")
 load("@npm//:eslint/package_json.bzl", eslint_bin = "bin")
-load("//admin/bazel:ts-glob.bzl", "ts_glob")
 
 def ts_project(
         name,
@@ -39,11 +38,12 @@ def ts_project(
     _ts_project(
         name = name,
         srcs = srcs,
+        deps = deps,
+        tsconfig = "//:tsconfig",
+        transpiler = _swc_transpiler,
         declaration = True,
         resolve_json_module = True,
-        transpiler = swc_transpiler,
-        tsconfig = "//:tsconfig",
-        deps = deps,
+        allow_js = True,
         **kwargs
     )
 
@@ -51,6 +51,40 @@ def ts_project(
         name = name,
         srcs = lint_and_format_srcs,
         deps = deps,
+    )
+
+def ts_glob(include, exclude = []):
+    """
+    `glob()` but with all the supported TypeScript file extensions.
+
+    Also excludes test files.
+
+    Args:
+        include: Globs paths to include. Don't add a file extension, file
+        extensions will be added by the macro.
+        exclude: Glob paths to exclude. This list will not be modified,
+        include file extensions.
+
+    Returns:
+        A list of files matching the glob.
+    """
+
+    actual_include = []
+    actual_exclude = [path for path in exclude]
+
+    for path in include:
+        actual_include.append("{}.ts".format(path))
+        actual_include.append("{}.tsx".format(path))
+
+        actual_exclude.append("{}.test.ts".format(path))
+        actual_exclude.append("{}.test.tsx".format(path))
+
+    return native.glob(actual_include, exclude = actual_exclude)
+
+def _swc_transpiler(**kwargs):
+    return swc_transpiler(
+        swcrc = "//admin/typescript:typescript_swc_config",
+        **kwargs
     )
 
 def ts_lint_and_format_test(

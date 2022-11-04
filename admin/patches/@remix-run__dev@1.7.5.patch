@@ -45,18 +45,6 @@ diff --git a/dist/compiler/compilerServer.js b/dist/compiler/compilerServer.js
 index fc9b1e24ae0365845d8879987770aea7bed767c7..1b9902ec06e4d18cdb386c93aa3421cb68d48c85 100644
 --- a/dist/compiler/compilerServer.js
 +++ b/dist/compiler/compilerServer.js
-@@ -65,7 +65,10 @@ const createEsbuildConfig = (config, assetsManifestChannel, options) => {
- 
-   let isCloudflareRuntime = ["cloudflare-pages", "cloudflare-workers"].includes(config.serverBuildTarget ?? "");
-   let isDenoRuntime = config.serverBuildTarget === "deno";
--  let plugins = [cssFilePlugin.cssFilePlugin(options), urlImportsPlugin.urlImportsPlugin(), mdx.mdxPlugin(config), emptyModulesPlugin.emptyModulesPlugin(config, /\.client(\.[jt]sx?)?$/), serverRouteModulesPlugin.serverRouteModulesPlugin(config), serverEntryModulePlugin.serverEntryModulePlugin(config), serverAssetsManifestPlugin.serverAssetsManifestPlugin(assetsManifestChannel.read()), serverBareModulesPlugin.serverBareModulesPlugin(config, options.onWarning), esbuildPluginPnp.pnpPlugin()];
-+  // NOTE(calebmer): Don't include files in a `/client/` directory in the
-+  // browser build in addition to not including files with a `.client.js`
-+  // extension.
-+  let plugins = [cssFilePlugin.cssFilePlugin(options), urlImportsPlugin.urlImportsPlugin(), mdx.mdxPlugin(config), emptyModulesPlugin.emptyModulesPlugin(config, /(\.client|\/client\/.*)(\.[jt]sx?)?$/), serverRouteModulesPlugin.serverRouteModulesPlugin(config), serverEntryModulePlugin.serverEntryModulePlugin(config), serverAssetsManifestPlugin.serverAssetsManifestPlugin(assetsManifestChannel.read()), serverBareModulesPlugin.serverBareModulesPlugin(config, options.onWarning), esbuildPluginPnp.pnpPlugin()];
- 
-   if (config.serverPlatform !== "node") {
-     plugins.unshift(nodeModulesPolyfill.NodeModulesPolyfillPlugin());
 @@ -121,7 +124,10 @@ async function writeServerBuildResult(config, outputFiles) {
      if (file.path.endsWith(".js")) {
        // fix sourceMappingURL to be relative to current path instead of /build
@@ -69,3 +57,19 @@ index fc9b1e24ae0365845d8879987770aea7bed767c7..1b9902ec06e4d18cdb386c93aa3421cb
        let pattern = `(//# sourceMappingURL=)(.*)${escapedFilename}`;
        let contents = Buffer.from(file.contents).toString("utf-8");
        contents = contents.replace(new RegExp(pattern), `$1${filename}`);
+diff --git a/dist/config.js b/dist/config.js
+index 7c0e43a19155c60d8b2122daba31707574477cce..cc6e044af6c3bb6eebc6de1ff51d6920bb6b5989 100644
+--- a/dist/config.js
++++ b/dist/config.js
+@@ -255,7 +255,10 @@ function addTrailingSlash(path) {
+   return path.endsWith("/") ? path : path + "/";
+ }
+ 
+-const entryExts = [".js", ".jsx", ".ts", ".tsx"];
++// NOTE(calebmer): If a TypeScript file exists, use that first. The Remix
++// compiler running in Bazel worker mode will not be sandboxed so the compiled
++// JS file may be in the directory next to the source TS file.
++const entryExts = [".ts", ".tsx", ".js", ".jsx"];
+ 
+ function findEntry(dir, basename) {
+   for (let ext of entryExts) {

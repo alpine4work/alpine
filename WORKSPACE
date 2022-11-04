@@ -33,15 +33,15 @@ nodejs_register_toolchains(
 # =========================================================================== #
 
 load("@aspect_rules_js//npm:npm_import.bzl", "npm_translate_lock")
-load("//admin/patches:patches.bzl", "PATCHES")
+load("//admin/patches:patches.bzl", "NPM_PATCHES")
 
 npm_translate_lock(
     name = "npm",
     patch_args = {
         package: ["-p1"]
-        for package in PATCHES
+        for package in NPM_PATCHES
     },
-    patches = PATCHES,
+    patches = NPM_PATCHES,
     pnpm_lock = "//:pnpm-lock.yaml",
     verify_node_modules_ignored = "//:.bazelignore",
 )
@@ -56,6 +56,8 @@ npm_repositories()
 
 http_archive(
     name = "aspect_rules_swc",
+    patch_args = ["-p1"],
+    patches = ["//admin/patches:aspect_rules_swc.patch"],
     sha256 = "313307136cb6369f3c9d2992209c1e354b3e2c9989877ee67c688917320fba1f",
     strip_prefix = "rules_swc-0.17.1",
     url = "https://github.com/aspect-build/rules_swc/archive/refs/tags/v0.17.1.tar.gz",
