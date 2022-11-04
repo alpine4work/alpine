@@ -1,0 +1,5 @@
+#!/bin/bash
+
+workspace_path=$(cd $(dirname $0)/../.. && pwd)
+
+"$workspace_path/admin/vendor/bazelisk/bazelisk-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m)" $@

@@ -1,0 +1,6 @@
+#!/bin/bash
+
+workspace_path=$(cd $(dirname $0)/../.. && pwd)
+cd $workspace_path
+
+./node_modules/.bin/ibazel run //app:app_dev

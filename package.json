@@ -106,6 +106,7 @@
         "ws": "^8.10.0"
     },
     "pnpm": {
+        "updateNotifier": false,
         "overrides": {
             "esbuild": "0.14.51"
         },
