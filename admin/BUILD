@@ -2,7 +2,10 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "admin",
-    visibility = [":__subpackages__"],
+    visibility = [
+        ":__subpackages__",
+        "//app/dev:__pkg__",
+    ],
     deps = [
         "//:node_modules/@juggle/resize-observer",
         "//:node_modules/@types/fs-extra",

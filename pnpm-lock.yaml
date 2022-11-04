@@ -72,7 +72,9 @@ specifiers:
   '@types/node-fetch': '2'
   '@types/react': 18.0.15
   '@types/react-dom': 18.0.6
+  '@types/serve-static': ^1.15.0
   '@types/testing-library__jest-dom': ^5.14.5
+  '@types/ws': ^8.5.3
   '@typescript-eslint/eslint-plugin': ^5.41.0
   '@typescript-eslint/parser': ^5.41.0
   '@vanilla-extract/babel-plugin': ^1.2.0
@@ -175,7 +177,9 @@ dependencies:
   '@types/node-fetch': 2.6.2
   '@types/react': 18.0.15_eitozuphd7tv5mmhqkwd7vh76e
   '@types/react-dom': 18.0.6
+  '@types/serve-static': 1.15.0
   '@types/testing-library__jest-dom': 5.14.5
+  '@types/ws': 8.5.3
   '@typescript-eslint/eslint-plugin': 5.41.0_fjzb7g5ba25jimsiqb7qthr744
   '@typescript-eslint/parser': 5.41.0_5m4fzlpnwdphldehhnooy3hiqa
   '@vanilla-extract/babel-plugin': 1.2.0
@@ -4896,6 +4900,12 @@ packages:
 
   /@types/unist/2.0.6:
     resolution: {integrity: sha512-PBjIUxZHOuj0R15/xuwJYjFi+KZdNFrehocChv4g5hu6aFroHue8m0lBP0POdK2nKzbw0cgV1mws8+V/JAcEkQ==}
+    dev: false
+
+  /@types/ws/8.5.3:
+    resolution: {integrity: sha512-6YOoWjruKj1uLf3INHH7D3qTXwFfEsg1kf3c0uDdSBJwfa/llkwIjrAGV7j7mVgGNbzTQ3HiHKKDXl6bJPD97w==}
+    dependencies:
+      '@types/node': 18.0.6
     dev: false
 
   /@types/yargs-parser/21.0.0:

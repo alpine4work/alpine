@@ -5,4 +5,4 @@ cd $workspace_path
 
 bazel build --ui_event_filters=-info @npm__at_bazel_ibazel__0.16.2//:pkg
 ibazel="./bazel-cyberworlds/external/npm__at_bazel_ibazel__0.16.2/package/bin/$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m)/ibazel"
-$ibazel run //app:app_dev
+$ibazel run //app/dev
