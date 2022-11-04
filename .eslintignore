@@ -3,9 +3,3 @@
 
 # Bazel
 /bazel-*
-
-# Remix
-/.cache
-/functions/\[\[path\]\].js
-/functions/\[\[path\]\].js.map
-/public/build

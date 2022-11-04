@@ -9,12 +9,6 @@
 # Testing
 /coverage
 
-# Remix
-/.cache
-/functions/\[\[path\]\].js
-/functions/\[\[path\]\].js.map
-/public/build
-
 # Misc
 .DS_Store
 *.pem

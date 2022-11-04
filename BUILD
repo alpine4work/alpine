@@ -1,7 +1,9 @@
 load("@npm//:defs.bzl", "npm_link_all_packages")
+load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
 load("//admin/typescript:typescript.bzl", "ts_lint_and_format_test")
-load("//admin/remix:remix.bzl", "remix_app")
+
+npm_link_all_packages(name = "node_modules")
 
 exports_files([
     "package.json",
@@ -13,17 +15,11 @@ exports_files([
     "remix.config.js",
 ])
 
-npm_link_all_packages(name = "node_modules")
-
 ts_config(
     name = "tsconfig",
     src = "tsconfig.bazel.json",
     visibility = ["//visibility:public"],
     deps = ["tsconfig.json"],
-)
-
-remix_app(
-    name = "remix_app",
 )
 
 ts_lint_and_format_test(
@@ -47,4 +43,14 @@ ts_lint_and_format_test(
             ".local/**/*",
         ],
     ),
+)
+
+copy_to_bin(
+    name = "remix_config",
+    srcs = [
+        "package.json",
+        "remix.config.js",
+        "tsconfig.json",
+    ],
+    visibility = ["//visibility:public"],
 )
