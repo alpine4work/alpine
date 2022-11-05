@@ -2,14 +2,14 @@ import {base64ToBytes, bytesToBase64} from "byte-base64";
 import {InvalidArgumentError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {hasOwnProperty} from "~/shared/helpers/object/has-own-property";
-import {isIdentifier} from "~/shared/helpers/string/is-identifier";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";
+import {isIdentifier} from "~/shared/helpers/string/is_identifier";
 import {Optionalize} from "~/shared/helpers/types/optionalize";
 import {Id, isId} from "~/shared/id/id";
 import {
     SchemaSerializedObjectValuePropertyDescription,
     SchemaSerializedValueDescription,
-} from "~/shared/schema/types/schema-description-types";
+} from "~/shared/schema/types/schema_description_types";
 
 // TODO(calebmer): Rename serialize/deserialize to encode/decode.
 

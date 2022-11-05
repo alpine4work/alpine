@@ -1,8 +1,8 @@
 import {Moon, Sun} from "phosphor-react";
 import {Box} from "~/client/design/box";
-import {toggleColorScheme, useColorScheme} from "~/client/design/color-scheme";
-import {IconButton} from "~/client/design/icon-button";
-import {DesignPlaygroundTooltipPage} from "~/client/design/playground/design-playground-tooltip-page";
+import {toggleColorScheme, useColorScheme} from "~/client/design/color_scheme";
+import {IconButton} from "~/client/design/icon_button";
+import {DesignPlaygroundTooltipPage} from "~/client/design/playground/design_playground_tooltip_page";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {
     hiddenIfDarkColorSchemeClassName,

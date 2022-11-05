@@ -1,7 +1,7 @@
 import {RemixBrowser} from "@remix-run/react";
 import React, {StrictMode} from "react";
 import ReactDom, {hydrateRoot} from "react-dom/client";
-import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run-promise-without-awaiting";
+import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 
 hydrateRoot(
     document,

@@ -2,7 +2,7 @@
 A rule that compiles our project using Remix.
 """
 
-load("//admin/typescript:typescript-sources-aspect.bzl", "TsSourcesInfo", "ts_sources_aspect")
+load("//admin/typescript:typescript_sources_aspect.bzl", "TsSourcesInfo", "ts_sources_aspect")
 
 def _remix_app_impl(ctx):
     args = ctx.actions.args()

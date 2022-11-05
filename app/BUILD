@@ -34,5 +34,5 @@ js_binary(
         "//:node_modules/@bazel/worker",
         "//:node_modules/@remix-run/dev",
     ],
-    entry_point = "remix-compiler.js",
+    entry_point = "remix_compiler.js",
 )

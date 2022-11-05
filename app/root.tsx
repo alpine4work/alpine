@@ -4,10 +4,10 @@ import prosemirrorStylesHref from "prosemirror-view/style/prosemirror.css";
 import {
     InitializeColorSchemeScript,
     getColorSchemeWithoutListening,
-} from "~/client/design/color-scheme";
+} from "~/client/design/color_scheme";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {TooltipCoordinationContextProvider} from "~/client/design/tooltip";
-import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use-is-initial-app-render";
+import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {spacing} from "~/shared/design/spacing";
 import sharedStylesHref from "~/shared/styles/styles.css";
 

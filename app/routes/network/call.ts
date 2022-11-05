@@ -1,14 +1,14 @@
-import {getNetworkFunctionImplementation} from "~/server/network/all-network-implementations";
+import {getNetworkFunctionImplementation} from "~/server/network/all_network_implementations";
 import {commitSession, getSession} from "~/server/session/session";
 import {ErrorBase, InvalidArgumentError, NotFoundError} from "~/shared/error/error";
-import {ErrorCode} from "~/shared/error/error-code";
-import {isHttp500ErrorCode} from "~/shared/error/is-http-500-error-code";
+import {ErrorCode} from "~/shared/error/error_code";
+import {isHttp500ErrorCode} from "~/shared/error/is_http_500_error_code";
 import {
     NetworkFunctionHttpInputSchema,
     NetworkFunctionHttpOutputErrorSchema,
     NetworkFunctionHttpOutputExecutionSchema,
     NetworkFunctionHttpOutputSchema,
-} from "~/shared/network/helpers/network-function-http-schema";
+} from "~/shared/network/helpers/network_function_http_schema";
 import {SchemaType} from "~/shared/schema/schema";
 
 export async function action({request}: {request: Request}) {

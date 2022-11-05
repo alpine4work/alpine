@@ -1,5 +1,5 @@
 import {createCookieSessionStorage} from "@remix-run/cloudflare";
-import {cookieSessionSecret} from "~/server/env/env-variables";
+import {cookieSessionSecret} from "~/server/env/env_variables";
 import {generateId} from "~/shared/id/id";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 

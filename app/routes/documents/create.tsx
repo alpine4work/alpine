@@ -1,8 +1,8 @@
 import {useNavigate} from "react-router-dom";
-import {emptyDocumentContent} from "~/shared/documents/document-content-schema";
-import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run-promise-without-awaiting";
+import {emptyDocumentContent} from "~/shared/documents/document_content_schema";
+import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 import {generateId} from "~/shared/id/id";
-import {createDocument} from "~/shared/network/documents-network-definition";
+import {createDocument} from "~/shared/network/documents_network_definition";
 
 export default function CreateDocumentRoute() {
     const navigate = useNavigate();

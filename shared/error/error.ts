@@ -1,4 +1,4 @@
-import {ErrorCode, getErrorCodeName} from "~/shared/error/error-code";
+import {ErrorCode, getErrorCodeName} from "~/shared/error/error_code";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 
 /**

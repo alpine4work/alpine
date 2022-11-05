@@ -12,12 +12,12 @@
 import {createSprinkles, defineProperties} from "@vanilla-extract/sprinkles";
 import {elevation} from "~/shared/design/elevation";
 import {mobilePlatformMediaQuery, spacing} from "~/shared/design/spacing";
-import {mapObjectValues} from "~/shared/helpers/object/map-object-values";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
 import {
     colorSchemeVars,
     darkColorSchemeSelector,
     lightColorSchemeSelector,
-} from "~/shared/styles/internal/color-scheme.css";
+} from "~/shared/styles/internal/color_scheme.css";
 import {fontScale} from "~/shared/styles/internal/fonts.css";
 
 const properties = defineProperties({

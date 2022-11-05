@@ -23,7 +23,7 @@ ts_project(
 esbuild(
     name = "styles_bundle",
     srcs = ts_glob(["styles/internal/**/*"]),
-    config = "styles/internal/styles-esbuild-config-plugins.js",
+    config = "styles/internal/styles_esbuild_config.js",
     entry_point = "styles/internal/styles.ts",
     # Leave font face `url()`s alone.
     external = ["*.woff2"],

@@ -22,7 +22,7 @@ js_binary(
         ":dev_lib",
         "//app",
     ],
-    entry_point = "remix-dev.js",
+    entry_point = "remix_dev.js",
     # Always enable Node.js inspector in development so you can connect an
     # inspector with `chrome://inspect`. There is no performance impact if a
     # debugger is not attached.

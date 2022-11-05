@@ -3,9 +3,9 @@ load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 copy_to_bin(
     name = "typescript_swc_config",
     srcs = select({
-        ":compilation_mode_fastbuild": ["typescript-swc-development-config.json"],
-        ":compilation_mode_dbg": ["typescript-swc-development-config.json"],
-        ":compilation_mode_opt": ["typescript-swc-production-config.json"],
+        ":compilation_mode_fastbuild": ["typescript_swc_development_config.json"],
+        ":compilation_mode_dbg": ["typescript_swc_development_config.json"],
+        ":compilation_mode_opt": ["typescript_swc_production_config.json"],
     }),
     visibility = ["//visibility:public"],
 )
