@@ -26,7 +26,6 @@ ts_project(
 copy_to_bin(
     name = "app_assets",
     srcs = glob(["public/**/*"]),
-    visibility = [":__subpackages__"],
 )
 
 js_binary(

@@ -21,7 +21,6 @@ js_binary(
     data = [
         ":dev_lib",
         "//app",
-        "//app:app_assets",
     ],
     entry_point = "remix-dev.js",
     # Always enable Node.js inspector in development so you can connect an
