@@ -22,8 +22,3 @@ yarn-error.log*
 # Playground
 /.local/*
 !/.local/README.md
-
-# Python
-__pycache__
-*.py[cod]
-*$py.class

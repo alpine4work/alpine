@@ -3,9 +3,10 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "aws",
-    visibility = [":__subpackages__"],
+    visibility = ["//app/dev:__pkg__"],
     deps = [
         "//:node_modules/aws-cdk-lib",
+        "//:node_modules/aws-cdk-local",
         "//:node_modules/constructs",
         "//:node_modules/fs-extra",
         "//admin",

@@ -11,7 +11,7 @@ ts_project(
         "//:node_modules/miniflare",
         "//:node_modules/serve-static",
         "//:node_modules/ws",
-        "//admin/aws/localstack:localstack_lib",
+        "//admin/aws",
         "//shared",
     ],
 )
@@ -23,6 +23,7 @@ js_binary(
         "//app",
     ],
     entry_point = "dev_main.js",
+    env = {"NODE_ENV": "development"},
     # Always enable Node.js inspector in development so you can connect an
     # inspector with `chrome://inspect`. There is no performance impact if a
     # debugger is not attached.

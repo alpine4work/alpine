@@ -27,7 +27,7 @@ esbuild(
     entry_point = "styles/internal/styles.ts",
     # Leave font face `url()`s alone.
     external = ["*.woff2"],
-    format = "esm",
+    format = "cjs",
     output = "styles/styles.js",
     output_css = "styles/styles.css",
     platform = "neutral",

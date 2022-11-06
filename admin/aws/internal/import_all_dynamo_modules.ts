@@ -1,5 +1,6 @@
 import fs from "fs-extra";
 import path from "path";
+import {runfilesPath} from "~/admin/helpers/runfiles_path";
 import {workspacePath} from "~/admin/helpers/workspace_path";
 // Allow access to DynamoDB internals from `admin/aws`.
 // eslint-disable-next-line no-internal-imports
@@ -8,17 +9,14 @@ import {InternalError} from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {quote} from "~/shared/helpers/string/quote";
 
-const dynamoDirectoryPath = path.join(workspacePath, "server/dynamo");
+const dynamoDirectoryPath = path.join(runfilesPath, "cyberworlds/server/dynamo");
 
 /**
  * We ignore this file since it intentionally exports an instance of
  * `DynamoTableSchema`. We have a test that imports all DynamoDB modules,
  * including this module, and checks that we threw an error.
  */
-const ignoredTestCanaryFilePath = path.join(
-    workspacePath,
-    "server/dynamo/internal/import-all-dynamo-modules-test-canary.js",
-);
+const ignoredTestCanaryFilePath = "server/dynamo/internal/import_all_dynamo_modules_test_canary.js";
 
 /**
  * Imports every module in our `server/dynamo` directory.
@@ -52,7 +50,8 @@ async function importAllDynamoModulesInDirectory(
                 // Don't import test files
                 !/\.test\.[a-z]+$/.test(modulePath) &&
                 // Ignore the test canary file unless we were told to not ignore it
-                (options.shouldNotIgnoreTestCanaryFile || modulePath !== ignoredTestCanaryFilePath)
+                (options.shouldNotIgnoreTestCanaryFile ||
+                    !modulePath.endsWith(`/${ignoredTestCanaryFilePath}`))
             ) {
                 const importedModule = require(modulePath);
 

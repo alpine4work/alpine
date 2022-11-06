@@ -6,7 +6,7 @@ import path from "path";
 import createServeStaticMiddleware from "serve-static";
 import WebSocket from "ws";
 // eslint-disable-next-line import/no-restricted-paths
-import {startLocalstack} from "~/admin/aws/localstack/localstack";
+import {prepareLocalstack} from "~/admin/aws/prepare_localstack";
 // eslint-disable-next-line import/no-restricted-paths
 import {runfilesPath} from "~/admin/helpers/runfiles_path";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
@@ -53,8 +53,7 @@ const serveStaticMiddleware = createServeStaticMiddleware(
  *                                LocalStack                                  *
 \* ========================================================================== */
 
-// If we fail to start LocalStack, crash the process.
-startLocalstack().catch(error => {
+prepareLocalstack().catch(error => {
     // eslint-disable-next-line no-console
     console.error(error);
     process.exit(1);
