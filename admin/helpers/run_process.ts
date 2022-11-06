@@ -5,8 +5,6 @@ import {UnknownError} from "~/shared/error/error";
 import {isNotNullishOrFalse} from "~/shared/helpers/control/is_not_nullish_or_false";
 import {quote} from "~/shared/helpers/string/quote";
 
-const nodeModulesBinDirectoryPath = path.join(workspacePath, "node_modules/.bin");
-
 type ProcessArgs = Array<string | undefined | null | false | ProcessArgs>;
 
 /**
@@ -43,13 +41,7 @@ export async function runProcess(
 
     const subprocess = spawn(command, flattenedArgs.filter(isNotNullishOrFalse), {
         cwd,
-        env: {
-            PATH: process.env.PATH
-                ? `${nodeModulesBinDirectoryPath}:${process.env.PATH}`
-                : nodeModulesBinDirectoryPath,
-            NODE_ENV: process.env.NODE_ENV,
-            ...env,
-        },
+        env: {...getProcessEnvToPropagate(), ...env},
         stdio: ["ignore", "pipe", "pipe"],
     });
 
@@ -107,4 +99,22 @@ export async function runProcess(
     });
 
     return stdout;
+}
+
+/**
+ * Gets a subset of `process.env` that we want to propagate to child processes.
+ */
+export function getProcessEnvToPropagate() {
+    const env: {[key: string]: string | undefined} = {
+        PATH: process.env.PATH,
+        NODE_ENV: process.env.NODE_ENV,
+        RUNFILES: process.env.RUNFILES,
+        BUILD_WORKSPACE_DIRECTORY: process.env.BUILD_WORKSPACE_DIRECTORY,
+    };
+
+    for (const [key, value] of Object.entries(process.env)) {
+        if (key.startsWith("JS_BINARY__")) env[key] = value;
+    }
+
+    return env;
 }

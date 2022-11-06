@@ -17,7 +17,7 @@ const dynamoDirectoryPath = path.join(workspacePath, "server/dynamo");
  */
 const ignoredTestCanaryFilePath = path.join(
     workspacePath,
-    "server/dynamo/internal/import-all-dynamo-modules-test-canary.ts",
+    "server/dynamo/internal/import-all-dynamo-modules-test-canary.js",
 );
 
 /**
@@ -47,8 +47,8 @@ async function importAllDynamoModulesInDirectory(
             if (moduleStats.isDirectory()) {
                 await importAllDynamoModulesInDirectory(modulePath, options);
             } else if (
-                // Import all JavaScript modules
-                /\.(js|jsx|ts|tsx|mjs)$/.test(modulePath) &&
+                // Import all transpiled JavaScript modules (exclude TypeScript files)
+                /\.(js|mjs)$/.test(modulePath) &&
                 // Don't import test files
                 !/\.test\.[a-z]+$/.test(modulePath) &&
                 // Ignore the test canary file unless we were told to not ignore it

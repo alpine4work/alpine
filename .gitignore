@@ -1,13 +1,10 @@
 # Dependencies
-/node_modules
+node_modules
 /.pnp
 .pnp.js
 
 # Bazel
 /bazel-*
-
-# Testing
-/coverage
 
 # Misc
 .DS_Store
@@ -19,12 +16,14 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# Local env files
-.env*.local
-
 # TypeScript
 *.tsbuildinfo
 
 # Playground
 /.local/*
 !/.local/README.md
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class

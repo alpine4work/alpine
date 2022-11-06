@@ -5,11 +5,11 @@ import {Miniflare} from "miniflare";
 import path from "path";
 import createServeStaticMiddleware from "serve-static";
 import WebSocket from "ws";
+// eslint-disable-next-line import/no-restricted-paths
+import {startLocalstack} from "~/admin/aws/localstack/localstack";
+// eslint-disable-next-line import/no-restricted-paths
+import {runfilesPath} from "~/admin/helpers/runfiles_path";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
-import {assert} from "~/shared/helpers/control/assert";
-
-assert(process.env.RUNFILES);
-const runfilesPath = process.env.RUNFILES;
 
 const host = "127.0.0.1";
 const prettyHost = host === "127.0.0.1" ? "localhost" : host;
@@ -48,6 +48,17 @@ const serveStaticMiddleware = createServeStaticMiddleware(
     path.join(runfilesPath, "cyberworlds/app/public"),
     {cacheControl: false},
 );
+
+/* ========================================================================== *\
+ *                                LocalStack                                  *
+\* ========================================================================== */
+
+// If we fail to start LocalStack, crash the process.
+startLocalstack().catch(error => {
+    // eslint-disable-next-line no-console
+    console.error(error);
+    process.exit(1);
+});
 
 /* ========================================================================== *\
  *                                  ibazel                                    *

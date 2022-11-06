@@ -1,3 +1,10 @@
+# Performance: Don't check if output files have changed when determining whether
+# to rebuild. When this is on, noop builds sometimes take ~5s.
+#
+# Learned about this option here:
+# https://groups.google.com/g/bazel-discuss/c/E_0F1t4FITE
+build --noexperimental_check_output_files
+
 # Show the stdout/stderr of failed tests for debugging why they failed.
 test --test_output=errors
 

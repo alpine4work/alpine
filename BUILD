@@ -13,6 +13,8 @@ exports_files([
     ".eslintignore",
     "tsconfig.json",
     "remix.config.js",
+    "cdk.json",
+    "cdk.context.json",
 ])
 
 ts_config(

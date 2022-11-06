@@ -6,6 +6,8 @@ import {workspacePath} from "~/admin/helpers/workspace_path";
 
 const outputDirectoryPath = path.join(workspacePath, "admin/aws/output");
 
+// foo
+
 export async function createAwsApp() {
     const app = new cdk.App({autoSynth: false, outdir: outputDirectoryPath});
     const stack = new cdk.Stack(app, "CyberworldsStack");

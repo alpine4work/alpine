@@ -42,10 +42,10 @@ index 36f250ac7e880f64e078b8e39bc236a372bb891d..a64e8c0ff4a2982b691315a4f218c5b1
      entryPoints,
      outdir: config.assetsBuildDirectory,
 diff --git a/dist/compiler/compilerServer.js b/dist/compiler/compilerServer.js
-index fc9b1e24ae0365845d8879987770aea7bed767c7..1b9902ec06e4d18cdb386c93aa3421cb68d48c85 100644
+index fc9b1e24ae0365845d8879987770aea7bed767c7..eccdadc1ea2ed9188eca8b35cc3e315fd9e9cb18 100644
 --- a/dist/compiler/compilerServer.js
 +++ b/dist/compiler/compilerServer.js
-@@ -121,7 +124,10 @@ async function writeServerBuildResult(config, outputFiles) {
+@@ -121,7 +121,10 @@ async function writeServerBuildResult(config, outputFiles) {
      if (file.path.endsWith(".js")) {
        // fix sourceMappingURL to be relative to current path instead of /build
        let filename = file.path.substring(file.path.lastIndexOf(path__namespace.sep) + 1);
@@ -74,9 +74,18 @@ index 7c0e43a19155c60d8b2122daba31707574477cce..cc6e044af6c3bb6eebc6de1ff51d6920
  function findEntry(dir, basename) {
    for (let ext of entryExts) {
 diff --git a/dist/config/routesConvention.js b/dist/config/routesConvention.js
-index 0c501f2..9417991
+index 94179914f536e0fcd62a6d99996379e9db8eb98b..a3a3d3ed5590ec439cda56021d413169364ae21d 100644
 --- a/dist/config/routesConvention.js
 +++ b/dist/config/routesConvention.js
+@@ -41,7 +41,7 @@ var fs__namespace = /*#__PURE__*/_interopNamespace(fs);
+ var path__namespace = /*#__PURE__*/_interopNamespace(path);
+ var minimatch__default = /*#__PURE__*/_interopDefaultLegacy(minimatch);
+ 
+-const routeModuleExts = [".js", ".jsx", ".ts", ".tsx", ".md", ".mdx"];
++const routeModuleExts = [".ts", ".tsx", ".js", ".jsx", ".md", ".mdx"];
+ function isRouteModuleFile(filename) {
+   return routeModuleExts.includes(path__namespace.extname(filename));
+ }
 @@ -60,17 +60,37 @@ function isRouteModuleFile(filename) {
  function defineConventionalRoutes(appDir, ignoredFilePatterns) {
    let files = {}; // First, find all route modules in app/routes
@@ -116,7 +125,7 @@ index 0c501f2..9417991
      throw new Error(`Invalid route module file: ${path__namespace.join(appDir, "routes", file)}`);
    });
    let routeIds = Object.keys(files).sort(byLongestFirst);
-@@ -224,14 +204,15 @@ function byLongestFirst(a, b) {
+@@ -204,14 +224,15 @@ function byLongestFirst(a, b) {
  }
  
  function visitFiles(dir, visitor, baseDir = dir) {
