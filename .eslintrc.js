@@ -5,6 +5,10 @@ module.exports = {
     extends: ["@remix-run/eslint-config", "@remix-run/eslint-config/node"],
     plugins: ["@typescript-eslint", "jest", "jest-dom", "testing-library"],
     reportUnusedDisableDirectives: true,
+    globals: {
+        globalThis: true,
+        "jest/globals": true,
+    },
     rules: {
         // Custom eslint rules from `admin/eslint/rules`:
         //
@@ -138,48 +142,6 @@ module.exports = {
 
         // Inconvenient to annotate every type import with `import type`.
         "@typescript-eslint/consistent-type-imports": "off",
-
-        // This is a pretty important lint rule. It defines the module boundaries of
-        // our system. We treat top level directories as different execution
-        // environments. We don't want code in `client` to be evaluated in
-        // `server` for instance since `client` code might depend on the DOM and
-        // vice-versa. The Next.js `pages` directory is where we bring `client`
-        // and `server` code together to render pages.
-        "import/no-restricted-paths": [
-            "error",
-            {
-                zones: [
-                    {
-                        target: "./shared",
-                        from: "./",
-                        except: ["./node_modules", "./shared"],
-                    },
-                    {
-                        target: "./client",
-                        from: "./",
-                        except: ["./node_modules", "./client", "./public", "./shared"],
-                    },
-                    {
-                        target: "./server",
-                        from: "./",
-                        except: ["./node_modules", "./server", "./shared"],
-                    },
-                    {
-                        target: "./app",
-                        from: "./",
-                        // NOTE: `./app` is not configured to import from itself. The
-                        // design here is only Remix should import routes since adding
-                        // files to the `./app` directory may influence routing.
-                        except: ["./node_modules", "./shared", "./client", "./public", "./server"],
-                    },
-                    {
-                        target: "./integration",
-                        from: "./",
-                        except: ["./node_modules", "./integration", "./shared"],
-                    },
-                ],
-            },
-        ],
 
         // Prefer named exports so we have consistent names for the import
         // across files.

@@ -1,13 +1,16 @@
+"use strict";
+
+/* globals jest */
+
 // `jest-dom` adds custom jest matchers for asserting on DOM nodes. Allows you
 // to do things like:
 //
 // ```
 // expect(element).toHaveTextContent(/react/i)
 // ```
-import "@testing-library/jest-dom";
+require("@testing-library/jest-dom");
 
-import {ResizeObserver as ResizeObserverPolyfill} from "@juggle/resize-observer";
-import {InternalError} from "~/shared/error/error";
+const {ResizeObserver: ResizeObserverPolyfill} = require("@juggle/resize-observer");
 
 // Pretend we are on a Mac for tests. Most of our programmers use Mac for
 // development so it's more natural to use those platform conventions.
@@ -20,13 +23,13 @@ Object.defineProperty(navigator, "platform", {
 // Polyfill: https://developer.mozilla.org/en-US/docs/Web/API/Range/getClientRects
 if (!Range.prototype.getClientRects) {
     Range.prototype.getClientRects = function () {
-        const clientRects: Array<DOMRect> = Array.from(this.cloneContents().children).flatMap(
-            childNode => Array.from(childNode.getClientRects()),
+        const clientRects = Array.from(this.cloneContents().children).flatMap(childNode =>
+            Array.from(childNode.getClientRects()),
         );
-        return clientRects as any as DOMRectList;
+        return clientRects;
     };
 } else {
-    throw new InternalError("Yay! jsdom supports this now, we can remove our polyfill");
+    throw new Error("Yay! jsdom supports this now, we can remove our polyfill");
 }
 
 // Polyfill: https://developer.mozilla.org/en-US/docs/Web/API/Range/getBoundingClientRect
@@ -34,19 +37,19 @@ if (!Range.prototype.getBoundingClientRect) {
     Range.prototype.getBoundingClientRect = function () {
         const clientRects = this.getClientRects();
         if (clientRects.length === 0) {
-            return {x: 0, y: 0, width: 0, height: 0} as DOMRect;
+            return {x: 0, y: 0, width: 0, height: 0};
         }
 
-        let ax1 = clientRects[0]!.x;
-        let ax2 = clientRects[0]!.x + clientRects[0]!.width;
-        let ay1 = clientRects[0]!.y;
-        let ay2 = clientRects[0]!.y + clientRects[0]!.height;
+        let ax1 = clientRects[0].x;
+        let ax2 = clientRects[0].x + clientRects[0].width;
+        let ay1 = clientRects[0].y;
+        let ay2 = clientRects[0].y + clientRects[0].height;
 
         for (let i = 1; i < clientRects.length; i++) {
-            const bx1 = clientRects[i]!.x;
-            const bx2 = clientRects[i]!.x + clientRects[i]!.width;
-            const by1 = clientRects[i]!.y;
-            const by2 = clientRects[i]!.y + clientRects[i]!.height;
+            const bx1 = clientRects[i].x;
+            const bx2 = clientRects[i].x + clientRects[i].width;
+            const by1 = clientRects[i].y;
+            const by2 = clientRects[i].y + clientRects[i].height;
 
             if (bx1 < ax1) ax1 = bx1;
             if (bx2 > ax2) ax2 = bx2;
@@ -59,10 +62,10 @@ if (!Range.prototype.getBoundingClientRect) {
             y: ay1,
             width: ax2 - ax1,
             height: ay2 - ay1,
-        } as DOMRect;
+        };
     };
 } else {
-    throw new InternalError("Yay! jsdom supports this now, we can remove our polyfill");
+    throw new Error("Yay! jsdom supports this now, we can remove our polyfill");
 }
 
 // Polyfill: https://developer.mozilla.org/en-US/docs/Web/API/Window/matchMedia
@@ -74,12 +77,12 @@ if (!window.matchMedia) {
         removeEventListener: jest.fn(),
     }));
 } else {
-    throw new InternalError("Yay! jsdom supports this now, we can remove our polyfill");
+    throw new Error("Yay! jsdom supports this now, we can remove our polyfill");
 }
 
 // Polyfill: https://developer.mozilla.org/en-US/docs/Web/API/ResizeObserver
 if (!window.ResizeObserver) {
     window.ResizeObserver = ResizeObserverPolyfill;
 } else {
-    throw new InternalError("Yay! jsdom supports this now, we can remove our polyfill");
+    throw new Error("Yay! jsdom supports this now, we can remove our polyfill");
 }

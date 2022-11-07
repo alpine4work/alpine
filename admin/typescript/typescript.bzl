@@ -8,12 +8,15 @@ load("@aspect_rules_ts//ts:defs.bzl", _ts_project = "ts_project")
 load("@aspect_rules_js//js:providers.bzl", "JsInfo")
 load("@npm//:prettier/package_json.bzl", prettier_bin = "bin")
 load("@npm//:eslint/package_json.bzl", eslint_bin = "bin")
+load("@npm//:typescript/package_json.bzl", typescript_bin = "bin")
 
 def ts_project(
         name,
         srcs = None,
+        test_srcs = None,
         lint_and_format_srcs = None,
-        deps = None,
+        deps = [],
+        test_deps = [],
         **kwargs):
     """
     Macro for creating a TypeScript project that implements some codebase conventions.
@@ -22,18 +25,24 @@ def ts_project(
 
     Args:
         name: The name of the project.
-        srcs: Any sources for the project. Defaults to `ts_glob(["**/*"])`.
+        srcs: Any sources for the project. Defaults to `**/*.{ts,tsx}`
+        excluding `**/*.test.{ts,tsx}`.
+        test_srcs: Any source files to generate test rules for. Defaults to `**/*.test.{ts,tsx}`.
         lint_and_format_srcs: Sources to run lint and format tests for. Defaults to all
         JavaScript, TypeScript, JSON, and Markdown files.
-        deps: Any code this project needs to run.
+        deps: Any dependencies this project needs to run.
+        test_deps: Any dependencies this project needs to run tests.
         **kwargs: Arguments that will be forwarded to `ts_project()` from `aspect_rules_ts`.
     """
 
     if not srcs:
-        srcs = ts_glob(["**/*"])
+        srcs = native.glob(
+            ["**/*.ts", "**/*.tsx"],
+            exclude = ["**/*.test.ts", "**/*.test.tsx"],
+        )
 
-    if not deps:
-        deps = []
+    if not test_srcs:
+        test_srcs = native.glob(["**/*.test.ts", "**/*.test.tsx"])
 
     _ts_project(
         name = name,
@@ -53,33 +62,41 @@ def ts_project(
         deps = deps,
     )
 
-def ts_glob(include, exclude = []):
-    """
-    `glob()` but with all the supported TypeScript file extensions.
+    if len(test_srcs) > 0:
+        workspace_relative_path = "." if native.package_name() == "" else "/".join([".." for segment in native.package_name().split("/")])
 
-    Also excludes test files.
+        native.genrule(
+            name = "{}_tests_typecheck_tsconfig".format(name),
+            outs = ["tsconfig_tests.json"],
+            srcs = ["//:tsconfig.bazel.json"] + test_srcs,
+            cmd = """\
+cat <<EOF >> $@
+{{
+    "extends": "{base_tsconfig_path}",
+    "compilerOptions": {{"noEmit": true}},
+    "include": [{include_paths}]
+}}
+EOF
+""".format(
+                base_tsconfig_path = "{}/tsconfig.bazel.json".format(workspace_relative_path),
+                include_paths = ", ".join(["\"{}\"".format(test_src) for test_src in test_srcs]),
+            ),
+        )
 
-    Args:
-        include: Globs paths to include. Don't add a file extension, file
-        extensions will be added by the macro.
-        exclude: Glob paths to exclude. This list will not be modified,
-        include file extensions.
-
-    Returns:
-        A list of files matching the glob.
-    """
-
-    actual_include = []
-    actual_exclude = [path for path in exclude]
-
-    for path in include:
-        actual_include.append("{}.ts".format(path))
-        actual_include.append("{}.tsx".format(path))
-
-        actual_exclude.append("{}.test.ts".format(path))
-        actual_exclude.append("{}.test.tsx".format(path))
-
-    return native.glob(actual_include, exclude = actual_exclude)
+        typescript_bin.tsc_test(
+            name = "{}_tests_typecheck_test".format(name),
+            args = ["--project", "$(location :{}_tests_typecheck_tsconfig)".format(name)],
+            data = test_srcs + test_deps + [
+                "//:node_modules/@types/jest",
+                "//:node_modules/@types/testing-library__jest-dom",
+                "//:node_modules/@testing-library/jest-dom",
+                "//:tsconfig.json_copy",
+                "//:tsconfig.bazel.json_copy",
+                ":{}_tests_typecheck_tsconfig".format(name),
+                ":{}_typecheck".format(name),
+                ":{}_deps_typings".format(name),
+            ],
+        )
 
 def _swc_transpiler(**kwargs):
     return swc_transpiler(
@@ -114,8 +131,7 @@ def ts_lint_and_format_test(
 
     prettier_bin.prettier_test(
         name = "{}_format_test".format(name),
-        args = ["--check"] + [src.replace("$", "$$") for src in srcs],
-        chdir = native.package_name(),
+        args = ["--check", native.package_name()],
         copy_data_to_bin = False,
         data = _dedupe_labels(srcs + [
             "//:prettier.config.js",

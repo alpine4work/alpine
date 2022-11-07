@@ -2,6 +2,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "server",
+    test_deps = ["//:node_modules/expect-type"],
     visibility = ["//visibility:public"],
     deps = [
         "//:node_modules/@aws-sdk/client-dynamodb",

@@ -6,6 +6,9 @@ node_modules
 # Bazel
 /bazel-*
 
+# CDK
+/admin/aws/output
+
 # Misc
 .DS_Store
 *.pem

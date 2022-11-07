@@ -5,9 +5,7 @@ import {Miniflare} from "miniflare";
 import path from "path";
 import createServeStaticMiddleware from "serve-static";
 import WebSocket from "ws";
-// eslint-disable-next-line import/no-restricted-paths
 import {prepareLocalstack} from "~/admin/aws/prepare_localstack";
-// eslint-disable-next-line import/no-restricted-paths
 import {runfilesPath} from "~/admin/helpers/runfiles_path";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
 

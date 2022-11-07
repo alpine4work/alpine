@@ -12,6 +12,7 @@ exports_files([
     ".eslintrc.js",
     ".eslintignore",
     "tsconfig.json",
+    "tsconfig.bazel.json",
     "remix.config.js",
     "cdk.json",
     "cdk.context.json",
@@ -48,11 +49,25 @@ ts_lint_and_format_test(
 )
 
 copy_to_bin(
-    name = "remix_config",
-    srcs = [
-        "package.json",
-        "remix.config.js",
-        "tsconfig.json",
-    ],
+    name = "package.json_copy",
+    srcs = ["package.json"],
+    visibility = ["//visibility:public"],
+)
+
+copy_to_bin(
+    name = "tsconfig.json_copy",
+    srcs = ["tsconfig.json"],
+    visibility = ["//visibility:public"],
+)
+
+copy_to_bin(
+    name = "tsconfig.bazel.json_copy",
+    srcs = ["tsconfig.bazel.json"],
+    visibility = ["//visibility:public"],
+)
+
+copy_to_bin(
+    name = "remix.config.js_copy",
+    srcs = ["remix.config.js"],
     visibility = ["//visibility:public"],
 )

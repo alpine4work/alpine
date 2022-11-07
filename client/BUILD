@@ -2,6 +2,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "client",
+    test_deps = ["//:node_modules/@testing-library/react"],
     visibility = ["//visibility:public"],
     deps = [
         "//:node_modules/@popperjs/core",

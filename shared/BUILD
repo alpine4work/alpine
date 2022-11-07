@@ -1,9 +1,10 @@
 load("@aspect_rules_esbuild//esbuild:defs.bzl", "esbuild")
 load("@aspect_rules_js//js:defs.bzl", "js_library")
-load("//admin/typescript:typescript.bzl", "ts_glob", "ts_project")
+load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "shared",
+    test_deps = ["//:node_modules/expect-type"],
     visibility = ["//visibility:public"],
     deps = [
         ":styles",
@@ -22,7 +23,16 @@ ts_project(
 
 esbuild(
     name = "styles_bundle",
-    srcs = ts_glob(["styles/internal/**/*"]),
+    srcs = glob(
+        [
+            "styles/internal/**/*.ts",
+            "styles/internal/**/*.tsx",
+        ],
+        exclude = [
+            "styles/internal/**/*.test.ts",
+            "styles/internal/**/*.test.tsx",
+        ],
+    ),
     config = "styles/internal/styles_esbuild_config.js",
     entry_point = "styles/internal/styles.ts",
     # Leave font face `url()`s alone.

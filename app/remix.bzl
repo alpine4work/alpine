@@ -50,7 +50,7 @@ remix_app = rule(
     _remix_app_impl,
     attrs = {
         "_remix_compiler": attr.label(executable = True, cfg = "exec", default = "//app:remix_compiler"),
-        "_remix_config": attr.label(default = "//:remix_config"),
+        "_remix_config": attr.label_list(default = ["//:package.json_copy", "//:remix.config.js_copy", "//:tsconfig.json_copy"]),
         "_app_lib": attr.label(default = "//app:app_lib", aspects = [ts_sources_aspect]),
     },
 )

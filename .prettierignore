@@ -3,3 +3,6 @@
 
 # Bazel
 /bazel-*
+
+# CDK
+/admin/aws/output
