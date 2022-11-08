@@ -12,6 +12,12 @@
         },
         "parser": {
             "syntax": "typescript"
+        },
+        "transform": {
+            "react": {
+                "runtime": "automatic",
+                "development": false
+            }
         }
     },
     "module": {

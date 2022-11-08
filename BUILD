@@ -49,25 +49,26 @@ ts_lint_and_format_test(
 )
 
 copy_to_bin(
-    name = "package.json_copy",
-    srcs = ["package.json"],
+    name = "remix_config_files",
+    srcs = [
+        "package.json",
+        "remix.config.js",
+        "tsconfig.json",
+    ],
     visibility = ["//visibility:public"],
 )
 
 copy_to_bin(
-    name = "tsconfig.json_copy",
-    srcs = ["tsconfig.json"],
+    name = "tsconfig_files",
+    srcs = [
+        "tsconfig.bazel.json",
+        "tsconfig.json",
+    ],
     visibility = ["//visibility:public"],
 )
 
 copy_to_bin(
-    name = "tsconfig.bazel.json_copy",
-    srcs = ["tsconfig.bazel.json"],
-    visibility = ["//visibility:public"],
-)
-
-copy_to_bin(
-    name = "remix.config.js_copy",
-    srcs = ["remix.config.js"],
+    name = "jest_config_file",
+    srcs = ["jest.config.js"],
     visibility = ["//visibility:public"],
 )

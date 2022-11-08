@@ -1,10 +1,10 @@
 "use strict";
 
-const testMatch = "**/*.test.(js|jsx|ts|tsx|mjs)";
+const testMatch = "**/*.test.js";
 
 const baseJestConfig = {
     testMatch: [testMatch],
-    snapshotResolver: require.resolve("./jest_snapshot_resolver.js"),
+    snapshotResolver: require.resolve("./admin/jest/jest_snapshot_resolver.js"),
     clearMocks: true,
     testPathIgnorePatterns: ["/node_modules/"],
     transformIgnorePatterns: ["/node_modules/"],
@@ -21,14 +21,14 @@ module.exports = {
                 "<rootDir>/server/",
                 "<rootDir>/admin/",
             ],
-            setupFilesAfterEnv: [require.resolve("./jest_setup_client_tests.js")],
+            setupFilesAfterEnv: [require.resolve("./admin/jest/jest_setup_client_tests.js")],
         },
         {
             ...baseJestConfig,
             displayName: "server",
             testEnvironment: "node",
             testMatch: [`<rootDir>/server/${testMatch}`, `<rootDir>/admin/${testMatch}`],
-            setupFilesAfterEnv: [require.resolve("./jest_setup_server_tests.js")],
+            setupFilesAfterEnv: [require.resolve("./admin/jest/jest_setup_server_tests.js")],
         },
     ],
 };

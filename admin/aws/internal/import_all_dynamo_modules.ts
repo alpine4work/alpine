@@ -1,7 +1,6 @@
 import fs from "fs-extra";
 import path from "path";
 import {runfilesPath} from "~/admin/helpers/runfiles_path";
-import {workspacePath} from "~/admin/helpers/workspace_path";
 // Allow access to DynamoDB internals from `admin/aws`.
 // eslint-disable-next-line no-internal-imports
 import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
@@ -61,7 +60,7 @@ async function importAllDynamoModulesInDirectory(
                     if (moduleExportValue instanceof DynamoTableSchema) {
                         throw new InternalError(
                             quote`Module ${path.relative(
-                                workspacePath,
+                                `${runfilesPath}/cyberworlds`,
                                 modulePath,
                             )} exports a "DynamoTableSchema" as ${moduleExportName}, DynamoDB table schemas should be private to the module`,
                         );

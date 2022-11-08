@@ -51,7 +51,7 @@ test("encodes and decodes special float values", () => {
     expect(encodeElenFloat(+0)).toEqual("=00");
     expect(encodeElenFloat(-0)).toEqual("-00");
     expect(encodeElenFloat(+NaN)).toEqual("===42047===2162251799813685248");
-    expect(encodeElenFloat(-NaN)).toEqual("===42047===2162251799813685248");
+    expect(encodeElenFloat(-NaN)).toEqual("---57952---7837748200186314751");
 
     expect(decodeElenFloatIfPossible("===420470")).toEqual(+Infinity);
     expect(decodeElenFloatIfPossible("---579520")).toEqual(-Infinity);

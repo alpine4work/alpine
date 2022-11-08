@@ -15,6 +15,7 @@
         },
         "transform": {
             "react": {
+                "runtime": "automatic",
                 "development": true
             }
         }

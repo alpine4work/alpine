@@ -23,6 +23,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
 import {generateId} from "~/shared/id/id";
 
+jest.setTimeout(1000 * 20);
 jest.useFakeTimers();
 
 function textSlice(text: string) {

@@ -115,8 +115,8 @@ test(
                 .length,
         ).toEqual(40);
     },
-    // 2min timeout for this test
-    1000 * 60 * 2,
+    // 3min timeout for this test
+    1000 * 60 * 3,
 );
 
 test(
@@ -190,8 +190,8 @@ test(
 
         expect(Array.from(snapshotVersions)).toEqual([0, 102, 204, 300]);
     },
-    // 2min timeout for this test
-    1000 * 60 * 2,
+    // 3min timeout for this test
+    1000 * 60 * 3,
 );
 
 test(
@@ -351,6 +351,6 @@ test(
             );
         }
     },
-    // 2min timeout for this test
-    1000 * 60 * 2,
+    // 3min timeout for this test
+    1000 * 60 * 3,
 );

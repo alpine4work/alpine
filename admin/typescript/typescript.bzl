@@ -3,12 +3,13 @@ Macros for building TypeScript projects in the style of our codebase. Along
 with any related tests for the project.
 """
 
-load("@aspect_rules_swc//swc:defs.bzl", "swc_transpiler")
+load("@aspect_rules_swc//swc:defs.bzl", _swc_transpiler = "swc_transpiler")
 load("@aspect_rules_ts//ts:defs.bzl", _ts_project = "ts_project")
 load("@aspect_rules_js//js:providers.bzl", "JsInfo")
 load("@npm//:prettier/package_json.bzl", prettier_bin = "bin")
 load("@npm//:eslint/package_json.bzl", eslint_bin = "bin")
 load("@npm//:typescript/package_json.bzl", typescript_bin = "bin")
+load("@npm//:jest/package_json.bzl", jest_bin = "bin")
 
 def ts_project(
         name,
@@ -49,7 +50,7 @@ def ts_project(
         srcs = srcs,
         deps = deps,
         tsconfig = "//:tsconfig",
-        transpiler = _swc_transpiler,
+        transpiler = swc_transpiler,
         declaration = True,
         resolve_json_module = True,
         allow_js = True,
@@ -90,16 +91,71 @@ EOF
                 "//:node_modules/@types/jest",
                 "//:node_modules/@types/testing-library__jest-dom",
                 "//:node_modules/@testing-library/jest-dom",
-                "//:tsconfig.json_copy",
-                "//:tsconfig.bazel.json_copy",
+                "//:tsconfig_files",
                 ":{}_tests_typecheck_tsconfig".format(name),
                 ":{}_typecheck".format(name),
                 ":{}_deps_typings".format(name),
             ],
         )
 
-def _swc_transpiler(**kwargs):
-    return swc_transpiler(
+        for test_src in test_srcs:
+            if not test_src.endswith(".test.ts") and not test_src.endswith(".test.tsx"):
+                fail("test source must end in `.test.{ts,tsx}`")
+
+            test_src_js = "{}.js".format(test_src[:len(test_src) - 4] if test_src.endswith(".test.tsx") else test_src[:len(test_src) - 3])
+            test_name = "{}_test".format(test_src_js[:len(test_src_js) - 8])
+
+            swc_transpiler(
+                name = "{}_src".format(test_name),
+                srcs = [test_src],
+                js_outs = [test_src_js],
+                map_outs = ["{}.map".format(test_src_js)],
+                source_maps = "true",
+            )
+
+            jest_bin.jest_test(
+                name = test_name,
+                args = [
+                    # https://jestjs.io/docs/cli#--cache: Whether to use the cache. Defaults to
+                    # true. Disable the cache using `--no-cache`. Caching is Bazel's job, we don't
+                    # want non-hermeticity.
+                    "--no-cache",
+                    # https://jestjs.io/docs/cli#--watchman: Whether to use watchman for file
+                    # crawling. Defaults to true. Disable using `--no-watchman`. Watching is
+                    # `ibazel`'s job
+                    "--no-watchman",
+                    # https://jestjs.io/docs/cli#--ci. When this option is provided, Jest will
+                    # assume it is running in a CI environment. This changes the behavior when a new
+                    # snapshot is encountered. Instead of the regular behavior of storing a new
+                    # snapshot automatically, it will fail the test and require Jest to be run with
+                    # `--updateSnapshot`.
+                    "--ci",
+                    # Always use colors. Bazel will clear colors when necessary.
+                    "--colors",
+                    # Use our custom Jest config.
+                    "--config",
+                    "jest.config.js",
+                    # Each test run is only for a single file.
+                    test_src_js,
+                ],
+                data = _dedupe_labels(deps + test_deps + [
+                                          "//:node_modules/@juggle/resize-observer",
+                                          "//:node_modules/@testing-library/jest-dom",
+                                          "//:node_modules/@types/jest",
+                                          "//:node_modules/@types/testing-library__jest-dom",
+                                          "//:node_modules/jest-environment-jsdom",
+                                          "//:node_modules/node-fetch",
+                                          "//:jest_config_file",
+                                          "//admin/jest:jest_config_files",
+                                          "{}_src".format(test_name),
+                                          name,
+                                      ] +
+                                      # Will include a snapshot file if it exists.
+                                      native.glob(["{}.snap".format(test_src_js[:len(test_src_js) - 3])])),
+            )
+
+def swc_transpiler(**kwargs):
+    return _swc_transpiler(
         swcrc = "//admin/typescript:typescript_swc_config",
         **kwargs
     )
