@@ -1,4 +1,4 @@
-import {MergeObjectIntersection} from "~/shared/helpers/types/merge-object-intersection";
+import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection";
 
 /**
  * Convert all properties of an object that include `undefined` to optional

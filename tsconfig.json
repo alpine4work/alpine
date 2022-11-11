@@ -4,17 +4,15 @@
          *                                 Compiler                                   *
         \* ========================================================================== */
 
-        // We use Babel for compilation, not the TypeScript compiler.
         "noEmit": true,
-        "incremental": true,
 
         /* ========================================================================== *\
          *                                 Language                                   *
         \* ========================================================================== */
 
-        "target": "es5",
+        "target": "es2019",
         "lib": ["dom", "dom.iterable", "esnext"],
-        "jsx": "preserve",
+        "jsx": "react-jsx",
         "downlevelIteration": true,
         "useDefineForClassFields": true,
 
@@ -50,12 +48,8 @@
         "noPropertyAccessFromIndexSignature": false,
         "noImplicitOverride": true,
         "allowJs": true,
-        "skipLibCheck": true,
-        // FIXME: the cloudflare worker types aren't getting injected/merged properly?
-        // it seems new types get added fine, but existing ones don't get extended
-        // properly (e.g. websocket.accept(), Reponse.json())
-        "types": ["jest", "@cloudflare/workers-types"]
+        "skipLibCheck": true
     },
-    "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
-    "exclude": ["node_modules"]
+    "include": ["**/*.ts", "**/*.tsx"],
+    "exclude": ["node_modules", "bazel-*"]
 }

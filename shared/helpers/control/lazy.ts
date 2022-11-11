@@ -1,4 +1,4 @@
-import {captureResult, unwrapResult} from "~/shared/helpers/control/capture-result";
+import {captureResult, unwrapResult} from "~/shared/helpers/control/capture_result";
 import {Result} from "~/shared/helpers/control/result";
 
 /**

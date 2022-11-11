@@ -1,5 +1,5 @@
 import {DetailedHTMLProps, HTMLAttributes, Ref, createElement, forwardRef} from "react";
-import {Sprinkles, sprinkles} from "~/client/design/sprinkles.css";
+import {Sprinkles, sprinkles} from "~/shared/styles/styles";
 
 const BoxForwardRef = forwardRef(Box);
 export {BoxForwardRef as Box};

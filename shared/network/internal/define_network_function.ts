@@ -1,0 +1,232 @@
+import {
+    ErrorBase,
+    InternalError,
+    UnavailableError,
+    UnimplementedError,
+    getErrorConstructorForCode,
+} from "~/shared/error/error";
+import {ErrorCode, isErrorCode} from "~/shared/error/error_code";
+import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
+import {scheduleException} from "~/shared/helpers/async/schedule_exception";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
+import {assert} from "~/shared/helpers/control/assert";
+import {isIdentifier} from "~/shared/helpers/string/is_identifier";
+import {quote} from "~/shared/helpers/string/quote";
+import {
+    NetworkFunctionHttpInputSchema,
+    NetworkFunctionHttpOutputErrorSchema,
+    NetworkFunctionHttpOutputSchema,
+} from "~/shared/network/helpers/network_function_http_schema";
+import {NetworkFunction} from "~/shared/network/network_function";
+import {
+    ObjectSchemaConfigBase,
+    ObjectSchemaConfigType,
+    Schema,
+    SchemaDeserializationError,
+    SchemaSerializedValue,
+    SchemaType,
+} from "~/shared/schema/schema";
+
+/**
+ * Define the interface for a network function.
+ *
+ * Network functions must all be defined in `~/shared/network`. That way our
+ * tooling can pick up all defined network functions and ensure there is a
+ * matching implementation on the server.
+ *
+ * We define network functions in separate files so that code splitting works.
+ * Importing one network function only imports the dependencies for that
+ * network function and nothing else.
+ *
+ * A network function has an input object and an output object. If you already
+ * have an object schema, we discourage you from reusing it. Instead nest your
+ * object schema in a named property. This will allow you to add more inputs
+ * and outputs over time to the network function.
+ */
+export function defineNetworkFunction<
+    InputConfig extends ObjectSchemaConfigBase,
+    OutputConfig extends ObjectSchemaConfigBase,
+>({
+    name,
+    input: inputConfig,
+    output: outputConfig,
+}: {
+    name: string;
+    input: InputConfig;
+    output: OutputConfig;
+}): NetworkFunction<ObjectSchemaConfigType<InputConfig>, ObjectSchemaConfigType<OutputConfig>> {
+    assert(isIdentifier(name), "Network function name should be a valid identifier");
+    assert(
+        name[0] === name[0]?.toLowerCase(),
+        "Network function name should start with a lower case letter",
+    );
+
+    assert(
+        !definedNetworkFunctionNames.has(name),
+        quote`A definition for a network function named ${name} already exists`,
+    );
+    definedNetworkFunctionNames.add(name);
+
+    const inputSchema = Schema.object(inputConfig);
+    const outputSchema = Schema.object(outputConfig);
+
+    const execute = async (
+        input: ObjectSchemaConfigType<InputConfig>,
+    ): Promise<ObjectSchemaConfigType<OutputConfig>> => {
+        if (typeof document === "undefined") {
+            // NOTE(calebmer): Implement this with dependency injection so there's no
+            // chance server code is bundled in with client code.
+            throw new UnimplementedError("Server network function not yet implemented");
+        }
+
+        const outputPromiseResolver = createPromiseResolver<SchemaSerializedValue>();
+
+        scheduleNetworkFunctionExecution({
+            name,
+            input: inputSchema.serialize(input),
+            outputPromiseResolver,
+        });
+
+        const output = await outputPromiseResolver.promise;
+
+        try {
+            return outputSchema.deserialize(output);
+        } catch (error) {
+            // Reclassify deserialization errors as internal errors if we can't deserialize
+            // the data coming from our network function HTTP endpoint.
+            if (error instanceof SchemaDeserializationError) {
+                throw new InternalError(error.message, {cause: error});
+            }
+            throw error;
+        }
+    };
+
+    // Override the JavaScript function name with our network function name. We
+    // need to use `Object.defineProperty()` to override the JavaScript
+    // builtin name.
+    Object.defineProperty(execute, "name", {value: name});
+
+    return Object.assign(execute, {
+        inputSchema,
+        outputSchema,
+    });
+}
+
+const definedNetworkFunctionNames = new Set<string>();
+
+/**
+ * Get the names of all network functions that have been defined.
+ */
+export function getAllDefinedNetworkFunctionNames(): IterableIterator<string> {
+    return definedNetworkFunctionNames.values();
+}
+
+type NetworkFunctionExecution = {
+    readonly name: string;
+    readonly input: SchemaSerializedValue;
+    readonly outputPromiseResolver: PromiseResolver<SchemaSerializedValue>;
+};
+
+let scheduledNetworkFunctionExecutionBatch: Array<NetworkFunctionExecution> | null = null;
+
+function scheduleNetworkFunctionExecution(execution: NetworkFunctionExecution): void {
+    if (scheduledNetworkFunctionExecutionBatch === null) {
+        scheduledNetworkFunctionExecutionBatch = [];
+        scheduleMicrotask(() => {
+            assert(scheduledNetworkFunctionExecutionBatch !== null);
+            const executionBatch = scheduledNetworkFunctionExecutionBatch;
+            scheduledNetworkFunctionExecutionBatch = null;
+            executeNetworkFunctions(executionBatch).catch(scheduleException);
+        });
+    }
+
+    scheduledNetworkFunctionExecutionBatch.push(execution);
+}
+
+async function executeNetworkFunctions(
+    executionBatch: Array<NetworkFunctionExecution>,
+): Promise<void> {
+    // If this function throws any error, we want to reject all executions in our
+    // batch with that error.
+    try {
+        const input = {
+            executions: executionBatch.map(execution => ({
+                name: execution.name,
+                input: execution.input,
+            })),
+        };
+
+        const response = await fetch("/network/call", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(NetworkFunctionHttpInputSchema.serialize(input)),
+        }).catch(error => {
+            // Classify network errors as the `Unavailable` status code.
+            throw new UnavailableError(error.message, {cause: error});
+        });
+
+        const output = await response
+            .json()
+            .then((output: any) => NetworkFunctionHttpOutputSchema.deserialize(output))
+            .catch(error => {
+                // If we fail to parse the response body as JSON, classify as `Internal`
+                // status code.
+                //
+                // Maybe an error is also thrown here for some network errors? If so we should
+                // classify network errors as the `Unavailable` status code.
+                throw new InternalError(error.message, {cause: error});
+            });
+
+        if (!output.ok) {
+            const error = await deserializeError(output.error);
+            throw error;
+        }
+
+        if (output.executions.length !== executionBatch.length)
+            throw new InternalError(
+                `Expected ${executionBatch.length} execution outputs but received ${output.executions.length} execution outputs`,
+            );
+
+        executionBatch.forEach((execution, index) => {
+            // If anything throws while processing the output for a single execution,
+            // reject only that execution's promise.
+            const executionOutput = output.executions[index]!;
+            if (!executionOutput.ok) {
+                deserializeError(executionOutput.error).then(
+                    error => execution.outputPromiseResolver.reject(error),
+                    error => execution.outputPromiseResolver.reject(error),
+                );
+            } else {
+                execution.outputPromiseResolver.resolve(executionOutput.output);
+            }
+        });
+    } catch (error) {
+        for (const execution of executionBatch) {
+            execution.outputPromiseResolver.reject(error);
+        }
+    }
+}
+
+async function deserializeError(
+    serializedError: SchemaType<typeof NetworkFunctionHttpOutputErrorSchema>,
+): Promise<ErrorBase> {
+    const code = isErrorCode(serializedError.code) ? serializedError.code : ErrorCode.Unknown;
+    const ErrorConstructor = getErrorConstructorForCode(code);
+    const error = new ErrorConstructor(serializedError.message);
+
+    // If a stack trace was serialized with the error (in development we include a
+    // stack trace) then assign it to the error.
+    if (serializedError.stack) {
+        const errorStackPrefix = `${serializedError.name ?? error.name}: ${error.message}\n`;
+
+        const errorStackWithoutPrefix = serializedError.stack.startsWith(errorStackPrefix)
+            ? serializedError.stack.slice(errorStackPrefix.length)
+            : serializedError.stack;
+
+        error.stack = `${errorStackPrefix}\nServer stack trace:\n${errorStackWithoutPrefix}`;
+    }
+
+    throw error;
+}

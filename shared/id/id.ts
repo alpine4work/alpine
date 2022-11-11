@@ -54,15 +54,8 @@ export function isId(string: string): string is Id {
  * randomness.
  */
 export function generateId(): Id {
-    let bytes: Uint8Array;
-
-    if (typeof crypto !== "undefined") {
-        bytes = new Uint8Array(16);
-        crypto.getRandomValues(bytes);
-    } else {
-        const crypto = require("crypto");
-        bytes = crypto.randomBytes(16);
-    }
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
 
     let bits = 0;
     let value = 0;

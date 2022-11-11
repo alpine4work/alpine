@@ -1,9 +1,14 @@
 "use strict";
 
+/** @type {import('eslint').Linter.Config} */
 module.exports = {
-    extends: ["react-app", "next/core-web-vitals"],
+    extends: ["@remix-run/eslint-config", "@remix-run/eslint-config/node"],
     plugins: ["@typescript-eslint", "jest", "jest-dom", "testing-library"],
     reportUnusedDisableDirectives: true,
+    globals: {
+        globalThis: true,
+        "jest/globals": true,
+    },
     rules: {
         // Custom eslint rules from `admin/eslint/rules`:
         //
@@ -135,64 +140,12 @@ module.exports = {
             },
         ],
 
-        // This is a pretty important lint rule. It defines the module boundaries of
-        // our system. We treat top level directories as different execution
-        // environments. We don't want code in `client` to be evaluated in
-        // `server` for instance since `client` code might depend on the DOM and
-        // vice-versa. The Next.js `pages` directory is where we bring `client`
-        // and `server` code together to render pages.
-        "import/no-restricted-paths": [
-            "error",
-            {
-                zones: [
-                    {
-                        target: "./shared",
-                        from: "./",
-                        except: ["./node_modules", "./shared"],
-                    },
-                    {
-                        target: "./client",
-                        from: "./",
-                        except: ["./node_modules", "./client", "./public", "./shared"],
-                    },
-                    {
-                        target: "./server",
-                        from: "./",
-                        except: ["./node_modules", "./server", "./shared"],
-                    },
-                    {
-                        target: "./worker",
-                        from: "./",
-                        except: ["./node_modules", "./worker", "./shared"],
-                    },
-                    {
-                        target: "./pages",
-                        from: "./",
-                        // NOTE: `./pages` is not configured to import from itself. The
-                        // design here is only Next.js should import pages since adding
-                        // files to the pages directory may influence routing.
-                        except: ["./node_modules", "./shared", "./client", "./public", "./server"],
-                    },
-                    {
-                        target: "./integration",
-                        from: "./",
-                        except: ["./node_modules", "./integration", "./shared"],
-                    },
-                ],
-            },
-        ],
+        // Inconvenient to annotate every type import with `import type`.
+        "@typescript-eslint/consistent-type-imports": "off",
 
         // Prefer named exports so we have consistent names for the import
         // across files.
         "import/no-default-export": "warn",
-
-        // Always add an extension to your import if you aren't importing a
-        // JavaScript file.
-        "import/extensions": [
-            "warn",
-            "always",
-            {js: "never", jsx: "never", ts: "never", tsx: "never"},
-        ],
 
         // Don't allow importing packages that aren't explicitly declared in our
         // `package.json`. While technically possible to import a transitive
@@ -219,11 +172,6 @@ module.exports = {
         // Require a line to deliniate import declarations from the code which will
         // actually be evaluated.
         "import/newline-after-import": "warn",
-
-        // Conflicts with the Next.js `<Link><a>...</a></Link>` component style.
-        // Could we have a better eslint rule or a custom link component and
-        // re-enable this?
-        "jsx-a11y/anchor-is-valid": "off",
 
         // Use the exhaustive deps lint rule on some custom hooks.
         //
@@ -334,9 +282,9 @@ module.exports = {
             },
         },
         {
-            files: ["pages/**/*.page.*"],
+            files: ["app/**/*"],
             rules: {
-                // Next.js uses default exports in the `./pages` directory to figure out
+                // Remix uses default exports in the `./app` directory to figure out
                 // what to render.
                 "import/no-default-export": "off",
             },

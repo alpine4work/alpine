@@ -1,0 +1,21 @@
+#!/bin/bash
+
+workspace_path=$(cd $(dirname $0)/../.. && pwd)
+
+# If we are in our workspace then run `pnpm` through Bazel so we get the right
+# version. Otherwise, remove our workspace bin from `PATH` to run the system
+# installed `pnpm`.
+if [[ $PWD/ = $workspace_path/* ]]; then
+    node_workspace="node_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m)"
+    bazel build --ui_event_filters=-info @pnpm//:pnpm
+    $workspace_path/bazel-cyberworlds/external/$node_workspace/bin/node $workspace_path/bazel-cyberworlds/external/pnpm/package/dist/pnpm.cjs $@
+else
+    workspace_bin_path=$workspace_path/admin/bin
+
+    PATH=:$PATH:
+    PATH=${PATH//:$workspace_bin_path:/:}
+    PATH=${PATH#:}
+    export PATH=${PATH%:}
+
+    pnpm $@
+fi

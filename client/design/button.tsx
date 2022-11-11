@@ -1,8 +1,8 @@
 import {Ref, forwardRef, useRef} from "react";
 import {AriaButtonProps, mergeProps, useButton, useHover} from "react-aria";
-import {FocusRing} from "~/client/design/focus-ring";
-import {useMergedRef} from "~/client/design/helpers/use-merged-ref";
-import {sprinkles} from "~/client/design/sprinkles.css";
+import {FocusRing} from "~/client/design/focus_ring";
+import {useMergedRef} from "~/client/design/helpers/use_merged_ref";
+import {sprinkles} from "~/shared/styles/styles";
 
 // TODO(calebmer): Disabled styles and other style variants
 

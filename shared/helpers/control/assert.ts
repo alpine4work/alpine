@@ -1,5 +1,5 @@
 import {InternalError} from "~/shared/error/error";
-import {omitFromStackTrace} from "~/shared/helpers/control/omit-from-stack-trace";
+import {omitFromStackTrace} from "~/shared/helpers/control/omit_from_stack_trace";
 
 /**
  * Throws an assertion error if the condition is falsy.

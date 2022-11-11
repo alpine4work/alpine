@@ -1,4 +1,4 @@
-import {ErrorCode, getErrorCodeName} from "~/shared/error/error-code";
+import {ErrorCode, getErrorCodeName} from "~/shared/error/error_code";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 
 /**
@@ -11,10 +11,10 @@ export abstract class ErrorBase extends Error {
     public readonly code: ErrorCode;
 
     constructor(message: string, {cause}: {cause?: unknown} = {}) {
-        super(message, {cause: cause as any});
+        super(message, {cause});
         this.code = this._getCode();
         this.name = getErrorCodeName(this.code) + "Error";
-        this.cause = cause as any;
+        this.cause = cause;
     }
 
     protected abstract _getCode(): ErrorCode;
@@ -216,7 +216,7 @@ export class UnauthenticatedError extends ErrorBase {
  */
 export function getErrorConstructorForCode(
     code: ErrorCode,
-): new (message: string, options?: {cause?: Error}) => ErrorBase {
+): new (message: string, options?: {cause?: unknown}) => ErrorBase {
     switch (code) {
         case ErrorCode.Cancelled:
             return CancelledError;

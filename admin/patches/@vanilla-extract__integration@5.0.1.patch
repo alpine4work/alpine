@@ -1,0 +1,46 @@
+diff --git a/dist/vanilla-extract-integration.cjs.dev.js b/dist/vanilla-extract-integration.cjs.dev.js
+index 02fde7da688663a9a88dfe73bdd9f891c434e160..111bb9e6c6e0f16f6c9e3b272cc623907fcd461e 100644
+--- a/dist/vanilla-extract-integration.cjs.dev.js
++++ b/dist/vanilla-extract-integration.cjs.dev.js
+@@ -310,7 +310,6 @@ const vanillaExtractFilescopePlugin = () => ({
+   name: 'vanilla-extract-filescope',
+ 
+   setup(build) {
+-    const packageInfo = getPackageInfo(build.initialOptions.absWorkingDir);
+     build.onLoad({
+       filter: cssFileFilter
+     }, async ({
+@@ -321,7 +320,9 @@ const vanillaExtractFilescopePlugin = () => ({
+         source: originalSource,
+         filePath: path$1,
+         rootPath: build.initialOptions.absWorkingDir,
+-        packageName: packageInfo.name
++        // NOTE(calebmer): Hardcode package name since it is annoying to make
++        // `package.json` available to Bazel hermetic builds.
++        packageName: "cyberworlds",
+       });
+       return {
+         contents: source,
+diff --git a/dist/vanilla-extract-integration.cjs.prod.js b/dist/vanilla-extract-integration.cjs.prod.js
+index 34629118701b35046d2d0ddad450a315061daef4..0d0ae40071001a7883e7d3e02f9608df0f7532ad 100644
+--- a/dist/vanilla-extract-integration.cjs.prod.js
++++ b/dist/vanilla-extract-integration.cjs.prod.js
+@@ -310,7 +310,6 @@ const vanillaExtractFilescopePlugin = () => ({
+   name: 'vanilla-extract-filescope',
+ 
+   setup(build) {
+-    const packageInfo = getPackageInfo(build.initialOptions.absWorkingDir);
+     build.onLoad({
+       filter: cssFileFilter
+     }, async ({
+@@ -321,7 +320,9 @@ const vanillaExtractFilescopePlugin = () => ({
+         source: originalSource,
+         filePath: path$1,
+         rootPath: build.initialOptions.absWorkingDir,
+-        packageName: packageInfo.name
++        // NOTE(calebmer): Hardcode package name since it is annoying to make
++        // `package.json` available to Bazel hermetic builds.
++        packageName: "cyberworlds",
+       });
+       return {
+         contents: source,

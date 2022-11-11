@@ -13,17 +13,17 @@ module.exports = {
     create(context) {
         return {
             ":statement"(node) {
-                const isErasableType =
+                const isErasableNode = node =>
                     node.type === "TSInterfaceDeclaration" ||
                     node.type === "TSTypeAliasDeclaration" ||
                     node.type === "TSTypeParameterDeclaration" ||
                     node.type === "TSModuleDeclaration" ||
-                    (node.type === "ExportNamedDeclaration" &&
-                        node.declaration.type === "TSInterfaceDeclaration") ||
-                    (node.type === "ExportNamedDeclaration" &&
-                        node.declaration.type === "TSTypeAliasDeclaration") ||
-                    (node.type === "ExportNamedDeclaration" &&
-                        node.declaration.type === "TSModuleDeclaration");
+                    node.type === "TSDeclareFunction" ||
+                    (node.type === "VariableDeclaration" && node.declare);
+
+                const isErasableType =
+                    isErasableNode(node) ||
+                    (node.type === "ExportNamedDeclaration" && isErasableNode(node.declaration));
 
                 if (!isErasableType) {
                     if (node.type !== "ImportDeclaration") {

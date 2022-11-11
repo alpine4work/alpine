@@ -16,24 +16,24 @@ import {
     useState,
 } from "react";
 import {Box} from "~/client/design/box";
-import {setElementAttributesWithCleanup} from "~/client/design/helpers/set-element-attributes-with-cleanup";
-import {useElementWithRef} from "~/client/design/helpers/use-element-with-ref";
-import {useLifecycleRef} from "~/client/design/helpers/use-lifecycle-ref";
+import {setElementAttributesWithCleanup} from "~/client/design/helpers/set_element_attributes_with_cleanup";
+import {useElementWithRef} from "~/client/design/helpers/use_element_with_ref";
+import {useLifecycleRef} from "~/client/design/helpers/use_lifecycle_ref";
 import {Overlay, OverlayPlacement, OverlayRef} from "~/client/design/overlay";
+import {
+    presentExtraContextAfterDelayMs,
+    uninterruptedThoughtLimitMs,
+} from "~/client/design/timing_constants";
+import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted";
+import {assert} from "~/shared/helpers/control/assert";
+import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
 import {
     overlayAnimateContainerClassName,
     overlayAnimateFadeInClassName,
     overlayAnimateFadeOutClassName,
     overlayFadeAnimationDurationMs,
-} from "~/client/design/overlay-animated.css";
-import {
-    presentExtraContextAfterDelayMs,
-    uninterruptedThoughtLimitMs,
-} from "~/client/design/timing-constants";
-import {useIsMounted} from "~/client/helpers/lifecycle/use-is-mounted";
-import {assert} from "~/shared/helpers/control/assert";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {isDeepEqual} from "~/shared/helpers/control/is-deep-equal";
+} from "~/shared/styles/styles";
 
 type TooltipState =
     // Tooltip is definitely not visible.

@@ -383,7 +383,7 @@ test("object with default keys validates objects with keys of the correct type",
     expect(validate(schema, new Test1())).toEqual(true);
 });
 
-test("object deletes unknown keys in-place", () => {
+test("object does not delete unknown keys in-place", () => {
     const schema = Schema.object({
         a: Schema.float,
         c: Schema.float,
@@ -392,8 +392,9 @@ test("object deletes unknown keys in-place", () => {
     const object = {a: 1, b: 2, c: 3};
 
     expect(object).toEqual({a: 1, b: 2, c: 3});
-    expect(schema.deserialize(object)).toBe(object);
-    expect(object).toEqual({a: 1, c: 3});
+    expect(schema.deserialize(object)).toEqual({a: 1, c: 3});
+    expect(schema.deserialize(object)).not.toBe(object);
+    expect(object).toEqual({a: 1, b: 2, c: 3});
 });
 
 test("object produces new object for non-plain object", () => {
@@ -609,10 +610,10 @@ test("union does not validate objects with an unknown type string", () => {
     const object2 = {type: "bar"};
     const object3 = {type: "qux"};
 
-    expect(schema.deserialize(object1)).toBe(object1);
+    expect(schema.deserialize(object1)).toEqual(object1);
     expect(object1).toEqual({type: "foo"});
 
-    expect(schema.deserialize(object2)).toBe(object2);
+    expect(schema.deserialize(object2)).toEqual(object2);
     expect(object2).toEqual({type: "bar"});
 
     expect(() => schema.deserialize(object3)).toThrow(SchemaDeserializationError);

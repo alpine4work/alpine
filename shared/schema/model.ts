@@ -1,4 +1,4 @@
-import {hasOwnProperty} from "~/shared/helpers/object/has-own-property";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";
 import {ObjectSchema, Schema} from "~/shared/schema/schema";
 
 /**

@@ -1,0 +1,52 @@
+diff --git a/dist/declarations/src/createSprinkles.d.ts b/dist/declarations/src/createSprinkles.d.ts
+index e4d0f683dbc1126f6171a3d35c9f8a5ee04f06e3..aa9849b808f0cd0c078ce071fba75d2aaa29b6c3 100644
+--- a/dist/declarations/src/createSprinkles.d.ts
++++ b/dist/declarations/src/createSprinkles.d.ts
+@@ -4,8 +4,13 @@ declare type ResponsiveArrayVariant<RA extends {
+ }, Values extends string | number | symbol> = ResponsiveArrayByMaxLength<RA['length'], Values | null>;
+ declare type ConditionalStyle<Values extends {
+     [key: string]: ConditionalPropertyValue;
+-}> = (Values[keyof Values]['defaultClass'] extends string ? keyof Values : never) | {
+-    [Condition in keyof Values[keyof Values]['conditions']]?: keyof Values;
++// NOTE(calebmer): Because of weirdness with TypeScript object keys that
++// are number-like and `.d.ts` generation, we only allow object keys for
++// defining properties so we can safely coerce property values to strings.
++//
++// See: https://github.com/microsoft/TypeScript/issues/51395
++}> = (Values[keyof Values]['defaultClass'] extends string ? `${keyof Values & (string | number)}` : never) | {
++    [Condition in keyof Values[keyof Values]['conditions']]?: `${keyof Values & (string | number)}`;
+ };
+ declare type ConditionalStyleWithResponsiveArray<Values extends {
+     [key: string]: ConditionalPropertyValue;
+@@ -13,7 +18,12 @@ declare type ConditionalStyleWithResponsiveArray<Values extends {
+     length: number;
+ }> = ConditionalStyle<Values> | ResponsiveArrayVariant<RA, keyof Values>;
+ declare type ChildSprinkleProps<Sprinkles extends SprinklesProperties['styles']> = {
+-    [Prop in keyof Sprinkles]?: Sprinkles[Prop] extends ConditionalWithResponsiveArrayProperty ? ConditionalStyleWithResponsiveArray<Sprinkles[Prop]['values'], Sprinkles[Prop]['responsiveArray']> : Sprinkles[Prop] extends ConditionalProperty ? ConditionalStyle<Sprinkles[Prop]['values']> : Sprinkles[Prop] extends ShorthandProperty ? Sprinkles[Sprinkles[Prop]['mappings'][number]] extends ConditionalWithResponsiveArrayProperty ? ConditionalStyleWithResponsiveArray<Sprinkles[Sprinkles[Prop]['mappings'][number]]['values'], Sprinkles[Sprinkles[Prop]['mappings'][number]]['responsiveArray']> : Sprinkles[Sprinkles[Prop]['mappings'][number]] extends ConditionalProperty ? ConditionalStyle<Sprinkles[Sprinkles[Prop]['mappings'][number]]['values']> : Sprinkles[Sprinkles[Prop]['mappings'][number]] extends UnconditionalProperty ? keyof Sprinkles[Sprinkles[Prop]['mappings'][number]]['values'] : never : Sprinkles[Prop] extends UnconditionalProperty ? keyof Sprinkles[Prop]['values'] : never;
++    // NOTE(calebmer): Because of weirdness with TypeScript object keys that
++    // are number-like and `.d.ts` generation, we only allow object keys for
++    // defining properties so we can safely coerce property values to strings.
++    //
++    // See: https://github.com/microsoft/TypeScript/issues/51395
++    [Prop in keyof Sprinkles]?: Sprinkles[Prop] extends ConditionalWithResponsiveArrayProperty ? ConditionalStyleWithResponsiveArray<Sprinkles[Prop]['values'], Sprinkles[Prop]['responsiveArray']> : Sprinkles[Prop] extends ConditionalProperty ? ConditionalStyle<Sprinkles[Prop]['values']> : Sprinkles[Prop] extends ShorthandProperty ? Sprinkles[Sprinkles[Prop]['mappings'][number]] extends ConditionalWithResponsiveArrayProperty ? ConditionalStyleWithResponsiveArray<Sprinkles[Sprinkles[Prop]['mappings'][number]]['values'], Sprinkles[Sprinkles[Prop]['mappings'][number]]['responsiveArray']> : Sprinkles[Sprinkles[Prop]['mappings'][number]] extends ConditionalProperty ? ConditionalStyle<Sprinkles[Sprinkles[Prop]['mappings'][number]]['values']> : Sprinkles[Sprinkles[Prop]['mappings'][number]] extends UnconditionalProperty ? `${keyof Sprinkles[Sprinkles[Prop]['mappings'][number]]['values'] & (string | number)}` : never : Sprinkles[Prop] extends UnconditionalProperty ? `${keyof Sprinkles[Prop]['values'] & (string | number)}` : never;
+ };
+ declare type SprinkleProps<Args extends ReadonlyArray<any>> = Args extends [
+     infer L,
+diff --git a/dist/declarations/src/index.d.ts b/dist/declarations/src/index.d.ts
+index 26ec59864cee75af2d5f7cd39cf9ce02da1052ea..69fa65da9a04f3538a59277d82a6e9aff037c288 100644
+--- a/dist/declarations/src/index.d.ts
++++ b/dist/declarations/src/index.d.ts
+@@ -9,7 +9,12 @@ declare type BaseConditions = {
+     [conditionName: string]: Condition;
+ };
+ declare type AtomicProperties = {
+-    [Property in keyof CSSProperties]?: Record<string, CSSProperties[Property] | Omit<StyleRule, ConditionKey>> | ReadonlyArray<CSSProperties[Property]>;
++    // NOTE(calebmer): Because of weirdness with TypeScript object keys that
++    // are number-like and `.d.ts` generation, we only allow object keys for
++    // defining properties so we can safely coerce property values to strings.
++    //
++    // See: https://github.com/microsoft/TypeScript/issues/51395
++    [Property in keyof CSSProperties]?: Record<string, CSSProperties[Property] | Omit<StyleRule, ConditionKey>>;
+ };
+ declare type ShorthandOptions<Properties extends AtomicProperties, Shorthands extends {
+     [shorthandName: string]: Array<keyof Properties>;

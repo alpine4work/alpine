@@ -1,6 +1,8 @@
 # npm
 /node_modules
 
-# Next.js
-/.next
-/build
+# Bazel
+/bazel-*
+
+# CDK
+/admin/aws/output

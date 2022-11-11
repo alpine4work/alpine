@@ -1,15 +1,13 @@
 # Dependencies
-/node_modules
+node_modules
 /.pnp
 .pnp.js
 
-# Testing
-/coverage
+# Bazel
+/bazel-*
 
-# Next.js
-/.next/
-/out/
-/build/
+# CDK
+/admin/aws/output
 
 # Misc
 .DS_Store
@@ -21,18 +19,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# Local env files
-.env*.local
-
-# Vercel
-.vercel
-
 # TypeScript
 *.tsbuildinfo
 
 # Playground
 /.local/*
 !/.local/README.md
-
-# Workers
-/worker/bundled

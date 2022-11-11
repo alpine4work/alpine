@@ -1,0 +1,145 @@
+diff --git a/dist/compiler/assets.js b/dist/compiler/assets.js
+index 2de988f86c4db0925ac8166cc06ed1a730acdbd9..eb3b9f73b2bb6ff8cd61bc2389ffcea45000668d 100644
+--- a/dist/compiler/assets.js
++++ b/dist/compiler/assets.js
+@@ -47,7 +47,6 @@ async function createAssetsManifest(config, metafile) {
+     return imports.filter(im => im.kind === "import-statement").map(im => resolveUrl(im.path));
+   }
+ 
+-  let entryClientFile = path__namespace.resolve(config.appDirectory, config.entryClientFile);
+   let routesByFile = Object.keys(config.routes).reduce((map, key) => {
+     let route = config.routes[key];
+     map.set(route.file, route);
+@@ -62,7 +61,13 @@ async function createAssetsManifest(config, metafile) {
+ 
+     let entryPointFile = output.entryPoint.replace(/^pnp:/, "");
+ 
+-    if (path__namespace.resolve(entryPointFile) === entryClientFile) {
++    // NOTE(calebmer): Bazel makes symlinks to files in runfiles directory
++    // so these two paths may be in different directories. Only look for whether
++    // the path ends in the same name as our entry client file.
++    //
++    // For some reason `fs.realpath()` doesn't work?? This may be subtly
++    // incorrect if there is another file with this name.
++    if (entryPointFile.endsWith(`/${config.entryClientFile}`)) {
+       entry = {
+         module: resolveUrl(key),
+         imports: resolveImports(output.imports)
+diff --git a/dist/compiler/compileBrowser.js b/dist/compiler/compileBrowser.js
+index 36f250ac7e880f64e078b8e39bc236a372bb891d..a64e8c0ff4a2982b691315a4f218c5b12a1f68f9 100644
+--- a/dist/compiler/compileBrowser.js
++++ b/dist/compiler/compileBrowser.js
+@@ -82,7 +82,10 @@ const createEsbuildConfig = (config, options) => {
+     entryPoints[id] = config.routes[id].file + "?browser";
+   }
+ 
+-  let plugins = [cssFilePlugin.cssFilePlugin(options), urlImportsPlugin.urlImportsPlugin(), mdx.mdxPlugin(config), browserRouteModulesPlugin.browserRouteModulesPlugin(config, /\?browser$/), emptyModulesPlugin.emptyModulesPlugin(config, /\.server(\.[jt]sx?)?$/), nodeModulesPolyfill.NodeModulesPolyfillPlugin(), esbuildPluginPnp.pnpPlugin()];
++  // NOTE(calebmer): Don't include files in a `/server/` directory in the
++  // browser build in addition to not including files with a `.server.js`
++  // extension.
++  let plugins = [cssFilePlugin.cssFilePlugin(options), urlImportsPlugin.urlImportsPlugin(), mdx.mdxPlugin(config), browserRouteModulesPlugin.browserRouteModulesPlugin(config, /\?browser$/), emptyModulesPlugin.emptyModulesPlugin(config, /(\.server|\/server\/.*)(\.[jt]sx?)?$/), nodeModulesPolyfill.NodeModulesPolyfillPlugin(), esbuildPluginPnp.pnpPlugin()];
+   return {
+     entryPoints,
+     outdir: config.assetsBuildDirectory,
+diff --git a/dist/compiler/compilerServer.js b/dist/compiler/compilerServer.js
+index fc9b1e24ae0365845d8879987770aea7bed767c7..eccdadc1ea2ed9188eca8b35cc3e315fd9e9cb18 100644
+--- a/dist/compiler/compilerServer.js
++++ b/dist/compiler/compilerServer.js
+@@ -121,7 +121,10 @@ async function writeServerBuildResult(config, outputFiles) {
+     if (file.path.endsWith(".js")) {
+       // fix sourceMappingURL to be relative to current path instead of /build
+       let filename = file.path.substring(file.path.lastIndexOf(path__namespace.sep) + 1);
+-      let escapedFilename = filename.replace(/\./g, "\\.");
++      // NOTE(calebmer): When we build for Cloudflare pages the server
++      // JavaScript file is named `[[path]].js`. The `[` and `]` characters must
++      // be escaped within a regex.
++      let escapedFilename = filename.replace(/\./g, "\\.").replace(/\[/g, "\\[").replace(/\]/g, "\\]");
+       let pattern = `(//# sourceMappingURL=)(.*)${escapedFilename}`;
+       let contents = Buffer.from(file.contents).toString("utf-8");
+       contents = contents.replace(new RegExp(pattern), `$1${filename}`);
+diff --git a/dist/config.js b/dist/config.js
+index 7c0e43a19155c60d8b2122daba31707574477cce..cc6e044af6c3bb6eebc6de1ff51d6920bb6b5989 100644
+--- a/dist/config.js
++++ b/dist/config.js
+@@ -255,7 +255,10 @@ function addTrailingSlash(path) {
+   return path.endsWith("/") ? path : path + "/";
+ }
+ 
+-const entryExts = [".js", ".jsx", ".ts", ".tsx"];
++// NOTE(calebmer): If a TypeScript file exists, use that first. The Remix
++// compiler running in Bazel worker mode will not be sandboxed so the compiled
++// JS file may be in the directory next to the source TS file.
++const entryExts = [".ts", ".tsx", ".js", ".jsx"];
+ 
+ function findEntry(dir, basename) {
+   for (let ext of entryExts) {
+diff --git a/dist/config/routesConvention.js b/dist/config/routesConvention.js
+index 94179914f536e0fcd62a6d99996379e9db8eb98b..a3a3d3ed5590ec439cda56021d413169364ae21d 100644
+--- a/dist/config/routesConvention.js
++++ b/dist/config/routesConvention.js
+@@ -41,7 +41,7 @@ var fs__namespace = /*#__PURE__*/_interopNamespace(fs);
+ var path__namespace = /*#__PURE__*/_interopNamespace(path);
+ var minimatch__default = /*#__PURE__*/_interopDefaultLegacy(minimatch);
+ 
+-const routeModuleExts = [".js", ".jsx", ".ts", ".tsx", ".md", ".mdx"];
++const routeModuleExts = [".ts", ".tsx", ".js", ".jsx", ".md", ".mdx"];
+ function isRouteModuleFile(filename) {
+   return routeModuleExts.includes(path__namespace.extname(filename));
+ }
+@@ -60,17 +60,37 @@ function isRouteModuleFile(filename) {
+ function defineConventionalRoutes(appDir, ignoredFilePatterns) {
+   let files = {}; // First, find all route modules in app/routes
+ 
+-  visitFiles(path__namespace.join(appDir, "routes"), file => {
++  visitFiles(path__namespace.join(appDir, "routes"), (file, otherFilenames) => {
+     if (ignoredFilePatterns && ignoredFilePatterns.some(pattern => minimatch__default["default"](file, pattern))) {
+       return;
+     }
+ 
++    // NOTE(calebmer): When executing in a Bazel output directory we may have
++    // `.js` and `.js.map` files next to `.tsx` files. In that case we want to
++    // ignore both the `.js` and `.js.map` files.
++    //
++    // If we see a `.js` file we check if there is a higher priority extension
++    // in the directory. If there is we skip the file. If we see a `.js.map`
++    // file we check that the file path without `.map` is a valid route file.
+     if (isRouteModuleFile(file)) {
++      const filename = path__namespace.basename(file);
++      const ext = path__namespace.extname(file);
++      const extPriority = routeModuleExts.indexOf(ext);
++      for (let priority = 0; priority < extPriority; priority++) {
++        if (otherFilenames.includes(filename.slice(0, -ext.length) + routeModuleExts[priority])) {
++          return;
++        }
++      }
++
+       let routeId = routes.createRouteId(path__namespace.join("routes", file));
+       files[routeId] = path__namespace.join("routes", file);
+       return;
+     }
+ 
++    if (file.endsWith('.map') && isRouteModuleFile(file.slice(0, -4))) {
++      return;
++    }
++
+     throw new Error(`Invalid route module file: ${path__namespace.join(appDir, "routes", file)}`);
+   });
+   let routeIds = Object.keys(files).sort(byLongestFirst);
+@@ -204,14 +224,15 @@ function byLongestFirst(a, b) {
+ }
+ 
+ function visitFiles(dir, visitor, baseDir = dir) {
+-  for (let filename of fs__namespace.readdirSync(dir)) {
++  let filenames = fs__namespace.readdirSync(dir);
++  for (let filename of filenames) {
+     let file = path__namespace.resolve(dir, filename);
+     let stat = fs__namespace.lstatSync(file);
+ 
+     if (stat.isDirectory()) {
+       visitFiles(file, visitor, baseDir);
+     } else if (stat.isFile()) {
+-      visitor(path__namespace.relative(baseDir, file));
++      visitor(path__namespace.relative(baseDir, file), filenames);
+     }
+   }
+ }
