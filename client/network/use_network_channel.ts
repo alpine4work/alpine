@@ -1,6 +1,6 @@
 import {useCallback, useState} from "react";
-import {useAsyncIterable} from "~/client/helpers/async/use_async_iterable";
-import {useStableJsonValue} from "~/client/helpers/memo/use_stable_json_value";
+import {useAsyncIterable} from "~/client/helpers/use_async_iterable";
+import {useStableJsonValue} from "~/client/helpers/use_stable_json_value";
 import {subscribeToNetworkChannel} from "~/client/network/subscribe_to_network_channel";
 import {BlockInference} from "~/shared/helpers/types/block_inference";
 import {NetworkChannel} from "~/shared/network/network_channel";
