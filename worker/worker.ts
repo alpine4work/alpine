@@ -45,7 +45,3 @@ async function handleRequest(request: Request, env: Env) {
             return new Response("route not found", {status: 404});
     }
 }
-
-// export the durable object so cloudflare can pick it up. in the future, we should maybe use
-// separate bundles for each DO
-export {DocumentCollaborationDurableObject} from "~/worker/document-collaboration/document-collaboration-durable-object";

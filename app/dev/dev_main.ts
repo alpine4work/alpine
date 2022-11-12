@@ -21,6 +21,10 @@ const devServerPort = 3001;
 const miniflare = new Miniflare({
     scriptPath: path.join(runfilesPath, "cyberworlds/app/build/server.js"),
     sourceMap: true,
+    durableObjects: {
+        CLOUDFLARE_BINDING_DocumentCollaborationDurableObjectNamespace:
+            "DocumentCollaborationDurableObject",
+    },
 });
 
 const miniflareListener = createRequestListener(miniflare);

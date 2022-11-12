@@ -950,9 +950,9 @@ export async function updateDocumentContent({
         // If the client is trying to update an older document version then we need to
         // rebase the client steps against steps which were applied before it.
         else {
-            if (fastForwardOnly) {
-                throw new InvalidArgumentError("Non-fast-forward update received");
-            }
+            if (fastForwardOnly)
+                throw new FailedPreconditionError("Non-fast-forward document content update received");
+
             assert(clientVersion < internalDocument.version);
 
             // Get the steps that were applied to bring our document from the provided

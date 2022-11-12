@@ -1,20 +1,20 @@
 import {Step} from "prosemirror-transform";
 import {useEffect, useMemo, useReducer, useRef} from "react";
-import {ContentEditorState} from "~/client/content/content-editor-state";
-import {useEvent} from "~/client/helpers/lifecycle/use-event";
-import {WebSocketClient} from "~/client/helpers/websocket-client";
+import {ContentEditorState} from "~/client/content/content_editor_state";
+import {useEvent} from "~/client/helpers/lifecycle/use_event";
+import {WebSocketClient} from "~/client/helpers/web_socket_client";
 import {
     DocumentCollaborationMessageFromClient,
     DocumentCollaborationMessageFromClientSchema,
     DocumentCollaborationMessageFromServer,
     DocumentCollaborationMessageFromServerSchema,
-} from "~/shared/documents/document-collaboration-schema";
-import {DocumentContent} from "~/shared/documents/document-content-schema";
-import {DocumentModel} from "~/shared/documents/document-model";
+} from "~/shared/documents/document_collaboration_schema";
+import {DocumentContent} from "~/shared/documents/document_content_schema";
+import {DocumentModel} from "~/shared/documents/document_model";
 import {assert} from "~/shared/helpers/control/assert";
 import {cast} from "~/shared/helpers/control/cast";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {generateId, Id} from "~/shared/id/id";
+import {Id, generateId} from "~/shared/id/id";
 import {Schema} from "~/shared/schema/schema";
 
 const workerOrigin = Schema.string.deserialize(process.env.NEXT_PUBLIC_WORKER_ORIGIN ?? null);

@@ -1,6 +1,6 @@
 import {ContentEditor} from "~/client/content/content_editor";
-import {useDocumentContentEditorDurableObjectSync} from "~/client/documents/document-content-editor-do";
 import {useDocumentContentEditorAblyContentSync} from "~/client/documents/document_content_editor_ably";
+import {useDocumentContentEditorDurableObjectSync} from "~/client/documents/document_content_editor_do";
 import {DocumentModel} from "~/shared/documents/document_model";
 import {sprinkles} from "~/shared/styles/styles";
 

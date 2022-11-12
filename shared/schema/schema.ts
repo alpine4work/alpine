@@ -1059,6 +1059,9 @@ export class UnionSchemaVariant<Value extends {readonly type: string}> {
 // TODO(calebmer): Should we make this `InternalError` as a default instead of
 // `InvalidArgumentError`? Probably better to reclassify down in severity
 // instead of reclassifying up in severity.
+//
+// Actually, I think the real move is to have two `deserialize()` functions and
+// make it an explicit choice at every call-site.
 export class SchemaDeserializationError extends InvalidArgumentError {
     constructor(message: string) {
         const stackString = getSchemaDeserializationStackString();

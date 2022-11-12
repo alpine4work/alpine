@@ -21,9 +21,8 @@ implementNetworkFunction(definition.updateDocumentContent, async input => {
 });
 
 implementNetworkFunction(definition.getDocument, async input => {
-    return {
-        document: await getDocument(input.id),
-    };
+    const document = await getDocument(input.id);
+    return {document};
 });
 
 implementNetworkFunction(definition.getDocumentContentSteps, async input => {

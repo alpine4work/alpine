@@ -1,12 +1,12 @@
 import {
     DocumentCollaborationCommittedStep,
     DocumentCollaborationCommittedStepSchema,
-} from "~/shared/documents/document-collaboration-schema";
+} from "~/shared/documents/document_collaboration_schema";
 import {assert} from "~/shared/helpers/control/assert";
 import {encodeElenInteger} from "~/shared/helpers/number/elen-integer";
 import {Id} from "~/shared/id/id";
 import {Schema, SchemaSerializedValue, SchemaType} from "~/shared/schema/schema";
-import {DurableObjectValue} from "~/worker/helpers/durable-object-value";
+import {DurableObjectValue} from "~/server/helpers/durable_object_value";
 
 export const DocumentCollaborationStepRangeSchema = Schema.object({
     startAfterVersion: Schema.integer,

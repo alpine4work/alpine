@@ -61,7 +61,6 @@
         "chalk": "4",
         "change-case": "^4.1.2",
         "classnames": "^2.3.2",
-        "concurrently": "^7.5.0",
         "constructs": "^10.1.143",
         "date-fns": "^2.29.3",
         "dedent": "^0.7.0",

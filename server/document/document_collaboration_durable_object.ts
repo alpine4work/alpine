@@ -1,21 +1,21 @@
 import {Mapping, Step} from "prosemirror-transform";
-import {DocumentCollaborationSocketConnection} from "~/worker/document-collaboration/document-collaboration-socket-connection";
+import {DocumentCollaborationSocketConnection} from "~/server/document/document_collaboration_socket_connection";
 import {
     DocumentCollaborationStepRange,
     DocumentCollaborationStepRangeSchema,
     DocumentCollaborationStepStore,
-} from "~/worker/document-collaboration/document-collaboration-step-store";
-import {DurableObjectValue} from "~/worker/helpers/durable-object-value";
+} from "~/server/document/document_collaboration_step_store";
+import {DurableObjectValue} from "~/server/helpers/durable_object_value";
 import {
     DocumentCollaborationCommittedStep,
     DocumentCollaborationMessageFromServer,
     DocumentCollaborationReadSnapshotResponse,
-} from "~/shared/documents/document-collaboration-schema";
-import {DocumentContent, isDocumentContent} from "~/shared/documents/document-content-schema";
+} from "~/shared/documents/document_collaboration_schema";
+import {DocumentContent, isDocumentContent} from "~/shared/documents/document_content_schema";
 import {DataLossError, FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {generateId, Id} from "~/shared/id/id";
-import {getDocument, updateDocumentContent} from "~/shared/network/documents-network-definition";
+import {getDocument, updateDocumentContent} from "~/shared/network/documents_network_definition";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 import {cast} from "~/shared/helpers/control/cast";
 import {logger} from "~/shared/logger";

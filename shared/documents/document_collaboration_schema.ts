@@ -1,7 +1,7 @@
 import {
     DocumentContentSchema,
     DocumentContentStepSchema,
-} from "~/shared/documents/document-content-schema";
+} from "~/shared/documents/document_content_schema";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 
 export const DocumentCollaborationCommittedStepSchema = Schema.object({
@@ -15,6 +15,7 @@ export type DocumentCollaborationCommittedStep = SchemaType<
 /* ========================================================================== *\
  * Messages from server                                                       *
 \* ========================================================================== */
+
 const DocumentCollaborationStepsMessageFromServerSchema = Schema.object({
     type: Schema.value("steps"),
     steps: Schema.array(DocumentContentStepSchema),
@@ -33,6 +34,7 @@ export type DocumentCollaborationMessageFromServer = SchemaType<
 /* ========================================================================== *\
  * Messages from client                                                       *
 \* ========================================================================== */
+
 const DocumentCollaborationListenSinceMessageFromClientSchema = Schema.object({
     type: Schema.value("listenSince"),
     version: Schema.integer,
@@ -58,6 +60,7 @@ export type DocumentCollaborationMessageFromClient = SchemaType<
 /* ========================================================================== *\
  * HTTP Responses                                                             *
 \* ========================================================================== */
+
 function createResponse<T>(schema: Schema<T>) {
     return {
         send: (value: T) => {

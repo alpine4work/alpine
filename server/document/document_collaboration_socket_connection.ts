@@ -3,13 +3,13 @@ import {
     DocumentCollaborationMessageFromClientSchema,
     DocumentCollaborationMessageFromServer,
     DocumentCollaborationMessageFromServerSchema,
-} from "~/shared/documents/document-collaboration-schema";
+} from "~/shared/documents/document_collaboration_schema";
 import {assert} from "~/shared/helpers/control/assert";
-import {EventEmitter, Unsubscribe} from "~/shared/helpers/control/event-emitter";
+import {EventEmitter, Unsubscribe} from "~/shared/helpers/control/event_emitter";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {generateId} from "~/shared/id/id";
 import {logger} from "~/shared/logger";
-import {DocumentCollaborationDurableObject} from "~/worker/document-collaboration/document-collaboration-durable-object";
+import {DocumentCollaborationDurableObject} from "~/server/document/document_collaboration_durable_object";
 
 export class DocumentCollaborationSocketConnection {
     private closeEvent = new EventEmitter();

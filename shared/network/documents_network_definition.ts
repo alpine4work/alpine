@@ -17,16 +17,6 @@ export const createDocument = defineNetworkFunction({
     output: {},
 });
 
-export const getDocument = defineNetworkFunction({
-    name: "getDocument",
-    input: {
-        id: Schema.id,
-    },
-    output: {
-        document: DocumentModel.schema().nullable(),
-    },
-});
-
 export const DocumentEditorPresenceUpdateSchema = Schema.object({
     presenceStateKey: Schema.string,
     /**
@@ -61,6 +51,16 @@ export const updateDocumentContent = defineNetworkFunction({
             }),
         ),
         newEditorPresenceUpdate: DocumentEditorPresenceUpdateSchema.nullable(),
+    },
+});
+
+export const getDocument = defineNetworkFunction({
+    name: "getDocument",
+    input: {
+        id: Schema.id,
+    },
+    output: {
+        document: DocumentModel.schema().nullable(),
     },
 });
 
