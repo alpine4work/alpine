@@ -1,3 +1,4 @@
+import {ErrorBase} from "~/shared/error/error";
 import {ErrorCode} from "~/shared/error/error_code";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 
@@ -29,4 +30,16 @@ export function isHttp500ErrorCode(code: ErrorCode): boolean {
         default:
             throw exhaustive(code);
     }
+}
+
+/**
+ * Should we classify this error object with a 500 HTTP status code?
+ *
+ * Uses `isHttp500ErrorCode()`. If the error is an `ErrorBase` error we use the
+ * error code. Otherwise we default to `ErrorCode.Unknown` which is classified
+ * with a 500 status code.
+ */
+export function isHttp500Error(error: unknown): boolean {
+    const code = error instanceof ErrorBase ? error.code : ErrorCode.Unknown;
+    return isHttp500ErrorCode(code);
 }

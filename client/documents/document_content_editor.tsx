@@ -1,14 +1,7 @@
 import {ContentEditor} from "~/client/content/content_editor";
-import {useDocumentContentEditorAblyContentSync} from "~/client/documents/document_content_editor_ably";
-import {useDocumentContentEditorDurableObjectSync} from "~/client/documents/document_content_editor_do";
+import {useDocumentContentEditorState} from "~/client/documents/internal/document_content_editor_state";
 import {DocumentModel} from "~/shared/documents/document_model";
 import {sprinkles} from "~/shared/styles/styles";
-
-const durableObjectsEnabled = true;
-
-const useContentSync = durableObjectsEnabled
-    ? useDocumentContentEditorDurableObjectSync
-    : useDocumentContentEditorAblyContentSync;
 
 export function DocumentContentEditor({document}: {document: DocumentModel}) {
     return (
@@ -22,8 +15,8 @@ export function DocumentContentEditor({document}: {document: DocumentModel}) {
 }
 
 function DocumentContentEditorStateful({initialDocument}: {initialDocument: DocumentModel}) {
-    const {phantomTextSelections, editorState, onChangeEditorState} =
-        useContentSync(initialDocument);
+    const {editorState, onChangeEditorState, phantomTextSelections} =
+        useDocumentContentEditorState(initialDocument);
 
     return (
         <ContentEditor

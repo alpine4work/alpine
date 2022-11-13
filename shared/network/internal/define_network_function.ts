@@ -1,11 +1,4 @@
-import {
-    ErrorBase,
-    InternalError,
-    UnavailableError,
-    UnimplementedError,
-    getErrorConstructorForCode,
-} from "~/shared/error/error";
-import {ErrorCode, isErrorCode} from "~/shared/error/error_code";
+import {InternalError, UnavailableError, UnimplementedError} from "~/shared/error/error";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
 import {scheduleException} from "~/shared/helpers/async/schedule_exception";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
@@ -14,7 +7,6 @@ import {isIdentifier} from "~/shared/helpers/string/is_identifier";
 import {quote} from "~/shared/helpers/string/quote";
 import {
     NetworkFunctionHttpInputSchema,
-    NetworkFunctionHttpOutputErrorSchema,
     NetworkFunctionHttpOutputSchema,
 } from "~/shared/network/helpers/network_function_http_schema";
 import {NetworkFunction} from "~/shared/network/network_function";
@@ -24,7 +16,6 @@ import {
     Schema,
     SchemaDeserializationError,
     SchemaSerializedValue,
-    SchemaType,
 } from "~/shared/schema/schema";
 
 /**
@@ -180,8 +171,7 @@ async function executeNetworkFunctions(
             });
 
         if (!output.ok) {
-            const error = await deserializeError(output.error);
-            throw error;
+            throw output.error;
         }
 
         if (output.executions.length !== executionBatch.length)
@@ -194,10 +184,7 @@ async function executeNetworkFunctions(
             // reject only that execution's promise.
             const executionOutput = output.executions[index]!;
             if (!executionOutput.ok) {
-                deserializeError(executionOutput.error).then(
-                    error => execution.outputPromiseResolver.reject(error),
-                    error => execution.outputPromiseResolver.reject(error),
-                );
+                execution.outputPromiseResolver.reject(executionOutput.error);
             } else {
                 execution.outputPromiseResolver.resolve(executionOutput.output);
             }
@@ -207,26 +194,4 @@ async function executeNetworkFunctions(
             execution.outputPromiseResolver.reject(error);
         }
     }
-}
-
-async function deserializeError(
-    serializedError: SchemaType<typeof NetworkFunctionHttpOutputErrorSchema>,
-): Promise<ErrorBase> {
-    const code = isErrorCode(serializedError.code) ? serializedError.code : ErrorCode.Unknown;
-    const ErrorConstructor = getErrorConstructorForCode(code);
-    const error = new ErrorConstructor(serializedError.message);
-
-    // If a stack trace was serialized with the error (in development we include a
-    // stack trace) then assign it to the error.
-    if (serializedError.stack) {
-        const errorStackPrefix = `${serializedError.name ?? error.name}: ${error.message}\n`;
-
-        const errorStackWithoutPrefix = serializedError.stack.startsWith(errorStackPrefix)
-            ? serializedError.stack.slice(errorStackPrefix.length)
-            : serializedError.stack;
-
-        error.stack = `${errorStackPrefix}\nServer stack trace:\n${errorStackWithoutPrefix}`;
-    }
-
-    throw error;
 }

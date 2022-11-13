@@ -1,11 +1,9 @@
 import {getNetworkFunctionImplementation} from "~/server/network/all_network_implementations";
 import {commitSession, getSession} from "~/server/session/session";
-import {ErrorBase, InvalidArgumentError, NotFoundError} from "~/shared/error/error";
-import {ErrorCode} from "~/shared/error/error_code";
-import {isHttp500ErrorCode} from "~/shared/error/is_http_500_error_code";
+import {InvalidArgumentError, NotFoundError} from "~/shared/error/error";
+import {isHttp500Error} from "~/shared/error/is_http_500_error_code";
 import {
     NetworkFunctionHttpInputSchema,
-    NetworkFunctionHttpOutputErrorSchema,
     NetworkFunctionHttpOutputExecutionSchema,
     NetworkFunctionHttpOutputSchema,
 } from "~/shared/network/helpers/network_function_http_schema";
@@ -49,7 +47,7 @@ export async function action({request}: {request: Request}) {
                     } catch (error) {
                         return {
                             ok: false,
-                            error: serializeError(error),
+                            error,
                         };
                     }
                 },
@@ -68,11 +66,7 @@ export async function action({request}: {request: Request}) {
                       (status, execution) =>
                           Math.min(
                               status,
-                              execution.ok
-                                  ? 200
-                                  : isHttp500ErrorCode(execution.error.code)
-                                  ? 500
-                                  : 400,
+                              execution.ok ? 200 : isHttp500Error(execution.error) ? 500 : 400,
                           ),
                       500,
                   );
@@ -95,14 +89,13 @@ export async function action({request}: {request: Request}) {
             },
         );
     } catch (error) {
-        const serializedError = serializeError(error);
-        const status = isHttp500ErrorCode(serializedError.code) ? 500 : 400;
+        const status = isHttp500Error(error) ? 500 : 400;
 
         return new Response(
             JSON.stringify(
                 NetworkFunctionHttpOutputSchema.serialize({
                     ok: false,
-                    error: serializedError,
+                    error,
                 }),
             ),
             {
@@ -113,19 +106,4 @@ export async function action({request}: {request: Request}) {
             },
         );
     }
-}
-
-function serializeError(error: unknown): SchemaType<typeof NetworkFunctionHttpOutputErrorSchema> {
-    return {
-        code: error instanceof ErrorBase ? error.code : ErrorCode.Unknown,
-        message: error instanceof Error ? error.message : "",
-        // In development include more information about the error so we can
-        // show a nice Next.js error dialog.
-        //
-        // In production, the stack trace leaks implementation details an attacker
-        // could use so we don't want to include it.
-        ...(process.env.NODE_ENV === "development" && error instanceof Error
-            ? {name: error.name, stack: error.stack}
-            : {}),
-    };
 }

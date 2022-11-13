@@ -10,7 +10,7 @@ def _remix_app_impl(ctx):
     args.set_param_file_format("multiline")
 
     inputs = depset(
-        ctx.files._remix_config,
+        ctx.files._remix_config_files,
         transitive = [ctx.attr._app_lib[TsSourcesInfo].transitive_sources],
     )
 
@@ -50,7 +50,7 @@ remix_app = rule(
     _remix_app_impl,
     attrs = {
         "_remix_compiler": attr.label(executable = True, cfg = "exec", default = "//app:remix_compiler"),
-        "_remix_config_files": attr.label(default = "//:remix_config"),
+        "_remix_config_files": attr.label(default = "//:remix_config_files"),
         "_app_lib": attr.label(default = "//app:app_lib", aspects = [ts_sources_aspect]),
     },
 )

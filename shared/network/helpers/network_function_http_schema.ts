@@ -1,3 +1,4 @@
+import {ErrorSchema} from "~/shared/error/error_schema";
 import {Schema} from "~/shared/schema/schema";
 
 export const NetworkFunctionHttpInputSchema = Schema.object({
@@ -9,13 +10,6 @@ export const NetworkFunctionHttpInputSchema = Schema.object({
     ),
 });
 
-export const NetworkFunctionHttpOutputErrorSchema = Schema.object({
-    code: Schema.integer,
-    message: Schema.string,
-    name: Schema.string.optional(),
-    stack: Schema.string.optional(),
-});
-
 export const NetworkFunctionHttpOutputExecutionSchema = Schema.result(
     Schema.object({
         ok: Schema.value(true),
@@ -23,7 +17,7 @@ export const NetworkFunctionHttpOutputExecutionSchema = Schema.result(
     }),
     Schema.object({
         ok: Schema.value(false),
-        error: NetworkFunctionHttpOutputErrorSchema,
+        error: ErrorSchema,
     }),
 );
 
@@ -34,6 +28,6 @@ export const NetworkFunctionHttpOutputSchema = Schema.result(
     }),
     Schema.object({
         ok: Schema.value(false),
-        error: NetworkFunctionHttpOutputErrorSchema,
+        error: ErrorSchema,
     }),
 );

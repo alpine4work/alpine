@@ -1,7 +1,5 @@
-import {
-    DocumentContentSchema,
-    DocumentContentStepSchema,
-} from "~/shared/documents/document_content_schema";
+import {DocumentContentStepSchema} from "~/shared/documents/document_content_schema";
+import {ErrorSchema} from "~/shared/error/error_schema";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 
 export const DocumentCollaborationCommittedStepSchema = Schema.object({
@@ -16,16 +14,34 @@ export type DocumentCollaborationCommittedStep = SchemaType<
  * Messages from server                                                       *
 \* ========================================================================== */
 
-const DocumentCollaborationStepsMessageFromServerSchema = Schema.object({
-    type: Schema.value("steps"),
+const DocumentCollaborationBackfillResponseMessageFromServerSchema = Schema.object({
+    type: Schema.value("BackfillResponse"),
+    newVersion: Schema.integer,
+    steps: Schema.array(
+        Schema.object({
+            step: DocumentContentStepSchema,
+            clientId: Schema.id,
+        }),
+    ),
+});
+
+const DocumentCollaborationUpdateContentMessageFromServerSchema = Schema.object({
+    type: Schema.value("UpdateContent"),
+    newVersion: Schema.integer,
     steps: Schema.array(DocumentContentStepSchema),
     clientId: Schema.id,
-    version: Schema.integer,
-    requestId: Schema.id,
+    acknowledgeMessageId: Schema.id,
+});
+
+const DocumentCollaborationErrorMessageFromServerSchema = Schema.object({
+    type: Schema.value("Error"),
+    error: ErrorSchema,
 });
 
 export const DocumentCollaborationMessageFromServerSchema = Schema.union({
-    steps: DocumentCollaborationStepsMessageFromServerSchema,
+    BackfillResponse: DocumentCollaborationBackfillResponseMessageFromServerSchema,
+    UpdateContent: DocumentCollaborationUpdateContentMessageFromServerSchema,
+    Error: DocumentCollaborationErrorMessageFromServerSchema,
 });
 export type DocumentCollaborationMessageFromServer = SchemaType<
     typeof DocumentCollaborationMessageFromServerSchema
@@ -35,50 +51,25 @@ export type DocumentCollaborationMessageFromServer = SchemaType<
  * Messages from client                                                       *
 \* ========================================================================== */
 
-const DocumentCollaborationListenSinceMessageFromClientSchema = Schema.object({
-    type: Schema.value("listenSince"),
+const DocumentCollaborationBackfillRequestMessageFromClientSchema = Schema.object({
+    type: Schema.value("BackfillRequest"),
     version: Schema.integer,
 });
 
-const DocumentCollaborationStepsMessageFromClientSchema = Schema.object({
-    type: Schema.value("steps"),
+export const DocumentCollaborationUpdateContentMessageFromClientSchema = Schema.object({
+    type: Schema.value("UpdateContent"),
     version: Schema.integer,
-    clientId: Schema.id,
     steps: Schema.array(DocumentContentStepSchema),
-    requestId: Schema.id,
+    clientId: Schema.id,
+    // NOTE(calebmer): I wonder if message id should be a part of the
+    // `WebSocketServer` abstraction?
+    messageId: Schema.id,
 });
 
 export const DocumentCollaborationMessageFromClientSchema = Schema.union({
-    listenSince: DocumentCollaborationListenSinceMessageFromClientSchema,
-    steps: DocumentCollaborationStepsMessageFromClientSchema,
+    BackfillRequest: DocumentCollaborationBackfillRequestMessageFromClientSchema,
+    UpdateContent: DocumentCollaborationUpdateContentMessageFromClientSchema,
 });
-
 export type DocumentCollaborationMessageFromClient = SchemaType<
     typeof DocumentCollaborationMessageFromClientSchema
 >;
-
-/* ========================================================================== *\
- * HTTP Responses                                                             *
-\* ========================================================================== */
-
-function createResponse<T>(schema: Schema<T>) {
-    return {
-        send: (value: T) => {
-            return new Response(JSON.stringify(schema.serialize(value)), {
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            });
-        },
-        receive: async (response: Response) => {
-            return schema.deserialize(await response.json());
-        },
-    };
-}
-
-export const DocumentCollaborationReadSnapshotResponse = createResponse(
-    Schema.object({
-        version: Schema.integer,
-        snapshot: DocumentContentSchema,
-    }),
-);
