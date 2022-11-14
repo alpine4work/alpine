@@ -25,12 +25,28 @@ const DocumentCollaborationBackfillResponseMessageFromServerSchema = Schema.obje
     ),
 });
 
-const DocumentCollaborationUpdateContentMessageFromServerSchema = Schema.object({
-    type: Schema.value("UpdateContent"),
+/**
+ * Our document collaboration WebSocket immediately sends steps to connected
+ * clients as it receives them. But persistence happens at a slower pace.
+ *
+ * Don't tell the user that their changes have saved until you see a
+ * `PersistedContent` message.
+ */
+const DocumentCollaborationUpdateContentWithoutPersistenceMessageFromServerSchema = Schema.object({
+    type: Schema.value("UpdateContentWithoutPersistence"),
     newVersion: Schema.integer,
     steps: Schema.array(DocumentContentStepSchema),
     clientId: Schema.id,
     acknowledgeMessageId: Schema.id,
+});
+
+/**
+ * Tells the client that we've successfully persisted all changes at this
+ * version and if the client disconnects the changes will still be there.
+ */
+const DocumentCollaborationPersistedContentMessageFromServerSchema = Schema.object({
+    type: Schema.value("PersistedContent"),
+    newVersion: Schema.integer,
 });
 
 const DocumentCollaborationErrorMessageFromServerSchema = Schema.object({
@@ -40,7 +56,9 @@ const DocumentCollaborationErrorMessageFromServerSchema = Schema.object({
 
 export const DocumentCollaborationMessageFromServerSchema = Schema.union({
     BackfillResponse: DocumentCollaborationBackfillResponseMessageFromServerSchema,
-    UpdateContent: DocumentCollaborationUpdateContentMessageFromServerSchema,
+    UpdateContentWithoutPersistence:
+        DocumentCollaborationUpdateContentWithoutPersistenceMessageFromServerSchema,
+    PersistedContent: DocumentCollaborationPersistedContentMessageFromServerSchema,
     Error: DocumentCollaborationErrorMessageFromServerSchema,
 });
 export type DocumentCollaborationMessageFromServer = SchemaType<

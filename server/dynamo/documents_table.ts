@@ -815,6 +815,9 @@ declare module "prosemirror-transform" {
  * - Only saving the full content back to the database every 20-100 steps. For
  *   the majority of updates we only save the steps.
  */
+// TODO(calebmer): If this is being called outside our collaboration durable
+// object we should throw an error or restart the durable object or something.
+// Maybe the durable object could incorporate conflicting
 export async function updateDocumentContent({
     id,
     version: clientVersion,
@@ -826,6 +829,14 @@ export async function updateDocumentContent({
     version: number;
     steps: ReadonlyArray<Step>;
     clientId: Id;
+    // TODO(calebmer): Do we really need the cache anymore now that we're using
+    // Durable Objects for updating documents? For now, probably yes? Each Durable
+    // Object should only have one document cached in memory and the document being
+    // cached means we don't need to reload it from the database every update which
+    // is nice.
+    //
+    // Maybe instead of a global cache we have a cache in the durable object class?
+    // This cache logic was written before Durable Objects.
     cacheOverrideForTest?: DocumentContentCacheForUpdate;
 }): Promise<{
     /**

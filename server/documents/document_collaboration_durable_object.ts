@@ -1,14 +1,20 @@
 import {Step} from "prosemirror-transform";
 import {DocumentCollaborationStepCache} from "~/server/documents/document_collaboration_step_cache";
 import {getUpdateDocumentContentResult} from "~/server/documents/get_update_document_content_result";
-import {getDocument} from "~/server/dynamo/documents_table";
+import {getDocument, updateDocumentContent} from "~/server/dynamo/documents_table";
 import {WebSocketServer} from "~/server/helpers/web_socket_server";
 import {
     DocumentCollaborationMessageFromClientSchema,
+    DocumentCollaborationMessageFromServer,
     DocumentCollaborationMessageFromServerSchema,
 } from "~/shared/documents/document_collaboration_schema";
 import {DocumentContent} from "~/shared/documents/document_content_schema";
-import {FailedPreconditionError, InvalidArgumentError, NotFoundError} from "~/shared/error/error";
+import {
+    FailedPreconditionError,
+    InternalError,
+    InvalidArgumentError,
+    NotFoundError,
+} from "~/shared/error/error";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {Id} from "~/shared/id/id";
 import {Schema} from "~/shared/schema/schema";
@@ -76,11 +82,12 @@ class DocumentCollaborationDurableObject {
         this._state = state;
         this.id = id;
         this._contentManager = new DocumentCollaborationContentManager({
+            state,
             id,
             initialVersion,
             initialContent,
-            broadcastUpdateContent: message => {
-                this._webSocketServer.sendMessageToAll({type: "UpdateContent", ...message});
+            sendMessageToAll: message => {
+                this._webSocketServer.sendMessageToAll(message);
             },
         });
     }
@@ -145,39 +152,38 @@ class DocumentCollaborationDurableObject {
  * safe way.
  */
 class DocumentCollaborationContentManager {
+    private readonly _state: DurableObjectState;
+    private readonly _id: Id;
     private _version: number;
     private _content: DocumentContent;
     public readonly stepCache: DocumentCollaborationStepCache;
 
-    private readonly _broadcastUpdateContent: (message: {
-        newVersion: number;
-        steps: ReadonlyArray<Step>;
-        clientId: Id;
-        acknowledgeMessageId: Id;
-    }) => void;
+    private readonly _sendMessageToAll: (message: DocumentCollaborationMessageFromServer) => void;
 
     private _updateLockPromise: Promise<void> | null = null;
 
+    private _persistenceQueue: Array<{version: number; steps: Array<Step>; clientId: Id}> = [];
+    private _flushPersistenceQueuePromise: Promise<void> | null = null;
+
     constructor({
+        state,
         id,
         initialVersion,
         initialContent,
-        broadcastUpdateContent,
+        sendMessageToAll,
     }: {
+        state: DurableObjectState;
         id: Id;
         initialVersion: number;
         initialContent: DocumentContent;
-        broadcastUpdateContent: (message: {
-            newVersion: number;
-            steps: ReadonlyArray<Step>;
-            clientId: Id;
-            acknowledgeMessageId: Id;
-        }) => void;
+        sendMessageToAll: (message: DocumentCollaborationMessageFromServer) => void;
     }) {
+        this._state = state;
+        this._id = id;
         this._version = initialVersion;
         this._content = initialContent;
         this.stepCache = new DocumentCollaborationStepCache(id, this._version);
-        this._broadcastUpdateContent = broadcastUpdateContent;
+        this._sendMessageToAll = sendMessageToAll;
     }
 
     /**
@@ -219,18 +225,42 @@ class DocumentCollaborationContentManager {
             // If we had to rebase and all steps were removed, immediately return.
             if (newSteps.length === 0) return;
 
+            const oldVersion = this._version;
             this._version += newSteps.length;
             this._content = newContent;
 
-            this._broadcastUpdateContent({
-                newVersion: this._version,
+            this._sendMessageToAll({
+                type: "UpdateContentWithoutPersistence",
+                newVersion: oldVersion + newSteps.length,
                 steps: newSteps,
                 clientId: update.clientId,
                 acknowledgeMessageId: update.messageId,
             });
 
-            // TODO(calebmer): Save to the database! Send to the client that we've
-            // persisted.
+            // Add to the persistence queue.
+            //
+            // If the last entry in the persistence queue is from our client, then we will
+            // add to the end of that entry. All steps in that entry will be saved as one
+            // transaction.
+            if (
+                this._persistenceQueue.length > 0 &&
+                this._persistenceQueue[this._persistenceQueue.length - 1]!.clientId ===
+                    update.clientId
+            ) {
+                for (const step of newSteps) {
+                    this._persistenceQueue[this._persistenceQueue.length - 1]!.steps.push(step);
+                }
+            } else {
+                this._persistenceQueue.push({
+                    version: oldVersion,
+                    steps: Array.from(newSteps),
+                    clientId: update.clientId,
+                });
+            }
+
+            // Make sure the durable object stays alive until `this._persistenceQueue` is
+            // empty and our content has been persisted.
+            this._state.waitUntil(this._flushPersistenceQueue());
         })();
 
         // Make sure to reset `this._updateLockPromise` to null when the promise
@@ -247,5 +277,60 @@ class DocumentCollaborationContentManager {
         );
 
         return promise;
+    }
+
+    /**
+     * Returns a promise that resolves when all entries in `this._persistenceQueue`
+     * have been processed and saved to the database.
+     */
+    private _flushPersistenceQueue() {
+        if (this._flushPersistenceQueuePromise === null) {
+            const promise = (async () => {
+                // Process all the persistence queue entries.
+                while (this._persistenceQueue.length > 0) {
+                    try {
+                        const entry = this._persistenceQueue.shift()!;
+
+                        const {conflictingSteps} = await updateDocumentContent({
+                            id: this._id,
+                            version: entry.version,
+                            steps: entry.steps,
+                            clientId: entry.clientId,
+                        });
+
+                        // The document collaboration durable object should be the only process writing
+                        // to a document! If some other process is writing to a document, weird
+                        // things may start breaking in the durable object and on the client.
+                        //
+                        // We save steps anyway to preserve as much user data as we can.
+                        if (conflictingSteps.length > 0)
+                            throw new InternalError(
+                                "Some process updated document content other than the document's durable object. This may cause many downstream issues as a core assumption about the document collaboration implementation has been violated",
+                            );
+
+                        this._sendMessageToAll({
+                            type: "PersistedContent",
+                            newVersion: entry.version + entry.steps.length,
+                        });
+                    } catch (error) {
+                        // TODO(calebmer): Report this error somewhere in addition to sending it to
+                        // the client.
+
+                        this._sendMessageToAll({
+                            type: "Error",
+                            error,
+                        });
+                    }
+                }
+            })();
+
+            this._flushPersistenceQueuePromise = promise;
+
+            promise.finally(() => {
+                this._flushPersistenceQueuePromise = null;
+            });
+        }
+
+        return this._flushPersistenceQueuePromise;
     }
 }

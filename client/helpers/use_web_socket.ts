@@ -43,26 +43,21 @@ export function useWebSocket<
 
         const unsubscribeFromDisconnect = client.subscribeToDisconnect(error => {
             setIsConnected(false);
-            // NOCOMMIT
-            // if (error) setErrorState({hasError: true, error});
+            if (error) setErrorState({hasError: true, error});
         });
 
         const unsubscribeFromMessage = client.subscribeToMessage(message => {
             actuallyHandleMessage(message);
         });
 
-        console.log("here 1");
         client.connect();
-        console.log("here 2");
 
         return () => {
             unsubscribeFromConnect();
             unsubscribeFromDisconnect();
             unsubscribeFromMessage();
 
-            console.log("here 3");
             client.disconnect();
-            console.log("here 4");
         };
     }, [actuallyHandleMessage, client]);
 

@@ -192,7 +192,7 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
                     });
                     break;
                 }
-                case "UpdateContent": {
+                case "UpdateContentWithoutPersistence": {
                     dispatch({
                         type: "ReceiveSteps",
                         newVersion: message.newVersion,
@@ -202,6 +202,10 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
                         })),
                         acknowledgeMessageId: message.acknowledgeMessageId,
                     });
+                    break;
+                }
+                case "PersistedContent": {
+                    // TODO(calebmer): Show a saving indicator until content has persisted!
                     break;
                 }
                 case "Error": {
