@@ -30,6 +30,7 @@ import {
     openKeyboardLinkFloaterMetaKey,
 } from "~/client/content/internal/content_editor_plugin_keymap";
 import {trimSpacesFromRange} from "~/client/content/internal/content_editor_prosemirror_helpers";
+import {useSimulateTypingInContentEditorDebugTool} from "~/client/content/internal/use_simulate_typing_in_content_editor_debug_tool";
 import {FocusRingPortal} from "~/client/design/focus_ring";
 import {isMac} from "~/client/helpers/is_mac";
 import {doesUrlStartWithAllowedProtocol} from "~/shared/content/content_schema";
@@ -719,6 +720,8 @@ function ContentEditor<Content extends Node>(
             });
         };
     }, [phantomTextSelections]);
+
+    useSimulateTypingInContentEditorDebugTool(viewRef);
 
     return (
         <>
