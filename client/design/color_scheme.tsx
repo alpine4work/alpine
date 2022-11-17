@@ -1,5 +1,5 @@
 import {useEffect, useState} from "react";
-import {scheduleException} from "~/shared/helpers/async/schedule_exception";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error";
 import {assert} from "~/shared/helpers/control/assert";
 
 const initializeColorSchemeScript =
@@ -41,7 +41,7 @@ function setColorScheme(colorScheme: ColorScheme) {
         try {
             listener(colorScheme);
         } catch (error) {
-            scheduleException(error);
+            scheduleUncaughtError(error);
         }
     }
 }

@@ -880,12 +880,12 @@ export async function updateDocumentContent({
         if (!internalDocument)
             throw new NotFoundError("Can not update document that doesn't exist");
 
-        const {newContent, newSteps, newInvertedSteps, conflictingSteps} =
+        const {newContent, steps, invertedSteps, conflictingSteps} =
             await getUpdateDocumentContentResult({
                 currentVersion: internalDocument.version,
                 currentContent: internalDocument.content,
-                updateVersion: clientVersion,
-                updateSteps: clientSteps,
+                clientVersion,
+                clientSteps,
                 getSteps: async (startVersion, endVersion) => {
                     // As an optimization, we assume implementation details about which range of
                     // steps this function is requesting and use our internal data structures to
@@ -931,14 +931,14 @@ export async function updateDocumentContent({
             clientId,
         });
 
-        if (newSteps.length > 0) {
+        if (steps.length > 0) {
             await DynamoTableSchema.executeTransaction([
                 DocumentsTable.transactionPutItem(
                     {
                         partitionType: "Document",
                         documentId: id,
                         sortRangeType: "Attributes",
-                        version: internalDocument.version + newSteps.length,
+                        version: internalDocument.version + steps.length,
                         titleWithoutFallback: getDocumentContentTitleWithoutFallback(newContent),
                     },
                     {
@@ -953,8 +953,8 @@ export async function updateDocumentContent({
                     documentId: id,
                     sortRangeType: "StepTransactionsAfterSnapshot",
                     startVersion: internalDocument.version,
-                    steps: newSteps,
-                    invertedSteps: newInvertedSteps,
+                    steps: steps,
+                    invertedSteps,
                     clientId,
                 }),
             ]);
@@ -963,17 +963,17 @@ export async function updateDocumentContent({
             // read content from the database.
             await internalDocument.updateCache({
                 newContent,
-                newSteps,
-                newInvertedSteps,
+                newSteps: steps,
+                newInvertedSteps: invertedSteps,
                 clientId,
             });
         }
 
         return {
             oldVersion: internalDocument.version,
-            newVersion: internalDocument.version + newSteps.length,
+            newVersion: internalDocument.version + steps.length,
             newContent,
-            newSteps,
+            newSteps: steps,
             conflictingSteps,
         };
     });

@@ -1,7 +1,7 @@
 import {InternalError, UnavailableError, UnimplementedError} from "~/shared/error/error";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
-import {scheduleException} from "~/shared/helpers/async/schedule_exception";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error";
 import {assert} from "~/shared/helpers/control/assert";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier";
 import {quote} from "~/shared/helpers/string/quote";
@@ -127,7 +127,7 @@ function scheduleNetworkFunctionExecution(execution: NetworkFunctionExecution): 
             assert(scheduledNetworkFunctionExecutionBatch !== null);
             const executionBatch = scheduledNetworkFunctionExecutionBatch;
             scheduledNetworkFunctionExecutionBatch = null;
-            executeNetworkFunctions(executionBatch).catch(scheduleException);
+            executeNetworkFunctions(executionBatch).catch(scheduleUncaughtError);
         });
     }
 

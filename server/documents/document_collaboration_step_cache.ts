@@ -34,6 +34,16 @@ export class DocumentCollaborationStepCache {
     }
 
     /**
+     * Add a step to the end of our cache.
+     *
+     * Does not validate whether the step is valid for this document!
+     */
+    public dangerouslyAddStepToEnd(step: {step: Step; invertedStep: Step; clientId: Id}) {
+        this._stepByVersion.set(this._endVersion, step);
+        this._endVersion += 1;
+    }
+
+    /**
      * Reads all steps between `startVersion` (inclusive) and `endVersion` (exclusive).
      *
      * We cache steps in memory so we return steps from our in-memory cache if we
@@ -53,12 +63,12 @@ export class DocumentCollaborationStepCache {
         if (startVersion < 0) throw new InvalidArgumentError("Start version is less than zero");
         if (startVersion > endVersion)
             throw new InvalidArgumentError("End version is greater than start version");
-        if (startVersion === endVersion)
-            throw new InvalidArgumentError("Start version is equal to end version");
         if (endVersion > this._endVersion)
             throw new FailedPreconditionError(
                 "End version is greater than the last version in the document",
             );
+
+        if (startVersion === endVersion) return [];
 
         const steps: Array<{
             step: Step;

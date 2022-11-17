@@ -4,7 +4,7 @@
  * Use this when you have an exception which wasn't handled, but for whatever
  * reason you don't want to throw it in your current context.
  */
-export function scheduleException(error: unknown) {
+export function scheduleUncaughtError(error: unknown) {
     setTimeout(() => {
         throw error;
     }, 0);

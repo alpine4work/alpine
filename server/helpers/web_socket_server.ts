@@ -4,8 +4,14 @@ import {isHttp500ErrorCode} from "~/shared/error/is_http_500_error_code";
 import {Interval, createInterval} from "~/shared/helpers/async/interval";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 import {assert} from "~/shared/helpers/control/assert";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {expirationTimeoutMs} from "~/shared/helpers/web_socket_shared";
-import {SchemaSerializedValue, UnionSchema} from "~/shared/schema/schema";
+import {Schema, UnionSchema} from "~/shared/schema/schema";
+
+export interface WebSocketServerConnectionBase<MessageFromClient extends {type: string}> {
+    handleMessage(message: MessageFromClient): Promise<void>;
+    handleClose?(): void;
+}
 
 /**
  * A helper for communicating over WebSockets. See `WebSocketClient` for the
@@ -14,8 +20,11 @@ import {SchemaSerializedValue, UnionSchema} from "~/shared/schema/schema";
 export class WebSocketServer<
     MessageFromClient extends {type: string},
     MessageFromServer extends {type: string},
+    Connection extends WebSocketServerConnectionBase<MessageFromClient>,
 > {
-    private readonly _connections = new Set<WebSocketServerConnection>();
+    private readonly _connections = new Set<
+        WebSocketServerConnectionWrapper<MessageFromClient, Connection>
+    >();
     private _expirationInterval: Interval | null = null;
 
     constructor(
@@ -23,10 +32,12 @@ export class WebSocketServer<
         // in the future.
         private readonly _messageFromClientSchema: UnionSchema<MessageFromClient>,
         private readonly _messageFromServerSchema: UnionSchema<MessageFromServer>,
-        private readonly _handleMessage: (
-            message: MessageFromClient,
-            connection: {sendMessage: (message: MessageFromServer) => void},
-        ) => Promise<void>,
+        private readonly _createConnection: (connection: {
+            request: Request;
+            sendMessage: (message: MessageFromServer) => void;
+            sendMessageToAllOthers: (message: MessageFromServer) => void;
+            iterateOtherConnections: () => Iterable<Connection>;
+        }) => Connection,
     ) {}
 
     /**
@@ -45,17 +56,40 @@ export class WebSocketServer<
         // @ts-expect-error: Why aren't my cloudflare types getting picked up properly?
         serverSocket.accept();
 
-        const connection = new WebSocketServerConnection(serverSocket, serializedMessage => {
-            const message = this._messageFromClientSchema.deserialize(serializedMessage);
+        const sendMessage = (message: MessageFromServer) => {
+            const serializedMessage = this._messageFromServerSchema.serialize(message);
+            const serializedMessageString = JSON.stringify(serializedMessage);
+            connection.sendRawMessage(serializedMessageString);
+        };
 
-            const sendMessage = (message: MessageFromServer) => {
-                const serializedMessage = this._messageFromServerSchema.serialize(message);
-                const serializedMessageString = JSON.stringify(serializedMessage);
-                connection.sendRawMessage(serializedMessageString);
-            };
+        const sendMessageToAllOthers = (message: MessageFromServer) => {
+            const serializedMessage = this._messageFromServerSchema.serialize(message);
+            const serializedMessageString = JSON.stringify(serializedMessage);
 
-            return this._handleMessage(message, {sendMessage});
+            for (const otherConnection of this._connections) {
+                if (otherConnection === connection) continue;
+                otherConnection.sendRawMessage(serializedMessageString);
+            }
+        };
+
+        const iterateOtherConnections = (): Iterable<Connection> => {
+            return filterMapIterable(this._connections, otherConnection =>
+                otherConnection !== connection ? otherConnection.connection : null,
+            );
+        };
+
+        const actualConnection = this._createConnection({
+            request,
+            sendMessage,
+            sendMessageToAllOthers,
+            iterateOtherConnections,
         });
+
+        const connection = new WebSocketServerConnectionWrapper(
+            serverSocket,
+            this._messageFromClientSchema,
+            actualConnection,
+        );
 
         this._connections.add(connection);
 
@@ -84,28 +118,38 @@ export class WebSocketServer<
                     //
                     // NOTE(calebmer): I'm observing the `close` event not firing after
                     // `serverSocket.close()` and I'm not sure whether it is a bug or not.
-                    if (connection.isClosed()) this._connections.delete(connection);
-                }
-
-                // When we are out of connections, clear our interval.
-                if (this._connections.size === 0 && this._expirationInterval !== null) {
-                    this._expirationInterval.clear();
-                    this._expirationInterval = null;
+                    if (connection.isClosed()) {
+                        this._closeConnection(connection);
+                    }
                 }
             }, expirationTimeoutMs / 2);
         }
 
         serverSocket.addEventListener("close", () => {
-            this._connections.delete(connection);
-
-            // When we are out of connections, clear our interval.
-            if (this._connections.size === 0 && this._expirationInterval !== null) {
-                this._expirationInterval.clear();
-                this._expirationInterval = null;
-            }
+            this._closeConnection(connection);
         });
 
         return response;
+    }
+
+    private _closeConnection(
+        connection: WebSocketServerConnectionWrapper<MessageFromClient, Connection>,
+    ) {
+        if (this._connections.delete(connection)) {
+            try {
+                connection.connection.handleClose?.();
+            } catch (error) {
+                // TODO(calebmer): Actually report error
+                // eslint-disable-next-line no-console
+                console.error(error);
+            }
+        }
+
+        // When we are out of connections, clear our interval.
+        if (this._connections.size === 0 && this._expirationInterval !== null) {
+            this._expirationInterval.clear();
+            this._expirationInterval = null;
+        }
     }
 
     /**
@@ -121,12 +165,16 @@ export class WebSocketServer<
     }
 }
 
-class WebSocketServerConnection {
+class WebSocketServerConnectionWrapper<
+    MessageFromClient extends {type: string},
+    Connection extends WebSocketServerConnectionBase<MessageFromClient>,
+> {
     private _lastMessageTimeMs: number = Date.now();
 
     constructor(
         private readonly _socket: WebSocket,
-        private readonly _handleMessage: (message: SchemaSerializedValue) => Promise<void>,
+        private readonly _messageFromClientSchema: Schema<MessageFromClient>,
+        public readonly connection: Connection,
     ) {
         this._socket.addEventListener("message", event => {
             runPromiseWithoutAwaiting(async () => {
@@ -143,15 +191,17 @@ class WebSocketServerConnection {
                         return;
                     }
 
-                    let message;
+                    let serializedMessage;
                     try {
-                        message = JSON.parse(event.data);
+                        serializedMessage = JSON.parse(event.data);
                     } catch (error) {
                         // Classify JSON parse errors
                         throw new InvalidArgumentError((error as any).message, {cause: error});
                     }
 
-                    await this._handleMessage(message);
+                    const message = this._messageFromClientSchema.deserialize(serializedMessage);
+
+                    await this.connection.handleMessage(message);
                 } catch (error) {
                     // TODO(calebmer): Actual error reporting
                     // eslint-disable-next-line no-console

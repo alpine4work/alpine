@@ -1,4 +1,4 @@
-import {scheduleException} from "~/shared/helpers/async/schedule_exception";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error";
 
 const microtaskPromise = Promise.resolve();
 
@@ -18,5 +18,5 @@ export function scheduleMicrotask(callback: () => void) {
         .then(callback)
         // We want to throw outside of our promise context so that the error is an
         // uncaught exception instead of an uncaught promise exception.
-        .catch(scheduleException);
+        .catch(scheduleUncaughtError);
 }

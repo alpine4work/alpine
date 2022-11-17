@@ -21,70 +21,73 @@ import {Id} from "~/shared/id/id";
 export async function getUpdateDocumentContentResult({
     currentVersion,
     currentContent,
-    updateVersion,
-    updateSteps,
+    clientVersion,
+    clientSteps,
     getSteps,
 }: {
     currentVersion: number;
     currentContent: DocumentContent;
-    updateVersion: number;
-    updateSteps: ReadonlyArray<Step>;
+    clientVersion: number;
+    clientSteps: ReadonlyArray<Step>;
     getSteps: (
         startVersion: number,
         endVersion: number,
     ) => Promise<Array<{step: Step; invertedStep: Step; clientId: Id}>>;
 }): Promise<{
-    updateInvertedSteps: ReadonlyArray<Step>;
     newContent: DocumentContent;
-    newSteps: ReadonlyArray<Step>;
-    newInvertedSteps: ReadonlyArray<Step>;
+    steps: ReadonlyArray<Step>;
+    invertedSteps: ReadonlyArray<Step>;
     conflictingSteps: ReadonlyArray<{step: Step; invertedStep: Step; clientId: Id}>;
+    clientContent: DocumentContent;
+    mapping: Mapping;
 }> {
-    assert(updateVersion >= 0);
+    assert(clientVersion >= 0);
 
-    if (updateVersion > currentVersion)
+    if (clientVersion > currentVersion)
         throw new FailedPreconditionError(
             "Can not update document with steps at version ahead of the document's current version",
         );
 
     let content = currentContent;
-    let updateInvertedSteps: Array<Step>;
-    let newSteps: ReadonlyArray<Step>;
-    let newInvertedSteps: Array<Step>;
+    let steps: ReadonlyArray<Step>;
+    let invertedSteps: Array<Step>;
     let conflictingSteps: ReadonlyArray<{step: Step; invertedStep: Step; clientId: Id}>;
+    let clientContent: DocumentContent;
+
+    const mapping = new Mapping();
 
     // If the client's version is the same as our server version then we can
     // directly apply the client's steps to the content.
-    if (updateVersion === currentVersion) {
-        updateInvertedSteps = [];
+    if (clientVersion === currentVersion) {
+        invertedSteps = [];
 
-        for (const step of updateSteps) {
+        for (const step of clientSteps) {
             const stepResult = step.apply(content);
             if (!stepResult.doc)
                 throw new FailedPreconditionError(
                     `Could not apply step to document: ${stepResult.failed!}`,
                 );
 
-            updateInvertedSteps.push(step.invert(content));
+            invertedSteps.push(step.invert(content));
 
             assert(isDocumentContent(stepResult.doc));
             content = stepResult.doc;
         }
 
-        newSteps = updateSteps;
-        newInvertedSteps = updateInvertedSteps;
+        steps = clientSteps;
         conflictingSteps = [];
+        clientContent = content;
     }
 
     // If the client is trying to update an older document version then we need to
     // rebase the client steps against steps which were applied before it.
     else {
-        assert(updateVersion < currentVersion);
+        assert(clientVersion < currentVersion);
 
-        conflictingSteps = await getSteps(updateVersion, currentVersion);
-        assert(conflictingSteps.length === currentVersion - updateVersion);
+        conflictingSteps = await getSteps(clientVersion, currentVersion);
+        assert(conflictingSteps.length === currentVersion - clientVersion);
 
-        updateInvertedSteps = [];
+        const invertedClientSteps: Array<Step> = [];
 
         // Make sure all steps from the client were valid against the document at
         // `clientVersion`. So revert back to to that version and try applying our
@@ -93,7 +96,7 @@ export async function getUpdateDocumentContentResult({
         // We will drop any steps we can't rebase. But we still want to validate that
         // the original steps were ok.
         {
-            let clientContent = content;
+            clientContent = content;
 
             for (let i = conflictingSteps.length - 1; i >= 0; i--) {
                 const {invertedStep} = conflictingSteps[i]!;
@@ -107,14 +110,14 @@ export async function getUpdateDocumentContentResult({
                 clientContent = invertedStepResult.doc;
             }
 
-            for (const step of updateSteps) {
+            for (const step of clientSteps) {
                 const stepResult = step.apply(clientContent);
                 if (!stepResult.doc)
                     throw new FailedPreconditionError(
                         `Could not apply step to document: ${stepResult.failed!}`,
                     );
 
-                updateInvertedSteps.push(step.invert(clientContent));
+                invertedClientSteps.push(step.invert(clientContent));
 
                 assert(isDocumentContent(stepResult.doc));
                 clientContent = stepResult.doc;
@@ -127,19 +130,18 @@ export async function getUpdateDocumentContentResult({
         //
         // Also see the client-side rebasing implementation:
         // https://github.com/ProseMirror/prosemirror-collab/blob/ed039eb7e62fd0079b51406863931c6f67046881/src/collab.ts#L14-L27
-        const mapping = new Mapping();
 
-        for (let i = updateInvertedSteps.length - 1; i >= 0; i--)
-            mapping.appendMap(updateInvertedSteps[i]!.getMap());
+        for (let i = invertedClientSteps.length - 1; i >= 0; i--)
+            mapping.appendMap(invertedClientSteps[i]!.getMap());
         for (let i = 0; i < conflictingSteps.length; i++)
             mapping.appendMap(conflictingSteps[i]!.step.getMap());
 
         const rebasedSteps = [];
-        const invertedRebasedSteps = [];
-        let mapFrom = updateSteps.length;
+        invertedSteps = [];
+        let mapFrom = clientSteps.length;
 
-        for (let i = 0; i < updateSteps.length; i++) {
-            const rebasedStep = updateSteps[i]!.map(mapping.slice(mapFrom));
+        for (let i = 0; i < clientSteps.length; i++) {
+            const rebasedStep = clientSteps[i]!.map(mapping.slice(mapFrom));
             mapFrom--;
 
             // Silently ignore steps we can't rebase. That's what the client
@@ -154,7 +156,7 @@ export async function getUpdateDocumentContentResult({
             // https://github.com/ProseMirror/prosemirror-collab/blob/ed039eb7e62fd0079b51406863931c6f67046881/src/collab.ts#L21
             if (!rebasedStepResult.doc) continue;
 
-            invertedRebasedSteps.push(rebasedStep.invert(content));
+            invertedSteps.push(rebasedStep.invert(content));
 
             assert(isDocumentContent(rebasedStepResult.doc));
             content = rebasedStepResult.doc;
@@ -163,19 +165,19 @@ export async function getUpdateDocumentContentResult({
             mapping.setMirror(mapFrom, mapping.maps.length - 1);
         }
 
-        newSteps = rebasedSteps;
-        newInvertedSteps = invertedRebasedSteps;
+        steps = rebasedSteps;
     }
 
     // We want the inverted steps to be stored in reverse order of our steps. We
     // added the inverted steps in forward step order.
-    newInvertedSteps.reverse();
+    invertedSteps.reverse();
 
     return {
-        updateInvertedSteps,
         newContent: content,
-        newSteps,
-        newInvertedSteps,
+        steps,
+        invertedSteps,
         conflictingSteps,
+        clientContent,
+        mapping,
     };
 }

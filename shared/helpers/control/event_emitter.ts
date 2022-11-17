@@ -1,4 +1,4 @@
-import {scheduleException} from "~/shared/helpers/async/schedule_exception";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error";
 
 /**
  * Allow producers to emit events to many consumers.
@@ -24,7 +24,7 @@ export class EventEmitter<Event = void> {
                 //
                 // Treat listener errors as unhandled errors. Emitting an event should not need
                 // to think about downstream listener implementation details.
-                scheduleException(error);
+                scheduleUncaughtError(error);
             }
         }
     }
