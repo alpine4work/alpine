@@ -182,7 +182,10 @@ module.exports = {
         "react-hooks/exhaustive-deps": [
             "warn",
             {
-                additionalHooks: "^useLayoutEffectWithoutServerSideWarning$",
+                additionalHooks: `^(${[
+                    "useLayoutEffectWithoutServerSideWarning",
+                    "useEffectWithoutStrictModeUnmountSimulation",
+                ].join("|")})$`,
             },
         ],
     },

@@ -1,4 +1,5 @@
-import {Memo, useCallback, useEffect, useMemo, useState} from "react";
+import {Memo, useCallback, useMemo, useState} from "react";
+import {useEffectWithoutStrictModeUnmountSimulation} from "~/client/helpers/lifecycle/use_effect_without_strict_mode_unmount_simulation";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {WebSocketClient} from "~/client/helpers/web_socket_client";
 import {UnionSchema} from "~/shared/schema/schema";
@@ -36,7 +37,13 @@ export function useWebSocket<
     // losing internet. We do not throw these errors.
     if (errorState.hasError) throw errorState.error;
 
-    useEffect(() => {
+    // Chrome logs a warning when we close a WebSocket we just opened (which
+    // happens with React strict mode effect unmount simulation). So disable
+    // unmount simulation for this hook.
+    //
+    // We believe the hook is well written to handle unmounts. The Chrome log is
+    // only a warning.
+    useEffectWithoutStrictModeUnmountSimulation(() => {
         const unsubscribeFromConnect = client.subscribeToConnect(() => {
             setIsConnected(true);
         });
