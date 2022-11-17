@@ -120,9 +120,9 @@ export class ContentEditorState<Content extends Node> {
      * Gets the ID we generated for this client when it was created.
      */
     public getClientId(): Id {
-        assert(this.isCollab());
-        assert(collabPluginKey);
-        return collabPluginKey.getState(this._state).spec.config.clientID;
+        const collabPlugin = this._state.plugins[this._state.plugins.length - 1]!;
+        assert(isCollabPlugin(collabPlugin));
+        return collabPlugin.spec.config.clientID;
     }
 
     /**
