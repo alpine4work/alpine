@@ -201,8 +201,6 @@ export class WebSocketClient<
                       )
                     : null;
 
-            console.log(event);
-
             const wasConnected = this._state.type === "connected";
             this._state = {type: "disconnected"};
             pingTimeout?.clear();

@@ -5,10 +5,9 @@ import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_with
 
 hydrateRoot(
     document,
-    // NOCOMMIT
-    // <StrictMode>
-    <RemixBrowser />,
-    // </StrictMode>,
+    <StrictMode>
+        <RemixBrowser />
+    </StrictMode>,
 );
 
 // Initialize [axe][1] which is an automated accessibility tester.
