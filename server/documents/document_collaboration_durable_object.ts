@@ -1,0 +1,555 @@
+import {TextSelection} from "prosemirror-state";
+import {Step} from "prosemirror-transform";
+import {DocumentCollaborationStepCache} from "~/server/documents/document_collaboration_step_cache";
+import {getUpdateDocumentContentResult} from "~/server/documents/get_update_document_content_result";
+import {getDocument, updateDocumentContent} from "~/server/dynamo/documents_table";
+import {WebSocketServer} from "~/server/helpers/web_socket_server";
+import {
+    DocumentCollaborationMessageFromClient,
+    DocumentCollaborationMessageFromClientSchema,
+    DocumentCollaborationMessageFromServer,
+    DocumentCollaborationMessageFromServerSchema,
+    DocumentCollaborationPresenceState,
+} from "~/shared/documents/document_collaboration_schema";
+import {DocumentContent, isDocumentContent} from "~/shared/documents/document_content_schema";
+import {
+    FailedPreconditionError,
+    InternalError,
+    InvalidArgumentError,
+    NotFoundError,
+} from "~/shared/error/error";
+import {AsyncSequentialQueue} from "~/shared/helpers/async/async_sequential_queue";
+import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
+import {assert} from "~/shared/helpers/control/assert";
+import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
+import {Id, generateId} from "~/shared/id/id";
+import {Schema} from "~/shared/schema/schema";
+
+/**
+ * Wrapper for our actual durable object class. There's some initialization we
+ * need to do on the first request. This wrapper allows us to initialize that
+ * state in a type safe way.
+ */
+class DocumentCollaborationDurableObjectWrapper {
+    private _objectPromise: Promise<DocumentCollaborationDurableObject> | null = null;
+
+    constructor(private readonly _state: DurableObjectState) {}
+
+    public async fetch(request: Request): Promise<Response> {
+        const id = Schema.id.deserialize(request.headers.get("x-document-id"));
+
+        if (this._objectPromise === null)
+            this._objectPromise = DocumentCollaborationDurableObject.initialize(this._state, id);
+
+        const object = await this._objectPromise;
+
+        if (id !== object.id)
+            throw new FailedPreconditionError(
+                "Document id in HTTP header does not match durable object document id",
+            );
+
+        return object.fetch(request);
+    }
+}
+
+export {DocumentCollaborationDurableObjectWrapper as DocumentCollaborationDurableObject};
+
+class DocumentCollaborationDurableObject {
+    private readonly _state: DurableObjectState;
+    public readonly id: Id;
+    private readonly _contentManager: DocumentCollaborationContentManager;
+
+    public static async initialize(
+        state: DurableObjectState,
+        id: Id,
+    ): Promise<DocumentCollaborationDurableObject> {
+        const document = await getDocument(id);
+        if (!document) throw new NotFoundError("Document not found");
+
+        return new DocumentCollaborationDurableObject({
+            state,
+            id: document.id,
+            initialVersion: document.version,
+            initialContent: document.content,
+        });
+    }
+
+    private constructor({
+        state,
+        id,
+        initialVersion,
+        initialContent,
+    }: {
+        state: DurableObjectState;
+        id: Id;
+        initialVersion: number;
+        initialContent: DocumentContent;
+    }) {
+        this._state = state;
+        this.id = id;
+        this._contentManager = new DocumentCollaborationContentManager({
+            state,
+            id,
+            initialVersion,
+            initialContent,
+            sendMessageToAll: message => {
+                this._webSocketServer.sendMessageToAll(message);
+            },
+        });
+    }
+
+    public fetch(request: Request): Response {
+        const url = new URL(request.url);
+        if (url.pathname !== "/") throw new NotFoundError("Unexpected path");
+        return this._webSocketServer.upgrade(request);
+    }
+
+    private readonly _webSocketServer = new WebSocketServer<
+        DocumentCollaborationMessageFromClient,
+        DocumentCollaborationMessageFromServer,
+        DocumentCollaborationDurableObjectConnection
+    >(
+        DocumentCollaborationMessageFromClientSchema,
+        DocumentCollaborationMessageFromServerSchema,
+        ({sendMessage, sendMessageToAllOthers, iterateOtherConnections}) =>
+            new DocumentCollaborationDurableObjectConnection(
+                this._contentManager,
+                sendMessage,
+                sendMessageToAllOthers,
+                iterateOtherConnections,
+            ),
+    );
+}
+
+/**
+ * Class for managing writing to collaborative content in a concurrency
+ * safe way.
+ */
+class DocumentCollaborationContentManager {
+    private readonly _state: DurableObjectState;
+    private readonly _id: Id;
+    private _version: number;
+    private _content: DocumentContent;
+    public readonly stepCache: DocumentCollaborationStepCache;
+    private readonly _sendMessageToAll: (message: DocumentCollaborationMessageFromServer) => void;
+    private _updateSequentialQueue = new AsyncSequentialQueue();
+    private _persistenceQueue: Array<{version: number; steps: Array<Step>; clientId: Id}> = [];
+    private _flushPersistenceQueuePromise: Promise<void> | null = null;
+
+    constructor({
+        state,
+        id,
+        initialVersion,
+        initialContent,
+        sendMessageToAll,
+    }: {
+        state: DurableObjectState;
+        id: Id;
+        initialVersion: number;
+        initialContent: DocumentContent;
+        sendMessageToAll: (message: DocumentCollaborationMessageFromServer) => void;
+    }) {
+        this._state = state;
+        this._id = id;
+        this._version = initialVersion;
+        this._content = initialContent;
+        this.stepCache = new DocumentCollaborationStepCache(id, this._version);
+        this._sendMessageToAll = sendMessageToAll;
+    }
+
+    /**
+     * Get the current version of our content.
+     *
+     * This is mutable and will change over time as users update the document
+     * content!
+     *
+     * If you want to update content you should use the version and content
+     * provided in the `update()` method.
+     */
+    public getCurrentVersion() {
+        return this._version;
+    }
+
+    /**
+     * Gets the document content at the specified version number.
+     */
+    public async getContentAtVersion(version: number): Promise<DocumentContent> {
+        if (version > this._version)
+            throw new FailedPreconditionError("Can not get document content at a future version");
+
+        let content = this._content;
+
+        const steps = await this.stepCache.getSteps(version, this._version);
+
+        for (let i = steps.length - 1; i >= 0; i--) {
+            const {invertedStep} = steps[i]!;
+            const stepResult = invertedStep.apply(content);
+
+            if (!stepResult.doc)
+                throw new InternalError(
+                    `Inverted step could not be applied: ${stepResult.failed!}`,
+                );
+
+            assert(isDocumentContent(stepResult.doc));
+            content = stepResult.doc;
+        }
+
+        return content;
+    }
+
+    /**
+     * Update our document's content. Holds a lock on the document content while
+     * updating so writes from two concurrent writers will be serialized.
+     *
+     * The action callback returns both `newContent` and `newSteps`. We assume that
+     * `newSteps` applied to `content` produces `newContent`.
+     */
+    public update(
+        connectionId: Id,
+        update: {
+            version: number;
+            steps: ReadonlyArray<Step>;
+            clientId: Id;
+            messageId: Id;
+            updateOurPresenceState: {state: DocumentCollaborationPresenceState | null};
+        },
+    ): Promise<{
+        presenceState: DocumentCollaborationPresenceState | null;
+        hasSentPresenceState: boolean;
+    }> {
+        return this._updateSequentialQueue.run(async () => {
+            if (
+                update.updateOurPresenceState.state &&
+                update.updateOurPresenceState.state.version !== update.version
+            ) {
+                throw new InvalidArgumentError(
+                    "Document version in new presence state should match the document version we are updating",
+                );
+            }
+
+            const oldVersion = this._version;
+
+            const {newContent, steps, invertedSteps, clientContent, mapping} =
+                await getUpdateDocumentContentResult({
+                    currentVersion: this._version,
+                    currentContent: this._content,
+                    clientVersion: update.version,
+                    clientSteps: update.steps,
+                    getSteps: (startVersion, endVersion) =>
+                        this.stepCache.getSteps(startVersion, endVersion),
+                });
+
+            // Validate the presence state selection based on the document as the client
+            // sees it, then map the selection to the correct position.
+            const clientPresenceStateTextSelection = update.updateOurPresenceState.state
+                ? validateDocumentCollaborationPresenceStateTextSelection(
+                      clientContent,
+                      update.updateOurPresenceState.state.textSelection,
+                  )
+                : null;
+            const newPresenceStateSelection = clientPresenceStateTextSelection?.map(
+                newContent,
+                mapping,
+            );
+            const presenceState: DocumentCollaborationPresenceState | null =
+                newPresenceStateSelection instanceof TextSelection
+                    ? {
+                          version: oldVersion + steps.length,
+                          textSelection: {
+                              anchor: newPresenceStateSelection.$anchor.pos,
+                              head: newPresenceStateSelection.$head.pos,
+                          },
+                      }
+                    : null;
+
+            // If we had to rebase and all steps were removed, immediately return.
+            if (steps.length === 0) return {presenceState, hasSentPresenceState: false};
+
+            this._version += steps.length;
+            this._content = newContent;
+
+            // Populate our step cache with the new steps before telling other clients
+            // about the new steps.
+            for (let i = 0; i < steps.length; i++) {
+                const step = steps[i]!;
+                const invertedStep = invertedSteps[i];
+                assert(invertedStep);
+                this.stepCache.dangerouslyAddStepToEnd({
+                    step,
+                    invertedStep,
+                    clientId: update.clientId,
+                });
+            }
+
+            this._sendMessageToAll({
+                type: "UpdateContentBeforePersistence",
+                newVersion: oldVersion + steps.length,
+                steps,
+                clientId: update.clientId,
+                acknowledgeMessageId: update.messageId,
+                updateOtherPresenceState: {
+                    connectionId,
+                    state: presenceState,
+                },
+            });
+
+            // Add to the persistence queue.
+            //
+            // If the last entry in the persistence queue is from our client, then we will
+            // add to the end of that entry. All steps in that entry will be saved as one
+            // transaction.
+            if (
+                this._persistenceQueue.length > 0 &&
+                this._persistenceQueue[this._persistenceQueue.length - 1]!.clientId ===
+                    update.clientId
+            ) {
+                for (const step of steps) {
+                    this._persistenceQueue[this._persistenceQueue.length - 1]!.steps.push(step);
+                }
+            } else {
+                this._persistenceQueue.push({
+                    version: oldVersion,
+                    steps: Array.from(steps),
+                    clientId: update.clientId,
+                });
+            }
+
+            // Make sure the durable object stays alive until `this._persistenceQueue` is
+            // empty and our content has been persisted.
+            this._state.waitUntil(this._flushPersistenceQueue());
+
+            return {presenceState, hasSentPresenceState: true};
+        });
+    }
+
+    /**
+     * Returns a promise that resolves when all entries in `this._persistenceQueue`
+     * have been processed and saved to the database.
+     */
+    private _flushPersistenceQueue() {
+        if (this._flushPersistenceQueuePromise === null) {
+            const promise = (async () => {
+                // Process all the persistence queue entries.
+                while (this._persistenceQueue.length > 0) {
+                    try {
+                        const entry = this._persistenceQueue.shift()!;
+
+                        const {conflictingSteps} = await updateDocumentContent({
+                            id: this._id,
+                            version: entry.version,
+                            steps: entry.steps,
+                            clientId: entry.clientId,
+                        });
+
+                        // The document collaboration durable object should be the only process writing
+                        // to a document! If some other process is writing to a document, weird
+                        // things may start breaking in the durable object and on the client.
+                        //
+                        // We save steps anyway to preserve as much user data as we can.
+                        if (conflictingSteps.length > 0)
+                            throw new InternalError(
+                                "Some process updated document content other than the document's durable object. This may cause many downstream issues as a core assumption about the document collaboration implementation has been violated",
+                            );
+
+                        this._sendMessageToAll({
+                            type: "PersistedContent",
+                            newVersion: entry.version + entry.steps.length,
+                        });
+                    } catch (error) {
+                        // TODO(calebmer): Report this error somewhere in addition to sending it to
+                        // the client.
+
+                        this._sendMessageToAll({
+                            type: "Error",
+                            error,
+                        });
+                    }
+                }
+            })();
+
+            this._flushPersistenceQueuePromise = promise;
+
+            promise.finally(() => {
+                this._flushPersistenceQueuePromise = null;
+            });
+        }
+
+        return this._flushPersistenceQueuePromise;
+    }
+}
+
+class DocumentCollaborationDurableObjectConnection {
+    public readonly id = generateId();
+    private _presenceState: DocumentCollaborationPresenceState | null = null;
+    private _sequentialQueue = new AsyncSequentialQueue();
+
+    constructor(
+        private readonly _contentManager: DocumentCollaborationContentManager,
+        private readonly _sendMessage: (message: DocumentCollaborationMessageFromServer) => void,
+        private readonly _sendMessageToOthers: (
+            message: DocumentCollaborationMessageFromServer,
+        ) => void,
+        private readonly _iterateOtherConnections: () => Iterable<DocumentCollaborationDurableObjectConnection>,
+    ) {}
+
+    public getPresenceState() {
+        return this._presenceState;
+    }
+
+    public handleMessage(message: DocumentCollaborationMessageFromClient) {
+        // Handle all messages for this connection in sequence as a defense against
+        // race conditions.
+        //
+        // Example race condition: Two `UpdateOurPresenceState` in fast succession. The
+        // second finishes before the first because of some async race condition. A
+        // `UpdateContent` then a `UpdateOurPresenceState` is perhaps a better example.
+        //
+        // The client mostly sends messages in sequence anyway.
+        return this._sequentialQueue.run(async () => {
+            try {
+                switch (message.type) {
+                    case "BackfillRequest": {
+                        const version = this._contentManager.getCurrentVersion();
+
+                        if (message.version > version)
+                            throw new InvalidArgumentError(
+                                "Tried to backfill a future document version",
+                            );
+
+                        // Load steps from our store and send them to the client to catch
+                        // the client up...
+                        this._sendMessage({
+                            type: "BackfillResponse",
+                            newVersion: version,
+                            steps: await this._contentManager.stepCache.getSteps(
+                                message.version,
+                                version,
+                            ),
+                            presenceStates: Array.from(
+                                filterMapIterable(this._iterateOtherConnections(), connection => {
+                                    const state = connection.getPresenceState();
+                                    if (!state) return null;
+                                    return {connectionId: connection.id, state};
+                                }),
+                            ),
+                        });
+                        return;
+                    }
+                    case "UpdateContent": {
+                        const {presenceState, hasSentPresenceState} =
+                            await this._contentManager.update(this.id, message);
+                        this._presenceState = presenceState;
+
+                        if (!hasSentPresenceState) {
+                            this._sendMessageToOthers({
+                                type: "UpdateOtherPresenceState",
+                                connectionId: this.id,
+                                state: this._presenceState,
+                            });
+                        }
+                        return;
+                    }
+                    case "UpdateOurPresenceState": {
+                        // Make sure the new presence state is valid before we broadcast it to our
+                        // other clients.
+                        if (message.state) {
+                            const isVersionValid =
+                                message.state.version >= 0 &&
+                                message.state.version <= this._contentManager.getCurrentVersion();
+
+                            if (!isVersionValid)
+                                throw new FailedPreconditionError(
+                                    "Presence state version is outside the document's version range",
+                                );
+
+                            validateDocumentCollaborationPresenceStateTextSelection(
+                                await this._contentManager.getContentAtVersion(
+                                    message.state.version,
+                                ),
+                                message.state.textSelection,
+                            );
+                        }
+                        this._presenceState = message.state;
+
+                        this._sendMessageToOthers({
+                            type: "UpdateOtherPresenceState",
+                            connectionId: this.id,
+                            state: this._presenceState,
+                        });
+                        return;
+                    }
+                    default:
+                        throw exhaustive(message);
+                }
+            } catch (error) {
+                // NOTE(calebmer): I wonder if error handling should be a part of the
+                // `WebSocketServer` abstraction instead of doing one-off error handling like
+                // this? There are not enough examples of `WebSocketServer` usage to know.
+                this._sendMessage({
+                    type: "Error",
+                    error,
+                });
+            }
+        });
+    }
+
+    public handleClose() {
+        runPromiseWithoutAwaiting(
+            // Make sure we run in the queue in case we're wrapping up message handling. We
+            // want to send our null presence state after we send any other
+            // presence states.
+            this._sequentialQueue.run(async () => {
+                // When the connection closes, clear the presence state in our other
+                // connections.
+                if (this._presenceState !== null) {
+                    this._sendMessageToOthers({
+                        type: "UpdateOtherPresenceState",
+                        connectionId: this.id,
+                        state: null,
+                    });
+                }
+            }),
+        );
+    }
+}
+
+function validateDocumentCollaborationPresenceStateTextSelection(
+    content: DocumentContent,
+    textSelection: DocumentCollaborationPresenceState["textSelection"],
+): TextSelection {
+    const isAnchorPosValid =
+        Number.isInteger(textSelection.anchor) &&
+        textSelection.anchor >= 0 &&
+        textSelection.anchor <= content.content.size;
+
+    if (!isAnchorPosValid)
+        throw new FailedPreconditionError(
+            "Presence state text selection anchor position is out of range",
+        );
+
+    const isHeadPosValid =
+        Number.isInteger(textSelection.head) &&
+        textSelection.head >= 0 &&
+        textSelection.head <= content.content.size;
+
+    if (!isHeadPosValid)
+        throw new FailedPreconditionError(
+            "Presence state text selection head position is out of range",
+        );
+
+    const $anchor = content.resolve(textSelection.anchor);
+    const $head = content.resolve(textSelection.head);
+
+    if (!$anchor.parent.inlineContent)
+        throw new FailedPreconditionError(
+            "Presence state text selection anchor is not pointing into a node with inline content",
+        );
+
+    if (!$head.parent.inlineContent)
+        throw new FailedPreconditionError(
+            "Presence state text selection anchor is not pointing into a node with inline content",
+        );
+
+    return new TextSelection($anchor, $head);
+}

@@ -31,7 +31,7 @@ import {
 } from "~/client/content/internal/content_editor_plugin_keymap";
 import {trimSpacesFromRange} from "~/client/content/internal/content_editor_prosemirror_helpers";
 import {FocusRingPortal} from "~/client/design/focus_ring";
-import {isMac} from "~/client/helpers/platform/is_mac";
+import {isMac} from "~/client/helpers/is_mac";
 import {doesUrlStartWithAllowedProtocol} from "~/shared/content/content_schema";
 import {ThemeColor} from "~/shared/design/theme_colors";
 import {documentFallbackTitle} from "~/shared/documents/document_model";

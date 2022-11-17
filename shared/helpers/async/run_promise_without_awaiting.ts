@@ -1,4 +1,4 @@
-import {scheduleException} from "~/shared/helpers/async/schedule_exception";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error";
 
 /**
  * Runs an async function without awaiting for the result.
@@ -9,5 +9,5 @@ import {scheduleException} from "~/shared/helpers/async/schedule_exception";
 export function runPromiseWithoutAwaiting(
     action: Promise<unknown> | (() => Promise<unknown>),
 ): void {
-    (typeof action === "function" ? action() : action).catch(scheduleException);
+    (typeof action === "function" ? action() : action).catch(scheduleUncaughtError);
 }

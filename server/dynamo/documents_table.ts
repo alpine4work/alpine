@@ -1,5 +1,5 @@
-import {TextSelection} from "prosemirror-state";
-import {Mapping, Step} from "prosemirror-transform";
+import {Step} from "prosemirror-transform";
+import {getUpdateDocumentContentResult} from "~/server/documents/get_update_document_content_result";
 import {DynamoConditionExpression} from "~/server/dynamo/internal/dynamo_condition";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
@@ -7,7 +7,6 @@ import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_co
 import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry_dynamo_condition_check_errors";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint";
 import {TestCounter} from "~/server/helpers/test/test_counter";
-import {publishToNetworkChannel} from "~/server/network/publish_to_network_channel";
 import {
     DocumentContent,
     DocumentContentSchema,
@@ -27,6 +26,7 @@ import {
     NotFoundError,
 } from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable";
@@ -34,11 +34,7 @@ import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {clamp} from "~/shared/helpers/number/clamp";
 import {Id} from "~/shared/id/id";
-import {
-    DocumentChannel,
-    DocumentEditorPresenceUpdateSchema,
-} from "~/shared/network/documents_network_definition";
-import {Schema, SchemaType} from "~/shared/schema/schema";
+import {Schema} from "~/shared/schema/schema";
 
 const DocumentsTable = DynamoTableSchema.new({
     name: "Documents",
@@ -628,7 +624,7 @@ class DocumentContentCacheForUpdateEntries {
     private readonly _entryByDocumentId = new Map<
         Id,
         {
-            evictionTimeoutId: number;
+            evictionTimeout: Timeout;
             evict: () => void;
             promise: Promise<DocumentContentCacheForUpdateEntry | null>;
         }
@@ -678,16 +674,16 @@ class DocumentContentCacheForUpdateEntries {
             // If our entry was already evicted then don't evict it again.
             if (this._entryByDocumentId.get(id) !== nextEntry) return;
 
-            clearTimeout(nextEntry.evictionTimeoutId);
+            nextEntry.evictionTimeout.clear();
             this._entryByDocumentId.delete(id);
         };
 
-        const evictionTimeoutId = setTimeout(() => {
+        const evictionTimeout = createTimeout(() => {
             evict();
-        }, documentContentCacheEvictionTimeoutMs) as any as number;
+        }, documentContentCacheEvictionTimeoutMs);
 
         const nextEntry = {
-            evictionTimeoutId,
+            evictionTimeout,
             evict,
             promise: getEntry().then(
                 data => {
@@ -819,19 +815,28 @@ declare module "prosemirror-transform" {
  * - Only saving the full content back to the database every 20-100 steps. For
  *   the majority of updates we only save the steps.
  */
+// TODO(calebmer): If this is being called outside our collaboration durable
+// object we should throw an error or restart the durable object or something.
+// Maybe the durable object could incorporate conflicting
 export async function updateDocumentContent({
     id,
     version: clientVersion,
     steps: clientSteps,
     clientId,
-    editorPresenceUpdate,
     cacheOverrideForTest,
 }: {
     id: Id;
     version: number;
     steps: ReadonlyArray<Step>;
     clientId: Id;
-    editorPresenceUpdate?: SchemaType<typeof DocumentEditorPresenceUpdateSchema>;
+    // TODO(calebmer): Do we really need the cache anymore now that we're using
+    // Durable Objects for updating documents? For now, probably yes? Each Durable
+    // Object should only have one document cached in memory and the document being
+    // cached means we don't need to reload it from the database every update which
+    // is nice.
+    //
+    // Maybe instead of a global cache we have a cache in the durable object class?
+    // This cache logic was written before Durable Objects.
     cacheOverrideForTest?: DocumentContentCacheForUpdate;
 }): Promise<{
     /**
@@ -860,26 +865,7 @@ export async function updateDocumentContent({
      * `clientId` is included.
      */
     conflictingSteps: ReadonlyArray<{step: Step; clientId: Id}>;
-    /**
-     * The same `editorPresenceUpdate` sent in the `DocumentChannel` update for
-     * this message.
-     *
-     * It is not necessarily the same as the `editorPresenceUpdate` in `input`
-     * since the selection may have been transformed.
-     */
-    newEditorPresenceUpdate: SchemaType<typeof DocumentEditorPresenceUpdateSchema> | null;
 }> {
-    // TODO(calebmer): We need to validate that `editorPresenceUpdate.presenceStateKey`
-    // starts with the session browser id!! This is important for permissions. Otherwise a
-    // user could use this method to impersonate another user's presence update.
-
-    if (editorPresenceUpdate?.presenceState) {
-        if (editorPresenceUpdate.presenceState.version !== clientVersion)
-            throw new InvalidArgumentError(
-                "Editor presence update version should match the client version",
-            );
-    }
-
     const result = await retryDynamoConditionCheckErrors(async () => {
         if (!Number.isSafeInteger(clientVersion) || clientVersion < 0)
             throw new InvalidArgumentError("Expected a positive integer version number");
@@ -894,211 +880,49 @@ export async function updateDocumentContent({
         if (!internalDocument)
             throw new NotFoundError("Can not update document that doesn't exist");
 
-        if (clientVersion > internalDocument.version)
-            throw new FailedPreconditionError(
-                "Can not update document with steps at version ahead of the document's current version",
-            );
+        const {newContent, steps, invertedSteps, conflictingSteps} =
+            await getUpdateDocumentContentResult({
+                currentVersion: internalDocument.version,
+                currentContent: internalDocument.content,
+                clientVersion,
+                clientSteps,
+                getSteps: async (startVersion, endVersion) => {
+                    // As an optimization, we assume implementation details about which range of
+                    // steps this function is requesting and use our internal data structures to
+                    // attempt at efficiently returning a value for this function.
+                    assert(startVersion === clientVersion);
+                    assert(endVersion === internalDocument.version);
 
-        let content = internalDocument.content;
-        let newSteps: ReadonlyArray<Step>;
-        let newInvertedSteps: Array<Step>;
-        let conflictingSteps: ReadonlyArray<{step: Step; invertedStep: Step; clientId: Id}>;
-        let newEditorPresenceUpdateTextSelection: TextSelection | null;
+                    // Get the steps that were applied to bring our document from the provided
+                    // version to the document's current version.
+                    //
+                    // If we're lucky then the version we're trying to update is after our snapshot
+                    // so we've already loaded all the steps after the snapshot. Otherwise we need
+                    // to read new steps.
+                    if (
+                        clientVersion >=
+                        internalDocument.version - internalDocument.stepsAfterInitialSnapshot.length
+                    ) {
+                        const stepCount = internalDocument.version - clientVersion;
 
-        // If the client's version is the same as our server version then we can
-        // directly apply the client's steps to the content.
-        if (clientVersion === internalDocument.version) {
-            const invertedClientSteps = [];
-
-            for (const step of clientSteps) {
-                const stepResult = step.apply(content);
-                if (!stepResult.doc)
-                    throw new FailedPreconditionError(
-                        `Could not apply step to document: ${stepResult.failed!}`,
-                    );
-
-                invertedClientSteps.push(step.invert(content));
-
-                assert(isDocumentContent(stepResult.doc));
-                content = stepResult.doc;
-            }
-
-            newSteps = clientSteps;
-            newInvertedSteps = invertedClientSteps;
-            conflictingSteps = [];
-
-            // We don't need to transform the selection when there's no conflict so just
-            // validate it.
-            if (!editorPresenceUpdate?.presenceState.textSelection) {
-                newEditorPresenceUpdateTextSelection = null;
-            } else {
-                try {
-                    newEditorPresenceUpdateTextSelection = new TextSelection(
-                        content.resolve(editorPresenceUpdate.presenceState.textSelection.anchor),
-                        content.resolve(editorPresenceUpdate.presenceState.textSelection.head),
-                    );
-                } catch (error) {
-                    if (!(error instanceof RangeError)) throw error;
-                    throw new InvalidArgumentError(
-                        "Editor presence update selection positions are outside the document's contents",
-                    );
-                }
-            }
-        }
-        // If the client is trying to update an older document version then we need to
-        // rebase the client steps against steps which were applied before it.
-        else {
-            assert(clientVersion < internalDocument.version);
-
-            // Get the steps that were applied to bring our document from the provided
-            // version to the document's current version.
-            //
-            // If we're lucky then the version we're trying to update is after our snapshot
-            // so we've already loaded all the steps after the snapshot. Otherwise we need
-            // to read new steps.
-            if (
-                clientVersion >=
-                internalDocument.version - internalDocument.stepsAfterInitialSnapshot.length
-            ) {
-                const stepCount = internalDocument.version - clientVersion;
-
-                conflictingSteps = Array.from(
-                    internalDocument.stepsAfterInitialSnapshot.slice(
-                        internalDocument.stepsAfterInitialSnapshot.length - stepCount,
-                    ),
-                );
-            } else {
-                const otherSteps = await getDocumentStepsBetweenValidatedVersionRange({
-                    id,
-                    startVersion: clientVersion,
-                    endVersion:
-                        internalDocument.version -
-                        internalDocument.stepsAfterInitialSnapshot.length,
-                });
-
-                conflictingSteps = [...otherSteps, ...internalDocument.stepsAfterInitialSnapshot];
-            }
-
-            assert(conflictingSteps.length === internalDocument.version - clientVersion);
-
-            const invertedClientSteps = [];
-
-            // Make sure all steps from the client were valid against the document at
-            // `clientVersion`. So revert back to to that version and try applying our
-            // client steps.
-            //
-            // We will drop any steps we can't rebase. But we still want to validate that
-            // the original steps were ok.
-            {
-                let clientContent = content;
-
-                for (let i = conflictingSteps.length - 1; i >= 0; i--) {
-                    const {invertedStep} = conflictingSteps[i]!;
-                    const invertedStepResult = invertedStep.apply(clientContent);
-                    if (!invertedStepResult.doc)
-                        throw new DataLossError(
-                            `Could not apply inverse of saved document step: ${invertedStepResult.failed!}`,
-                        );
-
-                    assert(isDocumentContent(invertedStepResult.doc));
-                    clientContent = invertedStepResult.doc;
-                }
-
-                for (const step of clientSteps) {
-                    const stepResult = step.apply(clientContent);
-                    if (!stepResult.doc)
-                        throw new FailedPreconditionError(
-                            `Could not apply step to document: ${stepResult.failed!}`,
-                        );
-
-                    invertedClientSteps.push(step.invert(clientContent));
-
-                    assert(isDocumentContent(stepResult.doc));
-                    clientContent = stepResult.doc;
-                }
-
-                // When there's a conflict, initialize the presence update selection with the
-                // document content as the client sees it. We will need to map this selection
-                // before returning!
-                if (!editorPresenceUpdate?.presenceState.textSelection) {
-                    newEditorPresenceUpdateTextSelection = null;
-                } else {
-                    try {
-                        newEditorPresenceUpdateTextSelection = new TextSelection(
-                            clientContent.resolve(
-                                editorPresenceUpdate.presenceState.textSelection.anchor,
-                            ),
-                            clientContent.resolve(
-                                editorPresenceUpdate.presenceState.textSelection.head,
+                        return Array.from(
+                            internalDocument.stepsAfterInitialSnapshot.slice(
+                                internalDocument.stepsAfterInitialSnapshot.length - stepCount,
                             ),
                         );
-                    } catch (error) {
-                        if (!(error instanceof RangeError)) throw error;
-                        throw new InvalidArgumentError(
-                            "Editor presence update selection positions are outside the document's contents",
-                        );
+                    } else {
+                        const otherSteps = await getDocumentStepsBetweenValidatedVersionRange({
+                            id,
+                            startVersion: clientVersion,
+                            endVersion:
+                                internalDocument.version -
+                                internalDocument.stepsAfterInitialSnapshot.length,
+                        });
+
+                        return [...otherSteps, ...internalDocument.stepsAfterInitialSnapshot];
                     }
-                }
-            }
-
-            // See the guide for information on how to rebase a chain of steps against
-            // another chain of steps:
-            // https://prosemirror.net/docs/guide/#transform.rebasing
-            //
-            // Also see the client-side rebasing implementation:
-            // https://github.com/ProseMirror/prosemirror-collab/blob/ed039eb7e62fd0079b51406863931c6f67046881/src/collab.ts#L14-L27
-            const mapping = new Mapping();
-
-            for (let i = invertedClientSteps.length - 1; i >= 0; i--)
-                mapping.appendMap(invertedClientSteps[i]!.getMap());
-            for (let i = 0; i < conflictingSteps.length; i++)
-                mapping.appendMap(conflictingSteps[i]!.step.getMap());
-
-            const rebasedSteps = [];
-            const invertedRebasedSteps = [];
-            let mapFrom = clientSteps.length;
-
-            for (let i = 0; i < clientSteps.length; i++) {
-                const rebasedStep = clientSteps[i]!.map(mapping.slice(mapFrom));
-                mapFrom--;
-
-                // Silently ignore steps we can't rebase. That's what the client
-                // implementation does:
-                // https://github.com/ProseMirror/prosemirror-collab/blob/ed039eb7e62fd0079b51406863931c6f67046881/src/collab.ts#L21
-                if (!rebasedStep) continue;
-
-                const rebasedStepResult = rebasedStep.apply(content);
-
-                // Silently ignore steps we can't rebase. That's what the client
-                // implementation does:
-                // https://github.com/ProseMirror/prosemirror-collab/blob/ed039eb7e62fd0079b51406863931c6f67046881/src/collab.ts#L21
-                if (!rebasedStepResult.doc) continue;
-
-                invertedRebasedSteps.push(rebasedStep.invert(content));
-
-                assert(isDocumentContent(rebasedStepResult.doc));
-                content = rebasedStepResult.doc;
-                rebasedSteps.push(rebasedStep);
-                mapping.appendMap(rebasedStep.getMap());
-                mapping.setMirror(mapFrom, mapping.maps.length - 1);
-            }
-
-            newSteps = rebasedSteps;
-            newInvertedSteps = invertedRebasedSteps;
-
-            // Map our selection which is using positions from client content to a
-            // selection on the new document with resolved conflicts. While mapping we may
-            // lose the selection so in that case update to null.
-            if (newEditorPresenceUpdateTextSelection) {
-                const selection = newEditorPresenceUpdateTextSelection.map(content, mapping);
-                newEditorPresenceUpdateTextSelection =
-                    selection instanceof TextSelection ? selection : null;
-            }
-        }
-
-        // We want the inverted steps to be stored in reverse order of our steps. We
-        // added the inverted steps in forward step order.
-        newInvertedSteps.reverse();
+                },
+            });
 
         // This checkpoint allows us to write a test against our transaction's
         // condition.
@@ -1107,15 +931,15 @@ export async function updateDocumentContent({
             clientId,
         });
 
-        if (newSteps.length > 0) {
+        if (steps.length > 0) {
             await DynamoTableSchema.executeTransaction([
                 DocumentsTable.transactionPutItem(
                     {
                         partitionType: "Document",
                         documentId: id,
                         sortRangeType: "Attributes",
-                        version: internalDocument.version + newSteps.length,
-                        titleWithoutFallback: getDocumentContentTitleWithoutFallback(content),
+                        version: internalDocument.version + steps.length,
+                        titleWithoutFallback: getDocumentContentTitleWithoutFallback(newContent),
                     },
                     {
                         condition: {
@@ -1129,8 +953,8 @@ export async function updateDocumentContent({
                     documentId: id,
                     sortRangeType: "StepTransactionsAfterSnapshot",
                     startVersion: internalDocument.version,
-                    steps: newSteps,
-                    invertedSteps: newInvertedSteps,
+                    steps: steps,
+                    invertedSteps,
                     clientId,
                 }),
             ]);
@@ -1138,83 +962,46 @@ export async function updateDocumentContent({
             // Update our cache so that the next update from this process doesn't need to
             // read content from the database.
             await internalDocument.updateCache({
-                newContent: content,
-                newSteps,
-                newInvertedSteps,
+                newContent,
+                newSteps: steps,
+                newInvertedSteps: invertedSteps,
                 clientId,
             });
         }
 
         return {
             oldVersion: internalDocument.version,
-            newVersion: internalDocument.version + newSteps.length,
-            newContent: content,
-            newSteps,
+            newVersion: internalDocument.version + steps.length,
+            newContent,
+            newSteps: steps,
             conflictingSteps,
-            newEditorPresenceUpdateTextSelection,
         };
     });
 
-    const {
+    const {oldVersion, newVersion, newContent, newSteps, conflictingSteps} = result;
+
+    // We add a blocking update to our snapshot within the
+    // `updateDocumentContent()` call. We don't pay the price of updating the
+    // snapshot every update but rather every N updates (where N is 20-100 steps).
+    //
+    // We need a blocking update since we can't schedule a background task in a
+    // serverless function. The function will be paused if there is no activity. We
+    // could in the future use a task queue to update the snapshot as a background
+    // job, but occasionally paying the snapshot update price within the
+    // `updateDocumentContent()` function doesn't seem too bad.
+    //
+    // TODO(calebmer): Put this in `event.waitUntil()`.
+    await maybeUpdateDocumentSnapshotAfterUpdatingContent({
+        id,
         oldVersion,
         newVersion,
         newContent,
-        newSteps,
-        conflictingSteps,
-        newEditorPresenceUpdateTextSelection,
-    } = result;
-
-    const newEditorPresenceUpdate = editorPresenceUpdate
-        ? {
-              presenceStateKey: editorPresenceUpdate.presenceStateKey,
-              presenceState: {
-                  version: newVersion,
-                  textSelection: newEditorPresenceUpdateTextSelection
-                      ? {
-                            anchor: newEditorPresenceUpdateTextSelection.$anchor.pos,
-                            head: newEditorPresenceUpdateTextSelection.$head.pos,
-                        }
-                      : null,
-              },
-          }
-        : null;
-
-    // TODO(calebmer): Lint rule that all `await`s which can be parallelized are
-    // indeed parallelized.
-    await runAllPromises([
-        publishToNetworkChannel(
-            DocumentChannel,
-            {documentId: id},
-            {
-                type: "UpdateContent",
-                newVersion,
-                steps: newSteps,
-                clientId,
-                editorPresenceUpdate: newEditorPresenceUpdate,
-            },
-        ),
-        // We add a blocking update to our snapshot within the
-        // `updateDocumentContent()` call. We don't pay the price of updating the
-        // snapshot every update but rather every N updates (where N is 20-100 steps).
-        //
-        // We need a blocking update since we can't schedule a background task in a
-        // serverless function. The function will be paused if there is no activity. We
-        // could in the future use a task queue to update the snapshot as a background
-        // job, but occasionally paying the snapshot update price within the
-        // `updateDocumentContent()` function doesn't seem too bad.
-        maybeUpdateDocumentSnapshotAfterUpdatingContent({
-            id,
-            oldVersion,
-            newVersion,
-            newContent,
-        }),
-    ]);
+    });
 
     return {
         newVersion,
         newSteps,
         conflictingSteps,
-        newEditorPresenceUpdate,
     };
 }
 
@@ -1329,6 +1116,12 @@ async function maybeUpdateDocumentSnapshotAfterUpdatingContent({
     );
 }
 
+export const getDocumentContentStepsTestCounter = new TestCounter<{
+    id: Id;
+    startVersion: number;
+    endVersion: number;
+}>();
+
 /**
  * Reads all steps between `startVersion` (inclusive) and `endVersion` (exclusive).
  */
@@ -1360,11 +1153,13 @@ export async function getDocumentContentSteps({
             "End version is greater than the last version in the document",
         );
 
+    getDocumentContentStepsTestCounter.incrementForTest({id, startVersion, endVersion});
+
     return getDocumentStepsBetweenValidatedVersionRange({id, startVersion, endVersion});
 }
 
 /**
- * Reads all steps between `versionStart` (inclusive) and `endVersion` (exclusive).
+ * Reads all steps between `startVersion` (inclusive) and `endVersion` (exclusive).
  *
  * We assume you have checked that `endVersion` is a version that exists! We
  * will throw a `DataLossError` if we don't find steps up to `endVersion`.

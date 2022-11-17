@@ -13,12 +13,12 @@ export type Optionalize<O> = MergeObjectIntersection<
     }
 >;
 
-type IfUndefined<T, Y, N> = undefined extends T ? Y : N;
+type IfUndefinedButNotUnknown<T, Y, N> = unknown extends T ? N : undefined extends T ? Y : N;
 
 type KeyofWithUndefined<O> = {
-    [K in keyof O]: IfUndefined<O[K], K, never>;
+    [K in keyof O]: IfUndefinedButNotUnknown<O[K], K, never>;
 }[keyof O];
 
 type KeyofWithoutUndefined<O> = {
-    [K in keyof O]: IfUndefined<O[K], never, K>;
+    [K in keyof O]: IfUndefinedButNotUnknown<O[K], never, K>;
 }[keyof O];

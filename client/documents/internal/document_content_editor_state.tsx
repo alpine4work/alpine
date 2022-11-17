@@ -1,36 +1,34 @@
 import murmurhash from "murmurhash";
 import {TextSelection} from "prosemirror-state";
 import {Step} from "prosemirror-transform";
-import {useEffect, useMemo, useReducer, useState} from "react";
+import {MutableRefObject, useEffect, useMemo, useReducer, useRef, useState} from "react";
 import {ContentEditorPhantomTextSelection} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
-import {useNetworkChannel} from "~/client/network/use_network_channel";
-import {useNetworkPresenceChannel} from "~/client/network/use_network_presence_channel";
+import {useWebSocket} from "~/client/helpers/use_web_socket";
 import {themeColors} from "~/shared/design/theme_colors";
+import {
+    DocumentCollaborationMessageFromClientSchema,
+    DocumentCollaborationMessageFromServerSchema,
+    DocumentCollaborationPresenceState,
+} from "~/shared/documents/document_collaboration_schema";
 import {DocumentContent, isDocumentContent} from "~/shared/documents/document_content_schema";
 import {DocumentModel} from "~/shared/documents/document_model";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
 import {Lazy} from "~/shared/helpers/control/lazy";
-import {Id} from "~/shared/id/id";
-import {
-    DocumentChannel,
-    DocumentEditorPresenceChannel,
-    DocumentEditorPresenceUpdateSchema,
-    getDocumentContentSteps,
-    updateDocumentContent,
-} from "~/shared/network/documents_network_definition";
-import {NetworkPresenceChannelStateType} from "~/shared/network/network_presence_channel";
-import {SchemaType} from "~/shared/schema/schema";
+import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
+import {Id, generateId} from "~/shared/id/id";
+import {getDocumentContentSteps} from "~/shared/network/documents_network_definition";
 import {defaultThemeColor} from "~/shared/styles/styles";
 
 type State = {
     /**
-     * We may get `ReceiveSteps` actions out of order. If we see an action for a
-     * future version we put it in this array and re-apply the action when older
-     * steps are applied.
+     * We may get `ReceiveSteps` actions out of order (e.g. the server sends an
+     * `UpdateContent` message before a `BackfillResponse` message). If we see an
+     * action for a future version we put it in this array and re-apply the action
+     * when older steps are applied.
      */
     readonly pendingActions: Array<ReceiveStepsAction>;
     /**
@@ -47,6 +45,17 @@ type State = {
         readonly contentAfterStep: Lazy<DocumentContent>;
     }>;
     /**
+     * Steps we have sent to the server which we are waiting on
+     * acknowledgement for.
+     */
+    readonly pendingSendableSteps: {
+        readonly steps: ReadonlyArray<Step>;
+        readonly clientId: Id;
+        readonly version: number;
+        readonly messageId: Id;
+        readonly shouldSendToServerRef: MutableRefObject<boolean>;
+    } | null;
+    /**
      * The current text selection to broadcast over presence and the version at
      * which the selection was recorded.
      *
@@ -54,23 +63,13 @@ type State = {
      * the number of updates low. Other clients will rebase the selection forward
      * to display it on their editor.
      */
-    readonly selectionForPresence: {
-        readonly version: number;
-        readonly textSelection: TextSelection | null;
+    readonly ourPresenceState: {
+        readonly state: {
+            readonly version: number;
+            readonly textSelection: TextSelection;
+        } | null;
+        readonly shouldSendToServerRef: MutableRefObject<boolean>;
     };
-    /**
-     * Maintain a map of presence states we get from the `ReceiveSteps` action.
-     * This will be merged with presence states we get from
-     * `DocumentEditorPresenceChannel`. We send some presence states through the
-     * `ReceiveSteps` action as an optimization for faster selection updates and to
-     * avoid paying Ably double.
-     *
-     * If null then the presence state should be removed.
-     */
-    readonly presenceStateByKeyOverride: ReadonlyMap<
-        string,
-        SchemaType<typeof DocumentEditorPresenceUpdateSchema>["presenceState"]
-    >;
 };
 
 function getInitialState(initialDocument: DocumentModel): State {
@@ -83,19 +82,15 @@ function getInitialState(initialDocument: DocumentModel): State {
         pendingActions: [],
         editorState,
         rememberedSteps: [],
-        selectionForPresence: {
-            version: editorState.getVersion(),
-            textSelection: null,
+        pendingSendableSteps: null,
+        ourPresenceState: {
+            state: null,
+            shouldSendToServerRef: {current: false},
         },
-        presenceStateByKeyOverride: new Map(),
     };
 }
 
-type Action =
-    | EditAction
-    | ReceiveStepsAction
-    | ReconcileSelectionForPresenceAction
-    | AugmentRememberedStepsAction;
+type Action = EditAction | ReceiveStepsAction | AugmentRememberedStepsAction;
 
 type EditAction = {
     readonly type: "Edit";
@@ -106,15 +101,8 @@ type ReceiveStepsAction = {
     readonly type: "ReceiveSteps";
     readonly newVersion: number;
     readonly steps: ReadonlyArray<{readonly step: Step; readonly clientId: Id}>;
+    readonly acknowledgeMessageId: Id | null;
     readonly discardRememberedStepsBeforeVersion: number;
-    readonly editorPresenceUpdate: SchemaType<typeof DocumentEditorPresenceUpdateSchema> | null;
-};
-
-type ReconcileSelectionForPresenceAction = {
-    readonly type: "ReconcileSelectionForPresence";
-    readonly editorPresenceUpdate:
-        | SchemaType<typeof DocumentEditorPresenceUpdateSchema>["presenceState"]
-        | null;
 };
 
 type AugmentRememberedStepsAction = {
@@ -150,60 +138,48 @@ function reduce(state: State, action: Action): State {
     return pendingActions.reduce(reduceWithAction, state);
 }
 
-function getContentWithoutSendableSteps(
-    state: ContentEditorState<DocumentContent>,
-): DocumentContent {
-    const sendableSteps = state.sendableSteps();
-
-    if (sendableSteps && sendableSteps.origins[0]) {
-        const content = sendableSteps.origins[0].before;
-        assert(isDocumentContent(content));
-        return content;
-    }
-
-    return state.getContent();
-}
-
 function reduceWithAction(oldState: State, action: Action): State {
     switch (action.type) {
         case "Edit": {
-            // Don't send our cursor position while we have local steps! Other
-            // clients will not be able to interpret our cursor position without
-            // our new steps.
-            const selectionForPresence = action.editorState.hasSendableSteps()
-                ? oldState.selectionForPresence
-                : {
-                      version: action.editorState.getVersion(),
-                      textSelection: action.editorState.getTextSelection(),
-                  };
+            const textSelection = action.editorState.getTextSelection();
 
+            // Don't update our `presenceState` when there are steps we are sending to the
+            // server. Other clients would not know how to interpret our state until they
+            // see our steps.
+            if (oldState.pendingSendableSteps) {
+                return {
+                    ...oldState,
+                    editorState: action.editorState,
+                };
+            }
+
+            const pendingSendableSteps = action.editorState.sendableSteps();
             return {
                 ...oldState,
                 editorState: action.editorState,
-                selectionForPresence,
+                pendingSendableSteps: pendingSendableSteps
+                    ? {
+                          steps: pendingSendableSteps.steps,
+                          version: pendingSendableSteps.version,
+                          clientId: pendingSendableSteps.clientId,
+                          messageId: generateId(),
+                          shouldSendToServerRef: {current: true},
+                      }
+                    : null,
+                ourPresenceState: {
+                    state: textSelection
+                        ? {
+                              version: action.editorState.getVersion(),
+                              textSelection,
+                          }
+                        : null,
+                    shouldSendToServerRef: {current: true},
+                },
             };
         }
         case "ReceiveSteps": {
             const oldVersion = oldState.editorState.getVersion();
             if (action.newVersion <= oldVersion) return oldState;
-
-            // If we received an action that's applied on a future version of our content,
-            // we can't commit it until our local state has caught up. So stick it in
-            // pending actions and we'll come back to it.
-            if (oldVersion < action.newVersion - action.steps.length) {
-                return {
-                    ...oldState,
-                    pendingActions: [...oldState.pendingActions, action],
-                };
-            }
-
-            let presenceStateByKeyOverride = oldState.presenceStateByKeyOverride;
-            if (action.editorPresenceUpdate) {
-                presenceStateByKeyOverride = new Map(presenceStateByKeyOverride).set(
-                    action.editorPresenceUpdate.presenceStateKey,
-                    action.editorPresenceUpdate.presenceState,
-                );
-            }
 
             // We may dispatch this action multiple times with the same steps. Remove any
             // steps we've already seen.
@@ -211,10 +187,7 @@ function reduceWithAction(oldState: State, action: Action): State {
             assert(oldVersion + steps.length === action.newVersion);
 
             // If we've already seen all the steps, no change is needed.
-            if (steps.length === 0)
-                return oldState.presenceStateByKeyOverride !== presenceStateByKeyOverride
-                    ? {...oldState, presenceStateByKeyOverride}
-                    : oldState;
+            if (steps.length === 0) return oldState;
 
             let editorState = oldState.editorState;
             let stepTransaction: Array<{step: Step; clientId: Id}> = [];
@@ -278,46 +251,10 @@ function reduceWithAction(oldState: State, action: Action): State {
                 ...oldState,
                 editorState,
                 rememberedSteps,
-                presenceStateByKeyOverride,
-            };
-        }
-        case "ReconcileSelectionForPresence": {
-            // Don't send our cursor position while we have local steps! Other
-            // clients will not be able to interpret our cursor position without
-            // our new steps.
-            if (oldState.editorState.hasSendableSteps()) return oldState;
-
-            const selectionForPresence = {
-                version: oldState.editorState.getVersion(),
-                textSelection: oldState.editorState.getTextSelection(),
-            };
-
-            // If we did not report a selection in `updateDocumentContent()` then we should
-            // always send our new selection.
-            if (!action.editorPresenceUpdate) return {...oldState, selectionForPresence};
-
-            // Optimization: If the current selection is equal to what we reported in
-            // `updateDocumentContent()` then we don't need to update
-            // `selectionForPresence` in our state which would cost us an Ably
-            // event.
-            if (
-                action.editorPresenceUpdate.version === selectionForPresence.version &&
-                isDeepEqual(
-                    action.editorPresenceUpdate.textSelection,
-                    selectionForPresence.textSelection
-                        ? {
-                              anchor: selectionForPresence.textSelection.anchor,
-                              head: selectionForPresence.textSelection.head,
-                          }
-                        : null,
-                )
-            ) {
-                return oldState;
-            }
-
-            return {
-                ...oldState,
-                selectionForPresence,
+                pendingSendableSteps:
+                    oldState.pendingSendableSteps?.messageId === action.acknowledgeMessageId
+                        ? null
+                        : oldState.pendingSendableSteps,
             };
         }
         // If we are missing some remembered steps for fast-forwarding presence states
@@ -362,12 +299,29 @@ function reduceWithAction(oldState: State, action: Action): State {
     }
 }
 
-export function useDocumentContentEditorAblyContentSync(initialDocument: DocumentModel) {
+function getContentWithoutSendableSteps(
+    state: ContentEditorState<DocumentContent>,
+): DocumentContent {
+    const sendableSteps = state.sendableSteps();
+
+    if (sendableSteps && sendableSteps.origins[0]) {
+        const content = sendableSteps.origins[0].before;
+        assert(isDocumentContent(content));
+        return content;
+    }
+
+    return state.getContent();
+}
+
+export function useDocumentContentEditorState(initialDocument: DocumentModel) {
     const documentId = initialDocument.id;
 
     const [state, dispatch] = useReducer(reduce, initialDocument, getInitialState);
 
-    const [isUpdating, setIsUpdating] = useState(false);
+    const [otherPresenceStateByConnectionId, setOtherPresenceStateByConnectionId] = useState<
+        ImmutableMap<Id, DocumentCollaborationPresenceState>
+    >(ImmutableMap.empty());
+
     const [errorState, setErrorState] = useState<
         {hasError: false} | {hasError: true; error: unknown}
     >({hasError: false});
@@ -377,149 +331,156 @@ export function useDocumentContentEditorAblyContentSync(initialDocument: Documen
     // to update the document content.
     if (errorState.hasError) throw errorState.error;
 
-    useEffect(() => {
-        // If we're already updating then don't send another update mutation. Once
-        // the current mutation is done we'll send another.
-        if (isUpdating || errorState.hasError) return;
-
-        // If there are no new sendable steps from this client then don’t send a
-        // mutation.
-        const sendableSteps = state.editorState.sendableSteps();
-        if (!sendableSteps) return;
-        const {version, steps, clientId} = sendableSteps;
-
-        runPromiseWithoutAwaiting(async () => {
-            setIsUpdating(true);
-            try {
-                const editorPresenceUpdate = ourPresenceStateKey
-                    ? {
-                          presenceStateKey: ourPresenceStateKey,
-                          presenceState: {
-                              version: state.editorState.getVersion(),
-                              textSelection: state.editorState.getTextSelection(),
-                          },
-                      }
-                    : undefined;
-
-                const {newVersion, newSteps, conflictingSteps, newEditorPresenceUpdate} =
-                    await updateDocumentContent({
-                        id: documentId,
-                        version,
-                        steps,
-                        clientId,
-                        editorPresenceUpdate,
+    const {isConnected, sendMessage} = useWebSocket(
+        DocumentCollaborationMessageFromClientSchema,
+        DocumentCollaborationMessageFromServerSchema,
+        `/durable-objects/documents/${documentId}`,
+        message => {
+            switch (message.type) {
+                case "BackfillResponse": {
+                    dispatch({
+                        type: "ReceiveSteps",
+                        newVersion: message.newVersion,
+                        steps: message.steps,
+                        acknowledgeMessageId: null,
+                        // If `smallestPresenceStateVersion` is not set then discard ALL steps by
+                        // setting to the new version.
+                        discardRememberedStepsBeforeVersion:
+                            smallestPresenceStateVersion ?? message.newVersion,
                     });
 
-                dispatch({
-                    type: "ReceiveSteps",
-                    newVersion,
-                    steps: [...conflictingSteps, ...newSteps.map(step => ({step, clientId}))],
-                    // If `smallestPresenceStateVersion` is not set then discard ALL steps by
-                    // setting to the new version.
-                    discardRememberedStepsBeforeVersion: smallestPresenceStateVersion ?? newVersion,
-                    editorPresenceUpdate: null,
-                });
+                    setOtherPresenceStateByConnectionId(
+                        ImmutableMap.from(
+                            mapIterable(message.presenceStates, presenceState => [
+                                presenceState.connectionId,
+                                presenceState.state,
+                            ]),
+                        ),
+                    );
+                    break;
+                }
+                case "UpdateContentBeforePersistence": {
+                    dispatch({
+                        type: "ReceiveSteps",
+                        newVersion: message.newVersion,
+                        steps: message.steps.map(step => ({
+                            step,
+                            clientId: message.clientId,
+                        })),
+                        acknowledgeMessageId: message.acknowledgeMessageId,
+                        // If `smallestPresenceStateVersion` is not set then discard ALL steps by
+                        // setting to the new version.
+                        discardRememberedStepsBeforeVersion:
+                            smallestPresenceStateVersion ?? message.newVersion,
+                    });
 
-                // While we are updating document content, we don't update
-                // `state.selectionForPresence`. Now that we are done updating document content
-                // let's try updating `state.selectionForPresence`! However, as an optimization
-                // we include the selection in the realtime message published from
-                // `updateDocumentContent()`. So only publish our current selection if it is
-                // different from the one we already published.
-                dispatch({
-                    type: "ReconcileSelectionForPresence",
-                    editorPresenceUpdate: newEditorPresenceUpdate?.presenceState ?? null,
-                });
-            } catch (error) {
-                setErrorState({hasError: true, error});
-            } finally {
-                setIsUpdating(false);
+                    // If this was an acknowledgement message from our own client, don't add the
+                    // presence state to our map.
+                    if (message.clientId !== state.editorState.getClientId()) {
+                        setOtherPresenceStateByConnectionId(otherPresenceStateByConnectionId =>
+                            message.updateOtherPresenceState.state
+                                ? otherPresenceStateByConnectionId.set(
+                                      message.updateOtherPresenceState.connectionId,
+                                      message.updateOtherPresenceState.state,
+                                  )
+                                : otherPresenceStateByConnectionId.delete(
+                                      message.updateOtherPresenceState.connectionId,
+                                  ),
+                        );
+                    }
+                    break;
+                }
+                case "PersistedContent": {
+                    // TODO(calebmer): Show a saving indicator until content has persisted!
+                    break;
+                }
+                case "UpdateOtherPresenceState": {
+                    setOtherPresenceStateByConnectionId(otherPresenceStateByConnectionId =>
+                        message.state
+                            ? otherPresenceStateByConnectionId.set(
+                                  message.connectionId,
+                                  message.state,
+                              )
+                            : otherPresenceStateByConnectionId.delete(message.connectionId),
+                    );
+                    break;
+                }
+                case "Error": {
+                    setErrorState({
+                        hasError: true,
+                        error: message.error,
+                    });
+                    break;
+                }
+                default:
+                    throw exhaustive(message);
             }
-        });
+        },
+    );
 
-        // This effect intentionally doesn’t have a dependency array. It shouldn't
-        // need one for correctness.
+    const versionRef = useRef(state.editorState.getVersion());
+    useEffect(() => {
+        versionRef.current = state.editorState.getVersion();
     });
 
-    useNetworkChannel(DocumentChannel, {documentId}, message => {
-        dispatch({
-            type: "ReceiveSteps",
-            newVersion: message.newVersion,
-            steps: message.steps.map(step => ({
-                step,
-                clientId: message.clientId,
-            })),
-            // If `smallestPresenceStateVersion` is not set then discard ALL steps by
-            // setting to the new version.
-            discardRememberedStepsBeforeVersion: smallestPresenceStateVersion ?? message.newVersion,
-            editorPresenceUpdate: message.editorPresenceUpdate,
-        });
-    });
+    // Whenever we successfully connect to the WebSocket, send a backfill request
+    // so we can get any steps we missed while disconnected from the WebSocket.
+    useEffect(() => {
+        if (isConnected) {
+            sendMessage({
+                type: "BackfillRequest",
+                version: versionRef.current,
+            });
+        }
 
-    // TODO(calebmer): The pricing limits on presence from Ably are...not great. We
-    // probably need to migrate presence to Cloudflare Workers eventually.
-    // https://faqs.ably.com/why-do-you-have-a-limit-on-the-number-of-members-present-on-a-channel
-    const {ourPresenceStateKey, presenceStates: presenceStatesFromPresenceChannel} =
-        useNetworkPresenceChannel(
-            DocumentEditorPresenceChannel,
-            {documentId},
-            state.selectionForPresence.textSelection
-                ? {
-                      version: state.selectionForPresence.version,
-                      textSelection: {
-                          anchor: state.selectionForPresence.textSelection.$anchor.pos,
-                          head: state.selectionForPresence.textSelection.$head.pos,
-                      },
-                  }
-                : null,
-        );
+        // NOTE(calebmer): Be careful about what you put into this dependency array! We
+        // only want to re-run this effect when the `isConnected` flag flips.
+    }, [isConnected, sendMessage]);
 
-    // The presence states we get from our presence channel may be outdated in a
-    // couple of ways:
-    //
-    // 1. We send some presence updates over `DocumentChannel` instead of
-    //    `DocumentEditorPresenceChannel` for performance.
-    // 2. When the document updates and the cursor needs to move, we do not send an
-    //    update to `DocumentEditorPresenceChannel` as this would cause a
-    //    thundering herd of presence updates.
-    // 3. Theoretically possible but not supported as of 2022-10-28: We get a
-    //    selection at a future version than what's in this editor. Keep an eye out
-    //    for this happening in practice! We'll need to add support if it happens.
+    // Send any updates we have in state to the server when we are connected! Only
+    // sends each update to the server once. Tracks whether we have sent updates
+    // with a ref.
+    useEffect(() => {
+        if (!isConnected) return;
+
+        if (state.pendingSendableSteps?.shouldSendToServerRef.current) {
+            sendMessage({
+                type: "UpdateContent",
+                version: state.pendingSendableSteps.version,
+                steps: state.pendingSendableSteps.steps,
+                clientId: state.pendingSendableSteps.clientId,
+                messageId: state.pendingSendableSteps.messageId,
+                updateOurPresenceState: {state: state.ourPresenceState.state},
+            });
+
+            state.pendingSendableSteps.shouldSendToServerRef.current = false;
+            state.ourPresenceState.shouldSendToServerRef.current = false;
+        }
+
+        if (state.ourPresenceState.shouldSendToServerRef.current) {
+            sendMessage({
+                type: "UpdateOurPresenceState",
+                state: state.ourPresenceState.state,
+            });
+
+            state.ourPresenceState.shouldSendToServerRef.current = false;
+        }
+    }, [isConnected, sendMessage, state.pendingSendableSteps, state.ourPresenceState]);
+
+    // The presence states we get from our presence channel may be outdated because
+    // when the document updates and the cursor needs to move, we do not send a
+    // `UpdateOtherPresenceState` update as this would cause a thundering herd of
+    // presence updates on every content update.
     //
     // There may be some performance optimizations we could be doing here. If you
     // have 100 cursors but only 1 is moving you only need to recompute that 1.
     const {smallestPresenceStateVersion, presenceStates} = useMemo(() => {
         let smallestPresenceStateVersion = null;
 
-        let presenceStates: Array<
-            NetworkPresenceChannelStateType<typeof DocumentEditorPresenceChannel> & {
-                readonly key: string;
-            }
-        > = [];
+        let presenceStates: Array<DocumentCollaborationPresenceState & {connectionId: Id}> = [];
 
-        for (let presenceState of presenceStatesFromPresenceChannel) {
-            /* ========================================================================== *\
-             * 1. Apply presence state overrides                                          *
-            \* ========================================================================== */
-
-            // For performance, we send selection updates that happen at the same time
-            // as content updates over the "update content" realtime message and we DO NOT
-            // send an update over the presence channel.
-            //
-            // Then here in client code we merge presence state updates from the realtime
-            // message with presence state from our presence channel.
-            const presenceStateOverride = state.presenceStateByKeyOverride.get(presenceState.key);
-            if (presenceStateOverride && presenceStateOverride.version > presenceState.version) {
-                // If the override has no text selection, then this override acts as if the
-                // presence state left the channel.
-                if (!presenceStateOverride.textSelection) continue;
-
-                presenceState = {
-                    key: presenceState.key,
-                    version: presenceStateOverride.version,
-                    textSelection: presenceStateOverride.textSelection,
-                };
-            }
+        for (const [connectionId, _presenceState] of otherPresenceStateByConnectionId) {
+            let presenceState = _presenceState;
 
             // Record the smallest presence state version before mapping the selections
             // forward.
@@ -534,7 +495,7 @@ export function useDocumentContentEditorAblyContentSync(initialDocument: Documen
             }
 
             /* ========================================================================== *\
-             * 2. Fast-forward outdated presence states if we can, otherwise drop         *
+             * 1. Fast-forward outdated presence states if we can, otherwise drop         *
             \* ========================================================================== */
 
             // We don't update presence states if the document changes but the selection
@@ -579,7 +540,6 @@ export function useDocumentContentEditorAblyContentSync(initialDocument: Documen
                 if (!selection) continue;
 
                 presenceState = {
-                    key: presenceState.key,
                     version: editorVersion,
                     textSelection: {
                         anchor: selection.$anchor.pos,
@@ -592,21 +552,17 @@ export function useDocumentContentEditorAblyContentSync(initialDocument: Documen
             //
             // There are two kinds of states we expect to discard here:
             //
-            // 1. Presence states at a future version.
+            // 1. Presence states at a future version. (Should not happen.)
             // 2. Presence states that we couldn't catch because we don't have enough
             //    `rememberedSteps`. We will try to fetch more `rememberedSteps` to
             //    render these.
-            //
-            // TODO(calebmer): If we have a race condition and a client has reported that
-            // they are at a future version we ignore those cursors right now. Is that
-            // correct?
             if (presenceState.version !== editorVersion) continue;
 
-            presenceStates.push(presenceState);
+            presenceStates.push({...presenceState, connectionId});
         }
 
         /* ========================================================================== *\
-         * 3. Apply local, unconfirmed, steps to presence states                      *
+         * 2. Apply local, unconfirmed, steps to presence states                      *
         \* ========================================================================== */
 
         // Other clients do not know about our local, unconfirmed, steps in
@@ -618,9 +574,7 @@ export function useDocumentContentEditorAblyContentSync(initialDocument: Documen
 
             for (const origin of sendableSteps.origins) {
                 const newPresenceStates: Array<
-                    NetworkPresenceChannelStateType<typeof DocumentEditorPresenceChannel> & {
-                        readonly key: string;
-                    }
+                    DocumentCollaborationPresenceState & {connectionId: Id}
                 > = [];
 
                 for (const presenceState of presenceStates) {
@@ -633,7 +587,7 @@ export function useDocumentContentEditorAblyContentSync(initialDocument: Documen
                     if (!(selection instanceof TextSelection)) continue;
 
                     newPresenceStates.push({
-                        key: presenceState.key,
+                        connectionId: presenceState.connectionId,
                         version: version + origin.steps.length,
                         textSelection: {
                             anchor: newSelection.$anchor.pos,
@@ -648,19 +602,11 @@ export function useDocumentContentEditorAblyContentSync(initialDocument: Documen
         }
 
         return {smallestPresenceStateVersion, presenceStates};
-    }, [
-        presenceStatesFromPresenceChannel,
-        state.editorState,
-        state.presenceStateByKeyOverride,
-        state.rememberedSteps,
-    ]);
+    }, [otherPresenceStateByConnectionId, state.editorState, state.rememberedSteps]);
 
     // Transform the presence states of our connected clients into cursor
     // decorations. We drop any cursors from before our document loaded because we
     // don't have the steps to map their positions.
-    //
-    // TODO(calebmer): Load older steps from the backend so we can map cursors at
-    // older positions.
     const phantomTextSelections = useMemo(() => {
         const phantomTextSelections: Array<ContentEditorPhantomTextSelection> = [];
 
@@ -672,10 +618,12 @@ export function useDocumentContentEditorAblyContentSync(initialDocument: Documen
 
         for (const presenceState of presenceStates) {
             const color =
-                filteredThemeColors[murmurhash.v3(presenceState.key) % filteredThemeColors.length]!;
+                filteredThemeColors[
+                    murmurhash.v3(presenceState.connectionId) % filteredThemeColors.length
+                ]!;
 
             phantomTextSelections.push({
-                key: presenceState.key,
+                key: presenceState.connectionId,
                 color,
                 anchor: presenceState.textSelection.anchor,
                 head: presenceState.textSelection.head,
@@ -723,9 +671,9 @@ export function useDocumentContentEditorAblyContentSync(initialDocument: Documen
     }, [documentId, lastRememberedVersion, smallestPresenceStateVersion, dispatch]);
 
     return {
-        phantomTextSelections,
         editorState: state.editorState,
         onChangeEditorState: (editorState: ContentEditorState<DocumentContent>) =>
             dispatch({type: "Edit", editorState}),
+        phantomTextSelections,
     };
 }

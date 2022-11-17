@@ -1,6 +1,6 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
-import {useAsyncIterable} from "~/client/helpers/async/use_async_iterable";
-import {useStableJsonValue} from "~/client/helpers/memo/use_stable_json_value";
+import {useAsyncIterable} from "~/client/helpers/use_async_iterable";
+import {useStableJsonValue} from "~/client/helpers/use_stable_json_value";
 import {
     AblyRealtimeClientPresenceSession,
     ablyRealtimeClient,

@@ -3,8 +3,8 @@ import {EditorView} from "prosemirror-view";
 import {Memo, Ref, RefObject, forwardRef, useCallback, useLayoutEffect, useRef} from "react";
 import {Box} from "~/client/design/box";
 import {useMergedRef} from "~/client/design/helpers/use_merged_ref";
-import {scheduleException} from "~/shared/helpers/async/schedule_exception";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error";
 import {assert} from "~/shared/helpers/control/assert";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
 
@@ -157,7 +157,7 @@ function addResizeListenerForElement(element: Element, listener: () => void) {
                         try {
                             listener(entry);
                         } catch (error) {
-                            scheduleException(error);
+                            scheduleUncaughtError(error);
                         }
                     }
                 }
