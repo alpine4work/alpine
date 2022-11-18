@@ -3,6 +3,7 @@ import {createInterval} from "~/shared/helpers/async/interval";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter";
+import {quote} from "~/shared/helpers/string/quote";
 import {expirationTimeoutMs} from "~/shared/helpers/web_socket_shared";
 import {
     SchemaDeserializationError,
@@ -195,9 +196,9 @@ export class WebSocketClient<
                     ? new UnknownError(
                           `WebSocket ${
                               event.wasClean ? "closed cleanly" : "did not close cleanly"
-                          } with error code ${event.code} and reason ${JSON.stringify(
-                              event.reason,
-                          )}`,
+                          } with error code ${event.code}${
+                              event.reason ? quote`and reason ${event.reason}` : ""
+                          }`,
                       )
                     : null;
 
