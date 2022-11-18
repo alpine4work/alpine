@@ -63,10 +63,17 @@ export async function getUpdateDocumentContentResult({
 
         for (const step of clientSteps) {
             const stepResult = step.apply(content);
-            if (!stepResult.doc)
+            if (!stepResult.doc) {
+                console.log(
+                    require("util").inspect(
+                        {step: step.toJSON(), content: content.toJSON()},
+                        {depth: Infinity},
+                    ),
+                );
                 throw new FailedPreconditionError(
                     `Could not apply step to document: ${stepResult.failed!}`,
                 );
+            }
 
             invertedSteps.push(step.invert(content));
 
