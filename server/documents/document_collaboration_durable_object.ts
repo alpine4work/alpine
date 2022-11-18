@@ -1,5 +1,6 @@
 import {TextSelection} from "prosemirror-state";
 import {Step} from "prosemirror-transform";
+import {DurableObjectServerContext} from "~/server/context/server_context";
 import {DocumentCollaborationStepCache} from "~/server/documents/document_collaboration_step_cache";
 import {getUpdateDocumentContentResult} from "~/server/documents/get_update_document_content_result";
 import {getDocument, updateDocumentContent} from "~/server/dynamo/documents_table";
@@ -134,8 +135,14 @@ class DocumentCollaborationContentManager {
     public readonly stepCache: DocumentCollaborationStepCache;
     private readonly _sendMessageToAll: (message: DocumentCollaborationMessageFromServer) => void;
     private _updateSequentialQueue = new AsyncSequentialQueue();
-    private _persistenceQueue: Array<{version: number; steps: Array<Step>; clientId: Id}> = [];
-    private _flushPersistenceQueuePromise: Promise<void> | null = null;
+
+    private _persistenceState: {
+        next: {
+            readonly clientId: Id;
+            readonly steps: Array<Step>;
+        } | null;
+        promise: Promise<void>;
+    } | null = null;
 
     constructor({
         state,
@@ -294,88 +301,80 @@ class DocumentCollaborationContentManager {
                 },
             });
 
-            // Add to the persistence queue.
+            // Persist our content by sending our steps to DynamoDB. We need to save our
+            // steps in the same sequence we received them.
             //
-            // If the last entry in the persistence queue is from our client, then we will
-            // add to the end of that entry. All steps in that entry will be saved as one
-            // transaction.
-            if (
-                this._persistenceQueue.length > 0 &&
-                this._persistenceQueue[this._persistenceQueue.length - 1]!.clientId ===
-                    update.clientId
-            ) {
+            // We batch together steps from the same client id while we're waiting on a
+            // persistence request to finish.
+            if (this._persistenceState?.next?.clientId === update.clientId) {
                 for (const step of steps) {
-                    this._persistenceQueue[this._persistenceQueue.length - 1]!.steps.push(step);
+                    this._persistenceState.next.steps.push(step);
                 }
             } else {
-                this._persistenceQueue.push({
-                    version: oldVersion,
-                    steps: Array.from(steps),
-                    clientId: update.clientId,
-                });
-            }
+                const lastPersistenceStatePromise = this._persistenceState?.promise;
+                const nextSteps = Array.from(steps);
 
-            // Make sure the durable object stays alive until `this._persistenceQueue` is
-            // empty and our content has been persisted.
-            this._state.waitUntil(this._flushPersistenceQueue());
+                this._persistenceState = {
+                    next: {
+                        clientId: update.clientId,
+                        steps: nextSteps,
+                    },
+                    // NOTE(calebmer): We're careful to spawn the promise which updates content from
+                    // this `update()` method so the DynamoDB network calls count against the
+                    // request limit for the WebSocket message that triggered the `update()`.
+                    promise: (async () => {
+                        // While we wait, steps may be added to `nextSteps` if it's from the same
+                        // client so we can save in a single batch.
+                        await lastPersistenceStatePromise;
+
+                        // Do not allow the worker to batch more steps for this request! Instead the
+                        // worker needs to schedule a new update promise.
+                        if (this._persistenceState?.next?.steps === nextSteps)
+                            this._persistenceState.next = null;
+
+                        try {
+                            const {conflictingSteps} = await updateDocumentContent(
+                                new DurableObjectServerContext(this._state),
+                                {
+                                    id: this._id,
+                                    version: oldVersion,
+                                    steps: nextSteps,
+                                    clientId: update.clientId,
+                                },
+                            );
+
+                            // The document collaboration durable object should be the only process writing
+                            // to a document! If some other process is writing to a document, weird
+                            // things may start breaking in the durable object and on the client.
+                            //
+                            // We save steps anyway to preserve as much user data as we can.
+                            if (conflictingSteps.length > 0)
+                                throw new InternalError(
+                                    "Some process updated document content other than the document's durable object. This may cause many downstream issues as a core assumption about the document collaboration implementation has been violated",
+                                );
+
+                            this._sendMessageToAll({
+                                type: "PersistedContent",
+                                newVersion: oldVersion + nextSteps.length,
+                            });
+                        } catch (error) {
+                            // TODO(calebmer): Report this error somewhere in addition to sending it to
+                            // the client.
+
+                            this._sendMessageToAll({
+                                type: "Error",
+                                error,
+                            });
+                        }
+                    })(),
+                };
+
+                // Make sure the durable object stays alive until we've finished persisting.
+                this._state.waitUntil(this._persistenceState.promise);
+            }
 
             return {presenceState, hasSentPresenceState: true};
         });
-    }
-
-    /**
-     * Returns a promise that resolves when all entries in `this._persistenceQueue`
-     * have been processed and saved to the database.
-     */
-    private _flushPersistenceQueue() {
-        if (this._flushPersistenceQueuePromise === null) {
-            const promise = (async () => {
-                // Process all the persistence queue entries.
-                while (this._persistenceQueue.length > 0) {
-                    try {
-                        const entry = this._persistenceQueue.shift()!;
-
-                        const {conflictingSteps} = await updateDocumentContent({
-                            id: this._id,
-                            version: entry.version,
-                            steps: entry.steps,
-                            clientId: entry.clientId,
-                        });
-
-                        // The document collaboration durable object should be the only process writing
-                        // to a document! If some other process is writing to a document, weird
-                        // things may start breaking in the durable object and on the client.
-                        //
-                        // We save steps anyway to preserve as much user data as we can.
-                        if (conflictingSteps.length > 0)
-                            throw new InternalError(
-                                "Some process updated document content other than the document's durable object. This may cause many downstream issues as a core assumption about the document collaboration implementation has been violated",
-                            );
-
-                        this._sendMessageToAll({
-                            type: "PersistedContent",
-                            newVersion: entry.version + entry.steps.length,
-                        });
-                    } catch (error) {
-                        // TODO(calebmer): Report this error somewhere in addition to sending it to
-                        // the client.
-
-                        this._sendMessageToAll({
-                            type: "Error",
-                            error,
-                        });
-                    }
-                }
-            })();
-
-            this._flushPersistenceQueuePromise = promise;
-
-            promise.finally(() => {
-                this._flushPersistenceQueuePromise = null;
-            });
-        }
-
-        return this._flushPersistenceQueuePromise;
     }
 }
 

@@ -1004,6 +1004,8 @@ async function executeDynamoCommand<Input = never, Output = unknown>(
     command: string,
     input: Input,
 ): Promise<Output> {
+    console.log("DynamoDB", command, input);
+
     const response = await awsClient.fetch(dynamoUrl, {
         method: "POST",
         headers: {

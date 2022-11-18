@@ -1,5 +1,6 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep, Step} from "prosemirror-transform";
+import {TestServerContext} from "~/server/context/server_context";
 import {
     DocumentContentCacheForUpdate,
     createDocument,
@@ -147,7 +148,7 @@ test("can update a document with a single step", async () => {
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
@@ -164,7 +165,7 @@ test("can update a document with a single step", async () => {
             .toJSON(),
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("b"))],
@@ -181,7 +182,7 @@ test("can update a document with a single step", async () => {
             .toJSON(),
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 2,
         steps: [new ReplaceStep(5, 5, textSlice("c"))],
@@ -207,7 +208,7 @@ test("can update a document with multiple steps", async () => {
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
@@ -224,7 +225,7 @@ test("can update a document with multiple steps", async () => {
             .toJSON(),
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 1,
         steps: [
@@ -254,7 +255,7 @@ test("can not update a document if the version is greater than the current versi
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
@@ -272,7 +273,7 @@ test("can not update a document if the version is greater than the current versi
     });
 
     await expect(async () => {
-        await updateDocumentContent({
+        await updateDocumentContent(new TestServerContext(), {
             id: documentId,
             version: 2,
             steps: [new ReplaceStep(5, 5, textSlice("c"))],
@@ -299,7 +300,7 @@ test("can update a document if the version is one less than the current version"
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
@@ -316,7 +317,7 @@ test("can update a document if the version is one less than the current version"
             .toJSON(),
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("b"))],
@@ -333,7 +334,7 @@ test("can update a document if the version is one less than the current version"
             .toJSON(),
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("c"))],
@@ -359,7 +360,7 @@ test("can update a document if the version is many steps behind the current vers
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
@@ -376,28 +377,28 @@ test("can update a document if the version is many steps behind the current vers
             .toJSON(),
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("b"))],
         clientId: generateId(),
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 2,
         steps: [new ReplaceStep(5, 5, textSlice("c"))],
         clientId: generateId(),
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 3,
         steps: [new ReplaceStep(6, 6, textSlice("d"))],
         clientId: generateId(),
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 4,
         steps: [new ReplaceStep(7, 7, textSlice("e"))],
@@ -414,7 +415,7 @@ test("can update a document if the version is many steps behind the current vers
             .toJSON(),
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("f"))],
@@ -440,7 +441,7 @@ test("can update a document with many steps if the version is one less than the 
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
@@ -457,7 +458,7 @@ test("can update a document with many steps if the version is one less than the 
             .toJSON(),
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("b"))],
@@ -474,7 +475,7 @@ test("can update a document with many steps if the version is one less than the 
             .toJSON(),
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 1,
         steps: [
@@ -505,7 +506,7 @@ test("can update a document with many steps if the version is many steps behind 
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
@@ -522,28 +523,28 @@ test("can update a document with many steps if the version is many steps behind 
             .toJSON(),
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("b"))],
         clientId: generateId(),
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 2,
         steps: [new ReplaceStep(5, 5, textSlice("c"))],
         clientId: generateId(),
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 3,
         steps: [new ReplaceStep(6, 6, textSlice("d"))],
         clientId: generateId(),
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 4,
         steps: [new ReplaceStep(7, 7, textSlice("e"))],
@@ -560,7 +561,7 @@ test("can update a document with many steps if the version is many steps behind 
             .toJSON(),
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 1,
         steps: [
@@ -591,7 +592,7 @@ test("when two document updates race the loser will rebase", async () => {
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
@@ -614,7 +615,7 @@ test("when two document updates race the loser will rebase", async () => {
             id: documentId,
             clientId: request2ClientId,
         });
-    const request2Promise = updateDocumentContent({
+    const request2Promise = updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("b"))],
@@ -633,7 +634,7 @@ test("when two document updates race the loser will rebase", async () => {
             .toJSON(),
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("c"))],
@@ -673,7 +674,7 @@ test("can not apply an invalid step", async () => {
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
@@ -691,7 +692,7 @@ test("can not apply an invalid step", async () => {
     });
 
     await expect(async () => {
-        await updateDocumentContent({
+        await updateDocumentContent(new TestServerContext(), {
             id: documentId,
             version: 1,
             steps: [new ReplaceStep(5, 5, textSlice("b"))],
@@ -718,7 +719,7 @@ test("can not apply an invalid step even when rebasing", async () => {
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
@@ -735,7 +736,7 @@ test("can not apply an invalid step even when rebasing", async () => {
             .toJSON(),
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("b"))],
@@ -753,7 +754,7 @@ test("can not apply an invalid step even when rebasing", async () => {
     });
 
     await expect(async () => {
-        await updateDocumentContent({
+        await updateDocumentContent(new TestServerContext(), {
             id: documentId,
             version: 1,
             steps: [new ReplaceStep(5, 5, textSlice("c"))],
@@ -780,7 +781,7 @@ test("a single rebased step may end up as a noop", async () => {
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("foobar"))],
@@ -797,7 +798,7 @@ test("a single rebased step may end up as a noop", async () => {
             .toJSON(),
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(5, 7, Slice.empty)],
@@ -814,7 +815,7 @@ test("a single rebased step may end up as a noop", async () => {
             .toJSON(),
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(6, 6, textSlice("x"))],
@@ -840,7 +841,7 @@ test("many rebased steps may end up as a noop", async () => {
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("foobur"))],
@@ -857,7 +858,7 @@ test("many rebased steps may end up as a noop", async () => {
             .toJSON(),
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(5, 7, Slice.empty)],
@@ -874,7 +875,7 @@ test("many rebased steps may end up as a noop", async () => {
             .toJSON(),
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 1,
         steps: [
@@ -904,7 +905,7 @@ test("some rebased steps may end up as a noop", async () => {
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("foobur"))],
@@ -921,7 +922,7 @@ test("some rebased steps may end up as a noop", async () => {
             .toJSON(),
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(5, 7, Slice.empty)],
@@ -938,7 +939,7 @@ test("some rebased steps may end up as a noop", async () => {
             .toJSON(),
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 1,
         steps: [
@@ -971,7 +972,7 @@ test("reads the document on first update but not on subsequent updates", async (
     const {getCount} = getInternalDocumentTestCounter.recordForTest(documentId);
     expect(getCount()).toEqual(0);
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
@@ -992,7 +993,7 @@ test("reads the document on first update but not on subsequent updates", async (
 
     expect(getCount()).toEqual(2);
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("b"))],
@@ -1013,7 +1014,7 @@ test("reads the document on first update but not on subsequent updates", async (
 
     expect(getCount()).toEqual(3);
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 2,
         steps: [new ReplaceStep(5, 5, textSlice("c"))],
@@ -1034,7 +1035,7 @@ test("reads the document on first update but not on subsequent updates", async (
 
     expect(getCount()).toEqual(4);
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 3,
         steps: [new ReplaceStep(6, 6, textSlice("d"))],
@@ -1060,7 +1061,7 @@ test("can't update a document that doesn't exist", async () => {
     const documentId = generateId();
 
     await expect(async () => {
-        await updateDocumentContent({
+        await updateDocumentContent(new TestServerContext(), {
             id: documentId,
             version: 0,
             steps: [new ReplaceStep(3, 3, textSlice("a"))],
@@ -1076,7 +1077,7 @@ test("won't cache a document that doesn't exist when updating", async () => {
     expect(getCount()).toEqual(0);
 
     await expect(async () => {
-        await updateDocumentContent({
+        await updateDocumentContent(new TestServerContext(), {
             id: documentId,
             version: 0,
             steps: [new ReplaceStep(3, 3, textSlice("a"))],
@@ -1087,7 +1088,7 @@ test("won't cache a document that doesn't exist when updating", async () => {
     expect(getCount()).toEqual(1);
 
     await expect(async () => {
-        await updateDocumentContent({
+        await updateDocumentContent(new TestServerContext(), {
             id: documentId,
             version: 0,
             steps: [new ReplaceStep(3, 3, textSlice("a"))],
@@ -1132,7 +1133,7 @@ test("can't update a corrupted document", async () => {
     });
 
     await expect(async () => {
-        await updateDocumentContent({
+        await updateDocumentContent(new TestServerContext(), {
             id: documentId,
             version: 0,
             steps: [new ReplaceStep(3, 3, textSlice("b"))],
@@ -1159,7 +1160,7 @@ test("won't cache a corrupted document while updating", async () => {
     expect(getCount()).toEqual(0);
 
     await expect(async () => {
-        await updateDocumentContent({
+        await updateDocumentContent(new TestServerContext(), {
             id: documentId,
             version: 0,
             steps: [new ReplaceStep(3, 3, textSlice("b"))],
@@ -1170,7 +1171,7 @@ test("won't cache a corrupted document while updating", async () => {
     expect(getCount()).toEqual(1);
 
     await expect(async () => {
-        await updateDocumentContent({
+        await updateDocumentContent(new TestServerContext(), {
             id: documentId,
             version: 0,
             steps: [new ReplaceStep(3, 3, textSlice("b"))],
@@ -1192,28 +1193,28 @@ test("updates made in parallel will only read the document once", async () => {
     const {getCount} = getInternalDocumentTestCounter.recordForTest(documentId);
     expect(getCount()).toEqual(0);
 
-    const request1Promise = updateDocumentContent({
+    const request1Promise = updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
         clientId: generateId(),
     });
 
-    const request2Promise = updateDocumentContent({
+    const request2Promise = updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("b"))],
         clientId: generateId(),
     });
 
-    const request3Promise = updateDocumentContent({
+    const request3Promise = updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("c"))],
         clientId: generateId(),
     });
 
-    const request4Promise = updateDocumentContent({
+    const request4Promise = updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("d"))],
@@ -1242,7 +1243,7 @@ test("if a document was deleted in the database then the cache will pick that up
     const {getCount} = getInternalDocumentTestCounter.recordForTest(documentId);
     expect(getCount()).toEqual(0);
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
@@ -1260,7 +1261,7 @@ test("if a document was deleted in the database then the cache will pick that up
     expect(getCount()).toEqual(1);
 
     await expect(async () => {
-        await updateDocumentContent({
+        await updateDocumentContent(new TestServerContext(), {
             id: documentId,
             version: 1,
             steps: [new ReplaceStep(4, 4, textSlice("b"))],
@@ -1282,7 +1283,7 @@ test("updates may happen with different caches", async () => {
     const {getCount} = getInternalDocumentTestCounter.recordForTest(documentId);
     expect(getCount()).toEqual(0);
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
@@ -1303,7 +1304,7 @@ test("updates may happen with different caches", async () => {
 
     expect(getCount()).toEqual(2);
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("b"))],
@@ -1324,7 +1325,7 @@ test("updates may happen with different caches", async () => {
 
     expect(getCount()).toEqual(3);
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 2,
         steps: [new ReplaceStep(5, 5, textSlice("c"))],
@@ -1346,7 +1347,7 @@ test("updates may happen with different caches", async () => {
 
     expect(getCount()).toEqual(5);
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 3,
         steps: [new ReplaceStep(6, 6, textSlice("d"))],
@@ -1368,7 +1369,7 @@ test("updates may happen with different caches", async () => {
 
     expect(getCount()).toEqual(6);
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 4,
         steps: [new ReplaceStep(7, 7, textSlice("e"))],
@@ -1389,7 +1390,7 @@ test("updates may happen with different caches", async () => {
 
     expect(getCount()).toEqual(7);
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 5,
         steps: [new ReplaceStep(8, 8, textSlice("f"))],
@@ -1423,7 +1424,7 @@ test("reads the document again after an expiration timer fires", async () => {
     const {getCount} = getInternalDocumentTestCounter.recordForTest(documentId);
     expect(getCount()).toEqual(0);
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
@@ -1444,7 +1445,7 @@ test("reads the document again after an expiration timer fires", async () => {
 
     expect(getCount()).toEqual(2);
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("b"))],
@@ -1467,7 +1468,7 @@ test("reads the document again after an expiration timer fires", async () => {
 
     jest.runAllTimers();
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 2,
         steps: [new ReplaceStep(5, 5, textSlice("c"))],
@@ -1488,7 +1489,7 @@ test("reads the document again after an expiration timer fires", async () => {
 
     expect(getCount()).toEqual(5);
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 3,
         steps: [new ReplaceStep(6, 6, textSlice("d"))],
@@ -1521,7 +1522,7 @@ test("resets the timer eviction timer on every update", async () => {
     const {getCount} = getInternalDocumentTestCounter.recordForTest(documentId);
     expect(getCount()).toEqual(0);
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
@@ -1544,7 +1545,7 @@ test("resets the timer eviction timer on every update", async () => {
 
     jest.advanceTimersByTime(documentContentCacheEvictionTimeoutMs);
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("b"))],
@@ -1569,7 +1570,7 @@ test("resets the timer eviction timer on every update", async () => {
 
     expect(getCount()).toEqual(4);
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 2,
         steps: [new ReplaceStep(5, 5, textSlice("c"))],
@@ -1594,7 +1595,7 @@ test("resets the timer eviction timer on every update", async () => {
 
     expect(getCount()).toEqual(5);
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 3,
         steps: [new ReplaceStep(6, 6, textSlice("d"))],
@@ -1619,7 +1620,7 @@ test("resets the timer eviction timer on every update", async () => {
 
     expect(getCount()).toEqual(6);
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 4,
         steps: [new ReplaceStep(7, 7, textSlice("e"))],
@@ -1644,7 +1645,7 @@ test("resets the timer eviction timer on every update", async () => {
 
     expect(getCount()).toEqual(7);
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 5,
         steps: [new ReplaceStep(8, 8, textSlice("f"))],
@@ -1685,7 +1686,7 @@ test("updates the document title whenever it changes", async () => {
         titleWithoutFallback: "",
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("b"))],
@@ -1706,7 +1707,7 @@ test("updates the document title whenever it changes", async () => {
         titleWithoutFallback: "",
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(1, 1, textSlice("f"))],
@@ -1727,7 +1728,7 @@ test("updates the document title whenever it changes", async () => {
         titleWithoutFallback: "f",
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 2,
         steps: [new ReplaceStep(5, 5, textSlice("a"))],
@@ -1748,7 +1749,7 @@ test("updates the document title whenever it changes", async () => {
         titleWithoutFallback: "f",
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 3,
         steps: [new ReplaceStep(2, 2, textSlice("o")), new ReplaceStep(3, 3, textSlice("o"))],
@@ -1769,7 +1770,7 @@ test("updates the document title whenever it changes", async () => {
         titleWithoutFallback: "foo",
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 5,
         steps: [new ReplaceStep(8, 8, textSlice("r"))],
@@ -1790,7 +1791,7 @@ test("updates the document title whenever it changes", async () => {
         titleWithoutFallback: "foo",
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 6,
         steps: [
@@ -1823,7 +1824,7 @@ test("updates the document title whenever it changes", async () => {
         titleWithoutFallback: "foo",
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 7,
         steps: [new ReplaceStep(4, 6, Slice.empty, true)],
@@ -1853,7 +1854,7 @@ test("resolves a conflict when typing in deleted content", async () => {
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("foo")), new ReplaceStep(6, 6, textSlice("bar"))],
@@ -1870,7 +1871,7 @@ test("resolves a conflict when typing in deleted content", async () => {
             .toJSON(),
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 2,
         steps: [new ReplaceStep(3, 9, textSlice(""))],
@@ -1884,7 +1885,7 @@ test("resolves a conflict when typing in deleted content", async () => {
             .toJSON(),
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 2,
         steps: [new ReplaceStep(6, 6, textSlice("x"))],
@@ -1907,7 +1908,7 @@ test("resolves a conflict when typing in deleted content and the delete action i
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("foo")), new ReplaceStep(6, 6, textSlice("bar"))],
@@ -1924,7 +1925,7 @@ test("resolves a conflict when typing in deleted content and the delete action i
             .toJSON(),
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 2,
         steps: [new ReplaceStep(1, 1, textSlice("x"))],
@@ -1941,7 +1942,7 @@ test("resolves a conflict when typing in deleted content and the delete action i
             .toJSON(),
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 2,
         steps: [new ReplaceStep(3, 9, textSlice(""))],
@@ -1958,7 +1959,7 @@ test("resolves a conflict when typing in deleted content and the delete action i
             .toJSON(),
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 2,
         steps: [new ReplaceStep(6, 6, textSlice("x"))],
@@ -1984,7 +1985,7 @@ test("can read steps in a single transaction with many steps", async () => {
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 0,
         steps: [
@@ -2063,37 +2064,37 @@ test("can read steps in individual transactions of single steps", async () => {
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
         clientId: generateId(),
     });
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("b"))],
         clientId: generateId(),
     });
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 2,
         steps: [new ReplaceStep(5, 5, textSlice("c"))],
         clientId: generateId(),
     });
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 3,
         steps: [new ReplaceStep(6, 6, textSlice("d"))],
         clientId: generateId(),
     });
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 4,
         steps: [new ReplaceStep(7, 7, textSlice("e"))],
         clientId: generateId(),
     });
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 5,
         steps: [new ReplaceStep(8, 8, textSlice("f"))],
@@ -2165,19 +2166,19 @@ test("can read steps in a couple multi-step transactions", async () => {
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a")), new ReplaceStep(4, 4, textSlice("b"))],
         clientId: generateId(),
     });
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 2,
         steps: [new ReplaceStep(5, 5, textSlice("c")), new ReplaceStep(6, 6, textSlice("d"))],
         clientId: generateId(),
     });
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id: documentId,
         version: 4,
         steps: [new ReplaceStep(7, 7, textSlice("e")), new ReplaceStep(8, 8, textSlice("f"))],

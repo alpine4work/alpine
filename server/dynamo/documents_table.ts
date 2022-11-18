@@ -1,4 +1,5 @@
 import {Step} from "prosemirror-transform";
+import {ServerContext} from "~/server/context/server_context";
 import {getUpdateDocumentContentResult} from "~/server/documents/get_update_document_content_result";
 import {DynamoConditionExpression} from "~/server/dynamo/internal/dynamo_condition";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
@@ -438,11 +439,10 @@ export const documentContentCacheEvictionTimeoutMs = 1000 * 60 * 5;
  * the database. If there is another process updating our document content then
  * the cache may not be up-to-date!
  */
-// NOTE(calebmer): I'm hoping that our serverless provider (Vercel)
-// consistently routes updates from the same user to the same process. If
-// Vercel doesn't do this then the cache is pointless since each process will
-// have its own cache. I'd also hope that one day we can tune Vercel to route
-// updates from the same space id to the same process.
+// NOTE(calebmer): Reconsider this cache now that we use Cloudflare Durable
+// Objects for updates! We still want to avoid loading the document from the
+// database every update, but this cache is currently a little heavy handed if
+// that's all we care about. At least it's well tested.
 export class DocumentContentCacheForUpdate {
     private readonly _entries = new DocumentContentCacheForUpdateEntries();
 
@@ -818,27 +818,30 @@ declare module "prosemirror-transform" {
 // TODO(calebmer): If this is being called outside our collaboration durable
 // object we should throw an error or restart the durable object or something.
 // Maybe the durable object could incorporate conflicting
-export async function updateDocumentContent({
-    id,
-    version: clientVersion,
-    steps: clientSteps,
-    clientId,
-    cacheOverrideForTest,
-}: {
-    id: Id;
-    version: number;
-    steps: ReadonlyArray<Step>;
-    clientId: Id;
-    // TODO(calebmer): Do we really need the cache anymore now that we're using
-    // Durable Objects for updating documents? For now, probably yes? Each Durable
-    // Object should only have one document cached in memory and the document being
-    // cached means we don't need to reload it from the database every update which
-    // is nice.
-    //
-    // Maybe instead of a global cache we have a cache in the durable object class?
-    // This cache logic was written before Durable Objects.
-    cacheOverrideForTest?: DocumentContentCacheForUpdate;
-}): Promise<{
+export async function updateDocumentContent(
+    context: ServerContext,
+    {
+        id,
+        version: clientVersion,
+        steps: clientSteps,
+        clientId,
+        cacheOverrideForTest,
+    }: {
+        id: Id;
+        version: number;
+        steps: ReadonlyArray<Step>;
+        clientId: Id;
+        // NOTE(calebmer): Do we really need the cache anymore now that we're using
+        // Durable Objects for updating documents? For now, probably yes? Each Durable
+        // Object should only have one document cached in memory and the document being
+        // cached means we don't need to reload it from the database every update which
+        // is nice.
+        //
+        // Maybe instead of a global cache we have a cache in the durable object class?
+        // This cache logic was written before Durable Objects.
+        cacheOverrideForTest?: DocumentContentCacheForUpdate;
+    },
+): Promise<{
     /**
      * The new version of the document after applying our update.
      *
@@ -980,23 +983,21 @@ export async function updateDocumentContent({
 
     const {oldVersion, newVersion, newContent, newSteps, conflictingSteps} = result;
 
-    // We add a blocking update to our snapshot within the
-    // `updateDocumentContent()` call. We don't pay the price of updating the
-    // snapshot every update but rather every N updates (where N is 20-100 steps).
-    //
-    // We need a blocking update since we can't schedule a background task in a
-    // serverless function. The function will be paused if there is no activity. We
-    // could in the future use a task queue to update the snapshot as a background
-    // job, but occasionally paying the snapshot update price within the
-    // `updateDocumentContent()` function doesn't seem too bad.
-    //
-    // TODO(calebmer): Put this in `event.waitUntil()`.
-    await maybeUpdateDocumentSnapshotAfterUpdatingContent({
-        id,
-        oldVersion,
-        newVersion,
-        newContent,
-    });
+    const lastVersionToTriggerSnapshot =
+        Math.floor(newVersion / updateDocumentSnapshotAfterStepCount) *
+        updateDocumentSnapshotAfterStepCount;
+
+    // Run a snapshot update task about every
+    // `updateDocumentSnapshotAfterStepCount` steps.
+    if (oldVersion < lastVersionToTriggerSnapshot) {
+        context.waitUntil(
+            updateDocumentSnapshotAfterUpdatingContent({
+                id,
+                newVersion,
+                newContent,
+            }),
+        );
+    }
 
     return {
         newVersion,
@@ -1019,26 +1020,15 @@ const updateDocumentSnapshotAfterStepCount = 100;
 
 export const updateDocumentSnapshotBeforeDeletingStepsTestCheckpoint = new TestCheckpoint<Id>();
 
-async function maybeUpdateDocumentSnapshotAfterUpdatingContent({
+async function updateDocumentSnapshotAfterUpdatingContent({
     id,
-    oldVersion,
     newVersion,
     newContent,
 }: {
     id: Id;
-    oldVersion: number;
     newVersion: number;
     newContent: DocumentContent;
 }) {
-    // Get the last version before `newVersion` which should trigger a snapshot.
-    const lastVersionToTriggerSnapshot =
-        Math.floor(newVersion / updateDocumentSnapshotAfterStepCount) *
-        updateDocumentSnapshotAfterStepCount;
-
-    // If we've already passed the last version number to trigger a snapshot then
-    // we don't need to save a new snapshot.
-    if (oldVersion >= lastVersionToTriggerSnapshot) return;
-
     const snapshot = await DocumentsTable.getPartialItem(
         {
             partitionType: "Document",

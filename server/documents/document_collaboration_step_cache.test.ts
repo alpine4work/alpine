@@ -1,5 +1,6 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep, Step} from "prosemirror-transform";
+import {TestServerContext} from "~/server/context/server_context";
 import {DocumentCollaborationStepCache} from "~/server/documents/document_collaboration_step_cache";
 import {
     createDocument,
@@ -30,7 +31,7 @@ test("fails when the end version is greater than the last end version to be pass
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id,
         version: 0,
         steps: [
@@ -67,7 +68,7 @@ test("gets the correct steps", async () => {
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id,
         version: 0,
         steps: [
@@ -133,7 +134,7 @@ test("gets the correct steps in the fewest database reads", async () => {
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id,
         version: 0,
         steps: [
@@ -241,7 +242,7 @@ test("gets the correct steps in the fewest database reads even when reading in p
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent({
+    await updateDocumentContent(new TestServerContext(), {
         id,
         version: 0,
         steps: [
