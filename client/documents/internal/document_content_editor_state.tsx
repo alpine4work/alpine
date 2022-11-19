@@ -1,7 +1,16 @@
 import murmurhash from "murmurhash";
 import {TextSelection} from "prosemirror-state";
 import {Step} from "prosemirror-transform";
-import {MutableRefObject, useEffect, useMemo, useReducer, useRef, useState} from "react";
+import {
+    MutableRefObject,
+    useCallback,
+    useEffect,
+    useMemo,
+    useReducer,
+    useRef,
+    useState,
+} from "react";
+import {unstable_ImmediatePriority, unstable_runWithPriority} from "scheduler";
 import {ContentEditorPhantomTextSelection} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {useWebSocket} from "~/client/helpers/use_web_socket";
@@ -141,6 +150,17 @@ function reduce(state: State, action: Action): State {
 function reduceWithAction(oldState: State, action: Action): State {
     switch (action.type) {
         case "Edit": {
+            // If an edit was made on top of a version of `editorState` that's different
+            // from what's in state that means we may have some data loss!
+            //
+            // We've observed this happen when React cancels a low priority render in
+            // response to a user keyboard event. So we wrap `dispatch()` so that it always
+            // runs at a high priority.
+            assert(
+                action.editorState.getVersion() === oldState.editorState.getVersion(),
+                "Edit was made on top of an editor state with a different base version than what is in React state",
+            );
+
             const textSelection = action.editorState.getTextSelection();
 
             // Don't update our `presenceState` when there are steps we are sending to the
@@ -180,6 +200,16 @@ function reduceWithAction(oldState: State, action: Action): State {
         case "ReceiveSteps": {
             const oldVersion = oldState.editorState.getVersion();
             if (action.newVersion <= oldVersion) return oldState;
+
+            // If we received an action that's applied on a future version of our content,
+            // we can't commit it until our local state has caught up. So stick it in
+            // pending actions and we'll come back to it.
+            if (oldVersion < action.newVersion - action.steps.length) {
+                return {
+                    ...oldState,
+                    pendingActions: [...oldState.pendingActions, action],
+                };
+            }
 
             // We may dispatch this action multiple times with the same steps. Remove any
             // steps we've already seen.
@@ -316,7 +346,43 @@ function getContentWithoutSendableSteps(
 export function useDocumentContentEditorState(initialDocument: DocumentModel) {
     const documentId = initialDocument.id;
 
-    const [state, dispatch] = useReducer(reduce, initialDocument, getInitialState);
+    const [state, _dispatch] = useReducer(reduce, initialDocument, getInitialState);
+
+    const dispatch = useCallback((action: Action) => {
+        // It is essential for correctness that actions which change `editorState` run
+        // immediately. Consider the case where we receive some steps from the server
+        // (`ReceiveSteps` action) and the user makes an edit (`Edit` action) at the
+        // exact same time.
+        //
+        // React gives the `ReceiveSteps` action a lower priority since it came from a
+        // WebSocket message. It runs the reducer then *cancels* the React re-render
+        // since an `Edit` comes in at a high, user interaction, priority.
+        //
+        // When we receive an action that changes `editorState`, we need React to
+        // immediately re-render the component with the new state so if a user types in
+        // their ProseMirror `EditorView` it is applied on top of the `editorState` we
+        // received from the server.
+        let priorityLevel: number | null;
+        switch (action.type) {
+            case "Edit":
+            case "ReceiveSteps":
+                priorityLevel = unstable_ImmediatePriority;
+                break;
+            case "AugmentRememberedSteps":
+                priorityLevel = null;
+                break;
+            default:
+                throw exhaustive(action);
+        }
+
+        if (priorityLevel === null) {
+            _dispatch(action);
+        } else {
+            unstable_runWithPriority(priorityLevel, () => {
+                _dispatch(action);
+            });
+        }
+    }, []);
 
     const [otherPresenceStateByConnectionId, setOtherPresenceStateByConnectionId] = useState<
         ImmutableMap<Id, DocumentCollaborationPresenceState>

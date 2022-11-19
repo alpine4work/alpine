@@ -12,6 +12,7 @@ ts_project(
         "//:node_modules/@types/jest",
         "//:node_modules/@types/react",
         "//:node_modules/@types/react-dom",
+        "//:node_modules/@types/scheduler",
         "//:node_modules/ably",
         "//:node_modules/dedent",
         "//:node_modules/murmurhash",
@@ -29,6 +30,7 @@ ts_project(
         "//:node_modules/react-aria",
         "//:node_modules/react-dom",
         "//:node_modules/react-router-dom",
+        "//:node_modules/scheduler",
         "//shared",
     ],
 )
