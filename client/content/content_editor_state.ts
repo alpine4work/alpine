@@ -201,6 +201,29 @@ export class ContentEditorState<Content extends Node> {
 
         return new ContentEditorState(this._state.apply(transaction));
     }
+
+    /**
+     * Get the underlying content as if there are no unconfirmed steps.
+     *
+     * This is the content as the server currently sees it.
+     */
+    public getContentWithoutSendableSteps(): Content {
+        assert(this.isCollab());
+
+        assert(collabPluginKey);
+        const {unconfirmed} = collabPluginKey.getState(this._state);
+
+        let content = this._state.doc;
+
+        for (let i = unconfirmed.length - 1; i >= 0; i--) {
+            const invertedStep: Step = unconfirmed[i].inverted;
+            const stepResult = invertedStep.apply(content);
+            assert(stepResult.doc);
+            content = stepResult.doc;
+        }
+
+        return content as Content;
+    }
 }
 
 let collabPluginKey: PluginKey;
