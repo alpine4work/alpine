@@ -18,6 +18,27 @@ export abstract class ErrorBase extends Error {
     }
 
     protected abstract _getCode(): ErrorCode;
+
+    /**
+     * Convert an unknown exception object into a coded error with the original
+     * error as the cause object.
+     *
+     * If you call `ErrorBase.from()` you will get an `UnknownError`. Instead
+     * prefer using a specific error like `FailedPreconditionError.from()`.
+     */
+    public static from(error: unknown): ErrorBase {
+        const ErrorConstructor =
+            this.constructor !== ErrorBase
+                ? (this.constructor as new (
+                      message: string,
+                      options?: {cause?: unknown},
+                  ) => ErrorBase)
+                : UnknownError;
+
+        return new ErrorConstructor(error instanceof Error ? error.message : String(error), {
+            cause: error,
+        });
+    }
 }
 
 /**

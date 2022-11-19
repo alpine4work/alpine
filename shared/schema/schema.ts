@@ -1063,10 +1063,10 @@ export class UnionSchemaVariant<Value extends {readonly type: string}> {
 // Actually, I think the real move is to have two `deserialize()` functions and
 // make it an explicit choice at every call-site.
 export class SchemaDeserializationError extends InvalidArgumentError {
-    constructor(message: string) {
+    constructor(message: string, {cause}: {cause?: unknown} = {}) {
         const stackString = getSchemaDeserializationStackString();
 
-        super(message);
+        super(message, {cause});
         this.name = "SchemaDeserializationError";
         this.message = stackString ? `${message} in \`${stackString}\`` : message;
     }

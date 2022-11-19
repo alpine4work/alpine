@@ -1,5 +1,6 @@
 import {DocumentContentStepSchema} from "~/shared/documents/document_content_schema";
 import {ErrorSchema} from "~/shared/error/error_schema";
+import {ProsemirrorSelectionSchema} from "~/shared/prosemirror/prosemirror_selection_schema";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 
 export type DocumentCollaborationPresenceState = SchemaType<
@@ -8,10 +9,7 @@ export type DocumentCollaborationPresenceState = SchemaType<
 
 const DocumentCollaborationPresenceStateSchema = Schema.object({
     version: Schema.integer,
-    textSelection: Schema.object({
-        anchor: Schema.integer,
-        head: Schema.integer,
-    }),
+    selection: ProsemirrorSelectionSchema,
 });
 
 export type DocumentCollaborationMessageFromClient = SchemaType<
@@ -34,6 +32,14 @@ export const DocumentCollaborationMessageFromClientSchema = Schema.union({
         /**
          * Atomically update our presence state in the same action as we update
          * our content.
+         *
+         * The state must have a `version` that matches the `version` in this update.
+         * However, an important detail is that the state is for the document at
+         * `version` plus the `steps` in this update! The selection, for instance, is
+         * for the document after steps are applied.
+         *
+         * The presence state in `UpdateOurPresenceState` is for exactly the referenced
+         * document version.
          */
         updateOurPresenceState: Schema.object({
             state: DocumentCollaborationPresenceStateSchema.nullable(),

@@ -1,4 +1,3 @@
-import {TextSelection} from "prosemirror-state";
 import {Step} from "prosemirror-transform";
 import {DurableObjectServerContext} from "~/server/context/server_context";
 import {DocumentCollaborationStepCache} from "~/server/documents/document_collaboration_step_cache";
@@ -29,6 +28,7 @@ import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {Id, generateId} from "~/shared/id/id";
+import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema";
 import {Schema} from "~/shared/schema/schema";
 
 /**
@@ -274,24 +274,19 @@ class DocumentCollaborationContentManager {
 
             // Validate the presence state selection based on the document as the client
             // sees it, then map the selection to the correct position.
-            const clientPresenceStateTextSelection = update.updateOurPresenceState.state
-                ? validateDocumentCollaborationPresenceStateTextSelection(
-                      clientContent,
-                      update.updateOurPresenceState.state.textSelection,
-                  )
-                : null;
-            const newPresenceStateSelection = clientPresenceStateTextSelection?.map(
+            const clientPresenceStateSelection =
+                update.updateOurPresenceState.state?.selection.getAndMaybeDeserialize(
+                    clientContent,
+                );
+            const newPresenceStateSelection = clientPresenceStateSelection?.map(
                 newContent,
                 mapping,
             );
             const presenceState: DocumentCollaborationPresenceState | null =
-                newPresenceStateSelection instanceof TextSelection
+                newPresenceStateSelection
                     ? {
                           version: oldVersion + steps.length,
-                          textSelection: {
-                              anchor: newPresenceStateSelection.$anchor.pos,
-                              head: newPresenceStateSelection.$head.pos,
-                          },
+                          selection: ProsemirrorSelectionWrapper.new(newPresenceStateSelection),
                       }
                     : null;
 
@@ -522,7 +517,9 @@ class DocumentCollaborationDurableObjectConnection {
                     case "UpdateOurPresenceState": {
                         // Make sure the new presence state is valid before we broadcast it to our
                         // other clients.
-                        if (message.state) {
+                        if (!message.state) {
+                            this._presenceState = null;
+                        } else {
                             const isVersionValid =
                                 message.state.version >= 0 &&
                                 message.state.version <= this._contentManager.getCurrentVersion();
@@ -532,14 +529,16 @@ class DocumentCollaborationDurableObjectConnection {
                                     "Presence state version is outside the document's version range",
                                 );
 
-                            validateDocumentCollaborationPresenceStateTextSelection(
-                                await this._contentManager.getContentAtVersion(
-                                    message.state.version,
-                                ),
-                                message.state.textSelection,
+                            const oldContent = await this._contentManager.getContentAtVersion(
+                                message.state.version,
                             );
+
+                            // Call this function to deserialize the selection! If deserialization fails an
+                            // error will be thrown.
+                            message.state.selection.getAndMaybeDeserialize(oldContent);
+
+                            this._presenceState = message.state;
                         }
-                        this._presenceState = message.state;
 
                         this._sendMessageToOthers({
                             type: "UpdateOtherPresenceState",
@@ -595,44 +594,4 @@ class DocumentCollaborationDurableObjectConnection {
         });
         this._destroyDurableObject();
     }
-}
-
-function validateDocumentCollaborationPresenceStateTextSelection(
-    content: DocumentContent,
-    textSelection: DocumentCollaborationPresenceState["textSelection"],
-): TextSelection {
-    const isAnchorPosValid =
-        Number.isInteger(textSelection.anchor) &&
-        textSelection.anchor >= 0 &&
-        textSelection.anchor <= content.content.size;
-
-    if (!isAnchorPosValid)
-        throw new FailedPreconditionError(
-            "Presence state text selection anchor position is out of range",
-        );
-
-    const isHeadPosValid =
-        Number.isInteger(textSelection.head) &&
-        textSelection.head >= 0 &&
-        textSelection.head <= content.content.size;
-
-    if (!isHeadPosValid)
-        throw new FailedPreconditionError(
-            "Presence state text selection head position is out of range",
-        );
-
-    const $anchor = content.resolve(textSelection.anchor);
-    const $head = content.resolve(textSelection.head);
-
-    if (!$anchor.parent.inlineContent)
-        throw new FailedPreconditionError(
-            "Presence state text selection anchor is not pointing into a node with inline content",
-        );
-
-    if (!$head.parent.inlineContent)
-        throw new FailedPreconditionError(
-            "Presence state text selection anchor is not pointing into a node with inline content",
-        );
-
-    return new TextSelection($anchor, $head);
 }

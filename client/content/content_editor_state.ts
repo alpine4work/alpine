@@ -1,8 +1,8 @@
 import {collab, getVersion, receiveTransaction, sendableSteps} from "prosemirror-collab";
 import {history} from "prosemirror-history";
 import {Node} from "prosemirror-model";
-import {EditorState, Plugin, PluginKey, TextSelection, Transaction} from "prosemirror-state";
-import {Step} from "prosemirror-transform";
+import {EditorState, Plugin, PluginKey, Selection, Transaction} from "prosemirror-state";
+import {Mapping, Step} from "prosemirror-transform";
 import {buildInputRulesPlugin} from "~/client/content/internal/content_editor_plugin_input_rules";
 import {buildKeymapPlugin} from "~/client/content/internal/content_editor_plugin_keymap";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema";
@@ -102,10 +102,9 @@ export class ContentEditorState<Content extends Node> {
     }
 
     /**
-     * Get the current text selection if it exists.
+     * Get the current selection.
      */
-    public getTextSelection(): TextSelection | null {
-        if (!(this._state.selection instanceof TextSelection)) return null;
+    public getSelection(): Selection {
         return this._state.selection;
     }
 
@@ -202,6 +201,8 @@ export class ContentEditorState<Content extends Node> {
         return new ContentEditorState(this._state.apply(transaction));
     }
 
+    private _contentWithoutSendableSteps: Content | null = null;
+
     /**
      * Get the underlying content as if there are no unconfirmed steps.
      *
@@ -210,19 +211,23 @@ export class ContentEditorState<Content extends Node> {
     public getContentWithoutSendableSteps(): Content {
         assert(this.isCollab());
 
-        assert(collabPluginKey);
-        const {unconfirmed} = collabPluginKey.getState(this._state);
+        if (!this._contentWithoutSendableSteps) {
+            assert(collabPluginKey);
+            const {unconfirmed} = collabPluginKey.getState(this._state);
 
-        let content = this._state.doc;
+            let content = this._state.doc;
 
-        for (let i = unconfirmed.length - 1; i >= 0; i--) {
-            const invertedStep: Step = unconfirmed[i].inverted;
-            const stepResult = invertedStep.apply(content);
-            assert(stepResult.doc);
-            content = stepResult.doc;
+            for (let i = unconfirmed.length - 1; i >= 0; i--) {
+                const invertedStep: Step = unconfirmed[i].inverted;
+                const stepResult = invertedStep.apply(content);
+                assert(stepResult.doc);
+                content = stepResult.doc;
+            }
+
+            this._contentWithoutSendableSteps = content as Content;
         }
 
-        return content as Content;
+        return this._contentWithoutSendableSteps;
     }
 }
 

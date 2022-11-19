@@ -1,6 +1,6 @@
 import murmurhash from "murmurhash";
-import {TextSelection} from "prosemirror-state";
-import {Step} from "prosemirror-transform";
+import {Selection} from "prosemirror-state";
+import {Mapping, Step} from "prosemirror-transform";
 import {
     MutableRefObject,
     useCallback,
@@ -30,6 +30,7 @@ import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {Id, generateId} from "~/shared/id/id";
 import {getDocumentContentSteps} from "~/shared/network/documents_network_definition";
+import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema";
 import {defaultThemeColor} from "~/shared/styles/styles";
 
 type State = {
@@ -73,10 +74,7 @@ type State = {
      * to display it on their editor.
      */
     readonly ourPresenceState: {
-        readonly state: {
-            readonly version: number;
-            readonly textSelection: TextSelection;
-        } | null;
+        readonly state: DocumentCollaborationPresenceState | null;
         readonly shouldSendToServerRef: MutableRefObject<boolean>;
     };
 };
@@ -161,8 +159,6 @@ function reduceWithAction(oldState: State, action: Action): State {
                 "Edit was made on top of an editor state with a different base version than what is in React state",
             );
 
-            const textSelection = action.editorState.getTextSelection();
-
             // Don't update our `presenceState` when there are steps we are sending to the
             // server. Other clients would not know how to interpret our state until they
             // see our steps.
@@ -187,12 +183,12 @@ function reduceWithAction(oldState: State, action: Action): State {
                       }
                     : null,
                 ourPresenceState: {
-                    state: textSelection
-                        ? {
-                              version: action.editorState.getVersion(),
-                              textSelection,
-                          }
-                        : null,
+                    state: {
+                        version: action.editorState.getVersion(),
+                        selection: ProsemirrorSelectionWrapper.new(
+                            action.editorState.getSelection(),
+                        ),
+                    },
                     shouldSendToServerRef: {current: true},
                 },
             };
@@ -529,11 +525,12 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
     const {smallestPresenceStateVersion, presenceStates} = useMemo(() => {
         let smallestPresenceStateVersion = null;
 
-        let presenceStates: Array<DocumentCollaborationPresenceState & {connectionId: Id}> = [];
+        let presenceStates: Array<{
+            connectionId: Id;
+            selection: Selection;
+        }> = [];
 
-        for (const [connectionId, _presenceState] of otherPresenceStateByConnectionId) {
-            let presenceState = _presenceState;
-
+        for (const [connectionId, presenceState] of otherPresenceStateByConnectionId) {
             // Record the smallest presence state version before mapping the selections
             // forward.
             //
@@ -550,6 +547,18 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
              * 1. Fast-forward outdated presence states if we can, otherwise drop         *
             \* ========================================================================== */
 
+            const editorVersion = state.editorState.getVersion();
+
+            // If the presence state version is equal to our editor version, then we don't
+            // need to transform the selection.
+            if (presenceState.version === editorVersion) {
+                presenceStates.push({
+                    connectionId,
+                    selection: presenceState.selection.getAndMaybeDeserialize(
+                        state.editorState.getContentWithoutSendableSteps(),
+                    ),
+                });
+            }
             // We don't update presence states if the document changes but the selection
             // doesn't move. Instead clients are responsible for updating selections that
             // didn't move to the new document locally.
@@ -560,8 +569,7 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
             //
             // It's important that we record `smallestPresenceStateVersion` before this
             // step since we're about to update all our presence state versions.
-            const editorVersion = state.editorState.getVersion();
-            if (
+            else if (
                 presenceState.version < editorVersion &&
                 presenceState.version >= editorVersion - state.rememberedSteps.length
             ) {
@@ -570,10 +578,7 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
                         state.rememberedSteps.length - (editorVersion - presenceState.version)
                     ]!.contentBeforeStep.get();
 
-                let selection: TextSelection | null = new TextSelection(
-                    oldContent.resolve(presenceState.textSelection.anchor),
-                    oldContent.resolve(presenceState.textSelection.head),
-                );
+                let selection = presenceState.selection.getAndMaybeDeserialize(oldContent);
 
                 for (let version = presenceState.version; version < editorVersion; version++) {
                     if (!selection) break;
@@ -583,34 +588,25 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
                             state.rememberedSteps.length - (editorVersion - version)
                         ]!;
 
-                    const newSelection = selection.map(contentAfterStep.get(), step.getMap());
-                    selection = newSelection instanceof TextSelection ? newSelection : null;
+                    selection = selection.map(contentAfterStep.get(), step.getMap());
                 }
 
-                // If in the process of mapping the selection forward we lost the selection
-                // then remove the presence state from our array.
-                if (!selection) continue;
-
-                presenceState = {
-                    version: editorVersion,
-                    textSelection: {
-                        anchor: selection.$anchor.pos,
-                        head: selection.$head.pos,
-                    },
-                };
+                presenceStates.push({
+                    connectionId,
+                    selection,
+                });
+            } else {
+                // The remaining cases here are:
+                //
+                // 1. Presence states at a future version. (Should not happen.)
+                // 2. Presence states that we couldn't catch because we don't have enough
+                //    `rememberedSteps`. We will try to fetch more `rememberedSteps` to
+                //    render these.
+                //
+                // We are ok dropping these presence states. In case 2 we will send a network
+                // request to load more steps and re-render the component. At this point the
+                // presence states will be shown.
             }
-
-            // Drop any presence states that are not at the current version.
-            //
-            // There are two kinds of states we expect to discard here:
-            //
-            // 1. Presence states at a future version. (Should not happen.)
-            // 2. Presence states that we couldn't catch because we don't have enough
-            //    `rememberedSteps`. We will try to fetch more `rememberedSteps` to
-            //    render these.
-            if (presenceState.version !== editorVersion) continue;
-
-            presenceStates.push({...presenceState, connectionId});
         }
 
         /* ========================================================================== *\
@@ -622,35 +618,15 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
         // state.
         const sendableSteps = state.editorState.sendableSteps();
         if (sendableSteps) {
-            let version = state.editorState.getVersion();
+            const content = state.editorState.getContent();
 
-            for (const origin of sendableSteps.origins) {
-                const newPresenceStates: Array<
-                    DocumentCollaborationPresenceState & {connectionId: Id}
-                > = [];
+            const mapping = new Mapping();
+            for (const step of sendableSteps.steps) mapping.appendMap(step.getMap());
 
-                for (const presenceState of presenceStates) {
-                    const selection = new TextSelection(
-                        origin.before.resolve(presenceState.textSelection.anchor),
-                        origin.before.resolve(presenceState.textSelection.head),
-                    );
-
-                    const newSelection = selection.map(origin.doc, origin.mapping);
-                    if (!(selection instanceof TextSelection)) continue;
-
-                    newPresenceStates.push({
-                        connectionId: presenceState.connectionId,
-                        version: version + origin.steps.length,
-                        textSelection: {
-                            anchor: newSelection.$anchor.pos,
-                            head: newSelection.$head.pos,
-                        },
-                    });
-                }
-
-                presenceStates = newPresenceStates;
-                version += origin.steps.length;
-            }
+            presenceStates = presenceStates.map(presenceState => ({
+                connectionId: presenceState.connectionId,
+                selection: presenceState.selection.map(content, mapping),
+            }));
         }
 
         return {smallestPresenceStateVersion, presenceStates};
@@ -677,8 +653,8 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
             phantomTextSelections.push({
                 key: presenceState.connectionId,
                 color,
-                anchor: presenceState.textSelection.anchor,
-                head: presenceState.textSelection.head,
+                anchor: presenceState.selection.anchor,
+                head: presenceState.selection.head,
             });
         }
 
