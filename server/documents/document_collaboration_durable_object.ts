@@ -3,7 +3,11 @@ import {Step} from "prosemirror-transform";
 import {DurableObjectServerContext} from "~/server/context/server_context";
 import {DocumentCollaborationStepCache} from "~/server/documents/document_collaboration_step_cache";
 import {getUpdateDocumentContentResult} from "~/server/documents/get_update_document_content_result";
-import {getDocument, updateDocumentContent} from "~/server/dynamo/documents_table";
+import {
+    getDocument,
+    getDocumentPreview,
+    updateDocumentContent,
+} from "~/server/dynamo/documents_table";
 import {WebSocketServer} from "~/server/helpers/web_socket_server";
 import {
     DocumentCollaborationMessageFromClient,
@@ -40,8 +44,13 @@ class DocumentCollaborationDurableObjectWrapper {
     public async fetch(request: Request): Promise<Response> {
         const id = Schema.id.deserialize(request.headers.get("x-document-id"));
 
-        if (this._objectPromise === null)
-            this._objectPromise = DocumentCollaborationDurableObject.initialize(this._state, id);
+        if (this._objectPromise === null) {
+            this._objectPromise = DocumentCollaborationDurableObject.initialize({
+                state: this._state,
+                id,
+                destroy: () => (this._objectPromise = null),
+            });
+        }
 
         const object = await this._objectPromise;
 
@@ -60,11 +69,17 @@ class DocumentCollaborationDurableObject {
     private readonly _state: DurableObjectState;
     public readonly id: Id;
     private readonly _contentManager: DocumentCollaborationContentManager;
+    private readonly _destroyCallback: () => void;
 
-    public static async initialize(
-        state: DurableObjectState,
-        id: Id,
-    ): Promise<DocumentCollaborationDurableObject> {
+    public static async initialize({
+        state,
+        id,
+        destroy,
+    }: {
+        state: DurableObjectState;
+        id: Id;
+        destroy: () => void;
+    }): Promise<DocumentCollaborationDurableObject> {
         const document = await getDocument(id);
         if (!document) throw new NotFoundError("Document not found");
 
@@ -73,6 +88,7 @@ class DocumentCollaborationDurableObject {
             id: document.id,
             initialVersion: document.version,
             initialContent: document.content,
+            destroy,
         });
     }
 
@@ -81,11 +97,13 @@ class DocumentCollaborationDurableObject {
         id,
         initialVersion,
         initialContent,
+        destroy,
     }: {
         state: DurableObjectState;
         id: Id;
         initialVersion: number;
         initialContent: DocumentContent;
+        destroy: () => void;
     }) {
         this._state = state;
         this.id = id;
@@ -98,6 +116,7 @@ class DocumentCollaborationDurableObject {
                 this._webSocketServer.sendMessageToAll(message);
             },
         });
+        this._destroyCallback = destroy;
     }
 
     public fetch(request: Request): Response {
@@ -113,14 +132,20 @@ class DocumentCollaborationDurableObject {
     >(
         DocumentCollaborationMessageFromClientSchema,
         DocumentCollaborationMessageFromServerSchema,
-        ({sendMessage, sendMessageToAllOthers, iterateOtherConnections}) =>
-            new DocumentCollaborationDurableObjectConnection(
-                this._contentManager,
+        ({sendMessage, sendMessageToOthers, iterateOtherConnections}) =>
+            new DocumentCollaborationDurableObjectConnection({
+                contentManager: this._contentManager,
                 sendMessage,
-                sendMessageToAllOthers,
+                sendMessageToOthers,
                 iterateOtherConnections,
-            ),
+                destroyDurableObject: () => this._destroy(),
+            }),
     );
+
+    private _destroy() {
+        this._webSocketServer.closeAll();
+        this._destroyCallback();
+    }
 }
 
 /**
@@ -380,17 +405,37 @@ class DocumentCollaborationContentManager {
 
 class DocumentCollaborationDurableObjectConnection {
     public readonly id = generateId();
+
+    private readonly _contentManager: DocumentCollaborationContentManager;
+    private readonly _sendMessage: (message: DocumentCollaborationMessageFromServer) => void;
+    private readonly _sendMessageToOthers: (
+        message: DocumentCollaborationMessageFromServer,
+    ) => void;
+    private readonly _iterateOtherConnections: () => Iterable<DocumentCollaborationDurableObjectConnection>;
+    private readonly _destroyDurableObject: () => void;
+
     private _presenceState: DocumentCollaborationPresenceState | null = null;
     private _sequentialQueue = new AsyncSequentialQueue();
 
-    constructor(
-        private readonly _contentManager: DocumentCollaborationContentManager,
-        private readonly _sendMessage: (message: DocumentCollaborationMessageFromServer) => void,
-        private readonly _sendMessageToOthers: (
-            message: DocumentCollaborationMessageFromServer,
-        ) => void,
-        private readonly _iterateOtherConnections: () => Iterable<DocumentCollaborationDurableObjectConnection>,
-    ) {}
+    constructor({
+        contentManager,
+        sendMessage,
+        sendMessageToOthers,
+        iterateOtherConnections,
+        destroyDurableObject,
+    }: {
+        contentManager: DocumentCollaborationContentManager;
+        sendMessage: (message: DocumentCollaborationMessageFromServer) => void;
+        sendMessageToOthers: (message: DocumentCollaborationMessageFromServer) => void;
+        iterateOtherConnections: () => Iterable<DocumentCollaborationDurableObjectConnection>;
+        destroyDurableObject: () => void;
+    }) {
+        this._contentManager = contentManager;
+        this._sendMessage = sendMessage;
+        this._sendMessageToOthers = sendMessageToOthers;
+        this._iterateOtherConnections = iterateOtherConnections;
+        this._destroyDurableObject = destroyDurableObject;
+    }
 
     public getPresenceState() {
         return this._presenceState;
@@ -411,10 +456,35 @@ class DocumentCollaborationDurableObjectConnection {
                     case "BackfillRequest": {
                         const version = this._contentManager.getCurrentVersion();
 
-                        if (message.version > version)
-                            throw new InvalidArgumentError(
+                        if (message.version > version) {
+                            // Sometimes, if the version in our backfill request appears to be in the
+                            // future it's because the client loaded a version of the document from the
+                            // database that is ahead of the version of the document in the durable object.
+                            //
+                            // So load the document from our database and if its version is ahead of the
+                            // one in our durable object then we want to destroy the entire durable object.
+                            const documentPreview = await getDocumentPreview(this.id);
+                            if (!documentPreview) {
+                                this._sendFatalErrorMessageAndDestroyDurableObject(
+                                    new NotFoundError(
+                                        "Document was deleted since durable object started",
+                                    ),
+                                );
+                                return;
+                            }
+                            if (documentPreview.version > version) {
+                                this._sendFatalErrorMessageAndDestroyDurableObject(
+                                    new InternalError(
+                                        "Document version in durable object is out of sync with actual document version",
+                                    ),
+                                );
+                                return;
+                            }
+
+                            throw new FailedPreconditionError(
                                 "Tried to backfill a future document version",
                             );
+                        }
 
                         // Load steps from our store and send them to the client to catch
                         // the client up...
@@ -510,6 +580,20 @@ class DocumentCollaborationDurableObjectConnection {
                 }
             }),
         );
+    }
+
+    private _sendFatalErrorMessageAndDestroyDurableObject(error: unknown) {
+        // TODO(calebmer): Report this error somewhere in addition to sending it to
+        // the client.
+        this._sendMessage({
+            type: "Error",
+            error,
+        });
+        this._sendMessageToOthers({
+            type: "Error",
+            error,
+        });
+        this._destroyDurableObject();
     }
 }
 

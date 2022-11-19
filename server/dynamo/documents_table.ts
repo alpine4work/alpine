@@ -290,6 +290,7 @@ export async function getDocumentPreview(id: Id): Promise<DocumentPreviewModel |
 
     return new DocumentPreviewModel({
         id,
+        version: attributes.version,
         titleWithoutFallback: attributes.titleWithoutFallback,
     });
 }

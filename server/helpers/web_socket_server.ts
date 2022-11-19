@@ -35,7 +35,7 @@ export class WebSocketServer<
         private readonly _createConnection: (connection: {
             request: Request;
             sendMessage: (message: MessageFromServer) => void;
-            sendMessageToAllOthers: (message: MessageFromServer) => void;
+            sendMessageToOthers: (message: MessageFromServer) => void;
             iterateOtherConnections: () => Iterable<Connection>;
         }) => Connection,
     ) {}
@@ -62,7 +62,7 @@ export class WebSocketServer<
             connection.sendRawMessage(serializedMessageString);
         };
 
-        const sendMessageToAllOthers = (message: MessageFromServer) => {
+        const sendMessageToOthers = (message: MessageFromServer) => {
             const serializedMessage = this._messageFromServerSchema.serialize(message);
             const serializedMessageString = JSON.stringify(serializedMessage);
 
@@ -81,7 +81,7 @@ export class WebSocketServer<
         const actualConnection = this._createConnection({
             request,
             sendMessage,
-            sendMessageToAllOthers,
+            sendMessageToOthers,
             iterateOtherConnections,
         });
 
@@ -119,20 +119,26 @@ export class WebSocketServer<
                     // NOTE(calebmer): I'm observing the `close` event not firing after
                     // `serverSocket.close()` and I'm not sure whether it is a bug or not.
                     if (connection.isClosed()) {
-                        this._closeConnection(connection);
+                        this._handleConnectionClose(connection);
                     }
                 }
             }, expirationTimeoutMs / 2);
         }
 
         serverSocket.addEventListener("close", () => {
-            this._closeConnection(connection);
+            this._handleConnectionClose(connection);
         });
 
         return response;
     }
 
-    private _closeConnection(
+    /**
+     * Close the connection and clean it up from our internal state.
+     *
+     * Idempotent since we've sometimes observed the WebSocket `close` event not
+     * firing so we call this function multiple times when a socket is closing.
+     */
+    private _handleConnectionClose(
         connection: WebSocketServerConnectionWrapper<MessageFromClient, Connection>,
     ) {
         if (this._connections.delete(connection)) {
@@ -161,6 +167,20 @@ export class WebSocketServer<
 
         for (const connection of this._connections) {
             connection.sendRawMessage(serializedMessageString);
+        }
+    }
+
+    /**
+     * Close all connected clients.
+     */
+    public closeAll() {
+        for (const connection of this._connections) {
+            connection.close(1001, "Closing all WebSocket connections");
+
+            // NOTE(calebmer): In case the `close` event wasn't fired manually call our
+            // event handler. Since I've seen the close event not fire before in response
+            // to calling `close()` I'm paranoid and adding a second call here.
+            this._handleConnectionClose(connection);
         }
     }
 }
@@ -229,7 +249,7 @@ class WebSocketServerConnectionWrapper<
         // If we haven't gotten a message from the client in a while, close it. Maybe
         // the client's power went out and it silently went away without telling us.
         if (currentTimeMs - this._lastMessageTimeMs >= expirationTimeoutMs) {
-            this._socket.close(1001);
+            this.close(1002, "WebSocket connection expired due to inactivity");
             return;
         }
 
@@ -251,5 +271,17 @@ class WebSocketServerConnectionWrapper<
             throw new FailedPreconditionError("Can not send message to closed WebSocket");
 
         this._socket.send(message);
+    }
+
+    /**
+     * Close the underlying WebSocket with the provided code and reason.
+     *
+     * The close codes can be found [here][1]. The reason string can be an
+     * arbitrary string explaining why we are closing.
+     *
+     * [1]: https://www.rfc-editor.org/rfc/rfc6455.html#section-7.4.1
+     */
+    public close(code?: number, reason?: string) {
+        this._socket.close(code, reason);
     }
 }

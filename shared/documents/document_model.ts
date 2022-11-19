@@ -91,6 +91,7 @@ export class DocumentPreviewModel
     extends Model(
         Schema.object({
             id: Schema.id,
+            version: Schema.integer,
             titleWithoutFallback: Schema.string,
         }),
     )
