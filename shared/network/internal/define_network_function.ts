@@ -61,7 +61,7 @@ export function defineNetworkFunction<
     const inputSchema = Schema.object(inputConfig);
     const outputSchema = Schema.object(outputConfig);
 
-    const execute = async (
+    const call = async (
         input: ObjectSchemaConfigType<InputConfig>,
     ): Promise<ObjectSchemaConfigType<OutputConfig>> => {
         if (typeof document === "undefined") {
@@ -72,7 +72,7 @@ export function defineNetworkFunction<
 
         const outputPromiseResolver = createPromiseResolver<SchemaSerializedValue>();
 
-        scheduleNetworkFunctionExecution({
+        scheduleNetworkFunctionCall({
             name,
             input: inputSchema.serialize(input),
             outputPromiseResolver,
@@ -95,9 +95,9 @@ export function defineNetworkFunction<
     // Override the JavaScript function name with our network function name. We
     // need to use `Object.defineProperty()` to override the JavaScript
     // builtin name.
-    Object.defineProperty(execute, "name", {value: name});
+    Object.defineProperty(call, "name", {value: name});
 
-    return Object.assign(execute, {
+    return Object.assign(call, {
         inputSchema,
         outputSchema,
     });
@@ -112,38 +112,36 @@ export function getAllDefinedNetworkFunctionNames(): IterableIterator<string> {
     return definedNetworkFunctionNames.values();
 }
 
-type NetworkFunctionExecution = {
+type NetworkFunctionCall = {
     readonly name: string;
     readonly input: SchemaSerializedValue;
     readonly outputPromiseResolver: PromiseResolver<SchemaSerializedValue>;
 };
 
-let scheduledNetworkFunctionExecutionBatch: Array<NetworkFunctionExecution> | null = null;
+let scheduledNetworkFunctionCallBatch: Array<NetworkFunctionCall> | null = null;
 
-function scheduleNetworkFunctionExecution(execution: NetworkFunctionExecution): void {
-    if (scheduledNetworkFunctionExecutionBatch === null) {
-        scheduledNetworkFunctionExecutionBatch = [];
+function scheduleNetworkFunctionCall(call: NetworkFunctionCall): void {
+    if (scheduledNetworkFunctionCallBatch === null) {
+        scheduledNetworkFunctionCallBatch = [];
         scheduleMicrotask(() => {
-            assert(scheduledNetworkFunctionExecutionBatch !== null);
-            const executionBatch = scheduledNetworkFunctionExecutionBatch;
-            scheduledNetworkFunctionExecutionBatch = null;
-            executeNetworkFunctions(executionBatch).catch(scheduleUncaughtError);
+            assert(scheduledNetworkFunctionCallBatch !== null);
+            const callBatch = scheduledNetworkFunctionCallBatch;
+            scheduledNetworkFunctionCallBatch = null;
+            executeNetworkFunctions(callBatch).catch(scheduleUncaughtError);
         });
     }
 
-    scheduledNetworkFunctionExecutionBatch.push(execution);
+    scheduledNetworkFunctionCallBatch.push(call);
 }
 
-async function executeNetworkFunctions(
-    executionBatch: Array<NetworkFunctionExecution>,
-): Promise<void> {
-    // If this function throws any error, we want to reject all executions in our
+async function executeNetworkFunctions(callBatch: Array<NetworkFunctionCall>): Promise<void> {
+    // If this function throws any error, we want to reject all calls in our
     // batch with that error.
     try {
         const input = {
-            executions: executionBatch.map(execution => ({
-                name: execution.name,
-                input: execution.input,
+            calls: callBatch.map(call => ({
+                name: call.name,
+                input: call.input,
             })),
         };
 
@@ -174,24 +172,24 @@ async function executeNetworkFunctions(
             throw output.error;
         }
 
-        if (output.executions.length !== executionBatch.length)
+        if (output.calls.length !== callBatch.length)
             throw new InternalError(
-                `Expected ${executionBatch.length} execution outputs but received ${output.executions.length} execution outputs`,
+                `Expected ${callBatch.length} call outputs but received ${output.calls.length} call outputs`,
             );
 
-        executionBatch.forEach((execution, index) => {
-            // If anything throws while processing the output for a single execution,
-            // reject only that execution's promise.
-            const executionOutput = output.executions[index]!;
-            if (!executionOutput.ok) {
-                execution.outputPromiseResolver.reject(executionOutput.error);
+        callBatch.forEach((call, index) => {
+            // If anything throws while processing the output for a single call,
+            // reject only that call's promise.
+            const callOutput = output.calls[index]!;
+            if (!callOutput.ok) {
+                call.outputPromiseResolver.reject(callOutput.error);
             } else {
-                execution.outputPromiseResolver.resolve(executionOutput.output);
+                call.outputPromiseResolver.resolve(callOutput.output);
             }
         });
     } catch (error) {
-        for (const execution of executionBatch) {
-            execution.outputPromiseResolver.reject(error);
+        for (const call of callBatch) {
+            call.outputPromiseResolver.reject(error);
         }
     }
 }

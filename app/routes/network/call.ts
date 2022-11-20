@@ -4,7 +4,7 @@ import {InvalidArgumentError, NotFoundError} from "~/shared/error/error";
 import {isHttp500Error} from "~/shared/error/is_http_500_error_code";
 import {
     NetworkFunctionHttpInputSchema,
-    NetworkFunctionHttpOutputExecutionSchema,
+    NetworkFunctionHttpOutputCallSchema,
     NetworkFunctionHttpOutputSchema,
 } from "~/shared/network/helpers/network_function_http_schema";
 import {SchemaType} from "~/shared/schema/schema";
@@ -21,13 +21,11 @@ export async function action({request}: {request: Request}) {
         const input = NetworkFunctionHttpInputSchema.deserialize(await request.json());
 
         const results = await Promise.allSettled(
-            input.executions.map(
-                async (
-                    execution,
-                ): Promise<SchemaType<typeof NetworkFunctionHttpOutputExecutionSchema>> => {
+            input.calls.map(
+                async (call): Promise<SchemaType<typeof NetworkFunctionHttpOutputCallSchema>> => {
                     try {
                         const networkFunctionImplementation = getNetworkFunctionImplementation(
-                            execution.name,
+                            call.name,
                         );
 
                         if (!networkFunctionImplementation)
@@ -37,7 +35,7 @@ export async function action({request}: {request: Request}) {
 
                         const output = await networkFunctionImplementation.execute(
                             session,
-                            execution.input,
+                            call.input,
                         );
 
                         return {
@@ -54,20 +52,17 @@ export async function action({request}: {request: Request}) {
             ),
         );
 
-        const executions = results.map(result => {
+        const calls = results.map(result => {
             if (result.status === "rejected") throw result.reason;
             return result.value;
         });
 
         const status =
-            executions.length === 0
+            calls.length === 0
                 ? 200
-                : executions.reduce(
-                      (status, execution) =>
-                          Math.min(
-                              status,
-                              execution.ok ? 200 : isHttp500Error(execution.error) ? 500 : 400,
-                          ),
+                : calls.reduce(
+                      (status, call) =>
+                          Math.min(status, call.ok ? 200 : isHttp500Error(call.error) ? 500 : 400),
                       500,
                   );
 
@@ -75,7 +70,7 @@ export async function action({request}: {request: Request}) {
             JSON.stringify(
                 NetworkFunctionHttpOutputSchema.serialize({
                     ok: true,
-                    executions,
+                    calls,
                 }),
             ),
             {
