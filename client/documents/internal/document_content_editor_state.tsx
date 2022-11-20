@@ -40,6 +40,7 @@ import {
 } from "~/shared/documents/document_collaboration_schema";
 import {DocumentContent, isDocumentContent} from "~/shared/documents/document_content_schema";
 import {DocumentModel} from "~/shared/documents/document_model";
+import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {Lazy} from "~/shared/helpers/control/lazy";
@@ -94,7 +95,10 @@ type State = {
      * to display it on their editor.
      */
     readonly ourPresenceState: {
-        readonly state: DocumentCollaborationPresenceState | null;
+        readonly state: {
+            readonly version: number;
+            readonly selection: Selection;
+        } | null;
         readonly shouldSendToServerRef: MutableRefObject<boolean>;
     };
 
@@ -251,9 +255,7 @@ function reduceWithAction(oldState: State, action: Action): State {
                 ourPresenceState: {
                     state: {
                         version: action.editorState.getVersion(),
-                        selection: ProsemirrorSelectionWrapper.new(
-                            action.editorState.getSelection(),
-                        ),
+                        selection: action.editorState.getSelection(),
                     },
                     shouldSendToServerRef: {current: true},
                 },
@@ -582,7 +584,16 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
                 steps: state.pendingSendableSteps.steps,
                 clientId: state.pendingSendableSteps.clientId,
                 messageId: state.pendingSendableSteps.messageId,
-                updateOurPresenceState: {state: state.ourPresenceState.state},
+                updateOurPresenceState: {
+                    state: state.ourPresenceState.state
+                        ? {
+                              version: state.ourPresenceState.state.version,
+                              selection: ProsemirrorSelectionWrapper.new(
+                                  state.ourPresenceState.state.selection,
+                              ),
+                          }
+                        : null,
+                },
             });
 
             state.pendingSendableSteps.shouldSendToServerRef.current = false;
@@ -592,12 +603,46 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
         if (state.ourPresenceState.shouldSendToServerRef.current) {
             sendMessage({
                 type: "UpdateOurPresenceState",
-                state: state.ourPresenceState.state,
+                state: state.ourPresenceState.state
+                    ? {
+                          version: state.ourPresenceState.state.version,
+                          selection: ProsemirrorSelectionWrapper.new(
+                              state.ourPresenceState.state.selection,
+                          ),
+                      }
+                    : null,
             });
 
             state.ourPresenceState.shouldSendToServerRef.current = false;
         }
     }, [isConnected, sendMessage, state.pendingSendableSteps, state.ourPresenceState]);
+
+    // Clear our presence state after some period of inactivity so you don't have a
+    // bunch of cursors laying around the document.
+    useEffect(() => {
+        if (!isConnected) return;
+        if (!state.ourPresenceState.state) return;
+
+        // We have a much shorter timeout if our presence state is just a cursor. If
+        // the user has selected some text, we take longer to clear that timeout since
+        // maybe the user was intentionally trying to highlight text to show someone?
+        const cursorDisappearTimeoutMs =
+            state.ourPresenceState.state.selection.from ===
+            state.ourPresenceState.state.selection.to
+                ? 15 * 1000
+                : 15 * 60 * 1000;
+
+        const timeout = createTimeout(() => {
+            sendMessage({
+                type: "UpdateOurPresenceState",
+                state: null,
+            });
+        }, cursorDisappearTimeoutMs);
+
+        return () => {
+            timeout.clear();
+        };
+    }, [isConnected, sendMessage, state.ourPresenceState.state]);
 
     // The presence states we get from our presence channel may be outdated because
     // when the document updates and the cursor needs to move, we do not send a
