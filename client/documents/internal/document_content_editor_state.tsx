@@ -1,6 +1,24 @@
+/*!
+ * Test cases I've used when working on this file:
+ *
+ * - Setup 2-4 browsers with a `while` loop around
+ *   `ContentEditorDebugTools.simulateTyping()`. Make sure they can run forever
+ *   without crashing.
+ *
+ *     - Open a separate browser and reload the page a couple times. It
+ *       probably loads the document at an old version but should eventually
+ *       see all the typing.
+ *
+ * - Open three browsers. In browser 1 put your cursor somewhere in the
+ *   document, in browser 2 add network throttling, in browser 3 make some
+ *   changes. Then reload browser 2 and while browser 2 is loading make changes
+ *   with browser 3. Browser 2 should eventually see all the updates and browser
+ *   1's cursor. (This exercises `rememberedSteps`.)
+ */
+
 import murmurhash from "murmurhash";
 import {Selection} from "prosemirror-state";
-import {Mapping, Step} from "prosemirror-transform";
+import {Mapping, Step, StepMap} from "prosemirror-transform";
 import {
     MutableRefObject,
     useCallback,
@@ -22,14 +40,12 @@ import {
 } from "~/shared/documents/document_collaboration_schema";
 import {DocumentContent, isDocumentContent} from "~/shared/documents/document_content_schema";
 import {DocumentModel} from "~/shared/documents/document_model";
-import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {Lazy} from "~/shared/helpers/control/lazy";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {Id, generateId} from "~/shared/id/id";
-import {getDocumentContentSteps} from "~/shared/network/documents_network_definition";
 import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema";
 import {defaultThemeColor} from "~/shared/styles/styles";
 
@@ -41,19 +57,22 @@ type State = {
      * when older steps are applied.
      */
     readonly pendingActions: Array<ReceiveStepsAction>;
+
     /**
      * The current state of the editor.
      */
     readonly editorState: ContentEditorState<DocumentContent>;
+
     /**
      * Remember some number of steps in our state to map phantom selections from
      * presence when they have an old version.
      */
     readonly rememberedSteps: ReadonlyArray<{
-        readonly step: Step;
+        readonly stepMap: StepMap;
         readonly contentBeforeStep: Lazy<DocumentContent>;
         readonly contentAfterStep: Lazy<DocumentContent>;
     }>;
+
     /**
      * Steps we have sent to the server which we are waiting on
      * acknowledgement for.
@@ -65,6 +84,7 @@ type State = {
         readonly messageId: Id;
         readonly shouldSendToServerRef: MutableRefObject<boolean>;
     } | null;
+
     /**
      * The current text selection to broadcast over presence and the version at
      * which the selection was recorded.
@@ -77,6 +97,14 @@ type State = {
         readonly state: DocumentCollaborationPresenceState | null;
         readonly shouldSendToServerRef: MutableRefObject<boolean>;
     };
+
+    /**
+     * The presence state of other selected clients.
+     *
+     * An `ImmutableMap` since we update pretty frequently so we want fast
+     * immutable map update performance.
+     */
+    readonly otherPresenceStateByConnectionId: ImmutableMap<Id, DocumentCollaborationPresenceState>;
 };
 
 function getInitialState(initialDocument: DocumentModel): State {
@@ -94,10 +122,16 @@ function getInitialState(initialDocument: DocumentModel): State {
             state: null,
             shouldSendToServerRef: {current: false},
         },
+        otherPresenceStateByConnectionId: ImmutableMap.empty(),
     };
 }
 
-type Action = EditAction | ReceiveStepsAction | AugmentRememberedStepsAction;
+type Action =
+    | EditAction
+    | ReceiveStepsAction
+    | AugmentRememberedStepsAction
+    | SetAllOtherPresenceStatesAction
+    | UpdateOtherPresenceStateAction;
 
 type EditAction = {
     readonly type: "Edit";
@@ -109,22 +143,54 @@ type ReceiveStepsAction = {
     readonly newVersion: number;
     readonly steps: ReadonlyArray<{readonly step: Step; readonly clientId: Id}>;
     readonly acknowledgeMessageId: Id | null;
-    readonly discardRememberedStepsBeforeVersion: number;
 };
 
 type AugmentRememberedStepsAction = {
     readonly type: "AugmentRememberedSteps";
     readonly startVersion: number;
-    readonly steps: ReadonlyArray<{
-        readonly step: Step;
-        readonly invertedStep: Step;
-    }>;
+    readonly invertedSteps: ReadonlyArray<Step>;
 };
 
-function reduce(state: State, action: Action): State {
+type SetAllOtherPresenceStatesAction = {
+    readonly type: "SetAllOtherPresenceStates";
+    readonly stateByConnectionId: ImmutableMap<Id, DocumentCollaborationPresenceState>;
+};
+
+type UpdateOtherPresenceStateAction = {
+    readonly type: "UpdateOtherPresenceState";
+    readonly connectionId: Id;
+    readonly state: DocumentCollaborationPresenceState | null;
+};
+
+function reduce(state: State, actions: ReadonlyArray<Action>): State {
+    const oldRememberedSteps = state.rememberedSteps;
+    const oldOtherPresenceStateByConnectionId = state.otherPresenceStateByConnectionId;
+
     const oldVersion = state.editorState.getVersion();
-    state = reduceWithAction(state, action);
+    state = actions.reduce((state, action) => reduceWithAction(state, action), state);
     const newVersion = state.editorState.getVersion();
+
+    // If `rememberedSteps` or `otherPresenceStateByConnectionId` changed, then
+    // discard any `rememberedSteps` we don't need anymore for rebasing
+    // presence state selections.
+    if (
+        state.rememberedSteps !== oldRememberedSteps ||
+        state.otherPresenceStateByConnectionId !== oldOtherPresenceStateByConnectionId
+    ) {
+        let discardRememberedStepsBeforeVersion = state.editorState.getVersion();
+
+        for (const presenceState of state.otherPresenceStateByConnectionId.values()) {
+            if (presenceState.version < discardRememberedStepsBeforeVersion)
+                discardRememberedStepsBeforeVersion = presenceState.version;
+        }
+
+        const newRememberedSteps = state.rememberedSteps.slice(
+            state.rememberedSteps.length -
+                (state.editorState.getVersion() - discardRememberedStepsBeforeVersion),
+        );
+
+        state = {...state, rememberedSteps: newRememberedSteps};
+    }
 
     // If the version changed then we want to retry our pending actions since they
     // may be ok to run now.
@@ -242,9 +308,7 @@ function reduceWithAction(oldState: State, action: Action): State {
             stepTransaction = [];
 
             // Whenever we receive steps, we add them to our `rememberedSteps` array.
-            //
-            // We also throw away steps we don't need anymore based on
-            // `discardRememberedStepsBeforeVersion`.
+            // We discard steps when we don't need them to rebase presence states.
             let rememberedSteps;
             {
                 let content = new Lazy(() => oldState.editorState.getContentWithoutSendableSteps());
@@ -260,17 +324,13 @@ function reduceWithAction(oldState: State, action: Action): State {
                     });
 
                     return {
-                        step,
+                        stepMap: step.getMap(),
                         contentBeforeStep: previousContent,
                         contentAfterStep: content,
                     };
                 });
 
                 rememberedSteps = [...oldState.rememberedSteps, ...newRememberedSteps];
-                rememberedSteps = rememberedSteps.slice(
-                    rememberedSteps.length -
-                        (editorState.getVersion() - action.discardRememberedStepsBeforeVersion),
-                );
             }
 
             return {
@@ -288,7 +348,7 @@ function reduceWithAction(oldState: State, action: Action): State {
         // action integrates the old steps into our state.
         case "AugmentRememberedSteps": {
             assert(
-                action.startVersion + action.steps.length ===
+                action.startVersion + action.invertedSteps.length ===
                     oldState.editorState.getVersion() - oldState.rememberedSteps.length,
             );
 
@@ -296,7 +356,7 @@ function reduceWithAction(oldState: State, action: Action): State {
                 oldState.rememberedSteps[oldState.rememberedSteps.length - 1]?.contentBeforeStep ??
                 new Lazy(() => oldState.editorState.getContentWithoutSendableSteps());
 
-            const newRememberedSteps = [...action.steps].reverse().map(({step, invertedStep}) => {
+            const newRememberedSteps = [...action.invertedSteps].reverse().map(invertedStep => {
                 const previousContent = content;
 
                 content = new Lazy(() => {
@@ -307,7 +367,7 @@ function reduceWithAction(oldState: State, action: Action): State {
                 });
 
                 return {
-                    step,
+                    stepMap: invertedStep.getMap().invert(),
                     contentBeforeStep: content,
                     contentAfterStep: previousContent,
                 };
@@ -320,6 +380,23 @@ function reduceWithAction(oldState: State, action: Action): State {
                 rememberedSteps: [...newRememberedSteps, ...oldState.rememberedSteps],
             };
         }
+        case "SetAllOtherPresenceStates": {
+            return {
+                ...oldState,
+                otherPresenceStateByConnectionId: action.stateByConnectionId,
+            };
+        }
+        case "UpdateOtherPresenceState": {
+            return {
+                ...oldState,
+                otherPresenceStateByConnectionId: action.state
+                    ? oldState.otherPresenceStateByConnectionId.set(
+                          action.connectionId,
+                          action.state,
+                      )
+                    : oldState.otherPresenceStateByConnectionId.delete(action.connectionId),
+            };
+        }
         default:
             throw exhaustive(action);
     }
@@ -330,7 +407,7 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
 
     const [state, _dispatch] = useReducer(reduce, initialDocument, getInitialState);
 
-    const dispatch = useCallback((action: Action) => {
+    const dispatch = useCallback((actions: ReadonlyArray<Action>) => {
         // It is essential for correctness that actions which change `editorState` run
         // immediately. Consider the case where we receive some steps from the server
         // (`ReceiveSteps` action) and the user makes an edit (`Edit` action) at the
@@ -344,31 +421,30 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
         // immediately re-render the component with the new state so if a user types in
         // their ProseMirror `EditorView` it is applied on top of the `editorState` we
         // received from the server.
-        let priorityLevel: number | null;
-        switch (action.type) {
-            case "Edit":
-            case "ReceiveSteps":
-                priorityLevel = unstable_ImmediatePriority;
-                break;
-            case "AugmentRememberedSteps":
-                priorityLevel = null;
-                break;
-            default:
-                throw exhaustive(action);
+        let priorityLevel: number | null = null;
+        for (const action of actions) {
+            switch (action.type) {
+                case "Edit":
+                case "ReceiveSteps":
+                    priorityLevel = unstable_ImmediatePriority;
+                    break;
+                case "AugmentRememberedSteps":
+                case "SetAllOtherPresenceStates":
+                case "UpdateOtherPresenceState":
+                    break;
+                default:
+                    throw exhaustive(action);
+            }
         }
 
         if (priorityLevel === null) {
-            _dispatch(action);
+            _dispatch(actions);
         } else {
             unstable_runWithPriority(priorityLevel, () => {
-                _dispatch(action);
+                _dispatch(actions);
             });
         }
     }, []);
-
-    const [otherPresenceStateByConnectionId, setOtherPresenceStateByConnectionId] = useState<
-        ImmutableMap<Id, DocumentCollaborationPresenceState>
-    >(ImmutableMap.empty());
 
     const [errorState, setErrorState] = useState<
         {hasError: false} | {hasError: true; error: unknown}
@@ -386,29 +462,45 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
         message => {
             switch (message.type) {
                 case "BackfillResponse": {
-                    dispatch({
-                        type: "ReceiveSteps",
-                        newVersion: message.newVersion,
-                        steps: message.steps,
-                        acknowledgeMessageId: null,
-                        // If `smallestPresenceStateVersion` is not set then discard ALL steps by
-                        // setting to the new version.
-                        discardRememberedStepsBeforeVersion:
-                            smallestPresenceStateVersion ?? message.newVersion,
-                    });
+                    const actions: Array<Action> = [];
 
-                    setOtherPresenceStateByConnectionId(
-                        ImmutableMap.from(
+                    actions.push({
+                        type: "SetAllOtherPresenceStates",
+                        stateByConnectionId: ImmutableMap.from(
                             mapIterable(message.presenceStates, presenceState => [
                                 presenceState.connectionId,
                                 presenceState.state,
                             ]),
                         ),
-                    );
+                    });
+
+                    actions.push({
+                        type: "ReceiveSteps",
+                        newVersion: message.newVersion,
+                        steps: message.steps,
+                        acknowledgeMessageId: null,
+                    });
+
+                    if (message.rememberInvertedSteps.length > 0) {
+                        actions.push({
+                            type: "AugmentRememberedSteps",
+                            startVersion:
+                                message.newVersion -
+                                message.steps.length -
+                                message.rememberInvertedSteps.length,
+                            invertedSteps: message.rememberInvertedSteps,
+                        });
+                    }
+
+                    // One dispatch call just to make sure React applies these actions atomically
+                    // and doesn't do any scheduling weirdness.
+                    dispatch(actions);
                     break;
                 }
                 case "UpdateContentBeforePersistence": {
-                    dispatch({
+                    const actions: Array<Action> = [];
+
+                    actions.push({
                         type: "ReceiveSteps",
                         newVersion: message.newVersion,
                         steps: message.steps.map(step => ({
@@ -416,26 +508,19 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
                             clientId: message.clientId,
                         })),
                         acknowledgeMessageId: message.acknowledgeMessageId,
-                        // If `smallestPresenceStateVersion` is not set then discard ALL steps by
-                        // setting to the new version.
-                        discardRememberedStepsBeforeVersion:
-                            smallestPresenceStateVersion ?? message.newVersion,
                     });
 
                     // If this was an acknowledgement message from our own client, don't add the
                     // presence state to our map.
                     if (message.clientId !== state.editorState.getClientId()) {
-                        setOtherPresenceStateByConnectionId(otherPresenceStateByConnectionId =>
-                            message.updateOtherPresenceState.state
-                                ? otherPresenceStateByConnectionId.set(
-                                      message.updateOtherPresenceState.connectionId,
-                                      message.updateOtherPresenceState.state,
-                                  )
-                                : otherPresenceStateByConnectionId.delete(
-                                      message.updateOtherPresenceState.connectionId,
-                                  ),
-                        );
+                        actions.push({
+                            type: "UpdateOtherPresenceState",
+                            connectionId: message.updateOtherPresenceState.connectionId,
+                            state: message.updateOtherPresenceState.state,
+                        });
                     }
+
+                    dispatch(actions);
                     break;
                 }
                 case "PersistedContent": {
@@ -443,14 +528,13 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
                     break;
                 }
                 case "UpdateOtherPresenceState": {
-                    setOtherPresenceStateByConnectionId(otherPresenceStateByConnectionId =>
-                        message.state
-                            ? otherPresenceStateByConnectionId.set(
-                                  message.connectionId,
-                                  message.state,
-                              )
-                            : otherPresenceStateByConnectionId.delete(message.connectionId),
-                    );
+                    dispatch([
+                        {
+                            type: "UpdateOtherPresenceState",
+                            connectionId: message.connectionId,
+                            state: message.state,
+                        },
+                    ]);
                     break;
                 }
                 case "Error": {
@@ -522,27 +606,13 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
     //
     // There may be some performance optimizations we could be doing here. If you
     // have 100 cursors but only 1 is moving you only need to recompute that 1.
-    const {smallestPresenceStateVersion, presenceStates} = useMemo(() => {
-        let smallestPresenceStateVersion = null;
-
+    const presenceStates = useMemo(() => {
         let presenceStates: Array<{
             connectionId: Id;
             selection: Selection;
         }> = [];
 
-        for (const [connectionId, presenceState] of otherPresenceStateByConnectionId) {
-            // Record the smallest presence state version before mapping the selections
-            // forward.
-            //
-            // We use this to remember steps after this version. And to fetch steps after
-            // this version if we haven't seen them.
-            if (
-                smallestPresenceStateVersion === null ||
-                presenceState.version < smallestPresenceStateVersion
-            ) {
-                smallestPresenceStateVersion = presenceState.version;
-            }
-
+        for (const [connectionId, presenceState] of state.otherPresenceStateByConnectionId) {
             /* ========================================================================== *\
              * 1. Fast-forward outdated presence states if we can, otherwise drop         *
             \* ========================================================================== */
@@ -583,12 +653,12 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
                 for (let version = presenceState.version; version < editorVersion; version++) {
                     if (!selection) break;
 
-                    const {step, contentAfterStep} =
+                    const {stepMap, contentAfterStep} =
                         state.rememberedSteps[
                             state.rememberedSteps.length - (editorVersion - version)
                         ]!;
 
-                    selection = selection.map(contentAfterStep.get(), step.getMap());
+                    selection = selection.map(contentAfterStep.get(), stepMap);
                 }
 
                 presenceStates.push({
@@ -629,8 +699,8 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
             }));
         }
 
-        return {smallestPresenceStateVersion, presenceStates};
-    }, [otherPresenceStateByConnectionId, state.editorState, state.rememberedSteps]);
+        return presenceStates;
+    }, [state.editorState, state.otherPresenceStateByConnectionId, state.rememberedSteps]);
 
     // Transform the presence states of our connected clients into cursor
     // decorations. We drop any cursors from before our document loaded because we
@@ -661,47 +731,10 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
         return phantomTextSelections;
     }, [presenceStates]);
 
-    // If we have a presence state with a version earlier than our last remembered
-    // version, then send a network request to load the steps our client is missing
-    // so we can render the older presence state.
-    const lastRememberedVersion = state.editorState.getVersion() - state.rememberedSteps.length;
-    useEffect(() => {
-        if (smallestPresenceStateVersion === null) return;
-        if (lastRememberedVersion <= smallestPresenceStateVersion) return;
-
-        let isCancelled = false;
-
-        runPromiseWithoutAwaiting(async () => {
-            try {
-                const {steps} = await getDocumentContentSteps({
-                    id: documentId,
-                    startVersion: smallestPresenceStateVersion,
-                    endVersion: lastRememberedVersion,
-                });
-
-                if (isCancelled) return;
-
-                dispatch({
-                    type: "AugmentRememberedSteps",
-                    startVersion: smallestPresenceStateVersion,
-                    steps,
-                });
-            } catch (error) {
-                setErrorState({hasError: true, error});
-            }
-        });
-
-        return () => {
-            isCancelled = true;
-        };
-        // Important: Be careful about what you put in this dependency array! New
-        // dependencies will cause extra network requests which may not be necessary.
-    }, [documentId, lastRememberedVersion, smallestPresenceStateVersion, dispatch]);
-
     return {
         editorState: state.editorState,
         onChangeEditorState: (editorState: ContentEditorState<DocumentContent>) =>
-            dispatch({type: "Edit", editorState}),
+            dispatch([{type: "Edit", editorState}]),
         phantomTextSelections,
     };
 }

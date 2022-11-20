@@ -481,21 +481,50 @@ class DocumentCollaborationDurableObjectConnection {
                             );
                         }
 
+                        let smallestPresenceStateVersion: number | null = null;
+
+                        const presenceStates = Array.from(
+                            filterMapIterable(this._iterateOtherConnections(), connection => {
+                                const state = connection.getPresenceState();
+                                if (!state) return null;
+
+                                // Record the smallest presence state version. We will also send steps to the
+                                // client from this version to the client's version so the client can map
+                                // selections.
+                                if (
+                                    smallestPresenceStateVersion === null ||
+                                    state.version < smallestPresenceStateVersion
+                                ) {
+                                    smallestPresenceStateVersion = state.version;
+                                }
+
+                                return {connectionId: connection.id, state};
+                            }),
+                        );
+
+                        const steps = await this._contentManager.stepCache.getSteps(
+                            message.version,
+                            version,
+                        );
+
+                        const rememberSteps =
+                            smallestPresenceStateVersion &&
+                            smallestPresenceStateVersion < message.version
+                                ? await this._contentManager.stepCache.getSteps(
+                                      smallestPresenceStateVersion,
+                                      message.version,
+                                  )
+                                : [];
+
                         // Load steps from our store and send them to the client to catch
                         // the client up...
                         this._sendMessage({
                             type: "BackfillResponse",
                             newVersion: version,
-                            steps: await this._contentManager.stepCache.getSteps(
-                                message.version,
-                                version,
-                            ),
-                            presenceStates: Array.from(
-                                filterMapIterable(this._iterateOtherConnections(), connection => {
-                                    const state = connection.getPresenceState();
-                                    if (!state) return null;
-                                    return {connectionId: connection.id, state};
-                                }),
+                            steps,
+                            presenceStates,
+                            rememberInvertedSteps: rememberSteps.map(
+                                ({invertedStep}) => invertedStep,
                             ),
                         });
                         return;

@@ -491,7 +491,7 @@ export class DocumentContentCacheForUpdate {
                         internalDocument.stepTransactionsAfterSnapshot,
                         ({steps, invertedSteps, clientId}) => {
                             return mapIterable(steps, (step, i) => {
-                                const invertedStep = invertedSteps[steps.length - i - 1];
+                                const invertedStep = invertedSteps[i];
                                 if (!invertedStep)
                                     throw new DataLossError("Missing inverted document step");
 
@@ -578,7 +578,7 @@ export class DocumentContentCacheForUpdate {
             updateCache: async ({newContent, newSteps, newInvertedSteps, clientId}) => {
                 for (let i = 0; i < newSteps.length; i++) {
                     const step = newSteps[i]!;
-                    const invertedStep = newInvertedSteps[newSteps.length - i - 1];
+                    const invertedStep = newInvertedSteps[i];
                     assert(invertedStep);
                     entry.stepsAfterInitialSnapshot.push({step, invertedStep, clientId});
                 }
@@ -958,9 +958,7 @@ export async function updateDocumentContent(
                     sortRangeType: "StepTransactionsAfterSnapshot",
                     startVersion: internalDocument.version,
                     steps: steps,
-                    // We want the inverted steps to be stored in reverse order of our steps. We
-                    // added the inverted steps in forward step order.
-                    invertedSteps: [...invertedSteps].reverse(),
+                    invertedSteps,
                     clientId,
                 }),
             ]);
@@ -1186,8 +1184,7 @@ async function getDocumentStepsBetweenValidatedVersionRange({
         for (let i = 0; i < stepTransaction.steps.length; i++) {
             const version = stepTransaction.startVersion + i;
             const step = stepTransaction.steps[i]!;
-            const invertedStep =
-                stepTransaction.invertedSteps[stepTransaction.steps.length - i - 1];
+            const invertedStep = stepTransaction.invertedSteps[i];
             if (!invertedStep) throw new DataLossError("Missing inverted document step");
 
             // We may get steps outside of the version range because they are in a

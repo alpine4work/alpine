@@ -71,6 +71,7 @@ export const DocumentCollaborationMessageFromServerSchema = Schema.union({
                 state: DocumentCollaborationPresenceStateSchema,
             }),
         ),
+        rememberInvertedSteps: Schema.array(DocumentContentStepSchema),
     }),
     /**
      * Our document collaboration WebSocket immediately sends steps to connected
