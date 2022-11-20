@@ -858,6 +858,11 @@ function isContentBodyEmpty(node: Node): boolean {
  *   that you are selecting a newline.
  */
 function createSelectionDecorations(doc: Node, from: number, to: number, color: string) {
+    // Make sure our range is in bounds. The editor state may have changed since
+    // this decoration was created.
+    from = Math.min(from, doc.nodeSize - 2);
+    to = Math.min(to, doc.nodeSize - 2);
+
     const decorations = [
         Decoration.inline(from, to, {
             class: inlineElementPaddingToLineHeightClassName,

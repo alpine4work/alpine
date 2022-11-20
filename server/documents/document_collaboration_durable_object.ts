@@ -112,9 +112,8 @@ class DocumentCollaborationDurableObject {
             id,
             initialVersion,
             initialContent,
-            sendMessageToAll: message => {
-                this._webSocketServer.sendMessageToAll(message);
-            },
+            sendMessageToAll: message => this._webSocketServer.sendMessageToAll(message),
+            destroyDurableObject: () => this._destroy(),
         });
         this._destroyCallback = destroy;
     }
@@ -159,6 +158,7 @@ class DocumentCollaborationContentManager {
     private _content: DocumentContent;
     public readonly stepCache: DocumentCollaborationStepCache;
     private readonly _sendMessageToAll: (message: DocumentCollaborationMessageFromServer) => void;
+    private readonly _destroyDurableObject: () => void;
     private _updateSequentialQueue = new AsyncSequentialQueue();
 
     private _persistenceState: {
@@ -175,12 +175,14 @@ class DocumentCollaborationContentManager {
         initialVersion,
         initialContent,
         sendMessageToAll,
+        destroyDurableObject,
     }: {
         state: DurableObjectState;
         id: Id;
         initialVersion: number;
         initialContent: DocumentContent;
         sendMessageToAll: (message: DocumentCollaborationMessageFromServer) => void;
+        destroyDurableObject: () => void;
     }) {
         this._state = state;
         this._id = id;
@@ -188,6 +190,7 @@ class DocumentCollaborationContentManager {
         this._content = initialContent;
         this.stepCache = new DocumentCollaborationStepCache(id, this._version);
         this._sendMessageToAll = sendMessageToAll;
+        this._destroyDurableObject = destroyDurableObject;
     }
 
     /**
@@ -368,23 +371,29 @@ class DocumentCollaborationContentManager {
                             // things may start breaking in the durable object and on the client.
                             //
                             // We save steps anyway to preserve as much user data as we can.
-                            if (conflictingSteps.length > 0)
+                            if (conflictingSteps.length > 0) {
                                 throw new InternalError(
                                     "Some process updated document content other than the document's durable object. This may cause many downstream issues as a core assumption about the document collaboration implementation has been violated",
                                 );
+                            }
 
                             this._sendMessageToAll({
                                 type: "PersistedContent",
                                 newVersion: oldVersion + nextSteps.length,
                             });
-                        } catch (error) {
+                        } catch (_error) {
                             // TODO(calebmer): Report this error somewhere in addition to sending it to
                             // the client.
+
+                            // If we failed to update, always classify it as an internal error since
+                            // clients have seen the update.
+                            const error = InternalError.from(_error);
 
                             this._sendMessageToAll({
                                 type: "Error",
                                 error,
                             });
+                            this._destroyDurableObject();
                         }
                     })(),
                 };
