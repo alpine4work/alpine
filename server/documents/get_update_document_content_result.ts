@@ -168,10 +168,6 @@ export async function getUpdateDocumentContentResult({
         steps = rebasedSteps;
     }
 
-    // We want the inverted steps to be stored in reverse order of our steps. We
-    // added the inverted steps in forward step order.
-    invertedSteps.reverse();
-
     return {
         newContent: content,
         steps,

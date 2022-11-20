@@ -2,7 +2,7 @@ import {collab, getVersion, receiveTransaction, sendableSteps} from "prosemirror
 import {history} from "prosemirror-history";
 import {Node} from "prosemirror-model";
 import {EditorState, Plugin, PluginKey, Selection, Transaction} from "prosemirror-state";
-import {Mapping, Step} from "prosemirror-transform";
+import {Step} from "prosemirror-transform";
 import {buildInputRulesPlugin} from "~/client/content/internal/content_editor_plugin_input_rules";
 import {buildKeymapPlugin} from "~/client/content/internal/content_editor_plugin_keymap";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema";

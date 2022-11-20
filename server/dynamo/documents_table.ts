@@ -958,7 +958,9 @@ export async function updateDocumentContent(
                     sortRangeType: "StepTransactionsAfterSnapshot",
                     startVersion: internalDocument.version,
                     steps: steps,
-                    invertedSteps,
+                    // We want the inverted steps to be stored in reverse order of our steps. We
+                    // added the inverted steps in forward step order.
+                    invertedSteps: [...invertedSteps].reverse(),
                     clientId,
                 }),
             ]);
