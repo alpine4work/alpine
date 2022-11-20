@@ -15,7 +15,7 @@ export function DocumentContentEditor({document}: {document: DocumentModel}) {
 }
 
 function DocumentContentEditorStateful({initialDocument}: {initialDocument: DocumentModel}) {
-    const {editorState, onChangeEditorState, phantomTextSelections} =
+    const {editorState, onChangeEditorState, phantomSelections} =
         useDocumentContentEditorState(initialDocument);
 
     return (
@@ -25,7 +25,7 @@ function DocumentContentEditorStateful({initialDocument}: {initialDocument: Docu
             aria-label="Document editor"
             placeholder="Share your ideas…"
             className={sprinkles({paddingBottom: "24"})}
-            phantomTextSelections={phantomTextSelections}
+            phantomSelections={phantomSelections}
         />
     );
 }

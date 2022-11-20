@@ -1,23 +1,43 @@
 import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {RefObject} from "react";
-import {ContentEditorPhantomTextSelection} from "~/client/content/content_editor";
+import {ContentEditorPhantomSelection} from "~/client/content/content_editor";
 import {useContentEditorTracker} from "~/client/content/internal/content_editor_cursor_tracker";
 import {spacing} from "~/shared/design/spacing";
 import {sprinkles} from "~/shared/styles/styles";
 
-export function ContentEditorPhantomTextSelectionCursor({
+export function ContentEditorPhantomSelectionCursor({
     state,
     viewRef,
-    phantomTextSelection,
+    phantomSelection,
 }: {
     state: EditorState;
     viewRef: RefObject<EditorView | null>;
-    phantomTextSelection: ContentEditorPhantomTextSelection;
+    phantomSelection: ContentEditorPhantomSelection;
+}) {
+    if (!phantomSelection.isTextSelection) return null;
+
+    return (
+        <ContentEditorPhantomTextSelectionCursor
+            state={state}
+            viewRef={viewRef}
+            phantomSelection={phantomSelection}
+        />
+    );
+}
+
+function ContentEditorPhantomTextSelectionCursor({
+    state,
+    viewRef,
+    phantomSelection,
+}: {
+    state: EditorState;
+    viewRef: RefObject<EditorView | null>;
+    phantomSelection: ContentEditorPhantomSelection;
 }) {
     const backgroundColor = {
-        light: `${phantomTextSelection.color}-50`,
-        dark: `${phantomTextSelection.color}-40`,
+        light: `${phantomSelection.color}-50`,
+        dark: `${phantomSelection.color}-40`,
     } as const;
 
     return (
@@ -25,13 +45,13 @@ export function ContentEditorPhantomTextSelectionCursor({
             ref={useContentEditorTracker({
                 state,
                 viewRef,
-                pos: phantomTextSelection.head,
+                pos: phantomSelection.head,
                 // Bias the tracker position towards the anchor. This is apparent when you are
                 // selecting a line of text and the head of your selection is at the newline.
                 side:
-                    phantomTextSelection.anchor < phantomTextSelection.head
+                    phantomSelection.anchor < phantomSelection.head
                         ? -1
-                        : phantomTextSelection.anchor > phantomTextSelection.head
+                        : phantomSelection.anchor > phantomSelection.head
                         ? 1
                         : 0,
                 // Give the tracker the height of our parent element's line height since that

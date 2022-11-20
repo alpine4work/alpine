@@ -17,7 +17,7 @@
  */
 
 import murmurhash from "murmurhash";
-import {Selection} from "prosemirror-state";
+import {Selection, TextSelection} from "prosemirror-state";
 import {Mapping, Step, StepMap} from "prosemirror-transform";
 import {
     MutableRefObject,
@@ -29,7 +29,7 @@ import {
     useState,
 } from "react";
 import {unstable_ImmediatePriority, unstable_runWithPriority} from "scheduler";
-import {ContentEditorPhantomTextSelection} from "~/client/content/content_editor";
+import {ContentEditorPhantomSelection} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {useWebSocket} from "~/client/helpers/use_web_socket";
 import {themeColors} from "~/shared/design/theme_colors";
@@ -750,8 +750,8 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
     // Transform the presence states of our connected clients into cursor
     // decorations. We drop any cursors from before our document loaded because we
     // don't have the steps to map their positions.
-    const phantomTextSelections = useMemo(() => {
-        const phantomTextSelections: Array<ContentEditorPhantomTextSelection> = [];
+    const phantomSelections = useMemo(() => {
+        const phantomSelections: Array<ContentEditorPhantomSelection> = [];
 
         const filteredThemeColors = themeColors.filter(
             // TODO(calebmer): When the theme color is configurable, we should use that
@@ -765,21 +765,22 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
                     murmurhash.v3(presenceState.connectionId) % filteredThemeColors.length
                 ]!;
 
-            phantomTextSelections.push({
+            phantomSelections.push({
                 key: presenceState.connectionId,
                 color,
                 anchor: presenceState.selection.anchor,
                 head: presenceState.selection.head,
+                isTextSelection: presenceState.selection instanceof TextSelection,
             });
         }
 
-        return phantomTextSelections;
+        return phantomSelections;
     }, [presenceStates]);
 
     return {
         editorState: state.editorState,
         onChangeEditorState: (editorState: ContentEditorState<DocumentContent>) =>
             dispatch([{type: "Edit", editorState}]),
-        phantomTextSelections,
+        phantomSelections,
     };
 }

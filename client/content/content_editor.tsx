@@ -24,7 +24,7 @@ import {
 } from "~/client/content/internal/content_editor_floater";
 import {createContentEditorMarkNodeViewConstructor} from "~/client/content/internal/content_editor_link_node_view";
 import {createContentEditorOrderedListItemNodeView} from "~/client/content/internal/content_editor_ordered_list_item_node_view";
-import {ContentEditorPhantomTextSelectionCursor} from "~/client/content/internal/content_editor_phantom_text_selection_cursor";
+import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/content_editor_phantom_selection_cursor";
 import {
     openKeyboardHighlightFloaterMetaKey,
     openKeyboardLinkFloaterMetaKey,
@@ -155,7 +155,7 @@ export type ContentEditorProps<Content extends Node> = {
      * Phantom text selections decorations that render on top of the editor and
      * represent the cursor position of other users.
      */
-    phantomTextSelections?: ReadonlyArray<ContentEditorPhantomTextSelection>;
+    phantomSelections?: ReadonlyArray<ContentEditorPhantomSelection>;
 } & (
     | {
           /**
@@ -175,11 +175,12 @@ export type ContentEditorProps<Content extends Node> = {
       }
 );
 
-export type ContentEditorPhantomTextSelection = {
+export type ContentEditorPhantomSelection = {
     readonly key: string;
     readonly color: ThemeColor;
     readonly anchor: number;
     readonly head: number;
+    readonly isTextSelection: boolean;
 };
 
 /**
@@ -204,7 +205,7 @@ function ContentEditor<Content extends Node>(
         "aria-labelledby": ariaLabelledBy,
         onFocus,
         onBlur,
-        phantomTextSelections,
+        phantomSelections,
     } = props;
     const hasEnterCallback = typeof props.onEnter === "function";
 
@@ -667,7 +668,7 @@ function ContentEditor<Content extends Node>(
     }, [lastTransactionTime]);
 
     // Highlights the selection of all our phantom text selections using the
-    // ProseMirror decoration feature. We render `phantomTextSelections` in two
+    // ProseMirror decoration feature. We render `phantomSelections` in two
     // parts:
     //
     // 1. The phantom text selection (only if the selection is not empty)
@@ -678,21 +679,21 @@ function ContentEditor<Content extends Node>(
     // some characters breaks kerning. Which causes some jitter when user quickly
     // moves their phantom cursor around.
     useLayoutEffect(() => {
-        if (!phantomTextSelections || phantomTextSelections.length === 0) return;
+        if (!phantomSelections || phantomSelections.length === 0) return;
 
         const decorations: Array<(state: EditorState) => Array<Decoration>> = [];
 
-        for (const phantomTextSelection of phantomTextSelections) {
-            if (phantomTextSelection.anchor !== phantomTextSelection.head) {
-                const from = Math.min(phantomTextSelection.anchor, phantomTextSelection.head);
-                const to = Math.max(phantomTextSelection.anchor, phantomTextSelection.head);
+        for (const phantomSelection of phantomSelections) {
+            if (phantomSelection.anchor !== phantomSelection.head) {
+                const from = Math.min(phantomSelection.anchor, phantomSelection.head);
+                const to = Math.max(phantomSelection.anchor, phantomSelection.head);
 
                 decorations.push(state =>
                     createSelectionDecorations(
                         state.doc,
                         from,
                         to,
-                        colorSchemeVars[`${phantomTextSelection.color}-selection`],
+                        colorSchemeVars[`${phantomSelection.color}-selection`],
                     ),
                 );
             }
@@ -722,7 +723,7 @@ function ContentEditor<Content extends Node>(
                 return newDecorationCallbacks;
             });
         };
-    }, [phantomTextSelections]);
+    }, [phantomSelections]);
 
     useContentEditorDebugTools(viewRef);
 
@@ -749,12 +750,12 @@ function ContentEditor<Content extends Node>(
                 // after "bar".)
                 <FocusRingPortal element={selectedNodeElement} />
             )}
-            {phantomTextSelections?.map(phantomTextSelection => (
-                <ContentEditorPhantomTextSelectionCursor
-                    key={phantomTextSelection.key}
+            {phantomSelections?.map(phantomSelection => (
+                <ContentEditorPhantomSelectionCursor
+                    key={phantomSelection.key}
                     state={unwrap(state)}
                     viewRef={viewRef}
-                    phantomTextSelection={phantomTextSelection}
+                    phantomSelection={phantomSelection}
                 />
             ))}
         </>
