@@ -580,12 +580,15 @@ function ContentEditor<Content extends Node>(
         const viewElement = view.dom;
 
         const blurDecorationCallback = (decorationSet: DecorationSet, state: EditorState) => {
-            return decorationSet.add(state.doc, [
-                Decoration.inline(state.selection.from, state.selection.to, {
-                    class: inlineElementPaddingToLineHeightClassName,
-                    style: `background-color:${colorSchemeVars["grey-selection"]}`,
-                }),
-            ]);
+            return decorationSet.add(
+                state.doc,
+                createSelectionDecorations(
+                    state.doc,
+                    state.selection.from,
+                    state.selection.to,
+                    colorSchemeVars["grey-selection"],
+                ),
+            );
         };
 
         const handleFocus = () => {
@@ -677,20 +680,20 @@ function ContentEditor<Content extends Node>(
     useLayoutEffect(() => {
         if (!phantomTextSelections || phantomTextSelections.length === 0) return;
 
-        const decorations: Array<Decoration> = [];
+        const decorations: Array<(state: EditorState) => Array<Decoration>> = [];
 
         for (const phantomTextSelection of phantomTextSelections) {
             if (phantomTextSelection.anchor !== phantomTextSelection.head) {
                 const from = Math.min(phantomTextSelection.anchor, phantomTextSelection.head);
                 const to = Math.max(phantomTextSelection.anchor, phantomTextSelection.head);
 
-                decorations.push(
-                    Decoration.inline(from, to, {
-                        class: inlineElementPaddingToLineHeightClassName,
-                        style: `background-color:${
-                            colorSchemeVars[`${phantomTextSelection.color}-selection`]
-                        }`,
-                    }),
+                decorations.push(state =>
+                    createSelectionDecorations(
+                        state.doc,
+                        from,
+                        to,
+                        colorSchemeVars[`${phantomTextSelection.color}-selection`],
+                    ),
                 );
             }
         }
@@ -702,7 +705,7 @@ function ContentEditor<Content extends Node>(
                 state.doc,
                 // We need to copy the array since it looks like `DecorationSet.add()`
                 // mutates it?
-                [...decorations],
+                decorations.flatMap(decoration => decoration(state)),
             );
         };
 
@@ -837,4 +840,51 @@ function isContentBodyEmpty(node: Node): boolean {
     }
 
     return bodyChildNode.type.name === "paragraph" && bodyChildNode.content.size === 0;
+}
+
+/**
+ * Create decorations that carefully recreate browser text selection styles. So
+ * far we've only tested this on MacOS. May need tweaks to match Windows
+ * styles.
+ *
+ * Some things to consider when creating selection styles for MacOS:
+ *
+ * - The height of the selection should match the text's line height. Not
+ *   content height. We can't find a CSS property to let us target an inline
+ *   element's line height with a background color so we carefully add some
+ *   padding.
+ *
+ * - Selection adds some extra space at the end of selected paragraphs to show
+ *   that you are selecting a newline.
+ */
+function createSelectionDecorations(doc: Node, from: number, to: number, color: string) {
+    const decorations = [
+        Decoration.inline(from, to, {
+            class: inlineElementPaddingToLineHeightClassName,
+            style: `background-color:${color}`,
+        }),
+    ];
+
+    // Add newline indicators to the end of selected paragraphs and headers like
+    // browser selection styles.
+    doc.nodesBetween(from, to, (node, pos) => {
+        if (!node.inlineContent) return;
+
+        const newlineIndicatorPos = pos + node.content.size + 1;
+        if (newlineIndicatorPos >= to) return;
+
+        decorations.push(
+            Decoration.widget(newlineIndicatorPos, () => {
+                const newlineIndicatorElement = document.createElement("span");
+                newlineIndicatorElement.textContent = " ";
+                newlineIndicatorElement.className = inlineElementPaddingToLineHeightClassName;
+                newlineIndicatorElement.style.backgroundColor = color;
+                newlineIndicatorElement.style.userSelect = "none";
+                newlineIndicatorElement.ariaHidden = "true";
+                return newlineIndicatorElement;
+            }),
+        );
+    });
+
+    return decorations;
 }
