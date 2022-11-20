@@ -844,10 +844,10 @@ function isContentBodyEmpty(node: Node): boolean {
 
 /**
  * Create decorations that carefully recreate browser text selection styles. So
- * far we've only tested this on MacOS. May need tweaks to match Windows
- * styles.
+ * far we've only tested this on Chrome for MacOS. May need tweaks to match
+ * Windows styles.
  *
- * Some things to consider when creating selection styles for MacOS:
+ * Some things to consider when creating selection styles in Chrome for MacOS:
  *
  * - The height of the selection should match the text's line height. Not
  *   content height. We can't find a CSS property to let us target an inline
