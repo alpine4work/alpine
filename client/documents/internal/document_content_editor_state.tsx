@@ -31,6 +31,7 @@ import {
 import {unstable_ImmediatePriority, unstable_runWithPriority} from "scheduler";
 import {ContentEditorPhantomSelection} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
+import {useDebugTools} from "~/client/helpers/use_debug_tools";
 import {useWebSocket} from "~/client/helpers/use_web_socket";
 import {themeColors} from "~/shared/design/theme_colors";
 import {
@@ -174,6 +175,39 @@ function reduce(state: State, actions: ReadonlyArray<Action>): State {
     state = actions.reduce((state, action) => reduceWithAction(state, action), state);
     const newVersion = state.editorState.getVersion();
 
+    // If we are not currently sending steps to the server but we have some
+    // sendable steps, then populate the `pendingSendableSteps` action.
+    //
+    // Most often this runs after an `Edit` action as we're typing. But may also
+    // happen after a `ReceiveSteps` action where we've acknowledged our last
+    // pending sendable steps.
+    if (!state.pendingSendableSteps) {
+        const sendableSteps = state.editorState.sendableSteps();
+        if (sendableSteps) {
+            state = {
+                ...state,
+                pendingSendableSteps: sendableSteps
+                    ? {
+                          steps: sendableSteps.steps,
+                          version: sendableSteps.version,
+                          clientId: sendableSteps.clientId,
+                          messageId: generateId(),
+                          shouldSendToServerRef: {current: true},
+                      }
+                    : null,
+                // Make sure our presence state is up-to-date as well since we will send it to
+                // the server along with our sendable steps.
+                ourPresenceState: {
+                    state: {
+                        version: state.editorState.getVersion(),
+                        selection: state.editorState.getSelection(),
+                    },
+                    shouldSendToServerRef: {current: true},
+                },
+            };
+        }
+    }
+
     // If `rememberedSteps` or `otherPresenceStateByConnectionId` changed, then
     // discard any `rememberedSteps` we don't need anymore for rebasing
     // presence state selections.
@@ -239,19 +273,9 @@ function reduceWithAction(oldState: State, action: Action): State {
                 };
             }
 
-            const pendingSendableSteps = action.editorState.sendableSteps();
             return {
                 ...oldState,
                 editorState: action.editorState,
-                pendingSendableSteps: pendingSendableSteps
-                    ? {
-                          steps: pendingSendableSteps.steps,
-                          version: pendingSendableSteps.version,
-                          clientId: pendingSendableSteps.clientId,
-                          messageId: generateId(),
-                          shouldSendToServerRef: {current: true},
-                      }
-                    : null,
                 ourPresenceState: {
                     state: {
                         version: action.editorState.getVersion(),
@@ -349,16 +373,20 @@ function reduceWithAction(oldState: State, action: Action): State {
         // then we have an effect which fetches those steps from the server. This
         // action integrates the old steps into our state.
         case "AugmentRememberedSteps": {
-            assert(
-                action.startVersion + action.invertedSteps.length ===
-                    oldState.editorState.getVersion() - oldState.rememberedSteps.length,
+            // Drop steps we're trying to remember that we already have.
+            const rememberInvertedSteps = action.invertedSteps.slice(
+                0,
+                oldState.editorState.getVersion() -
+                    oldState.rememberedSteps.length -
+                    action.startVersion,
             );
+            if (rememberInvertedSteps.length === 0) return oldState;
 
             let content =
                 oldState.rememberedSteps[oldState.rememberedSteps.length - 1]?.contentBeforeStep ??
                 new Lazy(() => oldState.editorState.getContentWithoutSendableSteps());
 
-            const newRememberedSteps = [...action.invertedSteps].reverse().map(invertedStep => {
+            const newRememberedSteps = [...rememberInvertedSteps].reverse().map(invertedStep => {
                 const previousContent = content;
 
                 content = new Lazy(() => {
@@ -457,7 +485,7 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
     // to update the document content.
     if (errorState.hasError) throw errorState.error;
 
-    const {isConnected, sendMessage} = useWebSocket(
+    const {isConnected, sendMessage, toggleShouldConnect} = useWebSocket(
         DocumentCollaborationMessageFromClientSchema,
         DocumentCollaborationMessageFromServerSchema,
         `/durable-objects/documents/${documentId}`,
@@ -776,6 +804,11 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
 
         return phantomSelections;
     }, [presenceStates]);
+
+    useDebugTools(
+        "DocumentContentEditor",
+        useCallback(() => ({toggleShouldConnect}), [toggleShouldConnect]),
+    );
 
     return {
         editorState: state.editorState,

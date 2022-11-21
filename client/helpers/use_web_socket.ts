@@ -19,12 +19,14 @@ export function useWebSocket<
 ): {
     isConnected: boolean;
     sendMessage: Memo<(message: MessageFromClient) => void>;
+    toggleShouldConnect: () => void;
 } {
     const client = useMemo(
         () => new WebSocketClient(messageFromClientSchema, messageFromServerSchema, url),
         [messageFromClientSchema, messageFromServerSchema, url],
     );
 
+    const [shouldConnect, setShouldConnect] = useState(true);
     const [isConnected, setIsConnected] = useState(false);
     const actuallyHandleMessage = useEvent(handleMessage);
 
@@ -44,6 +46,10 @@ export function useWebSocket<
     // We believe the hook is well written to handle unmounts. The Chrome log is
     // only a warning.
     useEffectWithoutStrictModeUnmountSimulation(() => {
+        setIsConnected(false);
+
+        if (!shouldConnect) return;
+
         const unsubscribeFromConnect = client.subscribeToConnect(() => {
             setIsConnected(true);
         });
@@ -66,7 +72,7 @@ export function useWebSocket<
 
             client.disconnect();
         };
-    }, [actuallyHandleMessage, client]);
+    }, [actuallyHandleMessage, client, shouldConnect]);
 
     const sendMessage = useCallback(
         (message: MessageFromClient) => client.sendMessage(message),
@@ -76,5 +82,9 @@ export function useWebSocket<
     return {
         isConnected,
         sendMessage,
+        toggleShouldConnect: useCallback(
+            () => setShouldConnect(shouldConnect => !shouldConnect),
+            [],
+        ),
     };
 }

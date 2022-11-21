@@ -13,6 +13,7 @@ import {
 
 const reconnectTimeoutBaseMs = 1200;
 const maxReconnectTimeoutMs = 2500;
+const reconnectAttemptsBeforeError = 20;
 
 type WebsocketClientState =
     | {
@@ -169,6 +170,8 @@ export class WebSocketClient<
             assert(this._state.socket === socket);
 
             this._lastMessageReceived = Date.now();
+            this._unsuccessfulReconnects = 0;
+
             this._state = {type: "connected", socket};
             if (this._pendingSerializedMessages.length) {
                 for (const message of this._pendingSerializedMessages) {
@@ -176,6 +179,7 @@ export class WebSocketClient<
                 }
                 this._pendingSerializedMessages = [];
             }
+
             this._connectEvent.emit();
             pingTimeout = createTimeout(sendPing, expirationTimeoutMs / 2);
         });
@@ -187,18 +191,22 @@ export class WebSocketClient<
             const wasClosedBeforeConnected =
                 this._state.type === "connecting" && !this._shouldConnect;
 
+            const isGracefullyWaitingForReconnect =
+                this._shouldConnect && this._unsuccessfulReconnects < reconnectAttemptsBeforeError;
+
             // From reading the spec, it looks like the `error` event is only fired before
             // a `close` event. But the `close` event has more interesting information
             // about the error. So we don't have a listener for `error`, just `close`.
             // https://websockets.spec.whatwg.org/#dom-websocket-onerror
             const error =
-                (event.code !== 1000 || !event.wasClean) && !wasClosedBeforeConnected
+                (event.code !== 1000 || !event.wasClean) &&
+                !wasClosedBeforeConnected &&
+                // Try to reconnect for a short period before showing an error.
+                !isGracefullyWaitingForReconnect
                     ? new UnknownError(
-                          `WebSocket ${
-                              event.wasClean ? "closed cleanly" : "did not close cleanly"
-                          } with error code ${event.code}${
+                          `WebSocket closed unexpectedly with code ${event.code}${
                               event.reason ? quote`and reason ${event.reason}` : ""
-                          }`,
+                          }${!event.wasClean ? " (did not exit cleanly)" : ""}`,
                       )
                     : null;
 
