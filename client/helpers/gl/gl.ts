@@ -1,8 +1,8 @@
-import assert from "assert";
 import {GlProgram} from "~/client/helpers/gl/gl_program";
 import {GlShader} from "~/client/helpers/gl/gl_shader";
 import {GlTexture2d} from "~/client/helpers/gl/gl_texture_2d";
 import {GlShaderType, GlTextureFormat} from "~/client/helpers/gl/gl_types";
+import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {getOwnProperty} from "~/shared/helpers/object/get_own_property";
 

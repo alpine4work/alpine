@@ -17,6 +17,7 @@ ts_project(
         "//:node_modules/date-fns",
         "//:node_modules/functional-red-black-tree",
         "//:node_modules/prosemirror-model",
+        "//:node_modules/prosemirror-state",
         "//:node_modules/prosemirror-transform",
     ],
 )
