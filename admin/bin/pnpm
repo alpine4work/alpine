@@ -6,7 +6,7 @@ workspace_path=$(cd $(dirname $0)/../.. && pwd)
 # version. Otherwise, remove our workspace bin from `PATH` to run the system
 # installed `pnpm`.
 if [[ $PWD/ = $workspace_path/* ]]; then
-    node_workspace="node_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m)"
+    node_workspace="node_$(uname -s | tr '[:upper:]' '[:lower:]')_$(get_bazelisk_arch_suffix)"
     bazel build --ui_event_filters=-info @pnpm//:pnpm
     $workspace_path/bazel-cyberworlds/external/$node_workspace/bin/node $workspace_path/bazel-cyberworlds/external/pnpm/package/dist/pnpm.cjs $@
 else

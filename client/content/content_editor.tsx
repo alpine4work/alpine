@@ -10,7 +10,6 @@ import {
     forwardRef,
     useEffect,
     useImperativeHandle,
-    useLayoutEffect,
     useRef,
     useState,
 } from "react";
@@ -33,6 +32,7 @@ import {trimSpacesFromRange} from "~/client/content/internal/content_editor_pros
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools";
 import {FocusRingPortal} from "~/client/design/focus_ring";
 import {isMac} from "~/client/helpers/is_mac";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {doesUrlStartWithAllowedProtocol} from "~/shared/content/content_schema";
 import {ThemeColor} from "~/shared/design/theme_colors";
 import {documentFallbackTitle} from "~/shared/documents/document_model";
@@ -213,14 +213,14 @@ function ContentEditor<Content extends Node>(
     // component (ProseMirror's `EditorView`) so we need to be able to
     // imperatively access props.
     //
-    // Importantly, we set this in a `useLayoutEffect` instead of render! If we
+    // Importantly, we set this in a `useLayoutEffectWithoutServerSideWarning` instead of render! If we
     // set in render and concurrent React cancels/rebases/retries the render then
     // there may be bugs.
     //
     // Please avoid using `propsRef` unless you can thoroughly reason through why
     // it's safe!
     const propsRef = useRef(props);
-    useLayoutEffect(() => {
+    useLayoutEffectWithoutServerSideWarning(() => {
         propsRef.current = props;
     });
 
@@ -257,7 +257,7 @@ function ContentEditor<Content extends Node>(
     //
     // Layout effect because the visual layout of this component depends on the
     // editor view being initialized.
-    useLayoutEffect(() => {
+    useLayoutEffectWithoutServerSideWarning(() => {
         assert(elementRef.current);
 
         const state = unwrap(propsRef.current.state);
@@ -396,7 +396,7 @@ function ContentEditor<Content extends Node>(
     //
     // Layout effect because the visual layout depends on the editor state prop
     // which we need to set imperatively.
-    useLayoutEffect(() => {
+    useLayoutEffectWithoutServerSideWarning(() => {
         // We don't do anything with `lastTransactionTime` in this effect, but we
         // want the effect to re-run whenever it changes. We optimistically update
         // our `EditorView` state as an optimization. When React finishes committing
@@ -419,7 +419,7 @@ function ContentEditor<Content extends Node>(
         ReadonlySet<(decorationSet: DecorationSet, state: EditorState) => DecorationSet>
     >(() => new Set());
 
-    useLayoutEffect(() => {
+    useLayoutEffectWithoutServerSideWarning(() => {
         assert(viewRef.current);
         const view = viewRef.current;
 
@@ -438,7 +438,7 @@ function ContentEditor<Content extends Node>(
 
     // Apply `className`s from our `className` prop. Take care to make sure class
     // names added by ProseMirror or other effects continue to be applied.
-    useLayoutEffect(() => {
+    useLayoutEffectWithoutServerSideWarning(() => {
         assert(viewRef.current);
         const viewElement = viewRef.current.dom;
 
@@ -476,7 +476,7 @@ function ContentEditor<Content extends Node>(
     }
 
     // Keep various attributes on the editor element up to date.
-    useLayoutEffect(() => {
+    useLayoutEffectWithoutServerSideWarning(() => {
         assert(viewRef.current);
         const viewElement = viewRef.current.dom;
 
@@ -503,7 +503,7 @@ function ContentEditor<Content extends Node>(
 
     // Set `aria-placeholder` on the editor for accessibility and then
     // `data-placeholder` on nodes which need to render placeholders.
-    useLayoutEffect(() => {
+    useLayoutEffectWithoutServerSideWarning(() => {
         assert(viewRef.current);
         const viewElement = viewRef.current.dom;
 
@@ -575,7 +575,7 @@ function ContentEditor<Content extends Node>(
     // This is important for the link and highlight floater which gives the user's
     // keyboard focus to another element that's still targeting the content editor.
     // So the user needs to see what content their link/highlight will apply to.
-    useLayoutEffect(() => {
+    useLayoutEffectWithoutServerSideWarning(() => {
         assert(viewRef.current);
         const view = viewRef.current;
         const viewElement = view.dom;
@@ -678,7 +678,7 @@ function ContentEditor<Content extends Node>(
     // standard React components since inserting an element into the DOM between
     // some characters breaks kerning. Which causes some jitter when user quickly
     // moves their phantom cursor around.
-    useLayoutEffect(() => {
+    useLayoutEffectWithoutServerSideWarning(() => {
         if (!phantomSelections || phantomSelections.length === 0) return;
 
         const decorations: Array<(state: EditorState) => Array<Decoration>> = [];
