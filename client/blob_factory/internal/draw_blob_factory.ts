@@ -95,7 +95,7 @@ export function drawBlobFactory(
     const blurSize = program.uniformFloat("u_blurSize", settings.blurSize);
     const blurSpread = program.uniformFloat("u_blurSpread", settings.blurSpread);
     const mode = program.uniformEnum("u_mode", settings.mode);
-    const darkMode = program.uniformBool("u_darkMode", colorScheme === "dark");
+    program.uniformBool("u_darkMode", colorScheme === "dark");
     const interpolateMode = program.uniformEnum("u_interpolateMode", settings.interpolateMode);
     const hueBias = program.uniformFloat("u_hueBias", settings.hueBias);
 
@@ -165,12 +165,9 @@ export function drawBlobFactory(
         }
     };
 
-    let isCancelled = false;
-
     const destroy = () => {
         displayGl.destroy();
         if (requestedFrame !== undefined) cancelAnimationFrame(requestedFrame);
-        isCancelled = true;
     };
 
     return {

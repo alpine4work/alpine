@@ -1,16 +1,12 @@
 import {useRef} from "react";
-import {
-    BlobFactory,
-    BlobFactoryBlobs,
-    BlobFactorySettings,
-    drawBlobFactory,
-} from "~/client/blob_factory/internal/draw_blob_factory";
+import {BlobFactorySettings} from "~/client/blob_factory/blob_factory_types";
+import {BlobFactory, drawBlobFactory} from "~/client/blob_factory/internal/draw_blob_factory";
 import {useColorScheme} from "~/client/design/color_scheme";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer";
 import {formatCssLinearGradient, generateEasedGradient} from "~/shared/design/gradient";
 import {assert} from "~/shared/helpers/control/assert";
-import {easeInOutSin, easeInSin} from "~/shared/helpers/easing";
+import {easeInOutSin} from "~/shared/helpers/easing";
 import {Vector2} from "~/shared/helpers/geometry/vector2";
 import {sprinkles} from "~/shared/styles/styles";
 
@@ -51,23 +47,24 @@ export function BlobFactory({
     // We accept that while server-side rendering we can't show blobs
     // I wonder if there is anyway to run blob factory server side....
     useLayoutEffectWithoutServerSideWarning(() => {
-        if (!containerRect || !colorScheme) return;
+        if (!hasContainerRect || !colorScheme) return;
 
         assert(blobFactoryRef.current);
         blobFactoryRef.current.setSize(new Vector2(containerRect.width, containerRect.height));
-    }, [colorScheme, containerRect]);
+    }, [colorScheme, containerRect, hasContainerRect]);
 
     useLayoutEffectWithoutServerSideWarning(() => {
         if (!settings || !colorScheme) return;
 
         assert(blobFactoryRef.current);
         blobFactoryRef.current.setSettings(settings);
-    }, [settings, containerRect]);
+    }, [settings, containerRect, colorScheme]);
 
     return (
         <div
             ref={containerRef}
             className={sprinkles({
+                zIndex: "-50",
                 position: "absolute",
                 inset: "0",
                 width: width ? undefined : "full",

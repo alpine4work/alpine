@@ -1,7 +1,16 @@
 import {globalStyle, style} from "@vanilla-extract/css";
-import {paragraphClassName, titleClassName} from "~/shared/styles/internal/content_schema.css";
-import {bodyFontAndHeaderFontLineHeight} from "~/shared/styles/internal/fonts.css";
+import {
+    headingLevel1ClassName,
+    headingLevel2ClassName,
+    headingLevel3ClassName,
+    paragraphClassName,
+    titleClassName,
+} from "~/shared/styles/internal/content_schema.css";
 import {inputPlaceholderColor} from "~/shared/styles/internal/input_placeholder_color.css";
+import {
+    bodyFontAndHeaderFontLineHeight,
+    typographySize,
+} from "~/shared/styles/internal/typography.css";
 
 export const containerClassName = style({
     height: "100%",
@@ -76,8 +85,26 @@ const inlineElementActualHeight = `${24.2 / 20}em`;
  * on Chrome for MacOS. Hopefully it works elsewhere?
  */
 export const inlineElementPaddingToLineHeightClassName = style({
-    paddingTop: `calc((${bodyFontAndHeaderFontLineHeight} - ${inlineElementActualHeight}) / 2)`,
-    paddingBottom: `calc((${bodyFontAndHeaderFontLineHeight} - ${inlineElementActualHeight}) / 2)`,
+    paddingTop: `calc((${typographySize.body.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+    paddingBottom: `calc((${typographySize.body.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+    selectors: {
+        [`${titleClassName} &`]: {
+            paddingTop: `calc((${typographySize.heading2.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+            paddingBottom: `calc((${typographySize.heading2.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+        },
+        [`${headingLevel1ClassName} &`]: {
+            paddingTop: `calc((${typographySize.heading3.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+            paddingBottom: `calc((${typographySize.heading3.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+        },
+        [`${headingLevel2ClassName} &`]: {
+            paddingTop: `calc((${typographySize.heading4.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+            paddingBottom: `calc((${typographySize.heading4.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+        },
+        [`${headingLevel3ClassName} &`]: {
+            paddingTop: `calc((${typographySize.heading5.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+            paddingBottom: `calc((${typographySize.heading5.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+        },
+    },
 });
 
 // We use our `<FocusRing>` class for highlighting a selected node.

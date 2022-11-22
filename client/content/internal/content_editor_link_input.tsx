@@ -94,7 +94,7 @@ export function ContentEditorLinkInput({
                     height: "full",
                     paddingLeft: "8",
                     paddingRight: "1",
-                    font: "small",
+                    typographySize: "small",
                     color: "grey-100",
                     backgroundColor: "transparent",
                 })}

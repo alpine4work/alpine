@@ -7,6 +7,7 @@
  */
 
 import {fontFace} from "@vanilla-extract/css";
+import {spacing} from "~/shared/design/spacing";
 
 const interFontFace = fontFace({
     src: "url(/fonts/inter.woff2) format('woff2')",
@@ -46,9 +47,9 @@ const interFontFamily = `${interFontFace}, ${interFallbackFontFace}`;
 const firaCodeFontFamily = `${firaCodeFontFace}, ${firaCodeFallbackFontFace}`;
 
 /**
- * The fonts available in our product.
+ * The typography styles available in our product.
  */
-export const fonts = {
+export const typographyStyle = {
     primary: {
         fontFamily: interFontFamily,
         fontWeight: 400,
@@ -90,7 +91,7 @@ export const fonts = {
  * to match our spacing scale. If we want text to fit in our spacing scale, use
  * a container that fits it to the right size.
  */
-export const bodyFontAndHeaderFontLineHeight = "1.5em" as const;
+export const bodyFontAndHeaderFontLineHeight = "1.4em" as const;
 
 /**
  * The font scale for our product.
@@ -103,60 +104,66 @@ export const bodyFontAndHeaderFontLineHeight = "1.5em" as const;
  *
  * [1]: https://rsms.me/inter/dynmetrics
  */
-export const fontScale = {
+export const typographySize = {
     tiny: {
         fontSize: "0.625rem",
-        lineHeight: bodyFontAndHeaderFontLineHeight,
+        // TODO(calebmer): Haven't really tested for what line height looks good here.
+        // Picking a value on the spacing scale.
+        lineHeight: spacing["3"],
         letterSpacing: "0.01em",
     },
     small: {
         fontSize: "0.75rem",
-        lineHeight: "1rem",
+        // This line-height is optimized for alignment with spacing scale vs what
+        // optically looks good in long blocks of text. Since `small` is the default
+        // size for UI text.
+        lineHeight: spacing["4"],
         letterSpacing: "0em",
     },
     body: {
         fontSize: "1rem",
-        lineHeight: bodyFontAndHeaderFontLineHeight,
+        // Same as a 1.5em line-height. Conveniently also looks good!
+        lineHeight: spacing["6"],
         letterSpacing: "-0.011em",
     },
     heading5: {
         fontSize: "1.25rem",
-        lineHeight: bodyFontAndHeaderFontLineHeight,
+        lineHeight: "1.4em",
         letterSpacing: "-0.017em",
     },
     heading4: {
         fontSize: "1.75rem",
-        lineHeight: bodyFontAndHeaderFontLineHeight,
+        lineHeight: "1.3em",
         letterSpacing: "-0.021em",
     },
     heading3: {
         fontSize: "2.25rem",
-        lineHeight: bodyFontAndHeaderFontLineHeight,
+        lineHeight: "1.25em",
         letterSpacing: "-0.022em",
     },
     heading2: {
         fontSize: "3rem",
-        lineHeight: bodyFontAndHeaderFontLineHeight,
+        lineHeight: "1.2em",
         letterSpacing: "-0.022em",
     },
     heading1: {
         fontSize: "4.25rem",
-        lineHeight: bodyFontAndHeaderFontLineHeight,
+        lineHeight: "1.2em",
         letterSpacing: "-0.022em",
     },
     hero3: {
         fontSize: "5.625rem",
-        lineHeight: bodyFontAndHeaderFontLineHeight,
+        lineHeight: "1.2em",
         letterSpacing: "-0.022em",
     },
     hero2: {
         fontSize: "7.5rem",
-        lineHeight: bodyFontAndHeaderFontLineHeight,
+        lineHeight: "1.2em",
         letterSpacing: "-0.022em",
     },
     hero1: {
         fontSize: "10rem",
-        lineHeight: bodyFontAndHeaderFontLineHeight,
+        lineHeight: "1.2em",
         letterSpacing: "-0.022em",
     },
 } as const;

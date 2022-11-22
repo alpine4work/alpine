@@ -8,7 +8,7 @@ import {
 } from "~/shared/design/spacing";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
 import {CssVarFunction, colorSchemeVars} from "~/shared/styles/internal/color_scheme.css";
-import {fontScale, fonts} from "~/shared/styles/internal/fonts.css";
+import {typographySize, typographyStyle} from "~/shared/styles/internal/typography.css";
 
 const paragraphMargin = spacing["3"];
 const headerTopMargin = spacing["6"];
@@ -32,40 +32,40 @@ export const titlePaddingTop = spacing["24"];
 
 export const titleClassName = style({
     ...blockStyles,
-    ...fonts.primarySemiBold,
-    ...fontScale.heading2,
+    ...typographyStyle.primarySemiBold,
+    ...typographySize.heading2,
     paddingTop: titlePaddingTop,
     marginBottom: paragraphMargin,
 });
 
 export const paragraphClassName = style({
     ...blockStyles,
-    ...fonts.primary,
-    ...fontScale.body,
+    ...typographyStyle.primary,
+    ...typographySize.body,
     marginTop: paragraphMargin,
     marginBottom: paragraphMargin,
 });
 
 export const headingLevel1ClassName = style({
     ...blockStyles,
-    ...fonts.primarySemiBold,
-    ...fontScale.heading3,
+    ...typographyStyle.primarySemiBold,
+    ...typographySize.heading3,
     marginTop: headerTopMargin,
     marginBottom: paragraphMargin,
 });
 
 export const headingLevel2ClassName = style({
     ...blockStyles,
-    ...fonts.primarySemiBold,
-    ...fontScale.heading4,
+    ...typographyStyle.primarySemiBold,
+    ...typographySize.heading4,
     marginTop: headerTopMargin,
     marginBottom: paragraphMargin,
 });
 
 export const headingLevel3ClassName = style({
     ...blockStyles,
-    ...fonts.primarySemiBold,
-    ...fontScale.heading5,
+    ...typographyStyle.primarySemiBold,
+    ...typographySize.heading5,
     marginTop: headerTopMargin,
     marginBottom: paragraphMargin,
 });
@@ -134,7 +134,7 @@ export const orderedListItemClassName = style({
             left: `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${spacing["6"]})`,
             textAlign: "right",
             transform: "translateX(-100%)",
-            ...fontScale.body,
+            ...typographySize.body,
             fontVariantNumeric: "tabular-nums",
         },
     },
@@ -227,12 +227,12 @@ export const dividerClassName = style({
 });
 
 export const codeClassName = style({
-    ...fonts.code,
+    ...typographyStyle.code,
     fontSize: `${(remPxByPlatform.desktop - 1) / remPxByPlatform.desktop}em`,
-    // The line height isn't `fontScale.base.lineHeight` because I've observed that
-    // it grows the paragraph container as a whole to a larger height than
-    // `fontScale.base.lineHeight`. But 1em seems to inherit the block element's
-    // line height?
+    // The line height isn't `typographySize.base.lineHeight` because I've
+    // observed that it grows the paragraph container as a whole to a larger height
+    // than `typographySize.base.lineHeight`. But 1em seems to inherit the block
+    // element's line height?
     lineHeight: "1em",
     backgroundColor: colorSchemeVars["grey-5"],
     wordWrap: "break-word",
@@ -245,10 +245,10 @@ export const codeClassName = style({
 });
 
 export const boldClassName = style({
-    ...fonts.primaryBold,
+    ...typographyStyle.primaryBold,
     selectors: {
         [`${codeClassName} &`]: {
-            ...fonts.codeBold,
+            ...typographyStyle.codeBold,
         },
     },
 });

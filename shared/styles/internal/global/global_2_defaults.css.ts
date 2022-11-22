@@ -9,22 +9,22 @@ import {globalStyle} from "@vanilla-extract/css";
 import {mobilePlatformMediaQuery, remPxByPlatform} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
 import {colorSchemeVars} from "~/shared/styles/internal/color_scheme.css";
-import {fontScale, fonts} from "~/shared/styles/internal/fonts.css";
 import {inputPlaceholderColor} from "~/shared/styles/internal/input_placeholder_color.css";
+import {typographySize, typographyStyle} from "~/shared/styles/internal/typography.css";
 
-// Since we use the `fontScale.base` line height as our default, let's make
-// sure the font size is 1rem.
-assert(fontScale.body.fontSize === "1rem");
+// Since we use the `typographySize.base` line height as our default, let's
+// make sure the font size is 1rem.
+assert(typographySize.body.fontSize === "1rem");
 
 globalStyle(":root", {
     backgroundColor: colorSchemeVars["grey-0"],
     color: colorSchemeVars["grey-100"],
-    ...fonts.primary,
+    ...typographyStyle.primary,
 
     // Change the size of 1rem based on whether we're on desktop or mobile.
     fontSize: remPxByPlatform.desktop,
-    lineHeight: fontScale.body.lineHeight,
-    letterSpacing: fontScale.body.letterSpacing,
+    lineHeight: typographySize.body.lineHeight,
+    letterSpacing: typographySize.body.letterSpacing,
 
     "@media": {
         [mobilePlatformMediaQuery]: {
@@ -41,7 +41,7 @@ globalStyle(":root", {
 globalStyle("body", {
     // Actually use `sm` as the default size. We want our default font to be
     // ideal for system text not user content.
-    ...fontScale.small,
+    ...typographySize.small,
 });
 
 globalStyle("html, body, #__next", {
@@ -63,7 +63,7 @@ globalStyle("*", {
 });
 
 globalStyle("code, kbd, samp, pre", {
-    ...fonts.code,
+    ...typographyStyle.code,
 });
 
 globalStyle("::placeholder", {
