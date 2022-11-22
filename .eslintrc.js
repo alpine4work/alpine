@@ -67,6 +67,9 @@ module.exports = {
         // Blocks can be helpful for organizing code.
         "no-lone-blocks": "off",
 
+        // Prettier wraps/unwraps operators as it sees fit.
+        "no-mixed-operators": "off",
+
         // Allow re-declaring types and values. For example `type Foo` and
         // `const Foo` in the same file should be ok.
         "no-redeclare": "off",

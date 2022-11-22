@@ -8,8 +8,8 @@
  * [1]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwnProperty
  */
 export function hasOwnProperty<K extends string | number | symbol>(
-    value: unknown,
+    object: unknown,
     key: K,
-): value is {[_K in K]: unknown} {
-    return Object.prototype.hasOwnProperty.call(value, key);
+): object is {[_K in K]: unknown} {
+    return Object.prototype.hasOwnProperty.call(object, key);
 }

@@ -1,23 +1,28 @@
 import {InternalError} from "~/shared/error/error";
-import {omitFromStackTrace} from "~/shared/helpers/control/omit_from_stack_trace";
 
 /**
  * Throws an assertion error if the condition is falsy.
  *
- * An assertion is always expected to be true on every execution of the program. Assertion failures
- * in production should be a bug.
+ * An assertion is always expected to be true on every execution of the
+ * program. Assertion failures in production should always be a bug.
  *
- * Integrates with the type system so that assertions refine the type. We have a Babel plugin that
- * automatically generates a message for these function calls.
+ * Integrates with the type system so that assertions refine the type.
  */
 // TODO(calebmer): Lint rule that the right `assert()` is being imported.
-// TODO(calebmer): Maybe inline `omitFromStackTrace()` since `assert()` is called
-// a lot in performance critical code?
-export const assert: (condition: unknown, message?: string) => asserts condition =
-    omitFromStackTrace((condition, message) => {
-        if (!condition) {
-            throw new InternalError(
-                message ? `Assertion failure: ${message}` : "Assertion failure",
-            );
+// TODO(calebmer): Transform that automatically adds error message.
+export function assert(condition: unknown, message?: string): asserts condition {
+    if (!condition) {
+        const error = new InternalError(
+            message ? `Assertion failure: ${message}` : "Assertion failure",
+        );
+
+        // Inlined from `omitFromStackTrace()` since this is a performance critical
+        // function. Excludes the `assert()` stack frame from the error's stack for
+        // better debugging.
+        if ((Error as any).captureStackTrace) {
+            (Error as any).captureStackTrace(error, assert);
         }
-    });
+
+        throw error;
+    }
+}
