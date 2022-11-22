@@ -1,13 +1,30 @@
 import {useRef} from "react";
-import {BlobFactory, drawBlobFactory} from "~/client/blob_factory/internal/draw_blob_factory";
+import {
+    BlobFactory,
+    BlobFactoryBlobs,
+    BlobFactorySettings,
+    drawBlobFactory,
+} from "~/client/blob_factory/internal/draw_blob_factory";
 import {useColorScheme} from "~/client/design/color_scheme";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer";
+import {formatCssLinearGradient, generateEasedGradient} from "~/shared/design/gradient";
 import {assert} from "~/shared/helpers/control/assert";
+import {easeInOutSin, easeInSin} from "~/shared/helpers/easing";
 import {Vector2} from "~/shared/helpers/geometry/vector2";
 import {sprinkles} from "~/shared/styles/styles";
 
-export function BlobFactory() {
+export function BlobFactory({
+    width,
+    height,
+    fadeToBlank = false,
+    settings,
+}: {
+    width?: number;
+    height?: number;
+    fadeToBlank?: boolean;
+    settings?: BlobFactorySettings;
+}) {
     const colorScheme = useColorScheme();
 
     const containerRef = useRef<HTMLDivElement>(null);
@@ -40,17 +57,24 @@ export function BlobFactory() {
         blobFactoryRef.current.setSize(new Vector2(containerRect.width, containerRect.height));
     }, [colorScheme, containerRect]);
 
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (!settings || !colorScheme) return;
+
+        assert(blobFactoryRef.current);
+        blobFactoryRef.current.setSettings(settings);
+    }, [settings, containerRect]);
+
     return (
         <div
             ref={containerRef}
             className={sprinkles({
                 position: "absolute",
                 inset: "0",
-                width: "full",
-                height: "full",
-                zIndex: "-50",
+                width: width ? undefined : "full",
+                height: height ? undefined : "full",
             })}
             aria-hidden="true"
+            style={{width, height}}
         >
             {containerRect && (
                 <canvas
@@ -63,6 +87,29 @@ export function BlobFactory() {
                         width: "full",
                         height: "full",
                     })}
+                />
+            )}
+            {fadeToBlank && (
+                <div
+                    className={sprinkles({
+                        position: "absolute",
+                        inset: "0",
+                    })}
+                    style={{
+                        backgroundImage: formatCssLinearGradient(
+                            "to bottom",
+                            generateEasedGradient(
+                                colorScheme === "dark"
+                                    ? "rgba(0, 0, 0, 0)"
+                                    : "rgba(255, 255, 255, 0)",
+                                colorScheme === "dark"
+                                    ? "rgba(0, 0, 0, 1)"
+                                    : "rgba(255, 255, 255, 1)",
+                                easeInOutSin,
+                                10,
+                            ),
+                        ),
+                    }}
                 />
             )}
         </div>

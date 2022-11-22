@@ -1,5 +1,10 @@
 import Color from "color";
 import {interpolateHcl} from "d3-interpolate";
+import {
+    BlobFactoryInterpolateMode,
+    BlobFactoryMode,
+    BlobFactorySettings,
+} from "~/client/blob_factory/blob_factory_types";
 import {blobFactoryShaderFragSource} from "~/client/blob_factory/internal/blob_factory_shader_frag";
 import {blobFactoryShaderVertSource} from "~/client/blob_factory/internal/blob_factory_shader_vert";
 import {ColorScheme} from "~/client/design/color_scheme";
@@ -21,27 +26,12 @@ import {invLerp} from "~/shared/helpers/number/inv_lerp";
 import {randomFloat} from "~/shared/helpers/number/random_float";
 import {randomInteger} from "~/shared/helpers/number/random_integer";
 
-const initialBlobCount = randomInteger(5, 10);
-
-enum BlobFactoryMode {
-    Blur = 0,
-    Inside = 1,
-    Outside = 2,
-    Fill = 3,
-}
-
 const modes = [
     {label: "blur", value: BlobFactoryMode.Blur},
     {label: "fill", value: BlobFactoryMode.Fill},
     {label: "inside", value: BlobFactoryMode.Inside},
     {label: "outside", value: BlobFactoryMode.Outside},
 ];
-
-enum BlobFactoryInterpolateMode {
-    Naive = 0,
-    Vector = 1,
-    Min = 2,
-}
 
 const interpolateModes = [
     {label: "naive", value: BlobFactoryInterpolateMode.Naive},
@@ -51,19 +41,27 @@ const interpolateModes = [
 
 export type BlobFactory = {
     setSize(size: Vector2): void;
+    setSettings(settings: Partial<BlobFactorySettings>): void;
     destroy(): void;
 };
 
-export function drawBlobFactory(
-    displayCanvas: HTMLCanvasElement,
-    {colorScheme}: {colorScheme: ColorScheme},
-): BlobFactory {
-    const displayGl = new Gl(displayCanvas);
-    const fragShader = displayGl.createShader(GlShaderType.Fragment, blobFactoryShaderFragSource);
-    const vertShader = displayGl.createShader(GlShaderType.Vertex, blobFactoryShaderVertSource);
-    const program = displayGl.createProgram(vertShader, fragShader);
+export type BlobFactoryBlobs = ReadonlyArray<Blob>;
 
-    const blobs = createArrayWithLength(
+function generateDefaultBlobFactorySettings(): BlobFactorySettings {
+    return {
+        smoothness: randomFloat(50, 100),
+        blurSize: 150,
+        blurSpread: 0.9,
+        mode: randomArrayItem(modes).value,
+        interpolateMode: randomArrayItem(interpolateModes).value,
+        hueBias: randomFloat(0, 360),
+        colorLevel: randomFloat(10, 90),
+    };
+}
+
+function generateDefaultBlobs(): BlobFactoryBlobs {
+    const initialBlobCount = randomInteger(5, 10);
+    return createArrayWithLength(
         initialBlobCount,
         () =>
             new Blob(
@@ -72,16 +70,34 @@ export function drawBlobFactory(
                 randomArrayItem(themeColors),
             ),
     );
+}
+
+export function drawBlobFactory(
+    displayCanvas: HTMLCanvasElement,
+    {
+        colorScheme,
+        blobs = generateDefaultBlobs(),
+        settings: rawSettings = {},
+    }: {
+        colorScheme: ColorScheme;
+        blobs?: BlobFactoryBlobs;
+        settings?: Partial<BlobFactorySettings>;
+    },
+): BlobFactory {
+    let settings: BlobFactorySettings = {...generateDefaultBlobFactorySettings(), ...rawSettings};
+    const displayGl = new Gl(displayCanvas);
+    const fragShader = displayGl.createShader(GlShaderType.Fragment, blobFactoryShaderFragSource);
+    const vertShader = displayGl.createShader(GlShaderType.Vertex, blobFactoryShaderVertSource);
+    const program = displayGl.createProgram(vertShader, fragShader);
 
     const size = program.uniformVector2("u_resolution", new Vector2(100, 100));
-    program.uniformFloat("u_smoothness", randomFloat(50, 100));
-    program.uniformFloat("u_blurSize", 150);
-    program.uniformFloat("u_blurSpread", 0.8);
-    program.uniformEnum("u_mode", randomArrayItem(modes).value);
+    const smoothness = program.uniformFloat("u_smoothness", settings.smoothness);
+    const blurSize = program.uniformFloat("u_blurSize", settings.blurSize);
+    const blurSpread = program.uniformFloat("u_blurSpread", settings.blurSpread);
+    const mode = program.uniformEnum("u_mode", settings.mode);
     const darkMode = program.uniformBool("u_darkMode", colorScheme === "dark");
-    program.uniformEnum("u_interpolateMode", randomArrayItem(interpolateModes).value);
-    program.uniformFloat("u_hueBias", randomFloat(0, 360));
-    const colorLevel = darkMode.value ? randomFloat(50, 95) : randomFloat(5, 50);
+    const interpolateMode = program.uniformEnum("u_interpolateMode", settings.interpolateMode);
+    const hueBias = program.uniformFloat("u_hueBias", settings.hueBias);
 
     const positionsVao = program.createAndBindVertexArray({
         name: "a_position",
@@ -115,7 +131,17 @@ export function drawBlobFactory(
             newSize.y,
         ];
         positionsVao.bufferData(new Float32Array(positions), GlBufferUsage.StaticDraw);
-        draw();
+        requestDraw();
+    };
+
+    const setSettings = (update: Partial<BlobFactorySettings>) => {
+        settings = {...settings, ...update};
+        smoothness.value = settings.smoothness;
+        blurSize.value = settings.blurSize;
+        blurSpread.value = settings.blurSpread;
+        mode.value = settings.mode;
+        interpolateMode.value = settings.interpolateMode;
+        hueBias.value = settings.hueBias;
     };
 
     const draw = () => {
@@ -124,7 +150,7 @@ export function drawBlobFactory(
         texture.update({
             width: blobs.length * 2,
             height: 1,
-            data: new Float32Array(blobs.flatMap(blob => blob.toArray(colorLevel))),
+            data: new Float32Array(blobs.flatMap(blob => blob.toArray(settings.colorLevel))),
         });
 
         program.use();
@@ -132,23 +158,24 @@ export function drawBlobFactory(
         displayGl.gl.drawArrays(WebGL2RenderingContext.TRIANGLES, 0, 6);
     };
 
+    let requestedFrame: number | undefined = undefined;
+    const requestDraw = () => {
+        if (!requestedFrame) {
+            requestedFrame = requestAnimationFrame(draw);
+        }
+    };
+
     let isCancelled = false;
-
-    function loop() {
-        if (isCancelled) return;
-        draw();
-        requestAnimationFrame(loop);
-    }
-
-    requestAnimationFrame(loop);
 
     const destroy = () => {
         displayGl.destroy();
+        if (requestedFrame !== undefined) cancelAnimationFrame(requestedFrame);
         isCancelled = true;
     };
 
     return {
         setSize,
+        setSettings,
         destroy,
     };
 }
