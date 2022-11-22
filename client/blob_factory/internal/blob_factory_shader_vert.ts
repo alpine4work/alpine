@@ -1,3 +1,4 @@
+export const blobFactoryShaderVertSource = `\
 #version 300 es
 
 // an attribute is an input (in) to a vertex shader.
@@ -23,3 +24,4 @@ void main() {
 
     gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
 }
+`;

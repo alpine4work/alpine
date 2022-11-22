@@ -174,6 +174,7 @@ const responsiveProperties = defineProperties({
         letterSpacing: mapObjectValues(fontScale, ({letterSpacing}) => letterSpacing),
     },
     shorthands: {
+        inset: ["top", "bottom", "left", "right"],
         padding: ["paddingTop", "paddingBottom", "paddingLeft", "paddingRight"],
         paddingX: ["paddingLeft", "paddingRight"],
         paddingY: ["paddingTop", "paddingBottom"],

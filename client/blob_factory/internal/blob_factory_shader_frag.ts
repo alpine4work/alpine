@@ -1,3 +1,4 @@
+export const blobFactoryShaderFragSource = `\
 #version 300 es
 
 #define MAX_BLOBS 32
@@ -173,3 +174,4 @@ void main() {
         outColor = vec4(resultColor, 1);
     }
 }
+`;

@@ -1,7 +1,8 @@
 import Color from "color";
 import {interpolateHcl} from "d3-interpolate";
-import shaderFragSrc from "~/client/blob_factory/internal/blob_factory_shader.frag";
-import shaderVertSrc from "~/client/blob_factory/internal/blob_factory_shader.vert";
+import {blobFactoryShaderFragSource} from "~/client/blob_factory/internal/blob_factory_shader_frag";
+import {blobFactoryShaderVertSource} from "~/client/blob_factory/internal/blob_factory_shader_vert";
+import {ColorScheme} from "~/client/design/color_scheme";
 import {Gl} from "~/client/helpers/gl/gl";
 import {
     GlBufferUsage,
@@ -48,10 +49,18 @@ const interpolateModes = [
     {label: "min", value: BlobFactoryInterpolateMode.Min},
 ];
 
-export function startBlobFactory(displayCanvas: HTMLCanvasElement) {
+export type BlobFactory = {
+    setSize(size: Vector2): void;
+    destroy(): void;
+};
+
+export function drawBlobFactory(
+    displayCanvas: HTMLCanvasElement,
+    {colorScheme}: {colorScheme: ColorScheme},
+): BlobFactory {
     const displayGl = new Gl(displayCanvas);
-    const fragShader = displayGl.createShader(GlShaderType.Fragment, shaderFragSrc);
-    const vertShader = displayGl.createShader(GlShaderType.Vertex, shaderVertSrc);
+    const fragShader = displayGl.createShader(GlShaderType.Fragment, blobFactoryShaderFragSource);
+    const vertShader = displayGl.createShader(GlShaderType.Vertex, blobFactoryShaderVertSource);
     const program = displayGl.createProgram(vertShader, fragShader);
 
     const blobs = createArrayWithLength(
@@ -69,7 +78,7 @@ export function startBlobFactory(displayCanvas: HTMLCanvasElement) {
     program.uniformFloat("u_blurSize", 150);
     program.uniformFloat("u_blurSpread", 0.8);
     program.uniformEnum("u_mode", randomArrayItem(modes).value);
-    const darkMode = program.uniformBool("u_darkMode", Math.random() < 0.5);
+    const darkMode = program.uniformBool("u_darkMode", colorScheme === "dark");
     program.uniformEnum("u_interpolateMode", randomArrayItem(interpolateModes).value);
     program.uniformFloat("u_hueBias", randomFloat(0, 360));
     const colorLevel = darkMode.value ? randomFloat(50, 95) : randomFloat(5, 50);

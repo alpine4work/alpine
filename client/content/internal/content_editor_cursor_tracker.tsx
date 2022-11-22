@@ -3,10 +3,12 @@ import {EditorView} from "prosemirror-view";
 import {Memo, Ref, RefObject, forwardRef, useCallback, useLayoutEffect, useRef} from "react";
 import {Box} from "~/client/design/box";
 import {useMergedRef} from "~/client/design/helpers/use_merged_ref";
+import {
+    addResizeListenerForElement,
+    removeResizeListenerForElement,
+} from "~/client/helpers/use_resize_observer";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error";
 import {assert} from "~/shared/helpers/control/assert";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
 
 const ContentEditorCursorTrackerForwardRef = forwardRef(ContentEditorCursorTracker);
 export {ContentEditorCursorTrackerForwardRef as ContentEditorCursorTracker};
@@ -142,48 +144,4 @@ export function useContentEditorTracker({
     }, [onUpdatePosition, pos, shouldUseLineHeight, side, state.doc, viewRef]);
 
     return localRef;
-}
-
-const resizeListenersByElement = new Map<Element, Set<(entry: ResizeObserverEntry) => void>>();
-let resizeObserver: ResizeObserver | undefined;
-
-function addResizeListenerForElement(element: Element, listener: () => void) {
-    if (!resizeObserver) {
-        resizeObserver = new ResizeObserver(entries => {
-            for (const entry of entries) {
-                const resizeListeners = resizeListenersByElement.get(entry.target);
-                if (resizeListeners) {
-                    for (const listener of resizeListeners) {
-                        try {
-                            listener(entry);
-                        } catch (error) {
-                            scheduleUncaughtError(error);
-                        }
-                    }
-                }
-            }
-        });
-    }
-
-    const resizeListeners = getOrSetDefaultMapValue(
-        resizeListenersByElement,
-        element,
-        () => new Set(),
-    );
-
-    resizeListeners.add(listener);
-
-    if (resizeListeners.size === 1) resizeObserver.observe(element);
-}
-
-function removeResizeListenerForElement(element: Element, listener: () => void) {
-    const resizeListeners = resizeListenersByElement.get(element);
-    if (!resizeListeners) return;
-
-    resizeListeners.delete(listener);
-
-    if (resizeListeners.size === 0) {
-        resizeListenersByElement.delete(element);
-        resizeObserver?.unobserve(element);
-    }
 }
