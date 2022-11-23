@@ -10,6 +10,12 @@ import {TextInput} from "~/client/design/text_input";
 import {InvalidArgumentError} from "~/shared/error/error";
 import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles";
 
+export function meta() {
+    return {
+        title: "Request access to Cyberworlds",
+    };
+}
+
 export async function action({request}: ActionArgs) {
     const formData = await request.formData();
 

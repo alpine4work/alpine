@@ -6,6 +6,12 @@ import {Button} from "~/client/design/button";
 import {Spacer} from "~/client/design/spacer";
 import {sprinkles} from "~/shared/styles/styles";
 
+export function meta() {
+    return {
+        title: "Sign in to Cyberworlds",
+    };
+}
+
 export async function action({request}: ActionArgs) {
     // TODO(calebmer): Implement this
 

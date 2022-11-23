@@ -11,7 +11,7 @@ import {
 
 export function meta() {
     return {
-        title: "Cyberworlds Design Playground",
+        title: "Design playground - Cyberworlds",
     };
 }
 
