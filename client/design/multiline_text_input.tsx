@@ -42,6 +42,7 @@ export function MultilineTextInput({label, placeholder, value, onChange}: Multil
                     value={value}
                     onChange={event => onChange(event.currentTarget.value)}
                     placeholder={placeholder}
+                    autoComplete="off"
                 />
             </FocusRing>
         </Box>

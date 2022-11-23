@@ -1,10 +1,12 @@
+import {Link} from "@remix-run/react";
 import {EnvelopeSimple} from "phosphor-react";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
+import {FocusRing} from "~/client/design/focus_ring";
 import {ControlledMultilineTextInput} from "~/client/design/multiline_text_input";
 import {Spacer} from "~/client/design/spacer";
 import {ControlledTextInput} from "~/client/design/text_input";
-import {sprinkles} from "~/shared/styles/styles";
+import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles";
 
 export default function HomePage() {
     return (
@@ -75,7 +77,12 @@ export default function HomePage() {
                 </Box>
                 <Spacer space="32" />
                 <Box paddingTop="2" borderTop="grey-10">
-                    Already have an account? Sign in
+                    Already have an account?{" "}
+                    <FocusRing>
+                        <Link to="/sign-in" className={contentSchemaStyles.linkClassName}>
+                            Sign in
+                        </Link>
+                    </FocusRing>
                 </Box>
             </main>
         </Box>
