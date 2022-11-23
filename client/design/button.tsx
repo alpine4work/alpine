@@ -1,11 +1,18 @@
 import classNames from "classnames";
-import {IconContext} from "phosphor-react";
-import {ReactNode, Ref, forwardRef, useRef} from "react";
+import {IconContext, SpinnerGap} from "phosphor-react";
+import {ReactNode, Ref, forwardRef, useEffect, useRef, useState} from "react";
 import {AriaButtonProps, mergeProps, useButton, useHover} from "react-aria";
 import {FocusRing} from "~/client/design/focus_ring";
 import {useMergedRef} from "~/client/design/helpers/use_merged_ref";
+import {uninterruptedThoughtLimitMs} from "~/client/design/timing_constants";
 import {spacing} from "~/shared/design/spacing";
-import {Sprinkles, sprinkles, truncateClassName} from "~/shared/styles/styles";
+import {createTimeout} from "~/shared/helpers/async/timeout";
+import {
+    Sprinkles,
+    spinAnimationClassName,
+    sprinkles,
+    truncateClassName,
+} from "~/shared/styles/styles";
 
 const ButtonForwardRef = forwardRef(Button);
 export {ButtonForwardRef as Button};
@@ -30,6 +37,12 @@ function Button(
         icon?: ReactNode;
 
         /**
+         * Are we waiting for some asynchronous action that was initiated by our button
+         * to complete?
+         */
+        isPending?: boolean;
+
+        /**
          * Give the button a 100% width so it fills all available space. Defaults
          * to false.
          */
@@ -39,7 +52,7 @@ function Button(
          * Should this button submit an HTML `<form>` element that it is inside? You
          * don't need a press event if true.
          */
-        formSubmit?: boolean;
+        shouldSubmitForm?: boolean;
     },
     foreignRef: Ref<HTMLButtonElement>,
 ) {
@@ -47,13 +60,41 @@ function Button(
         children,
         variant = "quiet",
         icon,
-        fullWidth = false,
-        formSubmit = false,
         isDisabled,
+        isPending,
+        fullWidth = false,
+        shouldSubmitForm = false,
     } = props;
     const localRef = useRef<HTMLButtonElement>(null);
-    const {buttonProps, isPressed} = useButton({...props}, localRef);
+
+    const {buttonProps, isPressed} = useButton(
+        {
+            ...props,
+            // Disable the button while we are pending to avoid multiple clicks firing the
+            // action multiple times.
+            isDisabled: isDisabled || isPending,
+        },
+        localRef,
+    );
+
     const {hoverProps, isHovered} = useHover({});
+
+    // We wait a bit before showing our pending spinner. Some actions are very fast so we
+    // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
+    const [shouldShowPendingSpinner, setShouldShowPendingSpinner] = useState(false);
+    useEffect(() => {
+        if (!isPending) {
+            setShouldShowPendingSpinner(false);
+            return;
+        }
+
+        const timeout = createTimeout(() => {
+            setShouldShowPendingSpinner(true);
+        }, uninterruptedThoughtLimitMs);
+        return () => {
+            timeout.clear();
+        };
+    }, [isPending]);
 
     const labelChild = (
         <span className={classNames(sprinkles({display: "block"}), truncateClassName)}>
@@ -93,6 +134,9 @@ function Button(
                 ref={useMergedRef(foreignRef, localRef)}
                 className={sprinkles({
                     ...stylesByVariant[variant],
+
+                    // Override the styles in `stylesByVariant` but only if we are in one of
+                    // these states.
                     ...(isDisabled
                         ? {
                               backgroundColor: variant !== "quiet" ? "grey-5" : undefined,
@@ -118,7 +162,7 @@ function Button(
                     // on other contents.
                     flexShrink: "0",
                 })}
-                type={formSubmit ? "submit" : undefined}
+                type={shouldSubmitForm ? "submit" : undefined}
             >
                 {isPressed && variant === "accent" && (
                     // For accent buttons, instead of choosing a darker background color shade when
@@ -140,14 +184,27 @@ function Button(
                         style={{opacity: 0.2}}
                     />
                 )}
-                {!iconChild ? (
-                    labelChild
-                ) : (
-                    <span className={sprinkles({display: "flex", gap: "1"})}>
-                        {iconChild}
-                        {labelChild}
-                    </span>
+                {shouldShowPendingSpinner && (
+                    <SpinnerGap
+                        className={classNames(
+                            sprinkles({position: "absolute"}),
+                            spinAnimationClassName,
+                        )}
+                        color="currentColor"
+                        size={spacing["4"]}
+                    />
                 )}
+                <span
+                    className={sprinkles({display: "flex", gap: "1"})}
+                    style={{
+                        // Keep the icon and label in the DOM so we keep the shape of the button but
+                        // hide them so we can show a spinner.
+                        opacity: shouldShowPendingSpinner ? 0 : undefined,
+                    }}
+                >
+                    {iconChild}
+                    {labelChild}
+                </span>
             </button>
         </FocusRing>
     );

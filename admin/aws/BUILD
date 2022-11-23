@@ -19,4 +19,12 @@ js_binary(
     name = "aws_synth",
     data = [":aws"],
     entry_point = "aws_synth_main.js",
+    env = {"NODE_ENV": "development"},
+)
+
+js_binary(
+    name = "cdklocal",
+    data = [":aws"],
+    entry_point = "cdklocal_main.js",
+    env = {"NODE_ENV": "development"},
 )

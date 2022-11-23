@@ -11,8 +11,6 @@ import {
     SchemaSerializedValueDescription,
 } from "~/shared/schema/types/schema_description_types";
 
-// TODO(calebmer): Rename serialize/deserialize to encode/decode.
-
 /**
  * Get the underlying type of a schema object.
  */
@@ -200,14 +198,15 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     public static integer = new Schema<number>({
         description: {type: "Integer"},
         serialize: value => {
-            assert(Number.isSafeInteger(value));
+            if (!Number.isSafeInteger(value)) throw new InvalidArgumentError("Expected integer");
+
             return value;
         },
         deserialize: value => {
             if (typeof value !== "number") throw new SchemaDeserializationError("Expected number");
 
             if (!Number.isSafeInteger(value))
-                throw new SchemaDeserializationError("Expected number");
+                throw new SchemaDeserializationError("Expected integer");
 
             return value;
         },
@@ -216,14 +215,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     /**
      * Accept any string value.
      */
-    public static string = new Schema<string>({
-        description: {type: "String"},
-        serialize: value => value,
-        deserialize: value => {
-            if (typeof value !== "string") throw new SchemaDeserializationError("Expected string");
-            return value;
-        },
-    });
+    public static string: StringSchema;
 
     /**
      * Accept any `Id` value.
@@ -1078,6 +1070,134 @@ export class UnionSchemaVariant<Value extends {readonly type: string}> {
         });
     }
 }
+
+class StringSchema extends Schema<string> {
+    public static override string = new StringSchema({
+        description: {type: "String"},
+        serialize: value => value,
+        deserialize: value => {
+            if (typeof value !== "string") throw new SchemaDeserializationError("Expected string");
+            return value;
+        },
+    });
+
+    private _transformString({
+        serialize,
+        deserialize,
+    }: {
+        serialize: (value: string) => string;
+        deserialize: (value: string) => string;
+    }): StringSchema {
+        return new StringSchema({
+            description: this.description,
+            serialize: newValue => {
+                const value = serialize(newValue);
+                return this.serialize(value);
+            },
+            deserialize: unknownValue => {
+                const value = this.deserialize(unknownValue);
+                return deserialize(value);
+            },
+        });
+    }
+
+    /**
+     * Verifies that the length of the string is greater than or equal to the
+     * provided length.
+     */
+    // TODO(calebmer): Backwards compatibility validation?
+    public minLength(length: number): StringSchema {
+        return this._transformString({
+            serialize: value => {
+                if (value.length < length)
+                    throw new InvalidArgumentError(
+                        `Expected string to have a length greater than or equal to ${length}`,
+                    );
+
+                return value;
+            },
+            deserialize: value => {
+                if (value.length < length)
+                    throw new SchemaDeserializationError(
+                        `Expected string to have a length greater than or equal to ${length}`,
+                    );
+
+                return value;
+            },
+        });
+    }
+
+    /**
+     * Verifies that the length of the string is less than or equal to the
+     * provided length.
+     */
+    // TODO(calebmer): Backwards compatibility validation?
+    public maxLength(length: number) {
+        return this._transformString({
+            serialize: value => {
+                if (value.length > length)
+                    throw new InvalidArgumentError(
+                        `Expected string to have a length less than or equal to ${length}`,
+                    );
+
+                return value;
+            },
+            deserialize: value => {
+                if (value.length > length)
+                    throw new SchemaDeserializationError(
+                        `Expected string to have a length less than or equal to ${length}`,
+                    );
+
+                return value;
+            },
+        });
+    }
+
+    /**
+     * Verifies that a string only occupies a single line.
+     */
+    // TODO(calebmer): Backwards compatibility validation?
+    public singleLine() {
+        return this._transformString({
+            serialize: value => {
+                if (/[\n\r]/g.test(value))
+                    throw new InvalidArgumentError("Expected single line string");
+
+                return value;
+            },
+            deserialize: value => {
+                if (/[\n\r]/g.test(value))
+                    throw new SchemaDeserializationError("Expected single line string");
+
+                return value;
+            },
+        });
+    }
+
+    /**
+     * Transforms a value by removing the whitespace from the start and end of the
+     * string.
+     */
+    public trim() {
+        return this._transformString({
+            serialize: value => value.trim(),
+            deserialize: value => value.trim(),
+        });
+    }
+
+    /**
+     * Transforms a value by converting all characters to lower case.
+     */
+    public lowerCase() {
+        return this._transformString({
+            serialize: value => value.toLowerCase(),
+            deserialize: value => value.toLowerCase(),
+        });
+    }
+}
+
+// Avoid circular dependency between `Schema` and `StringSchema`.
+Schema.string = StringSchema.string;
 
 /**
  * An error thrown while deserializing a schema.

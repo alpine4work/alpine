@@ -224,6 +224,7 @@ const colorProperties = defineProperties({
             colorSchemeVars,
             colorSchemeVar => `solid 1px ${colorSchemeVar}`,
         ),
+        borderWidth: {base: 1, thick: 2},
     },
 });
 

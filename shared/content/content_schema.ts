@@ -2,6 +2,7 @@ import {assignInlineVars} from "@vanilla-extract/dynamic";
 import classNames from "classnames";
 import {Node, ParseRule, Schema, SchemaSpec} from "prosemirror-model";
 import {clamp} from "~/shared/helpers/number/clamp";
+import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol";
 import {contentSchemaStyles} from "~/shared/styles/styles";
 
 const {
@@ -25,20 +26,6 @@ export const maxListItemIndentation = 5;
 
 export function clampListItemIndentation(indent: unknown): number {
     return typeof indent === "number" ? clamp(0, Math.floor(indent), maxListItemIndentation) : 0;
-}
-
-const allowedLinkProtocols: ReadonlySet<string> = new Set(["http", "https"]);
-
-/**
- * Does the URL string start with an allowed protocol?
- */
-export function doesUrlStartWithAllowedProtocol(url: string) {
-    for (const protocol of allowedLinkProtocols) {
-        if (url.startsWith(`${protocol}://`)) {
-            return true;
-        }
-    }
-    return false;
 }
 
 /**
@@ -322,7 +309,7 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
                 // we avoid XSS vulnerabilities with URLs that look like
                 // `javascript:alert('XSS')`.
                 const url =
-                    typeof unknownUrl === "string" && doesUrlStartWithAllowedProtocol(unknownUrl)
+                    typeof unknownUrl === "string" && startsWithSafeUrlProtocol(unknownUrl)
                         ? unknownUrl
                         : "about:blank#blocked";
 

@@ -12,6 +12,8 @@ import {sprinkles} from "~/shared/styles/styles";
 const IconButtonForwardRef = forwardRef(IconButton);
 export {IconButtonForwardRef as IconButton};
 
+type IconButtonSize = "base" | "small";
+
 /**
  * A button represented by a single icon.
  *
@@ -27,24 +29,46 @@ function IconButton(
          * Appears as a tooltip on hover and in the `aria-label`.
          */
         description: string;
+
+        /**
+         * The size of the icon button.
+         */
+        size?: IconButtonSize;
     },
     foreignRef: Ref<HTMLButtonElement>,
 ) {
-    const {description, children} = props;
+    const {description, size = "base", children} = props;
     const localRef = useRef<HTMLButtonElement>(null);
     const {buttonProps, isPressed} = useButton({...props, "aria-label": description}, localRef);
     const {hoverProps, isHovered} = useHover({});
 
+    const {buttonSize, buttonPadding, iconSize, tooltipOffset} = (
+        {
+            base: {
+                buttonSize: "7",
+                buttonPadding: "1",
+                iconSize: "5",
+                tooltipOffset: "2",
+            },
+            small: {
+                buttonSize: "4",
+                buttonPadding: "0.5",
+                iconSize: "3",
+                tooltipOffset: "1",
+            },
+        } as const
+    )[size];
+
     return (
-        <Tooltip placement="bottom-start" content={description}>
+        <Tooltip placement="bottom-start" offset={tooltipOffset} content={description}>
             <FocusRing>
                 <button
                     {...mergeProps(buttonProps, hoverProps)}
                     ref={useMergedRef(foreignRef, localRef)}
                     className={sprinkles({
-                        width: "7",
-                        height: "7",
-                        padding: "1",
+                        width: buttonSize,
+                        height: buttonSize,
+                        padding: buttonPadding,
                         backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
                         borderRadius: "full",
                         color: isPressed ? "grey-90" : "grey-70",
@@ -56,7 +80,7 @@ function IconButton(
                     <IconContext.Provider
                         value={{
                             color: "currentColor",
-                            size: spacing["5"],
+                            size: spacing[iconSize],
                         }}
                     >
                         {children}

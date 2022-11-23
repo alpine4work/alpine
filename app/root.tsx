@@ -17,6 +17,11 @@ export function meta() {
         charset: "utf-8",
         title: "Cyberworlds",
         viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no",
+        // Ask Google to not index any of our routes.
+        // https://developers.google.com/search/docs/crawling-indexing/block-indexing
+        //
+        // We should have individual routes opt-in to indexing.
+        robots: "noindex",
     };
 }
 

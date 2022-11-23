@@ -33,10 +33,10 @@ import {useContentEditorDebugTools} from "~/client/content/internal/use_content_
 import {FocusRingPortal} from "~/client/design/focus_ring";
 import {isMac} from "~/client/helpers/is_mac";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {doesUrlStartWithAllowedProtocol} from "~/shared/content/content_schema";
 import {ThemeColor} from "~/shared/design/theme_colors";
 import {documentFallbackTitle} from "~/shared/documents/document_model";
 import {assert} from "~/shared/helpers/control/assert";
+import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol";
 import {colorSchemeVars, contentEditorStyles, contentSchemaStyles} from "~/shared/styles/styles";
 
 const {docClassName} = contentSchemaStyles;
@@ -810,7 +810,7 @@ function handleLinkPaste(view: EditorView, event: ClipboardEvent): boolean {
 
     // 2. Make sure the URL starts with an allowed protocol.
     const url = event.clipboardData?.getData("text/plain");
-    if (url && !doesUrlStartWithAllowedProtocol(url)) {
+    if (url && !startsWithSafeUrlProtocol(url)) {
         return false;
     }
 

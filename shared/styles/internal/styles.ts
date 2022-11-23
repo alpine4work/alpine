@@ -11,6 +11,7 @@
 import "~/shared/styles/internal/global/global_1_reset.css";
 import "~/shared/styles/internal/global/global_2_defaults.css";
 
+export * from "~/shared/styles/internal/animation.css";
 export * from "~/shared/styles/internal/color_scheme.css";
 export * as contentEditorStyles from "~/shared/styles/internal/content_editor.css";
 export * as contentSchemaStyles from "~/shared/styles/internal/content_schema.css";

@@ -1,5 +1,5 @@
 import {ActionArgs, json} from "@remix-run/cloudflare";
-import {Form, Link} from "@remix-run/react";
+import {Form, Link, useTransition} from "@remix-run/react";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
 import {FocusRing} from "~/client/design/focus_ring";
@@ -10,6 +10,7 @@ import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles";
 export function meta() {
     return {
         title: "Sign in to Cyberworlds",
+        robots: "noindex",
     };
 }
 
@@ -47,7 +48,12 @@ export default function SignInPage() {
                         autoComplete="email"
                     />
                     <Spacer space="4" />
-                    <Button variant="accent" formSubmit={true} fullWidth={true}>
+                    <Button
+                        variant="accent"
+                        shouldSubmitForm={true}
+                        fullWidth={true}
+                        isPending={useTransition().state === "submitting"}
+                    >
                         Sign in
                     </Button>
                 </Form>

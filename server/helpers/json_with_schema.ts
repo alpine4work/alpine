@@ -8,6 +8,7 @@ import {Schema} from "~/shared/schema/schema";
 export function jsonWithSchema<Value>(
     schema: Schema<Value>,
     value: BlockInference<Value>,
+    init?: number | ResponseInit,
 ): Response {
-    return json(schema.serialize(value as Value));
+    return json(schema.serialize(value as Value), init);
 }

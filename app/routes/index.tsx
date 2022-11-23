@@ -1,5 +1,5 @@
-import {ActionArgs, json} from "@remix-run/cloudflare";
-import {Form, Link} from "@remix-run/react";
+import {ActionArgs} from "@remix-run/cloudflare";
+import {Form, Link, useTransition} from "@remix-run/react";
 import {useState} from "react";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
@@ -7,30 +7,58 @@ import {FocusRing} from "~/client/design/focus_ring";
 import {ControlledMultilineTextInput} from "~/client/design/multiline_text_input";
 import {Spacer} from "~/client/design/spacer";
 import {TextInput} from "~/client/design/text_input";
+import {ErrorInlineAlert} from "~/client/error/error_inline_alert";
+import {useActionDataWithSchema} from "~/client/helpers/use_action_data_with_schema";
+import {requestAlphaAccess} from "~/server/dynamo/alpha_access_table";
+import {jsonWithSchema} from "~/server/helpers/json_with_schema";
 import {InvalidArgumentError} from "~/shared/error/error";
+import {ErrorSchema} from "~/shared/error/error_schema";
+import {isHttp500Error} from "~/shared/error/is_http_500_error_code";
+import {Schema, SchemaType} from "~/shared/schema/schema";
 import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles";
 
 export function meta() {
     return {
         title: "Request access to Cyberworlds",
+        robots: "noindex",
     };
 }
 
+const ActionSchema = Schema.result(
+    Schema.object({
+        ok: Schema.value(true),
+    }),
+    Schema.object({
+        ok: Schema.value(false),
+        error: ErrorSchema,
+    }),
+);
+
 export async function action({request}: ActionArgs) {
-    const formData = await request.formData();
+    try {
+        const formData = await request.formData();
 
-    const name = formData.get("name");
-    const emailAddress = formData.get("emailAddress");
-    const message = formData.get("message");
+        const name = formData.get("name");
+        const emailAddress = formData.get("emailAddress");
+        const message = formData.get("message");
 
-    if (typeof name !== "string")
-        throw new InvalidArgumentError('Expected property "name" in form data');
-    if (typeof emailAddress !== "string")
-        throw new InvalidArgumentError('Expected property "email" in form data');
-    if (typeof message !== "string")
-        throw new InvalidArgumentError('Expected property "message" in form data');
+        if (typeof name !== "string")
+            throw new InvalidArgumentError('Expected property "name" in form data');
+        if (typeof emailAddress !== "string")
+            throw new InvalidArgumentError('Expected property "email" in form data');
+        if (typeof message !== "string")
+            throw new InvalidArgumentError('Expected property "message" in form data');
 
-    return json({});
+        await requestAlphaAccess({
+            name,
+            emailAddress,
+            message,
+        });
+
+        return jsonWithSchema(ActionSchema, {ok: true});
+    } catch (error) {
+        return jsonWithSchema(ActionSchema, {ok: false, error}, isHttp500Error(error) ? 500 : 400);
+    }
 }
 
 export default function HomePage() {
@@ -38,6 +66,13 @@ export default function HomePage() {
     const [emailAddress, setEmailAddress] = useState("");
 
     const isFormValid = name.length > 0 && emailAddress.length > 0 && emailAddress.includes("@");
+
+    // TODO(calebmer): Message on success and failure...
+    const actionData = useActionDataWithSchema(ActionSchema);
+
+    const [dismissedActionData, setDismissedActionData] = useState<SchemaType<
+        typeof ActionSchema
+    > | null>(null);
 
     return (
         <Box display="flex" justifyContent="center">
@@ -69,6 +104,16 @@ export default function HomePage() {
                         Request access
                     </Box>
                     <Spacer space="4" />
+                    {actionData && !actionData.ok && dismissedActionData !== actionData && (
+                        <>
+                            <ErrorInlineAlert
+                                title="Could not request access"
+                                error={actionData.error}
+                                onDismiss={() => setDismissedActionData(actionData)}
+                            />
+                            <Spacer space="4" />
+                        </>
+                    )}
                     <TextInput
                         formName="name"
                         label="Name"
@@ -104,7 +149,12 @@ export default function HomePage() {
                             team. If your request is approved you&#x2019;ll get an email with
                             further instructions.
                         </Box>
-                        <Button variant="accent" formSubmit={true} isDisabled={!isFormValid}>
+                        <Button
+                            variant="accent"
+                            shouldSubmitForm={true}
+                            isDisabled={!isFormValid}
+                            isPending={useTransition().state === "submitting"}
+                        >
                             Request
                         </Button>
                     </Box>

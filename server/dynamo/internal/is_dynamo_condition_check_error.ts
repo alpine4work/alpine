@@ -1,4 +1,4 @@
-import {isPlainObject} from "~/shared/helpers/object/is_plain_object";
+import {isObject} from "~/shared/helpers/object/is_object";
 
 /**
  * Is the provided error a failure due to a DynamoDB condition check?
@@ -10,7 +10,7 @@ export function isDynamoConditionCheckError(error: unknown): boolean {
     // put the raw error JSON from the response in the cause property.
     if (error instanceof Error && "cause" in error) return isDynamoConditionCheckError(error.cause);
 
-    if (!isPlainObject(error)) return false;
+    if (!isObject(error)) return false;
 
     // If an individual `PutItem` request's condition failed we get this
     // error code.
@@ -24,7 +24,7 @@ export function isDynamoConditionCheckError(error: unknown): boolean {
         Array.isArray(error.CancellationReasons) &&
         error.CancellationReasons.some(
             cancellationReason =>
-                isPlainObject(cancellationReason) &&
+                isObject(cancellationReason) &&
                 cancellationReason.Code === "ConditionalCheckFailed",
         )
     ) {

@@ -1,4 +1,5 @@
 import {
+    DynamoKeyAttributeSchema,
     deserializeReversedDynamoKeyAttribute,
     dynamoKeyAttributeMaxCharCode,
     dynamoKeyAttributeMinCharCode,
@@ -156,4 +157,24 @@ test("can serialize and deserialize a reversed key attribute", () => {
     expect(reversedStringsSortedAfterSerialization).toEqual(
         reversedStringsSortedBeforeSerialization,
     );
+});
+
+test("can serialize and deserialize label strings", () => {
+    const strings = [
+        "Hello, world!",
+        "😍",
+        "\\ud83d\\ude0d",
+        "☃★♲",
+        "foo#bar",
+        "caleb.meredith@example.com",
+        'So called "cats"',
+    ];
+
+    for (const string of strings) {
+        const serializedString = DynamoKeyAttributeSchema.labelString.serialize(string);
+        expect(isDynamoKeyAttribute(serializedString)).toEqual(true);
+        const deserializedString =
+            DynamoKeyAttributeSchema.labelString.deserialize(serializedString);
+        expect(string).toEqual(deserializedString);
+    }
 });

@@ -17,6 +17,7 @@ import {
 } from "~/shared/helpers/number/elen_integer";
 import {OrderKey, isOrderKey} from "~/shared/helpers/sort/order_key";
 import {Id, isId} from "~/shared/id/id";
+import {LabelStringSchema} from "~/shared/schema/label_string_schema";
 
 /**
  * An attribute of a DynamoDB key is an ASCII string excluding the `#`
@@ -135,6 +136,7 @@ export type DynamoKeyAttributeSchemaDescription =
     | {readonly type: "Integer"}
     | {readonly type: "Float"}
     | {readonly type: "OrderKey"}
+    | {readonly type: "LabelString"}
     | {readonly type: "Reverse"; readonly schema: DynamoKeyAttributeSchemaDescription};
 
 /**
@@ -214,6 +216,20 @@ export class DynamoKeyAttributeSchema<Value> {
     });
 
     /**
+     * A short, single-line, string that is validated with `LabelStringSchema`.
+     */
+    public static labelString = new DynamoKeyAttributeSchema<string>({
+        description: {type: "LabelString"},
+        serialize: value => {
+            const serializedString = LabelStringSchema.serialize(value);
+            assert(typeof serializedString === "string");
+            return serializeStringDynamoKeyAttribute(serializedString);
+        },
+        deserialize: keyAttribute =>
+            LabelStringSchema.deserialize(deserializeStringDynamoKeyAttribute(keyAttribute)),
+    });
+
+    /**
      * The description of this attribute for backwards compatibility checking
      * purposes.
      */
@@ -269,6 +285,50 @@ export class DynamoKeyAttributeSchema<Value> {
         }
         return this._reverseSchema;
     }
+}
+
+/**
+ * Serializes an arbitrary string into a version that is safe for a DynamoDB
+ * key. By escaping any characters outside the DynamoDB key character range.
+ *
+ * The escaped string is parsable with `JSON.parse()`.
+ */
+function serializeStringDynamoKeyAttribute(string: string): DynamoKeyAttribute {
+    // For now, we require DynamoDB key attributes to be non-empty. This is a
+    // restriction we believe we can relax in the future.
+    assert(string.length > 0);
+
+    let newString = "";
+
+    for (let index = 0; index < string.length; index++) {
+        const char = string[index]!;
+        const charCode = string.charCodeAt(index);
+
+        if (
+            charCode >= dynamoKeyAttributeMinCharCode &&
+            charCode <= dynamoKeyAttributeMaxCharCode &&
+            // Make sure we escape the backslash character and the double quote character.
+            // That way we can parse the string using JSON.
+            char !== "\\" &&
+            char !== '"'
+        ) {
+            newString += char;
+        } else {
+            // Any characters outside our key attribute character range need to be escaped
+            // using a Unicode escape sequence.
+            newString += `\\u${charCode.toString(16).padStart(4, "0").toUpperCase()}`;
+        }
+    }
+
+    return newString as DynamoKeyAttribute;
+}
+
+/**
+ * Deserializes a string produced from `serializeStringDynamoKeyAttribute()`
+ * back into a regular string.
+ */
+function deserializeStringDynamoKeyAttribute(string: string): string {
+    return JSON.parse(`"${string}"`);
 }
 
 /**

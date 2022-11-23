@@ -25,6 +25,7 @@ import {
     uninterruptedThoughtLimitMs,
 } from "~/client/design/timing_constants";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted";
+import {Spacing} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
@@ -128,6 +129,7 @@ function Tooltip(
         disabled = false,
         placement = "top",
         canFlip = true,
+        offset = "2",
         visibleWhenFocusWithin = false,
         children: actualChildren,
     }: {
@@ -158,6 +160,13 @@ function Tooltip(
          * Defaults to `true`.
          */
         canFlip?: boolean;
+
+        /**
+         * Offset of the tooltip from the target.
+         *
+         * Defaults to `2`.
+         */
+        offset?: Spacing;
 
         /**
          * Do we show the tooltip if a child has focus?
@@ -533,7 +542,7 @@ function Tooltip(
                 visible={visible}
                 placement={placement}
                 canFlip={canFlip}
-                offset="2"
+                offset={offset}
                 overlay={
                     <Box
                         ref={tooltipRef}
@@ -570,6 +579,7 @@ function Tooltip(
         visible,
         placement,
         canFlip,
+        offset,
         tooltipId,
         state.isFadingOut,
         state.isFadingIn,

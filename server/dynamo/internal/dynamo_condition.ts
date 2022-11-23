@@ -1,6 +1,8 @@
+import {InternalError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
+import {isIdentifier} from "~/shared/helpers/string/is_identifier";
 import {NonUndefined} from "~/shared/helpers/types/non_undefined";
 import {
     ObjectSchema,
@@ -217,6 +219,13 @@ type DynamoConditionExpressionCompilationDefault =
     | {readonly hasDefault: true; readonly value: SchemaSerializedValue};
 
 /**
+ * [DynamoDB reserved words][1] we have encountered.
+ *
+ * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ReservedWords.html
+ */
+const dynamoReservedWords = new Set(["NAME"]);
+
+/**
  * An object that maintains some state during condition compilation.
  */
 export class DynamoConditionExpressionCompilationContext {
@@ -224,10 +233,16 @@ export class DynamoConditionExpressionCompilationContext {
         private readonly _attributeKeyPath: ReadonlyArray<string>,
         private readonly _attributeDefault: DynamoConditionExpressionCompilationDefault,
         private readonly _variableNameByValue: Map<SchemaSerializedValue, string>,
+        private readonly _attributeNameByKey: Map<string, string>,
     ) {}
 
     public static new() {
-        return new DynamoConditionExpressionCompilationContext([], {hasDefault: false}, new Map());
+        return new DynamoConditionExpressionCompilationContext(
+            [],
+            {hasDefault: false},
+            new Map(),
+            new Map(),
+        );
     }
 
     /**
@@ -243,6 +258,7 @@ export class DynamoConditionExpressionCompilationContext {
             [...this._attributeKeyPath, key],
             defaultValue,
             this._variableNameByValue,
+            this._attributeNameByKey,
         );
     }
 
@@ -260,7 +276,30 @@ export class DynamoConditionExpressionCompilationContext {
             this._attributeKeyPath.length > 0,
             "Can not create a condition against a top-level document",
         );
-        return this._attributeKeyPath.join(".");
+        return this._attributeKeyPath.map(key => this.referenceAttribute(key)).join(".");
+    }
+
+    /**
+     * Reference an attribute in a DynamoDB condition string.
+     *
+     * We need to escape the name if it is not an identifier or it is a
+     * reserved word.
+     */
+    public referenceAttribute(key: string): string {
+        if (!isIdentifier(key) && !dynamoReservedWords.has(key.toUpperCase())) return key;
+
+        return getOrSetDefaultMapValue(
+            this._attributeNameByKey,
+            key,
+            () => `#n${this._variableNameByValue.size + 1}`,
+        );
+    }
+
+    /**
+     * Get a map of expression attribute name aliases in this context.
+     */
+    public iterateAttributeNames(): Iterable<[string, string]> {
+        return mapIterable(this._attributeNameByKey, ([key, aliasedName]) => [aliasedName, key]);
     }
 
     /**
@@ -339,7 +378,10 @@ class DynamoConditionAttributeExpression<
         assert(schema instanceof ObjectSchema, "Expected a schema created by `Schema.object()`");
 
         const propertySchema = schema.propertySchemaByKey.get(this._key);
-        assert(propertySchema, "Property not found");
+        if (!propertySchema)
+            throw new InternalError(
+                "Property not found. Is this a partition key or sort range key property? We don't currently support conditions on those properties",
+            );
 
         const serializedKey = propertySchema.serializedKey ?? this._key;
 

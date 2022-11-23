@@ -426,6 +426,9 @@ export class DynamoTableSchema<
                 item: serializedItem,
                 conditionExpression: conditionExpressionString,
                 expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
+                expressionAttributeNames: new Map(
+                    conditionCompilationContext.iterateAttributeNames(),
+                ),
             });
         }
     }
@@ -476,6 +479,9 @@ export class DynamoTableSchema<
                 key: {partitionKey, sortKey},
                 conditionExpression: conditionExpressionString,
                 expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
+                expressionAttributeNames: new Map(
+                    conditionCompilationContext.iterateAttributeNames(),
+                ),
             });
         }
     }
@@ -534,6 +540,9 @@ export class DynamoTableSchema<
                 item: serializedItem,
                 conditionExpression: conditionExpressionString,
                 expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
+                expressionAttributeNames: new Map(
+                    conditionCompilationContext.iterateAttributeNames(),
+                ),
             });
         }
     }
@@ -575,6 +584,9 @@ export class DynamoTableSchema<
                 key: {partitionKey, sortKey},
                 conditionExpression: conditionExpressionString,
                 expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
+                expressionAttributeNames: new Map(
+                    conditionCompilationContext.iterateAttributeNames(),
+                ),
             });
         }
     }
@@ -609,6 +621,7 @@ export class DynamoTableSchema<
             key: {partitionKey, sortKey},
             conditionExpression: conditionExpressionString,
             expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
+            expressionAttributeNames: new Map(conditionCompilationContext.iterateAttributeNames()),
         });
     }
 

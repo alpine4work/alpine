@@ -126,12 +126,14 @@ class DynamoClient {
         item,
         conditionExpression,
         expressionAttributeValues,
+        expressionAttributeNames,
     }: {
         tableName: string;
         key: SchemaSerializedObjectValue;
         item: SchemaSerializedObjectValue;
         conditionExpression?: string;
-        expressionAttributeValues?: Map<string, SchemaSerializedValue>;
+        expressionAttributeValues?: ReadonlyMap<string, SchemaSerializedValue>;
+        expressionAttributeNames?: ReadonlyMap<string, string>;
     }): Promise<void> {
         // Make sure that all the properties in our `key` also exist in our `item`.
         for (const keyEntry of Object.entries(key)) {
@@ -158,6 +160,10 @@ class DynamoClient {
                           ]),
                       )
                     : undefined,
+            ExpressionAttributeNames:
+                conditionExpression && expressionAttributeNames && expressionAttributeNames.size > 0
+                    ? Object.fromEntries(expressionAttributeNames)
+                    : undefined,
         });
     }
 
@@ -177,11 +183,13 @@ class DynamoClient {
         key,
         conditionExpression,
         expressionAttributeValues,
+        expressionAttributeNames,
     }: {
         tableName: string;
         key: SchemaSerializedObjectValue;
         conditionExpression?: string;
-        expressionAttributeValues?: Map<string, SchemaSerializedValue>;
+        expressionAttributeValues?: ReadonlyMap<string, SchemaSerializedValue>;
+        expressionAttributeNames?: ReadonlyMap<string, string>;
     }): Promise<void> {
         // Writes without a condition may be batched.
         if (conditionExpression === undefined)
@@ -199,6 +207,10 @@ class DynamoClient {
                               intoDynamoAttributeValue(value),
                           ]),
                       )
+                    : undefined,
+            ExpressionAttributeNames:
+                conditionExpression && expressionAttributeNames && expressionAttributeNames.size > 0
+                    ? Object.fromEntries(expressionAttributeNames)
                     : undefined,
         });
     }
@@ -235,11 +247,13 @@ class DynamoClient {
         item,
         conditionExpression,
         expressionAttributeValues,
+        expressionAttributeNames,
     }: {
         tableName: string;
         item: SchemaSerializedObjectValue;
         conditionExpression?: string;
-        expressionAttributeValues?: Map<string, SchemaSerializedValue>;
+        expressionAttributeValues?: ReadonlyMap<string, SchemaSerializedValue>;
+        expressionAttributeNames?: ReadonlyMap<string, string>;
     }): DynamoTransactionEntry {
         return DynamoTransactionEntry._newFromClient(this, {
             Put: {
@@ -257,6 +271,12 @@ class DynamoClient {
                               ]),
                           )
                         : undefined,
+                ExpressionAttributeNames:
+                    conditionExpression &&
+                    expressionAttributeNames &&
+                    expressionAttributeNames.size > 0
+                        ? Object.fromEntries(expressionAttributeNames)
+                        : undefined,
             },
         });
     }
@@ -273,11 +293,13 @@ class DynamoClient {
         key,
         conditionExpression,
         expressionAttributeValues,
+        expressionAttributeNames,
     }: {
         tableName: string;
         key: SchemaSerializedObjectValue;
         conditionExpression?: string;
-        expressionAttributeValues?: Map<string, SchemaSerializedValue>;
+        expressionAttributeValues?: ReadonlyMap<string, SchemaSerializedValue>;
+        expressionAttributeNames?: ReadonlyMap<string, string>;
     }): DynamoTransactionEntry {
         return DynamoTransactionEntry._newFromClient(this, {
             Delete: {
@@ -295,6 +317,12 @@ class DynamoClient {
                               ]),
                           )
                         : undefined,
+                ExpressionAttributeNames:
+                    conditionExpression &&
+                    expressionAttributeNames &&
+                    expressionAttributeNames.size > 0
+                        ? Object.fromEntries(expressionAttributeNames)
+                        : undefined,
             },
         });
     }
@@ -311,11 +339,13 @@ class DynamoClient {
         key,
         conditionExpression,
         expressionAttributeValues,
+        expressionAttributeNames,
     }: {
         tableName: string;
         key: SchemaSerializedObjectValue;
         conditionExpression: string;
-        expressionAttributeValues?: Map<string, SchemaSerializedValue>;
+        expressionAttributeValues?: ReadonlyMap<string, SchemaSerializedValue>;
+        expressionAttributeNames?: ReadonlyMap<string, string>;
     }): DynamoTransactionEntry {
         return DynamoTransactionEntry._newFromClient(this, {
             ConditionCheck: {
@@ -332,6 +362,12 @@ class DynamoClient {
                                   intoDynamoAttributeValue(value),
                               ]),
                           )
+                        : undefined,
+                ExpressionAttributeNames:
+                    conditionExpression &&
+                    expressionAttributeNames &&
+                    expressionAttributeNames.size > 0
+                        ? Object.fromEntries(expressionAttributeNames)
                         : undefined,
             },
         });

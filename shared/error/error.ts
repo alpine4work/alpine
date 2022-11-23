@@ -1,4 +1,5 @@
 import {ErrorCode, getErrorCodeName} from "~/shared/error/error_code";
+import {ErrorDisplayMessage} from "~/shared/error/error_display_message";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 
 /**
@@ -9,12 +10,23 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive";
  */
 export abstract class ErrorBase extends Error {
     public readonly code: ErrorCode;
+    public readonly displayMessage: ErrorDisplayMessage | undefined;
 
-    constructor(message: string, {cause}: {cause?: unknown} = {}) {
+    constructor(
+        message: string,
+        {
+            cause,
+            displayMessage,
+        }: {
+            cause?: unknown;
+            displayMessage?: ErrorDisplayMessage;
+        } = {},
+    ) {
         super(message, {cause});
         this.code = this._getCode();
         this.name = getErrorCodeName(this.code) + "Error";
         this.cause = cause;
+        this.displayMessage = displayMessage;
     }
 
     protected abstract _getCode(): ErrorCode;
@@ -237,7 +249,10 @@ export class UnauthenticatedError extends ErrorBase {
  */
 export function getErrorConstructorForCode(
     code: ErrorCode,
-): new (message: string, options?: {cause?: unknown}) => ErrorBase {
+): new (
+    message: string,
+    options?: {cause?: unknown; displayMessage?: ErrorDisplayMessage},
+) => ErrorBase {
     switch (code) {
         case ErrorCode.Cancelled:
             return CancelledError;

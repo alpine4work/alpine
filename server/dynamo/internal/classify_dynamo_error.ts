@@ -7,7 +7,11 @@ import {ErrorCode} from "~/shared/error/error_code";
  *
  * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html
  */
-export function classifyDynamoError(error: {__type?: string; Message?: string}): ErrorBase {
+export function classifyDynamoError(error: {
+    __type?: string;
+    message?: string;
+    Message?: string;
+}): ErrorBase {
     let errorCode: ErrorCode | null = null;
     if (error.__type === "InternalServerError") {
         errorCode = ErrorCode.Internal;
@@ -32,7 +36,10 @@ export function classifyDynamoError(error: {__type?: string; Message?: string}):
     } else if (
         error.__type === "ResourceNotFoundException" ||
         error.__type === "TableNotFoundException" ||
-        error.__type === "IndexNotFoundException"
+        error.__type === "IndexNotFoundException" ||
+        // Requests to DynamoDB should all be valid. An invalid request is the
+        // developer's fault, not the user's fault.
+        error.__type === "ValidationException"
     ) {
         // Our code should only references resources that exist. It's not a client
         // error if we don't.
@@ -40,7 +47,7 @@ export function classifyDynamoError(error: {__type?: string; Message?: string}):
     }
 
     const message = `DynamoDB ${error.__type ? error.__type : "unknown error"}${
-        error.Message ? `: ${error.Message}` : ""
+        error.message ? `: ${error.message}` : error.Message ? `: ${error.Message}` : ""
     }`;
 
     if (errorCode !== null) {
