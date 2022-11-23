@@ -66,8 +66,8 @@ function Button(
         // dimensionality. Work with someone who knows more about design to make
         // that happen.
         primary: {
-            backgroundColor: isPressed ? "theme-60" : "theme-40",
-            color: "grey-0",
+            backgroundColor: isPressed ? "theme-60-const" : "theme-40-const",
+            color: "grey-0-const",
         },
         quiet: {
             backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,

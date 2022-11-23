@@ -18,6 +18,7 @@ import {useSpacingPx} from "~/client/design/helpers/use_spacing_px";
 import {Overlay} from "~/client/design/overlay";
 import {Spacing} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
 
 const FocusRingForwardRef = forwardRef(FocusRing);
 export {FocusRingForwardRef as FocusRing};
@@ -39,8 +40,11 @@ function FocusRing(
          * How far away to position the focus ring from the focusable element.
          *
          * Defaults to `0.5`.
+         *
+         * Setting to `border` will render the focus ring on top of the
+         * element's border. (Equivalent to a -1px offset.)
          */
-        offset?: Spacing;
+        offset?: Spacing | "border";
 
         /**
          * The focusable element we draw a ring around.
@@ -106,7 +110,13 @@ function FocusRing(
  * A `<FocusRing>` but always visible and instead of targeting a React child it
  * targets a DOM node.
  */
-export function FocusRingPortal({offset, element}: {offset?: Spacing; element: HTMLElement}) {
+export function FocusRingPortal({
+    offset,
+    element,
+}: {
+    offset?: Spacing | "border";
+    element: HTMLElement;
+}) {
     const ringRef = useRef<HTMLDivElement>(null);
     const popperRef = useRef<Instance | null>(null);
 
@@ -197,17 +207,20 @@ function FocusRingBox({
     offset = "0.5",
     targetRef,
 }: {
-    offset?: Spacing;
+    offset?: Spacing | "border";
     targetRef: RefObject<HTMLElement | null>;
 }) {
     const ringRef = useRef<HTMLDivElement>(null);
 
     const ringWidthPx = 2;
-    const ringOffsetPx = useSpacingPx(offset);
 
     // Overlay must be focused to render so we know we're on the client and
     // `window` should exist.
-    assert(ringOffsetPx !== null);
+    let ringOffsetPx = assertExists(useSpacingPx(offset !== "border" ? offset : "0"));
+
+    // If we are using a border ring offset, we want the focus ring to render on
+    // top of the element's 1px border.
+    if (offset === "border") ringOffsetPx = -1;
 
     useLayoutEffect(() => {
         assert(ringRef.current && targetRef.current);
@@ -280,7 +293,7 @@ function FocusRingBox({
     return (
         <Box
             ref={ringRef}
-            border="indigo-30"
+            border="theme-30-const"
             style={{
                 width: `calc(100% + ${ringWidthPx * 2 + ringOffsetPx * 2}px)`,
                 height: `calc(100% + ${ringWidthPx * 2 + ringOffsetPx * 2}px)`,
