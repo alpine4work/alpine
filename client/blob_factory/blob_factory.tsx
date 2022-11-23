@@ -1,9 +1,10 @@
+import Color from "color";
 import {useRef} from "react";
 import {BlobFactorySettings} from "~/client/blob_factory/blob_factory_types";
 import {BlobFactory, drawBlobFactory} from "~/client/blob_factory/internal/draw_blob_factory";
-import {useColorScheme} from "~/client/design/color_scheme";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer";
+import {colors} from "~/shared/design/colors";
 import {formatCssLinearGradient, generateEasedGradient} from "~/shared/design/gradient";
 import {assert} from "~/shared/helpers/control/assert";
 import {easeInOutSin} from "~/shared/helpers/easing";
@@ -19,10 +20,8 @@ export function BlobFactory({
     width?: number;
     height?: number;
     fadeToBlank?: boolean;
-    settings?: BlobFactorySettings;
+    settings: BlobFactorySettings;
 }) {
-    const colorScheme = useColorScheme();
-
     const containerRef = useRef<HTMLDivElement>(null);
     const containerRect = useResizeObserver(containerRef);
     const hasContainerRect = !!containerRect;
@@ -32,33 +31,33 @@ export function BlobFactory({
     // We accept that while server-side rendering we can't show blobs.
     // I wonder if there is anyway to run blob factory server side...
     useLayoutEffectWithoutServerSideWarning(() => {
-        if (!hasContainerRect || !colorScheme) return;
+        if (!hasContainerRect) return;
 
         assert(displayCanvasRef.current);
-        blobFactoryRef.current = drawBlobFactory(displayCanvasRef.current, {colorScheme});
+        blobFactoryRef.current = drawBlobFactory(displayCanvasRef.current);
 
         return () => {
             assert(blobFactoryRef.current);
             blobFactoryRef.current.destroy();
             blobFactoryRef.current = null;
         };
-    }, [colorScheme, hasContainerRect]);
+    }, [hasContainerRect]);
 
     // We accept that while server-side rendering we can't show blobs
     // I wonder if there is anyway to run blob factory server side....
     useLayoutEffectWithoutServerSideWarning(() => {
-        if (!hasContainerRect || !colorScheme) return;
+        if (!containerRect) return;
 
         assert(blobFactoryRef.current);
         blobFactoryRef.current.setSize(new Vector2(containerRect.width, containerRect.height));
-    }, [colorScheme, containerRect, hasContainerRect]);
+    }, [containerRect]);
 
     useLayoutEffectWithoutServerSideWarning(() => {
-        if (!settings || !colorScheme) return;
+        if (!containerRect) return;
 
         assert(blobFactoryRef.current);
         blobFactoryRef.current.setSettings(settings);
-    }, [settings, containerRect, colorScheme]);
+    }, [settings, containerRect]);
 
     return (
         <div
@@ -96,12 +95,8 @@ export function BlobFactory({
                         backgroundImage: formatCssLinearGradient(
                             "to bottom",
                             generateEasedGradient(
-                                colorScheme === "dark"
-                                    ? "rgba(0, 0, 0, 0)"
-                                    : "rgba(255, 255, 255, 0)",
-                                colorScheme === "dark"
-                                    ? "rgba(0, 0, 0, 1)"
-                                    : "rgba(255, 255, 255, 1)",
+                                new Color(colors[settings.backgroundColor]).alpha(0).toString(),
+                                colors[settings.backgroundColor],
                                 easeInOutSin,
                                 10,
                             ),

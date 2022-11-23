@@ -1,3 +1,5 @@
+import {Color} from "~/shared/design/colors";
+
 export enum BlobFactoryMode {
     /** Blurry blobs that fall off the further away they get */
     Blur = 0,
@@ -68,4 +70,8 @@ export type BlobFactorySettings = {
      * @default randomFloat(10, 90)
      */
     readonly colorLevel: number;
+    /**
+     * Background color of the blobs
+     */
+    readonly backgroundColor: Color;
 };

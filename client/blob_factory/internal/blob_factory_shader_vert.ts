@@ -1,5 +1,6 @@
-export const blobFactoryShaderVertSource = `\
-#version 300 es
+import {glsl} from "~/client/helpers/gl/glsl";
+
+export const blobFactoryShaderVertSource = glsl`#version 300 es
 
 // an attribute is an input (in) to a vertex shader.
 // It will receive data from a buffer

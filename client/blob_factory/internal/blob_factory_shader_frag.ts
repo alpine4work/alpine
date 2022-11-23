@@ -1,5 +1,6 @@
-export const blobFactoryShaderFragSource = `\
-#version 300 es
+import {glsl} from "~/client/helpers/gl/glsl";
+
+export const blobFactoryShaderFragSource = glsl`#version 300 es
 
 #define MAX_BLOBS 32
 #define ENTRIES_PER_BLOB 2
@@ -24,7 +25,7 @@ uniform float u_smoothness;
 uniform float u_blurSize;
 uniform float u_blurSpread;
 uniform int u_mode;
-uniform bool u_darkMode;
+uniform vec4 u_backgroundColor;
 uniform int u_interpolateMode;
 uniform float u_hueBias;
 // uniform bool u_outlineMode;
@@ -145,7 +146,6 @@ void main() {
     }
 
     float cutoff = smoothstep(0.0, 1.0, -dist);
-    vec3 bgColor = u_darkMode ? vec3(0) : vec3(1);
     vec3 resultColor = vec3(1, 0, 1);
     if (u_interpolateMode == INTERPOLATE_NAIVE) {
         resultColor = totalColor / totalStrength;
@@ -160,6 +160,7 @@ void main() {
     resultColor.z = rotate(resultColor.z, radians(-u_hueBias));
     resultColor = lch2rgb(resultColor);
 
+    vec3 bgColor = u_backgroundColor.rgb;
     if (u_mode == MODE_BLUR) {
         // blur mode
         outColor =

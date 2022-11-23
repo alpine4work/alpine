@@ -52,7 +52,7 @@ export default function Root() {
             <body>
                 {outlet}
                 <ScrollRestoration />
-                <LiveReload />
+                <LiveReload port={3002} />
                 <Scripts />
             </body>
         </html>

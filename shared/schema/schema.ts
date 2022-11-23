@@ -293,6 +293,32 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     }
 
     /**
+     * Accept only values included in the enum array/object.
+     */
+    public static enum<Value extends string | number>(
+        values: ReadonlyArray<Value> | Readonly<Record<string, Value>>,
+    ): Schema<Value> {
+        let valueSet: ReadonlySet<Value>;
+        if (Array.isArray(values)) {
+            valueSet = new Set(values);
+        } else {
+            valueSet = new Set(Object.values(values));
+        }
+
+        return Schema.unknown.transform({
+            serialize: (value: Value): SchemaSerializedValue => value,
+            deserialize: (value): Value => {
+                if (valueSet.has(value as Value)) {
+                    return value as Value;
+                }
+                throw new SchemaDeserializationError(
+                    `Expected one of ${Array.from(valueSet, v => JSON.stringify(v)).join(", ")}`,
+                );
+            },
+        });
+    }
+
+    /**
      * Allows an object property to be optionally provided.
      *
      * Same as specifying `{p?: T}` in TypeScript. Only works for object

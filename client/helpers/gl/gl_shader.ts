@@ -1,5 +1,6 @@
 import {Gl} from "~/client/helpers/gl/gl";
 import {GlShaderType, glEnum} from "~/client/helpers/gl/gl_types";
+import {InternalError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 
 export class GlShader {
@@ -16,7 +17,7 @@ export class GlShader {
         if (!success) {
             const error = `Failed to compile shader: ${gl.getShaderInfoLog(shader) ?? ""}`;
             gl.deleteShader(shader);
-            fail(error);
+            throw new InternalError(error);
         }
         this.shader = shader;
     }
