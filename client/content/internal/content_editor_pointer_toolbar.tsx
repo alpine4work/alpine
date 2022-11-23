@@ -46,7 +46,8 @@ import {
     overlayAnimateContainerClassName,
     overlayAnimateFadeInClassName,
     overlayAnimateFadeOutClassName,
-    overlayFadeAnimationDurationMs,
+    overlayFadeInAnimationDurationMs,
+    overlayFadeOutAnimationDurationMs,
     sprinkles,
 } from "~/shared/styles/styles";
 
@@ -89,7 +90,7 @@ export function ContentEditorPointerToolbar({
         // `useOutsidePress(onClose)`) we want the toolbar to open.
         if (
             lastSelectionChangeTransactionTime !== null &&
-            lastSelectionChangeTransactionTime > Date.now() - overlayFadeAnimationDurationMs * 2
+            lastSelectionChangeTransactionTime > Date.now() - overlayFadeOutAnimationDurationMs * 2
         ) {
             return true;
         }
@@ -171,7 +172,7 @@ export function ContentEditorPointerToolbar({
                     animation: "FadingIn",
                     isLinkInputOpen: false,
                 });
-            }, overlayFadeAnimationDurationMs);
+            }, overlayFadeInAnimationDurationMs);
 
             return () => {
                 clearTimeout(timeoutId);
@@ -185,7 +186,7 @@ export function ContentEditorPointerToolbar({
                 setShowState(showState =>
                     showState.isShowing ? {...showState, animation: null} : showState,
                 );
-            }, overlayFadeAnimationDurationMs);
+            }, overlayFadeInAnimationDurationMs);
             return () => {
                 clearTimeout(timeoutId);
             };

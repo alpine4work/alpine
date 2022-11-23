@@ -8,7 +8,8 @@ import {
     overlayAnimateContainerClassName,
     overlayAnimateFadeInClassName,
     overlayAnimateFadeOutClassName,
-    overlayFadeAnimationDurationMs,
+    overlayFadeInAnimationDurationMs,
+    overlayFadeOutAnimationDurationMs,
 } from "~/shared/styles/styles";
 
 const OverlayAnimatedForwardRef = forwardRef(OverlayAnimated);
@@ -72,14 +73,19 @@ function OverlayAnimated(
 
     useEffect(() => {
         if (state.animating) {
-            const timeoutId = setTimeout(() => {
-                setState(prevState => ({...prevState, animating: false}));
-            }, overlayFadeAnimationDurationMs);
+            const timeoutId = setTimeout(
+                () => {
+                    setState(prevState => ({...prevState, animating: false}));
+                },
+                state.visible
+                    ? overlayFadeInAnimationDurationMs
+                    : overlayFadeOutAnimationDurationMs,
+            );
             return () => {
                 clearTimeout(timeoutId);
             };
         }
-    }, [state.animating]);
+    }, [state.animating, state.visible]);
 
     const overlayRef = useRef<HTMLElement>(null);
 

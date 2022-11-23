@@ -47,7 +47,8 @@ const overlayFadeOutRightKeyframes = keyframes({
     to: {opacity: 0, transform: `translateX(${spacing["1"]})`},
 });
 
-export const overlayFadeAnimationDurationMs = 200;
+export const overlayFadeInAnimationDurationMs = 100;
+export const overlayFadeOutAnimationDurationMs = 200;
 
 const overlayFadeInOutTimingFunction = "cubic-bezier(0.4, 0, 0.2, 1)";
 
@@ -60,16 +61,16 @@ export const overlayAnimateFadeInClassName = style({
     pointerEvents: "none",
     selectors: {
         [`${overlayAnimateContainerClassName}[data-popper-placement^=top] &`]: {
-            animation: `${overlayFadeInTopKeyframes} ${overlayFadeAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`,
+            animation: `${overlayFadeInTopKeyframes} ${overlayFadeInAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`,
         },
         [`${overlayAnimateContainerClassName}[data-popper-placement^=bottom] &`]: {
-            animation: `${overlayFadeInBottomKeyframes} ${overlayFadeAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`,
+            animation: `${overlayFadeInBottomKeyframes} ${overlayFadeInAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`,
         },
         [`${overlayAnimateContainerClassName}[data-popper-placement^=left] &`]: {
-            animation: `${overlayFadeInLeftKeyframes} ${overlayFadeAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`,
+            animation: `${overlayFadeInLeftKeyframes} ${overlayFadeInAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`,
         },
         [`${overlayAnimateContainerClassName}[data-popper-placement^=right] &`]: {
-            animation: `${overlayFadeInRightKeyframes} ${overlayFadeAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`,
+            animation: `${overlayFadeInRightKeyframes} ${overlayFadeInAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`,
         },
     },
 });
@@ -78,16 +79,16 @@ export const overlayAnimateFadeOutClassName = style({
     pointerEvents: "none",
     selectors: {
         [`${overlayAnimateContainerClassName}[data-popper-placement^=top] &`]: {
-            animation: `${overlayFadeOutTopKeyframes} ${overlayFadeAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`,
+            animation: `${overlayFadeOutTopKeyframes} ${overlayFadeOutAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`,
         },
         [`${overlayAnimateContainerClassName}[data-popper-placement^=bottom] &`]: {
-            animation: `${overlayFadeOutBottomKeyframes} ${overlayFadeAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`,
+            animation: `${overlayFadeOutBottomKeyframes} ${overlayFadeOutAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`,
         },
         [`${overlayAnimateContainerClassName}[data-popper-placement^=left] &`]: {
-            animation: `${overlayFadeOutLeftKeyframes} ${overlayFadeAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`,
+            animation: `${overlayFadeOutLeftKeyframes} ${overlayFadeOutAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`,
         },
         [`${overlayAnimateContainerClassName}[data-popper-placement^=right] &`]: {
-            animation: `${overlayFadeOutRightKeyframes} ${overlayFadeAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`,
+            animation: `${overlayFadeOutRightKeyframes} ${overlayFadeOutAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`,
         },
     },
 });

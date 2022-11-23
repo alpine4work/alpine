@@ -1,14 +1,9 @@
 import {RemixBrowser} from "@remix-run/react";
-import React, {StrictMode} from "react";
+import React from "react";
 import ReactDom, {hydrateRoot} from "react-dom/client";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 
-hydrateRoot(
-    document,
-    <StrictMode>
-        <RemixBrowser />
-    </StrictMode>,
-);
+hydrateRoot(document, <RemixBrowser />);
 
 // Initialize [axe][1] which is an automated accessibility tester.
 // Accessibility violations are printed to the console.

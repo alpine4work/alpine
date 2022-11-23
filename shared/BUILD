@@ -26,10 +26,14 @@ esbuild(
     name = "styles_bundle",
     srcs = glob(
         [
+            "design/**/*.ts",
+            "design/**/*.tsx",
             "styles/internal/**/*.ts",
             "styles/internal/**/*.tsx",
         ],
         exclude = [
+            "design/**/*.test.ts",
+            "design/**/*.test.tsx",
             "styles/internal/**/*.test.ts",
             "styles/internal/**/*.test.tsx",
         ],

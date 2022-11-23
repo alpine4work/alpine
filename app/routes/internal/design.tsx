@@ -31,15 +31,7 @@ export default function DesignPlaygroundRoute() {
                     justifyContent="center"
                     gap="12"
                     borderRadius="base"
-                    backgroundColor={{dark: "grey-5"}}
                 >
-                    <Box
-                        backgroundColor={{light: "grey-0", dark: "grey-10"}}
-                        width="32"
-                        height="32"
-                        borderRadius="base"
-                        boxShadow="elevation-5"
-                    />
                     <Box
                         backgroundColor={{light: "grey-0", dark: "grey-10"}}
                         width="32"

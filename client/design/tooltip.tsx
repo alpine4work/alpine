@@ -32,7 +32,8 @@ import {
     overlayAnimateContainerClassName,
     overlayAnimateFadeInClassName,
     overlayAnimateFadeOutClassName,
-    overlayFadeAnimationDurationMs,
+    overlayFadeInAnimationDurationMs,
+    overlayFadeOutAnimationDurationMs,
 } from "~/shared/styles/styles";
 
 type TooltipState =
@@ -257,7 +258,7 @@ function Tooltip(
                             throw exhaustive(state);
                         }
                     });
-                }, overlayFadeAnimationDurationMs);
+                }, overlayFadeInAnimationDurationMs);
 
                 return () => {
                     clearTimeout(timeoutId);
@@ -282,7 +283,7 @@ function Tooltip(
                             return {...state, isFadingOut: false};
                         }
                     });
-                }, overlayFadeAnimationDurationMs);
+                }, overlayFadeOutAnimationDurationMs);
 
                 return () => {
                     clearTimeout(timeoutId);
@@ -542,12 +543,12 @@ function Tooltip(
                         className={overlayAnimateContainerClassName}
                     >
                         <Box
-                            paddingX="1.5"
+                            paddingX="1"
                             paddingY="0.5"
-                            typographySize="small"
+                            typographySize="tiny"
                             color="grey-100"
                             backgroundColor={{light: "grey-0", dark: "grey-5"}}
-                            borderRadius="base"
+                            borderRadius="small"
                             boxShadow="elevation-10"
                             className={
                                 state.isFadingOut

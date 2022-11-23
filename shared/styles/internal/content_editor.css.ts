@@ -71,7 +71,7 @@ globalStyle(`${hideSelectionWhileUnfocusedClassName} *::-moz-selection`, {
  *
  * [1]: https://www.w3.org/TR/CSS2/visudet.html#inline-non-replaced
  */
-const inlineElementActualHeight = `${24.2 / 20}em`;
+const inlineElementActualHeight = `${24 / 20}em`;
 
 /**
  * When applying a background color to some selected text, we want the

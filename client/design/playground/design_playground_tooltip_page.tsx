@@ -88,17 +88,17 @@ export function DesignPlaygroundTooltipPage() {
                 >
                     <Box>
                         <Tooltip placement={overlayPlacement} content="Tooltip content 1">
-                            <Button>Button 1</Button>
+                            <Button variant="quiet">Button 1</Button>
                         </Tooltip>
                     </Box>
                     <Box>
                         <Tooltip placement={overlayPlacement} content="Tooltip content 2">
-                            <Button>Button 2</Button>
+                            <Button variant="quiet">Button 2</Button>
                         </Tooltip>
                     </Box>
                     <Box>
                         <Tooltip placement={overlayPlacement} content="Tooltip content 3">
-                            <Button>Button 3</Button>
+                            <Button variant="quiet">Button 3</Button>
                         </Tooltip>
                     </Box>
                 </Box>

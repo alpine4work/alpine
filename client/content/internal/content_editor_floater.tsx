@@ -24,7 +24,7 @@ import {useConstant} from "~/client/helpers/lifecycle/use_constant";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {overlayFadeAnimationDurationMs} from "~/shared/styles/styles";
+import {overlayFadeOutAnimationDurationMs} from "~/shared/styles/styles";
 
 export type ContentEditorPointerToolbarFloaterState = {
     readonly type: "PointerToolbar";
@@ -154,7 +154,7 @@ function ContentEditorKeyboardHighlightFloater({
         if (isClosing) {
             const timeoutId = setTimeout(() => {
                 _onClose();
-            }, overlayFadeAnimationDurationMs);
+            }, overlayFadeOutAnimationDurationMs);
             return () => {
                 clearTimeout(timeoutId);
             };
@@ -274,7 +274,7 @@ function ContentEditorKeyboardLinkFloater({
         if (isClosing) {
             const timeoutId = setTimeout(() => {
                 _onClose();
-            }, overlayFadeAnimationDurationMs);
+            }, overlayFadeOutAnimationDurationMs);
             return () => {
                 clearTimeout(timeoutId);
             };
@@ -364,7 +364,7 @@ function ContentEditorPointerLinkFloater({
         if (isClosing) {
             const timeoutId = setTimeout(() => {
                 _onClose();
-            }, overlayFadeAnimationDurationMs);
+            }, overlayFadeOutAnimationDurationMs);
             return () => {
                 clearTimeout(timeoutId);
             };

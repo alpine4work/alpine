@@ -6,7 +6,7 @@
  * [2]: https://github.com/tonsky/FiraCode
  */
 
-import {fontFace} from "@vanilla-extract/css";
+import {fontFace, style} from "@vanilla-extract/css";
 import {spacing} from "~/shared/design/spacing";
 
 const interFontFace = fontFace({
@@ -167,3 +167,9 @@ export const typographySize = {
         letterSpacing: "-0.022em",
     },
 } as const;
+
+export const truncateClassName = style({
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+});
