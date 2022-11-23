@@ -1,3 +1,4 @@
+import {LinkDescriptor} from "@remix-run/cloudflare";
 import {Links, LiveReload, Meta, Outlet, Scripts, ScrollRestoration} from "@remix-run/react";
 import {IconContext} from "phosphor-react";
 import prosemirrorStylesHref from "prosemirror-view/style/prosemirror.css";
@@ -19,7 +20,7 @@ export function meta() {
     };
 }
 
-export function links() {
+export function links(): Array<LinkDescriptor> {
     return [
         {rel: "stylesheet", href: sharedStylesHref},
         // ProseMirror includes some lightweight styling that's required for it to

@@ -36,10 +36,29 @@ function Button(
          * (`trailing`)? Defaults to before the label (`leading`).
          */
         iconPosition?: "leading" | "trailing";
+
+        /**
+         * Give the button a 100% width so it fills all available space. Defaults
+         * to false.
+         */
+        fullWidth?: boolean;
+
+        /**
+         * Should this button submit an HTML `<form>` element that it is inside? You
+         * don't need a press event if true.
+         */
+        formSubmit?: boolean;
     },
     foreignRef: Ref<HTMLButtonElement>,
 ) {
-    const {children, variant = "primary", icon, iconPosition = "leading"} = props;
+    const {
+        children,
+        variant = "primary",
+        icon,
+        iconPosition = "leading",
+        fullWidth = false,
+        formSubmit = false,
+    } = props;
     const localRef = useRef<HTMLButtonElement>(null);
     const {buttonProps, isPressed} = useButton({...props}, localRef);
     const {hoverProps, isHovered} = useHover({});
@@ -82,7 +101,11 @@ function Button(
                 ref={useMergedRef(foreignRef, localRef)}
                 className={sprinkles({
                     ...stylesByVariant[variant],
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
                     height: "7",
+                    width: fullWidth ? "full" : undefined,
                     paddingX: "3",
                     typographySize: "small",
                     borderRadius: "base",
@@ -90,6 +113,7 @@ function Button(
                     // https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
                     cursor: "default",
                 })}
+                type={formSubmit ? "submit" : undefined}
             >
                 {!iconChild ? (
                     labelChild

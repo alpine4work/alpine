@@ -4,13 +4,51 @@ import {FocusRing} from "~/client/design/focus_ring";
 import {sprinkles} from "~/shared/styles/styles";
 
 export type MultilineTextInputProps = {
+    /**
+     * A label used to describe the text input.
+     */
     label: string;
+
+    /**
+     * The current value of the text input.
+     *
+     * You may use `<ControlledMultilineTextInput/>` if you want a input component
+     * that manages its own value.
+     */
     value: string;
+
+    /**
+     * Fired when the value changes.
+     *
+     * You may use `<ControlledMultilineTextInput/>` if you want a input component
+     * that manages its own value.
+     */
     onChange: (value: string) => void;
+
+    /**
+     * Placeholder text for when the value is empty.
+     */
     placeholder?: string;
+
+    /**
+     * Name to assign this inputs value to when submitting a form.
+     */
+    formName?: string;
 };
 
-export function MultilineTextInput({label, placeholder, value, onChange}: MultilineTextInputProps) {
+/**
+ * Simple, multi-line, text input with a label.
+ */
+// TODO(calebmer): This is a very standard web design text input. Consider the
+// design more closely. Should the label be on the side? Should we have some
+// kind of dimensionality in the input?
+export function MultilineTextInput({
+    label,
+    value,
+    onChange,
+    placeholder,
+    formName,
+}: MultilineTextInputProps) {
     const id = useId();
 
     return (
@@ -43,12 +81,17 @@ export function MultilineTextInput({label, placeholder, value, onChange}: Multil
                     onChange={event => onChange(event.currentTarget.value)}
                     placeholder={placeholder}
                     autoComplete="off"
+                    name={formName}
                 />
             </FocusRing>
         </Box>
     );
 }
 
+/**
+ * `<MultilineTextInput>` but manages its own state instead of requiring you to
+ * do data down and actions up.
+ */
 export function ControlledMultilineTextInput(
     props: Omit<MultilineTextInputProps, "value" | "onChange"> & {
         initialValue?: string;

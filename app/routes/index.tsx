@@ -1,4 +1,5 @@
-import {Link} from "@remix-run/react";
+import {ActionArgs, json} from "@remix-run/cloudflare";
+import {Form, Link} from "@remix-run/react";
 import {EnvelopeSimple} from "phosphor-react";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
@@ -8,11 +9,18 @@ import {Spacer} from "~/client/design/spacer";
 import {ControlledTextInput} from "~/client/design/text_input";
 import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles";
 
+export async function action({request}: ActionArgs) {
+    // TODO(calebmer): Implement this
+
+    return json({});
+}
+
 export default function HomePage() {
     return (
         <Box display="flex" justifyContent="center">
             <main
                 className={sprinkles({
+                    width: "full",
                     maxWidth: "128",
                     paddingY: {desktop: "32", mobile: "16"},
                     paddingX: "4",
@@ -33,24 +41,27 @@ export default function HomePage() {
                     people access to the product so they can follow along.
                 </Box>
                 <Spacer space="8" />
-                <Box>
+                <Form method="post">
                     <Box typographySize="heading5" typographyStyle="primarySemiBold">
                         Sign up
                     </Box>
                     <Spacer space="4" />
                     <ControlledTextInput
+                        formName="name"
                         label="Name"
                         placeholder="Anthony Mose"
                         autoComplete="name"
                     />
                     <Spacer space="3" />
                     <ControlledTextInput
+                        formName="email"
                         label="Email"
                         placeholder="anthony.mose@company.com"
                         autoComplete="email"
                     />
                     <Spacer space="3" />
                     <ControlledMultilineTextInput
+                        formName="message"
                         label="Message (optional)"
                         placeholder="How do you know the team?"
                     />
@@ -66,15 +77,11 @@ export default function HomePage() {
                             team. If your application is approved you&#x2019;ll get an email with
                             further instructions.
                         </Box>
-                        <Button
-                            icon={<EnvelopeSimple />}
-                            iconPosition="trailing"
-                            onPress={() => {}}
-                        >
+                        <Button formSubmit={true} icon={<EnvelopeSimple />} iconPosition="trailing">
                             Apply
                         </Button>
                     </Box>
-                </Box>
+                </Form>
                 <Spacer space="32" />
                 <Box paddingTop="2" borderTop="grey-10">
                     Already have an account?{" "}
