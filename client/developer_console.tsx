@@ -51,7 +51,7 @@ export function useDeveloperConsoleSettingsObject<T extends Record<string, unkno
 ) {
     const [state, setState] = useState(() =>
         mapObjectValues(config, ({schema, defaultValue}, key) => {
-            return readLocalStorage(`${groupKey}.${key}`, schema, defaultValue);
+            return readSessionStorage(`${groupKey}.${key}`, schema, defaultValue);
         }),
     );
 
@@ -61,7 +61,7 @@ export function useDeveloperConsoleSettingsObject<T extends Record<string, unkno
                 assert(hasOwnProperty(config, property));
                 const key = property as keyof T;
                 const deserialized = config[key].schema.deserialize(newValue);
-                writeLocalStorage(`${groupKey}.${String(key)}`, config[key].schema, deserialized);
+                writeSessionStorage(`${groupKey}.${String(key)}`, config[key].schema, deserialized);
                 setState(prev => ({...prev, [key]: deserialized}));
                 return true;
             },
@@ -83,9 +83,9 @@ export function useDeveloperConsoleSettingsObject<T extends Record<string, unkno
     return state;
 }
 
-function readLocalStorage<T>(key: string, schema: Schema<T>, defaultValue: T): T {
+function readSessionStorage<T>(key: string, schema: Schema<T>, defaultValue: T): T {
     try {
-        const item = localStorage.getItem(`cyberworldsDeveloperConsole.${key}`);
+        const item = sessionStorage.getItem(`cyberworldsDeveloperConsole.${key}`);
         if (!item) return defaultValue;
         return schema.deserialize(JSON.parse(item));
     } catch {
@@ -93,8 +93,8 @@ function readLocalStorage<T>(key: string, schema: Schema<T>, defaultValue: T): T
     }
 }
 
-function writeLocalStorage<T>(key: string, schema: Schema<T>, newValue: T) {
-    localStorage.setItem(
+function writeSessionStorage<T>(key: string, schema: Schema<T>, newValue: T) {
+    sessionStorage.setItem(
         `cyberworldsDeveloperConsole.${key}`,
         JSON.stringify(schema.serialize(newValue)),
     );
