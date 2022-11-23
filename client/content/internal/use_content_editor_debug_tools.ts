@@ -1,7 +1,7 @@
 import {TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {RefObject, useCallback} from "react";
-import {useDeveloperConsoleTool} from "~/client/developer_console";
+import {useDeveloperConsoleTool} from "~/client/helpers/developer_console";
 import {wait} from "~/shared/helpers/async/wait";
 import {assert} from "~/shared/helpers/control/assert";
 

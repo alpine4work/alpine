@@ -1,7 +1,7 @@
 import {RemixBrowser} from "@remix-run/react";
 import React from "react";
 import ReactDom, {hydrateRoot} from "react-dom/client";
-import {attachDeveloperConsole} from "~/client/developer_console";
+import {attachDeveloperConsole} from "~/client/helpers/developer_console";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 
 hydrateRoot(document, <RemixBrowser />);

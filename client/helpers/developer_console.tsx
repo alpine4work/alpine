@@ -4,14 +4,16 @@ import {
     getColorSchemeWithoutListening,
     setColorScheme,
 } from "~/client/design/color_scheme";
-import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
+import {generateId} from "~/shared/id/id";
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema";
 
-const cyberworlds = {};
+const cyberworlds = {
+    generateId,
+};
 
 defineSchemaProperty<ColorScheme>(
     cyberworlds,
@@ -106,7 +108,7 @@ export function useDeveloperConsoleSettingsObject<T extends Record<string, unkno
                 );
             }
             return wrappedState;
-        }, [state, config]),
+        }, [config, state, groupKey]),
     );
 
     return state;

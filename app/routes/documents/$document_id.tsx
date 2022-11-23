@@ -4,8 +4,8 @@ import {
     BlobFactoryMode,
 } from "~/client/blob_factory/blob_factory_types";
 import {useColorScheme} from "~/client/design/color_scheme";
-import {useDeveloperConsoleSettingsObject} from "~/client/developer_console";
 import {DocumentContentEditor} from "~/client/documents/document_content_editor";
+import {useDeveloperConsoleSettingsObject} from "~/client/helpers/developer_console";
 import {useLoaderDataWithSchema} from "~/client/helpers/use_loader_data_with_schema";
 import {getDocument} from "~/server/dynamo/documents_table";
 import {jsonWithSchema} from "~/server/helpers/json_with_schema";
