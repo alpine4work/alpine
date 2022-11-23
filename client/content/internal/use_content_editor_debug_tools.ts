@@ -1,7 +1,7 @@
 import {TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {RefObject, useCallback} from "react";
-import {useDebugTools} from "~/client/helpers/use_debug_tools";
+import {useDeveloperConsoleTool} from "~/client/developer_console";
 import {wait} from "~/shared/helpers/async/wait";
 import {assert} from "~/shared/helpers/control/assert";
 
@@ -11,7 +11,7 @@ import {assert} from "~/shared/helpers/control/assert";
  * of the content editor and simulate concurrent document editing.
  */
 export function useContentEditorDebugTools(viewRef: RefObject<EditorView>) {
-    useDebugTools(
+    useDeveloperConsoleTool(
         "ContentEditor",
         useCallback(() => {
             assert(viewRef.current);
