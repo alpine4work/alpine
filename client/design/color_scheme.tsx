@@ -31,7 +31,7 @@ export function getColorSchemeWithoutListening(): ColorScheme | null {
 
 const colorSchemeListeners = new Set<(colorScheme: ColorScheme) => void>();
 
-function setColorScheme(colorScheme: ColorScheme) {
+export function setColorScheme(colorScheme: ColorScheme) {
     assert(typeof document !== "undefined", "Can not set color scheme on the server");
 
     document.documentElement.dataset.colorScheme = colorScheme;

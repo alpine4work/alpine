@@ -1,11 +1,10 @@
-import {useMemo} from "react";
 import {BlobFactory} from "~/client/blob_factory/blob_factory";
 import {
     BlobFactoryInterpolateMode,
     BlobFactoryMode,
-    BlobFactorySettings,
 } from "~/client/blob_factory/blob_factory_types";
 import {useColorScheme} from "~/client/design/color_scheme";
+import {useDeveloperConsoleSettingsObject} from "~/client/developer_console";
 import {DocumentContentEditor} from "~/client/documents/document_content_editor";
 import {useLoaderDataWithSchema} from "~/client/helpers/use_loader_data_with_schema";
 import {getDocument} from "~/server/dynamo/documents_table";
@@ -13,7 +12,6 @@ import {jsonWithSchema} from "~/server/helpers/json_with_schema";
 import {DocumentModel} from "~/shared/documents/document_model";
 import {NotFoundError} from "~/shared/error/error";
 import {Schema} from "~/shared/schema/schema";
-import {sprinkles} from "~/shared/styles/styles";
 
 const schema = Schema.object({
     document: DocumentModel.schema(),
@@ -32,27 +30,60 @@ export default function DocumentRoute() {
     const {document} = useLoaderDataWithSchema(schema);
     const colorScheme = useColorScheme();
 
-    const settings: BlobFactorySettings = useMemo(
-        () => ({
-            smoothness: 300,
-            blurSize: 200,
-            blurSpread: 0.9,
-            mode: BlobFactoryMode.Blur,
-            interpolateMode: BlobFactoryInterpolateMode.Naive,
-            hueBias: 180,
-            colorLevel: colorScheme === "dark" ? 90 : 10,
-        }),
-        [colorScheme],
-    );
+    const settings = useDeveloperConsoleSettingsObject("blobs", {
+        smoothness: {
+            defaultValue: 300,
+            schema: Schema.float,
+        },
+        blurSize: {
+            defaultValue: 200,
+            schema: Schema.float,
+        },
+        blurSpread: {
+            defaultValue: 0.9,
+            schema: Schema.float,
+        },
+        mode: {
+            defaultValue: BlobFactoryMode.Blur,
+            schema: Schema.enum([
+                BlobFactoryMode.Blur,
+                BlobFactoryMode.Fill,
+                BlobFactoryMode.Inside,
+                BlobFactoryMode.Outside,
+            ]),
+        },
+        interpolateMode: {
+            defaultValue: BlobFactoryInterpolateMode.Naive,
+            schema: Schema.enum([
+                BlobFactoryInterpolateMode.Naive,
+                BlobFactoryInterpolateMode.Min,
+                BlobFactoryInterpolateMode.Vector,
+            ]),
+        },
+        hueBias: {
+            defaultValue: 180,
+            schema: Schema.integer,
+        },
+        colorLevel: {
+            defaultValue: 10,
+            schema: Schema.integer,
+        },
+    });
 
     return (
-        <main
-            // className={sprinkles({
-            //     height: "full",
-            // })}
-            style={{background: colorScheme === "dark" ? "black" : "light"}}
-        >
-            <BlobFactory height={800} fadeToBlank={true} settings={settings} />
+        <main>
+            <BlobFactory
+                height={800}
+                fadeToBlank={true}
+                settings={{
+                    ...settings,
+                    colorLevel:
+                        colorScheme === "light"
+                            ? 0 + settings.colorLevel
+                            : 100 - settings.colorLevel,
+                    backgroundColor: colorScheme === "light" ? "grey-0" : "grey-100",
+                }}
+            />
             <DocumentContentEditor document={document} />
         </main>
     );

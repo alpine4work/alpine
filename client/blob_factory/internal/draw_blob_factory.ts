@@ -7,7 +7,6 @@ import {
 } from "~/client/blob_factory/blob_factory_types";
 import {blobFactoryShaderFragSource} from "~/client/blob_factory/internal/blob_factory_shader_frag";
 import {blobFactoryShaderVertSource} from "~/client/blob_factory/internal/blob_factory_shader_vert";
-import {ColorScheme} from "~/client/design/color_scheme";
 import {Gl} from "~/client/helpers/gl/gl";
 import {
     GlBufferUsage,
@@ -56,6 +55,7 @@ function generateDefaultBlobFactorySettings(): BlobFactorySettings {
         interpolateMode: randomArrayItem(interpolateModes).value,
         hueBias: randomFloat(0, 360),
         colorLevel: randomFloat(10, 90),
+        backgroundColor: "grey-0",
     };
 }
 
@@ -75,14 +75,12 @@ function generateDefaultBlobs(): BlobFactoryBlobs {
 export function drawBlobFactory(
     displayCanvas: HTMLCanvasElement,
     {
-        colorScheme,
         blobs = generateDefaultBlobs(),
         settings: rawSettings = {},
     }: {
-        colorScheme: ColorScheme;
         blobs?: BlobFactoryBlobs;
         settings?: Partial<BlobFactorySettings>;
-    },
+    } = {},
 ): BlobFactory {
     let settings: BlobFactorySettings = {...generateDefaultBlobFactorySettings(), ...rawSettings};
     const displayGl = new Gl(displayCanvas);
@@ -95,7 +93,10 @@ export function drawBlobFactory(
     const blurSize = program.uniformFloat("u_blurSize", settings.blurSize);
     const blurSpread = program.uniformFloat("u_blurSpread", settings.blurSpread);
     const mode = program.uniformEnum("u_mode", settings.mode);
-    program.uniformBool("u_darkMode", colorScheme === "dark");
+    const backgroundColor = program.uniformColor(
+        "u_backgroundColor",
+        new Color(colors[settings.backgroundColor]),
+    );
     const interpolateMode = program.uniformEnum("u_interpolateMode", settings.interpolateMode);
     const hueBias = program.uniformFloat("u_hueBias", settings.hueBias);
 
@@ -142,9 +143,13 @@ export function drawBlobFactory(
         mode.value = settings.mode;
         interpolateMode.value = settings.interpolateMode;
         hueBias.value = settings.hueBias;
+        backgroundColor.value = new Color(colors[settings.backgroundColor]);
+
+        requestDraw();
     };
 
     const draw = () => {
+        requestedFrame = undefined;
         displayGl.clear();
 
         texture.update({

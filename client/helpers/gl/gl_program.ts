@@ -1,3 +1,4 @@
+import Color from "color";
 import {Gl} from "~/client/helpers/gl/gl";
 import {GlShader} from "~/client/helpers/gl/gl_shader";
 import {GlTexture2d} from "~/client/helpers/gl/gl_texture_2d";
@@ -5,6 +6,7 @@ import {GlVertexAttribType, glEnum} from "~/client/helpers/gl/gl_types";
 import {
     GlUniform,
     GlUniformBool,
+    GlUniformColor,
     GlUniformEnum,
     GlUniformFloat,
     GlUniformTexture2d,
@@ -108,6 +110,10 @@ export class GlProgram {
 
     uniformEnum<T extends number>(name: string, initialValue: T) {
         return this.addUniform(GlUniformEnum, name, initialValue);
+    }
+
+    uniformColor(name: string, initialValue: Color) {
+        return this.addUniform(GlUniformColor, name, initialValue);
     }
 
     use() {

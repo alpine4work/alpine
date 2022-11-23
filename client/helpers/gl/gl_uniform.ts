@@ -1,3 +1,4 @@
+import Color from "color";
 import {Gl} from "~/client/helpers/gl/gl";
 import {GlTexture2d} from "~/client/helpers/gl/gl_texture_2d";
 import {Vector2} from "~/shared/helpers/geometry/vector2";
@@ -44,5 +45,17 @@ export class GlUniformTexture2d extends GlUniform<GlTexture2d> {
 export class GlUniformEnum<T extends number> extends GlUniform<T> {
     apply(): void {
         this.gl.gl.uniform1i(this.location, this.value);
+    }
+}
+
+export class GlUniformColor<T extends Color> extends GlUniform<T> {
+    apply(): void {
+        this.gl.gl.uniform4f(
+            this.location,
+            this.value.red() / 255,
+            this.value.green() / 255,
+            this.value.blue() / 255,
+            this.value.alpha(),
+        );
     }
 }
