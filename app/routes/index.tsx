@@ -1,21 +1,38 @@
 import {ActionArgs, json} from "@remix-run/cloudflare";
 import {Form, Link} from "@remix-run/react";
-import {EnvelopeSimple} from "phosphor-react";
+import {useState} from "react";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
 import {FocusRing} from "~/client/design/focus_ring";
 import {ControlledMultilineTextInput} from "~/client/design/multiline_text_input";
 import {Spacer} from "~/client/design/spacer";
-import {ControlledTextInput} from "~/client/design/text_input";
+import {TextInput} from "~/client/design/text_input";
+import {InvalidArgumentError} from "~/shared/error/error";
 import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles";
 
 export async function action({request}: ActionArgs) {
-    // TODO(calebmer): Implement this
+    const formData = await request.formData();
+
+    const name = formData.get("name");
+    const emailAddress = formData.get("emailAddress");
+    const message = formData.get("message");
+
+    if (typeof name !== "string")
+        throw new InvalidArgumentError('Expected property "name" in form data');
+    if (typeof emailAddress !== "string")
+        throw new InvalidArgumentError('Expected property "email" in form data');
+    if (typeof message !== "string")
+        throw new InvalidArgumentError('Expected property "message" in form data');
 
     return json({});
 }
 
 export default function HomePage() {
+    const [name, setName] = useState("");
+    const [emailAddress, setEmailAddress] = useState("");
+
+    const isFormValid = name.length > 0 && emailAddress.length > 0 && emailAddress.includes("@");
+
     return (
         <Box display="flex" justifyContent="center">
             <main
@@ -43,23 +60,27 @@ export default function HomePage() {
                 <Spacer space="8" />
                 <Form method="post">
                     <Box typographySize="heading5" typographyStyle="primarySemiBold">
-                        Sign up
+                        Request access
                     </Box>
                     <Spacer space="4" />
-                    <ControlledTextInput
+                    <TextInput
                         formName="name"
                         label="Name"
                         placeholder="Anthony Mose"
                         autoComplete="name"
+                        value={name}
+                        onChange={setName}
                     />
-                    <Spacer space="3" />
-                    <ControlledTextInput
-                        formName="email"
-                        label="Email"
+                    <Spacer space="4" />
+                    <TextInput
+                        formName="emailAddress"
+                        label="Email address"
                         placeholder="anthony.mose@company.com"
                         autoComplete="email"
+                        value={emailAddress}
+                        onChange={setEmailAddress}
                     />
-                    <Spacer space="3" />
+                    <Spacer space="4" />
                     <ControlledMultilineTextInput
                         formName="message"
                         label="Message (optional)"
@@ -74,11 +95,11 @@ export default function HomePage() {
                     >
                         <Box flexGrow="1" color="grey-80">
                             For now, we&#x2019;re only letting in people who know someone on our
-                            team. If your application is approved you&#x2019;ll get an email with
+                            team. If your request is approved you&#x2019;ll get an email with
                             further instructions.
                         </Box>
-                        <Button formSubmit={true} icon={<EnvelopeSimple />} iconPosition="trailing">
-                            Apply
+                        <Button variant="accent" formSubmit={true} isDisabled={!isFormValid}>
+                            Request
                         </Button>
                     </Box>
                 </Form>

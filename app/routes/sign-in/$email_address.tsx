@@ -99,7 +99,7 @@ export default function SignInEmailCodePage() {
                         </Box>
                     </Box>
                     <Spacer space="6" />
-                    <Button formSubmit={true} fullWidth={true}>
+                    <Button variant="accent" formSubmit={true} fullWidth={true}>
                         Sign in
                     </Button>
                 </Form>

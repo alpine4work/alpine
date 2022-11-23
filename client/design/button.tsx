@@ -7,12 +7,10 @@ import {useMergedRef} from "~/client/design/helpers/use_merged_ref";
 import {spacing} from "~/shared/design/spacing";
 import {Sprinkles, sprinkles, truncateClassName} from "~/shared/styles/styles";
 
-// TODO(calebmer): Disabled styles and other style variants
-
 const ButtonForwardRef = forwardRef(Button);
 export {ButtonForwardRef as Button};
 
-type ButtonVariant = "primary" | "quiet";
+type ButtonVariant = "accent" | "quiet";
 
 function Button(
     props: AriaButtonProps<"button"> & {
@@ -32,12 +30,6 @@ function Button(
         icon?: ReactNode;
 
         /**
-         * Should the icon be rendered before the label (`leading`) or after the label
-         * (`trailing`)? Defaults to before the label (`leading`).
-         */
-        iconPosition?: "leading" | "trailing";
-
-        /**
          * Give the button a 100% width so it fills all available space. Defaults
          * to false.
          */
@@ -53,11 +45,11 @@ function Button(
 ) {
     const {
         children,
-        variant = "primary",
+        variant = "quiet",
         icon,
-        iconPosition = "leading",
         fullWidth = false,
         formSubmit = false,
+        isDisabled,
     } = props;
     const localRef = useRef<HTMLButtonElement>(null);
     const {buttonProps, isPressed} = useButton({...props}, localRef);
@@ -84,8 +76,8 @@ function Button(
         // TODO(calebmer): I would like this button to have a little bit of
         // dimensionality. Work with someone who knows more about design to make
         // that happen.
-        primary: {
-            backgroundColor: isPressed ? "theme-60-const" : "theme-40-const",
+        accent: {
+            backgroundColor: "theme-40-const",
             color: "grey-0-const",
         },
         quiet: {
@@ -101,10 +93,20 @@ function Button(
                 ref={useMergedRef(foreignRef, localRef)}
                 className={sprinkles({
                     ...stylesByVariant[variant],
+                    ...(isDisabled
+                        ? {
+                              backgroundColor: variant !== "quiet" ? "grey-5" : undefined,
+                              color: "grey-30",
+                          }
+                        : {}),
+
+                    position: "relative",
+                    overflow: "hidden",
                     display: "flex",
                     justifyContent: "center",
                     alignItems: "center",
                     height: "7",
+                    minWidth: "16",
                     width: fullWidth ? "full" : undefined,
                     paddingX: "3",
                     typographySize: "small",
@@ -112,16 +114,38 @@ function Button(
                     // You may notice our button doesn't have a pointer cursor. See:
                     // https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
                     cursor: "default",
+                    // If this button is in a `display: flex` element, don't shrink the button based
+                    // on other contents.
+                    flexShrink: "0",
                 })}
                 type={formSubmit ? "submit" : undefined}
             >
+                {isPressed && variant === "accent" && (
+                    // For accent buttons, instead of choosing a darker background color shade when
+                    // pressed we add a black overlay at a lowered opacity. We accomplish this with
+                    // an overlay element since such a color is not in our color scheme.
+                    //
+                    // Darker shades in our color scheme are more saturated. We want the effect of a
+                    // button being physically pressed down.
+                    //
+                    // When we added this there was a happy accident. The text color also got
+                    // darker! This is more fitting for the physical analogy of a button being
+                    // pressed down.
+                    <span
+                        className={sprinkles({
+                            position: "absolute",
+                            inset: "0",
+                            backgroundColor: "grey-100-const",
+                        })}
+                        style={{opacity: 0.2}}
+                    />
+                )}
                 {!iconChild ? (
                     labelChild
                 ) : (
                     <span className={sprinkles({display: "flex", gap: "1"})}>
-                        {iconChild && iconPosition === "leading" && iconChild}
+                        {iconChild}
                         {labelChild}
-                        {iconChild && iconPosition === "trailing" && iconChild}
                     </span>
                 )}
             </button>

@@ -69,7 +69,7 @@ export function TextInput({
                 className={sprinkles({
                     display: "inline-block",
                     typographyStyle: "primaryMedium",
-                    paddingBottom: "0.5",
+                    paddingBottom: "1",
                 })}
                 htmlFor={id}
             >
@@ -82,7 +82,7 @@ export function TextInput({
                         width: "full",
                         height: "7",
                         paddingX: "2",
-                        border: "grey-10",
+                        border: "grey-20",
                         backgroundColor: "grey-0",
                         borderRadius: "base",
                     })}

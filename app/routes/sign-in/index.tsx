@@ -47,16 +47,17 @@ export default function SignInPage() {
                         autoComplete="email"
                     />
                     <Spacer space="4" />
-                    <Button formSubmit={true} fullWidth={true}>
+                    <Button variant="accent" formSubmit={true} fullWidth={true}>
                         Sign in
                     </Button>
                 </Form>
                 <Spacer space="32" />
                 <Box paddingTop="2" borderTop="grey-10">
-                    Don&#x2019;t have an account yet?{" "}
+                    Don&#x2019;t have an account yet?
+                    <br />
                     <FocusRing>
                         <Link to="/" className={contentSchemaStyles.linkClassName}>
-                            Sign up
+                            Request access
                         </Link>
                     </FocusRing>
                 </Box>

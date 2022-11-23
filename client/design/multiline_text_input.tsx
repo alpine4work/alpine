@@ -57,7 +57,7 @@ export function MultilineTextInput({
                 className={sprinkles({
                     display: "inline-block",
                     typographyStyle: "primaryMedium",
-                    paddingBottom: "0.5",
+                    paddingBottom: "1",
                 })}
                 htmlFor={id}
             >
@@ -71,7 +71,7 @@ export function MultilineTextInput({
                         paddingX: "2",
                         paddingY: "1.5",
                         minHeight: "16",
-                        border: "grey-10",
+                        border: "grey-20",
                         backgroundColor: "grey-0",
                         borderRadius: "base",
                     })}
