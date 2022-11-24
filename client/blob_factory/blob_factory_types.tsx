@@ -1,14 +1,25 @@
 import {Color} from "~/shared/design/colors";
 
-export enum BlobFactoryMode {
-    /** Blurry blobs that fall off the further away they get */
-    Blur = 0,
-    /** Defined, filled shapes */
-    Inside = 1,
-    /** Defined shapes, filled outside */
-    Outside = 2,
-    /** Blurry blobs with no dropoff, filling the whole canvas with colour */
-    Fill = 3,
+export const BlobFactoryDrawOutsideFlag = 1;
+export const BlobFactoryDrawInsideFlag = 2;
+export const BlobFactoryForceOutsideChromaLightnessFlag = 4;
+
+export function blobFactoryModeFromSettings({
+    shouldDrawInside,
+    shouldDrawOutside,
+    shouldForceOutsideChromaLightness,
+}: BlobFactorySettings) {
+    let mode = 0;
+    if (shouldDrawInside) {
+        mode |= BlobFactoryDrawInsideFlag;
+    }
+    if (shouldDrawOutside) {
+        mode |= BlobFactoryDrawOutsideFlag;
+    }
+    if (shouldForceOutsideChromaLightness) {
+        mode |= BlobFactoryForceOutsideChromaLightnessFlag;
+    }
+    return mode;
 }
 
 export enum BlobFactoryInterpolateMode {
@@ -32,6 +43,10 @@ export enum BlobFactoryInterpolateMode {
 }
 
 export type BlobFactorySettings = {
+    readonly shouldDrawOutside: boolean;
+    readonly shouldDrawInside: boolean;
+    readonly shouldForceOutsideChromaLightness: boolean;
+
     /**
      * How much SDF smoothing should we apply (px)
      * @default randomFloat(50, 100)
@@ -47,11 +62,6 @@ export type BlobFactorySettings = {
      * @default 0.9
      */
     readonly blurSpread: number;
-    /**
-     * How should we draw the blobs?
-     * @default pickRandom(BlobFactoryMode)
-     */
-    readonly mode: BlobFactoryMode;
     /**
      * How should colour interpolation work?
      * @default pickRandom(BlobFactoryInterpolateMode)
@@ -74,4 +84,14 @@ export type BlobFactorySettings = {
      * Background color of the blobs
      */
     readonly backgroundColor: Color;
+    /**
+     * Chroma of outside.
+     * Only takes effect if shouldForceOutsideChromaLightness is set.
+     */
+    readonly forcedOutsideChroma: number;
+    /**
+     * Lightness of outside.
+     * Only takes effect if shouldForceOutsideChromaLightness is set.
+     */
+    readonly forcedOutsideLightness: number;
 };

@@ -1,32 +1,121 @@
 import Color from "color";
-import {useRef} from "react";
+import {useMemo, useRef} from "react";
 import {BlobFactorySettings} from "~/client/blob_factory/blob_factory_types";
-import {BlobFactory, drawBlobFactory} from "~/client/blob_factory/internal/draw_blob_factory";
+import {
+    BlobFactory,
+    BlobFactoryBlob,
+    BlobFactoryBlobs,
+    drawBlobFactory,
+    getInterpolatedThemeColor,
+} from "~/client/blob_factory/internal/draw_blob_factory";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer";
 import {colors} from "~/shared/design/colors";
 import {formatCssLinearGradient, generateEasedGradient} from "~/shared/design/gradient";
+import {ThemeColor, themeColors} from "~/shared/design/theme_colors";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length";
 import {assert} from "~/shared/helpers/control/assert";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {easeInOutSin} from "~/shared/helpers/easing";
 import {Vector2} from "~/shared/helpers/geometry/vector2";
+import {StableRandom} from "~/shared/helpers/number/stable_random";
 import {sprinkles} from "~/shared/styles/styles";
+
+type BlobGenerationSettings = {
+    contentWidthPx: number;
+    screenWidthPx: number;
+    randomSeed: string;
+    minBlobCount?: number;
+    maxBlobCount?: number;
+    spreadX?: number;
+    minY?: number;
+    maxY?: number;
+    minRadiusFactor?: number;
+    maxRadiusFactor?: number;
+    baseThemeColor: ThemeColor;
+    colorSpread?: number;
+};
+
+export function generateBlobsForContent({
+    contentWidthPx,
+    screenWidthPx,
+    randomSeed,
+    minBlobCount = 5,
+    maxBlobCount = 8,
+    spreadX = 0.1,
+    minY = 0,
+    maxY = 300,
+    minRadiusFactor = 0.1,
+    maxRadiusFactor = 0.3,
+    baseThemeColor,
+    colorSpread = 1,
+}: BlobGenerationSettings): BlobFactoryBlobs {
+    const rng = new StableRandom(randomSeed);
+
+    const centerX = screenWidthPx / 2;
+    const leftX = centerX - contentWidthPx / 2;
+    const rightX = centerX + contentWidthPx / 2;
+
+    const baseThemeColorIndex = themeColors.indexOf(baseThemeColor);
+
+    return createArrayWithLength(rng.randomInteger("count", 0, minBlobCount, maxBlobCount), idx => {
+        const position = new Vector2(
+            rng.randomFloat(
+                "x",
+                idx,
+
+                leftX - contentWidthPx * spreadX,
+                rightX + contentWidthPx * spreadX,
+            ),
+            rng.randomFloat("y", idx, minY, maxY),
+        );
+        const radius = rng.randomFloat(
+            "radius",
+            idx,
+            contentWidthPx * minRadiusFactor,
+            contentWidthPx * maxRadiusFactor,
+        );
+        const colorOffset = Math.round(rng.randomNormalDistribution("color", idx) * colorSpread);
+        const color = assertExists(
+            themeColors.at((baseThemeColorIndex + colorOffset) % themeColors.length),
+        );
+        return new BlobFactoryBlob(position, radius, color);
+    });
+}
 
 export function BlobFactory({
     width,
     height,
     fadeToBlank = false,
     settings,
+    randomSeed,
 }: {
     width?: number;
     height?: number;
     fadeToBlank?: boolean;
-    settings: BlobFactorySettings;
+    randomSeed: string;
+    settings: Omit<BlobFactorySettings, "hueBias"> &
+        Omit<BlobGenerationSettings, "contentWidthPx" | "screenWidthPx" | "randomSeed">;
 }) {
     const containerRef = useRef<HTMLDivElement>(null);
     const containerRect = useResizeObserver(containerRef);
     const hasContainerRect = !!containerRect;
     const displayCanvasRef = useRef<HTMLCanvasElement>(null);
     const blobFactoryRef = useRef<BlobFactory | null>(null);
+
+    const baseThemeColorName = settings.baseThemeColor;
+    const baseThemeColor = getInterpolatedThemeColor(settings.colorLevel, baseThemeColorName);
+    const hueBias = 360 - assertExists(baseThemeColor.lch().object().h);
+
+    const blobs = useMemo(() => {
+        if (!containerRect) return;
+        return generateBlobsForContent({
+            contentWidthPx: 768,
+            screenWidthPx: containerRect.width,
+            randomSeed,
+            ...settings,
+        });
+    }, [containerRect, randomSeed, settings]);
 
     // We accept that while server-side rendering we can't show blobs.
     // I wonder if there is anyway to run blob factory server side...
@@ -56,8 +145,15 @@ export function BlobFactory({
         if (!containerRect) return;
 
         assert(blobFactoryRef.current);
-        blobFactoryRef.current.setSettings(settings);
-    }, [settings, containerRect]);
+        blobFactoryRef.current.setSettings({...settings, hueBias});
+    }, [settings, containerRect, hueBias]);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (!containerRect || !blobs) return;
+
+        assert(blobFactoryRef.current);
+        blobFactoryRef.current.setBlobs(blobs);
+    }, [blobs, containerRect]);
 
     return (
         <div
