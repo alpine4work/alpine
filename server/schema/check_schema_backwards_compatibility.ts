@@ -37,7 +37,8 @@ export function checkSchemaBackwardsCompatibility(
         case "Boolean":
         case "Integer":
         case "Id":
-        case "Bytes": {
+        case "Bytes":
+        case "Date": {
             if (lastSchema.type !== nextSchema.type) {
                 throw new SchemaBackwardsIncompatibleError(
                     `\`${lastSchema.type}\` type is incompatible with \`${nextSchema.type}\` type`,

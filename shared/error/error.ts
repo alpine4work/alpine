@@ -19,6 +19,9 @@ export abstract class ErrorBase extends Error {
             displayMessage,
         }: {
             cause?: unknown;
+            // TODO(calebmer): Consider requiring a display message for some classes
+            // of errors? Also maybe the default error should always be "an unknown
+            // error ocurred". Maybe we include the error code in the message?
             displayMessage?: ErrorDisplayMessage;
         } = {},
     ) {

@@ -28,10 +28,15 @@ defineSchemaProperty<ColorScheme>(
  * (or `c` for short).
  */
 export function attachDeveloperConsole() {
-    // @ts-expect-error cyberworlds doesn't exist on windows types
-    window.cyberworlds = cyberworlds;
-    // @ts-expect-error c doesn't exist on windows types
-    window.c = cyberworlds;
+    // Only give access to developer console tools in development environments (for
+    // now). In the future we will allow signed in internal users to access
+    // these tools.
+    if (process.env.NODE_ENV !== "production") {
+        // @ts-expect-error cyberworlds doesn't exist on windows types
+        window.cyberworlds = cyberworlds;
+        // @ts-expect-error c doesn't exist on windows types
+        window.c = cyberworlds;
+    }
 }
 
 function defineSchemaProperty<T>(

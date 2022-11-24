@@ -25,6 +25,7 @@ export type SchemaSerializedScalarValueDescription =
     | {readonly type: "String"}
     | {readonly type: "Id"}
     | {readonly type: "Bytes"}
+    | {readonly type: "Date"}
     | {readonly type: "Value"; readonly value: number | boolean | string};
 
 export type SchemaSerializedNullableValueDescription = {

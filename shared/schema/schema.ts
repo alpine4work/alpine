@@ -1,4 +1,5 @@
 import {base64ToBytes, bytesToBase64} from "byte-base64";
+import {formatISO, isValid as isValidDate, parseISO} from "date-fns";
 import {InvalidArgumentError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
@@ -254,6 +255,32 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
             } catch {
                 throw new SchemaDeserializationError("Unable to parse base64 string");
             }
+        },
+    });
+
+    /**
+     * Accept a valid `Date` object.
+     *
+     * Serializes to an [ISO 8601][1] string.
+     *
+     * [1]: https://en.wikipedia.org/wiki/ISO_8601
+     */
+    public static date = new Schema<Date>({
+        description: {type: "Date"},
+        serialize: value => {
+            assert(isValidDate(value));
+            return formatISO(value);
+        },
+        deserialize: value => {
+            if (typeof value !== "string")
+                throw new SchemaDeserializationError("Expected a string");
+
+            const date = parseISO(value);
+
+            if (!isValidDate(date))
+                throw new SchemaDeserializationError("Expected an ISO 8601 date string");
+
+            return date;
         },
     });
 

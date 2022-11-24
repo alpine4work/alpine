@@ -1,9 +1,16 @@
 import chalk from "chalk";
+import crypto from "crypto";
 import path from "path";
 import prettyMilliseconds from "pretty-ms";
 import {runProcess} from "~/admin/helpers/run_process";
 import {runfilesPath} from "~/admin/helpers/runfiles_path";
 import {localstackEdgePort} from "~/server/aws/localstack_edge_port";
+import {seedDynamo} from "~/server/dynamo/seed_dynamo";
+
+// This function runs in Node.js but we execute some code that expects to run
+// in Cloudflare workers. So set the global `crypto` object to the Web
+// Crypto API.
+(global as any).crypto = crypto.webcrypto;
 
 const cdklocalExecutablePath = path.join(
     runfilesPath,
@@ -61,4 +68,11 @@ export async function prepareLocalstack() {
 
     // eslint-disable-next-line no-console
     console.log(`☁️  Deployed AWS resources to LocalStack in ${prettyMilliseconds(durationMs)}`);
+
+    const seedStartTime = process.hrtime.bigint();
+    await seedDynamo();
+    const seedDurationMs = Number((process.hrtime.bigint() - seedStartTime) / BigInt("1000000"));
+
+    // eslint-disable-next-line no-console
+    console.log(`☁️  Seeded DynamoDB with initial data in ${prettyMilliseconds(seedDurationMs)}`);
 }

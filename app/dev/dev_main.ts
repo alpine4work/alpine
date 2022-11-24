@@ -145,7 +145,7 @@ const server = http.createServer((req, res) => {
 
 server.listen(port, host, () => {
     // eslint-disable-next-line no-console
-    console.log(`App listening on ${chalk.underline.bold(`http://${prettyHost}:${port}`)}`);
+    console.log(`🚀 App listening on ${chalk.underline.bold(`http://${prettyHost}:${port}`)}`);
 });
 
 /* ========================================================================== *\
