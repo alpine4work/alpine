@@ -57,12 +57,20 @@ export default function DocumentRoute() {
             defaultValue: true,
             schema: Schema.boolean,
         },
-        forcedOutsideChroma: {
+        forcedOutsideChromaDark: {
             defaultValue: 70,
             schema: Schema.float,
         },
-        forcedOutsideLightness: {
-            defaultValue: 75,
+        forcedOutsideLightnessDark: {
+            defaultValue: 25,
+            schema: Schema.float,
+        },
+        forcedOutsideChromaLight: {
+            defaultValue: 50,
+            schema: Schema.float,
+        },
+        forcedOutsideLightnessLight: {
+            defaultValue: 105,
             schema: Schema.float,
         },
         interpolateMode: {
@@ -73,8 +81,12 @@ export default function DocumentRoute() {
                 BlobFactoryInterpolateMode.Vector,
             ]),
         },
-        colorLevel: {
+        colorLevelLight: {
             defaultValue: 30,
+            schema: Schema.integer,
+        },
+        colorLevelDark: {
+            defaultValue: 60,
             schema: Schema.integer,
         },
         minBlobCount: {
@@ -125,12 +137,16 @@ export default function DocumentRoute() {
                     ...settings,
                     colorLevel:
                         colorScheme === "light"
-                            ? 0 + settings.colorLevel
-                            : 100 - settings.colorLevel,
+                            ? settings.colorLevelLight
+                            : settings.colorLevelDark,
                     forcedOutsideLightness:
                         colorScheme === "light"
-                            ? 0 + settings.forcedOutsideLightness
-                            : 100 - settings.forcedOutsideLightness,
+                            ? settings.forcedOutsideLightnessLight
+                            : settings.forcedOutsideLightnessDark,
+                    forcedOutsideChroma:
+                        colorScheme === "light"
+                            ? settings.forcedOutsideChromaLight
+                            : settings.forcedOutsideChromaDark,
                     backgroundColor: colorScheme === "light" ? "grey-0" : "grey-100",
                 }}
             />
