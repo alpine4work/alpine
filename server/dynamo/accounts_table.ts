@@ -3,7 +3,8 @@ import {DynamoConditionExpression} from "~/server/dynamo/internal/dynamo_conditi
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry_dynamo_condition_check_errors";
-import {NotFoundError} from "~/shared/error/error";
+import {FailedPreconditionError, NotFoundError, PermissionDeniedError} from "~/shared/error/error";
+import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {assert} from "~/shared/helpers/control/assert";
 import {quote} from "~/shared/helpers/string/quote";
 import {isId} from "~/shared/id/id";
@@ -182,20 +183,11 @@ export async function seedTestAccounts() {
     ]);
 }
 
-export type RegenerateAccountEmailAddressOneTimePasswordResult =
-    | {type: "RegeneratedOneTimePassword"}
-    | {
-          type: "AccountEmailAddressLocked";
-          hoursUntilUnlocked: number;
-      };
-
 /**
  * Generates a new one time password for signing into an account with the
  * provided email address. Sends the password to the account's email address.
  */
-export function regenerateOneTimePasswordSignIn(
-    emailAddress: string,
-): Promise<RegenerateAccountEmailAddressOneTimePasswordResult> {
+export function regenerateOneTimePasswordSignIn(emailAddress: string): Promise<void> {
     return retryDynamoConditionCheckErrors(async () => {
         // Email address is case insensitive.
         emailAddress = emailAddress.toLowerCase();
@@ -205,18 +197,13 @@ export function regenerateOneTimePasswordSignIn(
             sortRangeType: "Attributes",
             emailAddress,
         });
-        if (!accountEmailAddressItem) throw new NotFoundError("Account email address not found");
+        if (!accountEmailAddressItem) throw accountEmailAddressNotFoundError(emailAddress);
 
         const hoursUntilUnlocked =
             getHoursUntilRegenerateOneTimePasswordUnlocked(accountEmailAddressItem);
 
         // If the account is locked, you cannot regenerate a password.
-        if (hoursUntilUnlocked > 0) {
-            return {
-                type: "AccountEmailAddressLocked",
-                hoursUntilUnlocked,
-            };
-        }
+        if (hoursUntilUnlocked > 0) throw accountEmailAddressSignInLockedError(hoursUntilUnlocked);
 
         const generatedTime = new Date();
         const password = generateOneTimePassword();
@@ -261,10 +248,8 @@ export function regenerateOneTimePasswordSignIn(
         // TODO(calebmer): Actually send emails!
         if (process.env.NODE_ENV === "development") {
             // eslint-disable-next-line no-console
-            console.log(quote`✉️ The one time password for ${emailAddress} is ${password}`);
+            console.log(quote`✉️  The one time password for ${emailAddress} is ${password}`);
         }
-
-        return {type: "RegeneratedOneTimePassword"};
     });
 }
 
@@ -276,7 +261,7 @@ export function regenerateOneTimePasswordSignIn(
  * guess the password. We only allow 3 attempts to guess before locking the
  * account.
  */
-function generateOneTimePassword(): string {
+export function generateOneTimePassword(): string {
     const randomUint32s = new Uint32Array(6);
     crypto.getRandomValues(randomUint32s);
 
@@ -286,7 +271,7 @@ function generateOneTimePassword(): string {
         // (0 inclusive, 1 exclusive).
         const randomFloat = randomUint32 / (0xffffffff + 1);
 
-        return Math.floor(randomFloat * 11);
+        return Math.floor(randomFloat * 10);
     });
 
     return randomDigits.join("");
@@ -325,15 +310,6 @@ const maxFailedOneTimePasswordAttemptCount = 5;
  */
 const expireOneTimePasswordAfterMinutes = 60;
 
-export type AttemptOneTimePasswordLoginResult =
-    | {type: "MissingOneTimePassword"}
-    | {type: "CorrectOneTimePassword"}
-    | {type: "IncorrectOneTimePassword"}
-    | {
-          type: "AccountEmailAddressLockedUntilRegenerateOneTimePassword";
-          hoursUntilRegenerateOneTimePasswordUnlocked: number;
-      };
-
 /**
  * Attempts to sign into the account with a one time password. After a few
  * consecutive failed attempts to sign in, we will lock the account for at
@@ -342,8 +318,8 @@ export type AttemptOneTimePasswordLoginResult =
 export function attemptOneTimePasswordSignIn(
     emailAddress: string,
     oneTimePassword: string,
-): Promise<AttemptOneTimePasswordLoginResult> {
-    return retryDynamoConditionCheckErrors(async (): Promise<AttemptOneTimePasswordLoginResult> => {
+): Promise<void> {
+    return retryDynamoConditionCheckErrors(async () => {
         // Email address is case insensitive.
         emailAddress = emailAddress.toLowerCase();
 
@@ -352,23 +328,16 @@ export function attemptOneTimePasswordSignIn(
             sortRangeType: "Attributes",
             emailAddress,
         });
-        if (!accountEmailAddressItem) throw new NotFoundError("Account email address not found");
+        if (!accountEmailAddressItem) throw accountEmailAddressNotFoundError(emailAddress);
 
-        if (!accountEmailAddressItem.oneTimePasswordSignInState) {
-            return {type: "MissingOneTimePassword"};
-        }
+        if (!accountEmailAddressItem.oneTimePasswordSignInState)
+            throw missingOneTimePasswordError();
+
+        const hoursUntilUnlocked =
+            getHoursUntilRegenerateOneTimePasswordUnlocked(accountEmailAddressItem);
 
         // Check if the account is locked.
-        if (
-            accountEmailAddressItem.oneTimePasswordSignInState.failedAttemptCount >=
-            maxFailedOneTimePasswordAttemptCount
-        ) {
-            return {
-                type: "AccountEmailAddressLockedUntilRegenerateOneTimePassword",
-                hoursUntilRegenerateOneTimePasswordUnlocked:
-                    getHoursUntilRegenerateOneTimePasswordUnlocked(accountEmailAddressItem),
-            };
-        }
+        if (hoursUntilUnlocked > 0) throw accountEmailAddressSignInLockedError(hoursUntilUnlocked);
 
         // Check if the one-time password is expired. We check if the account is locked
         // first since the one-time password will expire while the account is locked
@@ -380,7 +349,7 @@ export function attemptOneTimePasswordSignIn(
                 accountEmailAddressItem.oneTimePasswordSignInState.generatedTime,
             ) > expireOneTimePasswordAfterMinutes
         ) {
-            return {type: "MissingOneTimePassword"};
+            throw missingOneTimePasswordError();
         }
 
         const isCorrectOneTimePassword =
@@ -406,7 +375,16 @@ export function attemptOneTimePasswordSignIn(
                 },
             );
 
-            return {type: "IncorrectOneTimePassword"};
+            const remainingAttemptCount =
+                maxFailedOneTimePasswordAttemptCount -
+                (accountEmailAddressItem.oneTimePasswordSignInState.failedAttemptCount + 1);
+
+            throw new PermissionDeniedError("Incorrect one time password", {
+                displayMessage: errorDisplayMessage`The sign in code does not match the one we sent to your email. ${remainingAttemptCount} attempt(s) remaining before this account is locked. If you can’t find the email, check your spam folder or try ${errorDisplayMessage.link(
+                    "signing in",
+                    "/sign-in",
+                )} again.`,
+            });
         } else {
             await AccountsTable.putItem(
                 {
@@ -423,8 +401,6 @@ export function attemptOneTimePasswordSignIn(
                     },
                 },
             );
-
-            return {type: "CorrectOneTimePassword"};
         }
     });
 }
@@ -465,4 +441,31 @@ function getHoursUntilRegenerateOneTimePasswordUnlocked({
         hoursSinceLastFailedOneTimePasswordSignInAttempt;
 
     return Math.max(hoursUntilRegenerateOneTimePasswordSignInUnlocked, 0);
+}
+
+function accountEmailAddressNotFoundError(emailAddress: string) {
+    return new NotFoundError("Account email address not found", {
+        displayMessage: errorDisplayMessage`An account for ${emailAddress} does not exist. Try again with a different email or ${errorDisplayMessage.link(
+            "request access",
+            "/",
+        )}.`,
+    });
+}
+
+function missingOneTimePasswordError() {
+    return new FailedPreconditionError("Missing one time password", {
+        displayMessage: errorDisplayMessage`To sign in, you need a recent code. Try ${errorDisplayMessage.link(
+            "signing in",
+            "/sign-in",
+        )} again to get a new code.`,
+    });
+}
+
+function accountEmailAddressSignInLockedError(hoursUntilUnlocked: number) {
+    return new PermissionDeniedError("Account email address is locked", {
+        displayMessage: errorDisplayMessage`This account is locked after entering too many incorrect passwords. Wait ${hoursUntilUnlocked} hour(s) then try ${errorDisplayMessage.link(
+            "signing in",
+            "/sign-in",
+        )} again.`,
+    });
 }

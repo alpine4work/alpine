@@ -1,5 +1,6 @@
 import {Link} from "@remix-run/react";
 import {Fragment} from "react";
+import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
 import {ErrorBase} from "~/shared/error/error";
 import {ErrorCode} from "~/shared/error/error_code";
@@ -16,7 +17,7 @@ export function ErrorDisplayMessageRenderer({error}: {error: unknown}) {
         );
 
     return (
-        <>
+        <Box color="grey-80" typographySize="small">
             {displayMessage.map((displayMessageSegment, index) => {
                 switch (displayMessageSegment.type) {
                     case "Text":
@@ -47,15 +48,9 @@ export function ErrorDisplayMessageRenderer({error}: {error: unknown}) {
                         throw exhaustive(displayMessageSegment);
                 }
             })}
-        </>
+        </Box>
     );
 }
-
-// TODO(calebmer): Replace this with an actual email address when we have a
-// real domain name.
-const supportEmailAddress = "support@cyberworlds.dev";
-
-const supportLink = errorDisplayMessage.link(supportEmailAddress, `mailto:${supportEmailAddress}`);
 
 /**
  * Get a default error message to display to the user for a given error code.
@@ -75,26 +70,26 @@ function getDefaultErrorDisplayMessageByCode(code: ErrorCode): ErrorDisplayMessa
         case ErrorCode.Unknown:
         case ErrorCode.Internal:
         case ErrorCode.DataLoss:
-            return errorDisplayMessage`An unexpected error occurred. Please try again. If the problem continues, let us know at ${supportLink}.`;
+            return errorDisplayMessage`An unexpected error occurred. Please try again. If the problem continues, let us know at ${errorDisplayMessage.supportLink}.`;
         case ErrorCode.InvalidArgument:
-            return errorDisplayMessage`Some data is incorrectly formatted. Please review any information you\u2019ve entered and try again. If the problem continues, let us know at ${supportLink}.`;
+            return errorDisplayMessage`Some data is incorrectly formatted. Please review any information you\u2019ve entered and try again. If the problem continues, let us know at ${errorDisplayMessage.supportLink}.`;
         case ErrorCode.DeadlineExceeded:
-            return errorDisplayMessage`Some process was taking to long to complete so we stopped it. Please try again. If the problem continues, let us know at ${supportLink}.`;
+            return errorDisplayMessage`Some process was taking to long to complete so we stopped it. Please try again. If the problem continues, let us know at ${errorDisplayMessage.supportLink}.`;
         case ErrorCode.NotFound:
-            return errorDisplayMessage`Some data was not found. Please try again. If the problem continues, let us know at ${supportLink}.`;
+            return errorDisplayMessage`Some data was not found. Please try again. If the problem continues, let us know at ${errorDisplayMessage.supportLink}.`;
         case ErrorCode.AlreadyExists:
-            return errorDisplayMessage`Some data already exists and can not be recreated. Please try again. If the problem continues, let us know at ${supportLink}.`;
+            return errorDisplayMessage`Some data already exists and can not be recreated. Please try again. If the problem continues, let us know at ${errorDisplayMessage.supportLink}.`;
         case ErrorCode.PermissionDenied:
             return errorDisplayMessage`You are not allowed to. Ask the owner of this data for access.`;
         case ErrorCode.ResourceExhausted:
-            return errorDisplayMessage`All of some resource has been used up. Please wait a few seconds and try again. If the problem continues, let us know at ${supportLink}.`;
+            return errorDisplayMessage`All of some resource has been used up. Please wait a few seconds and try again. If the problem continues, let us know at ${errorDisplayMessage.supportLink}.`;
         case ErrorCode.FailedPrecondition:
         case ErrorCode.OutOfRange:
-            return errorDisplayMessage`Some data was different than what was expected. Please wait a few seconds and try again. If the problem continues, let us know at ${supportLink}.`;
+            return errorDisplayMessage`Some data was different than what was expected. Please wait a few seconds and try again. If the problem continues, let us know at ${errorDisplayMessage.supportLink}.`;
         case ErrorCode.Unimplemented:
-            return errorDisplayMessage`You are trying to do something that isn\u2019t supported. Please let us know at ${supportLink}.`;
+            return errorDisplayMessage`You are trying to do something that isn\u2019t supported. Please let us know at ${errorDisplayMessage.supportLink}.`;
         case ErrorCode.Unavailable:
-            return errorDisplayMessage`Some system is currently unavailable. Please wait a few minutes and try again. If the problem continues, let us know at ${supportLink}.`;
+            return errorDisplayMessage`Some system is currently unavailable. Please wait a few minutes and try again. If the problem continues, let us know at ${errorDisplayMessage.supportLink}.`;
         case ErrorCode.Unauthenticated:
             return errorDisplayMessage`You are not signed in. Please ${errorDisplayMessage.link(
                 "sign in",

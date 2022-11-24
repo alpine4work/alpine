@@ -17,6 +17,10 @@ import {isHttp500Error} from "~/shared/error/is_http_500_error_code";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles";
 
+// TODO(calebmer): Lint rule that in JSX and error display messages you use a
+// curly quote (`’`) over single quotes (`'`) for apostrophes. Double
+// quotes too.
+
 export function meta() {
     return {
         title: "Request access to Cyberworlds",
@@ -37,7 +41,6 @@ const ActionSchema = Schema.result(
 export async function action({request}: ActionArgs) {
     try {
         const formData = await request.formData();
-
         const name = formData.get("name");
         const emailAddress = formData.get("emailAddress");
         const message = formData.get("message");
@@ -45,7 +48,7 @@ export async function action({request}: ActionArgs) {
         if (typeof name !== "string")
             throw new InvalidArgumentError('Expected property "name" in form data');
         if (typeof emailAddress !== "string")
-            throw new InvalidArgumentError('Expected property "email" in form data');
+            throw new InvalidArgumentError('Expected property "emailAddress" in form data');
         if (typeof message !== "string")
             throw new InvalidArgumentError('Expected property "message" in form data');
 
@@ -67,7 +70,7 @@ export default function HomePage() {
 
     const isFormValid = name.length > 0 && emailAddress.length > 0 && emailAddress.includes("@");
 
-    // TODO(calebmer): Message on success and failure...
+    // TODO(calebmer): Message on success...
     const actionData = useActionDataWithSchema(ActionSchema);
 
     const [dismissedActionData, setDismissedActionData] = useState<SchemaType<
@@ -90,13 +93,13 @@ export default function HomePage() {
                         typographySize: "heading3",
                     })}
                 >
-                    Want to see what we&#x2019;re working on?
+                    Want to see what we’re working on?
                 </h1>
                 <Spacer space="4" />
                 <Box typographySize="body" color="grey-80">
-                    Cyberworlds is the code name for a new workplace collaboration suite
-                    we&#x2019;re building. While we have a long way to go, we&#x2019;re giving some
-                    people access to the product so they can follow along.
+                    Cyberworlds is the code name for a new workplace collaboration suite we’re
+                    building. While we have a long way to go, we’re giving some people access to the
+                    product so they can follow along.
                 </Box>
                 <Spacer space="8" />
                 <Form method="post">
@@ -145,9 +148,8 @@ export default function HomePage() {
                         alignItems={{desktop: "flex-end", mobile: "flex-start"}}
                     >
                         <Box flexGrow="1" color="grey-80">
-                            For now, we&#x2019;re only letting in people who know someone on our
-                            team. If your request is approved you&#x2019;ll get an email with
-                            further instructions.
+                            For now, we’re only letting in people who know someone on our team. If
+                            your request is approved you’ll get an email with further instructions.
                         </Box>
                         <Button
                             variant="accent"

@@ -2,6 +2,7 @@ import {Warning, X} from "phosphor-react";
 import {Box} from "~/client/design/box";
 import {IconButton} from "~/client/design/icon_button";
 import {ErrorDisplayMessageRenderer} from "~/client/error/error_display_message_renderer";
+import {spacing} from "~/shared/design/spacing";
 
 /**
  * Renders an error message inline with some other content.
@@ -36,35 +37,37 @@ export function ErrorInlineAlert({
         <Box
             position="relative"
             backgroundColor="grey-0"
-            padding="5"
+            padding="4"
             border="red-40"
             borderWidth="thick"
             borderRadius="base"
         >
             <Box position="absolute" top="1.5" right="1.5">
-                <IconButton size="small" description="Dismiss alert" onPress={onDismiss}>
+                <IconButton
+                    size="small"
+                    description="Dismiss alert"
+                    onPress={onDismiss}
+                    withoutTooltip={true}
+                >
                     <X />
                 </IconButton>
             </Box>
-            <Box display="flex" gap="2" paddingBottom="2">
+            <Box display="flex" gap="1.5" paddingBottom="2">
                 <Box
                     flexShrink="0"
                     color="red-40"
                     height="6"
-                    width="6"
                     display="flex"
                     justifyContent="center"
                     alignItems="center"
                 >
-                    <Warning weight="fill" />
+                    <Warning weight="fill" size={spacing["4"]} />
                 </Box>
                 <Box flexGrow="1" typographySize="body" typographyStyle="primaryMedium">
                     {title}
                 </Box>
             </Box>
-            <Box color="grey-80" typographySize="small">
-                <ErrorDisplayMessageRenderer error={error} />
-            </Box>
+            <ErrorDisplayMessageRenderer error={error} />
         </Box>
     );
 }

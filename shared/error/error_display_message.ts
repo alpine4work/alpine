@@ -106,3 +106,14 @@ errorDisplayMessage.link = (text: string, url: string): ErrorDisplayMessageLinkS
     text,
     url,
 });
+
+// TODO(calebmer): Replace this with an actual email address when we have a
+// real domain name.
+const supportEmailAddress = "support@cyberworlds.dev";
+
+const supportLink = errorDisplayMessage.link(supportEmailAddress, `mailto:${supportEmailAddress}`);
+
+/**
+ * A link to our support email address.
+ */
+errorDisplayMessage.supportLink = supportLink;

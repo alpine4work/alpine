@@ -34,10 +34,17 @@ function IconButton(
          * The size of the icon button.
          */
         size?: IconButtonSize;
+
+        /**
+         * Don't show a tooltip when hovering over this icon button.
+         *
+         * Defaults to `false`.
+         */
+        withoutTooltip?: boolean;
     },
     foreignRef: Ref<HTMLButtonElement>,
 ) {
-    const {description, size = "base", children} = props;
+    const {description, size = "base", children, withoutTooltip = false} = props;
     const localRef = useRef<HTMLButtonElement>(null);
     const {buttonProps, isPressed} = useButton({...props, "aria-label": description}, localRef);
     const {hoverProps, isHovered} = useHover({});
@@ -60,7 +67,12 @@ function IconButton(
     )[size];
 
     return (
-        <Tooltip placement="bottom-start" offset={tooltipOffset} content={description}>
+        <Tooltip
+            placement="bottom-start"
+            offset={tooltipOffset}
+            content={description}
+            disabled={withoutTooltip}
+        >
             <FocusRing>
                 <button
                     {...mergeProps(buttonProps, hoverProps)}

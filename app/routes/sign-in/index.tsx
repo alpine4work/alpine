@@ -1,10 +1,19 @@
-import {ActionArgs, json} from "@remix-run/cloudflare";
+import {ActionArgs, redirect} from "@remix-run/cloudflare";
 import {Form, Link, useTransition} from "@remix-run/react";
+import {useState} from "react";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
 import {FocusRing} from "~/client/design/focus_ring";
 import {Spacer} from "~/client/design/spacer";
-import {ControlledTextInput} from "~/client/design/text_input";
+import {TextInput} from "~/client/design/text_input";
+import {ErrorInlineAlert} from "~/client/error/error_inline_alert";
+import {useActionDataWithSchema} from "~/client/helpers/use_action_data_with_schema";
+import {regenerateOneTimePasswordSignIn} from "~/server/dynamo/accounts_table";
+import {jsonWithSchema} from "~/server/helpers/json_with_schema";
+import {InvalidArgumentError} from "~/shared/error/error";
+import {ErrorSchema} from "~/shared/error/error_schema";
+import {isHttp500Error} from "~/shared/error/is_http_500_error_code";
+import {Schema, SchemaType} from "~/shared/schema/schema";
 import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles";
 
 export function meta() {
@@ -14,13 +23,39 @@ export function meta() {
     };
 }
 
-export async function action({request}: ActionArgs) {
-    // TODO(calebmer): Implement this
+const ActionSchema = Schema.object({
+    ok: Schema.value(false),
+    error: ErrorSchema,
+});
 
-    return json({});
+export async function action({request}: ActionArgs) {
+    try {
+        const formData = await request.formData();
+        const emailAddress = formData.get("emailAddress");
+
+        if (typeof emailAddress !== "string")
+            throw new InvalidArgumentError('Expected property "emailAddress" in form data');
+
+        await regenerateOneTimePasswordSignIn(emailAddress);
+
+        // After we send the email, challenge the user to sign in using the code
+        // we sent them.
+        return redirect(`/sign-in/${encodeURIComponent(emailAddress)}`);
+    } catch (error) {
+        return jsonWithSchema(ActionSchema, {ok: false, error}, isHttp500Error(error) ? 500 : 400);
+    }
 }
 
 export default function SignInPage() {
+    const [emailAddress, setEmailAddress] = useState("");
+    const isFormValid = emailAddress.length > 0 && emailAddress.includes("@");
+
+    const actionData = useActionDataWithSchema(ActionSchema);
+
+    const [dismissedActionData, setDismissedActionData] = useState<SchemaType<
+        typeof ActionSchema
+    > | null>(null);
+
     return (
         <Box display="flex" justifyContent="center">
             <main
@@ -41,11 +76,23 @@ export default function SignInPage() {
                         Sign in
                     </h1>
                     <Spacer space="6" />
-                    <ControlledTextInput
-                        formName="email"
-                        label="Email"
+                    {actionData && dismissedActionData !== actionData && (
+                        <>
+                            <ErrorInlineAlert
+                                title="Could not sign in"
+                                error={actionData.error}
+                                onDismiss={() => setDismissedActionData(actionData)}
+                            />
+                            <Spacer space="4" />
+                        </>
+                    )}
+                    <TextInput
+                        formName="emailAddress"
+                        label="Email address"
                         placeholder="anthony.mose@company.com"
                         autoComplete="email"
+                        value={emailAddress}
+                        onChange={setEmailAddress}
                     />
                     <Spacer space="4" />
                     <Button
@@ -53,13 +100,14 @@ export default function SignInPage() {
                         shouldSubmitForm={true}
                         fullWidth={true}
                         isPending={useTransition().state === "submitting"}
+                        isDisabled={!isFormValid}
                     >
                         Sign in
                     </Button>
                 </Form>
                 <Spacer space="32" />
                 <Box paddingTop="2" borderTop="grey-10">
-                    Don&#x2019;t have an account yet?
+                    Don’t have an account yet?
                     <br />
                     <FocusRing>
                         <Link to="/" className={contentSchemaStyles.linkClassName}>

@@ -1,9 +1,17 @@
-import {ActionArgs, json} from "@remix-run/cloudflare";
+import {ActionArgs, redirect} from "@remix-run/cloudflare";
 import {Form, useParams, useTransition} from "@remix-run/react";
 import {useState} from "react";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
 import {Spacer} from "~/client/design/spacer";
+import {ErrorInlineAlert} from "~/client/error/error_inline_alert";
+import {useActionDataWithSchema} from "~/client/helpers/use_action_data_with_schema";
+import {attemptOneTimePasswordSignIn} from "~/server/dynamo/accounts_table";
+import {jsonWithSchema} from "~/server/helpers/json_with_schema";
+import {InvalidArgumentError} from "~/shared/error/error";
+import {ErrorSchema} from "~/shared/error/error_schema";
+import {isHttp500Error} from "~/shared/error/is_http_500_error_code";
+import {Schema, SchemaType} from "~/shared/schema/schema";
 import {sprinkles} from "~/shared/styles/styles";
 
 export function meta() {
@@ -14,10 +22,31 @@ export function meta() {
     };
 }
 
-export async function action({request}: ActionArgs) {
-    // TODO(calebmer): Implement this
+const ActionSchema = Schema.object({
+    ok: Schema.value(false),
+    error: ErrorSchema,
+});
 
-    return json({});
+export async function action({request, params}: ActionArgs) {
+    try {
+        const emailAddress = params.email_address;
+
+        const formData = await request.formData();
+        const oneTimePassword = formData.get("oneTimePassword");
+
+        if (typeof emailAddress !== "string")
+            throw new InvalidArgumentError('Expected property "emailAddress" in params');
+        if (typeof oneTimePassword !== "string")
+            throw new InvalidArgumentError('Expected property "oneTimePassword" in form data');
+
+        // TODO(calebmer): Do something with result?
+        await attemptOneTimePasswordSignIn(emailAddress, oneTimePassword);
+
+        // TODO(calebmer): Send them to a logged in screen.
+        return redirect("/");
+    } catch (error) {
+        return jsonWithSchema(ActionSchema, {ok: false, error}, isHttp500Error(error) ? 500 : 400);
+    }
 }
 
 // TODO(calebmer): This one time sign in code UI is a little janky. Polish it!
@@ -27,7 +56,14 @@ export default function SignInEmailCodePage() {
     const params = useParams();
     const emailAddress = params.email_address;
 
-    const [code, setCode] = useState("");
+    const [oneTimePassword, setOneTimePassword] = useState("");
+    const isFormValid = oneTimePassword.length === 6;
+
+    const actionData = useActionDataWithSchema(ActionSchema);
+
+    const [dismissedActionData, setDismissedActionData] = useState<SchemaType<
+        typeof ActionSchema
+    > | null>(null);
 
     return (
         <Box display="flex" justifyContent="center">
@@ -50,7 +86,7 @@ export default function SignInEmailCodePage() {
                     </h1>
                     <Spacer space="2" />
                     <Box color="grey-80">
-                        We sent a one time sign in code to your email{" "}
+                        We sent a sign in code to{" "}
                         <span
                             className={sprinkles({
                                 typographyStyle: "primarySemiBold",
@@ -59,18 +95,29 @@ export default function SignInEmailCodePage() {
                         >
                             {emailAddress}
                         </span>
-                        . Type the code in here.
+                        . Type the code here to sign in.
                     </Box>
                     <Spacer space="6" />
+                    {actionData && dismissedActionData !== actionData && (
+                        <>
+                            <ErrorInlineAlert
+                                title="Could not sign in"
+                                error={actionData.error}
+                                onDismiss={() => setDismissedActionData(actionData)}
+                            />
+                            <Spacer space="4" />
+                        </>
+                    )}
                     <Box position="relative">
                         <input
+                            name="oneTimePassword"
                             placeholder="000000"
-                            value={code}
+                            value={oneTimePassword}
                             onChange={event => {
                                 const value = event.currentTarget.value;
 
                                 // Don't allow a user to type unsupported characters into our code.
-                                setCode(value.replace(/[^a-zA-Z0-9]/g, "").slice(0, 6));
+                                setOneTimePassword(value.replace(/[^a-zA-Z0-9]/g, "").slice(0, 6));
                             }}
                             className={sprinkles({
                                 display: "block",
@@ -81,11 +128,13 @@ export default function SignInEmailCodePage() {
                                 typographySize: "heading2",
                             })}
                             style={{
+                                lineHeight: 1,
                                 letterSpacing: "0.53rem",
                                 paddingLeft: "0.14rem",
                                 transform: "translateY(0.12rem)",
                             }}
                             spellCheck="false"
+                            autoComplete="off"
                             onScroll={event => {
                                 event.currentTarget.scrollLeft = 0;
                             }}
@@ -98,12 +147,48 @@ export default function SignInEmailCodePage() {
                             gap="1"
                             zIndex="-10"
                         >
-                            <Box flexGrow="1" height="full" borderRadius="base" border="grey-10" />
-                            <Box flexGrow="1" height="full" borderRadius="base" border="grey-10" />
-                            <Box flexGrow="1" height="full" borderRadius="base" border="grey-10" />
-                            <Box flexGrow="1" height="full" borderRadius="base" border="grey-10" />
-                            <Box flexGrow="1" height="full" borderRadius="base" border="grey-10" />
-                            <Box flexGrow="1" height="full" borderRadius="base" border="grey-10" />
+                            <Box
+                                flexGrow="1"
+                                height="full"
+                                borderRadius="base"
+                                border="grey-5"
+                                borderWidth="thick"
+                            />
+                            <Box
+                                flexGrow="1"
+                                height="full"
+                                borderRadius="base"
+                                border="grey-5"
+                                borderWidth="thick"
+                            />
+                            <Box
+                                flexGrow="1"
+                                height="full"
+                                borderRadius="base"
+                                border="grey-5"
+                                borderWidth="thick"
+                            />
+                            <Box
+                                flexGrow="1"
+                                height="full"
+                                borderRadius="base"
+                                border="grey-5"
+                                borderWidth="thick"
+                            />
+                            <Box
+                                flexGrow="1"
+                                height="full"
+                                borderRadius="base"
+                                border="grey-5"
+                                borderWidth="thick"
+                            />
+                            <Box
+                                flexGrow="1"
+                                height="full"
+                                borderRadius="base"
+                                border="grey-5"
+                                borderWidth="thick"
+                            />
                         </Box>
                     </Box>
                     <Spacer space="6" />
@@ -112,6 +197,7 @@ export default function SignInEmailCodePage() {
                         shouldSubmitForm={true}
                         fullWidth={true}
                         isPending={useTransition().state === "submitting"}
+                        isDisabled={!isFormValid}
                     >
                         Sign in
                     </Button>
