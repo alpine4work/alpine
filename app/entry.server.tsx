@@ -1,6 +1,5 @@
 import type {EntryContext} from "@remix-run/cloudflare";
 import {RemixServer} from "@remix-run/react";
-import {StrictMode} from "react";
 import {renderToString} from "react-dom/server";
 
 export default function handleRequest(
@@ -9,11 +8,7 @@ export default function handleRequest(
     responseHeaders: Headers,
     remixContext: EntryContext,
 ) {
-    const markup = renderToString(
-        <StrictMode>
-            <RemixServer context={remixContext} url={request.url} />
-        </StrictMode>,
-    );
+    const markup = renderToString(<RemixServer context={remixContext} url={request.url} />);
 
     responseHeaders.set("Content-Type", "text/html");
 

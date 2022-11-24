@@ -102,7 +102,12 @@ export default function HomePage() {
                     product so they can follow along.
                 </Box>
                 <Spacer space="8" />
-                <Form method="post">
+                <Form
+                    method="post"
+                    onSubmit={() => {
+                        if (actionData) setDismissedActionData(actionData);
+                    }}
+                >
                     <Box typographySize="heading5" typographyStyle="primarySemiBold">
                         Request access
                     </Box>

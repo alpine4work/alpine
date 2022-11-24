@@ -1,5 +1,5 @@
 import {Link} from "@remix-run/react";
-import {Fragment} from "react";
+import {Fragment, useEffect} from "react";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
 import {ErrorBase} from "~/shared/error/error";
@@ -15,6 +15,13 @@ export function ErrorDisplayMessageRenderer({error}: {error: unknown}) {
         getDefaultErrorDisplayMessageByCode(
             error instanceof ErrorBase ? error.code : ErrorCode.Unknown,
         );
+
+    // Log errors to the console as well after we render them to help the
+    // developer debug.
+    useEffect(() => {
+        // eslint-disable-next-line no-console
+        console.error(error);
+    }, [error]);
 
     return (
         <Box color="grey-80" typographySize="small">

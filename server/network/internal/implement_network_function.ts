@@ -1,4 +1,4 @@
-import {Session} from "~/server/session/session";
+import {SessionData} from "~/server/session/session";
 import {assert} from "~/shared/helpers/control/assert";
 import {quote} from "~/shared/helpers/string/quote";
 import {BlockInference} from "~/shared/helpers/types/block_inference";
@@ -6,7 +6,7 @@ import {NetworkFunction} from "~/shared/network/network_function";
 import {SchemaSerializedValue} from "~/shared/schema/schema";
 
 export type NetworkFunctionImplementation = {
-    execute(session: Session, input: SchemaSerializedValue): Promise<SchemaSerializedValue>;
+    execute(session: SessionData, input: SchemaSerializedValue): Promise<SchemaSerializedValue>;
 };
 
 /**
@@ -17,7 +17,7 @@ export type NetworkFunctionImplementation = {
  */
 export function implementNetworkFunction<Input, Output>(
     networkFunction: NetworkFunction<Input, Output>,
-    implementation: (input: Input, session: Session) => Promise<BlockInference<Output>>,
+    implementation: (input: Input, session: SessionData) => Promise<BlockInference<Output>>,
 ) {
     assert(
         !networkFunctionImplementationByName.has(networkFunction.name),
@@ -25,7 +25,7 @@ export function implementNetworkFunction<Input, Output>(
     );
 
     const execute = async (
-        session: Session,
+        session: SessionData,
         serializedInput: SchemaSerializedValue,
     ): Promise<SchemaSerializedValue> => {
         const input = networkFunction.inputSchema.deserialize(serializedInput);

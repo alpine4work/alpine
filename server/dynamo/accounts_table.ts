@@ -1,4 +1,6 @@
 import {differenceInHours, differenceInMinutes} from "date-fns";
+import {ServerContext} from "~/server/context/server_context";
+import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
 import {DynamoConditionExpression} from "~/server/dynamo/internal/dynamo_condition";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
@@ -7,7 +9,7 @@ import {FailedPreconditionError, NotFoundError, PermissionDeniedError} from "~/s
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {assert} from "~/shared/helpers/control/assert";
 import {quote} from "~/shared/helpers/string/quote";
-import {isId} from "~/shared/id/id";
+import {Id, generateId, isId} from "~/shared/id/id";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
 import {Schema} from "~/shared/schema/schema";
 
@@ -26,6 +28,12 @@ const AccountsTable = DynamoTableSchema.new({
                          * The name of this account.
                          */
                         name: LabelStringSchema,
+
+                        /**
+                         * When was this account created?
+                         */
+                        // TODO(calebmer): Should this be a part of the `DynamoTableSchema` framework?
+                        createdTime: Schema.date,
 
                         /**
                          * Can this account approve folks who want to get alpha access to the product?
@@ -118,13 +126,50 @@ const AccountsTable = DynamoTableSchema.new({
                              * the risk is small (if you have read access you probably also have write
                              * access and attacks get much worse) so accepting it for now...
                              *
-                             * [1]: https://github.com/dcodeIO/bcrypt.js/tree/master
+                             * [1]: https://github.com/dcodeIO/bcrypt.js
                              * [2]: https://community.cloudflare.com/t/options-for-password-hashing/138077
                              */
                             password: Schema.string,
                             failedAttemptCount: Schema.integer,
                             lastFailedAttemptTime: Schema.date.nullable(),
                         }).optional(),
+                    }),
+                },
+            },
+        },
+
+        /**
+         * When an account successfully signs in it gets a session. The session is
+         * saved in a location that can't be tampered (signed browser cookie). Having a
+         * valid session id in a secure location identifies a user with our services.
+         */
+        Session: {
+            partitionKeyAttributes: {
+                sessionId: DynamoKeyAttributeSchema.id,
+            },
+            sortRanges: {
+                Attributes: {
+                    sortKeyAttributes: {},
+                    attributes: Schema.object({
+                        /**
+                         * The account this session is for.
+                         */
+                        accountId: Schema.id,
+
+                        /**
+                         * When was this session created?
+                         */
+                        createdTime: Schema.date,
+
+                        /**
+                         * The IP address of the HTTP request which created this session.
+                         */
+                        initialIpAddress: Schema.string.nullable(),
+
+                        /**
+                         * The user agent of the HTTP request which created this session.
+                         */
+                        initialUserAgent: Schema.string.nullable(),
                     }),
                 },
             },
@@ -159,6 +204,7 @@ export async function seedTestAccounts() {
             sortRangeType: "Attributes",
             accountId: adminAccountId,
             name: "Test Admin",
+            createdTime: new Date(),
             canApproveAlphaAccessRequests: true,
         }),
         AccountsTable.transactionPutItem(
@@ -181,6 +227,25 @@ export async function seedTestAccounts() {
             },
         ),
     ]);
+}
+
+/**
+ * Transaction entry that checks to make sure an account email address does not
+ * already exist.
+ */
+export function transactionAccountEmailAddressDoesNotExistConditionCheck(
+    emailAddress: string,
+): DynamoTransactionEntry {
+    return AccountsTable.transactionConditionCheck(
+        {
+            partitionType: "AccountEmailAddress",
+            sortRangeType: "Attributes",
+            emailAddress,
+        },
+        {
+            accountId: DynamoConditionExpression.exists().not(),
+        },
+    );
 }
 
 /**
@@ -316,9 +381,12 @@ const expireOneTimePasswordAfterMinutes = 60;
  * least 24 hours.
  */
 export function attemptOneTimePasswordSignIn(
+    context: ServerContext,
     emailAddress: string,
     oneTimePassword: string,
-): Promise<void> {
+): Promise<{
+    sessionId: Id;
+}> {
     return retryDynamoConditionCheckErrors(async () => {
         // Email address is case insensitive.
         emailAddress = emailAddress.toLowerCase();
@@ -386,21 +454,38 @@ export function attemptOneTimePasswordSignIn(
                 )} again.`,
             });
         } else {
-            await AccountsTable.putItem(
-                {
-                    ...accountEmailAddressItem,
-                    lockVersion: accountEmailAddressItem.lockVersion + 1,
-                    // Verify this email address.
-                    isVerified: true,
-                    // Remove our one-time password sign in state.
-                    oneTimePasswordSignInState: undefined,
-                },
-                {
-                    condition: {
-                        lockVersion: accountEmailAddressItem.lockVersion,
+            const sessionId = generateId();
+
+            await DynamoTableSchema.executeTransaction([
+                AccountsTable.transactionPutItem(
+                    {
+                        ...accountEmailAddressItem,
+                        lockVersion: accountEmailAddressItem.lockVersion + 1,
+                        // Verify this email address.
+                        isVerified: true,
+                        // Remove our one-time password sign in state.
+                        oneTimePasswordSignInState: undefined,
                     },
-                },
-            );
+                    {
+                        condition: {
+                            lockVersion: accountEmailAddressItem.lockVersion,
+                        },
+                    },
+                ),
+                AccountsTable.transactionPutItem({
+                    partitionType: "Session",
+                    sortRangeType: "Attributes",
+                    sessionId,
+                    accountId: accountEmailAddressItem.accountId,
+                    createdTime: new Date(),
+                    initialIpAddress: context.getRequestIpAddress(),
+                    initialUserAgent: context.getRequestUserAgent(),
+                }),
+            ]);
+
+            return {
+                sessionId,
+            };
         }
     });
 }

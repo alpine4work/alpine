@@ -1,3 +1,4 @@
+import {transactionAccountEmailAddressDoesNotExistConditionCheck} from "~/server/dynamo/accounts_table";
 import {DynamoConditionExpression} from "~/server/dynamo/internal/dynamo_condition";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
@@ -71,19 +72,25 @@ export async function requestAlphaAccess({
     emailAddress = emailAddress.toLowerCase();
 
     try {
-        await AlphaAccessTable.putItem(
-            {
-                partitionType: "AlphaAccessRequest",
-                sortRangeType: "Attributes",
-                name,
-                emailAddress,
-                message,
-                decision: null,
-            },
-            {
-                condition: {name: DynamoConditionExpression.exists().not()},
-            },
-        );
+        await DynamoTableSchema.executeTransaction([
+            // Make sure an account does not already exist when requesting alpha access.
+            // The account could have been created manually.
+            transactionAccountEmailAddressDoesNotExistConditionCheck(emailAddress),
+
+            AlphaAccessTable.transactionPutItem(
+                {
+                    partitionType: "AlphaAccessRequest",
+                    sortRangeType: "Attributes",
+                    name,
+                    emailAddress,
+                    message,
+                    decision: null,
+                },
+                {
+                    condition: {name: DynamoConditionExpression.exists().not()},
+                },
+            ),
+        ]);
     } catch (error) {
         if (!isDynamoConditionCheckError(error)) throw error;
 

@@ -1,5 +1,5 @@
 import {Step} from "prosemirror-transform";
-import {DurableObjectServerContext} from "~/server/context/server_context";
+import {DurableObjectRequestServerContext, ServerContext} from "~/server/context/server_context";
 import {DocumentCollaborationStepCache} from "~/server/documents/document_collaboration_step_cache";
 import {getUpdateDocumentContentResult} from "~/server/documents/get_update_document_content_result";
 import {
@@ -71,6 +71,12 @@ class DocumentCollaborationDurableObject {
     private readonly _contentManager: DocumentCollaborationContentManager;
     private readonly _destroyCallback: () => void;
 
+    private readonly _webSocketServer: WebSocketServer<
+        DocumentCollaborationMessageFromClient,
+        DocumentCollaborationMessageFromServer,
+        DocumentCollaborationDurableObjectConnection
+    >;
+
     public static async initialize({
         state,
         id,
@@ -116,6 +122,21 @@ class DocumentCollaborationDurableObject {
             destroyDurableObject: () => this._destroy(),
         });
         this._destroyCallback = destroy;
+
+        this._webSocketServer = new WebSocketServer(
+            this._state,
+            DocumentCollaborationMessageFromClientSchema,
+            DocumentCollaborationMessageFromServerSchema,
+            ({context, sendMessage, sendMessageToOthers, iterateOtherConnections}) =>
+                new DocumentCollaborationDurableObjectConnection({
+                    context,
+                    contentManager: this._contentManager,
+                    sendMessage,
+                    sendMessageToOthers,
+                    iterateOtherConnections,
+                    destroyDurableObject: () => this._destroy(),
+                }),
+        );
     }
 
     public fetch(request: Request): Response {
@@ -123,23 +144,6 @@ class DocumentCollaborationDurableObject {
         if (url.pathname !== "/") throw new NotFoundError("Unexpected path");
         return this._webSocketServer.upgrade(request);
     }
-
-    private readonly _webSocketServer = new WebSocketServer<
-        DocumentCollaborationMessageFromClient,
-        DocumentCollaborationMessageFromServer,
-        DocumentCollaborationDurableObjectConnection
-    >(
-        DocumentCollaborationMessageFromClientSchema,
-        DocumentCollaborationMessageFromServerSchema,
-        ({sendMessage, sendMessageToOthers, iterateOtherConnections}) =>
-            new DocumentCollaborationDurableObjectConnection({
-                contentManager: this._contentManager,
-                sendMessage,
-                sendMessageToOthers,
-                iterateOtherConnections,
-                destroyDurableObject: () => this._destroy(),
-            }),
-    );
 
     private _destroy() {
         this._webSocketServer.closeAll();
@@ -241,6 +245,7 @@ class DocumentCollaborationContentManager {
      * `newSteps` applied to `content` produces `newContent`.
      */
     public update(
+        context: ServerContext,
         connectionId: Id,
         update: {
             version: number;
@@ -356,15 +361,12 @@ class DocumentCollaborationContentManager {
                             this._persistenceState.next = null;
 
                         try {
-                            const {conflictingSteps} = await updateDocumentContent(
-                                new DurableObjectServerContext(this._state),
-                                {
-                                    id: this._id,
-                                    version: oldVersion,
-                                    steps: nextSteps,
-                                    clientId: update.clientId,
-                                },
-                            );
+                            const {conflictingSteps} = await updateDocumentContent(context, {
+                                id: this._id,
+                                version: oldVersion,
+                                steps: nextSteps,
+                                clientId: update.clientId,
+                            });
 
                             // The document collaboration durable object should be the only process writing
                             // to a document! If some other process is writing to a document, weird
@@ -410,6 +412,7 @@ class DocumentCollaborationContentManager {
 class DocumentCollaborationDurableObjectConnection {
     public readonly id = generateId();
 
+    private readonly _context: DurableObjectRequestServerContext;
     private readonly _contentManager: DocumentCollaborationContentManager;
     private readonly _sendMessage: (message: DocumentCollaborationMessageFromServer) => void;
     private readonly _sendMessageToOthers: (
@@ -422,18 +425,21 @@ class DocumentCollaborationDurableObjectConnection {
     private _sequentialQueue = new AsyncSequentialQueue();
 
     constructor({
+        context,
         contentManager,
         sendMessage,
         sendMessageToOthers,
         iterateOtherConnections,
         destroyDurableObject,
     }: {
+        context: DurableObjectRequestServerContext;
         contentManager: DocumentCollaborationContentManager;
         sendMessage: (message: DocumentCollaborationMessageFromServer) => void;
         sendMessageToOthers: (message: DocumentCollaborationMessageFromServer) => void;
         iterateOtherConnections: () => Iterable<DocumentCollaborationDurableObjectConnection>;
         destroyDurableObject: () => void;
     }) {
+        this._context = context;
         this._contentManager = contentManager;
         this._sendMessage = sendMessage;
         this._sendMessageToOthers = sendMessageToOthers;
@@ -540,7 +546,7 @@ class DocumentCollaborationDurableObjectConnection {
                     }
                     case "UpdateContent": {
                         const {presenceState, hasSentPresenceState} =
-                            await this._contentManager.update(this.id, message);
+                            await this._contentManager.update(this._context, this.id, message);
                         this._presenceState = presenceState;
 
                         if (!hasSentPresenceState) {

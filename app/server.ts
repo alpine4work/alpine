@@ -1,13 +1,31 @@
 import {createRequestHandler, handleAsset} from "@remix-run/cloudflare-workers";
 import * as build from "@remix-run/dev/server-build";
+import {WorkerServerContext} from "~/server/context/server_context";
+import {Session} from "~/server/session/session";
 import {InternalError} from "~/shared/error/error";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {Schema} from "~/shared/schema/schema";
 
 type CloudflareEnv = {
     DocumentCollaborationDurableObjectNamespace: DurableObjectNamespace;
 };
 
-const handleRequest = createRequestHandler({build});
+const sessionPromiseSymbol = Symbol("sessionPromise");
+
+const handleRequest = createRequestHandler({
+    build,
+    getLoadContext(event: FetchEvent & {[sessionPromiseSymbol]?: Promise<Session>}) {
+        const context = new WorkerServerContext(event.request, {
+            waitUntil: promise => event.waitUntil(promise),
+            passThroughOnException: () => event.passThroughOnException(),
+        });
+
+        return {
+            context,
+            sessionPromise: assertExists(event[sessionPromiseSymbol]),
+        };
+    },
+});
 
 export default {
     async fetch(
@@ -20,14 +38,17 @@ export default {
         // Backwards compatibility with Cloudflare service worker syntax. (Instead of
         // Cloudflare module syntax.)
         // https://developers.cloudflare.com/workers/runtime-apis/fetch-event
-        const event: FetchEvent = Object.assign(new Event("fetch"), {
-            request,
-            waitUntil: (promise: Promise<any>) => context.waitUntil(promise),
-            passThroughOnException: () => context.passThroughOnException(),
-            respondWith: () => {
-                throw new InternalError("Can not respond through fetch event stub");
+        const event: FetchEvent & {[sessionPromiseSymbol]?: Promise<Session>} = Object.assign(
+            new Event("fetch"),
+            {
+                request,
+                waitUntil: (promise: Promise<any>) => context.waitUntil(promise),
+                passThroughOnException: () => context.passThroughOnException(),
+                respondWith: () => {
+                    throw new InternalError("Can not respond through fetch event stub");
+                },
             },
-        });
+        );
 
         // In development we have middleware on our HTTP server that serves static
         // files from the file system instead of a Cloudflare KV namespace.
@@ -59,7 +80,17 @@ export default {
             }
         }
 
-        return handleRequest(event);
+        // Immediately start executing the request instead of delaying it `await`ing
+        // session cookie parsing.
+        const sessionPromise = Session.new(request);
+        event[sessionPromiseSymbol] = sessionPromise;
+
+        const response = await handleRequest(event);
+
+        const session = await sessionPromise;
+        await session.commit(response);
+
+        return response;
     },
 };
 

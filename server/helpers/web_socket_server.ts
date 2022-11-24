@@ -1,3 +1,4 @@
+import {DurableObjectRequestServerContext} from "~/server/context/server_context";
 import {ErrorBase, FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error";
 import {ErrorCode} from "~/shared/error/error_code";
 import {isHttp500ErrorCode} from "~/shared/error/is_http_500_error_code";
@@ -28,11 +29,13 @@ export class WebSocketServer<
     private _expirationInterval: Interval | null = null;
 
     constructor(
+        private readonly _state: DurableObjectState,
         // NOTE(calebmer): Force schemas to be union schemas so the protocol can evolve
         // in the future.
         private readonly _messageFromClientSchema: UnionSchema<MessageFromClient>,
         private readonly _messageFromServerSchema: UnionSchema<MessageFromServer>,
         private readonly _createConnection: (connection: {
+            context: DurableObjectRequestServerContext;
             request: Request;
             sendMessage: (message: MessageFromServer) => void;
             sendMessageToOthers: (message: MessageFromServer) => void;
@@ -78,7 +81,10 @@ export class WebSocketServer<
             );
         };
 
+        const context = new DurableObjectRequestServerContext(this._state, request);
+
         const actualConnection = this._createConnection({
+            context,
             request,
             sendMessage,
             sendMessageToOthers,

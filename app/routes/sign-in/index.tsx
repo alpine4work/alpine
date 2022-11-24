@@ -66,7 +66,12 @@ export default function SignInPage() {
                     paddingX: "4",
                 })}
             >
-                <Form method="post">
+                <Form
+                    method="post"
+                    onSubmit={() => {
+                        if (actionData) setDismissedActionData(actionData);
+                    }}
+                >
                     <h1
                         className={sprinkles({
                             typographyStyle: "primarySemiBold",

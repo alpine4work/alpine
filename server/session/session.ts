@@ -1,4 +1,4 @@
-import {createCookieSessionStorage} from "@remix-run/cloudflare";
+import {Session as CookieSession, createCookieSessionStorage} from "@remix-run/cloudflare";
 import {cookieSessionSecret} from "~/server/env/env_variables";
 import {generateId} from "~/shared/id/id";
 import {Schema, SchemaType} from "~/shared/schema/schema";
@@ -24,47 +24,79 @@ const cookieSessionStorage = createCookieSessionStorage({
  *
  * [1]: https://www.npmjs.com/package/cookie-session
  */
-export type Session = SchemaType<typeof SessionSchema>;
+export type SessionData = SchemaType<typeof SessionDataSchema>;
 
-const SessionSchema = Schema.object({
+const SessionDataSchema = Schema.object({
     browserId: Schema.id,
+    sessionId: Schema.id.nullable(),
 });
 
-function getDefaultSession(): Session {
+function getDefaultSessionData(): SessionData {
     return {
         browserId: generateId(),
+        sessionId: null,
     };
 }
 
-/**
- * Gets the session object for the request from a cookie on the request. If the
- * session cookie has not been set, we initialize a default session.
- */
-export async function getSession(request: Request): Promise<Session> {
-    const cookieHeader = request.headers.get("Cookie");
-    const rawSession = await cookieSessionStorage.getSession(cookieHeader);
+export class Session {
+    /**
+     * Create our session object from the provided request.
+     */
+    public static async new(request: Request) {
+        const cookieHeader = request.headers.get("Cookie");
+        const cookieSession = await cookieSessionStorage.getSession(cookieHeader);
 
-    if (Object.keys(rawSession.data).length === 0) {
-        return getDefaultSession();
+        if (Object.keys(cookieSession.data).length !== 0) {
+            const sessionData = SessionDataSchema.deserialize(cookieSession.data);
+            return new Session(cookieSession, sessionData, false);
+        }
+
+        const sessionData = getDefaultSessionData();
+        return new Session(cookieSession, sessionData, true);
     }
 
-    return SessionSchema.deserialize(rawSession.data);
-}
+    private constructor(
+        private readonly _cookieSession: CookieSession,
+        private _data: SessionData,
+        private _hasChanged: boolean,
+    ) {}
 
-/**
- * Creates a new `Set-Cookie` header string for committing our session back to
- * the browser.
- */
-// TODO(calebmer): This is a little more inconvenient given we want to
-// implicitly set a `browserId` on every request. Reconsider this design. If
-// Remix has middleware can we put something there?
-export async function commitSession(request: Request, session: Session): Promise<string> {
-    const cookieHeader = request.headers.get("Cookie");
-    const rawSession = await cookieSessionStorage.getSession(cookieHeader);
+    /**
+     * Get the current data in the session.
+     */
+    public get(): SessionData {
+        return this._data;
+    }
 
-    for (const key of Object.keys(rawSession.data)) delete rawSession.data[key];
+    /**
+     * Update the session with new data.
+     *
+     * This will not actually update the session cookie in the user's browser! You
+     * need to call `commit()` on a response to save the new data in a user's
+     * browser.
+     */
+    public set(data: SessionData) {
+        this._data = data;
+        this._hasChanged = true;
+    }
 
-    SessionSchema.serializeInto(session, rawSession.data);
+    /**
+     * Save the new session cookie in a user's browser if the session has changed.
+     * If the session has not changed then do nothing.
+     */
+    public async commit(response: Response) {
+        if (!this._hasChanged) return;
 
-    return cookieSessionStorage.commitSession(rawSession);
+        const data = SessionDataSchema.serialize(this._data);
+
+        // Unset all previous data then set our new data. This should fully replace the
+        // Remix cookie data with our new cookie data.
+        for (const key of Object.keys(this._cookieSession.data)) this._cookieSession.unset(key);
+        for (const [key, value] of Object.entries(data)) this._cookieSession.set(key, value);
+
+        response.headers.set(
+            "Set-Cookie",
+            await cookieSessionStorage.commitSession(this._cookieSession),
+        );
+    }
 }

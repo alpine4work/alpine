@@ -1,5 +1,5 @@
 import {getNetworkFunctionImplementation} from "~/server/network/all_network_implementations";
-import {commitSession, getSession} from "~/server/session/session";
+import {Session} from "~/server/session/session";
 import {InvalidArgumentError, NotFoundError} from "~/shared/error/error";
 import {isHttp500Error} from "~/shared/error/is_http_500_error_code";
 import {
@@ -10,8 +10,9 @@ import {
 import {SchemaType} from "~/shared/schema/schema";
 
 export async function action({request}: {request: Request}) {
+    let _session: Session | null = null;
     try {
-        const session = await getSession(request);
+        const session = (_session = await Session.new(request));
 
         if (request.method !== "POST")
             throw new InvalidArgumentError(
@@ -34,7 +35,7 @@ export async function action({request}: {request: Request}) {
                             );
 
                         const output = await networkFunctionImplementation.execute(
-                            session,
+                            session.get(),
                             call.input,
                         );
 
@@ -66,7 +67,7 @@ export async function action({request}: {request: Request}) {
                       500,
                   );
 
-        return new Response(
+        const response = new Response(
             JSON.stringify(
                 NetworkFunctionHttpOutputSchema.serialize({
                     ok: true,
@@ -77,16 +78,17 @@ export async function action({request}: {request: Request}) {
                 status,
                 headers: {
                     "Content-Type": "application/json",
-                    // TODO(calebmer): This only changes the cookie when we initialize the
-                    // `browserId`. Come up with a better design for cookies here.
-                    "Set-Cookie": await commitSession(request, session),
                 },
             },
         );
+
+        await session.commit(response);
+
+        return response;
     } catch (error) {
         const status = isHttp500Error(error) ? 500 : 400;
 
-        return new Response(
+        const response = new Response(
             JSON.stringify(
                 NetworkFunctionHttpOutputSchema.serialize({
                     ok: false,
@@ -100,5 +102,11 @@ export async function action({request}: {request: Request}) {
                 },
             },
         );
+
+        // Commit the session if we have one and there are changes. We won't have a
+        // session if an error was thrown while we were creating the session.
+        await _session?.commit(response);
+
+        return response;
     }
 }

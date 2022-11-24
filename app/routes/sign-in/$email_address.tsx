@@ -6,11 +6,15 @@ import {Button} from "~/client/design/button";
 import {Spacer} from "~/client/design/spacer";
 import {ErrorInlineAlert} from "~/client/error/error_inline_alert";
 import {useActionDataWithSchema} from "~/client/helpers/use_action_data_with_schema";
+import {ServerContext} from "~/server/context/server_context";
 import {attemptOneTimePasswordSignIn} from "~/server/dynamo/accounts_table";
 import {jsonWithSchema} from "~/server/helpers/json_with_schema";
+import {DataFunctionArgs} from "~/server/helpers/types/remix_data_function_args";
+import {getSession, setSession} from "~/server/session/session";
 import {InvalidArgumentError} from "~/shared/error/error";
 import {ErrorSchema} from "~/shared/error/error_schema";
 import {isHttp500Error} from "~/shared/error/is_http_500_error_code";
+import {assert} from "~/shared/helpers/control/assert";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 import {sprinkles} from "~/shared/styles/styles";
 
@@ -27,7 +31,7 @@ const ActionSchema = Schema.object({
     error: ErrorSchema,
 });
 
-export async function action({request, params}: ActionArgs) {
+export async function action({request, context, params}: DataFunctionArgs) {
     try {
         const emailAddress = params.email_address;
 
@@ -39,10 +43,20 @@ export async function action({request, params}: ActionArgs) {
         if (typeof oneTimePassword !== "string")
             throw new InvalidArgumentError('Expected property "oneTimePassword" in form data');
 
-        // TODO(calebmer): Do something with result?
-        await attemptOneTimePasswordSignIn(emailAddress, oneTimePassword);
+        const {sessionId} = await attemptOneTimePasswordSignIn(
+            context.context,
+            emailAddress,
+            oneTimePassword,
+        );
 
-        // TODO(calebmer): Send them to a logged in screen.
+        const session = await context.sessionPromise;
+
+        session.set({
+            ...session.get(),
+            sessionId,
+        });
+
+        // TODO(calebmer): Send the user to a logged in screen.
         return redirect("/");
     } catch (error) {
         return jsonWithSchema(ActionSchema, {ok: false, error}, isHttp500Error(error) ? 500 : 400);
@@ -75,7 +89,12 @@ export default function SignInEmailCodePage() {
                     paddingX: "4",
                 })}
             >
-                <Form method="post">
+                <Form
+                    method="post"
+                    onSubmit={() => {
+                        if (actionData) setDismissedActionData(actionData);
+                    }}
+                >
                     <h1
                         className={sprinkles({
                             typographyStyle: "primarySemiBold",

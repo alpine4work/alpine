@@ -20,15 +20,76 @@ export abstract class ServerContext {
     // TODO(calebmer): Error handling! Unhandled exceptions should not crash
     // the process.
     public abstract waitUntil(promise: Promise<void>): void;
+
+    /**
+     * If this context is for an HTTP request, then this returns the IP address of
+     * the client making the request.
+     */
+    public abstract getRequestIpAddress(): string | null;
+
+    /**
+     * If this context is for an HTTP request, then this returns the user agent of
+     * the client making the request.
+     */
+    public abstract getRequestUserAgent(): string | null;
 }
 
-export class DurableObjectServerContext extends ServerContext {
-    constructor(private readonly _state: DurableObjectState) {
+function getRequestIpAddress(request: Request): string | null {
+    // https://developers.cloudflare.com/fundamentals/get-started/reference/http-request-headers
+    return request.headers.get("cf-connecting-ip");
+}
+
+function getRequestUserAgent(request: Request): string | null {
+    return request.headers.get("user-agent");
+}
+
+/**
+ * Context for a request to a Cloudflare Worker.
+ */
+export class WorkerServerContext extends ServerContext {
+    constructor(private readonly _request: Request, private readonly _context: ExecutionContext) {
         super();
     }
 
     public waitUntil(promise: Promise<void>): void {
+        this._context.waitUntil(promise);
+    }
+
+    public getRequestIpAddress(): string | null {
+        return getRequestIpAddress(this._request);
+    }
+
+    public getRequestUserAgent(): string | null {
+        return getRequestUserAgent(this._request);
+    }
+}
+
+/**
+ * Context for a request to a Cloudflare Durable Object.
+ */
+export class DurableObjectRequestServerContext extends ServerContext {
+    private readonly _requestIpAddress: string | null;
+    private readonly _requestUserAgent: string | null;
+
+    constructor(private readonly _state: DurableObjectState, request: Request) {
+        super();
+        // We extract headers we care about into properties so `request` can be garbage
+        // collected. If this is a WebSocket, the request server context will be long
+        // lived.
+        this._requestIpAddress = getRequestIpAddress(request);
+        this._requestUserAgent = getRequestUserAgent(request);
+    }
+
+    public waitUntil(promise: Promise<void>): void {
         this._state.waitUntil(promise);
+    }
+
+    public getRequestIpAddress(): string | null {
+        return this._requestIpAddress;
+    }
+
+    public getRequestUserAgent(): string | null {
+        return this._requestUserAgent;
     }
 }
 
@@ -68,5 +129,13 @@ export class TestServerContext extends ServerContext {
 
     public waitUntil(promise: Promise<void>): void {
         jestAfterEachPromises.push(promise);
+    }
+
+    public getRequestIpAddress() {
+        return null;
+    }
+
+    public getRequestUserAgent() {
+        return null;
     }
 }
