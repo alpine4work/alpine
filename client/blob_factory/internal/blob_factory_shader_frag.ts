@@ -5,10 +5,9 @@ export const blobFactoryShaderFragSource = glsl`#version 300 es
 #define MAX_BLOBS 32
 #define ENTRIES_PER_BLOB 2
 
-#define MODE_BLUR 0
-#define MODE_INSIDE 1
-#define MODE_OUTSIDE 2
-#define MODE_FILL 3
+#define MODE_DRAW_OUTSIDE 1
+#define MODE_DRAW_INSIDE 2
+#define MODE_FORCE_OUTSIDE_CHROMA_LIGHTNESS 4
 
 #define INTERPOLATE_NAIVE 0
 #define INTERPOLATE_VECTOR 1
@@ -28,8 +27,8 @@ uniform int u_mode;
 uniform vec4 u_backgroundColor;
 uniform int u_interpolateMode;
 uniform float u_hueBias;
-// uniform bool u_outlineMode;
-// uniform bool u_blurMode;
+uniform float u_forcedOutsideChroma;
+uniform float u_forcedOutsideLightness;
 
 in vec2 screenPosition;
 
@@ -158,21 +157,27 @@ void main() {
     }
 
     resultColor.z = rotate(resultColor.z, radians(-u_hueBias));
-    resultColor = lch2rgb(resultColor);
 
     vec3 bgColor = u_backgroundColor.rgb;
-    if (u_mode == MODE_BLUR) {
-        // blur mode
-        outColor =
-            vec4(mix(bgColor, resultColor,
-                     clamp(pow(totalStrength, 1. - u_blurSpread), 0., 1.)),
-                 1);
-    } else if (u_mode == MODE_INSIDE) {
+
+    u_blurSpread;
+    u_mode;
+    bgColor;
+
+    if ((u_mode & MODE_DRAW_OUTSIDE) != 0) {
+        vec3 outsideColor = resultColor;
+        if ((u_mode & MODE_FORCE_OUTSIDE_CHROMA_LIGHTNESS) != 0) {
+            outsideColor.x = u_forcedOutsideLightness;
+            outsideColor.y = u_forcedOutsideChroma;
+        }
+        outsideColor = lch2rgb(outsideColor);
+        bgColor = mix(bgColor, outsideColor,
+            clamp(pow(totalStrength, 1. - u_blurSpread), 0., 1.));
+    }
+
+    if ((u_mode & MODE_DRAW_INSIDE) != 0) {
+        resultColor = lch2rgb(resultColor);
         outColor = vec4(mix(bgColor, resultColor, cutoff), 1);
-    } else if (u_mode == MODE_OUTSIDE) {
-        outColor = vec4(mix(resultColor, bgColor, cutoff), 1);
-    } else if (u_mode == MODE_FILL) {
-        outColor = vec4(resultColor, 1);
     }
 }
 `;

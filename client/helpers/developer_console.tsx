@@ -82,35 +82,57 @@ export function useDeveloperConsoleTool(key: string, createTools: () => object) 
     });
 }
 
+type DeveloperConsoleSettingsObjectConfigProperty<T> = {schema: Schema<T>; defaultValue: T};
+type DeveloperConsoleSettingsObjectConfigMethod = (...args: Array<any>) => void;
+type UnknownDeveloperConsoleSettingsObjectConfig = Record<
+    string,
+    DeveloperConsoleSettingsObjectConfigProperty<any> | DeveloperConsoleSettingsObjectConfigMethod
+>;
+type DeveloperConsoleSettingsObject<Config extends UnknownDeveloperConsoleSettingsObjectConfig> = {
+    [K in keyof Config]: Config[K] extends DeveloperConsoleSettingsObjectConfigMethod
+        ? Config[K]
+        : Config[K] extends DeveloperConsoleSettingsObjectConfigProperty<infer T>
+        ? T
+        : never;
+};
+
 /**
  * Expose an object on the developer console. Properties can be read and written
  * and are kept automatically in sync with the react component.
  */
-export function useDeveloperConsoleSettingsObject<T extends Record<string, unknown>>(
-    groupKey: string,
-    config: {[K in keyof T]: {schema: Schema<T[K]>; defaultValue: T[K]}},
-) {
-    const [state, setState] = useState(() =>
-        mapObjectValues(config, ({schema, defaultValue}, key) => {
-            return readSessionStorage(`${groupKey}.${key}`, schema, defaultValue);
+export function useDeveloperConsoleSettingsObject<
+    Config extends UnknownDeveloperConsoleSettingsObjectConfig,
+>(groupKey: string, config: Config): DeveloperConsoleSettingsObject<Config> {
+    const [state, setState] = useState<DeveloperConsoleSettingsObject<Config>>(() =>
+        mapObjectValues(config, (item, key) => {
+            if (typeof item === "function") return item;
+            return readSessionStorage(`${groupKey}.${key}`, item.schema, item.defaultValue);
         }),
     );
 
     useDeveloperConsoleTool(
         groupKey,
         useCallback(() => {
-            const wrappedState = {};
-            for (const [key, {schema}] of Object.entries(config)) {
-                defineSchemaProperty(
-                    wrappedState,
-                    key,
-                    schema,
-                    () => state[key],
-                    newValue => {
-                        writeSessionStorage(`${groupKey}.${String(key)}`, schema, newValue);
-                        setState(prev => ({...prev, [key]: newValue}));
-                    },
-                );
+            const wrappedState: Record<string, unknown> = {};
+            for (const [key, item] of Object.entries(config)) {
+                if (typeof item === "function") {
+                    wrappedState[key] = item;
+                } else {
+                    defineSchemaProperty(
+                        wrappedState,
+                        key,
+                        item.schema,
+                        () => state[key],
+                        newValue => {
+                            writeSessionStorage(
+                                `${groupKey}.${String(key)}`,
+                                item.schema,
+                                newValue,
+                            );
+                            setState(prev => ({...prev, [key]: newValue}));
+                        },
+                    );
+                }
             }
             return wrappedState;
         }, [config, state, groupKey]),
