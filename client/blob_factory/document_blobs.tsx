@@ -3,8 +3,8 @@ import Color from "color";
 import {useMemo, useRef, useState} from "react";
 import {generateBlobsForContent} from "~/client/blob_factory/generate_blobs_for_content";
 import {
+    drawBlobFactoryToBlob,
     drawBlobFactoryToCanvas,
-    drawBlobFactoryToDataUrl,
     getInterpolatedThemeColor,
 } from "~/client/blob_factory/internal/draw_blob_factory";
 import {useColorScheme} from "~/client/design/color_scheme";
@@ -35,7 +35,7 @@ export function useDocumentBlobSettings({defaultSeed}: {defaultSeed: string}) {
             schema: Schema.string,
         },
         smoothness: {
-            defaultValue: 150,
+            defaultValue: 70,
             schema: Schema.float,
         },
         blurSize: {
@@ -86,8 +86,12 @@ export function useDocumentBlobSettings({defaultSeed}: {defaultSeed: string}) {
             defaultValue: 10,
             schema: Schema.integer,
         },
-        spreadX: {
-            defaultValue: 0.1,
+        spreadLeft: {
+            defaultValue: -0.4,
+            schema: Schema.float,
+        },
+        spreadRight: {
+            defaultValue: 0.2,
             schema: Schema.float,
         },
         minY: {
@@ -95,15 +99,15 @@ export function useDocumentBlobSettings({defaultSeed}: {defaultSeed: string}) {
             schema: Schema.float,
         },
         maxY: {
-            defaultValue: 200,
+            defaultValue: 150,
             schema: Schema.float,
         },
         minRadiusFactor: {
-            defaultValue: 0.05,
+            defaultValue: 0.03,
             schema: Schema.float,
         },
         maxRadiusFactor: {
-            defaultValue: 0.15,
+            defaultValue: 0.1,
             schema: Schema.float,
         },
         baseThemeColor: {
@@ -154,7 +158,8 @@ export function DocumentBlobFactory({
             randomSeed: settings.seed,
             minBlobCount: settings.minBlobCount,
             maxBlobCount: settings.maxBlobCount,
-            spreadX: settings.spreadX,
+            spreadLeft: settings.spreadLeft,
+            spreadRight: settings.spreadRight,
             minY: settings.minY,
             maxY: settings.maxY,
             minRadiusFactor: settings.minRadiusFactor,
@@ -175,7 +180,8 @@ export function DocumentBlobFactory({
         settings.minRadiusFactor,
         settings.minY,
         settings.seed,
-        settings.spreadX,
+        settings.spreadLeft,
+        settings.spreadRight,
     ]);
 
     useLayoutEffectWithoutServerSideWarning(() => {
@@ -206,35 +212,36 @@ export function DocumentBlobFactory({
         if (settings.textFillEnabled) {
             const size = new Vector2(containerRect.width, containerRect.height);
 
-            // drawing to a data url is slow, so we wait for things to paint before we do.
-            // TODO: is this right?
-            // TODO: instead of drawing the whole canvas, draw only the part that might
-            // get used as a tex background image.
-            const idleCallback = setTimeout(() => {
-                setTextFill({
-                    url: drawBlobFactoryToDataUrl(
+            let isCancelled = false;
+            drawBlobFactoryToBlob(
+                size,
+                window.devicePixelRatio,
+                {
+                    ...settings,
+                    hueBias,
+                    shouldDrawInside: false,
+                    colorLevelInside: 0,
+                    colorLevelOutside:
+                        colorScheme === "dark"
+                            ? settings.colorLevelTextDark
+                            : settings.colorLevelTextLight,
+                    backgroundColor,
+                    blurSpread: 1,
+                },
+                blobs,
+            )
+                .then(url => {
+                    if (isCancelled) return;
+                    setTextFill({
+                        url: url,
+                        offsetX: (DefaultContentWidthPx - containerRect.width) / 2,
                         size,
-                        window.devicePixelRatio,
-                        {
-                            ...settings,
-                            hueBias,
-                            shouldDrawInside: false,
-                            colorLevelInside: 0,
-                            colorLevelOutside:
-                                colorScheme === "dark"
-                                    ? settings.colorLevelTextDark
-                                    : settings.colorLevelTextLight,
-                            backgroundColor,
-                            blurSpread: 1,
-                        },
-                        blobs,
-                    ),
-                    offsetX: containerRect.width / 2 - DefaultContentWidthPx / 2,
-                    size,
-                });
-            });
+                    });
+                })
+                .catch(() => setTextFill(null));
+
             return () => {
-                clearTimeout(idleCallback);
+                isCancelled = true;
             };
         }
     }, [backgroundColor, blobs, colorScheme, containerRect, hueBias, settings]);

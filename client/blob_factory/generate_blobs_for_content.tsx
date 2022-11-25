@@ -11,7 +11,8 @@ type BlobGenerationSettings = {
     randomSeed: string;
     minBlobCount: number;
     maxBlobCount: number;
-    spreadX: number;
+    spreadLeft: number;
+    spreadRight: number;
     minY: number;
     maxY: number;
     minRadiusFactor: number;
@@ -27,7 +28,8 @@ export function generateBlobsForContent({
     randomSeed,
     minBlobCount,
     maxBlobCount,
-    spreadX,
+    spreadLeft,
+    spreadRight,
     minY,
     maxY,
     minRadiusFactor,
@@ -52,8 +54,8 @@ export function generateBlobsForContent({
                     "x",
                     idx,
 
-                    leftX - contentWidthPx * spreadX,
-                    rightX + contentWidthPx * spreadX,
+                    leftX - contentWidthPx * spreadLeft,
+                    rightX + contentWidthPx * spreadRight,
                 ),
                 rng.randomFloat("y", idx, minY, maxY),
             );
