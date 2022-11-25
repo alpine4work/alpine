@@ -135,21 +135,21 @@ export default function SignInEmailCodePage() {
                                 const value = event.currentTarget.value;
 
                                 // Don't allow a user to type unsupported characters into our code.
-                                setOneTimePassword(value.replace(/[^a-zA-Z0-9]/g, "").slice(0, 6));
+                                setOneTimePassword(value.replace(/[^0-9]/g, "").slice(0, 6));
                             }}
                             className={sprinkles({
                                 display: "block",
                                 width: "full",
                                 paddingY: "1",
                                 backgroundColor: "transparent",
-                                typographyStyle: "code",
-                                typographySize: "heading2",
+                                typographySize: "heading4",
                             })}
                             style={{
-                                lineHeight: 1,
-                                letterSpacing: "0.53rem",
-                                paddingLeft: "0.14rem",
-                                transform: "translateY(0.12rem)",
+                                lineHeight: 1.5,
+                                letterSpacing: "1.24rem",
+                                paddingLeft: "0.49rem",
+                                transform: "translateY(0.03rem)",
+                                fontVariantNumeric: "tabular-nums",
                             }}
                             spellCheck="false"
                             autoComplete="off"
