@@ -206,27 +206,36 @@ export function DocumentBlobFactory({
         if (settings.textFillEnabled) {
             const size = new Vector2(containerRect.width, containerRect.height);
 
-            setTextFill({
-                url: drawBlobFactoryToDataUrl(
+            // drawing to a data url is slow, so we wait for things to paint before we do.
+            // TODO: is this right?
+            // TODO: instead of drawing the whole canvas, draw only the part that might
+            // get used as a tex background image.
+            const idleCallback = setTimeout(() => {
+                setTextFill({
+                    url: drawBlobFactoryToDataUrl(
+                        size,
+                        window.devicePixelRatio,
+                        {
+                            ...settings,
+                            hueBias,
+                            shouldDrawInside: false,
+                            colorLevelInside: 0,
+                            colorLevelOutside:
+                                colorScheme === "dark"
+                                    ? settings.colorLevelTextDark
+                                    : settings.colorLevelTextLight,
+                            backgroundColor,
+                            blurSpread: 1,
+                        },
+                        blobs,
+                    ),
+                    offsetX: containerRect.width / 2 - DefaultContentWidthPx / 2,
                     size,
-                    window.devicePixelRatio,
-                    {
-                        ...settings,
-                        hueBias,
-                        shouldDrawInside: false,
-                        colorLevelInside: 0,
-                        colorLevelOutside:
-                            colorScheme === "dark"
-                                ? settings.colorLevelTextDark
-                                : settings.colorLevelTextLight,
-                        backgroundColor,
-                        blurSpread: 1,
-                    },
-                    blobs,
-                ),
-                offsetX: containerRect.width / 2 - DefaultContentWidthPx / 2,
-                size,
+                });
             });
+            return () => {
+                clearTimeout(idleCallback);
+            };
         }
     }, [backgroundColor, blobs, colorScheme, containerRect, hueBias, settings]);
 
