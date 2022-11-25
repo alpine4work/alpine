@@ -1,3 +1,4 @@
+import classNames from "classnames";
 import {useId, useState} from "react";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
@@ -45,6 +46,12 @@ export type TextInputProps = {
      * Name to assign this inputs value to when submitting a form.
      */
     formName?: string;
+
+    /**
+     * Should the label be stacked or inline?
+     * @default "stacked"
+     */
+    layout?: "stacked" | "inline";
 };
 
 /**
@@ -60,16 +67,29 @@ export function TextInput({
     placeholder,
     autoComplete,
     formName,
+    layout = "stacked",
 }: TextInputProps) {
     const id = useId();
 
     return (
-        <Box typographySize="small">
+        <Box
+            typographySize="small"
+            className={classNames(
+                layout === "inline" &&
+                    sprinkles({
+                        display: "flex",
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: "4",
+                        flex: "auto",
+                    }),
+            )}
+        >
             <label
                 className={sprinkles({
                     display: "inline-block",
                     typographyStyle: "primaryMedium",
-                    paddingBottom: "1",
+                    paddingBottom: layout === "stacked" ? "1" : undefined,
                 })}
                 htmlFor={id}
             >
@@ -85,6 +105,7 @@ export function TextInput({
                         border: "grey-20",
                         backgroundColor: "grey-0",
                         borderRadius: "base",
+                        flex: layout === "inline" ? "auto" : undefined,
                     })}
                     id={id}
                     type={autoComplete === "email" ? "email" : "text"}

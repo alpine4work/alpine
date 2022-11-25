@@ -1,13 +1,6 @@
-import {Moon, Sun} from "phosphor-react";
 import {Box} from "~/client/design/box";
-import {toggleColorScheme, useColorScheme} from "~/client/design/color_scheme";
-import {IconButton} from "~/client/design/icon_button";
+import {ColorSchemeToggleButton} from "~/client/design/color_scheme_toggle_button";
 import {DesignPlaygroundTooltipPage} from "~/client/design/playground/design_playground_tooltip_page";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {
-    hiddenIfDarkColorSchemeClassName,
-    hiddenIfLightColorSchemeClassName,
-} from "~/shared/styles/styles";
 
 export function meta() {
     return {
@@ -77,31 +70,5 @@ export default function DesignPlaygroundRoute() {
                 </Box>
             </Box>
         </main>
-    );
-}
-
-function ColorSchemeToggleButton() {
-    const colorScheme = useColorScheme();
-
-    let description: string;
-    switch (colorScheme) {
-        case "dark":
-            description = "Switch to light mode";
-            break;
-        case "light":
-            description = "Switch to dark mode";
-            break;
-        case null:
-            description = "Toggle between light and dark mode";
-            break;
-        default:
-            throw exhaustive(colorScheme);
-    }
-
-    return (
-        <IconButton description={description} onPress={() => toggleColorScheme()}>
-            <Sun className={hiddenIfDarkColorSchemeClassName} />
-            <Moon className={hiddenIfLightColorSchemeClassName} />
-        </IconButton>
     );
 }

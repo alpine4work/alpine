@@ -17,6 +17,7 @@ import {
 } from "~/client/helpers/gl/gl_types";
 import {colors} from "~/shared/design/colors";
 import {ThemeColor} from "~/shared/design/theme_colors";
+import {Lazy} from "~/shared/helpers/control/lazy";
 import {Vector2} from "~/shared/helpers/geometry/vector2";
 import {invLerp} from "~/shared/helpers/number/inv_lerp";
 
@@ -29,36 +30,20 @@ export type BlobFactory = {
 
 export type BlobFactoryBlobs = ReadonlyArray<BlobFactoryBlob>;
 
-export function drawBlobFactory(
-    displayCanvas: HTMLCanvasElement,
-    {
-        blobs = [],
-        settings,
-        onDraw,
-    }: {
-        blobs?: BlobFactoryBlobs;
-        settings?: BlobFactorySettings;
-        onDraw?: (canvas: HTMLCanvasElement, size: Vector2) => void;
-    } = {},
-): BlobFactory {
-    const displayGl = new Gl(displayCanvas);
+const blobFactory = new Lazy(() => {
+    const canvas = document.createElement("canvas");
+    const displayGl = new Gl(canvas);
     const fragShader = displayGl.createShader(GlShaderType.Fragment, blobFactoryShaderFragSource);
     const vertShader = displayGl.createShader(GlShaderType.Vertex, blobFactoryShaderVertSource);
     const program = displayGl.createProgram(vertShader, fragShader);
 
     const size = program.uniformVector2("u_resolution", new Vector2(100, 100));
-    const smoothness = program.uniformFloat("u_smoothness", settings?.smoothness ?? 0);
-    const blurSize = program.uniformFloat("u_blurSize", settings?.blurSize ?? 0);
-    const blurSpread = program.uniformFloat("u_blurSpread", settings?.blurSpread ?? 0.1);
-    const mode = program.uniformEnum(
-        "u_mode",
-        settings ? blobFactoryModeFromSettings(settings) : 0,
-    );
-    const backgroundColor = program.uniformColor(
-        "u_backgroundColor",
-        new Color(colors[settings?.backgroundColor ?? "grey-0"]),
-    );
-    const hueBias = program.uniformFloat("u_hueBias", settings?.hueBias ?? 0);
+    const smoothness = program.uniformFloat("u_smoothness", 0);
+    const blurSize = program.uniformFloat("u_blurSize", 0);
+    const blurSpread = program.uniformFloat("u_blurSpread", 0.1);
+    const mode = program.uniformEnum<number>("u_mode", 0);
+    const backgroundColor = program.uniformColor("u_backgroundColor", new Color(colors["grey-0"]));
+    const hueBias = program.uniformFloat("u_hueBias", 0);
 
     const positionsVao = program.createAndBindVertexArray({
         name: "a_position",
@@ -74,29 +59,33 @@ export function drawBlobFactory(
     texture.configureForData();
     program.uniformTexture2d("u_blobs", texture);
 
-    const setSize = (newSize: Vector2) => {
-        size.value = newSize;
+    return (
+        sizeValue: Vector2,
+        scale: number,
+        settings: BlobFactorySettings,
+        blobs: BlobFactoryBlobs,
+    ): HTMLCanvasElement => {
+        canvas.width = sizeValue.x * scale;
+        canvas.height = sizeValue.y * scale;
+
+        size.value = sizeValue;
         displayGl.setDefaultViewport();
         const positions = [
             0,
             0,
-            newSize.x,
-            newSize.y,
+            sizeValue.x,
+            sizeValue.y,
             0,
-            newSize.y,
+            sizeValue.y,
             0,
             0,
-            newSize.x,
+            sizeValue.x,
             0,
-            newSize.x,
-            newSize.y,
+            sizeValue.x,
+            sizeValue.y,
         ];
         positionsVao.bufferData(new Float32Array(positions), GlBufferUsage.StaticDraw);
-        requestDraw();
-    };
 
-    const setSettings = (update: BlobFactorySettings) => {
-        settings = update;
         smoothness.value = settings.smoothness;
         blurSize.value = settings.blurSize;
         blurSpread.value = settings.blurSpread;
@@ -104,22 +93,11 @@ export function drawBlobFactory(
         hueBias.value = settings.hueBias;
         backgroundColor.value = new Color(colors[settings.backgroundColor]);
 
-        requestDraw();
-    };
-
-    const setBlobs = (newBlobs: BlobFactoryBlobs) => {
-        blobs = newBlobs;
-        requestDraw();
-    };
-
-    const draw = () => {
-        if (isDestroyed || !settings) return;
-        isRequested = false;
         displayGl.clear();
 
         const {colorLevelInside, colorLevelOutside} = settings;
         texture.update({
-            width: blobs.length * 2,
+            width: blobs.length * (BlobFactoryBlob.size / 4),
             height: 1,
             data: new Float32Array(
                 blobs.flatMap(blob => blob.toArray(colorLevelInside, colorLevelOutside)),
@@ -130,31 +108,32 @@ export function drawBlobFactory(
         positionsVao.bindVao();
         displayGl.gl.drawArrays(WebGL2RenderingContext.TRIANGLES, 0, 6);
 
-        if (onDraw) {
-            onDraw(displayCanvas, size.value);
-        }
+        return canvas;
     };
+});
 
-    let isRequested = false;
-    const requestDraw = () => {
-        if (!isRequested) {
-            queueMicrotask(draw);
-            isRequested = true;
-        }
-    };
+export function drawBlobFactoryToCanvas(
+    canvas: HTMLCanvasElement,
+    scale: number,
+    settings: BlobFactorySettings,
+    blobs: BlobFactoryBlobs,
+) {
+    const draw = blobFactory.get();
+    const size = new Vector2(canvas.width, canvas.height).div(scale);
+    const result = draw(size, scale, settings, blobs);
+    const ctx = canvas.getContext("2d")!;
+    ctx.drawImage(result, 0, 0, canvas.width, canvas.height);
+}
 
-    let isDestroyed = false;
-    const destroy = () => {
-        isDestroyed = true;
-        displayGl.destroy();
-    };
-
-    return {
-        setSize,
-        setSettings,
-        setBlobs,
-        destroy,
-    };
+export function drawBlobFactoryToDataUrl(
+    size: Vector2,
+    scale: number,
+    settings: BlobFactorySettings,
+    blobs: BlobFactoryBlobs,
+): string {
+    const draw = blobFactory.get();
+    const canvas = draw(size, scale, settings, blobs);
+    return canvas.toDataURL();
 }
 
 export class BlobFactoryBlob {

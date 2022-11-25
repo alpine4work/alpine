@@ -27,7 +27,13 @@ const properties = defineProperties({
         overflow: {auto: "auto", hidden: "hidden", visible: "visible", scroll: "scroll"},
         overflowX: {auto: "auto", hidden: "hidden", visible: "visible", scroll: "scroll"},
         overflowY: {auto: "auto", hidden: "hidden", visible: "visible", scroll: "scroll"},
-        position: {static: "static", relative: "relative", absolute: "absolute"},
+        position: {
+            static: "static",
+            relative: "relative",
+            absolute: "absolute",
+            fixed: "fixed",
+            sticky: "sticky",
+        },
         zIndex: {
             "0": 0,
             "10": 10,
@@ -61,6 +67,7 @@ const properties = defineProperties({
             full: "9999px",
         },
         boxShadow: elevationVars,
+        textAlign: {left: "left", center: "center", right: "right", justify: "justify"},
     },
 });
 
