@@ -1,3 +1,4 @@
+import {rejects} from "assert";
 import Color from "color";
 import {interpolateHcl} from "d3-interpolate";
 import {
@@ -17,6 +18,7 @@ import {
 } from "~/client/helpers/gl/gl_types";
 import {colors} from "~/shared/design/colors";
 import {ThemeColor} from "~/shared/design/theme_colors";
+import {InternalError} from "~/shared/error/error";
 import {Lazy} from "~/shared/helpers/control/lazy";
 import {Vector2} from "~/shared/helpers/geometry/vector2";
 import {invLerp} from "~/shared/helpers/number/inv_lerp";
@@ -125,15 +127,23 @@ export function drawBlobFactoryToCanvas(
     ctx.drawImage(result, 0, 0, canvas.width, canvas.height);
 }
 
-export function drawBlobFactoryToDataUrl(
+export async function drawBlobFactoryToBlob(
     size: Vector2,
     scale: number,
     settings: BlobFactorySettings,
     blobs: BlobFactoryBlobs,
-): string {
+): Promise<string> {
     const draw = blobFactory.get();
     const canvas = draw(size, scale, settings, blobs);
-    return canvas.toDataURL();
+    return await new Promise<string>((resolve, reject) => {
+        canvas.toBlob(blob => {
+            if (!blob) {
+                reject(new InternalError("Failed to convert canvas to blob"));
+            } else {
+                resolve(URL.createObjectURL(blob));
+            }
+        });
+    });
 }
 
 export class BlobFactoryBlob {
