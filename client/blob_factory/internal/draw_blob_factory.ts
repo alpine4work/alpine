@@ -1,7 +1,6 @@
 import Color from "color";
 import {interpolateHcl} from "d3-interpolate";
 import {
-    BlobFactoryInterpolateMode,
     BlobFactorySettings,
     blobFactoryModeFromSettings,
 } from "~/client/blob_factory/blob_factory_types";
@@ -57,19 +56,7 @@ export function drawBlobFactory(
         "u_backgroundColor",
         new Color(colors[settings?.backgroundColor ?? "grey-0"]),
     );
-    const interpolateMode = program.uniformEnum(
-        "u_interpolateMode",
-        settings?.interpolateMode ?? BlobFactoryInterpolateMode.Naive,
-    );
     const hueBias = program.uniformFloat("u_hueBias", settings?.hueBias ?? 0);
-    const forcedOutsideChroma = program.uniformFloat(
-        "u_forcedOutsideChroma",
-        settings?.forcedOutsideChroma ?? 0,
-    );
-    const forcedOutsideLightness = program.uniformFloat(
-        "u_forcedOutsideLightness",
-        settings?.forcedOutsideLightness ?? 0,
-    );
 
     const positionsVao = program.createAndBindVertexArray({
         name: "a_position",
@@ -112,11 +99,8 @@ export function drawBlobFactory(
         blurSize.value = settings.blurSize;
         blurSpread.value = settings.blurSpread;
         mode.value = blobFactoryModeFromSettings(settings);
-        interpolateMode.value = settings.interpolateMode;
         hueBias.value = settings.hueBias;
         backgroundColor.value = new Color(colors[settings.backgroundColor]);
-        forcedOutsideChroma.value = settings.forcedOutsideChroma;
-        forcedOutsideLightness.value = settings.forcedOutsideLightness;
 
         requestDraw();
     };
@@ -131,11 +115,13 @@ export function drawBlobFactory(
         isRequested = false;
         displayGl.clear();
 
-        const colorLevel = settings.colorLevel;
+        const {colorLevelInside, colorLevelOutside} = settings;
         texture.update({
             width: blobs.length * 2,
             height: 1,
-            data: new Float32Array(blobs.flatMap(blob => blob.toArray(colorLevel))),
+            data: new Float32Array(
+                blobs.flatMap(blob => blob.toArray(colorLevelInside, colorLevelOutside)),
+            ),
         });
 
         program.use();
@@ -166,20 +152,37 @@ export function drawBlobFactory(
 }
 
 export class BlobFactoryBlob {
-    static size = 8 as const;
+    static size = 12 as const;
 
-    constructor(public center: Vector2, public radius: number, public themeColor: ThemeColor) {}
+    constructor(
+        public center: Vector2,
+        public radius: number,
+        public themeColor: ThemeColor,
+        public hueOffset: number = 0,
+    ) {}
 
-    toArray(colorLevel: number) {
-        const color = getInterpolatedThemeColor(colorLevel, this.themeColor);
+    getColor(colorLevel: number): Color {
+        const color = getInterpolatedThemeColor(colorLevel, this.themeColor).lch();
+        const parts = color.array();
+        parts[2] = parts[2]! + this.hueOffset;
+        return Color.lch(...parts).rgb();
+    }
+
+    toArray(colorLevelInside: number, colorLevelOutside: number) {
+        const insideColor = this.getColor(colorLevelInside);
+        const outsideColor = this.getColor(colorLevelOutside);
         return [
             this.center.x,
             this.center.y,
             this.radius,
             0,
-            color.red() / 255,
-            color.green() / 255,
-            color.blue() / 255,
+            insideColor.red() / 255,
+            insideColor.green() / 255,
+            insideColor.blue() / 255,
+            0,
+            outsideColor.red() / 255,
+            outsideColor.green() / 255,
+            outsideColor.blue() / 255,
             0,
         ];
     }

@@ -3,6 +3,7 @@ import {
     ColorScheme,
     getColorSchemeWithoutListening,
     setColorScheme,
+    toggleColorScheme,
 } from "~/client/design/color_scheme";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -13,6 +14,7 @@ import {Schema, SchemaSerializedValue} from "~/shared/schema/schema";
 
 const cyberworlds = {
     generateId,
+    toggleColorScheme,
 };
 
 defineSchemaProperty<ColorScheme>(
@@ -96,6 +98,16 @@ type DeveloperConsoleSettingsObject<Config extends UnknownDeveloperConsoleSettin
         : never;
 };
 
+function getDefaultsFromConfig<Config extends UnknownDeveloperConsoleSettingsObjectConfig>(
+    groupKey: string,
+    config: Config,
+): DeveloperConsoleSettingsObject<Config> {
+    return mapObjectValues(config, (item, key) => {
+        if (typeof item === "function") return item;
+        return readSessionStorage(`${groupKey}.${key}`, item.schema, item.defaultValue);
+    });
+}
+
 /**
  * Expose an object on the developer console. Properties can be read and written
  * and are kept automatically in sync with the react component.
@@ -104,16 +116,27 @@ export function useDeveloperConsoleSettingsObject<
     Config extends UnknownDeveloperConsoleSettingsObjectConfig,
 >(groupKey: string, config: Config): DeveloperConsoleSettingsObject<Config> {
     const [state, setState] = useState<DeveloperConsoleSettingsObject<Config>>(() =>
-        mapObjectValues(config, (item, key) => {
-            if (typeof item === "function") return item;
-            return readSessionStorage(`${groupKey}.${key}`, item.schema, item.defaultValue);
-        }),
+        getDefaultsFromConfig(groupKey, config),
     );
 
     useDeveloperConsoleTool(
         groupKey,
         useCallback(() => {
-            const wrappedState: Record<string, unknown> = {};
+            const wrappedState: Record<string, unknown> = {
+                reset: () => {
+                    clearSessionStoragePrefix(groupKey);
+                    setState(getDefaultsFromConfig(groupKey, config));
+                },
+                changes: () => {
+                    const changes: Record<string, unknown> = {};
+                    for (const [key, item] of Object.entries(config)) {
+                        if (typeof item === "function") continue;
+                        if (item.defaultValue === state[key]) continue;
+                        changes[key] = state[key];
+                    }
+                    return changes;
+                },
+            };
             for (const [key, item] of Object.entries(config)) {
                 if (typeof item === "function") {
                     wrappedState[key] = item;
@@ -156,4 +179,16 @@ function writeSessionStorage<T>(key: string, schema: Schema<T>, newValue: T) {
         `cyberworldsDeveloperConsole.${key}`,
         JSON.stringify(schema.serialize(newValue)),
     );
+}
+
+function clearSessionStoragePrefix(keyToFind: string) {
+    const prefix = `cyberworldsDeveloperConsole.${keyToFind}`;
+    const keysToClear = [];
+    for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key && key.startsWith(prefix)) keysToClear.push(key);
+    }
+    for (const key of keysToClear) {
+        sessionStorage.removeItem(key);
+    }
 }

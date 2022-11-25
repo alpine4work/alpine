@@ -34,6 +34,7 @@ type BlobGenerationSettings = {
     maxRadiusFactor?: number;
     baseThemeColor: ThemeColor;
     colorSpread?: number;
+    hueSpread?: number;
 };
 
 export function generateBlobsForContent({
@@ -49,6 +50,7 @@ export function generateBlobsForContent({
     maxRadiusFactor = 0.3,
     baseThemeColor,
     colorSpread = 1,
+    hueSpread = 0,
 }: BlobGenerationSettings): BlobFactoryBlobs {
     const rng = new StableRandom(randomSeed);
 
@@ -58,29 +60,42 @@ export function generateBlobsForContent({
 
     const baseThemeColorIndex = themeColors.indexOf(baseThemeColor);
 
-    return createArrayWithLength(rng.randomInteger("count", 0, minBlobCount, maxBlobCount), idx => {
-        const position = new Vector2(
-            rng.randomFloat(
-                "x",
-                idx,
+    const blobs = createArrayWithLength(
+        rng.randomInteger("count", 0, minBlobCount, maxBlobCount),
+        idx => {
+            const position = new Vector2(
+                rng.randomFloat(
+                    "x",
+                    idx,
 
-                leftX - contentWidthPx * spreadX,
-                rightX + contentWidthPx * spreadX,
-            ),
-            rng.randomFloat("y", idx, minY, maxY),
-        );
-        const radius = rng.randomFloat(
-            "radius",
-            idx,
-            contentWidthPx * minRadiusFactor,
-            contentWidthPx * maxRadiusFactor,
-        );
-        const colorOffset = Math.round(rng.randomNormalDistribution("color", idx) * colorSpread);
-        const color = assertExists(
-            themeColors.at((baseThemeColorIndex + colorOffset) % themeColors.length),
-        );
-        return new BlobFactoryBlob(position, radius, color);
-    });
+                    leftX - contentWidthPx * spreadX,
+                    rightX + contentWidthPx * spreadX,
+                ),
+                rng.randomFloat("y", idx, minY, maxY),
+            );
+            const radius = rng.randomFloat(
+                "radius",
+                idx,
+                contentWidthPx * minRadiusFactor,
+                contentWidthPx * maxRadiusFactor,
+            );
+            const colorOffset = Math.round(
+                rng.randomNormalDistribution("color", idx) * colorSpread,
+            );
+            const color = assertExists(
+                themeColors.at((baseThemeColorIndex + colorOffset) % themeColors.length),
+            );
+            return new BlobFactoryBlob(
+                position,
+                radius,
+                color,
+                rng.randomNormalDistribution("hue", idx) * hueSpread,
+            );
+        },
+    );
+
+    console.log(blobs);
+    return blobs;
 }
 
 export function BlobFactory({
@@ -104,7 +119,7 @@ export function BlobFactory({
     const blobFactoryRef = useRef<BlobFactory | null>(null);
 
     const baseThemeColorName = settings.baseThemeColor;
-    const baseThemeColor = getInterpolatedThemeColor(settings.colorLevel, baseThemeColorName);
+    const baseThemeColor = getInterpolatedThemeColor(settings.colorLevelInside, baseThemeColorName);
     const hueBias = 360 - assertExists(baseThemeColor.lch().object().h);
 
     const blobs = useMemo(() => {

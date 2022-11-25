@@ -3,15 +3,12 @@ import {glsl} from "~/client/helpers/gl/glsl";
 export const blobFactoryShaderFragSource = glsl`#version 300 es
 
 #define MAX_BLOBS 32
-#define ENTRIES_PER_BLOB 2
+#define ENTRIES_PER_BLOB 3
 
 #define MODE_DRAW_OUTSIDE 1
 #define MODE_DRAW_INSIDE 2
-#define MODE_FORCE_OUTSIDE_CHROMA_LIGHTNESS 4
 
 #define INTERPOLATE_NAIVE 0
-#define INTERPOLATE_VECTOR 1
-#define INTERPOLATE_MIN 2
 
 #define PI 3.1415926538
 
@@ -27,8 +24,6 @@ uniform int u_mode;
 uniform vec4 u_backgroundColor;
 uniform int u_interpolateMode;
 uniform float u_hueBias;
-uniform float u_forcedOutsideChroma;
-uniform float u_forcedOutsideLightness;
 
 in vec2 screenPosition;
 
@@ -98,86 +93,71 @@ float rotate(in float angle, in float rotation) {
 }
 
 void main() {
-    int blobCount =
-        min(textureSize(u_blobs, 0).x / ENTRIES_PER_BLOB, MAX_BLOBS);
+    int blobCount = min(
+        textureSize(u_blobs, 0).x / ENTRIES_PER_BLOB,
+        MAX_BLOBS
+    );
 
     float totalStrength = 0.;
-    vec3 totalColor = vec3(0);
+    vec3 resultColorInside = vec3(0);
+    vec3 resultColorOutside = vec3(0);
     float dist = 99999.0;
-    vec2 hueVec = vec2(0);
-    float minHue = 0.;
 
     for (int i = 0; i < blobCount; i++) {
         vec4 d1 = texelFetch(u_blobs, ivec2(i * ENTRIES_PER_BLOB, 0), 0);
         vec2 center = d1.xy;
         float radius = d1.z;
-        vec3 blobColor = rgb2lch(
-            texelFetch(u_blobs, ivec2((i * ENTRIES_PER_BLOB) + 1, 0), 0).rgb);
 
-        blobColor.z = rotate(blobColor.z, radians(u_hueBias));
+        vec3 blobColorInside = rgb2lch(
+            texelFetch(u_blobs, ivec2((i * ENTRIES_PER_BLOB) + 1, 0), 0).rgb
+        );
+        vec3 blobColorOutside = rgb2lch(
+            texelFetch(u_blobs, ivec2((i * ENTRIES_PER_BLOB) + 2, 0), 0).rgb
+        );
+
+        blobColorInside.z = rotate(blobColorInside.z, radians(u_hueBias));
+        blobColorOutside.z = rotate(blobColorOutside.z, radians(u_hueBias));
 
         float sd = sdfCircle(center, radius);
-        // float strength = clamp(map(sd, 0., u_blurSize, 1., 0.), 0., 1.);
-        // float strength = expDropOff(max(0., sd), u_blurSize);
-        // exponential dropoff + smoothstep ease-in
-        float strength = mix(smoothstep(1.0, 0.0, sd / (u_blurSize * 2.)),
-                             expDropOff(sd, u_blurSize),
-                             smoothstep(0., 1., sd / u_blurSize));
+        float strength = mix(
+            smoothstep(1.0, 0.0, sd / (u_blurSize * 2.)),
+            expDropOff(sd, u_blurSize),
+            smoothstep(0., 1., sd / u_blurSize)
+        );
         strength = pow(strength, 5.0);
 
-        // vec4 colorToMix = color == bg && strength > 0.
-        //                       ? vec4(bg.xy, blobColor.z, 1.)
-        //                       : color;
-        // color = mix(colorToMix, vec4(blobColor, strength), strength);
-
         totalStrength += strength;
-        totalColor += blobColor * strength;
-        hueVec += vec2(cos(blobColor.z), sin(blobColor.z)) * strength;
-        if (u_interpolateMode == INTERPOLATE_MIN) {
-            float a = minHue / totalStrength;
-            float d = blobColor.z - a;
-            d = d > radians(180.) || d < radians(-180.)
-                    ? d - radians(360.) * round(d / radians(360.))
-                    : d;
-            minHue += (strength * d);
-        }
+        resultColorInside += blobColorInside * strength;
+        resultColorOutside += blobColorOutside * strength;
         dist = opSmoothUnion(sd, dist, u_smoothness);
     }
 
-    float cutoff = smoothstep(0.0, 1.0, -dist);
-    vec3 resultColor = vec3(1, 0, 1);
-    if (u_interpolateMode == INTERPOLATE_NAIVE) {
-        resultColor = totalColor / totalStrength;
-    } else if (u_interpolateMode == INTERPOLATE_VECTOR) {
-        resultColor =
-            vec3((totalColor / totalStrength).xy, atan(hueVec.y, hueVec.x));
-    } else if (u_interpolateMode == INTERPOLATE_MIN) {
-        resultColor =
-            vec3((totalColor / totalStrength).xy, minHue / totalStrength);
-    }
+    float insideOutsideCutoff = smoothstep(0.0, 1.0, -dist);
 
-    resultColor.z = rotate(resultColor.z, radians(-u_hueBias));
+    resultColorInside = resultColorInside / totalStrength;
+    resultColorOutside = resultColorOutside / totalStrength;
 
-    vec3 bgColor = u_backgroundColor.rgb;
+    resultColorInside.z = rotate(resultColorInside.z, radians(-u_hueBias));
+    resultColorOutside.z = rotate(resultColorOutside.z, radians(-u_hueBias));
 
-    u_blurSpread;
-    u_mode;
-    bgColor;
+    vec3 finalColor = u_backgroundColor.rgb;
 
     if ((u_mode & MODE_DRAW_OUTSIDE) != 0) {
-        vec3 outsideColor = resultColor;
-        if ((u_mode & MODE_FORCE_OUTSIDE_CHROMA_LIGHTNESS) != 0) {
-            outsideColor.x = u_forcedOutsideLightness;
-            outsideColor.y = u_forcedOutsideChroma;
-        }
-        outsideColor = lch2rgb(outsideColor);
-        bgColor = mix(bgColor, outsideColor,
-            clamp(pow(totalStrength, 1. - u_blurSpread), 0., 1.));
+        finalColor = mix(
+            finalColor,
+            lch2rgb(resultColorOutside),
+            clamp(pow(totalStrength, 1. - u_blurSpread), 0., 1.)
+        );
     }
 
     if ((u_mode & MODE_DRAW_INSIDE) != 0) {
-        resultColor = lch2rgb(resultColor);
-        outColor = vec4(mix(bgColor, resultColor, cutoff), 1);
+        finalColor = mix(
+            finalColor,
+            lch2rgb(resultColorInside),
+            insideOutsideCutoff
+        );
     }
+
+    outColor = vec4(finalColor, 1.0);
 }
 `;
