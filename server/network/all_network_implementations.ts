@@ -2,6 +2,7 @@
 // implementations are actually imported.
 
 import "~/server/network/ably_network_implementation";
+import "~/server/network/alpha_network_implementation";
 import "~/server/network/documents_network_implementation";
 import "~/shared/network/all_network_definitions";
 

@@ -7,6 +7,7 @@ ts_project(
     deps = [
         "//:node_modules/@popperjs/core",
         "//:node_modules/@react-aria/interactions",
+        "//:node_modules/@react-types/shared",
         "//:node_modules/@remix-run/react",
         "//:node_modules/@types/color",
         "//:node_modules/@types/d3-interpolate",

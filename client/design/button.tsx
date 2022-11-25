@@ -1,3 +1,4 @@
+import {PressEvent} from "@react-types/shared";
 import classNames from "classnames";
 import {IconContext, SpinnerGap} from "phosphor-react";
 import {ReactNode, Ref, forwardRef, useEffect, useRef, useState} from "react";
@@ -20,11 +21,20 @@ export {ButtonForwardRef as Button};
 type ButtonVariant = "accent" | "quiet";
 
 function Button(
-    props: AriaButtonProps<"button"> & {
+    props: Omit<AriaButtonProps<"button">, "onPress"> & {
         /**
          * Label text for the button.
          */
         children: string;
+
+        /**
+         * When the user presses a button we fire this event. Use it to perform
+         * an action in response to the button press.
+         *
+         * If a promise is returned then the button is put into a pending state until
+         * the promise resolves.
+         */
+        onPress?: (event: PressEvent) => Promise<void> | void;
 
         /**
          * What variant of this button should we render?
@@ -39,6 +49,9 @@ function Button(
         /**
          * Are we waiting for some asynchronous action that was initiated by our button
          * to complete?
+         *
+         * If your `onPress` event returns a promise then the button is automatically
+         * put into a pending state and you don't need to pass in this prop.
          */
         isPending?: boolean;
 
@@ -61,11 +74,15 @@ function Button(
         variant = "quiet",
         icon,
         isDisabled,
-        isPending,
+        isPending: isPendingFromProps,
         fullWidth = false,
         shouldSubmitForm = false,
+        onPress,
     } = props;
     const localRef = useRef<HTMLButtonElement>(null);
+
+    const [isPendingFromPress, setIsPendingFromPress] = useState(false);
+    const isPending = isPendingFromProps || isPendingFromPress;
 
     const {buttonProps, isPressed} = useButton(
         {
@@ -73,6 +90,16 @@ function Button(
             // Disable the button while we are pending to avoid multiple clicks firing the
             // action multiple times.
             isDisabled: isDisabled || isPending,
+            onPress: event => {
+                const promise = onPress?.(event);
+
+                if (promise instanceof Promise) {
+                    setIsPendingFromPress(true);
+                    promise.finally(() => {
+                        setIsPendingFromPress(false);
+                    });
+                }
+            },
         },
         localRef,
     );

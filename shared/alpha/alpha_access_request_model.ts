@@ -5,9 +5,12 @@ import {Schema} from "~/shared/schema/schema";
 export const AlphaAccessRequestDecisionSchema = Schema.union({
     Approved: Schema.object({
         type: Schema.value("Approved"),
+        approvedByAccountId: Schema.id,
+        accountId: Schema.id,
     }),
     Denied: Schema.object({
         type: Schema.value("Denied"),
+        deniedByAccountId: Schema.id,
     }),
 });
 

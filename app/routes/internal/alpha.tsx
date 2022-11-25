@@ -1,4 +1,4 @@
-import {ReactNode, useMemo} from "react";
+import {ReactNode, useMemo, useState} from "react";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
 import {Spacer} from "~/client/design/spacer";
@@ -7,6 +7,10 @@ import {getUndecidedAlphaAccessRequests} from "~/server/dynamo/alpha_access_tabl
 import {jsonWithSchema} from "~/server/helpers/json_with_schema";
 import {DataFunctionArgs} from "~/server/helpers/types/remix_data_function_args";
 import {AlphaAccessRequestModel} from "~/shared/alpha/alpha_access_request_model";
+import {
+    approveAlphaAccessRequest,
+    denyAlphaAccessRequest,
+} from "~/shared/network/alpha_network_definition";
 import {Schema} from "~/shared/schema/schema";
 import {sprinkles} from "~/shared/styles/styles";
 
@@ -26,7 +30,7 @@ export async function loader({context}: DataFunctionArgs) {
 }
 
 export default function AlphaManagementPage() {
-    const {requests} = useLoaderDataWithSchema(LoaderSchema);
+    const {requests: loadedRequests} = useLoaderDataWithSchema(LoaderSchema);
 
     const dateTimeFormatter = useMemo(() => {
         return new Intl.DateTimeFormat("default", {
@@ -37,6 +41,14 @@ export default function AlphaManagementPage() {
             minute: "numeric",
         });
     }, []);
+
+    const [decidedEmailAddresses, setDecidedEmailAddresses] = useState<ReadonlySet<string>>(
+        new Set(),
+    );
+
+    const requests = loadedRequests.filter(
+        request => !decidedEmailAddresses.has(request.emailAddress),
+    );
 
     return (
         <Box display="flex" justifyContent="center">
@@ -64,6 +76,11 @@ export default function AlphaManagementPage() {
                             key={request.emailAddress}
                             request={request}
                             dateTimeFormatter={dateTimeFormatter}
+                            onDecided={() =>
+                                setDecidedEmailAddresses(decidedEmailAddresses =>
+                                    new Set(decidedEmailAddresses).add(request.emailAddress),
+                                )
+                            }
                         />
                     ))}
                 </Box>
@@ -75,9 +92,11 @@ export default function AlphaManagementPage() {
 function AlphaAccessRequest({
     request,
     dateTimeFormatter,
+    onDecided,
 }: {
     request: AlphaAccessRequestModel;
     dateTimeFormatter: Intl.DateTimeFormat;
+    onDecided: () => void;
 }) {
     return (
         <Box padding="3" borderRadius="base" border="grey-10">
@@ -90,8 +109,24 @@ function AlphaAccessRequest({
                 >
                     {request.emailAddress}
                 </Box>
-                <Button variant="quiet">Deny</Button>
-                <Button variant="accent">Approve</Button>
+                <Button
+                    variant="quiet"
+                    onPress={async () => {
+                        await denyAlphaAccessRequest({emailAddress: request.emailAddress});
+                        onDecided();
+                    }}
+                >
+                    Deny
+                </Button>
+                <Button
+                    variant="accent"
+                    onPress={async () => {
+                        await approveAlphaAccessRequest({emailAddress: request.emailAddress});
+                        onDecided();
+                    }}
+                >
+                    Approve
+                </Button>
             </Box>
             <Box display="flex" flexDirection="column" gap="2">
                 <AlphaAccessRequestField

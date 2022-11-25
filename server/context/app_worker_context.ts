@@ -113,11 +113,11 @@ export class AppWorkerRequestContext
         return this;
     }
 
-    public getAccountId(): Id {
+    public getAuthenticatedAccountId(): Id {
         return this._session.accountId;
     }
 
-    public getAccount(): Promise<Account> {
+    public getAuthenticatedAccount(): Promise<Account> {
         return this._session.getAccount();
     }
 }

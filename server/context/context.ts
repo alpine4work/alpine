@@ -92,10 +92,10 @@ export interface RequestContext extends UnauthenticatedRequestContext {
      * What is the ID of the account connected to our service? Returns the same ID
      * as `getAccount()` but without loading the account from the database.
      */
-    getAccountId(): Id;
+    getAuthenticatedAccountId(): Id;
 
     /**
      * Returns the account connected to our service.
      */
-    getAccount(): Promise<Account>;
+    getAuthenticatedAccount(): Promise<Account>;
 }

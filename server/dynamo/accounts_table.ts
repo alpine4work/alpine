@@ -242,7 +242,7 @@ export async function seedTestAccounts() {
  * Transaction entry that checks to make sure an account email address does not
  * already exist.
  */
-export function transactionAccountEmailAddressDoesNotExistConditionCheck(
+export function checkAccountEmailAddressDoesNotExistTransactionEntry(
     emailAddress: string,
 ): DynamoTransactionEntry {
     return AccountsTable.transactionConditionCheck(
@@ -255,6 +255,56 @@ export function transactionAccountEmailAddressDoesNotExistConditionCheck(
             accountId: DynamoConditionExpression.exists().not(),
         },
     );
+}
+
+/**
+ * Make transaction entries that create a new account with the provided name
+ * and email address. The account starts with an unverified email address.
+ *
+ * This is meant to be used for creating accounts during closed alpha.
+ */
+export function createAccountForAlphaTransactionEntries({
+    id,
+    name,
+    emailAddress,
+}: {
+    id: Id;
+    name: string;
+    emailAddress: string;
+}) {
+    return [
+        AccountsTable.transactionPutItem(
+            {
+                partitionType: "Account",
+                sortRangeType: "Attributes",
+                accountId: id,
+                name,
+                createdTime: new Date(),
+            },
+            {
+                condition: {
+                    // The account should not exist yet.
+                    name: DynamoConditionExpression.exists().not(),
+                },
+            },
+        ),
+        AccountsTable.transactionPutItem(
+            {
+                partitionType: "AccountEmailAddress",
+                sortRangeType: "Attributes",
+                emailAddress,
+                lockVersion: 0,
+                accountId: id,
+                isVerified: false,
+            },
+            {
+                condition: {
+                    // The email address should not be associated with an account yet.
+                    accountId: DynamoConditionExpression.exists().not(),
+                },
+            },
+        ),
+    ];
 }
 
 /**
@@ -650,7 +700,7 @@ export class Session {
  */
 export async function authorizeAccountHasInternalAccess(context: UnauthenticatedRequestContext) {
     const authenticatedContext = await context.authenticate();
-    const account = await authenticatedContext.getAccount();
+    const account = await authenticatedContext.getAuthenticatedAccount();
 
     if (!account.hasInternalAccess)
         throw new PermissionDeniedError("Account does not have internal access", {

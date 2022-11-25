@@ -2,7 +2,8 @@ import {compareAsc as compareDatesAsc} from "date-fns";
 import {RequestContext} from "~/server/context/context";
 import {
     authorizeAccountHasInternalAccess,
-    transactionAccountEmailAddressDoesNotExistConditionCheck,
+    checkAccountEmailAddressDoesNotExistTransactionEntry,
+    createAccountForAlphaTransactionEntries,
 } from "~/server/dynamo/accounts_table";
 import {DynamoConditionExpression} from "~/server/dynamo/internal/dynamo_condition";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
@@ -12,11 +13,12 @@ import {
     AlphaAccessRequestDecisionSchema,
     AlphaAccessRequestModel,
 } from "~/shared/alpha/alpha_access_request_model";
-import {FailedPreconditionError} from "~/shared/error/error";
+import {FailedPreconditionError, NotFoundError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable";
 import {filterMapAsyncIterableIterator} from "~/shared/helpers/iterable/filter_map_async_iterable_iterator";
+import {generateId} from "~/shared/id/id";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
 import {Schema} from "~/shared/schema/schema";
 
@@ -41,6 +43,7 @@ const AlphaAccessTable = DynamoTableSchema.new({
                     },
                     attributes: Schema.object({
                         createdTime: Schema.date,
+                        lockVersion: Schema.integer,
 
                         /**
                          * The name of the person asking for access.
@@ -87,13 +90,14 @@ export async function requestAlphaAccess({
         await DynamoTableSchema.executeTransaction([
             // Make sure an account does not already exist when requesting alpha access.
             // The account could have been created manually.
-            transactionAccountEmailAddressDoesNotExistConditionCheck(emailAddress),
+            checkAccountEmailAddressDoesNotExistTransactionEntry(emailAddress),
 
             AlphaAccessTable.transactionPutItem(
                 {
                     partitionType: "AlphaAccessRequests",
                     sortRangeType: "Request",
                     createdTime: new Date(),
+                    lockVersion: 0,
                     name,
                     emailAddress,
                     message,
@@ -174,5 +178,86 @@ export async function getUndecidedAlphaAccessRequests(context: RequestContext) {
 
     return requests.sort((request1, request2) =>
         compareDatesAsc(request1.createdTime, request2.createdTime),
+    );
+}
+
+/**
+ * Approves a request for alpha access.
+ *
+ * When we approve a request for alpha access, we create a new account for the
+ * user and we send them an email with instructions on how to sign in.
+ */
+export async function approveAlphaAccessRequest(context: RequestContext, emailAddress: string) {
+    await authorizeAccountHasInternalAccess(context);
+
+    const requestItem = await AlphaAccessTable.getItem({
+        partitionType: "AlphaAccessRequests",
+        sortRangeType: "Request",
+        emailAddress,
+    });
+    if (!requestItem) throw new NotFoundError("Alpha access request not found");
+
+    if (requestItem.decision)
+        throw new FailedPreconditionError("A decision has already been made for this request");
+
+    const accountId = generateId();
+
+    await DynamoTableSchema.executeTransaction([
+        AlphaAccessTable.transactionPutItem(
+            {
+                ...requestItem,
+                lockVersion: requestItem.lockVersion + 1,
+                decision: {
+                    type: "Approved",
+                    approvedByAccountId: context.getAuthenticatedAccountId(),
+                    accountId,
+                },
+            },
+            {
+                condition: {
+                    lockVersion: DynamoConditionExpression.eq(requestItem.lockVersion),
+                },
+            },
+        ),
+        ...createAccountForAlphaTransactionEntries({
+            id: accountId,
+            name: requestItem.name,
+            emailAddress: requestItem.emailAddress,
+        }),
+    ]);
+
+    // TODO(calebmer): Send an email when we approve the alpha access request.
+}
+
+/**
+ * Denies a request for alpha access.
+ */
+export async function denyAlphaAccessRequest(context: RequestContext, emailAddress: string) {
+    await authorizeAccountHasInternalAccess(context);
+
+    const requestItem = await AlphaAccessTable.getItem({
+        partitionType: "AlphaAccessRequests",
+        sortRangeType: "Request",
+        emailAddress,
+    });
+    if (!requestItem) throw new NotFoundError("Alpha access request not found");
+
+    if (requestItem.decision)
+        throw new FailedPreconditionError("A decision has already been made for this request");
+
+    await AlphaAccessTable.putItem(
+        {
+            ...requestItem,
+            lockVersion: requestItem.lockVersion + 1,
+            decision: {
+                type: "Denied",
+                deniedByAccountId: context.getAuthenticatedAccountId(),
+            },
+        },
+        {
+            condition: {
+                lockVersion: DynamoConditionExpression.eq(requestItem.lockVersion),
+            },
+        },
     );
 }
