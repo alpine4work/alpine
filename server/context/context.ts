@@ -67,11 +67,23 @@ export interface ClientContext extends ProcessContext {
  * Most of the time you will be using a `RequestContext`, which is the same
  * but with information about the account accessing our service.
  *
+ * Even though this is called an unauthenticated context, we don't
+ * know whether the context is authenticated or not until you call
+ * `isAuthenticated()` or `authenticate()`. More accurate to think of this
+ * context as "possibly authenticated, possibly not".
+ *
  * Implementations of this class are recommended to destroy the context once
  * the request is done. Preventing any method from being called on the
  * destroyed context.
  */
 export interface UnauthenticatedRequestContext extends ClientContext {
+    /**
+     * Tells us if the context is authenticated or not. If true then
+     * `authenticate()` should succeed. If false then `authenticate()` will throw
+     * an `UnauthenticatedError`.
+     */
+    isAuthenticated(): Promise<boolean>;
+
     /**
      * Parse this request's authentication credentials. If a request does not have
      * authenticated credentials or the credentials are incorrect, we throw

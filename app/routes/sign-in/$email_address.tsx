@@ -1,6 +1,7 @@
-import {redirect} from "@remix-run/cloudflare";
+import {json} from "@remix-run/cloudflare";
 import {Form, useParams, useTransition} from "@remix-run/react";
 import {useState} from "react";
+import {redirectToAuthenticatedHome} from "~/app/helpers/redirect_to_authenticated_home";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
 import {Spacer} from "~/client/design/spacer";
@@ -21,6 +22,13 @@ export function meta() {
         // Ask Google to not index this page.
         robots: "noindex",
     };
+}
+
+export async function loader({context}: DataFunctionArgs) {
+    // Can not access this page while signed in.
+    if (await context.isAuthenticated()) return redirectToAuthenticatedHome();
+
+    return json({});
 }
 
 const ActionSchema = Schema.object({
@@ -48,8 +56,7 @@ export async function action({request, context, params}: DataFunctionArgs) {
 
         await context.dangerouslySetSessionId(sessionId);
 
-        // TODO(calebmer): Send the user to a logged in screen.
-        return redirect("/");
+        return redirectToAuthenticatedHome();
     } catch (error) {
         return jsonWithSchema(ActionSchema, {ok: false, error}, isHttp500Error(error) ? 500 : 400);
     }

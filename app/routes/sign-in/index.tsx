@@ -1,6 +1,7 @@
-import {ActionArgs, redirect} from "@remix-run/cloudflare";
+import {ActionArgs, json, redirect} from "@remix-run/cloudflare";
 import {Form, Link, useTransition} from "@remix-run/react";
 import {useState} from "react";
+import {redirectToAuthenticatedHome} from "~/app/helpers/redirect_to_authenticated_home";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
 import {FocusRing} from "~/client/design/focus_ring";
@@ -10,6 +11,7 @@ import {ErrorInlineAlert} from "~/client/error/error_inline_alert";
 import {useActionDataWithSchema} from "~/client/helpers/use_action_data_with_schema";
 import {regenerateOneTimePasswordSignIn} from "~/server/dynamo/accounts_table";
 import {jsonWithSchema} from "~/server/helpers/json_with_schema";
+import {DataFunctionArgs} from "~/server/helpers/types/remix_data_function_args";
 import {InvalidArgumentError} from "~/shared/error/error";
 import {ErrorSchema} from "~/shared/error/error_schema";
 import {isHttp500Error} from "~/shared/error/is_http_500_error_code";
@@ -21,6 +23,13 @@ export function meta() {
         title: "Sign in to Cyberworlds",
         robots: "noindex",
     };
+}
+
+export async function loader({context}: DataFunctionArgs) {
+    // Can not access this page while signed in.
+    if (await context.isAuthenticated()) return redirectToAuthenticatedHome();
+
+    return json({});
 }
 
 const ActionSchema = Schema.object({

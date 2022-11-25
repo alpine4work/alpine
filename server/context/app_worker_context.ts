@@ -53,26 +53,32 @@ export class UnauthenticatedAppWorkerRequestContext implements UnauthenticatedRe
         return this._state.getRequest().headers.get("user-agent");
     }
 
-    private readonly _authenticatedContext = new Lazy<Promise<AppWorkerRequestContext>>(
-        async () => {
+    private readonly _authenticatedContext: Lazy<Promise<AppWorkerRequestContext | null>> =
+        new Lazy(async () => {
             const sessionCookie = await this._state.getSessionCookie();
             const session = await Session.get(sessionCookie);
-
-            if (!session) {
-                throw new UnauthenticatedError("Unauthenticated session", {
-                    displayMessage: errorDisplayMessage`You are not signed in. Please ${errorDisplayMessage.link(
-                        "sign in",
-                        "/sign-in",
-                    )} and try again.`,
-                });
-            }
-
+            if (!session) return null;
             return new AppWorkerRequestContext(this._state, session);
-        },
-    );
+        });
 
-    public authenticate(): Promise<AppWorkerRequestContext> {
-        return this._authenticatedContext.get();
+    public async isAuthenticated(): Promise<boolean> {
+        const context = await this._authenticatedContext.get();
+        return !!context;
+    }
+
+    public async authenticate(): Promise<AppWorkerRequestContext> {
+        const context = await this._authenticatedContext.get();
+
+        if (!context) {
+            throw new UnauthenticatedError("Unauthenticated session", {
+                displayMessage: errorDisplayMessage`You are not signed in. Please ${errorDisplayMessage.link(
+                    "sign in",
+                    "/sign-in",
+                )} and try again.`,
+            });
+        }
+
+        return context;
     }
 
     public async getBrowserId() {
