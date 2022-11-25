@@ -1,7 +1,8 @@
 import {json} from "@remix-run/cloudflare";
 import {Form, Link, useTransition} from "@remix-run/react";
-import {useState} from "react";
+import {useId, useMemo, useState} from "react";
 import {redirectToAuthenticatedHome} from "~/app/helpers/redirect_to_authenticated_home";
+import {DocumentBlobFactory, useDocumentBlobSettings} from "~/client/blob_factory/document_blobs";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
 import {FocusRing} from "~/client/design/focus_ring";
@@ -13,9 +14,11 @@ import {useActionDataWithSchema} from "~/client/helpers/use_action_data_with_sch
 import {requestAlphaAccess} from "~/server/dynamo/alpha_access_table";
 import {jsonWithSchema} from "~/server/helpers/json_with_schema";
 import {DataFunctionArgs} from "~/server/helpers/types/remix_data_function_args";
+import {themeColors} from "~/shared/design/theme_colors";
 import {InvalidArgumentError} from "~/shared/error/error";
 import {ErrorSchema} from "~/shared/error/error_schema";
 import {isHttp500Error} from "~/shared/error/is_http_500_error_code";
+import {randomArrayItem} from "~/shared/helpers/array/random_array_item";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles";
 
@@ -73,7 +76,10 @@ export async function action({request}: DataFunctionArgs) {
     }
 }
 
+const randomSeed = Math.random().toString();
+const themeColor = randomArrayItem(themeColors);
 export default function HomePage() {
+    const id = useId().replace(/:/g, "_");
     const [name, setName] = useState("");
     const [emailAddress, setEmailAddress] = useState("");
 
@@ -86,8 +92,17 @@ export default function HomePage() {
         typeof ActionSchema
     > | null>(null);
 
+    const blobSettings = useDocumentBlobSettings({defaultSeed: randomSeed});
+
     return (
-        <Box display="flex" justifyContent="center">
+        <Box display="flex" justifyContent="center" id={id}>
+            <DocumentBlobFactory
+                settings={useMemo(
+                    () => ({...blobSettings, textFillEnabled: false, baseThemeColor: themeColor}),
+                    [blobSettings],
+                )}
+                containerId={id}
+            />
             <main
                 className={sprinkles({
                     width: "full",
