@@ -128,7 +128,7 @@ function Button(
     };
 
     return (
-        <FocusRing>
+        <FocusRing offset={variant === "quiet" ? "0" : "0.5"}>
             <button
                 {...mergeProps(buttonProps, hoverProps)}
                 ref={useMergedRef(foreignRef, localRef)}
@@ -150,7 +150,7 @@ function Button(
                     justifyContent: "center",
                     alignItems: "center",
                     height: "7",
-                    minWidth: "16",
+                    minWidth: variant !== "quiet" ? "16" : undefined,
                     width: fullWidth ? "full" : undefined,
                     paddingX: "3",
                     typographySize: "small",

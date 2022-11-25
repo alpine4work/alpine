@@ -643,3 +643,17 @@ export class Session {
         return this._account.get();
     }
 }
+
+/**
+ * Authorizes the account for this request has internal access. Throws a
+ * `PermissionDeniedError` if not.
+ */
+export async function authorizeAccountHasInternalAccess(context: UnauthenticatedRequestContext) {
+    const authenticatedContext = await context.authenticate();
+    const account = await authenticatedContext.getAccount();
+
+    if (!account.hasInternalAccess)
+        throw new PermissionDeniedError("Account does not have internal access", {
+            displayMessage: errorDisplayMessage`Only members of our team may access internal tools.`,
+        });
+}

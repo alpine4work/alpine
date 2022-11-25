@@ -1,28 +1,47 @@
-import {transactionAccountEmailAddressDoesNotExistConditionCheck} from "~/server/dynamo/accounts_table";
+import {compareAsc as compareDatesAsc} from "date-fns";
+import {RequestContext} from "~/server/context/context";
+import {
+    authorizeAccountHasInternalAccess,
+    transactionAccountEmailAddressDoesNotExistConditionCheck,
+} from "~/server/dynamo/accounts_table";
 import {DynamoConditionExpression} from "~/server/dynamo/internal/dynamo_condition";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
+import {
+    AlphaAccessRequestDecisionSchema,
+    AlphaAccessRequestModel,
+} from "~/shared/alpha/alpha_access_request_model";
 import {FailedPreconditionError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable";
+import {filterMapAsyncIterableIterator} from "~/shared/helpers/iterable/filter_map_async_iterable_iterator";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
 import {Schema} from "~/shared/schema/schema";
 
 const AlphaAccessTable = DynamoTableSchema.new({
     name: "AlphaAccess",
     partitions: {
-        AlphaAccessRequest: {
-            partitionKeyAttributes: {
-                /**
-                 * Can only have one access request per email address.
-                 */
-                emailAddress: DynamoKeyAttributeSchema.labelString,
-            },
+        /**
+         * All our alpha access requests are in one partition so we can query them
+         * at once.
+         *
+         * We expect a small number of alpha access requests.
+         */
+        AlphaAccessRequests: {
+            partitionKeyAttributes: {},
             sortRanges: {
-                Attributes: {
-                    sortKeyAttributes: {},
+                Request: {
+                    sortKeyAttributes: {
+                        /**
+                         * Can only have one access request per email address.
+                         */
+                        emailAddress: DynamoKeyAttributeSchema.labelString,
+                    },
                     attributes: Schema.object({
+                        createdTime: Schema.date,
+
                         /**
                          * The name of the person asking for access.
                          */
@@ -38,14 +57,7 @@ const AlphaAccessTable = DynamoTableSchema.new({
                          * The decision made by an admin account on whether to accept or reject the
                          * access request.
                          */
-                        decision: Schema.union({
-                            Approved: Schema.object({
-                                type: Schema.value("Approved"),
-                            }),
-                            Denied: Schema.object({
-                                type: Schema.value("Denied"),
-                            }),
-                        }).nullable(),
+                        decision: AlphaAccessRequestDecisionSchema.nullable(),
                     }),
                 },
             },
@@ -79,8 +91,9 @@ export async function requestAlphaAccess({
 
             AlphaAccessTable.transactionPutItem(
                 {
-                    partitionType: "AlphaAccessRequest",
-                    sortRangeType: "Attributes",
+                    partitionType: "AlphaAccessRequests",
+                    sortRangeType: "Request",
+                    createdTime: new Date(),
                     name,
                     emailAddress,
                     message,
@@ -95,8 +108,8 @@ export async function requestAlphaAccess({
         if (!isDynamoConditionCheckError(error)) throw error;
 
         const existingRequest = await AlphaAccessTable.getItem({
-            partitionType: "AlphaAccessRequest",
-            sortRangeType: "Attributes",
+            partitionType: "AlphaAccessRequests",
+            sortRangeType: "Request",
             emailAddress,
         });
         const decision = existingRequest?.decision ?? null;
@@ -129,4 +142,37 @@ export async function requestAlphaAccess({
             displayMessage,
         });
     }
+}
+
+/**
+ * Get the list of alpha access requests for an internal user who will decide
+ * whether to accept or reject them.
+ */
+export async function getUndecidedAlphaAccessRequests(context: RequestContext) {
+    await authorizeAccountHasInternalAccess(context);
+
+    const requests = await arrayFromAsyncIterable(
+        filterMapAsyncIterableIterator(
+            AlphaAccessTable.queryEntirePartition({
+                partitionKey: {
+                    partitionType: "AlphaAccessRequests",
+                },
+            }),
+            requestItem => {
+                if (requestItem.decision !== null) return null;
+
+                return new AlphaAccessRequestModel({
+                    createdTime: requestItem.createdTime,
+                    name: requestItem.name,
+                    emailAddress: requestItem.emailAddress,
+                    message: requestItem.message,
+                    decision: requestItem.decision,
+                });
+            },
+        ),
+    );
+
+    return requests.sort((request1, request2) =>
+        compareDatesAsc(request1.createdTime, request2.createdTime),
+    );
 }

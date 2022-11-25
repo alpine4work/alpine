@@ -398,7 +398,7 @@ class DynamoClient {
             name: string;
             value: SchemaSerializedValue;
         };
-        sortKey: {
+        sortKey?: {
             name: string;
             startValue?: SchemaSerializedValue;
             endValue?: SchemaSerializedValue;
@@ -407,19 +407,24 @@ class DynamoClient {
         limit?: number;
         descending?: boolean;
     }): AsyncIterableIterator<SchemaSerializedObjectValue> {
-        const keyConditionExpression =
-            sortKey.startValue !== undefined && sortKey.endValue !== undefined
-                ? `${partitionKey.name} = :pkv and ${sortKey.name} between :skv1 and :skv2`
-                : sortKey.startValue !== undefined
-                ? `${partitionKey.name} = :pkv and ${sortKey.name} >= :skv1`
-                : sortKey.endValue !== undefined
-                ? `${partitionKey.name} = :pkv and ${sortKey.name} <= :skv2`
-                : `${partitionKey.name} = :pkv`;
+        const keyConditionExpression = !sortKey
+            ? `${partitionKey.name} = :pkv`
+            : sortKey.startValue !== undefined && sortKey.endValue !== undefined
+            ? `${partitionKey.name} = :pkv and ${sortKey.name} between :skv1 and :skv2`
+            : sortKey.startValue !== undefined
+            ? `${partitionKey.name} = :pkv and ${sortKey.name} >= :skv1`
+            : sortKey.endValue !== undefined
+            ? `${partitionKey.name} = :pkv and ${sortKey.name} <= :skv2`
+            : `${partitionKey.name} = :pkv`;
 
         const expressionAttributeValues = intoDynamoAttributeValueObject({
             ":pkv": partitionKey.value,
-            ":skv1": sortKey.startValue,
-            ":skv2": sortKey.endValue,
+            ...(sortKey
+                ? {
+                      ":skv1": sortKey.startValue,
+                      ":skv2": sortKey.endValue,
+                  }
+                : {}),
         });
 
         let totalScannedCount = 0;

@@ -1,0 +1,74 @@
+diff --git a/dist/data.js b/dist/data.js
+index 8ba58ebade2ae9c4c430a45a030bb4612f691c4b..14999c270f2d9d19b416224260b2590dd9a8be61 100644
+--- a/dist/data.js
++++ b/dist/data.js
+@@ -122,7 +122,10 @@ function extractData(response) {
+   let contentType = response.headers.get("Content-Type");
+ 
+   if (contentType && /\bapplication\/json\b/.test(contentType)) {
+-    return response.json();
++    // NOTE(calebmer): If this response was constructed by `json()` then avoid
++    // parsing it again which is wasteful.
++    let data = response[Symbol.for('remix.response.json')]
++    return data !== undefined ? data : response.json();
+   } // What other data types do we need to handle here? What other kinds of
+   // responses are people going to be returning from their loaders?
+   // - application/x-www-form-urlencoded ?
+diff --git a/dist/esm/data.js b/dist/esm/data.js
+index 0f1eaa5905ded564ea90b9bd756276e6557f24bb..2a0f4faac0eed0caf01968cea7ab545d4df703e7 100644
+--- a/dist/esm/data.js
++++ b/dist/esm/data.js
+@@ -118,7 +118,10 @@ function extractData(response) {
+   let contentType = response.headers.get("Content-Type");
+ 
+   if (contentType && /\bapplication\/json\b/.test(contentType)) {
+-    return response.json();
++    // NOTE(calebmer): If this response was constructed by `json()` then avoid
++    // parsing it again which is wasteful.
++    let data = response[Symbol.for('remix.response.json')]
++    return data !== undefined ? data : response.json();
+   } // What other data types do we need to handle here? What other kinds of
+   // responses are people going to be returning from their loaders?
+   // - application/x-www-form-urlencoded ?
+diff --git a/dist/esm/responses.js b/dist/esm/responses.js
+index 8b7d9946ae80f161654f8db93d0ccdd4721edc07..3d3e29b5d4c6f3aad3f595405db0ae8fc7070eaa 100644
+--- a/dist/esm/responses.js
++++ b/dist/esm/responses.js
+@@ -27,9 +27,15 @@ const json = (data, init = {}) => {
+     headers.set("Content-Type", "application/json; charset=utf-8");
+   }
+ 
+-  return new Response(JSON.stringify(data), { ...responseInit,
++  let response = new Response(JSON.stringify(data), { ...responseInit,
+     headers
+   });
++
++  // NOTE(calebmer): Include the unserialized JSON data on the response so we
++  // don't have to deserialize it when server-side rendering.
++  response[Symbol.for('remix.response.json')] = data;
++
++  return response;
+ };
+ 
+ /**
+diff --git a/dist/responses.js b/dist/responses.js
+index 2d72257c81c4a8ca1903aa3d69a32d8b8db19811..7303da657003331c8b0e5b3e3fb4ea3808267f8f 100644
+--- a/dist/responses.js
++++ b/dist/responses.js
+@@ -31,9 +31,15 @@ const json = (data, init = {}) => {
+     headers.set("Content-Type", "application/json; charset=utf-8");
+   }
+ 
+-  return new Response(JSON.stringify(data), { ...responseInit,
++  let response = new Response(JSON.stringify(data), { ...responseInit,
+     headers
+   });
++
++  // NOTE(calebmer): Include the unserialized JSON data on the response so we
++  // don't have to deserialize it when server-side rendering.
++  response[Symbol.for('remix.response.json')] = data;
++
++  return response;
+ };
+ 
+ /**

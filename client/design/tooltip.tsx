@@ -24,6 +24,7 @@ import {
     presentExtraContextAfterDelayMs,
     uninterruptedThoughtLimitMs,
 } from "~/client/design/timing_constants";
+import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted";
 import {Spacing} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
@@ -37,7 +38,7 @@ import {
     overlayFadeOutAnimationDurationMs,
 } from "~/shared/styles/styles";
 
-type TooltipState =
+export type TooltipState =
     // Tooltip is definitely not visible.
     | {
           readonly isHovered: false;
@@ -126,12 +127,13 @@ export {TooltipForwardRef as Tooltip};
 function Tooltip(
     {
         content,
-        disabled = false,
+        isDisabled = false,
         placement = "top",
         canFlip = true,
         offset = "2",
         visibleWhenFocusWithin = false,
         children: actualChildren,
+        onStateChange: _onStateChange,
     }: {
         /**
          * The contents of the tooltip. We expect this to be text most of the time.
@@ -145,7 +147,7 @@ function Tooltip(
          * If the tooltip is opened and `disabled` changes to true then we will
          * immediately hide the tooltip without animation.
          */
-        disabled?: boolean;
+        isDisabled?: boolean;
 
         /**
          * Where should the tooltip content be placed relative to the target element?
@@ -180,6 +182,11 @@ function Tooltip(
          * a ref to an HTML element or we will throw an error.
          */
         children: ReactElement | ((props: TooltipChildrenProps) => ReactElement);
+
+        /**
+         * Observe the tooltips internal state.
+         */
+        onStateChange?: (state: TooltipState) => void;
     },
     ref: Ref<TooltipRef>,
 ) {
@@ -212,14 +219,14 @@ function Tooltip(
     // Controls whether the tooltip is actually visible or not. Only one tooltip
     // can be visible on screen at once and that is managed by our tooltip
     // coordination context.
-    const visible = !disabled && tooltipSymbol === activeTooltipSymbol;
+    const visible = !isDisabled && tooltipSymbol === activeTooltipSymbol;
     const hasActiveTooltipSymbol = activeTooltipSymbol !== null;
 
     const [_state, setState] = useState<TooltipState>(initialTooltipState);
 
     // If the tooltip is disabled, immediately reset to the initial tooltip state.
     const state =
-        disabled && !isDeepEqual(_state, initialTooltipState) ? initialTooltipState : _state;
+        isDisabled && !isDeepEqual(_state, initialTooltipState) ? initialTooltipState : _state;
     if (state !== _state) setState(state);
 
     // Manage our tooltip symbol in the tooltip coordination context based on our
@@ -304,6 +311,11 @@ function Tooltip(
         }
     }, [state.isFadingOut, visible]);
 
+    const onStateChange = useEvent(_onStateChange);
+    useEffect(() => {
+        onStateChange(state);
+    }, [onStateChange, state]);
+
     // Register event handlers on our target element that control our tooltip's
     // state.
     const targetLifecycleRef = useCallback(
@@ -314,7 +326,7 @@ function Tooltip(
             );
 
             // Don't attach handlers when we're disabled.
-            if (disabled) return;
+            if (isDisabled) return;
 
             assert(!visible || tooltipRef.current);
             const tooltipElement = tooltipRef.current;
@@ -505,7 +517,7 @@ function Tooltip(
             };
         },
         [
-            disabled,
+            isDisabled,
             visible,
             tooltipSymbolThatIsFadingOutNextAnimationFrameRef,
             hasActiveTooltipSymbol,
@@ -558,7 +570,7 @@ function Tooltip(
                             color="grey-100"
                             backgroundColor={{light: "grey-0", dark: "grey-5"}}
                             borderRadius="small"
-                            boxShadow="elevation-10"
+                            boxShadow="elevation-10-light"
                             className={
                                 state.isFadingOut
                                     ? overlayAnimateFadeOutClassName

@@ -286,7 +286,7 @@ export class DynamoConditionExpressionCompilationContext {
      * reserved word.
      */
     public referenceAttribute(key: string): string {
-        if (isIdentifier(key) || !dynamoReservedWords.has(key.toUpperCase())) return key;
+        if (isIdentifier(key) && !dynamoReservedWords.has(key.toUpperCase())) return key;
 
         return getOrSetDefaultMapValue(
             this._attributeNameByKey,

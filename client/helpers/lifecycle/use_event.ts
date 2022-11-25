@@ -26,9 +26,9 @@ const reactDispatchersSeenDuringRender = new Set();
  *
  * [1]: https://github.com/reactjs/rfcs/pull/220
  */
-export function useEvent<Args extends Array<unknown>, Result>(
-    handler: (...args: Args) => Result,
-): Memo<(...args: Args) => Result> {
+export function useEvent<Args extends Array<unknown>>(
+    handler: ((...args: Args) => void) | undefined,
+): Memo<(...args: Args) => void> {
     const handlerRef = useRef(handler);
 
     // In a real implementation, this would run before layout effects.
@@ -52,7 +52,7 @@ export function useEvent<Args extends Array<unknown>, Result>(
         if (reactDispatchersSeenDuringRender.has(getCurrentReactDispatcher()))
             throw new InternalError("Can not call event callback during React render");
 
-        return handlerRef.current(...args);
+        return handlerRef.current?.(...args);
     }, []);
 }
 

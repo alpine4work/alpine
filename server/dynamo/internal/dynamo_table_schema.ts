@@ -152,14 +152,21 @@ export class DynamoTableSchema<
         return this._config.name;
     }
 
-    /**
-     * Serializes a key object to the two attribute values we store in the
-     * database.
-     *
-     * Also returns the `Schema` object for attributes of the key's sort range.
-     *
-     * The key format is a list of strings separated by a `#` character.
-     */
+    private _serializePartitionKey(key: Types["PartitionKey"]): string {
+        const partitionConfig = this._config.partitions[key.partitionType];
+        const partitionDescription = this._description.partitionByType[key.partitionType];
+        assert(partitionConfig && partitionDescription, "Invalid partition");
+
+        const partitionKeyEntries = [key.partitionType];
+        for (const [attributeKey, attributeSchema] of Object.entries(
+            partitionConfig.partitionKeyAttributes,
+        )) {
+            partitionKeyEntries.push(attributeSchema.serialize(key[attributeKey]));
+        }
+
+        return partitionKeyEntries.join(dynamoKeySeparator);
+    }
+
     private _serializeKey(key: Types["Key"]): {
         partitionKey: string;
         sortKey: string;
@@ -681,6 +688,65 @@ export class DynamoTableSchema<
                 name: "sortKey",
                 startValue: startSortKey,
                 endValue: endSortKey,
+            },
+            consistency,
+            limit,
+            descending,
+        });
+
+        return mapAsyncIterableIterator(iterator, serializedItem => {
+            assert(typeof serializedItem.partitionKey === "string");
+            assert(typeof serializedItem.sortKey === "string");
+
+            const {key, attributesSchema} = this._deserializeKey(
+                serializedItem.partitionKey,
+                serializedItem.sortKey,
+            );
+
+            const item: any = key;
+            try {
+                attributesSchema.deserializeInto(serializedItem, item);
+            } catch (error) {
+                // Reclassify deserialization errors from data stored in the database as data
+                // loss errors. It means we have corrupt data stored in the database!
+                if (error instanceof SchemaDeserializationError) {
+                    throw new DataLossError(error.message, {cause: error});
+                }
+                throw error;
+            }
+
+            return item;
+        });
+    }
+
+    /**
+     * Queries an entire partition in a table. Queries are how you get many
+     * items from the database at once. Queries require you to carefully structure
+     * your table ahead of time so that items that need to be read together are
+     * physically next to each other.
+     *
+     * Corresponds to the [`Query`][1] command.
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Query.html
+     */
+    public queryEntirePartition<PartitionKey extends Types["PartitionKey"]>({
+        partitionKey,
+        limit,
+        descending,
+        consistency,
+    }: {
+        partitionKey: PartitionKey;
+        limit?: number;
+        descending?: boolean;
+        consistency?: DynamoReadConsistency;
+    }): AsyncIterableIterator<MergeObjectIntersection<Types["Item"] & PartitionKey>> {
+        const serializedPartitionKey = this._serializePartitionKey(partitionKey);
+
+        const iterator = dynamoClient.query({
+            tableName: this._config.name,
+            partitionKey: {
+                name: "partitionKey",
+                value: serializedPartitionKey,
             },
             consistency,
             limit,

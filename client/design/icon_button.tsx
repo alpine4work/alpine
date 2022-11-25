@@ -71,7 +71,7 @@ function IconButton(
             placement="bottom-start"
             offset={tooltipOffset}
             content={description}
-            disabled={withoutTooltip}
+            isDisabled={withoutTooltip}
         >
             <FocusRing>
                 <button

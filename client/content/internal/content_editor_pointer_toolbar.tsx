@@ -36,7 +36,7 @@ import {useOutsidePress} from "~/client/design/helpers/use_outside_press";
 import {Overlay, OverlayRef} from "~/client/design/overlay";
 import {OverlayAnimated} from "~/client/design/overlay_animated";
 import {uninterruptedThoughtLimitMs} from "~/client/design/timing_constants";
-import {Tooltip, TooltipRef} from "~/client/design/tooltip";
+import {Tooltip, TooltipRef, TooltipState} from "~/client/design/tooltip";
 import {isMac} from "~/client/helpers/is_mac";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema";
@@ -537,6 +537,7 @@ function ContentEditorPointerToolbarButton({
     children,
     dividerLeft,
     dividerRight,
+    onTooltipStateChange,
 }: {
     description: string;
     keyboardShortcut: string;
@@ -548,6 +549,7 @@ function ContentEditorPointerToolbarButton({
     children: ReactNode;
     dividerLeft?: boolean;
     dividerRight?: boolean;
+    onTooltipStateChange?: (state: TooltipState) => void;
 }) {
     const onPress = () => {
         const view = viewRef.current;
@@ -571,7 +573,7 @@ function ContentEditorPointerToolbarButton({
     return (
         <Tooltip
             ref={useLifecycleRef(sharedTooltipLifecycleRef)}
-            disabled={isTooltipDisabled}
+            isDisabled={isTooltipDisabled}
             placement="top"
             // Don't allow flipping the tooltip down into selection content.
             canFlip={false}
@@ -581,6 +583,7 @@ function ContentEditorPointerToolbarButton({
                     <Box color="grey-60">{keyboardShortcut}</Box>
                 </Box>
             }
+            onStateChange={onTooltipStateChange}
         >
             <div
                 {...mergeProps(buttonProps, hoverProps)}
@@ -659,12 +662,17 @@ function ContentEditorPointerToolbarLinkButton({
         [state.doc, state.selection],
     );
 
+    const [isTooltipOpenAndNotAnimating, setIsTooltipOpenAndNotAnimating] = useState(false);
+
     return (
         <OverlayAnimated
             visible={isLinkInputOpen && !isToolbarFadingOut}
             placement="top"
             canFlip={false}
             offset="1.5"
+            // Don't animate if we have an open tooltip. It looks weird if the tooltip
+            // immediately disappears then this overlay moves in.
+            disableAnimation={isTooltipOpenAndNotAnimating}
             overlay={
                 <Box
                     ref={useOutsidePress(() => {
@@ -718,6 +726,13 @@ function ContentEditorPointerToolbarLinkButton({
                         }
                         return false;
                     }}
+                    onTooltipStateChange={state =>
+                        setIsTooltipOpenAndNotAnimating(
+                            (state.isFocused || state.isHovered) &&
+                                !state.isFadingIn &&
+                                !state.isFadingOut,
+                        )
+                    }
                 >
                     <LinkIcon />
                 </ContentEditorPointerToolbarButton>
@@ -743,12 +758,17 @@ function ContentEditorPointerToolbarHighlightButton({
 
     const wasJustClosedByOverlayRef = useRef(false);
 
+    const [isTooltipOpenAndNotAnimating, setIsTooltipOpenAndNotAnimating] = useState(false);
+
     return (
         <OverlayAnimated
             visible={isOpen}
             placement="top"
             canFlip={false}
             offset="1.5"
+            // Don't animate if we have an open tooltip. It looks weird if the tooltip
+            // immediately disappears then this overlay moves in.
+            disableAnimation={isTooltipOpenAndNotAnimating}
             overlay={
                 <Box
                     ref={useOutsidePress(() => {
@@ -806,6 +826,13 @@ function ContentEditorPointerToolbarHighlightButton({
                         }
                         return false;
                     }}
+                    onTooltipStateChange={state =>
+                        setIsTooltipOpenAndNotAnimating(
+                            (state.isFocused || state.isHovered) &&
+                                !state.isFadingIn &&
+                                !state.isFadingOut,
+                        )
+                    }
                 >
                     <Palette />
                 </ContentEditorPointerToolbarButton>

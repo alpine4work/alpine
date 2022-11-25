@@ -20,6 +20,8 @@ import {
 } from "~/shared/styles/internal/color_scheme.css";
 import {typographySize, typographyStyle} from "~/shared/styles/internal/typography.css";
 
+// x
+
 const properties = defineProperties({
     properties: {
         overflow: {auto: "auto", hidden: "hidden", visible: "visible", scroll: "scroll"},

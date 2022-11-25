@@ -23,6 +23,7 @@
         "@remix-run/dev": "^1.7.5",
         "@remix-run/eslint-config": "^1.7.5",
         "@remix-run/react": "^1.7.5",
+        "@remix-run/server-runtime": "1.7.5",
         "@testing-library/jest-dom": "^5.16.5",
         "@testing-library/react": "^13.4.0",
         "@types/bcrypt": "^5.0.0",
@@ -139,7 +140,8 @@
             "@vanilla-extract/integration@5.0.1": "admin/patches/@vanilla-extract__integration@5.0.1.patch",
             "@vanilla-extract/sprinkles@1.5.0": "admin/patches/@vanilla-extract__sprinkles@1.5.0.patch",
             "@remix-run/dev@1.7.5": "admin/patches/@remix-run__dev@1.7.5.patch",
-            "@miniflare/http-server@2.11.0": "admin/patches/@miniflare__http-server@2.11.0.patch"
+            "@miniflare/http-server@2.11.0": "admin/patches/@miniflare__http-server@2.11.0.patch",
+            "@remix-run/server-runtime@1.7.5": "admin/patches/@remix-run__server-runtime@1.7.5.patch"
         },
         "allowedDeprecatedVersions": {
             "@types/keyv": "4.2.0",
