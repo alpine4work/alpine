@@ -141,7 +141,8 @@
             "@vanilla-extract/sprinkles@1.5.0": "admin/patches/@vanilla-extract__sprinkles@1.5.0.patch",
             "@remix-run/dev@1.7.5": "admin/patches/@remix-run__dev@1.7.5.patch",
             "@miniflare/http-server@2.11.0": "admin/patches/@miniflare__http-server@2.11.0.patch",
-            "@remix-run/server-runtime@1.7.5": "admin/patches/@remix-run__server-runtime@1.7.5.patch"
+            "@remix-run/server-runtime@1.7.5": "admin/patches/@remix-run__server-runtime@1.7.5.patch",
+            "@remix-run/react@1.7.5": "admin/patches/@remix-run__react@1.7.5.patch"
         },
         "allowedDeprecatedVersions": {
             "@types/keyv": "4.2.0",

@@ -2,7 +2,12 @@ import {RemixBrowser} from "@remix-run/react";
 import React from "react";
 import ReactDom, {hydrateRoot} from "react-dom/client";
 import {attachDeveloperConsole} from "~/client/helpers/developer_console";
+import {ErrorSchema} from "~/shared/error/error_schema";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
+
+// We've patched Remix so that when it serializes and deserializes errors it
+// looks for this global and uses it.
+(globalThis as any).__remixErrorSchema = ErrorSchema;
 
 hydrateRoot(document, <RemixBrowser />);
 

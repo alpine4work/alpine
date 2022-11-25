@@ -14,6 +14,24 @@ index 8ba58ebade2ae9c4c430a45a030bb4612f691c4b..14999c270f2d9d19b416224260b2590d
    } // What other data types do we need to handle here? What other kinds of
    // responses are people going to be returning from their loaders?
    // - application/x-www-form-urlencoded ?
+diff --git a/dist/errors.js b/dist/errors.js
+index 9f314a69b1007f6b44f5c7731462bd87cb616ea0..477fee449e9b6d6f99b5056cf496b87a823a7a3b 100644
+--- a/dist/errors.js
++++ b/dist/errors.js
+@@ -56,6 +56,13 @@ Object.defineProperty(exports, '__esModule', { value: true });
+ // must be type alias due to inference issues on interfaces
+ // https://github.com/microsoft/TypeScript/issues/15300
+ async function serializeError(error) {
++  // NOTE(calebmer): We want to use our own error serialization/deserialization
++  // logic instead of the default logic Remix comes out of the box with. To do
++  // this we inject a global. Ideally there would be some first-class way other
++  // than injection to do this.
++  if (typeof __remixErrorSchema !== "undefined") {
++    return __remixErrorSchema.serialize(error);
++  }
+   return {
+     message: error.message,
+     stack: error.stack
 diff --git a/dist/esm/data.js b/dist/esm/data.js
 index 0f1eaa5905ded564ea90b9bd756276e6557f24bb..2a0f4faac0eed0caf01968cea7ab545d4df703e7 100644
 --- a/dist/esm/data.js
@@ -30,6 +48,24 @@ index 0f1eaa5905ded564ea90b9bd756276e6557f24bb..2a0f4faac0eed0caf01968cea7ab545d
    } // What other data types do we need to handle here? What other kinds of
    // responses are people going to be returning from their loaders?
    // - application/x-www-form-urlencoded ?
+diff --git a/dist/esm/errors.js b/dist/esm/errors.js
+index b0ec193a9e880a8094431641aaac9a0b81d7ba20..2f22d61f0902d5ae511d94a1e52885eefbebd921 100644
+--- a/dist/esm/errors.js
++++ b/dist/esm/errors.js
+@@ -52,6 +52,13 @@
+ // must be type alias due to inference issues on interfaces
+ // https://github.com/microsoft/TypeScript/issues/15300
+ async function serializeError(error) {
++  // NOTE(calebmer): We want to use our own error serialization/deserialization
++  // logic instead of the default logic Remix comes out of the box with. To do
++  // this we inject a global. Ideally there would be some first-class way other
++  // than injection to do this.
++  if (typeof __remixErrorSchema !== "undefined") {
++    return __remixErrorSchema.serialize(error);
++  }
+   return {
+     message: error.message,
+     stack: error.stack
 diff --git a/dist/esm/responses.js b/dist/esm/responses.js
 index 8b7d9946ae80f161654f8db93d0ccdd4721edc07..3d3e29b5d4c6f3aad3f595405db0ae8fc7070eaa 100644
 --- a/dist/esm/responses.js
@@ -51,6 +87,21 @@ index 8b7d9946ae80f161654f8db93d0ccdd4721edc07..3d3e29b5d4c6f3aad3f595405db0ae8f
  };
  
  /**
+diff --git a/dist/esm/server.js b/dist/esm/server.js
+index 026576dd4e92f4be414d957a01084f29a243b43d..31b41b0e360f30c93611591348e16836ed9c0ac9 100644
+--- a/dist/esm/server.js
++++ b/dist/esm/server.js
+@@ -163,7 +163,9 @@ async function handleDataRequest({
+       console.error(error);
+     }
+ 
+-    if (serverMode === ServerMode.Development && error instanceof Error) {
++    // NOTE(calebmer): We use custom error serialization which removes the stack
++    // trace in production. Always send the caught error to the client.
++    if (error instanceof Error) {
+       return errorBoundaryError(error, 500);
+     }
+ 
 diff --git a/dist/responses.js b/dist/responses.js
 index 2d72257c81c4a8ca1903aa3d69a32d8b8db19811..7303da657003331c8b0e5b3e3fb4ea3808267f8f 100644
 --- a/dist/responses.js
@@ -72,3 +123,18 @@ index 2d72257c81c4a8ca1903aa3d69a32d8b8db19811..7303da657003331c8b0e5b3e3fb4ea38
  };
  
  /**
+diff --git a/dist/server.js b/dist/server.js
+index 5ac23044d85bf98b9a9daf8d6109a903c2790645..95fec0f5da972bcf5fde3395360fa63e9b45452f 100644
+--- a/dist/server.js
++++ b/dist/server.js
+@@ -167,7 +167,9 @@ async function handleDataRequest({
+       console.error(error);
+     }
+ 
+-    if (serverMode === mode.ServerMode.Development && error instanceof Error) {
++    // NOTE(calebmer): We use custom error serialization which removes the stack
++    // trace in production. Always send the caught error to the client.
++    if (error instanceof Error) {
+       return errorBoundaryError(error, 500);
+     }
+ 

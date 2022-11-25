@@ -7,9 +7,15 @@ import {ErrorCode} from "~/shared/error/error_code";
 import {ErrorDisplayMessage, errorDisplayMessage} from "~/shared/error/error_display_message";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol";
-import {contentSchemaStyles} from "~/shared/styles/styles";
+import {contentSchemaStyles, typographySize} from "~/shared/styles/styles";
 
-export function ErrorDisplayMessageRenderer({error}: {error: unknown}) {
+export function ErrorDisplayMessageRenderer({
+    error,
+    size = "small",
+}: {
+    error: unknown;
+    size?: keyof typeof typographySize;
+}) {
     const displayMessage =
         (error instanceof ErrorBase ? error.displayMessage : null) ??
         getDefaultErrorDisplayMessageByCode(
@@ -24,7 +30,7 @@ export function ErrorDisplayMessageRenderer({error}: {error: unknown}) {
     }, [error]);
 
     return (
-        <Box color="grey-80" typographySize="small">
+        <Box color="grey-80" typographyStyle="primary" typographySize={size}>
             {displayMessage.map((displayMessageSegment, index) => {
                 switch (displayMessageSegment.type) {
                     case "Text":

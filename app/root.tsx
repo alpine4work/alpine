@@ -1,15 +1,20 @@
 import {LinkDescriptor} from "@remix-run/cloudflare";
 import {Links, LiveReload, Meta, Outlet, Scripts, ScrollRestoration} from "@remix-run/react";
-import {IconContext} from "phosphor-react";
+import {IconContext, Warning} from "phosphor-react";
 import prosemirrorStylesHref from "prosemirror-view/style/prosemirror.css";
+import {Box} from "~/client/design/box";
 import {
     InitializeColorSchemeScript,
     getColorSchemeWithoutListening,
 } from "~/client/design/color_scheme";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {TooltipCoordinationContextProvider} from "~/client/design/tooltip";
+import {ErrorDisplayMessageRenderer} from "~/client/error/error_display_message_renderer";
 import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use_is_initial_app_render";
+import {useStableValue} from "~/client/helpers/use_stable_value";
 import {spacing} from "~/shared/design/spacing";
+import {ErrorSchema} from "~/shared/error/error_schema";
+import {sprinkles, typographySize} from "~/shared/styles/styles";
 import sharedStylesHref from "~/shared/styles/styles.css";
 
 export function meta() {
@@ -34,13 +39,15 @@ export function links(): Array<LinkDescriptor> {
     ];
 }
 
-export default function Root() {
-    const outlet = (
+export default function Root({error}: {error?: unknown}) {
+    const children = error !== undefined ? <RootErrorRenderer error={error} /> : <Outlet />;
+
+    const wrappedChildren = (
         <IconContext.Provider value={{color: "currentColor", size: spacing["5"]}}>
             <AppInitialRenderContextProvider>
                 <OverlayScopeContextProvider>
                     <TooltipCoordinationContextProvider>
-                        <Outlet />
+                        {children}
                     </TooltipCoordinationContextProvider>
                 </OverlayScopeContextProvider>
             </AppInitialRenderContextProvider>
@@ -55,7 +62,7 @@ export default function Root() {
                 <InitializeColorSchemeScript />
             </head>
             <body>
-                {outlet}
+                {wrappedChildren}
                 <ScrollRestoration />
                 <LiveReload port={3001} />
                 <Scripts />
@@ -63,3 +70,54 @@ export default function Root() {
         </html>
     );
 }
+
+function RootErrorRenderer({error: _error}: {error: unknown}) {
+    // It appears that Remix does not `useMemo()` its error object. So stabilize
+    // the object reference here. Our error rendering components use referential
+    // identity to determine whether we need to log the error.
+    const error = useStableValue(ErrorSchema, _error);
+
+    return (
+        <Box display="flex" justifyContent="center">
+            <main
+                className={sprinkles({
+                    width: "full",
+                    maxWidth: "128",
+                    paddingX: "4",
+                    paddingY: {desktop: "32", mobile: "16"},
+                })}
+            >
+                <Box display="flex" gap="2" paddingBottom="2">
+                    <Box
+                        flexShrink="0"
+                        color="red-40"
+                        display="flex"
+                        justifyContent="center"
+                        alignItems="center"
+                        style={{
+                            fontSize: typographySize.heading4.fontSize,
+                            height: typographySize.heading4.lineHeight,
+                        }}
+                    >
+                        <Warning weight="fill" size={typographySize.heading4.fontSize} />
+                    </Box>
+                    <h1
+                        className={sprinkles({
+                            flexGrow: "1",
+                            typographySize: "heading4",
+                            typographyStyle: "primaryMedium",
+                        })}
+                    >
+                        Could not load page
+                    </h1>
+                </Box>
+                <ErrorDisplayMessageRenderer error={error} size="body" />
+            </main>
+        </Box>
+    );
+}
+
+// We use the same `<Root>` component for the error boundary component so that
+// if Remix navigates between root and error boundary we don't remount the
+// HTML. (Which appears to cause CSS to flash off.)
+export const ErrorBoundary = Root;

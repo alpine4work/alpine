@@ -1,0 +1,72 @@
+diff --git a/dist/components.js b/dist/components.js
+index f94728730dba725146c1223659f4a7ba1af946b6..e7fd2e68d4631a28c729ab499fc06adc78a1a2b9 100644
+--- a/dist/components.js
++++ b/dist/components.js
+@@ -159,6 +159,13 @@ function RemixEntry({
+ }
+ 
+ function deserializeError(data) {
++  // NOTE(calebmer): We want to use our own error serialization/deserialization
++  // logic instead of the default logic Remix comes out of the box with. To do
++  // this we inject a global. Ideally there would be some first-class way other
++  // than injection to do this.
++  if (typeof __remixErrorSchema !== "undefined") {
++    return __remixErrorSchema.deserialize(data);
++  }
+   let error = new Error(data.message);
+   error.stack = data.stack;
+   return error;
+diff --git a/dist/data.js b/dist/data.js
+index 7ee105347d2b523d74fe4a530b9287c859ad0504..03f2b144df33d94d624fabb4e47cecd23d461b69 100644
+--- a/dist/data.js
++++ b/dist/data.js
+@@ -33,6 +33,13 @@ async function fetchData(url, routeId, signal, submission) {
+ 
+   if (isErrorResponse(response)) {
+     let data = await response.json();
++    // NOTE(calebmer): We want to use our own error serialization/deserialization
++    // logic instead of the default logic Remix comes out of the box with. To do
++    // this we inject a global. Ideally there would be some first-class way other
++    // than injection to do this.
++    if (typeof __remixErrorSchema !== "undefined") {
++      return __remixErrorSchema.deserialize(data);
++    }
+     let error = new Error(data.message);
+     error.stack = data.stack;
+     return error;
+diff --git a/dist/esm/components.js b/dist/esm/components.js
+index e884e7b984e4ef29fbcf2b2f5c9150513cc360f5..6a55f67235b9c1cdebd96dfd8cd8e8cc5f830c19 100644
+--- a/dist/esm/components.js
++++ b/dist/esm/components.js
+@@ -135,6 +135,13 @@ function RemixEntry({
+ }
+ 
+ function deserializeError(data) {
++  // NOTE(calebmer): We want to use our own error serialization/deserialization
++  // logic instead of the default logic Remix comes out of the box with. To do
++  // this we inject a global. Ideally there would be some first-class way other
++  // than injection to do this.
++  if (typeof __remixErrorSchema !== "undefined") {
++    return __remixErrorSchema.deserialize(data);
++  }
+   let error = new Error(data.message);
+   error.stack = data.stack;
+   return error;
+diff --git a/dist/esm/data.js b/dist/esm/data.js
+index 69473f0d789453847a9880071387d8f96e0dabb1..da230284a1da41d1d939a7eeae79228c27ef7e66 100644
+--- a/dist/esm/data.js
++++ b/dist/esm/data.js
+@@ -29,6 +29,13 @@ async function fetchData(url, routeId, signal, submission) {
+ 
+   if (isErrorResponse(response)) {
+     let data = await response.json();
++    // NOTE(calebmer): We want to use our own error serialization/deserialization
++    // logic instead of the default logic Remix comes out of the box with. To do
++    // this we inject a global. Ideally there would be some first-class way other
++    // than injection to do this.
++    if (typeof __remixErrorSchema !== "undefined") {
++      return __remixErrorSchema.deserialize(data);
++    }
+     let error = new Error(data.message);
+     error.stack = data.stack;
+     return error;

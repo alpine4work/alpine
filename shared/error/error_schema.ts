@@ -4,7 +4,7 @@ import {ErrorDisplayMessageSchema} from "~/shared/error/error_display_message";
 import {Schema} from "~/shared/schema/schema";
 
 export const ErrorSchema = Schema.object({
-    code: Schema.integer,
+    code: Schema.integer.optional(),
     message: Schema.string,
     displayMessage: ErrorDisplayMessageSchema.optional(),
     name: Schema.string.optional(),
@@ -21,7 +21,10 @@ export const ErrorSchema = Schema.object({
             : {}),
     }),
     deserialize: serializedError => {
-        const code = isErrorCode(serializedError.code) ? serializedError.code : ErrorCode.Unknown;
+        const code =
+            serializedError.code !== undefined && isErrorCode(serializedError.code)
+                ? serializedError.code
+                : ErrorCode.Unknown;
         const ErrorConstructor = getErrorConstructorForCode(code);
 
         const error = new ErrorConstructor(serializedError.message, {

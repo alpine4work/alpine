@@ -41,8 +41,11 @@ patchedDependencies:
     hash: m2yyjeke34aaiqlhdp32rpsrre
     path: admin/patches/@miniflare__http-server@2.11.0.patch
   '@remix-run/server-runtime@1.7.5':
-    hash: prf3r6ery7lqkaxjmbfra3l3x4
+    hash: r35na5mckurqvialldrpr3orxu
     path: admin/patches/@remix-run__server-runtime@1.7.5.patch
+  '@remix-run/react@1.7.5':
+    hash: vccgcdy3rs4uooyoa2fkdurpna
+    path: admin/patches/@remix-run__react@1.7.5.patch
 
 specifiers:
   '@aws-sdk/client-dynamodb': ^3.201.0
@@ -186,8 +189,8 @@ dependencies:
   '@remix-run/cloudflare-workers': 1.7.5_dp7lsxfcjoxmh2gy56a7syibgu
   '@remix-run/dev': 1.7.5_gaqwxjju2xklyshuteesdhrzdq_biqbaboplfbrettd7655fr4n2y
   '@remix-run/eslint-config': 1.7.5_db2uus5apvvjwcmlzmwtgvasei
-  '@remix-run/react': 1.7.5_biqbaboplfbrettd7655fr4n2y
-  '@remix-run/server-runtime': 1.7.5_prf3r6ery7lqkaxjmbfra3l3x4_biqbaboplfbrettd7655fr4n2y
+  '@remix-run/react': 1.7.5_vccgcdy3rs4uooyoa2fkdurpna_biqbaboplfbrettd7655fr4n2y
+  '@remix-run/server-runtime': 1.7.5_r35na5mckurqvialldrpr3orxu_biqbaboplfbrettd7655fr4n2y
   '@testing-library/jest-dom': 5.16.5
   '@testing-library/react': 13.4.0_biqbaboplfbrettd7655fr4n2y
   '@types/bcrypt': 5.0.0
@@ -4219,7 +4222,7 @@ packages:
     dependencies:
       '@cloudflare/kv-asset-handler': 0.1.3
       '@cloudflare/workers-types': 3.18.0
-      '@remix-run/server-runtime': 1.7.5_prf3r6ery7lqkaxjmbfra3l3x4_biqbaboplfbrettd7655fr4n2y
+      '@remix-run/server-runtime': 1.7.5_r35na5mckurqvialldrpr3orxu_biqbaboplfbrettd7655fr4n2y
     transitivePeerDependencies:
       - react
       - react-dom
@@ -4241,7 +4244,7 @@ packages:
       '@babel/preset-typescript': 7.18.6_@babel+core@7.19.6
       '@esbuild-plugins/node-modules-polyfill': 0.1.4_esbuild@0.14.51
       '@npmcli/package-json': 2.0.0
-      '@remix-run/server-runtime': 1.7.5_prf3r6ery7lqkaxjmbfra3l3x4_biqbaboplfbrettd7655fr4n2y
+      '@remix-run/server-runtime': 1.7.5_r35na5mckurqvialldrpr3orxu_biqbaboplfbrettd7655fr4n2y
       '@yarnpkg/esbuild-plugin-pnp': 3.0.0-rc.11_esbuild@0.14.51
       arg: 5.0.2
       cacache: 15.3.0
@@ -4322,7 +4325,7 @@ packages:
       - supports-color
     dev: false
 
-  /@remix-run/react/1.7.5_biqbaboplfbrettd7655fr4n2y:
+  /@remix-run/react/1.7.5_vccgcdy3rs4uooyoa2fkdurpna_biqbaboplfbrettd7655fr4n2y:
     resolution: {integrity: sha512-KJVdTJee3muDJ3hZh8IVg3JbSfmaH4NiCpp8ewPopszf8xu+ecUH/rP/3mZ5Ge7D+AhmFOr/7eiFjgpkN8vhsQ==}
     engines: {node: '>=14'}
     peerDependencies:
@@ -4334,8 +4337,9 @@ packages:
       react-dom: 18.2.0_react@18.2.0
       react-router-dom: 6.3.0_biqbaboplfbrettd7655fr4n2y
     dev: false
+    patched: true
 
-  /@remix-run/server-runtime/1.7.5_prf3r6ery7lqkaxjmbfra3l3x4_biqbaboplfbrettd7655fr4n2y:
+  /@remix-run/server-runtime/1.7.5_r35na5mckurqvialldrpr3orxu_biqbaboplfbrettd7655fr4n2y:
     resolution: {integrity: sha512-wy/1UDUjN1AoZBAee12rV1gbq+N6RfHetarHLoEIHWrKx3oLb0Ik+MQmjD6PbyO41JdOVQ2tn+euJHJY7sz48g==}
     engines: {node: '>=14'}
     peerDependencies:
