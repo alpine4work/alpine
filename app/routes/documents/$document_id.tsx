@@ -1,5 +1,4 @@
 import {BlobFactory} from "~/client/blob_factory/blob_factory";
-import {BlobFactoryInterpolateMode} from "~/client/blob_factory/blob_factory_types";
 import {useColorScheme} from "~/client/design/color_scheme";
 import {DocumentContentEditor} from "~/client/documents/document_content_editor";
 import {useDeveloperConsoleSettingsObject} from "~/client/helpers/developer_console";
@@ -53,48 +52,28 @@ export default function DocumentRoute() {
             defaultValue: true,
             schema: Schema.boolean,
         },
-        shouldForceOutsideChromaLightness: {
-            defaultValue: true,
-            schema: Schema.boolean,
-        },
-        forcedOutsideChromaDark: {
-            defaultValue: 70,
-            schema: Schema.float,
-        },
-        forcedOutsideLightnessDark: {
-            defaultValue: 25,
-            schema: Schema.float,
-        },
-        forcedOutsideChromaLight: {
-            defaultValue: 50,
-            schema: Schema.float,
-        },
-        forcedOutsideLightnessLight: {
-            defaultValue: 105,
-            schema: Schema.float,
-        },
-        interpolateMode: {
-            defaultValue: BlobFactoryInterpolateMode.Naive,
-            schema: Schema.enum([
-                BlobFactoryInterpolateMode.Naive,
-                BlobFactoryInterpolateMode.Min,
-                BlobFactoryInterpolateMode.Vector,
-            ]),
-        },
-        colorLevelLight: {
-            defaultValue: 30,
+        colorLevelInsideLight: {
+            defaultValue: 20,
             schema: Schema.integer,
         },
-        colorLevelDark: {
-            defaultValue: 60,
+        colorLevelInsideDark: {
+            defaultValue: 80,
+            schema: Schema.integer,
+        },
+        colorLevelOutsideLight: {
+            defaultValue: 10,
+            schema: Schema.integer,
+        },
+        colorLevelOutsideDark: {
+            defaultValue: 90,
             schema: Schema.integer,
         },
         minBlobCount: {
-            defaultValue: 5,
+            defaultValue: 6,
             schema: Schema.integer,
         },
         maxBlobCount: {
-            defaultValue: 8,
+            defaultValue: 10,
             schema: Schema.integer,
         },
         spreadX: {
@@ -122,7 +101,11 @@ export default function DocumentRoute() {
             schema: Schema.enum(themeColors),
         },
         colorSpread: {
-            defaultValue: 1.2,
+            defaultValue: 0,
+            schema: Schema.float,
+        },
+        hueSpread: {
+            defaultValue: 45,
             schema: Schema.float,
         },
     });
@@ -135,18 +118,14 @@ export default function DocumentRoute() {
                 randomSeed={settings.seed}
                 settings={{
                     ...settings,
-                    colorLevel:
+                    colorLevelInside:
                         colorScheme === "light"
-                            ? settings.colorLevelLight
-                            : settings.colorLevelDark,
-                    forcedOutsideLightness:
+                            ? settings.colorLevelInsideLight
+                            : settings.colorLevelInsideDark,
+                    colorLevelOutside:
                         colorScheme === "light"
-                            ? settings.forcedOutsideLightnessLight
-                            : settings.forcedOutsideLightnessDark,
-                    forcedOutsideChroma:
-                        colorScheme === "light"
-                            ? settings.forcedOutsideChromaLight
-                            : settings.forcedOutsideChromaDark,
+                            ? settings.colorLevelOutsideLight
+                            : settings.colorLevelOutsideDark,
                     backgroundColor: colorScheme === "light" ? "grey-0" : "grey-100",
                 }}
             />

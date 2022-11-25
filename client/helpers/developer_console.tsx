@@ -3,6 +3,7 @@ import {
     ColorScheme,
     getColorSchemeWithoutListening,
     setColorScheme,
+    toggleColorScheme,
 } from "~/client/design/color_scheme";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -13,6 +14,7 @@ import {Schema, SchemaSerializedValue} from "~/shared/schema/schema";
 
 const cyberworlds = {
     generateId,
+    toggleColorScheme,
 };
 
 defineSchemaProperty<ColorScheme>(
