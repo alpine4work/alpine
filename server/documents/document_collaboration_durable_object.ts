@@ -1,5 +1,5 @@
 import {Step} from "prosemirror-transform";
-import {DurableObjectRequestServerContext, ServerContext} from "~/server/context/server_context";
+import {DurableObjectProcessContext} from "~/server/context/durable_object_context";
 import {DocumentCollaborationStepCache} from "~/server/documents/document_collaboration_step_cache";
 import {getUpdateDocumentContentResult} from "~/server/documents/get_update_document_content_result";
 import {
@@ -67,6 +67,7 @@ export {DocumentCollaborationDurableObjectWrapper as DocumentCollaborationDurabl
 
 class DocumentCollaborationDurableObject {
     private readonly _state: DurableObjectState;
+    private readonly _context: DurableObjectProcessContext;
     public readonly id: Id;
     private readonly _contentManager: DocumentCollaborationContentManager;
     private readonly _destroyCallback: () => void;
@@ -112,6 +113,7 @@ class DocumentCollaborationDurableObject {
         destroy: () => void;
     }) {
         this._state = state;
+        this._context = new DurableObjectProcessContext(state);
         this.id = id;
         this._contentManager = new DocumentCollaborationContentManager({
             state,
@@ -124,12 +126,11 @@ class DocumentCollaborationDurableObject {
         this._destroyCallback = destroy;
 
         this._webSocketServer = new WebSocketServer(
-            this._state,
             DocumentCollaborationMessageFromClientSchema,
             DocumentCollaborationMessageFromServerSchema,
-            ({context, sendMessage, sendMessageToOthers, iterateOtherConnections}) =>
+            ({sendMessage, sendMessageToOthers, iterateOtherConnections}) =>
                 new DocumentCollaborationDurableObjectConnection({
-                    context,
+                    context: this._context,
                     contentManager: this._contentManager,
                     sendMessage,
                     sendMessageToOthers,
@@ -245,7 +246,7 @@ class DocumentCollaborationContentManager {
      * `newSteps` applied to `content` produces `newContent`.
      */
     public update(
-        context: ServerContext,
+        context: DurableObjectProcessContext,
         connectionId: Id,
         update: {
             version: number;
@@ -412,7 +413,7 @@ class DocumentCollaborationContentManager {
 class DocumentCollaborationDurableObjectConnection {
     public readonly id = generateId();
 
-    private readonly _context: DurableObjectRequestServerContext;
+    private readonly _context: DurableObjectProcessContext;
     private readonly _contentManager: DocumentCollaborationContentManager;
     private readonly _sendMessage: (message: DocumentCollaborationMessageFromServer) => void;
     private readonly _sendMessageToOthers: (
@@ -432,7 +433,7 @@ class DocumentCollaborationDurableObjectConnection {
         iterateOtherConnections,
         destroyDurableObject,
     }: {
-        context: DurableObjectRequestServerContext;
+        context: DurableObjectProcessContext;
         contentManager: DocumentCollaborationContentManager;
         sendMessage: (message: DocumentCollaborationMessageFromServer) => void;
         sendMessageToOthers: (message: DocumentCollaborationMessageFromServer) => void;

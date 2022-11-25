@@ -83,17 +83,6 @@ export const typographyStyle = {
 };
 
 /**
- * Line height is 1.5x for all sizes except `small`. For `small` the line
- * height is 1rem because `small` is our default font size for UI text (e.g.
- * button labels) and we want it to play nice with our spacing scale.
- *
- * It's more important that our line heights make our typography look good than
- * to match our spacing scale. If we want text to fit in our spacing scale, use
- * a container that fits it to the right size.
- */
-export const bodyFontAndHeaderFontLineHeight = "1.4em" as const;
-
-/**
  * The font scale for our product.
  *
  * To determine letter spacing we use Inter's [dynamic metrics][1] for the font

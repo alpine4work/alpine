@@ -1,4 +1,4 @@
-import {ActionArgs, redirect} from "@remix-run/cloudflare";
+import {redirect} from "@remix-run/cloudflare";
 import {Form, useParams, useTransition} from "@remix-run/react";
 import {useState} from "react";
 import {Box} from "~/client/design/box";
@@ -6,15 +6,12 @@ import {Button} from "~/client/design/button";
 import {Spacer} from "~/client/design/spacer";
 import {ErrorInlineAlert} from "~/client/error/error_inline_alert";
 import {useActionDataWithSchema} from "~/client/helpers/use_action_data_with_schema";
-import {ServerContext} from "~/server/context/server_context";
 import {attemptOneTimePasswordSignIn} from "~/server/dynamo/accounts_table";
 import {jsonWithSchema} from "~/server/helpers/json_with_schema";
 import {DataFunctionArgs} from "~/server/helpers/types/remix_data_function_args";
-import {getSession, setSession} from "~/server/session/session";
 import {InvalidArgumentError} from "~/shared/error/error";
 import {ErrorSchema} from "~/shared/error/error_schema";
 import {isHttp500Error} from "~/shared/error/is_http_500_error_code";
-import {assert} from "~/shared/helpers/control/assert";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 import {sprinkles} from "~/shared/styles/styles";
 
@@ -44,17 +41,12 @@ export async function action({request, context, params}: DataFunctionArgs) {
             throw new InvalidArgumentError('Expected property "oneTimePassword" in form data');
 
         const {sessionId} = await attemptOneTimePasswordSignIn(
-            context.context,
+            context,
             emailAddress,
             oneTimePassword,
         );
 
-        const session = await context.sessionPromise;
-
-        session.set({
-            ...session.get(),
-            sessionId,
-        });
+        await context.dangerouslySetSessionId(sessionId);
 
         // TODO(calebmer): Send the user to a logged in screen.
         return redirect("/");

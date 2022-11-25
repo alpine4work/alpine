@@ -184,7 +184,7 @@ export const colorSchemeVars = {
  * Box shadow variables that change based on whether we're in light mode or
  * dark mode.
  */
-export const elevationVars = createGlobalTheme(
+export const elevationVars: {[K in keyof typeof elevation]: CssVarFunction} = createGlobalTheme(
     ":root",
     mapObjectValues(elevation, ({light}): string => light),
 );

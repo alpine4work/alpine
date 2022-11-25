@@ -7,10 +7,7 @@ import {
     titleClassName,
 } from "~/shared/styles/internal/content_schema.css";
 import {inputPlaceholderColor} from "~/shared/styles/internal/input_placeholder_color.css";
-import {
-    bodyFontAndHeaderFontLineHeight,
-    typographySize,
-} from "~/shared/styles/internal/typography.css";
+import {typographySize} from "~/shared/styles/internal/typography.css";
 
 export const containerClassName = style({
     height: "100%",

@@ -1108,7 +1108,7 @@ class StringSchema extends Schema<string> {
         },
     });
 
-    private _transformString({
+    public _transformString({
         serialize,
         deserialize,
     }: {
@@ -1159,7 +1159,7 @@ class StringSchema extends Schema<string> {
      * provided length.
      */
     // TODO(calebmer): Backwards compatibility validation?
-    public maxLength(length: number) {
+    public maxLength(length: number): StringSchema {
         return this._transformString({
             serialize: value => {
                 if (value.length > length)
@@ -1184,7 +1184,7 @@ class StringSchema extends Schema<string> {
      * Verifies that a string only occupies a single line.
      */
     // TODO(calebmer): Backwards compatibility validation?
-    public singleLine() {
+    public singleLine(): StringSchema {
         return this._transformString({
             serialize: value => {
                 if (/[\n\r]/g.test(value))
@@ -1205,7 +1205,7 @@ class StringSchema extends Schema<string> {
      * Transforms a value by removing the whitespace from the start and end of the
      * string.
      */
-    public trim() {
+    public trim(): StringSchema {
         return this._transformString({
             serialize: value => value.trim(),
             deserialize: value => value.trim(),
@@ -1215,7 +1215,7 @@ class StringSchema extends Schema<string> {
     /**
      * Transforms a value by converting all characters to lower case.
      */
-    public lowerCase() {
+    public lowerCase(): StringSchema {
         return this._transformString({
             serialize: value => value.toLowerCase(),
             deserialize: value => value.toLowerCase(),

@@ -1,13 +1,16 @@
 import {differenceInHours, differenceInMinutes} from "date-fns";
-import {ServerContext} from "~/server/context/server_context";
+import {UnauthenticatedRequestContext} from "~/server/context/context";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
 import {DynamoConditionExpression} from "~/server/dynamo/internal/dynamo_condition";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry_dynamo_condition_check_errors";
+import {SessionCookie} from "~/server/session/session_cookie";
 import {FailedPreconditionError, NotFoundError, PermissionDeniedError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {assert} from "~/shared/helpers/control/assert";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {Lazy} from "~/shared/helpers/control/lazy";
 import {quote} from "~/shared/helpers/string/quote";
 import {Id, generateId, isId} from "~/shared/id/id";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
@@ -36,11 +39,9 @@ const AccountsTable = DynamoTableSchema.new({
                         createdTime: Schema.date,
 
                         /**
-                         * Can this account approve folks who want to get alpha access to the product?
-                         * We will eventually get rid of this option. Once the product is out of alpha
-                         * and anyone can sign up.
+                         * Does this account have access to pages under `/internal`?
                          */
-                        canApproveAlphaAccessRequests: Schema.boolean.optional(),
+                        hasInternalAccess: Schema.boolean.optional(),
                     }),
                 },
             },
@@ -71,6 +72,9 @@ const AccountsTable = DynamoTableSchema.new({
 
                         /**
                          * The account associated with the email address.
+                         *
+                         * We expect the account referenced by this session to always exist.
+                         * When deleting an account, we should delete these items first.
                          */
                         accountId: Schema.id,
 
@@ -153,6 +157,9 @@ const AccountsTable = DynamoTableSchema.new({
                     attributes: Schema.object({
                         /**
                          * The account this session is for.
+                         *
+                         * We expect the account referenced by this session to always exist.
+                         * When deleting an account, we should delete these items first.
                          */
                         accountId: Schema.id,
 
@@ -186,11 +193,13 @@ export function getAccountsTableForTest() {
     return AccountsTable;
 }
 
-type AccountEmailAddressAttributes = DynamoTableItemType<
+type AccountEmailAddressItem = DynamoTableItemType<
     typeof AccountsTable,
     "AccountEmailAddress",
     "Attributes"
 >;
+
+type SessionItem = DynamoTableItemType<typeof AccountsTable, "Session", "Attributes">;
 
 export async function seedTestAccounts() {
     assert(process.env.NODE_ENV !== "production");
@@ -205,7 +214,7 @@ export async function seedTestAccounts() {
             accountId: adminAccountId,
             name: "Test Admin",
             createdTime: new Date(),
-            canApproveAlphaAccessRequests: true,
+            hasInternalAccess: true,
         }),
         AccountsTable.transactionPutItem(
             {
@@ -381,7 +390,7 @@ const expireOneTimePasswordAfterMinutes = 60;
  * least 24 hours.
  */
 export function attemptOneTimePasswordSignIn(
-    context: ServerContext,
+    context: UnauthenticatedRequestContext,
     emailAddress: string,
     oneTimePassword: string,
 ): Promise<{
@@ -478,8 +487,8 @@ export function attemptOneTimePasswordSignIn(
                     sessionId,
                     accountId: accountEmailAddressItem.accountId,
                     createdTime: new Date(),
-                    initialIpAddress: context.getRequestIpAddress(),
-                    initialUserAgent: context.getRequestUserAgent(),
+                    initialIpAddress: context.getClientIpAddress(),
+                    initialUserAgent: context.getClientUserAgent(),
                 }),
             ]);
 
@@ -502,7 +511,7 @@ const maxHoursUntilRegenerateOneTimePasswordUnlocked = 24;
  */
 function getHoursUntilRegenerateOneTimePasswordUnlocked({
     oneTimePasswordSignInState,
-}: AccountEmailAddressAttributes): number {
+}: AccountEmailAddressItem): number {
     // If the email address is not locked, the user may regenerate a password
     // whenever.
     if (
@@ -553,4 +562,84 @@ function accountEmailAddressSignInLockedError(hoursUntilUnlocked: number) {
             "/sign-in",
         )} again.`,
     });
+}
+
+/**
+ * An account identifies an actor in our system.
+ *
+ * Usually an account corresponds to a person who signed up with the real name
+ * and work email address but an account could also represent a "service
+ * account" or bot acting against our systems.
+ */
+export type Account = {
+    readonly id: Id;
+    readonly name: string;
+    readonly createdTime: Date;
+    readonly hasInternalAccess?: boolean;
+};
+
+/**
+ * A session is created when an account authenticates a device with the system.
+ * We securely store a session id on that device and whenever the device
+ * interacts with our systems it shares the session id to identify itself.
+ */
+export class Session {
+    public readonly id: Id;
+    public readonly createdTime: Date;
+    public readonly accountId: Id;
+
+    // It is important that the constructor for a session object is private! You
+    // are only allowed to create a session object through the `get()` function
+    // which forces you to pass in a `SessionCookie` class which we know is
+    // securely constructed from a request cookie.
+    private constructor(sessionId: Id, sessionItem: SessionItem) {
+        this.id = sessionId;
+        this.createdTime = sessionItem.createdTime;
+        this.accountId = sessionItem.accountId;
+    }
+
+    public static async get(sessionCookie: SessionCookie): Promise<Session | null> {
+        const {sessionId} = sessionCookie.get();
+        if (!sessionId) return null;
+
+        const sessionItem = await AccountsTable.getItem({
+            partitionType: "Session",
+            sortRangeType: "Attributes",
+            sessionId,
+        });
+
+        if (!sessionItem) {
+            // We delete sessions from the database when revoking a device's access to an
+            // account. Remove the now invalid session id from the cookie.
+            sessionCookie.unsetSessionId();
+            return null;
+        }
+
+        return new Session(sessionId, sessionItem);
+    }
+
+    private readonly _account = new Lazy<Promise<Account>>(async () => {
+        const accountItem = assertExists(
+            // TODO(calebmer): We have a read request waterfall here. Given how frequently
+            // we need to get the account from a session, maybe we should add an LRU cache?
+            await AccountsTable.getItem({
+                partitionType: "Account",
+                sortRangeType: "Attributes",
+                accountId: this.accountId,
+            }),
+            "Expected account referenced by session to exist",
+        );
+
+        return {
+            id: this.accountId,
+            name: accountItem.name,
+            createdTime: accountItem.createdTime,
+            hasInternalAccess: accountItem.hasInternalAccess,
+        };
+    });
+
+    public getAccount(): Promise<Account> {
+        // Get the account once for the session and cache it.
+        return this._account.get();
+    }
 }

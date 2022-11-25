@@ -1,3 +1,5 @@
+/// <reference types="@types/node" />
+
 import crypto from "crypto";
 import {InternalError} from "~/shared/error/error";
 

@@ -148,14 +148,14 @@ test("compiles equals expression", () => {
             // `DynamoConditionExpression.exists().not()`.
             c: DynamoConditionExpression.eq(undefined),
         }),
-    ).toThrow("Assertion failure");
+    ).toThrow("Expected integer");
     expect(() =>
         compile({
             // @ts-expect-error: For optional properties you need to use
             // `DynamoConditionExpression.exists().not()`.
             e: DynamoConditionExpression.eq(undefined),
         }),
-    ).toThrow("Assertion failure");
+    ).toThrow("Expected integer");
 });
 
 test("compiles not equals expressions", () => {

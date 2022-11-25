@@ -1,14 +1,7 @@
-import type {Params} from "react-router-dom";
-import type {ServerContext} from "~/server/context/server_context";
-import type {Session} from "~/server/session/session";
+import type {UnauthenticatedAppWorkerRequestContext} from "~/server/context/app_worker_context";
 
 export interface DataFunctionArgs {
     request: Request;
-    context: AppLoadContext;
-    params: Params;
+    context: UnauthenticatedAppWorkerRequestContext;
+    params: {readonly [key: string]: string | undefined};
 }
-
-export type AppLoadContext = {
-    context: ServerContext;
-    sessionPromise: Promise<Session>;
-};

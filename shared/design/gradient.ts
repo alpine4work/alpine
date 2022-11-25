@@ -1,4 +1,3 @@
-import Color from "color";
 import {interpolateHcl} from "d3-interpolate";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length";
 import {Easing} from "~/shared/helpers/easing";

@@ -1,6 +1,6 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep, Step} from "prosemirror-transform";
-import {TestServerContext} from "~/server/context/server_context";
+import {TestProcessContext} from "~/server/context/test_context";
 import {DocumentCollaborationStepCache} from "~/server/documents/document_collaboration_step_cache";
 import {
     createDocument,
@@ -13,6 +13,8 @@ import {
 } from "~/shared/documents/document_content_schema";
 import {FailedPreconditionError} from "~/shared/error/error";
 import {generateId} from "~/shared/id/id";
+
+const context = new TestProcessContext();
 
 function textSlice(text: string) {
     if (text.length === 0) return Slice.empty;
@@ -31,7 +33,7 @@ test("fails when the end version is greater than the last end version to be pass
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(new TestServerContext(), {
+    await updateDocumentContent(context, {
         id,
         version: 0,
         steps: [
@@ -68,7 +70,7 @@ test("gets the correct steps", async () => {
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(new TestServerContext(), {
+    await updateDocumentContent(context, {
         id,
         version: 0,
         steps: [
@@ -134,7 +136,7 @@ test("gets the correct steps in the fewest database reads", async () => {
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(new TestServerContext(), {
+    await updateDocumentContent(context, {
         id,
         version: 0,
         steps: [
@@ -242,7 +244,7 @@ test("gets the correct steps in the fewest database reads even when reading in p
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(new TestServerContext(), {
+    await updateDocumentContent(context, {
         id,
         version: 0,
         steps: [

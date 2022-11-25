@@ -19,7 +19,7 @@ const [ablyApiKeyId = "", ablyApiKeySecret = ""] = ablyApiKey.split(":");
 assert(ablyApiKeyId.length > 0);
 assert(ablyApiKeySecret.length > 0);
 
-implementNetworkFunction(definition.authenticateAbly, async (input, session) => {
+implementNetworkFunction(definition.authenticateAbly, async (input, context) => {
     let capability: unknown;
     try {
         capability =
@@ -60,7 +60,7 @@ implementNetworkFunction(definition.authenticateAbly, async (input, session) => 
 
     // We use the browser id as the Ably client id. An attacker can't spoof the
     // browser id because it is a part of our signed session cookie.
-    const ablyClientId = session.browserId;
+    const ablyClientId = await context.getBrowserId();
 
     // Yay! All our channels are authorized. Send a short-lived JWT token to the
     // client for subscribing to Ably messages.

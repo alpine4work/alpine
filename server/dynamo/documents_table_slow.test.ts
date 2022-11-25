@@ -8,7 +8,7 @@
 
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
-import {TestServerContext} from "~/server/context/server_context";
+import {TestProcessContext} from "~/server/context/test_context";
 import {
     createDocument,
     getDocument,
@@ -24,6 +24,8 @@ import {
 import {generateId} from "~/shared/id/id";
 
 jest.useFakeTimers();
+
+const context = new TestProcessContext();
 
 function textSlice(text: string) {
     return new Slice(Fragment.from(schema.text(text)), 0, 0);
@@ -46,14 +48,14 @@ test(
         for (let i = 1; i <= 240; i++) {
             const newText = `${i} `;
 
-            await updateDocumentContent(new TestServerContext(), {
+            await updateDocumentContent(context, {
                 id: documentId,
                 version: i - 1,
                 steps: [new ReplaceStep(3 + text.length, 3 + text.length, textSlice(newText))],
                 clientId: generateId(),
             });
 
-            await TestServerContext.waitForTasks();
+            await TestProcessContext.waitForTasks();
 
             text += newText;
 
@@ -157,14 +159,14 @@ test(
             const step6 = new ReplaceStep(3 + text.length, 3 + text.length, textSlice(newText6));
             text += newText6;
 
-            await updateDocumentContent(new TestServerContext(), {
+            await updateDocumentContent(context, {
                 id: documentId,
                 version: i - 1,
                 steps: [step1, step2, step3, step4, step5, step6],
                 clientId: generateId(),
             });
 
-            await TestServerContext.waitForTasks();
+            await TestProcessContext.waitForTasks();
 
             snapshotVersions.add(
                 (
@@ -235,7 +237,7 @@ test(
             const requestPausePromise =
                 updateDocumentSnapshotBeforeDeletingStepsTestCheckpoint.pauseForTest(documentId);
 
-            const requestPromise = updateDocumentContent(new TestServerContext(), {
+            const requestPromise = updateDocumentContent(context, {
                 id: documentId,
                 version: i - 1,
                 steps: [step1, step2, step3, step4, step5, step6],
@@ -251,7 +253,7 @@ test(
 
             const requestPauseResult = await requestPausePromise;
 
-            await TestServerContext.waitForTasks();
+            await TestProcessContext.waitForTasks();
 
             // Read the document before the request is unpaused so old steps have not been
             // deleted yet.
@@ -337,14 +339,14 @@ test(
             // in the cache and instead need to go read them from the database.
             jest.runAllTimers();
 
-            await updateDocumentContent(new TestServerContext(), {
+            await updateDocumentContent(context, {
                 id: documentId,
                 version: 0,
                 steps: [step1, step2, step3, step4, step5, step6],
                 clientId: generateId(),
             });
 
-            await TestServerContext.waitForTasks();
+            await TestProcessContext.waitForTasks();
 
             // Read the document before the request is unpaused so old steps have not been
             // deleted yet.

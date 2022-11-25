@@ -1,5 +1,5 @@
 import {Step} from "prosemirror-transform";
-import {ServerContext} from "~/server/context/server_context";
+import {ProcessContext} from "~/server/context/context";
 import {getUpdateDocumentContentResult} from "~/server/documents/get_update_document_content_result";
 import {DynamoConditionExpression} from "~/server/dynamo/internal/dynamo_condition";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
@@ -820,7 +820,7 @@ declare module "prosemirror-transform" {
 // object we should throw an error or restart the durable object or something.
 // Maybe the durable object could incorporate conflicting
 export async function updateDocumentContent(
-    context: ServerContext,
+    context: ProcessContext,
     {
         id,
         version: clientVersion,

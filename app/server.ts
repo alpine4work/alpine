@@ -1,7 +1,7 @@
+import {AppLoadContext} from "@remix-run/cloudflare";
 import {createRequestHandler, handleAsset} from "@remix-run/cloudflare-workers";
 import * as build from "@remix-run/dev/server-build";
-import {WorkerServerContext} from "~/server/context/server_context";
-import {Session} from "~/server/session/session";
+import {UnauthenticatedAppWorkerRequestContext} from "~/server/context/app_worker_context";
 import {InternalError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {Schema} from "~/shared/schema/schema";
@@ -10,20 +10,13 @@ type CloudflareEnv = {
     DocumentCollaborationDurableObjectNamespace: DurableObjectNamespace;
 };
 
-const sessionPromiseSymbol = Symbol("sessionPromise");
+const contextSymbol = Symbol("sessionCookiePromise");
 
 const handleRequest = createRequestHandler({
     build,
-    getLoadContext(event: FetchEvent & {[sessionPromiseSymbol]?: Promise<Session>}) {
-        const context = new WorkerServerContext(event.request, {
-            waitUntil: promise => event.waitUntil(promise),
-            passThroughOnException: () => event.passThroughOnException(),
-        });
-
-        return {
-            context,
-            sessionPromise: assertExists(event[sessionPromiseSymbol]),
-        };
+    getLoadContext(event: FetchEvent & {[contextSymbol]?: UnauthenticatedAppWorkerRequestContext}) {
+        const context = assertExists(event[contextSymbol]);
+        return context as any as AppLoadContext;
     },
 });
 
@@ -31,24 +24,22 @@ export default {
     async fetch(
         request: Request,
         env: CloudflareEnv,
-        context: ExecutionContext,
+        executionContext: ExecutionContext,
     ): Promise<Response> {
         const url = new URL(request.url);
 
         // Backwards compatibility with Cloudflare service worker syntax. (Instead of
         // Cloudflare module syntax.)
         // https://developers.cloudflare.com/workers/runtime-apis/fetch-event
-        const event: FetchEvent & {[sessionPromiseSymbol]?: Promise<Session>} = Object.assign(
-            new Event("fetch"),
-            {
+        const event: FetchEvent & {[contextSymbol]?: UnauthenticatedAppWorkerRequestContext} =
+            Object.assign(new Event("fetch"), {
                 request,
-                waitUntil: (promise: Promise<any>) => context.waitUntil(promise),
-                passThroughOnException: () => context.passThroughOnException(),
+                waitUntil: (promise: Promise<any>) => executionContext.waitUntil(promise),
+                passThroughOnException: () => executionContext.passThroughOnException(),
                 respondWith: () => {
                     throw new InternalError("Can not respond through fetch event stub");
                 },
-            },
-        );
+            });
 
         // In development we have middleware on our HTTP server that serves static
         // files from the file system instead of a Cloudflare KV namespace.
@@ -80,17 +71,10 @@ export default {
             }
         }
 
-        // Immediately start executing the request instead of delaying it `await`ing
-        // session cookie parsing.
-        const sessionPromise = Session.new(request);
-        event[sessionPromiseSymbol] = sessionPromise;
-
-        const response = await handleRequest(event);
-
-        const session = await sessionPromise;
-        await session.commit(response);
-
-        return response;
+        return UnauthenticatedAppWorkerRequestContext.run(executionContext, request, context => {
+            event[contextSymbol] = context;
+            return handleRequest(event);
+        });
     },
 };
 

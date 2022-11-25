@@ -1,5 +1,5 @@
+import {DataFunctionArgs} from "~/server/helpers/types/remix_data_function_args";
 import {getNetworkFunctionImplementation} from "~/server/network/all_network_implementations";
-import {Session} from "~/server/session/session";
 import {InvalidArgumentError, NotFoundError} from "~/shared/error/error";
 import {isHttp500Error} from "~/shared/error/is_http_500_error_code";
 import {
@@ -9,11 +9,8 @@ import {
 } from "~/shared/network/helpers/network_function_http_schema";
 import {SchemaType} from "~/shared/schema/schema";
 
-export async function action({request}: {request: Request}) {
-    let _session: Session | null = null;
+export async function action({request, context}: DataFunctionArgs) {
     try {
-        const session = (_session = await Session.new(request));
-
         if (request.method !== "POST")
             throw new InvalidArgumentError(
                 "Must use POST HTTP method when executing network functions",
@@ -35,7 +32,7 @@ export async function action({request}: {request: Request}) {
                             );
 
                         const output = await networkFunctionImplementation.execute(
-                            session.get(),
+                            context,
                             call.input,
                         );
 
@@ -67,7 +64,7 @@ export async function action({request}: {request: Request}) {
                       500,
                   );
 
-        const response = new Response(
+        return new Response(
             JSON.stringify(
                 NetworkFunctionHttpOutputSchema.serialize({
                     ok: true,
@@ -81,14 +78,10 @@ export async function action({request}: {request: Request}) {
                 },
             },
         );
-
-        await session.commit(response);
-
-        return response;
     } catch (error) {
         const status = isHttp500Error(error) ? 500 : 400;
 
-        const response = new Response(
+        return new Response(
             JSON.stringify(
                 NetworkFunctionHttpOutputSchema.serialize({
                     ok: false,
@@ -102,11 +95,5 @@ export async function action({request}: {request: Request}) {
                 },
             },
         );
-
-        // Commit the session if we have one and there are changes. We won't have a
-        // session if an error was thrown while we were creating the session.
-        await _session?.commit(response);
-
-        return response;
     }
 }
