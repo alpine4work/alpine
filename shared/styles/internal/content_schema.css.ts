@@ -30,13 +30,22 @@ const blockStyles = {
 
 export const titlePaddingTop = spacing["24"];
 
-export const titleClassName = style({
-    ...blockStyles,
-    ...typographyStyle.primarySemiBold,
-    ...typographySize.heading2,
-    paddingTop: titlePaddingTop,
-    marginBottom: paragraphMargin,
-});
+export const titleClassName = style([
+    "contentSchemaTitle",
+    {
+        ...blockStyles,
+        ...typographyStyle.primarySemiBold,
+        ...typographySize.heading2,
+        paddingTop: titlePaddingTop,
+        marginBottom: paragraphMargin,
+        // backgroundImage: "var(--blob-factory-text-fill-bg-image)",
+        // backgroundSize: "var(--blob-factory-text-fill-bg-size)",
+        // backgroundPosition: "var(--blob-factory-text-fill-bg-position)",
+        // backgroundClip: "var(--blob-factory-text-fill-bg-clip)",
+        // WebkitBackgroundClip: "var(--blob-factory-text-fill-bg-clip)",
+        // color: "var(--blob-factory-text-fill-text-color)",
+    },
+]);
 
 export const paragraphClassName = style({
     ...blockStyles,

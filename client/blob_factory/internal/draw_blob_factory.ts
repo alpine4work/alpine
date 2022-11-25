@@ -34,9 +34,11 @@ export function drawBlobFactory(
     {
         blobs = [],
         settings,
+        onDraw,
     }: {
         blobs?: BlobFactoryBlobs;
         settings?: BlobFactorySettings;
+        onDraw?: (canvas: HTMLCanvasElement, size: Vector2) => void;
     } = {},
 ): BlobFactory {
     const displayGl = new Gl(displayCanvas);
@@ -127,6 +129,10 @@ export function drawBlobFactory(
         program.use();
         positionsVao.bindVao();
         displayGl.gl.drawArrays(WebGL2RenderingContext.TRIANGLES, 0, 6);
+
+        if (onDraw) {
+            onDraw(displayCanvas, size.value);
+        }
     };
 
     let isRequested = false;
