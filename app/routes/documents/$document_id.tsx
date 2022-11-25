@@ -1,3 +1,4 @@
+import {useId, useState} from "react";
 import {BlobFactory} from "~/client/blob_factory/blob_factory";
 import {useColorScheme} from "~/client/design/color_scheme";
 import {DocumentContentEditor} from "~/client/documents/document_content_editor";
@@ -8,6 +9,7 @@ import {jsonWithSchema} from "~/server/helpers/json_with_schema";
 import {themeColors} from "~/shared/design/theme_colors";
 import {DocumentModel} from "~/shared/documents/document_model";
 import {NotFoundError} from "~/shared/error/error";
+import {Vector2} from "~/shared/helpers/geometry/vector2";
 import {Schema} from "~/shared/schema/schema";
 
 const schema = Schema.object({
@@ -24,10 +26,18 @@ export async function loader({params}: {params: {document_id: string}}) {
 }
 
 export default function DocumentRoute() {
+    const id = useId().replace(/:/g, "_");
     const {document} = useLoaderDataWithSchema(schema);
     const colorScheme = useColorScheme();
+    const [textFill, setTextFill] = useState<{url: string; offsetX: number; size: Vector2} | null>(
+        null,
+    );
 
     const settings = useDeveloperConsoleSettingsObject("blobs", {
+        textFillEnabled: {
+            defaultValue: true,
+            schema: Schema.boolean,
+        },
         seed: {
             defaultValue: document.id,
             schema: Schema.string,
@@ -66,6 +76,14 @@ export default function DocumentRoute() {
         },
         colorLevelOutsideDark: {
             defaultValue: 90,
+            schema: Schema.integer,
+        },
+        colorLevelTextLight: {
+            defaultValue: 75,
+            schema: Schema.integer,
+        },
+        colorLevelTextDark: {
+            defaultValue: 20,
             schema: Schema.integer,
         },
         minBlobCount: {
@@ -111,7 +129,8 @@ export default function DocumentRoute() {
     });
 
     return (
-        <main>
+        <main id={id}>
+            {/* the actual background */}
             <BlobFactory
                 height={800}
                 fadeToBlank={true}
@@ -129,7 +148,47 @@ export default function DocumentRoute() {
                     backgroundColor: colorScheme === "light" ? "grey-0" : "grey-100",
                 }}
             />
+            {/* the text fill */}
+            {settings.textFillEnabled && (
+                <BlobFactory
+                    style={{opacity: 0}}
+                    height={800}
+                    randomSeed={settings.seed}
+                    settings={{
+                        ...settings,
+                        shouldDrawInside: false,
+                        colorLevelInside: 0,
+                        colorLevelOutside:
+                            colorScheme === "light"
+                                ? settings.colorLevelTextLight
+                                : settings.colorLevelTextDark,
+                        backgroundColor: colorScheme === "light" ? "grey-0" : "grey-100",
+                        // make sure the whole image is filled with color
+                        blurSpread: 1,
+                    }}
+                    onDraw={(canvas, size, contentWidthPx) => {
+                        setTextFill({
+                            url: canvas.toDataURL(),
+                            size,
+                            offsetX: -(size.x - contentWidthPx) / 2,
+                        });
+                    }}
+                />
+            )}
             <DocumentContentEditor document={document} />
+            {settings.textFillEnabled && textFill && (
+                <style>{`
+                    #${id} .contentSchemaTitle {
+                        background-image: url(${textFill.url});
+                        background-size: ${textFill.size.x}px ${textFill.size.y}px;
+                        background-position: ${textFill.offsetX}px 0;
+                        background-clip: text;
+                        -webkit-background-clip: text;
+                        text-fill-color: transparent;
+                        -webkit-text-fill-color: transparent;
+                    }
+                `}</style>
+            )}
         </main>
     );
 }

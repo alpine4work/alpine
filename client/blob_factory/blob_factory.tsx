@@ -1,5 +1,6 @@
+import classNames from "classnames";
 import Color from "color";
-import {useMemo, useRef} from "react";
+import {CSSProperties, useMemo, useRef} from "react";
 import {BlobFactorySettings} from "~/client/blob_factory/blob_factory_types";
 import {
     BlobFactory,
@@ -8,6 +9,7 @@ import {
     drawBlobFactory,
     getInterpolatedThemeColor,
 } from "~/client/blob_factory/internal/draw_blob_factory";
+import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer";
 import {colors} from "~/shared/design/colors";
@@ -20,6 +22,9 @@ import {easeInOutSin} from "~/shared/helpers/easing";
 import {Vector2} from "~/shared/helpers/geometry/vector2";
 import {StableRandom} from "~/shared/helpers/number/stable_random";
 import {sprinkles} from "~/shared/styles/styles";
+
+// TODO: responsive blobs
+const DefaultContentWidthPx = 768;
 
 type BlobGenerationSettings = {
     contentWidthPx: number;
@@ -94,7 +99,6 @@ export function generateBlobsForContent({
         },
     );
 
-    console.log(blobs);
     return blobs;
 }
 
@@ -104,6 +108,9 @@ export function BlobFactory({
     fadeToBlank = false,
     settings,
     randomSeed,
+    onDraw,
+    className,
+    style,
 }: {
     width?: number;
     height?: number;
@@ -111,6 +118,9 @@ export function BlobFactory({
     randomSeed: string;
     settings: Omit<BlobFactorySettings, "hueBias"> &
         Omit<BlobGenerationSettings, "contentWidthPx" | "screenWidthPx" | "randomSeed">;
+    onDraw?: (ctx: HTMLCanvasElement, size: Vector2, contentWidthPx: number) => void;
+    className?: string;
+    style?: CSSProperties;
 }) {
     const containerRef = useRef<HTMLDivElement>(null);
     const containerRect = useResizeObserver(containerRef);
@@ -125,12 +135,16 @@ export function BlobFactory({
     const blobs = useMemo(() => {
         if (!containerRect) return;
         return generateBlobsForContent({
-            contentWidthPx: 768,
+            contentWidthPx: DefaultContentWidthPx,
             screenWidthPx: containerRect.width,
             randomSeed,
             ...settings,
         });
     }, [containerRect, randomSeed, settings]);
+
+    const onDrawEvent = useEvent((canvas: HTMLCanvasElement, size: Vector2) => {
+        onDraw?.(canvas, size, DefaultContentWidthPx);
+    });
 
     // We accept that while server-side rendering we can't show blobs.
     // I wonder if there is anyway to run blob factory server side...
@@ -138,14 +152,14 @@ export function BlobFactory({
         if (!hasContainerRect) return;
 
         assert(displayCanvasRef.current);
-        blobFactoryRef.current = drawBlobFactory(displayCanvasRef.current);
+        blobFactoryRef.current = drawBlobFactory(displayCanvasRef.current, {onDraw: onDrawEvent});
 
         return () => {
             assert(blobFactoryRef.current);
             blobFactoryRef.current.destroy();
             blobFactoryRef.current = null;
         };
-    }, [hasContainerRect]);
+    }, [hasContainerRect, onDrawEvent]);
 
     // We accept that while server-side rendering we can't show blobs
     // I wonder if there is anyway to run blob factory server side....
@@ -173,15 +187,18 @@ export function BlobFactory({
     return (
         <div
             ref={containerRef}
-            className={sprinkles({
-                zIndex: "-50",
-                position: "absolute",
-                inset: "0",
-                width: width ? undefined : "full",
-                height: height ? undefined : "full",
-            })}
+            className={classNames(
+                sprinkles({
+                    zIndex: "-50",
+                    position: "absolute",
+                    inset: "0",
+                    width: width ? undefined : "full",
+                    height: height ? undefined : "full",
+                }),
+                className,
+            )}
             aria-hidden="true"
-            style={{width, height}}
+            style={{...style, width, height}}
         >
             {containerRect && (
                 <canvas
