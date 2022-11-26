@@ -4,7 +4,9 @@ import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction
 import {DynamoConditionExpression} from "~/server/dynamo/internal/dynamo_condition";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
+import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
 import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry_dynamo_condition_check_errors";
+import {getSeedConstants} from "~/server/dynamo/seed_constants";
 import {SessionCookie} from "~/server/session/session_cookie";
 import {FailedPreconditionError, NotFoundError, PermissionDeniedError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
@@ -12,7 +14,7 @@ import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {Lazy} from "~/shared/helpers/control/lazy";
 import {quote} from "~/shared/helpers/string/quote";
-import {Id, generateId, isId} from "~/shared/id/id";
+import {Id, generateId} from "~/shared/id/id";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
 import {Schema} from "~/shared/schema/schema";
 
@@ -203,20 +205,33 @@ type SessionItem = DynamoTableItemType<typeof AccountsTable, "Session", "Attribu
 
 export async function seedTestAccounts() {
     assert(process.env.NODE_ENV !== "production");
+    const {adminAccountId} = getSeedConstants();
 
-    const adminAccountId = "27g6s1h4ygh1zqzw5h23gqtn88";
-    assert(isId(adminAccountId));
+    try {
+        await AccountsTable.putItem(
+            {
+                partitionType: "Account",
+                sortRangeType: "Attributes",
+                accountId: adminAccountId,
+                name: "Test Admin",
+                createdTime: new Date(),
+                hasInternalAccess: true,
+            },
+            {
+                condition: {
+                    name: DynamoConditionExpression.exists().not(),
+                },
+            },
+        );
+    } catch (error) {
+        // If this item already exists, great! This put is a noop.
+        if (isDynamoConditionCheckError(error)) return;
 
-    await DynamoTableSchema.executeTransaction([
-        AccountsTable.transactionPutItem({
-            partitionType: "Account",
-            sortRangeType: "Attributes",
-            accountId: adminAccountId,
-            name: "Test Admin",
-            createdTime: new Date(),
-            hasInternalAccess: true,
-        }),
-        AccountsTable.transactionPutItem(
+        throw error;
+    }
+
+    try {
+        await AccountsTable.putItem(
             {
                 partitionType: "AccountEmailAddress",
                 sortRangeType: "Attributes",
@@ -227,15 +242,16 @@ export async function seedTestAccounts() {
             },
             {
                 condition: {
-                    // If the email address already exists but with a different id, then seeding
-                    // should fail.
-                    accountId: DynamoConditionExpression.eq(adminAccountId).or(
-                        DynamoConditionExpression.exists().not(),
-                    ),
+                    accountId: DynamoConditionExpression.exists().not(),
                 },
             },
-        ),
-    ]);
+        );
+    } catch (error) {
+        // If this item already exists, great! This put is a noop.
+        if (isDynamoConditionCheckError(error)) return;
+
+        throw error;
+    }
 }
 
 /**
@@ -271,7 +287,7 @@ export function createAccountForAlphaTransactionEntries({
     id: Id;
     name: string;
     emailAddress: string;
-}) {
+}): Array<DynamoTransactionEntry> {
     return [
         AccountsTable.transactionPutItem(
             {

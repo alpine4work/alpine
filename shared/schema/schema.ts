@@ -1221,6 +1221,30 @@ class StringSchema extends Schema<string> {
             deserialize: value => value.toLowerCase(),
         });
     }
+
+    /**
+     * Checks that a string matches the provided regular expression.
+     */
+    public matches(regExp: RegExp): StringSchema {
+        return this._transformString({
+            serialize: value => {
+                if (!regExp.test(value))
+                    throw new InvalidArgumentError(
+                        `Expected string to match regular expression ${regExp.toString()}`,
+                    );
+
+                return value;
+            },
+            deserialize: value => {
+                if (!regExp.test(value))
+                    throw new SchemaDeserializationError(
+                        `Expected string to match regular expression ${regExp.toString()}`,
+                    );
+
+                return value;
+            },
+        });
+    }
 }
 
 // Avoid circular dependency between `Schema` and `StringSchema`.

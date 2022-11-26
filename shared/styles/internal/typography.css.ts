@@ -54,31 +54,37 @@ export const typographyStyle = {
         fontFamily: interFontFamily,
         fontWeight: 400,
         fontStyle: "normal",
+        fontFeatureSettings: "normal",
     },
     primaryMedium: {
         fontFamily: interFontFamily,
         fontWeight: 500,
         fontStyle: "normal",
+        fontFeatureSettings: "normal",
     },
     primarySemiBold: {
         fontFamily: interFontFamily,
         fontWeight: 600,
         fontStyle: "normal",
+        fontFeatureSettings: "normal",
     },
     primaryBold: {
         fontFamily: interFontFamily,
         fontWeight: 700,
         fontStyle: "normal",
+        fontFeatureSettings: "normal",
     },
     code: {
         fontFamily: firaCodeFontFamily,
         fontWeight: 400,
         fontStyle: "normal",
+        fontFeatureSettings: '"calt" off',
     },
     codeBold: {
         fontFamily: firaCodeFontFamily,
         fontWeight: 700,
         fontStyle: "normal",
+        fontFeatureSettings: '"calt" off',
     },
 };
 

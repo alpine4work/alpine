@@ -1,4 +1,6 @@
 import {seedTestAccounts} from "~/server/dynamo/accounts_table";
+import {seedTestAlphaConfiguration} from "~/server/dynamo/alpha_access_table";
+import {seedTestSpaces} from "~/server/dynamo/spaces_table";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
 
@@ -11,5 +13,5 @@ import {assert} from "~/shared/helpers/control/assert";
 export async function seedDynamo() {
     assert(process.env.NODE_ENV !== "production");
 
-    await runAllPromises([seedTestAccounts()]);
+    await runAllPromises([seedTestAlphaConfiguration(), seedTestAccounts(), seedTestSpaces()]);
 }

@@ -9,12 +9,19 @@ import {DynamoConditionExpression} from "~/server/dynamo/internal/dynamo_conditi
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
+import {getSeedConstants} from "~/server/dynamo/seed_constants";
+import {createSpaceAccountForAlphaTransactionEntries} from "~/server/dynamo/spaces_table";
 import {
     AlphaAccessRequestDecisionSchema,
     AlphaAccessRequestModel,
 } from "~/shared/alpha/alpha_access_request_model";
-import {FailedPreconditionError, NotFoundError} from "~/shared/error/error";
+import {
+    AlphaConfiguration,
+    AlphaConfigurationSchema,
+} from "~/shared/alpha/alpha_configuration_schema";
+import {FailedPreconditionError, InternalError, NotFoundError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
+import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable";
 import {filterMapAsyncIterableIterator} from "~/shared/helpers/iterable/filter_map_async_iterable_iterator";
@@ -25,6 +32,20 @@ import {Schema} from "~/shared/schema/schema";
 const AlphaAccessTable = DynamoTableSchema.new({
     name: "AlphaAccess",
     partitions: {
+        /**
+         * We include one item in our alpha access table with some configuration
+         * options that we can change on the fly.
+         */
+        AlphaConfiguration: {
+            partitionKeyAttributes: {},
+            sortRanges: {
+                Configuration: {
+                    sortKeyAttributes: {},
+                    attributes: AlphaConfigurationSchema,
+                },
+            },
+        },
+
         /**
          * All our alpha access requests are in one partition so we can query them
          * at once.
@@ -67,6 +88,26 @@ const AlphaAccessTable = DynamoTableSchema.new({
         },
     },
 });
+
+export async function seedTestAlphaConfiguration() {
+    assert(process.env.NODE_ENV !== "production");
+    const {defaultSpaceId} = getSeedConstants();
+
+    const configuration = await AlphaAccessTable.getItem({
+        partitionType: "AlphaConfiguration",
+        sortRangeType: "Configuration",
+    });
+
+    // If we haven't configured a default space, then configure out seeded space.
+    if (!configuration?.defaultSpaceId) {
+        await AlphaAccessTable.putItem({
+            partitionType: "AlphaConfiguration",
+            sortRangeType: "Configuration",
+            ...configuration,
+            defaultSpaceId,
+        });
+    }
+}
 
 /**
  * Sends a request for alpha access to the admin accounts managing alpha
@@ -190,6 +231,10 @@ export async function getUndecidedAlphaAccessRequests(context: RequestContext) {
 export async function approveAlphaAccessRequest(context: RequestContext, emailAddress: string) {
     await authorizeAccountHasInternalAccess(context);
 
+    const {defaultSpaceId} = await getAlphaConfiguration();
+    if (!defaultSpaceId)
+        throw new InternalError('Expected alpha configuration to include "defaultSpaceId"');
+
     const requestItem = await AlphaAccessTable.getItem({
         partitionType: "AlphaAccessRequests",
         sortRangeType: "Request",
@@ -223,6 +268,10 @@ export async function approveAlphaAccessRequest(context: RequestContext, emailAd
             id: accountId,
             name: requestItem.name,
             emailAddress: requestItem.emailAddress,
+        }),
+        ...createSpaceAccountForAlphaTransactionEntries({
+            spaceId: defaultSpaceId,
+            accountId,
         }),
     ]);
 
@@ -260,4 +309,25 @@ export async function denyAlphaAccessRequest(context: RequestContext, emailAddre
             },
         },
     );
+}
+
+export async function getAlphaConfiguration(): Promise<AlphaConfiguration> {
+    const configuration = await AlphaAccessTable.getItem({
+        partitionType: "AlphaConfiguration",
+        sortRangeType: "Configuration",
+    });
+    return configuration ?? {};
+}
+
+export async function saveAlphaConfiguration(
+    context: RequestContext,
+    configuration: AlphaConfiguration,
+) {
+    await authorizeAccountHasInternalAccess(context);
+
+    await AlphaAccessTable.putItem({
+        partitionType: "AlphaConfiguration",
+        sortRangeType: "Configuration",
+        ...configuration,
+    });
 }

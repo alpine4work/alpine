@@ -49,9 +49,17 @@ export type TextInputProps = {
 
     /**
      * Should the label be stacked or inline?
+     *
      * @default "stacked"
      */
     layout?: "stacked" | "inline";
+
+    /**
+     * What font should we use for this text input?
+     *
+     * @default "primary"
+     */
+    typographyStyle?: "primary" | "code";
 };
 
 /**
@@ -68,6 +76,7 @@ export function TextInput({
     autoComplete,
     formName,
     layout = "stacked",
+    typographyStyle = "primary",
 }: TextInputProps) {
     const id = useId();
 
@@ -105,6 +114,7 @@ export function TextInput({
                         border: "grey-20",
                         backgroundColor: "grey-0",
                         borderRadius: "base",
+                        typographyStyle,
                         flex: layout === "inline" ? "auto" : undefined,
                     })}
                     id={id}
