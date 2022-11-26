@@ -18,7 +18,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {easeInOutSin} from "~/shared/helpers/easing";
 import {Vector2} from "~/shared/helpers/geometry/vector2";
 import {Schema} from "~/shared/schema/schema";
-import {sprinkles} from "~/shared/styles/styles";
+import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles";
 
 // TODO: responsive blobs
 const DefaultContentWidthPx = 768;
@@ -292,7 +292,7 @@ export function DocumentBlobFactory({
             />
             {settings.textFillEnabled && textFill && (
                 <style>{`
-                    #${containerId} .contentSchemaTitle {
+                    #${containerId} .${contentSchemaStyles.titleClassName} {
                         background-image: url(${textFill.url});
                         background-size: ${textFill.size.x}px ${textFill.size.y}px;
                         background-position: ${textFill.offsetX}px 0;

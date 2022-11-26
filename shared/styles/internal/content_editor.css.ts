@@ -25,6 +25,10 @@ globalStyle(`${emptyTitleClassName} > ${titleClassName}[data-placeholder]::befor
     pointerEvents: "none",
     color: inputPlaceholderColor,
     position: "absolute",
+    // Reset the `text-fill-color` set by blobs so that we can see the placeholder.
+    // @ts-expect-error
+    textFillColor: "initial",
+    WebkitTextFillColor: "initial",
 });
 
 export const emptyBodyClassName = style({});

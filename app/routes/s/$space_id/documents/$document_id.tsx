@@ -8,6 +8,7 @@ import {DataFunctionArgs} from "~/server/helpers/types/remix_data_function_args"
 import {DocumentModel} from "~/shared/documents/document_model";
 import {NotFoundError} from "~/shared/error/error";
 import {Schema} from "~/shared/schema/schema";
+import {sprinkles} from "~/shared/styles/styles";
 
 const schema = Schema.object({
     document: DocumentModel.schema(),
@@ -29,7 +30,7 @@ export default function DocumentRoute() {
     const blobFactorySettings = useDocumentBlobSettings({defaultSeed: document.id});
 
     return (
-        <main id={id}>
+        <main id={id} className={sprinkles({height: "full"})}>
             <DocumentBlobFactory settings={blobFactorySettings} containerId={id} />
             <DocumentContentEditor document={document} />
         </main>
