@@ -37,7 +37,7 @@ function Button(
         onPress?: (event: PressEvent) => Promise<void> | void;
 
         /**
-         * What variant of this button should we render?
+         * Which styles should we apply to the variant?
          */
         variant?: ButtonVariant;
 

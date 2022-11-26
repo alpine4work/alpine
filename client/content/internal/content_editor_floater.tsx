@@ -11,19 +11,17 @@ import {
 } from "~/client/content/internal/content_editor_highlight_selector";
 import {ContentEditorLinkInput} from "~/client/content/internal/content_editor_link_input";
 import {ContentEditorPointerToolbar} from "~/client/content/internal/content_editor_pointer_toolbar";
-import {
-    getMarksSpanningAcrossEntireRange,
-    trimSpacesFromRange,
-} from "~/client/content/internal/content_editor_prosemirror_helpers";
+import {getMarksSpanningAcrossEntireRange} from "~/client/content/internal/content_editor_prosemirror_helpers";
 import {Box} from "~/client/design/box";
 import {useOutsidePress} from "~/client/design/helpers/use_outside_press";
 import {OverlayRef} from "~/client/design/overlay";
 import {OverlayAnimated} from "~/client/design/overlay_animated";
 import {uninterruptedThoughtLimitMs} from "~/client/design/timing_constants";
-import {useConstant} from "~/client/helpers/lifecycle/use_constant";
+import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {Id} from "~/shared/id/id";
 import {overlayFadeOutAnimationDurationMs} from "~/shared/styles/styles";
 
 export type ContentEditorPointerToolbarFloaterState = {
@@ -32,14 +30,23 @@ export type ContentEditorPointerToolbarFloaterState = {
 
 export type ContentEditorKeyboardHighlightFloaterState = {
     readonly type: "KeyboardHighlight";
+    readonly range: {
+        readonly from: number;
+        readonly to: number;
+    };
 };
 
 export type ContentEditorKeyboardLinkFloaterState = {
     readonly type: "KeyboardLink";
+    readonly range: {
+        readonly from: number;
+        readonly to: number;
+    };
 };
 
 export type ContentEditorPointerLinkFloaterState = {
     readonly type: "PointerLink";
+    readonly key: Id;
     readonly mark: Mark;
     readonly range: {
         readonly from: number;
@@ -62,14 +69,14 @@ export function ContentEditorFloater({
     state,
     viewRef,
     floaterState,
-    setFloaterState,
+    onFloaterStateReset,
     isFocused,
     lastSelectionChangeTransactionTime,
 }: {
     state: EditorState;
     viewRef: RefObject<EditorView | null>;
     floaterState: ContentEditorFloaterState;
-    setFloaterState: (floaterState: ContentEditorFloaterState) => void;
+    onFloaterStateReset: () => void;
     isFocused: boolean;
     lastSelectionChangeTransactionTime: number | null;
 }) {
@@ -89,7 +96,8 @@ export function ContentEditorFloater({
                 <ContentEditorKeyboardHighlightFloater
                     state={state}
                     viewRef={viewRef}
-                    onClose={() => setFloaterState(initialContentEditorFloaterState)}
+                    range={floaterState.range}
+                    onClose={onFloaterStateReset}
                 />
             );
         }
@@ -98,20 +106,22 @@ export function ContentEditorFloater({
                 <ContentEditorKeyboardLinkFloater
                     state={state}
                     viewRef={viewRef}
-                    onClose={() => setFloaterState(initialContentEditorFloaterState)}
+                    range={floaterState.range}
+                    onClose={onFloaterStateReset}
                 />
             );
         }
         case "PointerLink": {
             return (
                 <ContentEditorPointerLinkFloater
-                    key={floaterState.range.from}
+                    // Remount whenever the user hovers over a different mark.
+                    key={floaterState.key}
                     state={state}
                     viewRef={viewRef}
                     mark={floaterState.mark}
                     range={floaterState.range}
                     hasPointerLeftMark={floaterState.hasPointerLeftMark}
-                    onClose={() => setFloaterState(initialContentEditorFloaterState)}
+                    onClose={onFloaterStateReset}
                 />
             );
         }
@@ -123,16 +133,16 @@ export function ContentEditorFloater({
 function ContentEditorKeyboardHighlightFloater({
     state,
     viewRef,
-    onClose: _onClose,
+    range,
+    onClose: _onActuallyClose,
 }: {
     state: EditorState;
     viewRef: RefObject<EditorView | null>;
+    range: {from: number; to: number};
     onClose: () => void;
 }) {
     const overlayRef = useRef<OverlayRef>(null);
     const selectorRef = useRef<ContentEditorHighlightSelectorRef>(null);
-
-    const range = useConstant(() => trimSpacesFromRange(state.doc, state.selection));
 
     const mark = useMemo(
         () =>
@@ -150,24 +160,17 @@ function ContentEditorKeyboardHighlightFloater({
         setIsClosing(true);
     }, [viewRef]);
 
+    const onActuallyClose = useEvent(_onActuallyClose);
     useEffect(() => {
         if (isClosing) {
             const timeoutId = setTimeout(() => {
-                _onClose();
+                onActuallyClose();
             }, overlayFadeOutAnimationDurationMs);
             return () => {
                 clearTimeout(timeoutId);
             };
         }
-    }, [isClosing, _onClose]);
-
-    useEffect(() => {
-        const trimmedSelectionRange = trimSpacesFromRange(state.doc, state.selection);
-
-        if (trimmedSelectionRange.from !== range.from || trimmedSelectionRange.to !== range.to) {
-            onClose();
-        }
-    }, [onClose, range.from, range.to, state.doc, state.selection]);
+    }, [isClosing, onActuallyClose]);
 
     useEffect(() => {
         assert(selectorRef.current);
@@ -244,15 +247,15 @@ function ContentEditorKeyboardHighlightFloater({
 function ContentEditorKeyboardLinkFloater({
     state,
     viewRef,
-    onClose: _onClose,
+    range,
+    onClose: _onActuallyClose,
 }: {
     state: EditorState;
     viewRef: RefObject<EditorView | null>;
+    range: {from: number; to: number};
     onClose: () => void;
 }) {
     const overlayRef = useRef<OverlayRef>(null);
-
-    const range = useConstant(() => trimSpacesFromRange(state.doc, state.selection));
 
     const mark = useMemo(
         () =>
@@ -270,24 +273,17 @@ function ContentEditorKeyboardLinkFloater({
         setIsClosing(true);
     }, [viewRef]);
 
+    const onActuallyClose = useEvent(_onActuallyClose);
     useEffect(() => {
         if (isClosing) {
             const timeoutId = setTimeout(() => {
-                _onClose();
+                onActuallyClose();
             }, overlayFadeOutAnimationDurationMs);
             return () => {
                 clearTimeout(timeoutId);
             };
         }
-    }, [isClosing, _onClose]);
-
-    useEffect(() => {
-        const trimmedSelectionRange = trimSpacesFromRange(state.doc, state.selection);
-
-        if (trimmedSelectionRange.from !== range.from || trimmedSelectionRange.to !== range.to) {
-            onClose();
-        }
-    }, [onClose, range.from, range.to, state.doc, state.selection]);
+    }, [isClosing, onActuallyClose]);
 
     return (
         <OverlayAnimated
@@ -343,7 +339,7 @@ function ContentEditorPointerLinkFloater({
     mark,
     range,
     hasPointerLeftMark,
-    onClose: _onClose,
+    onClose: _onActuallyClose,
 }: {
     state: EditorState;
     viewRef: RefObject<EditorView | null>;
@@ -360,22 +356,20 @@ function ContentEditorPointerLinkFloater({
         setIsClosing(true);
     }, []);
 
+    const onActuallyClose = useEvent(_onActuallyClose);
     useEffect(() => {
         if (isClosing) {
             const timeoutId = setTimeout(() => {
-                _onClose();
+                onActuallyClose();
             }, overlayFadeOutAnimationDurationMs);
             return () => {
                 clearTimeout(timeoutId);
             };
         }
-    }, [isClosing, _onClose]);
+    }, [isClosing, onActuallyClose]);
 
-    // If the mark moves or changes after the component mounts then close our
-    // floater.
-    //
-    // TODO(calebmer): Test how annoying this is with realtime editing! Maybe
-    // we should try mapping to the new location first.
+    // If somehow our state change such that the range no longer corresponds to the
+    // mark we are inspecting, close the floater.
     useEffect(() => {
         let totalNodeCount = 0;
         let nodeCountWithMark = 0;

@@ -8,8 +8,6 @@ import {generateId} from "~/shared/id/id";
 import {createDocument} from "~/shared/network/documents_network_definition";
 import {Schema} from "~/shared/schema/schema";
 
-// TODO(calebmer): Should not be able to access this route if you do not have
-// access to the space!
 export default function CreateDocumentRoute() {
     const navigate = useNavigate();
 

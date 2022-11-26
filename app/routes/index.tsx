@@ -1,12 +1,13 @@
 import {json} from "@remix-run/cloudflare";
 import {Form, Link, useTransition} from "@remix-run/react";
-import {useId, useMemo, useState} from "react";
+import {useEffect, useId, useMemo, useState} from "react";
 import {redirectToAuthenticatedHome} from "~/app/helpers/redirect_to_authenticated_home";
 import {DocumentBlobFactory, useDocumentBlobSettings} from "~/client/blob_factory/document_blobs";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
 import {FocusRing} from "~/client/design/focus_ring";
-import {ControlledMultilineTextInput} from "~/client/design/multiline_text_input";
+import {InlineAlert} from "~/client/design/inline_alert";
+import {MultilineTextInput} from "~/client/design/multiline_text_input";
 import {Spacer} from "~/client/design/spacer";
 import {TextInput} from "~/client/design/text_input";
 import {ErrorInlineAlert} from "~/client/error/error_inline_alert";
@@ -43,6 +44,7 @@ export async function loader({context}: DataFunctionArgs) {
 const ActionSchema = Schema.result(
     Schema.object({
         ok: Schema.value(true),
+        emailAddress: Schema.string,
     }),
     Schema.object({
         ok: Schema.value(false),
@@ -70,7 +72,7 @@ export async function action({request}: DataFunctionArgs) {
             message,
         });
 
-        return jsonWithSchema(ActionSchema, {ok: true});
+        return jsonWithSchema(ActionSchema, {ok: true, emailAddress});
     } catch (error) {
         return jsonWithSchema(ActionSchema, {ok: false, error}, isHttp500Error(error) ? 500 : 400);
     }
@@ -78,14 +80,16 @@ export async function action({request}: DataFunctionArgs) {
 
 const randomSeed = Math.random().toString();
 const themeColor = randomArrayItem(themeColors);
+
 export default function HomePage() {
     const id = useId().replace(/:/g, "_");
     const [name, setName] = useState("");
     const [emailAddress, setEmailAddress] = useState("");
+    const [message, setMessage] = useState("");
 
     const isFormValid = name.length > 0 && emailAddress.length > 0 && emailAddress.includes("@");
 
-    // TODO(calebmer): Message on success...
+    const transition = useTransition();
     const actionData = useActionDataWithSchema(ActionSchema);
 
     const [dismissedActionData, setDismissedActionData] = useState<SchemaType<
@@ -93,6 +97,15 @@ export default function HomePage() {
     > | null>(null);
 
     const blobSettings = useDocumentBlobSettings({defaultSeed: randomSeed});
+
+    // If the form submission was successful, clear our inputs.
+    useEffect(() => {
+        if (transition.state === "idle" && actionData?.ok) {
+            setName("");
+            setEmailAddress("");
+            setMessage("");
+        }
+    }, [actionData?.ok, transition.state]);
 
     return (
         <Box display="flex" justifyContent="center" id={id}>
@@ -136,13 +149,24 @@ export default function HomePage() {
                         Request access
                     </Box>
                     <Spacer space="4" />
-                    {actionData && !actionData.ok && dismissedActionData !== actionData && (
+                    {actionData && dismissedActionData !== actionData && (
                         <>
-                            <ErrorInlineAlert
-                                title="Could not request access"
-                                error={actionData.error}
-                                onDismiss={() => setDismissedActionData(actionData)}
-                            />
+                            {actionData.ok ? (
+                                <InlineAlert
+                                    variant="positive"
+                                    title="Requested access"
+                                    onDismiss={() => setDismissedActionData(actionData)}
+                                >
+                                    If your request is approved we’ll send an email to{" "}
+                                    {actionData.emailAddress} with further instructions.
+                                </InlineAlert>
+                            ) : (
+                                <ErrorInlineAlert
+                                    title="Could not request access"
+                                    error={actionData.error}
+                                    onDismiss={() => setDismissedActionData(actionData)}
+                                />
+                            )}
                             <Spacer space="4" />
                         </>
                     )}
@@ -164,10 +188,12 @@ export default function HomePage() {
                         onChange={setEmailAddress}
                     />
                     <Spacer space="4" />
-                    <ControlledMultilineTextInput
+                    <MultilineTextInput
                         formName="message"
                         label="Message (optional)"
                         placeholder="How do you know the team?"
+                        value={message}
+                        onChange={setMessage}
                     />
                     <Spacer space="8" />
                     <Box
@@ -178,13 +204,14 @@ export default function HomePage() {
                     >
                         <Box flexGrow="1" color="grey-80">
                             For now, we’re only letting in people who know someone on our team. If
-                            your request is approved you’ll get an email with further instructions.
+                            your request is approved you’ll get an email which tells you how to sign
+                            in.
                         </Box>
                         <Button
                             variant="accent"
                             shouldSubmitForm={true}
                             isDisabled={!isFormValid}
-                            isPending={useTransition().state === "submitting"}
+                            isPending={transition.state === "submitting"}
                         >
                             Request
                         </Button>

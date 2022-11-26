@@ -62,9 +62,6 @@ export async function action({request, context, params}: DataFunctionArgs) {
     }
 }
 
-// TODO(calebmer): This one time sign in code UI is a little janky. Polish it!
-// We probably want a separate input for every number instead of one input for
-// all six numbers. Then good keyboard support.
 export default function SignInEmailCodePage() {
     const params = useParams();
     const emailAddress = params.email_address;

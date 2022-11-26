@@ -110,5 +110,5 @@ export const inlineElementPaddingToLineHeightClassName = style({
 
 // We use our `<FocusRing>` class for highlighting a selected node.
 globalStyle(".ProseMirror-selectednode", {
-    outline: "none",
+    outline: "none !important",
 });

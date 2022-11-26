@@ -3,14 +3,29 @@ import {history} from "prosemirror-history";
 import {Node} from "prosemirror-model";
 import {EditorState, Plugin, PluginKey, Selection, Transaction} from "prosemirror-state";
 import {Step} from "prosemirror-transform";
+import {
+    ContentEditorFloaterState,
+    initialContentEditorFloaterState,
+} from "~/client/content/internal/content_editor_floater";
 import {buildInputRulesPlugin} from "~/client/content/internal/content_editor_plugin_input_rules";
-import {buildKeymapPlugin} from "~/client/content/internal/content_editor_plugin_keymap";
+import {
+    buildKeymapPlugin,
+    openKeyboardHighlightFloaterMetaKey,
+    openKeyboardLinkFloaterMetaKey,
+} from "~/client/content/internal/content_editor_plugin_keymap";
+import {trimSpacesFromRange} from "~/client/content/internal/content_editor_prosemirror_helpers";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema";
 import {assert} from "~/shared/helpers/control/assert";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {Id, generateId, isId} from "~/shared/id/id";
 
 function buildPlugins(schema: ContentProsemirrorSchema) {
-    return [history(), buildInputRulesPlugin(schema), buildKeymapPlugin(schema)];
+    return [
+        history(),
+        buildInputRulesPlugin(schema),
+        buildKeymapPlugin(schema),
+        contentEditorFloaterStatePlugin(),
+    ];
 }
 
 /**
@@ -109,9 +124,16 @@ export class ContentEditorState<Content extends Node> {
     }
 
     /**
+     * Get the current floater state.
+     */
+    public getFloaterState(): ContentEditorFloaterState {
+        return getContentEditorFloaterState(this._state);
+    }
+
+    /**
      * Is this content editor state collaborative?
      */
-    public isCollab() {
+    public isCollab(): boolean {
         return isCollabPlugin(this._state.plugins[this._state.plugins.length - 1]!);
     }
 
@@ -243,4 +265,69 @@ function isCollabPlugin(plugin: Plugin) {
         collabPluginKey = key;
     }
     return plugin.spec.key === collabPluginKey;
+}
+
+const contentEditorFloaterStateKey = new PluginKey<ContentEditorFloaterState>(
+    "contentEditorFloaterState",
+);
+
+function contentEditorFloaterStatePlugin() {
+    return new Plugin<ContentEditorFloaterState>({
+        key: contentEditorFloaterStateKey,
+        state: {
+            init: () => initialContentEditorFloaterState,
+            apply: (transaction, floaterState, oldState, newState) => {
+                const transactionFloaterState: ContentEditorFloaterState | undefined =
+                    transaction.getMeta(contentEditorFloaterStateKey);
+                if (transactionFloaterState) return transactionFloaterState;
+
+                // Open our toolbars on the current selection when certain meta is set on
+                // our transaction.
+                if (transaction.getMeta(openKeyboardHighlightFloaterMetaKey)) {
+                    return {
+                        type: "KeyboardHighlight",
+                        range: trimSpacesFromRange(newState.doc, newState.selection),
+                    };
+                }
+                if (transaction.getMeta(openKeyboardLinkFloaterMetaKey)) {
+                    return {
+                        type: "KeyboardLink",
+                        range: trimSpacesFromRange(newState.doc, newState.selection),
+                    };
+                }
+
+                // `PointerToolbar` is the only state which does not record its range.
+                if (floaterState.type === "PointerToolbar") return floaterState;
+
+                const newRangeFrom = transaction.mapping.map(floaterState.range.from);
+                const newRangeTo = transaction.mapping.map(floaterState.range.to);
+                if (
+                    floaterState.range.from === newRangeFrom &&
+                    floaterState.range.to === newRangeTo
+                ) {
+                    return floaterState;
+                }
+
+                // If the range collapsed into a single position (maybe the content was
+                // deleted?) reset to the initial state.
+                if (newRangeFrom === newRangeTo) return initialContentEditorFloaterState;
+
+                return {
+                    ...floaterState,
+                    range: {from: newRangeFrom, to: newRangeTo},
+                };
+            },
+        },
+    });
+}
+
+export function getContentEditorFloaterState(state: EditorState): ContentEditorFloaterState {
+    return assertExists(contentEditorFloaterStateKey.getState(state));
+}
+
+export function setContentEditorFloaterState(
+    transaction: Transaction,
+    floaterState: ContentEditorFloaterState,
+): Transaction {
+    return transaction.setMeta(contentEditorFloaterStateKey, floaterState);
 }

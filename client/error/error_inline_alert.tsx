@@ -1,8 +1,5 @@
-import {Warning, X} from "phosphor-react";
-import {Box} from "~/client/design/box";
-import {IconButton} from "~/client/design/icon_button";
+import {InlineAlert} from "~/client/design/inline_alert";
 import {ErrorDisplayMessageRenderer} from "~/client/error/error_display_message_renderer";
-import {spacing} from "~/shared/design/spacing";
 
 /**
  * Renders an error message inline with some other content.
@@ -34,40 +31,8 @@ export function ErrorInlineAlert({
     onDismiss: () => void;
 }) {
     return (
-        <Box
-            position="relative"
-            backgroundColor="grey-0"
-            padding="4"
-            border="red-40"
-            borderWidth="thick"
-            borderRadius="base"
-        >
-            <Box position="absolute" top="1.5" right="1.5">
-                <IconButton
-                    size="small"
-                    description="Dismiss alert"
-                    onPress={onDismiss}
-                    withoutTooltip={true}
-                >
-                    <X />
-                </IconButton>
-            </Box>
-            <Box display="flex" gap="1.5" paddingBottom="2">
-                <Box
-                    flexShrink="0"
-                    color="red-40"
-                    height="6"
-                    display="flex"
-                    justifyContent="center"
-                    alignItems="center"
-                >
-                    <Warning weight="fill" size={spacing["4"]} />
-                </Box>
-                <Box flexGrow="1" typographySize="body" typographyStyle="primaryMedium">
-                    {title}
-                </Box>
-            </Box>
+        <InlineAlert variant="negative" title={title} onDismiss={onDismiss}>
             <ErrorDisplayMessageRenderer error={error} />
-        </Box>
+        </InlineAlert>
     );
 }

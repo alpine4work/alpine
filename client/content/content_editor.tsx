@@ -13,7 +13,11 @@ import {
     useRef,
     useState,
 } from "react";
-import {ContentEditorState} from "~/client/content/content_editor_state";
+import {
+    ContentEditorState,
+    getContentEditorFloaterState,
+    setContentEditorFloaterState,
+} from "~/client/content/content_editor_state";
 import {createContentEditorCheckListItemNodeView} from "~/client/content/internal/content_editor_check_list_item_node_view";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer";
 import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser";
@@ -24,10 +28,6 @@ import {
 import {createContentEditorMarkNodeViewConstructor} from "~/client/content/internal/content_editor_link_node_view";
 import {createContentEditorOrderedListItemNodeView} from "~/client/content/internal/content_editor_ordered_list_item_node_view";
 import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/content_editor_phantom_selection_cursor";
-import {
-    openKeyboardHighlightFloaterMetaKey,
-    openKeyboardLinkFloaterMetaKey,
-} from "~/client/content/internal/content_editor_plugin_keymap";
 import {trimSpacesFromRange} from "~/client/content/internal/content_editor_prosemirror_helpers";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools";
 import {FocusRingPortal} from "~/client/design/focus_ring";
@@ -36,7 +36,9 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {ThemeColor} from "~/shared/design/theme_colors";
 import {documentFallbackTitle} from "~/shared/documents/document_model";
 import {assert} from "~/shared/helpers/control/assert";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol";
+import {generateId} from "~/shared/id/id";
 import {colorSchemeVars, contentEditorStyles, contentSchemaStyles} from "~/shared/styles/styles";
 
 const {docClassName} = contentSchemaStyles;
@@ -242,16 +244,16 @@ function ContentEditor<Content extends Node>(
 
     const [isFocused, setIsFocused] = useState(false);
 
-    const [{lastTransactionTime, lastSelectionChangeTransactionTime}, setTransactionTimes] =
-        useState<{
-            lastTransactionTime: number | null;
-            lastSelectionChangeTransactionTime: number | null;
-        }>({
-            lastTransactionTime: null,
-            lastSelectionChangeTransactionTime: null,
-        });
-
-    const [floaterState, setFloaterState] = useState(initialContentEditorFloaterState);
+    const [
+        {lastOptimisticTransactionTime, lastSelectionChangeTransactionTime},
+        setTransactionTimes,
+    ] = useState<{
+        lastOptimisticTransactionTime: number | null;
+        lastSelectionChangeTransactionTime: number | null;
+    }>({
+        lastOptimisticTransactionTime: null,
+        lastSelectionChangeTransactionTime: null,
+    });
 
     // Effect which initializes and destroys a ProseMirror editor view.
     //
@@ -260,11 +262,11 @@ function ContentEditor<Content extends Node>(
     useLayoutEffectWithoutServerSideWarning(() => {
         assert(elementRef.current);
 
-        const state = unwrap(propsRef.current.state);
-        const schema = state.doc.type.schema;
+        const initialState = unwrap(propsRef.current.state);
+        const schema = initialState.doc.type.schema;
 
         const view = new EditorView(elementRef.current, {
-            state,
+            state: initialState,
 
             domParser: ContentEditorDomParser.fromSchema(schema),
             clipboardSerializer: ContentEditorDomClipboardSerializer.fromSchema(schema),
@@ -276,25 +278,39 @@ function ContentEditor<Content extends Node>(
 
             markViews: {
                 link: createContentEditorMarkNodeViewConstructor({
-                    onPointerEnterAfterDelay: ({mark, range}) =>
-                        setFloaterState({
-                            type: "PointerLink",
-                            mark,
-                            range,
-                            hasPointerLeftMark: false,
-                        }),
-                    onPointerEnter: mark =>
-                        setFloaterState(floaterState =>
-                            floaterState.type === "PointerLink" && floaterState.mark.eq(mark)
-                                ? {...floaterState, hasPointerLeftMark: false}
-                                : floaterState,
-                        ),
-                    onPointerLeave: mark =>
-                        setFloaterState(floaterState =>
-                            floaterState.type === "PointerLink" && floaterState.mark.eq(mark)
-                                ? {...floaterState, hasPointerLeftMark: true}
-                                : floaterState,
-                        ),
+                    onPointerEnterAfterDelay: ({mark, range}) => {
+                        view.dispatch(
+                            setContentEditorFloaterState(view.state.tr, {
+                                type: "PointerLink",
+                                key: generateId(),
+                                mark,
+                                range,
+                                hasPointerLeftMark: false,
+                            }),
+                        );
+                    },
+                    onPointerEnter: mark => {
+                        const floaterState = getContentEditorFloaterState(view.state);
+                        if (floaterState.type === "PointerLink" && floaterState.mark.eq(mark)) {
+                            view.dispatch(
+                                setContentEditorFloaterState(view.state.tr, {
+                                    ...floaterState,
+                                    hasPointerLeftMark: false,
+                                }),
+                            );
+                        }
+                    },
+                    onPointerLeave: mark => {
+                        const floaterState = getContentEditorFloaterState(view.state);
+                        if (floaterState.type === "PointerLink" && floaterState.mark.eq(mark)) {
+                            view.dispatch(
+                                setContentEditorFloaterState(view.state.tr, {
+                                    ...floaterState,
+                                    hasPointerLeftMark: true,
+                                }),
+                            );
+                        }
+                    },
                 }),
             },
 
@@ -354,8 +370,8 @@ function ContentEditor<Content extends Node>(
                 // > When such a transaction is canceled or modified somehow, the view
                 // > will undo the DOM change...
                 //
-                // We update the `lastTransactionTime` state to re-run an effect below
-                // which reconciles the editor view state with the state we get from
+                // We update the `lastOptimisticTransactionTime` state to re-run an effect
+                // below which reconciles the editor view state with the state we get from
                 // props. That way if our optimistic update is wrong we'll fix it when
                 // React commits.
                 //
@@ -364,20 +380,11 @@ function ContentEditor<Content extends Node>(
                 updateEditorEmptyClass(newState);
 
                 setTransactionTimes(transactionTimes => ({
-                    lastTransactionTime: transaction.time,
+                    lastOptimisticTransactionTime: transaction.time,
                     lastSelectionChangeTransactionTime: !oldState.selection.eq(newState.selection)
                         ? transaction.time
                         : transactionTimes.lastSelectionChangeTransactionTime,
                 }));
-
-                // Open our special toolbars regardless of whether our parent
-                // component acknowledges the new state from this transaction.
-                if (transaction.getMeta(openKeyboardHighlightFloaterMetaKey)) {
-                    setFloaterState({type: "KeyboardHighlight"});
-                }
-                if (transaction.getMeta(openKeyboardLinkFloaterMetaKey)) {
-                    setFloaterState({type: "KeyboardLink"});
-                }
             },
         });
 
@@ -397,13 +404,14 @@ function ContentEditor<Content extends Node>(
     // Layout effect because the visual layout depends on the editor state prop
     // which we need to set imperatively.
     useLayoutEffectWithoutServerSideWarning(() => {
-        // We don't do anything with `lastTransactionTime` in this effect, but we
-        // want the effect to re-run whenever it changes. We optimistically update
-        // our `EditorView` state as an optimization. When React finishes committing
-        // we reconcile the prop state with the `EditorView` state in this effect.
+        // We don't do anything with `lastOptimisticTransactionTime` in this effect,
+        // but we want the effect to re-run whenever it changes. We optimistically
+        // update our `EditorView` state as an optimization. When React finishes
+        // committing we reconcile the prop state with the `EditorView` state in
+        // this effect.
         //
         // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-        lastTransactionTime;
+        lastOptimisticTransactionTime;
 
         const actualState = unwrap(state);
 
@@ -413,7 +421,7 @@ function ContentEditor<Content extends Node>(
         }
 
         updateEditorEmptyClass(actualState);
-    }, [lastTransactionTime, state]);
+    }, [lastOptimisticTransactionTime, state]);
 
     const [decorationCallbacks, setDecorationCallbacks] = useState<
         ReadonlySet<(decorationSet: DecorationSet, state: EditorState) => DecorationSet>
@@ -640,13 +648,15 @@ function ContentEditor<Content extends Node>(
     const [selectedNodeElement, setSelectedNodeElement] = useState<HTMLElement | null>(null);
 
     useEffect(() => {
-        // We don't do anything with `lastTransactionTime` in this effect, but we
-        // want the effect to re-run whenever it changes. We optimistically update
-        // our `EditorView` state as an optimization. When React finishes committing
-        // we reconcile the prop state with the `EditorView` state in this effect.
+        // Rerun this effect whenever anything in the content editor changes. We depend
+        // on `state` since that represents the latest official state and we depend on
+        // `lastOptimisticTransactionTime` since that represents when content changes
+        // optimistically.
         //
         // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-        lastTransactionTime;
+        state;
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        lastOptimisticTransactionTime;
 
         assert(viewRef.current);
         const viewElement = viewRef.current.dom;
@@ -665,7 +675,7 @@ function ContentEditor<Content extends Node>(
         } else {
             setSelectedNodeElement(null);
         }
-    }, [lastTransactionTime]);
+    }, [lastOptimisticTransactionTime, state]);
 
     // Highlights the selection of all our phantom text selections using the
     // ProseMirror decoration feature. We render `phantomSelections` in two
@@ -738,8 +748,16 @@ function ContentEditor<Content extends Node>(
             <ContentEditorFloater
                 state={unwrap(state)}
                 viewRef={viewRef}
-                floaterState={floaterState}
-                setFloaterState={setFloaterState}
+                floaterState={state.getFloaterState()}
+                onFloaterStateReset={() => {
+                    const view = assertExists(viewRef.current);
+                    view.dispatch(
+                        setContentEditorFloaterState(
+                            view.state.tr,
+                            initialContentEditorFloaterState,
+                        ),
+                    );
+                }}
                 isFocused={isFocused}
                 lastSelectionChangeTransactionTime={lastSelectionChangeTransactionTime}
             />
