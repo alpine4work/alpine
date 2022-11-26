@@ -1,11 +1,12 @@
 import {json} from "@remix-run/cloudflare";
-import {Form, useParams, useTransition} from "@remix-run/react";
-import {useState} from "react";
+import {Form, useParams, useSubmit, useTransition} from "@remix-run/react";
+import {FocusEvent, UIEvent, useEffect, useRef, useState} from "react";
 import {redirectToAuthenticatedHome} from "~/app/helpers/redirect_to_authenticated_home";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
 import {Spacer} from "~/client/design/spacer";
 import {ErrorInlineAlert} from "~/client/error/error_inline_alert";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useActionDataWithSchema} from "~/client/helpers/remix/use_action_data_with_schema";
 import {attemptOneTimePasswordSignIn} from "~/server/dynamo/accounts_table";
 import {validateEmailAddress} from "~/server/emails/email_address";
@@ -49,6 +50,8 @@ export async function action({request, context, params}: DataFunctionArgs) {
         if (typeof oneTimePassword !== "string")
             throw new InvalidArgumentError('Expected property "oneTimePassword" in form data');
 
+        await new Promise(resolve => setTimeout(resolve, 5000));
+
         const {sessionId} = await attemptOneTimePasswordSignIn(
             context,
             await validateEmailAddress(emailAddress),
@@ -64,17 +67,74 @@ export async function action({request, context, params}: DataFunctionArgs) {
 }
 
 export default function SignInEmailCodePage() {
+    const formRef = useRef<HTMLFormElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
     const params = useParams();
     const emailAddress = params.email_address;
 
     const [oneTimePassword, setOneTimePassword] = useState("");
+    const [isDisabledForSubmit, setIsDisabledForSubmit] = useState(false);
     const isFormValid = oneTimePassword.length === 6;
 
     const actionData = useActionDataWithSchema(ActionSchema);
+    const transition = useTransition();
 
     const [dismissedActionData, setDismissedActionData] = useState<SchemaType<
         typeof ActionSchema
     > | null>(null);
+
+    const submit = useSubmit();
+
+    const onDidSubmit = () => {
+        setIsDisabledForSubmit(true);
+        if (actionData) setDismissedActionData(actionData);
+    };
+
+    const onOneTimePasswordChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        // Don't allow a user to type unsupported characters into our code.
+        const value = event.currentTarget.value.replace(/[^0-9]/g, "").slice(0, 6);
+        setOneTimePassword(value);
+
+        if (value.length === 6 && formRef.current) {
+            submit(formRef.current);
+            onDidSubmit();
+        }
+    };
+
+    useEffect(() => {
+        if (transition.state === "idle") {
+            setIsDisabledForSubmit(false);
+        }
+    }, [transition.state]);
+
+    const hasError = actionData ? !actionData.ok : false;
+    useEffect(() => {
+        if (transition.state === "idle" && hasError && inputRef.current) {
+            setOneTimePassword("");
+            inputRef.current.focus();
+        }
+    }, [hasError, transition.state]);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        // this is a bit of a hack. the browser will scroll the input to the left, to keep the input
+        // cursor in view, but this only happens when we have 6 characters at which point we disable
+        // the input and submit the form anyway. we can't disable this with an event listener
+        // because for some reason the scroll event isn't fired (at least on ios). We might be able
+        // to fix this with overflow: clip but support isn't good at the moment. instead we check &
+        // reset the scroll every frame.
+        const preventScrollLoop = () => {
+            if (inputRef.current) {
+                inputRef.current.scrollLeft = 0;
+            }
+            frame = requestAnimationFrame(preventScrollLoop);
+        };
+
+        let frame = requestAnimationFrame(preventScrollLoop);
+
+        return () => {
+            cancelAnimationFrame(frame);
+        };
+    }, []);
 
     return (
         <Box display="flex" justifyContent="center">
@@ -87,9 +147,10 @@ export default function SignInEmailCodePage() {
                 })}
             >
                 <Form
+                    ref={formRef}
                     method="post"
                     onSubmit={() => {
-                        if (actionData) setDismissedActionData(actionData);
+                        onDidSubmit();
                     }}
                 >
                     <h1
@@ -126,15 +187,13 @@ export default function SignInEmailCodePage() {
                     )}
                     <Box position="relative">
                         <input
+                            ref={inputRef}
                             name="oneTimePassword"
+                            disabled={isDisabledForSubmit}
+                            type="text"
                             placeholder="000000"
                             value={oneTimePassword}
-                            onChange={event => {
-                                const value = event.currentTarget.value;
-
-                                // Don't allow a user to type unsupported characters into our code.
-                                setOneTimePassword(value.replace(/[^0-9]/g, "").slice(0, 6));
-                            }}
+                            onChange={onOneTimePasswordChange}
                             className={sprinkles({
                                 display: "block",
                                 width: "full",
@@ -150,10 +209,9 @@ export default function SignInEmailCodePage() {
                                 fontVariantNumeric: "tabular-nums",
                             }}
                             spellCheck="false"
-                            autoComplete="off"
-                            onScroll={event => {
-                                event.currentTarget.scrollLeft = 0;
-                            }}
+                            autoComplete="one-time-code"
+                            autoFocus={true}
+                            inputMode="numeric"
                         />
                         <Box
                             position="absolute"
@@ -212,7 +270,7 @@ export default function SignInEmailCodePage() {
                         variant="accent"
                         shouldSubmitForm={true}
                         fullWidth={true}
-                        isPending={useTransition().state === "submitting"}
+                        isPending={transition.state === "submitting"}
                         isDisabled={!isFormValid}
                     >
                         Sign in

@@ -4,6 +4,7 @@ import chalk from "chalk";
 import http from "http";
 import {Miniflare} from "miniflare";
 import {Socket} from "net";
+import {networkInterfaces} from "os";
 import path from "path";
 import createServeStaticMiddleware from "serve-static";
 import {Headers} from "undici";
@@ -18,6 +19,23 @@ const host = "127.0.0.1";
 const prettyHost = host === "127.0.0.1" ? "localhost" : host;
 const port = 3000;
 const devServerPort = 3001;
+
+const externalHost = (() => {
+    for (const [name, nets] of Object.entries(networkInterfaces())) {
+        if (!nets) continue;
+        for (const networkInterface of nets) {
+            // Skip over non-IPv4 and internal (i.e. 127.0.0.1) addresses
+            // 'IPv4' is in Node <= 17, from 18 it's a number 4 or 6
+            const familyV4Value = typeof networkInterface.family === "string" ? "IPv4" : 4;
+            if (networkInterface.family === familyV4Value && !networkInterface.internal) {
+                if (name === "en0") {
+                    return networkInterface.address;
+                }
+            }
+        }
+    }
+    return null;
+})();
 
 /* ========================================================================== *\
  *                                Miniflare                                   *
@@ -146,9 +164,15 @@ const server = http.createServer((req, res) => {
     }
 });
 
-server.listen(port, host, () => {
+server.listen(port, () => {
     // eslint-disable-next-line no-console
     console.log(`🚀 App listening on ${chalk.underline.bold(`http://${prettyHost}:${port}`)}`);
+    if (externalHost) {
+        // eslint-disable-next-line no-console
+        console.log(
+            `🚀 App listening on ${chalk.underline.bold(`http://${externalHost}:${port}`)}`,
+        );
+    }
 });
 
 /* ========================================================================== *\
