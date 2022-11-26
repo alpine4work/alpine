@@ -1,8 +1,7 @@
 import {RequestContext, UnauthenticatedRequestContext} from "~/server/context/context";
+import {unauthenticatedSessionError} from "~/server/context/helpers/unauthenticated_session_error";
 import {Account, Session} from "~/server/dynamo/accounts_table";
 import {SessionCookie} from "~/server/session/session_cookie";
-import {UnauthenticatedError} from "~/shared/error/error";
-import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {assert} from "~/shared/helpers/control/assert";
 import {Lazy} from "~/shared/helpers/control/lazy";
 import {Id} from "~/shared/id/id";
@@ -14,21 +13,21 @@ import {Id} from "~/shared/id/id";
  * addition to `RequestContext` methods, this context also provides the ability
  * to modify the session cookie.
  */
-export class UnauthenticatedAppWorkerRequestContext implements UnauthenticatedRequestContext {
-    protected constructor(private readonly _state: UnauthenticatedAppWorkerRequestContextState) {}
+export class AppWorkerUnauthenticatedRequestContext implements UnauthenticatedRequestContext {
+    protected constructor(protected readonly _state: AppWorkerRequestContextState) {}
 
     public static run(
         executionContext: ExecutionContext,
         request: Request,
-        action: (context: UnauthenticatedAppWorkerRequestContext) => Promise<Response>,
+        action: (context: AppWorkerUnauthenticatedRequestContext) => Promise<Response>,
     ): Promise<Response> {
         return SessionCookie.with(request, async sessionCookiePromise => {
-            const state = new UnauthenticatedAppWorkerRequestContextState(
+            const state = new AppWorkerRequestContextState(
                 executionContext,
                 request,
                 sessionCookiePromise,
             );
-            const context = new UnauthenticatedAppWorkerRequestContext(state);
+            const context = new AppWorkerUnauthenticatedRequestContext(state);
             try {
                 const response = await action(context);
                 return response;
@@ -56,8 +55,18 @@ export class UnauthenticatedAppWorkerRequestContext implements UnauthenticatedRe
     private readonly _authenticatedContext: Lazy<Promise<AppWorkerRequestContext | null>> =
         new Lazy(async () => {
             const sessionCookie = await this._state.getSessionCookie();
-            const session = await Session.get(sessionCookie);
-            if (!session) return null;
+
+            const {sessionId} = sessionCookie.get();
+            if (!sessionId) return null;
+
+            const session = await Session.get(sessionId);
+            if (!session) {
+                // If the session was deleted since we stored the session in our cookie, remove
+                // the session from the cookie.
+                sessionCookie.unsetSessionId();
+                return null;
+            }
+
             return new AppWorkerRequestContext(this._state, session);
         });
 
@@ -68,16 +77,7 @@ export class UnauthenticatedAppWorkerRequestContext implements UnauthenticatedRe
 
     public async authenticate(): Promise<AppWorkerRequestContext> {
         const context = await this._authenticatedContext.get();
-
-        if (!context) {
-            throw new UnauthenticatedError("Unauthenticated session", {
-                displayMessage: errorDisplayMessage`You are not signed in. Please ${errorDisplayMessage.link(
-                    "sign in",
-                    "/sign-in",
-                )} and try again.`,
-            });
-        }
-
+        if (!context) throw unauthenticatedSessionError();
         return context;
     }
 
@@ -105,13 +105,10 @@ export class UnauthenticatedAppWorkerRequestContext implements UnauthenticatedRe
  * to modify the session cookie.
  */
 export class AppWorkerRequestContext
-    extends UnauthenticatedAppWorkerRequestContext
+    extends AppWorkerUnauthenticatedRequestContext
     implements RequestContext
 {
-    constructor(
-        state: UnauthenticatedAppWorkerRequestContextState,
-        private readonly _session: Session,
-    ) {
+    constructor(state: AppWorkerRequestContextState, private readonly _session: Session) {
         super(state);
     }
 
@@ -120,10 +117,12 @@ export class AppWorkerRequestContext
     }
 
     public getAuthenticatedAccountId(): Id {
+        this._state.assertNotDestroyed();
         return this._session.accountId;
     }
 
     public getAuthenticatedAccount(): Promise<Account> {
+        this._state.assertNotDestroyed();
         return this._session.getAccount();
     }
 }
@@ -132,7 +131,7 @@ export class AppWorkerRequestContext
  * Most of the context state is in this class so that we can share state across
  * different context child objects.
  */
-class UnauthenticatedAppWorkerRequestContextState {
+class AppWorkerRequestContextState {
     private _executionContext: ExecutionContext | null;
     private _request: Request | null;
     private _sessionCookiePromise: Promise<SessionCookie> | null;
@@ -189,6 +188,10 @@ class UnauthenticatedAppWorkerRequestContextState {
         // destroy the request context until all tasks have completed. Since the task
         // may reference the request context.
         this._taskPromises.push(promise);
+    }
+
+    public assertNotDestroyed() {
+        assert(!this._isDestroyed, "Request context already destroyed");
     }
 
     public getRequest() {

@@ -17,6 +17,7 @@ ts_project(
         "//:node_modules/@remix-run/cloudflare",
         "//:node_modules/@remix-run/cloudflare-workers",
         "//:node_modules/@remix-run/dev",
+        "//:node_modules/jose",
         "//client",
         "//server",
         "//shared",

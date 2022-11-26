@@ -1,3 +1,8 @@
+import {RequestContext} from "~/server/context/context";
+import {
+    DurableObjectConnectionContext,
+    DurableObjectRequestContext,
+} from "~/server/context/durable_object_context";
 import {ErrorBase, FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error";
 import {ErrorCode} from "~/shared/error/error_code";
 import {isHttp500ErrorCode} from "~/shared/error/is_http_500_error_code";
@@ -9,7 +14,7 @@ import {expirationTimeoutMs} from "~/shared/helpers/web_socket_shared";
 import {Schema, UnionSchema} from "~/shared/schema/schema";
 
 export interface WebSocketServerConnectionBase<MessageFromClient extends {type: string}> {
-    handleMessage(message: MessageFromClient): Promise<void>;
+    handleMessage(context: RequestContext, message: MessageFromClient): Promise<void>;
     handleClose?(): void;
 }
 
@@ -43,7 +48,7 @@ export class WebSocketServer<
     /**
      * Upgrade an HTTP request to a WebSocket connection.
      */
-    public upgrade(request: Request): Response {
+    public upgrade(requestContext: DurableObjectRequestContext, request: Request): Response {
         if (request.headers.get("Upgrade") !== "websocket")
             throw new InvalidArgumentError("Not a WebSocket request");
 
@@ -86,6 +91,7 @@ export class WebSocketServer<
         });
 
         const connection = new WebSocketServerConnectionWrapper(
+            requestContext.upgrade(),
             serverSocket,
             this._messageFromClientSchema,
             actualConnection,
@@ -192,6 +198,7 @@ class WebSocketServerConnectionWrapper<
     private _lastMessageTimeMs: number = Date.now();
 
     constructor(
+        private readonly _context: DurableObjectConnectionContext,
         private readonly _socket: WebSocket,
         private readonly _messageFromClientSchema: Schema<MessageFromClient>,
         public readonly connection: Connection,
@@ -199,29 +206,32 @@ class WebSocketServerConnectionWrapper<
         this._socket.addEventListener("message", event => {
             runPromiseWithoutAwaiting(async () => {
                 try {
-                    this._lastMessageTimeMs = Date.now();
+                    await this._context.request(async context => {
+                        this._lastMessageTimeMs = Date.now();
 
-                    if (event.data === "pong") {
-                        // Updating the last message time is all the pong message does.
-                        return;
-                    }
+                        if (event.data === "pong") {
+                            // Updating the last message time is all the pong message does.
+                            return;
+                        }
 
-                    if (event.data === "ping") {
-                        this.sendRawMessage("pong");
-                        return;
-                    }
+                        if (event.data === "ping") {
+                            this.sendRawMessage("pong");
+                            return;
+                        }
 
-                    let serializedMessage;
-                    try {
-                        serializedMessage = JSON.parse(event.data);
-                    } catch (error) {
-                        // Classify JSON parse errors
-                        throw new InvalidArgumentError((error as any).message, {cause: error});
-                    }
+                        let serializedMessage;
+                        try {
+                            serializedMessage = JSON.parse(event.data);
+                        } catch (error) {
+                            // Classify JSON parse errors
+                            throw new InvalidArgumentError((error as any).message, {cause: error});
+                        }
 
-                    const message = this._messageFromClientSchema.deserialize(serializedMessage);
+                        const message =
+                            this._messageFromClientSchema.deserialize(serializedMessage);
 
-                    await this.connection.handleMessage(message);
+                        await this.connection.handleMessage(context, message);
+                    });
                 } catch (error) {
                     // TODO(calebmer): Actual error reporting
                     // eslint-disable-next-line no-console

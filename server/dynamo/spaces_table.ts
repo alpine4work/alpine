@@ -1,10 +1,14 @@
+import {RequestContext} from "~/server/context/context";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
 import {DynamoConditionExpression} from "~/server/dynamo/internal/dynamo_condition";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
 import {getSeedConstants} from "~/server/dynamo/seed_constants";
+import {PermissionDeniedError} from "~/shared/error/error";
+import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {assert} from "~/shared/helpers/control/assert";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
 import {Id} from "~/shared/id/id";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
 import {Schema} from "~/shared/schema/schema";
@@ -144,4 +148,48 @@ export function createSpaceAccountForAlphaTransactionEntries({
             joinedTime: new Date(),
         }),
     ];
+}
+
+// Cache of space authorizations performed against a context.
+//
+// TODO(calebmer): This cache will break with nested context objects! Replace
+// this with something that lasts the entire request.
+const authorizationPromiseBySpaceIdByContext = new WeakMap<
+    RequestContext,
+    Map<Id, Promise<void>>
+>();
+
+/**
+ * Authorize that the authenticated account has access to the provided
+ * `spaceId`. Throws if the account does not have access.
+ *
+ * We cache the result of this function on a per-request basis.
+ */
+export function authorizeAccountHasSpaceAccess(
+    context: RequestContext,
+    spaceId: Id,
+): Promise<void> {
+    const authorizationPromiseBySpaceId = getOrSetDefaultMapValue(
+        authorizationPromiseBySpaceIdByContext,
+        context,
+        () => new Map(),
+    );
+
+    return getOrSetDefaultMapValue(authorizationPromiseBySpaceId, spaceId, async () => {
+        const accountId = context.getAuthenticatedAccountId();
+
+        const spaceAccountItem = await SpacesTable.getItem({
+            partitionType: "Space",
+            sortRangeType: "Account",
+            spaceId,
+            accountId,
+        });
+
+        if (!spaceAccountItem)
+            throw new PermissionDeniedError("Account does not have access to space", {
+                // TODO(calebmer): Add link to page that lists all spaces an account has access
+                // to in the help part of this error message.
+                displayMessage: errorDisplayMessage`You are not a member of this space.`,
+            });
+    });
 }

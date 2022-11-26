@@ -1,4 +1,5 @@
 import {Step} from "prosemirror-transform";
+import {RequestContext} from "~/server/context/context";
 import {getDocumentContentSteps} from "~/server/dynamo/documents_table";
 import {FailedPreconditionError, InternalError, InvalidArgumentError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
@@ -51,6 +52,7 @@ export class DocumentCollaborationStepCache {
      * the database and put them in our in-memory cache for future requests.
      */
     public async getSteps(
+        context: RequestContext,
         startVersion: number,
         endVersion: number,
     ): Promise<
@@ -78,7 +80,7 @@ export class DocumentCollaborationStepCache {
 
         // If we are trying to get steps not in our store, then first we need to load
         // those steps.
-        if (startVersion < this._startVersion) await this._loadOldSteps(startVersion);
+        if (startVersion < this._startVersion) await this._loadOldSteps(context, startVersion);
         assert(startVersion >= this._startVersion);
 
         for (let version = startVersion; version < endVersion; version++) {
@@ -90,7 +92,7 @@ export class DocumentCollaborationStepCache {
         return steps;
     }
 
-    private _loadOldSteps(newStartVersion: number): Promise<void> {
+    private _loadOldSteps(context: RequestContext, newStartVersion: number): Promise<void> {
         assert(newStartVersion < this._startVersion);
 
         // If we have a promise that is already loading all the steps after
@@ -109,7 +111,7 @@ export class DocumentCollaborationStepCache {
         const endVersion = lastLoadOldStepsState?.startVersionAfterPromise ?? this._startVersion;
 
         const promise = (async () => {
-            const steps = await getDocumentContentSteps({
+            const steps = await getDocumentContentSteps(context, {
                 id: this._id,
                 startVersion: newStartVersion,
                 endVersion,

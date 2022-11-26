@@ -1,4 +1,4 @@
-import {UnauthenticatedAppWorkerRequestContext} from "~/server/context/app_worker_context";
+import {AppWorkerUnauthenticatedRequestContext} from "~/server/context/app_worker_context";
 import {assert} from "~/shared/helpers/control/assert";
 import {quote} from "~/shared/helpers/string/quote";
 import {BlockInference} from "~/shared/helpers/types/block_inference";
@@ -7,7 +7,7 @@ import {SchemaSerializedValue} from "~/shared/schema/schema";
 
 export type NetworkFunctionImplementation = {
     execute(
-        context: UnauthenticatedAppWorkerRequestContext,
+        context: AppWorkerUnauthenticatedRequestContext,
         input: SchemaSerializedValue,
     ): Promise<SchemaSerializedValue>;
 };
@@ -21,8 +21,8 @@ export type NetworkFunctionImplementation = {
 export function implementNetworkFunction<Input, Output>(
     networkFunction: NetworkFunction<Input, Output>,
     implementation: (
+        context: AppWorkerUnauthenticatedRequestContext,
         input: Input,
-        context: UnauthenticatedAppWorkerRequestContext,
     ) => Promise<BlockInference<Output>>,
 ) {
     assert(
@@ -31,11 +31,11 @@ export function implementNetworkFunction<Input, Output>(
     );
 
     const execute = async (
-        context: UnauthenticatedAppWorkerRequestContext,
+        context: AppWorkerUnauthenticatedRequestContext,
         serializedInput: SchemaSerializedValue,
     ): Promise<SchemaSerializedValue> => {
         const input = networkFunction.inputSchema.deserialize(serializedInput);
-        const output = (await implementation(input, context)) as Output;
+        const output = (await implementation(context, input)) as Output;
         return networkFunction.outputSchema.serialize(output);
     };
 

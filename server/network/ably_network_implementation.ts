@@ -19,7 +19,7 @@ const [ablyApiKeyId = "", ablyApiKeySecret = ""] = ablyApiKey.split(":");
 assert(ablyApiKeyId.length > 0);
 assert(ablyApiKeySecret.length > 0);
 
-implementNetworkFunction(definition.authenticateAbly, async (input, context) => {
+implementNetworkFunction(definition.authenticateAbly, async (context, input) => {
     let capability: unknown;
     try {
         capability =

@@ -7,7 +7,6 @@ import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/d
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
 import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry_dynamo_condition_check_errors";
 import {getSeedConstants} from "~/server/dynamo/seed_constants";
-import {SessionCookie} from "~/server/session/session_cookie";
 import {FailedPreconditionError, NotFoundError, PermissionDeniedError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {assert} from "~/shared/helpers/control/assert";
@@ -644,43 +643,24 @@ export type Account = {
     readonly hasInternalAccess?: boolean;
 };
 
-/**
- * A session is created when an account authenticates a device with the system.
- * We securely store a session id on that device and whenever the device
- * interacts with our systems it shares the session id to identify itself.
- */
 export class Session {
     public readonly id: Id;
     public readonly createdTime: Date;
     public readonly accountId: Id;
 
-    // It is important that the constructor for a session object is private! You
-    // are only allowed to create a session object through the `get()` function
-    // which forces you to pass in a `SessionCookie` class which we know is
-    // securely constructed from a request cookie.
     private constructor(sessionId: Id, sessionItem: SessionItem) {
         this.id = sessionId;
         this.createdTime = sessionItem.createdTime;
         this.accountId = sessionItem.accountId;
     }
 
-    public static async get(sessionCookie: SessionCookie): Promise<Session | null> {
-        const {sessionId} = sessionCookie.get();
-        if (!sessionId) return null;
-
+    public static async get(sessionId: Id): Promise<Session | null> {
         const sessionItem = await AccountsTable.getItem({
             partitionType: "Session",
             sortRangeType: "Attributes",
             sessionId,
         });
-
-        if (!sessionItem) {
-            // We delete sessions from the database when revoking a device's access to an
-            // account. Remove the now invalid session id from the cookie.
-            sessionCookie.unsetSessionId();
-            return null;
-        }
-
+        if (!sessionItem) return null;
         return new Session(sessionId, sessionItem);
     }
 

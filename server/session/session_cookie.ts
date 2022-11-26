@@ -62,6 +62,15 @@ export class SessionCookie {
         return response;
     }
 
+    /**
+     * Get the session cookie data without writing any updates on an outgoing
+     * response.
+     */
+    public static async get(request: Request): Promise<SessionCookieData> {
+        const sessionCookie = await SessionCookie._new(request);
+        return sessionCookie.get();
+    }
+
     private static async _new(request: Request) {
         const cookieHeader = request.headers.get("Cookie");
         const session = await cookieSessionStorage.getSession(cookieHeader);

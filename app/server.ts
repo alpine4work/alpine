@@ -1,7 +1,11 @@
 import {AppLoadContext} from "@remix-run/cloudflare";
 import {createRequestHandler, handleAsset} from "@remix-run/cloudflare-workers";
 import * as build from "@remix-run/dev/server-build";
-import {UnauthenticatedAppWorkerRequestContext} from "~/server/context/app_worker_context";
+import {SignJWT} from "jose";
+import {AppWorkerUnauthenticatedRequestContext} from "~/server/context/app_worker_context";
+import {unauthenticatedSessionError} from "~/server/context/helpers/unauthenticated_session_error";
+import {cookieSessionSecret} from "~/server/env/env_variables";
+import {SessionCookie} from "~/server/session/session_cookie";
 import {InternalError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {Schema} from "~/shared/schema/schema";
@@ -14,7 +18,7 @@ const contextSymbol = Symbol("sessionCookiePromise");
 
 const handleRequest = createRequestHandler({
     build,
-    getLoadContext(event: FetchEvent & {[contextSymbol]?: UnauthenticatedAppWorkerRequestContext}) {
+    getLoadContext(event: FetchEvent & {[contextSymbol]?: AppWorkerUnauthenticatedRequestContext}) {
         const context = assertExists(event[contextSymbol]);
         return context as any as AppLoadContext;
     },
@@ -31,7 +35,7 @@ export default {
         // Backwards compatibility with Cloudflare service worker syntax. (Instead of
         // Cloudflare module syntax.)
         // https://developers.cloudflare.com/workers/runtime-apis/fetch-event
-        const event: FetchEvent & {[contextSymbol]?: UnauthenticatedAppWorkerRequestContext} =
+        const event: FetchEvent & {[contextSymbol]?: AppWorkerUnauthenticatedRequestContext} =
             Object.assign(new Event("fetch"), {
                 request,
                 waitUntil: (promise: Promise<any>) => executionContext.waitUntil(promise),
@@ -64,6 +68,25 @@ export default {
                     const newRequest = new Request(newUrl.toString(), event.request);
                     newRequest.headers.set("x-document-id", documentId);
 
+                    const sessionCookie = await SessionCookie.get(request);
+                    if (!sessionCookie.sessionId) throw unauthenticatedSessionError();
+
+                    // Create a short-lived JWT for sharing the `sessionId` with the durable object.
+                    //
+                    // We use a JWT to ensure that it's our app worker sending the `sessionId`. If
+                    // an attacker got access to the Durable Object URL then they could send a
+                    // request with whatever `sessionId` they have access to! Using a signed JWT
+                    // prevents that.
+                    const authenticationToken = await new SignJWT({
+                        sessionId: sessionCookie.sessionId,
+                    })
+                        .setProtectedHeader({alg: "HS256"})
+                        .setIssuedAt()
+                        .setExpirationTime("2m")
+                        .sign(new TextEncoder().encode(cookieSessionSecret));
+
+                    newRequest.headers.set("authorization", `bearer ${authenticationToken}`);
+
                     return durableObjectStub.fetch(newRequest);
                 }
                 default:
@@ -71,7 +94,7 @@ export default {
             }
         }
 
-        return UnauthenticatedAppWorkerRequestContext.run(executionContext, request, context => {
+        return AppWorkerUnauthenticatedRequestContext.run(executionContext, request, context => {
             event[contextSymbol] = context;
             return handleRequest(event);
         });

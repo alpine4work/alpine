@@ -1,7 +1,7 @@
-import type {UnauthenticatedAppWorkerRequestContext} from "~/server/context/app_worker_context";
+import type {AppWorkerUnauthenticatedRequestContext} from "~/server/context/app_worker_context";
 
 export interface DataFunctionArgs {
     request: Request;
-    context: UnauthenticatedAppWorkerRequestContext;
+    context: AppWorkerUnauthenticatedRequestContext;
     params: {readonly [key: string]: string | undefined};
 }

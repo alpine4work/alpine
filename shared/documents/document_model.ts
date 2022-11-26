@@ -19,6 +19,8 @@ export class DocumentModel
     extends Model(
         Schema.object({
             id: Schema.id,
+            createdTime: Schema.date,
+            spaceId: Schema.id,
             version: Schema.integer,
             content: DocumentContentSchema,
         }),
@@ -91,6 +93,8 @@ export class DocumentPreviewModel
     extends Model(
         Schema.object({
             id: Schema.id,
+            createdTime: Schema.date,
+            spaceId: Schema.id,
             version: Schema.integer,
             titleWithoutFallback: Schema.string,
         }),

@@ -7,5 +7,6 @@ import {getAlphaConfiguration} from "~/server/dynamo/alpha_access_table";
  */
 export async function redirectToAuthenticatedHome() {
     const configuration = await getAlphaConfiguration();
-    return redirect(configuration.authenticatedHomeUrl ?? "/documents/create");
+    // TODO(calebmer): Maybe add a good fallback URL to route to?
+    return redirect(configuration.authenticatedHomeUrl ?? "/404");
 }

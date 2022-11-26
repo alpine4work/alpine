@@ -1,6 +1,17 @@
 import {BlockInference} from "~/shared/helpers/types/block_inference";
 
 /**
+ * The limited map interface we need to implement `getOrSetDefaultMapValue()`.
+ * This interface can match a `Map` or a `WeakMap` or a custom map
+ * implementation.
+ */
+interface MapInterface<Key, Value> {
+    get(key: Key): Value | undefined;
+    has(key: Key): boolean;
+    set(key: Key, value: Value): void;
+}
+
+/**
  * Get a value at the corresponding key from a map. If no entry for that key
  * exists then we will create an entry with the value from the provided
  * function.
@@ -9,7 +20,7 @@ import {BlockInference} from "~/shared/helpers/types/block_inference";
  * use `DefaultMap`.
  */
 export function getOrSetDefaultMapValue<Key, Value>(
-    map: Map<Key, Value>,
+    map: MapInterface<Key, Value>,
     key: Key,
     // We use `BlockInference` here to ensure that the returned `Value` is the type
     // from our map and not a union of the map value and the return value of this

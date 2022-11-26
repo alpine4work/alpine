@@ -1,5 +1,10 @@
 import {Step} from "prosemirror-transform";
-import {DurableObjectProcessContext} from "~/server/context/durable_object_context";
+import {RequestContext} from "~/server/context/context";
+import {
+    DurableObjectProcessContext,
+    DurableObjectRequestContext,
+    DurableObjectUnauthenticatedRequestContext,
+} from "~/server/context/durable_object_context";
 import {DocumentCollaborationStepCache} from "~/server/documents/document_collaboration_step_cache";
 import {getUpdateDocumentContentResult} from "~/server/documents/get_update_document_content_result";
 import {
@@ -37,36 +42,46 @@ import {Schema} from "~/shared/schema/schema";
  * state in a type safe way.
  */
 class DocumentCollaborationDurableObjectWrapper {
+    private readonly _state: DurableObjectState;
+    private readonly _context: DurableObjectProcessContext;
     private _objectPromise: Promise<DocumentCollaborationDurableObject> | null = null;
 
-    constructor(private readonly _state: DurableObjectState) {}
+    constructor(state: DurableObjectState) {
+        this._state = state;
+        this._context = new DurableObjectProcessContext(state);
+    }
 
-    public async fetch(request: Request): Promise<Response> {
-        const id = Schema.id.deserialize(request.headers.get("x-document-id"));
+    public fetch(request: Request): Promise<Response> {
+        return DurableObjectUnauthenticatedRequestContext.run(
+            this._context,
+            request,
+            async _context => {
+                const context = await _context.authenticate();
+                const id = Schema.id.deserialize(request.headers.get("x-document-id"));
 
-        if (this._objectPromise === null) {
-            this._objectPromise = DocumentCollaborationDurableObject.initialize({
-                state: this._state,
-                id,
-                destroy: () => (this._objectPromise = null),
-            });
-        }
+                if (this._objectPromise === null) {
+                    this._objectPromise = DocumentCollaborationDurableObject.initialize(context, {
+                        id,
+                        destroy: () => (this._objectPromise = null),
+                    });
+                }
 
-        const object = await this._objectPromise;
+                const object = await this._objectPromise;
 
-        if (id !== object.id)
-            throw new FailedPreconditionError(
-                "Document id in HTTP header does not match durable object document id",
-            );
+                if (id !== object.id)
+                    throw new FailedPreconditionError(
+                        "Document id in HTTP header does not match durable object document id",
+                    );
 
-        return object.fetch(request);
+                return object.fetch(context, request);
+            },
+        );
     }
 }
 
 export {DocumentCollaborationDurableObjectWrapper as DocumentCollaborationDurableObject};
 
 class DocumentCollaborationDurableObject {
-    private readonly _state: DurableObjectState;
     private readonly _context: DurableObjectProcessContext;
     public readonly id: Id;
     private readonly _contentManager: DocumentCollaborationContentManager;
@@ -78,20 +93,21 @@ class DocumentCollaborationDurableObject {
         DocumentCollaborationDurableObjectConnection
     >;
 
-    public static async initialize({
-        state,
-        id,
-        destroy,
-    }: {
-        state: DurableObjectState;
-        id: Id;
-        destroy: () => void;
-    }): Promise<DocumentCollaborationDurableObject> {
-        const document = await getDocument(id);
+    public static async initialize(
+        context: DurableObjectRequestContext,
+        {
+            id,
+            destroy,
+        }: {
+            id: Id;
+            destroy: () => void;
+        },
+    ): Promise<DocumentCollaborationDurableObject> {
+        const document = await getDocument(context, id);
         if (!document) throw new NotFoundError("Document not found");
 
         return new DocumentCollaborationDurableObject({
-            state,
+            context: context.getProcessContext(),
             id: document.id,
             initialVersion: document.version,
             initialContent: document.content,
@@ -100,23 +116,21 @@ class DocumentCollaborationDurableObject {
     }
 
     private constructor({
-        state,
+        context,
         id,
         initialVersion,
         initialContent,
         destroy,
     }: {
-        state: DurableObjectState;
+        context: DurableObjectProcessContext;
         id: Id;
         initialVersion: number;
         initialContent: DocumentContent;
         destroy: () => void;
     }) {
-        this._state = state;
-        this._context = new DurableObjectProcessContext(state);
+        this._context = context;
         this.id = id;
         this._contentManager = new DocumentCollaborationContentManager({
-            state,
             id,
             initialVersion,
             initialContent,
@@ -130,7 +144,6 @@ class DocumentCollaborationDurableObject {
             DocumentCollaborationMessageFromServerSchema,
             ({sendMessage, sendMessageToOthers, iterateOtherConnections}) =>
                 new DocumentCollaborationDurableObjectConnection({
-                    context: this._context,
                     contentManager: this._contentManager,
                     sendMessage,
                     sendMessageToOthers,
@@ -140,10 +153,10 @@ class DocumentCollaborationDurableObject {
         );
     }
 
-    public fetch(request: Request): Response {
+    public fetch(context: DurableObjectRequestContext, request: Request): Response {
         const url = new URL(request.url);
         if (url.pathname !== "/") throw new NotFoundError("Unexpected path");
-        return this._webSocketServer.upgrade(request);
+        return this._webSocketServer.upgrade(context, request);
     }
 
     private _destroy() {
@@ -157,7 +170,6 @@ class DocumentCollaborationDurableObject {
  * safe way.
  */
 class DocumentCollaborationContentManager {
-    private readonly _state: DurableObjectState;
     private readonly _id: Id;
     private _version: number;
     private _content: DocumentContent;
@@ -175,21 +187,18 @@ class DocumentCollaborationContentManager {
     } | null = null;
 
     constructor({
-        state,
         id,
         initialVersion,
         initialContent,
         sendMessageToAll,
         destroyDurableObject,
     }: {
-        state: DurableObjectState;
         id: Id;
         initialVersion: number;
         initialContent: DocumentContent;
         sendMessageToAll: (message: DocumentCollaborationMessageFromServer) => void;
         destroyDurableObject: () => void;
     }) {
-        this._state = state;
         this._id = id;
         this._version = initialVersion;
         this._content = initialContent;
@@ -214,13 +223,16 @@ class DocumentCollaborationContentManager {
     /**
      * Gets the document content at the specified version number.
      */
-    public async getContentAtVersion(version: number): Promise<DocumentContent> {
+    public async getContentAtVersion(
+        context: RequestContext,
+        version: number,
+    ): Promise<DocumentContent> {
         if (version > this._version)
             throw new FailedPreconditionError("Can not get document content at a future version");
 
         let content = this._content;
 
-        const steps = await this.stepCache.getSteps(version, this._version);
+        const steps = await this.stepCache.getSteps(context, version, this._version);
 
         for (let i = steps.length - 1; i >= 0; i--) {
             const {invertedStep} = steps[i]!;
@@ -246,7 +258,7 @@ class DocumentCollaborationContentManager {
      * `newSteps` applied to `content` produces `newContent`.
      */
     public update(
-        context: DurableObjectProcessContext,
+        context: RequestContext,
         connectionId: Id,
         update: {
             version: number;
@@ -278,7 +290,7 @@ class DocumentCollaborationContentManager {
                     clientVersion: update.version,
                     clientSteps: update.steps,
                     getSteps: (startVersion, endVersion) =>
-                        this.stepCache.getSteps(startVersion, endVersion),
+                        this.stepCache.getSteps(context, startVersion, endVersion),
                 });
 
             // Validate the presence state selection based on the document as the client
@@ -402,7 +414,7 @@ class DocumentCollaborationContentManager {
                 };
 
                 // Make sure the durable object stays alive until we've finished persisting.
-                this._state.waitUntil(this._persistenceState.promise);
+                context.waitUntil(this._persistenceState.promise);
             }
 
             return {presenceState, hasSentPresenceState: true};
@@ -413,7 +425,6 @@ class DocumentCollaborationContentManager {
 class DocumentCollaborationDurableObjectConnection {
     public readonly id = generateId();
 
-    private readonly _context: DurableObjectProcessContext;
     private readonly _contentManager: DocumentCollaborationContentManager;
     private readonly _sendMessage: (message: DocumentCollaborationMessageFromServer) => void;
     private readonly _sendMessageToOthers: (
@@ -426,21 +437,18 @@ class DocumentCollaborationDurableObjectConnection {
     private _sequentialQueue = new AsyncSequentialQueue();
 
     constructor({
-        context,
         contentManager,
         sendMessage,
         sendMessageToOthers,
         iterateOtherConnections,
         destroyDurableObject,
     }: {
-        context: DurableObjectProcessContext;
         contentManager: DocumentCollaborationContentManager;
         sendMessage: (message: DocumentCollaborationMessageFromServer) => void;
         sendMessageToOthers: (message: DocumentCollaborationMessageFromServer) => void;
         iterateOtherConnections: () => Iterable<DocumentCollaborationDurableObjectConnection>;
         destroyDurableObject: () => void;
     }) {
-        this._context = context;
         this._contentManager = contentManager;
         this._sendMessage = sendMessage;
         this._sendMessageToOthers = sendMessageToOthers;
@@ -452,7 +460,7 @@ class DocumentCollaborationDurableObjectConnection {
         return this._presenceState;
     }
 
-    public handleMessage(message: DocumentCollaborationMessageFromClient) {
+    public handleMessage(context: RequestContext, message: DocumentCollaborationMessageFromClient) {
         // Handle all messages for this connection in sequence as a defense against
         // race conditions.
         //
@@ -474,7 +482,7 @@ class DocumentCollaborationDurableObjectConnection {
                             //
                             // So load the document from our database and if its version is ahead of the
                             // one in our durable object then we want to destroy the entire durable object.
-                            const documentPreview = await getDocumentPreview(this.id);
+                            const documentPreview = await getDocumentPreview(context, this.id);
                             if (!documentPreview) {
                                 this._sendFatalErrorMessageAndDestroyDurableObject(
                                     new NotFoundError(
@@ -519,6 +527,7 @@ class DocumentCollaborationDurableObjectConnection {
                         );
 
                         const steps = await this._contentManager.stepCache.getSteps(
+                            context,
                             message.version,
                             version,
                         );
@@ -527,6 +536,7 @@ class DocumentCollaborationDurableObjectConnection {
                             smallestPresenceStateVersion &&
                             smallestPresenceStateVersion < message.version
                                 ? await this._contentManager.stepCache.getSteps(
+                                      context,
                                       smallestPresenceStateVersion,
                                       message.version,
                                   )
@@ -547,7 +557,7 @@ class DocumentCollaborationDurableObjectConnection {
                     }
                     case "UpdateContent": {
                         const {presenceState, hasSentPresenceState} =
-                            await this._contentManager.update(this._context, this.id, message);
+                            await this._contentManager.update(context, this.id, message);
                         this._presenceState = presenceState;
 
                         if (!hasSentPresenceState) {
@@ -575,6 +585,7 @@ class DocumentCollaborationDurableObjectConnection {
                                 );
 
                             const oldContent = await this._contentManager.getContentAtVersion(
+                                context,
                                 message.state.version,
                             );
 

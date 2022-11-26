@@ -1,11 +1,12 @@
 import {Step} from "prosemirror-transform";
-import {ProcessContext} from "~/server/context/context";
+import {RequestContext} from "~/server/context/context";
 import {getUpdateDocumentContentResult} from "~/server/documents/get_update_document_content_result";
 import {DynamoConditionExpression} from "~/server/dynamo/internal/dynamo_condition";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
 import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry_dynamo_condition_check_errors";
+import {authorizeAccountHasSpaceAccess} from "~/server/dynamo/spaces_table";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint";
 import {TestCounter} from "~/server/helpers/test/test_counter";
 import {
@@ -54,6 +55,11 @@ const DocumentsTable = DynamoTableSchema.new({
                 Attributes: {
                     sortKeyAttributes: {},
                     attributes: Schema.object({
+                        createdTime: Schema.date,
+                        // TODO(calebmer): Could I make this a feature of `DynamoTableSchema` and force
+                        // us to always authorize space access when reading/writing this data?
+                        spaceId: Schema.id,
+
                         /**
                          * The current version of the document.
                          *
@@ -102,6 +108,8 @@ const DocumentsTable = DynamoTableSchema.new({
                         startVersion: DynamoKeyAttributeSchema.integer,
                     },
                     attributes: Schema.object({
+                        createdTime: Schema.date,
+
                         /**
                          * The steps applied to the document in this transaction.
                          */
@@ -168,6 +176,8 @@ const DocumentsTable = DynamoTableSchema.new({
                         startVersion: DynamoKeyAttributeSchema.integer,
                     },
                     attributes: Schema.object({
+                        createdTime: Schema.date,
+
                         /**
                          * The steps applied to the document.
                          */
@@ -231,14 +241,21 @@ type DocumentSnapshotItem = DynamoTableItemType<typeof DocumentsTable, "Document
 /**
  * Creates a new document with no history using the initial content provided.
  */
-export async function createDocument({id, content}: {id: Id; content: DocumentContent}) {
+export async function createDocument(
+    context: RequestContext,
+    {id, spaceId, content}: {id: Id; spaceId: Id; content: DocumentContent},
+) {
+    await authorizeAccountHasSpaceAccess(context, spaceId);
+
     await DynamoTableSchema.executeTransaction(
         [
             DocumentsTable.transactionPutItem(
                 {
                     partitionType: "Document",
-                    documentId: id,
                     sortRangeType: "Attributes",
+                    createdTime: new Date(),
+                    spaceId,
+                    documentId: id,
                     version: 0,
                     titleWithoutFallback: getDocumentContentTitleWithoutFallback(content),
                 },
@@ -269,8 +286,8 @@ export async function createDocument({id, content}: {id: Id; content: DocumentCo
 /**
  * Get the full document with the provided id.
  */
-export async function getDocument(id: Id): Promise<DocumentModel | null> {
-    const internalDocument = await getInternalDocument(id);
+export async function getDocument(context: RequestContext, id: Id): Promise<DocumentModel | null> {
+    const internalDocument = await getInternalDocument(context, id);
     return internalDocument?.model ?? null;
 }
 
@@ -279,7 +296,10 @@ export async function getDocument(id: Id): Promise<DocumentModel | null> {
  *
  * Cheaper than `getDocument()` since we don't return the full content.
  */
-export async function getDocumentPreview(id: Id): Promise<DocumentPreviewModel | null> {
+export async function getDocumentPreview(
+    context: RequestContext,
+    id: Id,
+): Promise<DocumentPreviewModel | null> {
     const attributes = await DocumentsTable.getItem({
         partitionType: "Document",
         documentId: id,
@@ -288,8 +308,12 @@ export async function getDocumentPreview(id: Id): Promise<DocumentPreviewModel |
 
     if (!attributes) return null;
 
+    await authorizeAccountHasSpaceAccess(context, attributes.spaceId);
+
     return new DocumentPreviewModel({
         id,
+        createdTime: attributes.createdTime,
+        spaceId: attributes.spaceId,
         version: attributes.version,
         titleWithoutFallback: attributes.titleWithoutFallback,
     });
@@ -310,7 +334,10 @@ export const getInternalDocumentTestCounter = new TestCounter();
  * Not only returns the `Document` but also returns some of the document's
  * internal representation.
  */
-async function getInternalDocument(id: Id): Promise<InternalDocument | null> {
+async function getInternalDocument(
+    context: RequestContext,
+    id: Id,
+): Promise<InternalDocument | null> {
     getInternalDocumentTestCounter.incrementForTest(id);
 
     let attributes: DocumentAttributesItem | null = null;
@@ -351,6 +378,8 @@ async function getInternalDocument(id: Id): Promise<InternalDocument | null> {
         );
         return null;
     }
+
+    await authorizeAccountHasSpaceAccess(context, attributes.spaceId);
 
     if (!maybeSnapshot)
         throw new DataLossError("Document with attributes should also have a snapshot");
@@ -409,6 +438,8 @@ async function getInternalDocument(id: Id): Promise<InternalDocument | null> {
         snapshot,
         model: new DocumentModel({
             id: id,
+            createdTime: attributes.createdTime,
+            spaceId: attributes.spaceId,
             version: attributes.version,
             content,
         }),
@@ -447,7 +478,12 @@ export const documentContentCacheEvictionTimeoutMs = 1000 * 60 * 5;
 export class DocumentContentCacheForUpdate {
     private readonly _entries = new DocumentContentCacheForUpdateEntries();
 
-    public async getAndCacheDocument(id: Id): Promise<{
+    public async getAndCacheDocument(
+        context: RequestContext,
+        id: Id,
+    ): Promise<{
+        readonly createdTime: Date;
+        readonly spaceId: Id;
         readonly version: number;
         readonly content: DocumentContent;
 
@@ -480,10 +516,12 @@ export class DocumentContentCacheForUpdate {
         const nullableEntry = await this._entries.getOrSetEntry(id, async () => {
             wasEntryCached = false;
 
-            const internalDocument = await getInternalDocument(id);
+            const internalDocument = await getInternalDocument(context, id);
             if (!internalDocument) return null;
 
             return {
+                createdTime: internalDocument.model.createdTime,
+                spaceId: internalDocument.model.spaceId,
                 version: internalDocument.model.version,
                 content: internalDocument.model.content,
                 stepsAfterInitialSnapshot: new PushOnlyArray(
@@ -556,6 +594,8 @@ export class DocumentContentCacheForUpdate {
                     }
 
                     return {
+                        createdTime: entry.createdTime,
+                        spaceId: entry.spaceId,
                         version: attributes.version,
                         content,
                         stepsAfterInitialSnapshot: entry.stepsAfterInitialSnapshot,
@@ -568,6 +608,8 @@ export class DocumentContentCacheForUpdate {
         }
 
         return {
+            createdTime: entry.createdTime,
+            spaceId: entry.spaceId,
             version: entry.version,
             content: entry.content,
             // Create a slice of `stepsAfterInitialSnapshot` so that when we mutate the
@@ -584,6 +626,8 @@ export class DocumentContentCacheForUpdate {
                 }
 
                 await this._entries.setEntry(id, async () => ({
+                    createdTime: entry.createdTime,
+                    spaceId: entry.spaceId,
                     version: entry.version + newSteps.length,
                     content: newContent,
                     stepsAfterInitialSnapshot: entry.stepsAfterInitialSnapshot,
@@ -594,6 +638,8 @@ export class DocumentContentCacheForUpdate {
 }
 
 type DocumentContentCacheForUpdateEntry = {
+    readonly createdTime: Date;
+    readonly spaceId: Id;
     readonly version: number;
     readonly content: DocumentContent;
     /**
@@ -820,7 +866,7 @@ declare module "prosemirror-transform" {
 // object we should throw an error or restart the durable object or something.
 // Maybe the durable object could incorporate conflicting
 export async function updateDocumentContent(
-    context: ProcessContext,
+    context: RequestContext,
     {
         id,
         version: clientVersion,
@@ -880,7 +926,7 @@ export async function updateDocumentContent(
             "Can only override the cache in Jest tests",
         );
 
-        const internalDocument = await cache.getAndCacheDocument(id);
+        const internalDocument = await cache.getAndCacheDocument(context, id);
         if (!internalDocument)
             throw new NotFoundError("Can not update document that doesn't exist");
 
@@ -940,8 +986,10 @@ export async function updateDocumentContent(
                 DocumentsTable.transactionPutItem(
                     {
                         partitionType: "Document",
-                        documentId: id,
                         sortRangeType: "Attributes",
+                        documentId: id,
+                        createdTime: internalDocument.createdTime,
+                        spaceId: internalDocument.spaceId,
                         version: internalDocument.version + steps.length,
                         titleWithoutFallback: getDocumentContentTitleWithoutFallback(newContent),
                     },
@@ -960,6 +1008,7 @@ export async function updateDocumentContent(
                     steps: steps,
                     invertedSteps,
                     clientId,
+                    createdTime: new Date(),
                 }),
             ]);
 
@@ -1116,23 +1165,26 @@ export const getDocumentContentStepsTestCounter = new TestCounter<{
 /**
  * Reads all steps between `startVersion` (inclusive) and `endVersion` (exclusive).
  */
-export async function getDocumentContentSteps({
-    id,
-    startVersion,
-    endVersion,
-}: {
-    id: Id;
-    startVersion: number;
-    endVersion: number;
-}) {
-    // TODO(calebmer): Authorization!!!
-
+export async function getDocumentContentSteps(
+    context: RequestContext,
+    {
+        id,
+        startVersion,
+        endVersion,
+    }: {
+        id: Id;
+        startVersion: number;
+        endVersion: number;
+    },
+) {
     const document = await DocumentsTable.getPartialItem(
         {partitionType: "Document", documentId: id, sortRangeType: "Attributes"},
-        {attributes: ["version"]},
+        {attributes: ["spaceId", "version"]},
     );
 
     if (!document) throw new NotFoundError("Document does not exist");
+
+    await authorizeAccountHasSpaceAccess(context, document.spaceId);
 
     if (startVersion < 0) throw new InvalidArgumentError("Start version is less than zero");
     if (startVersion > endVersion)

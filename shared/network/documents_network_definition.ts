@@ -9,6 +9,7 @@ export const createDocument = defineNetworkFunction({
     name: "createDocument",
     input: {
         id: Schema.id,
+        spaceId: Schema.id,
         content: DocumentContentSchema,
     },
     output: {},
