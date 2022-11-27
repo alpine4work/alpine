@@ -22,9 +22,6 @@ patchedDependencies:
   esbuild-jest@0.5.0:
     hash: ngae2o7jbonwtjb5i3flctr4hq
     path: admin/patches/esbuild-jest@0.5.0.patch
-  ably@1.2.30:
-    hash: ozrsrdeumrtiea7xh3yi5cytre
-    path: admin/patches/ably@1.2.30.patch
   browserify-zlib@0.1.4:
     hash: lhhf4zowvg4ngxldsy5aala7hu
     path: admin/patches/browserify-zlib@0.1.4.patch
@@ -101,7 +98,6 @@ specifiers:
   '@vanilla-extract/esbuild-plugin': 2.1.0
   '@vanilla-extract/integration': ^5.0.1
   '@vanilla-extract/sprinkles': ^1.5.0
-  ably: ^1.2.30
   aws-cdk: 2.43.1
   aws-cdk-lib: 2.42.0
   aws-cdk-local: ^2.15.0
@@ -224,7 +220,6 @@ dependencies:
   '@vanilla-extract/esbuild-plugin': 2.1.0
   '@vanilla-extract/integration': 5.0.1_ok2sribgugkvcqq57ho2d6btxm
   '@vanilla-extract/sprinkles': 1.5.0_njeywewejjkyja35mwody6s2pu_@vanilla-extract+css@1.9.1
-  ably: 1.2.30_ozrsrdeumrtiea7xh3yi5cytre
   aws-cdk: 2.43.1
   aws-cdk-lib: 2.42.0_constructs@10.1.143
   aws-cdk-local: 2.15.0
@@ -294,12 +289,6 @@ dependencies:
   yargs: 17.6.2
 
 packages:
-
-  /@ably/msgpack-js/0.4.0:
-    resolution: {integrity: sha512-IPt/BoiQwCWubqoNik1aw/6M/DleMdrxJOUpSja6xmMRbT2p1TA8oqKWgfZabqzrq8emRNeSl/+4XABPNnW5pQ==}
-    dependencies:
-      bops: 1.0.1
-    dev: false
 
   /@adobe/css-tools/4.0.1:
     resolution: {integrity: sha512-+u76oB43nOHrF4DDWRLWDCtci7f3QJoEBigemIdIeTi1ODqjx6Tad9NCVnPRwewWlKkVab5PlK8DCtPTyX7S8g==}
@@ -5062,19 +5051,6 @@ packages:
     resolution: {integrity: sha512-nne9/IiQ/hzIhY6pdDnbBtz7DjPTKrY00P/zvPSm5pOFkl6xuGrGnXn/VtTNNfNtAfZ9/1RtehkszU9qcTii0Q==}
     dev: false
 
-  /ably/1.2.30_ozrsrdeumrtiea7xh3yi5cytre:
-    resolution: {integrity: sha512-DP/NgAGZsAfx6URSRRBFrLY6yXOclCbqH3swsJth3TFaS8D/61Wj+ZkUnmQUyeJ4dl/+IS8J5Eaei8PntrL4Dg==}
-    engines: {node: '>=5.10.x'}
-    dependencies:
-      '@ably/msgpack-js': 0.4.0
-      got: 11.8.5
-      ws: 5.2.3
-    transitivePeerDependencies:
-      - bufferutil
-      - utf-8-validate
-    dev: false
-    patched: true
-
   /accepts/1.3.8:
     resolution: {integrity: sha512-PYAthTa2m2VKxuvSD3DPC/Gy+U+sOA1LAuT8mkmRuvw+NACSaeXEQ+NHcVF7rONl6qcaxV3Uuemwawk+7+SJLw==}
     engines: {node: '>= 0.6'}
@@ -5323,10 +5299,6 @@ packages:
   /astring/1.8.3:
     resolution: {integrity: sha512-sRpyiNrx2dEYIMmUXprS8nlpRg2Drs8m9ElX9vVEXaCB4XEAJhKfs7IcX0IwShjuOAjLR6wzIrgoptz1n19i1A==}
     hasBin: true
-    dev: false
-
-  /async-limiter/1.0.1:
-    resolution: {integrity: sha512-csOlWGAcRFJaI6m+F2WKdnMKr4HhdhFVBk0H/QbJFMCr+uO2kwohwXQPxw/9OCxp05r5ghVBFSyioixx3gfkNQ==}
     dev: false
 
   /asynckit/0.4.0:
@@ -5583,11 +5555,6 @@ packages:
       pascalcase: 0.1.1
     dev: false
 
-  /base64-js/1.0.2:
-    resolution: {integrity: sha512-ZXBDPMt/v/8fsIqn+Z5VwrhdR6jVka0bYobHdGia0Nxi7BJ9i/Uvml3AocHIBtIIBhZjBw5MR0aR4ROs/8+SNg==}
-    engines: {node: '>= 0.4'}
-    dev: false
-
   /base64-js/1.5.1:
     resolution: {integrity: sha512-AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA==}
     dev: false
@@ -5646,13 +5613,6 @@ packages:
       unpipe: 1.0.0
     transitivePeerDependencies:
       - supports-color
-    dev: false
-
-  /bops/1.0.1:
-    resolution: {integrity: sha512-qCMBuZKP36tELrrgXpAfM+gHzqa0nLsWZ+L37ncsb8txYlnAoxOPpVp+g7fK0sGkMXfA0wl8uQkESqw3v4HNag==}
-    dependencies:
-      base64-js: 1.0.2
-      to-utf8: 0.0.1
     dev: false
 
   /bowser/2.11.0:
@@ -12244,10 +12204,6 @@ packages:
       safe-regex: 1.1.0
     dev: false
 
-  /to-utf8/0.0.1:
-    resolution: {integrity: sha512-zks18/TWT1iHO3v0vFp5qLKOG27m67ycq/Y7a7cTiRuUNlc4gf3HGnkRgMv0NyhnfTamtkYBJl+YeD1/j07gBQ==}
-    dev: false
-
   /toidentifier/1.0.1:
     resolution: {integrity: sha512-o5sSPKEkg/DIQNmH43V0/uerLrpzVedkUh8tGNvaeXpfpuwjKenlSox/2O/BTlZUtEe+JG7s5YhEz608PlAHRA==}
     engines: {node: '>=0.6'}
@@ -12796,20 +12752,6 @@ packages:
     dependencies:
       imurmurhash: 0.1.4
       signal-exit: 3.0.7
-    dev: false
-
-  /ws/5.2.3:
-    resolution: {integrity: sha512-jZArVERrMsKUatIdnLzqvcfydI85dvd/Fp1u/VOpfdDWQ4c9qWXe+VIeAbQ5FrDwciAkr+lzofXLz3Kuf26AOA==}
-    peerDependencies:
-      bufferutil: ^4.0.1
-      utf-8-validate: ^5.0.2
-    peerDependenciesMeta:
-      bufferutil:
-        optional: true
-      utf-8-validate:
-        optional: true
-    dependencies:
-      async-limiter: 1.0.1
     dev: false
 
   /ws/7.5.9:

@@ -16,7 +16,6 @@ ts_project(
         "//:node_modules/@types/react",
         "//:node_modules/@types/react-dom",
         "//:node_modules/@types/scheduler",
-        "//:node_modules/ably",
         "//:node_modules/color",
         "//:node_modules/d3-interpolate",
         "//:node_modules/dedent",

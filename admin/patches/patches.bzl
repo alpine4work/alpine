@@ -10,7 +10,6 @@ NPM_PATCHES = {
     "@types/react@18.0.15": ["//admin/patches:@types__react@18.0.15.patch"],
     "@vanilla-extract/integration@5.0.1": ["//admin/patches:@vanilla-extract__integration@5.0.1.patch"],
     "@vanilla-extract/sprinkles@1.5.0": ["//admin/patches:@vanilla-extract__sprinkles@1.5.0.patch"],
-    "ably@1.2.30": ["//admin/patches:ably@1.2.30.patch"],
     "browserify-zlib@0.1.4": ["//admin/patches:browserify-zlib@0.1.4.patch"],
     "esbuild-jest@0.5.0": ["//admin/patches:esbuild-jest@0.5.0.patch"],
     "media-query-parser@2.0.2": ["//admin/patches:media-query-parser@2.0.2.patch"],
