@@ -1,4 +1,4 @@
-/*!
+/**
  * We put our slow to run `DocumentsTable` tests in this file so they can be
  * run in parallel with our faster `DocumentsTable` tests.
  *

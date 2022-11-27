@@ -2,9 +2,8 @@ import * as cdk from "aws-cdk-lib";
 import {Construct} from "constructs";
 import path from "path";
 import {addAllDynamoAwsResources} from "~/admin/aws/internal/add_all_dynamo_aws_resources";
-import {workspacePath} from "~/admin/helpers/workspace_path";
 
-const outputDirectoryPath = path.join(workspacePath, "admin/aws/output");
+const outputDirectoryPath = path.join(__dirname, "output");
 
 export async function createAwsApp() {
     const app = new cdk.App({autoSynth: false, outdir: outputDirectoryPath});

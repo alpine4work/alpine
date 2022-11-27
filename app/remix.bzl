@@ -2,6 +2,7 @@
 A rule that compiles our project using Remix.
 """
 
+load("@aspect_rules_js//js:providers.bzl", "JsInfo")
 load("//admin/typescript:typescript_sources_aspect.bzl", "TsSourcesInfo", "ts_sources_aspect")
 
 def _remix_app_impl(ctx):
@@ -41,8 +42,7 @@ def _remix_app_impl(ctx):
     return [
         DefaultInfo(
             files = depset(outputs),
-            data_runfiles = ctx.attr._app_lib[DefaultInfo].data_runfiles,
-            default_runfiles = ctx.attr._app_lib[DefaultInfo].default_runfiles,
+            runfiles = ctx.attr._app_lib[TsSourcesInfo].runfiles,
         ),
     ]
 
@@ -51,6 +51,6 @@ remix_app = rule(
     attrs = {
         "_remix_compiler": attr.label(executable = True, cfg = "exec", default = "//app:remix_compiler"),
         "_remix_config_files": attr.label(default = "//:remix_config_files"),
-        "_app_lib": attr.label(default = "//app:app_lib", aspects = [ts_sources_aspect]),
+        "_app_lib": attr.label(default = "//app:app_lib", providers = [JsInfo], aspects = [ts_sources_aspect]),
     },
 )

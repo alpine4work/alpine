@@ -1,4 +1,4 @@
-/*!
+/**
  * Test cases I've used when working on this file:
  *
  * - Setup 2-4 browsers with a `while` loop around

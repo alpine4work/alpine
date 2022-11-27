@@ -1,0 +1,41 @@
+diff --git a/src/sites.tsx b/src/sites.tsx
+index b690e7d10911f594ae0ed9785972ebe3e2bdfa6a..823db9e76615016675ee90753ed976649a924032 100644
+--- a/src/sites.tsx
++++ b/src/sites.tsx
+@@ -32,11 +32,12 @@ async function* getFilesInFolder(dirPath: string): AsyncIterable<string> {
+ 		if (file.name.startsWith(".") && !HIDDEN_FILES_TO_INCLUDE.has(file.name)) {
+ 			continue;
+ 		}
+-		// TODO: follow symlinks??
+-		if (file.isDirectory()) {
+-			yield* await getFilesInFolder(path.join(dirPath, file.name));
++		// NOTE(calebmer): Support directory symlinks.
++		const filePath = path.join(dirPath, file.name);
++		if (file.isDirectory() || (file.isSymbolicLink() && (await stat(filePath)).isDirectory())) {
++			yield* await getFilesInFolder(filePath);
+ 		} else {
+-			yield path.join(dirPath, file.name);
++			yield filePath;
+ 		}
+ 	}
+ }
+diff --git a/wrangler-dist/cli.js b/wrangler-dist/cli.js
+index f5bba9b37756b24e5de7810daf2e860beac3ae9a..c63203f23925475e8b07f2987c3b576f3cafd155 100644
+--- a/wrangler-dist/cli.js
++++ b/wrangler-dist/cli.js
+@@ -145211,10 +145211,12 @@ async function* getFilesInFolder(dirPath) {
+     if (file.name.startsWith(".") && !HIDDEN_FILES_TO_INCLUDE.has(file.name)) {
+       continue;
+     }
+-    if (file.isDirectory()) {
+-      yield* await getFilesInFolder(path16.join(dirPath, file.name));
++    // NOTE(calebmer): Support directory symlinks.
++    const filePath = path16.join(dirPath, file.name);
++    if (file.isDirectory() || (file.isSymbolicLink() && (await (0, import_promises4.stat)(filePath)).isDirectory())) {
++      yield* await getFilesInFolder(filePath);
+     } else {
+-      yield path16.join(dirPath, file.name);
++      yield filePath;
+     }
+   }
+ }

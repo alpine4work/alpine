@@ -1,5 +1,5 @@
 import {compareAsc as compareDatesAsc} from "date-fns";
-import {RequestContext} from "~/server/context/context";
+import {ProcessContext, RequestContext} from "~/server/context/context";
 import {
     authorizeAccountHasInternalAccess,
     checkAccountEmailAddressDoesNotExistTransactionEntry,
@@ -89,18 +89,18 @@ const AlphaAccessTable = DynamoTableSchema.new({
     },
 });
 
-export async function seedTestAlphaConfiguration() {
+export async function seedTestAlphaConfiguration(context: ProcessContext) {
     assert(process.env.NODE_ENV !== "production");
     const {defaultSpaceId} = getSeedConstants();
 
-    const configuration = await AlphaAccessTable.getItem({
+    const configuration = await AlphaAccessTable.getItem(context, {
         partitionType: "AlphaConfiguration",
         sortRangeType: "Configuration",
     });
 
     // If we haven't configured a default space, then configure out seeded space.
     if (!configuration?.defaultSpaceId) {
-        await AlphaAccessTable.putItem({
+        await AlphaAccessTable.putItem(context, {
             partitionType: "AlphaConfiguration",
             sortRangeType: "Configuration",
             ...configuration,
@@ -115,20 +115,23 @@ export async function seedTestAlphaConfiguration() {
  *
  * Can not request alpha access twice for the same email address.
  */
-export async function requestAlphaAccess({
-    name,
-    emailAddress,
-    message,
-}: {
-    name: string;
-    emailAddress: string;
-    message: string;
-}) {
+export async function requestAlphaAccess(
+    context: ProcessContext,
+    {
+        name,
+        emailAddress,
+        message,
+    }: {
+        name: string;
+        emailAddress: string;
+        message: string;
+    },
+) {
     // Email address is case insensitive.
     emailAddress = emailAddress.toLowerCase();
 
     try {
-        await DynamoTableSchema.executeTransaction([
+        await DynamoTableSchema.executeTransaction(context, [
             // Make sure an account does not already exist when requesting alpha access.
             // The account could have been created manually.
             checkAccountEmailAddressDoesNotExistTransactionEntry(emailAddress),
@@ -152,7 +155,7 @@ export async function requestAlphaAccess({
     } catch (error) {
         if (!isDynamoConditionCheckError(error)) throw error;
 
-        const existingRequest = await AlphaAccessTable.getItem({
+        const existingRequest = await AlphaAccessTable.getItem(context, {
             partitionType: "AlphaAccessRequests",
             sortRangeType: "Request",
             emailAddress,
@@ -198,7 +201,7 @@ export async function getUndecidedAlphaAccessRequests(context: RequestContext) {
 
     const requests = await arrayFromAsyncIterable(
         filterMapAsyncIterableIterator(
-            AlphaAccessTable.queryEntirePartition({
+            AlphaAccessTable.queryEntirePartition(context, {
                 partitionKey: {
                     partitionType: "AlphaAccessRequests",
                 },
@@ -231,11 +234,11 @@ export async function getUndecidedAlphaAccessRequests(context: RequestContext) {
 export async function approveAlphaAccessRequest(context: RequestContext, emailAddress: string) {
     await authorizeAccountHasInternalAccess(context);
 
-    const {defaultSpaceId} = await getAlphaConfiguration();
+    const {defaultSpaceId} = await getAlphaConfiguration(context);
     if (!defaultSpaceId)
         throw new InternalError('Expected alpha configuration to include "defaultSpaceId"');
 
-    const requestItem = await AlphaAccessTable.getItem({
+    const requestItem = await AlphaAccessTable.getItem(context, {
         partitionType: "AlphaAccessRequests",
         sortRangeType: "Request",
         emailAddress,
@@ -247,7 +250,7 @@ export async function approveAlphaAccessRequest(context: RequestContext, emailAd
 
     const accountId = generateId();
 
-    await DynamoTableSchema.executeTransaction([
+    await DynamoTableSchema.executeTransaction(context, [
         AlphaAccessTable.transactionPutItem(
             {
                 ...requestItem,
@@ -284,7 +287,7 @@ export async function approveAlphaAccessRequest(context: RequestContext, emailAd
 export async function denyAlphaAccessRequest(context: RequestContext, emailAddress: string) {
     await authorizeAccountHasInternalAccess(context);
 
-    const requestItem = await AlphaAccessTable.getItem({
+    const requestItem = await AlphaAccessTable.getItem(context, {
         partitionType: "AlphaAccessRequests",
         sortRangeType: "Request",
         emailAddress,
@@ -295,6 +298,7 @@ export async function denyAlphaAccessRequest(context: RequestContext, emailAddre
         throw new FailedPreconditionError("A decision has already been made for this request");
 
     await AlphaAccessTable.putItem(
+        context,
         {
             ...requestItem,
             lockVersion: requestItem.lockVersion + 1,
@@ -311,8 +315,8 @@ export async function denyAlphaAccessRequest(context: RequestContext, emailAddre
     );
 }
 
-export async function getAlphaConfiguration(): Promise<AlphaConfiguration> {
-    const configuration = await AlphaAccessTable.getItem({
+export async function getAlphaConfiguration(context: ProcessContext): Promise<AlphaConfiguration> {
+    const configuration = await AlphaAccessTable.getItem(context, {
         partitionType: "AlphaConfiguration",
         sortRangeType: "Configuration",
     });
@@ -325,7 +329,7 @@ export async function saveAlphaConfiguration(
 ) {
     await authorizeAccountHasInternalAccess(context);
 
-    await AlphaAccessTable.putItem({
+    await AlphaAccessTable.putItem(context, {
         partitionType: "AlphaConfiguration",
         sortRangeType: "Configuration",
         ...configuration,

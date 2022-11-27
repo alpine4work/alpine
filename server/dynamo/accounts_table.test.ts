@@ -24,7 +24,7 @@ async function createTestAccount({
     const accountId = generateId();
     const emailAddress = `test@${accountId}.test.cyberworlds.dev`;
 
-    await DynamoTableSchema.executeTransaction([
+    await DynamoTableSchema.executeTransaction(context, [
         AccountsTable.transactionPutItem({
             partitionType: "Account",
             sortRangeType: "Attributes",
@@ -49,7 +49,7 @@ async function createTestAccount({
 }
 
 async function getAccountEmailAddressItemForExpect(account: {id: Id; emailAddress: string}) {
-    const accountEmailAddressItem = await AccountsTable.getItem({
+    const accountEmailAddressItem = await AccountsTable.getItem(context, {
         partitionType: "AccountEmailAddress",
         sortRangeType: "Attributes",
         emailAddress: account.emailAddress,
@@ -67,7 +67,7 @@ async function getAccountEmailAddressItemForExpect(account: {id: Id; emailAddres
 }
 
 async function rewindOneTimePasswordSignInStateTime(emailAddress: string, hours: number) {
-    const accountEmailAddressItem = await AccountsTable.getItem({
+    const accountEmailAddressItem = await AccountsTable.getItem(context, {
         partitionType: "AccountEmailAddress",
         sortRangeType: "Attributes",
         emailAddress,
@@ -75,6 +75,7 @@ async function rewindOneTimePasswordSignInStateTime(emailAddress: string, hours:
     assert(accountEmailAddressItem?.oneTimePasswordSignInState);
 
     await AccountsTable.putItem(
+        context,
         {
             ...accountEmailAddressItem,
             lockVersion: accountEmailAddressItem.lockVersion + 1,
@@ -322,7 +323,7 @@ test("null last failed login attempt time continues to keep the account locked",
     ).rejects.toThrow(new PermissionDeniedError("Account email address is locked"));
 
     {
-        const accountEmailAddressItem = await AccountsTable.getItem({
+        const accountEmailAddressItem = await AccountsTable.getItem(context, {
             partitionType: "AccountEmailAddress",
             sortRangeType: "Attributes",
             emailAddress: account.emailAddress,
@@ -330,6 +331,7 @@ test("null last failed login attempt time continues to keep the account locked",
         assert(accountEmailAddressItem?.oneTimePasswordSignInState);
 
         await AccountsTable.putItem(
+            context,
             {
                 ...accountEmailAddressItem,
                 lockVersion: accountEmailAddressItem.lockVersion + 1,

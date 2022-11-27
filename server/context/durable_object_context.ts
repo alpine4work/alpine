@@ -1,28 +1,66 @@
+import {AwsClient} from "aws4fetch";
 import {jwtVerify} from "jose";
 import {
     ProcessContext,
     RequestContext,
     UnauthenticatedRequestContext,
 } from "~/server/context/context";
+import {createAwsClientFromEnv} from "~/server/context/helpers/create_aws_client_from_env";
 import {unauthenticatedSessionError} from "~/server/context/helpers/unauthenticated_session_error";
 import {Account, Session} from "~/server/dynamo/accounts_table";
-import {cookieSessionSecret} from "~/server/env/env_variables";
-import {InvalidArgumentError, NotFoundError} from "~/shared/error/error";
+import {InternalError, InvalidArgumentError, NotFoundError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {Lazy} from "~/shared/helpers/control/lazy";
 import {Id} from "~/shared/id/id";
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema";
 
+export type DurableObjectEnv = {
+    SESSION_COOKIE_SECRET?: string;
+    AWS_ACCESS_KEY_ID?: string;
+    AWS_SECRET_ACCESS_KEY?: string;
+};
+
 export class DurableObjectProcessContext implements ProcessContext {
-    constructor(private readonly _state: DurableObjectState) {}
+    private readonly _state: DurableObjectState;
+    private readonly _sessionCookieSecret: string;
+    public readonly awsClient: AwsClient;
+
+    constructor(state: DurableObjectState, env: DurableObjectEnv) {
+        this._state = state;
+
+        const sessionCookieSecret =
+            env.SESSION_COOKIE_SECRET ?? (process.env.NODE_ENV !== "production" ? "secret" : null);
+        if (!sessionCookieSecret)
+            throw new InternalError(
+                "Environment variable `SESSION_COOKIE_SECRET` must be set in production",
+            );
+
+        this._sessionCookieSecret = sessionCookieSecret;
+
+        this.awsClient = createAwsClientFromEnv(env);
+    }
 
     public waitUntil(promise: Promise<void>): void {
         this._state.waitUntil(promise);
     }
+
+    public async verifyAuthenticationToken(token: string): Promise<{sessionId: Id}> {
+        const {payload} = await jwtVerify(
+            token,
+            new TextEncoder().encode(this._sessionCookieSecret),
+        );
+        const sessionId = Schema.id.deserialize(payload.sessionId as SchemaSerializedValue);
+
+        return {sessionId};
+    }
 }
 
 export class DurableObjectUnauthenticatedRequestContext implements UnauthenticatedRequestContext {
-    protected constructor(protected readonly _state: DurableObjectRequestContextState) {}
+    public readonly awsClient: AwsClient;
+
+    protected constructor(protected readonly _state: DurableObjectRequestContextState) {
+        this.awsClient = this._state.getProcessContext().awsClient;
+    }
 
     public static async run(
         processContext: DurableObjectProcessContext,
@@ -70,13 +108,11 @@ export class DurableObjectUnauthenticatedRequestContext implements Unauthenticat
 
             const authenticationToken = authorizationHeaderMatch[1] ?? "";
 
-            const {payload} = await jwtVerify(
-                authenticationToken,
-                new TextEncoder().encode(cookieSessionSecret),
-            );
-            const sessionId = Schema.id.deserialize(payload.sessionId as SchemaSerializedValue);
+            const {sessionId} = await this._state
+                .getProcessContext()
+                .verifyAuthenticationToken(authenticationToken);
 
-            const session = await Session.get(sessionId);
+            const session = await Session.get(this, sessionId);
             if (!session)
                 throw new NotFoundError('Could not find session from "Authorization" header');
 
@@ -122,7 +158,7 @@ export class DurableObjectRequestContext
 
     public getAuthenticatedAccount(): Promise<Account> {
         this._state.assertNotDestroyed();
-        return this._session.getAccount();
+        return this._session.getAccount(this);
     }
 
     public upgrade() {
@@ -215,7 +251,7 @@ export class DurableObjectConnectionContext {
         action: (context: DurableObjectConnectionRequestContext) => Promise<void>,
     ): Promise<void> {
         // TODO(calebmer): Can we at least give this some kind of TTL in-memory cache??
-        const session = await Session.get(this._sessionId);
+        const session = await Session.get(this._processContext, this._sessionId);
         if (!session) throw new NotFoundError("Session was deleted after the connection began");
 
         const context = new DurableObjectConnectionRequestContext(this._processContext, session);
@@ -230,10 +266,12 @@ export class DurableObjectConnectionContext {
 class DurableObjectConnectionRequestContext implements RequestContext {
     private _processContext: ProcessContext | null;
     private _session: Session | null;
+    public readonly awsClient: AwsClient;
 
     constructor(processContext: ProcessContext, session: Session) {
         this._processContext = processContext;
         this._session = session;
+        this.awsClient = this._processContext.awsClient;
     }
 
     private _isDestroyed = false;
@@ -308,6 +346,6 @@ class DurableObjectConnectionRequestContext implements RequestContext {
 
     public getAuthenticatedAccount(): Promise<Account> {
         assert(!this._isDestroyed && this._session, "Request context already destroyed");
-        return this._session.getAccount();
+        return this._session.getAccount(this);
     }
 }

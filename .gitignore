@@ -4,7 +4,7 @@ node_modules
 .pnp.js
 
 # Bazel
-/bazel-*
+bazel-*
 
 # CDK
 /admin/aws/output

@@ -36,7 +36,7 @@ export function meta() {
 
 export async function loader({context}: DataFunctionArgs) {
     // Can not access this page while signed in.
-    if (await context.isAuthenticated()) return redirectToAuthenticatedHome();
+    if (await context.isAuthenticated()) return redirectToAuthenticatedHome(context);
 
     return json({});
 }
@@ -52,7 +52,7 @@ const ActionSchema = Schema.result(
     }),
 );
 
-export async function action({request}: DataFunctionArgs) {
+export async function action({request, context}: DataFunctionArgs) {
     try {
         const formData = await request.formData();
         const name = formData.get("name");
@@ -66,7 +66,7 @@ export async function action({request}: DataFunctionArgs) {
         if (typeof message !== "string")
             throw new InvalidArgumentError('Expected property "message" in form data');
 
-        await requestAlphaAccess({
+        await requestAlphaAccess(context, {
             name,
             emailAddress,
             message,

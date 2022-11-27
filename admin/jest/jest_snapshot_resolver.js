@@ -1,4 +1,4 @@
-/*!
+/**
  * We write snapshot files to the source code directory. So we redirect paths
  * in the runfiles directory to the workspace directory with our snapshot
  * resolver when we know what the workspace path is.

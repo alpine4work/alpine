@@ -233,30 +233,6 @@ comment based on the intended audience.
 This is the same style as
 [plain Rust comments (`//`) vs documentation comments (`///`)](https://doc.rust-lang.org/rust-by-example/meta/doc.html).
 
-### File level documentation comments
-
-If you find yourself wanting to write documentation for entire file (instead of a single declaration
-therein) use a block comment starting with `/*!` instead of `/**`.
-
-**Why?** This way its clear when you're documenting the file instead of the first declaration in the
-file.
-
-```ts
-/**
- * Is this documenting `f` or the file?
- */
-
-function f() {}
-```
-
-```ts
-/*!
- * Now we're clearly documenting the file.
- */
-
-function f() {}
-```
-
 ### Section header comments
 
 Most of the time, your code should be organized along clear function or file boundaries. However,

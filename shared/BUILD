@@ -24,21 +24,20 @@ ts_project(
     ],
 )
 
+STYLE_SRCS = [
+    "styles/internal",
+    "helpers",
+    "content",
+    "error",
+]
+
 esbuild(
     name = "styles_bundle",
-    srcs = glob(
-        [
-            "design/**/*.ts",
-            "design/**/*.tsx",
-            "styles/internal/**/*.ts",
-            "styles/internal/**/*.tsx",
-        ],
-        exclude = [
-            "design/**/*.test.ts",
-            "design/**/*.test.tsx",
-            "styles/internal/**/*.test.ts",
-            "styles/internal/**/*.test.tsx",
-        ],
+    srcs = ["//:tsconfig_files"] + glob(
+        ["{}/**/*.ts".format(src) for src in STYLE_SRCS] +
+        ["{}/**/*.tsx".format(src) for src in STYLE_SRCS],
+        exclude = ["{}/**/*.test.ts".format(src) for src in STYLE_SRCS] +
+                  ["{}/**/*.test.tsx".format(src) for src in STYLE_SRCS],
     ),
     config = "styles/internal/styles_esbuild_config.js",
     entry_point = "styles/internal/styles.ts",

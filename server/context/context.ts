@@ -1,4 +1,4 @@
-/*!
+/**
  * We don't rely on implicit global propagation in our codebase. Instead when
  * there is context we want to pass around we use a context object. That way
  * the capabilities of what you can do at a given point in the code are made
@@ -7,6 +7,7 @@
  * We have a couple context interfaces that are implemented by actual classes.
  */
 
+import {AwsClient} from "aws4fetch";
 import {Account} from "~/server/dynamo/accounts_table";
 import {Id} from "~/shared/id/id";
 
@@ -17,6 +18,11 @@ import {Id} from "~/shared/id/id";
  * Durable Objects).
  */
 export interface ProcessContext {
+    /**
+     * A client to use for accessing AWS resources.
+     */
+    readonly awsClient: AwsClient;
+
     /**
      * Don't let the process exit until this promise has completed.
      *

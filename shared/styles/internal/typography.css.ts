@@ -1,4 +1,4 @@
-/*!
+/**
  * Our body font family is [Inter][1] and our code font family is
  * [Fira Code][2] (with ligatures disabled).
  *

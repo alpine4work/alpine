@@ -1,22 +1,11 @@
-import {Session as _Session, createCookieSessionStorage} from "@remix-run/cloudflare";
-import {cookieSessionSecret} from "~/server/env/env_variables";
+import {
+    Session as RawSession,
+    SessionStorage,
+    createCookieSessionStorage,
+} from "@remix-run/cloudflare";
 import {assert} from "~/shared/helpers/control/assert";
 import {Id, generateId} from "~/shared/id/id";
 import {Schema, SchemaType} from "~/shared/schema/schema";
-
-const cookieSessionStorage = createCookieSessionStorage({
-    cookie: {
-        name: "session",
-        // TODO(calebmer): This should probably be an environment variable.
-        domain: "localhost",
-        httpOnly: true,
-        maxAge: 60 * 60 * 24 * 365, // 1 year
-        path: "/",
-        sameSite: "lax",
-        secrets: [cookieSessionSecret],
-        secure: true,
-    },
-});
 
 /**
  * Session information written to a browser cookie.
@@ -39,25 +28,46 @@ function getDefaultSessionCookieData(): SessionCookieData {
     };
 }
 
+// We use symbols for protected methods we want to call in a different class.
+// Only files in this module have access to the symbol.
+const newMethod = Symbol("new");
+const commitMethod = Symbol("commit");
+
 /**
- * Helper class for dealing with the information we save in a signed
- * browser cookie.
+ * Manages the storage of the session cookie on HTTP requests.
  */
-export class SessionCookie {
+export class SessionCookieStorage {
+    private readonly _storage: SessionStorage;
+
+    constructor({domain, secret}: {domain: string; secret: string}) {
+        this._storage = createCookieSessionStorage({
+            cookie: {
+                name: "session",
+                domain,
+                httpOnly: true,
+                maxAge: 60 * 60 * 24 * 365, // 1 year
+                path: "/",
+                sameSite: "lax",
+                secrets: [secret],
+                secure: true,
+            },
+        });
+    }
+
     /**
      * Create our session cookie from the request and commit our session cookie
      * back to the response with any changes made during the request.
      */
-    public static async with(
+    public async with(
         request: Request,
         action: (sessionCookiePromise: Promise<SessionCookie>) => Promise<Response>,
     ): Promise<Response> {
-        const sessionCookiePromise = SessionCookie._new(request);
+        const sessionCookiePromise = SessionCookie[newMethod](this._storage, request);
 
         const response = await action(sessionCookiePromise);
 
         const sessionCookie = await sessionCookiePromise;
-        await sessionCookie._commit(response);
+        await sessionCookie[commitMethod](this._storage, response);
 
         return response;
     }
@@ -66,14 +76,28 @@ export class SessionCookie {
      * Get the session cookie data without writing any updates on an outgoing
      * response.
      */
-    public static async get(request: Request): Promise<SessionCookieData> {
-        const sessionCookie = await SessionCookie._new(request);
+    public async get(request: Request): Promise<SessionCookieData> {
+        const sessionCookie = await SessionCookie[newMethod](this._storage, request);
         return sessionCookie.get();
     }
+}
 
-    private static async _new(request: Request) {
+/**
+ * Helper class for dealing with the information we save in a signed
+ * browser cookie.
+ */
+export class SessionCookie {
+    private _hasCommitted = false;
+
+    private constructor(
+        private readonly _session: RawSession,
+        private _data: SessionCookieData,
+        private _hasChanged: boolean,
+    ) {}
+
+    public static async [newMethod](storage: SessionStorage, request: Request) {
         const cookieHeader = request.headers.get("Cookie");
-        const session = await cookieSessionStorage.getSession(cookieHeader);
+        const session = await storage.getSession(cookieHeader);
 
         if (Object.keys(session.data).length !== 0) {
             const data = SessionCookieDataSchema.deserialize(session.data);
@@ -83,14 +107,6 @@ export class SessionCookie {
         const data = getDefaultSessionCookieData();
         return new SessionCookie(session, data, true);
     }
-
-    private _hasCommitted = false;
-
-    private constructor(
-        private readonly _session: _Session,
-        private _data: SessionCookieData,
-        private _hasChanged: boolean,
-    ) {}
 
     /**
      * Get the current data in the session.
@@ -147,7 +163,7 @@ export class SessionCookie {
      * Save the new session cookie in a user's browser if the session has changed.
      * If the session has not changed then do nothing.
      */
-    private async _commit(response: Response) {
+    public async [commitMethod](storage: SessionStorage, response: Response) {
         if (!this._hasChanged) return;
 
         const data = SessionCookieDataSchema.serialize(this._data);
@@ -157,7 +173,7 @@ export class SessionCookie {
         for (const key of Object.keys(this._session.data)) this._session.unset(key);
         for (const [key, value] of Object.entries(data)) this._session.set(key, value);
 
-        response.headers.set("Set-Cookie", await cookieSessionStorage.commitSession(this._session));
+        response.headers.set("Set-Cookie", await storage.commitSession(this._session));
 
         // Can not update the session cookie after it has committed.
         this._hasCommitted = true;

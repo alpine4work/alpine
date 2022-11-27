@@ -1,7 +1,8 @@
+import {AwsClient} from "aws4fetch";
 import {RequestContext, UnauthenticatedRequestContext} from "~/server/context/context";
 import {unauthenticatedSessionError} from "~/server/context/helpers/unauthenticated_session_error";
 import {Account, Session} from "~/server/dynamo/accounts_table";
-import {SessionCookie} from "~/server/session/session_cookie";
+import {SessionCookie, SessionCookieStorage} from "~/server/session/session_cookie";
 import {assert} from "~/shared/helpers/control/assert";
 import {Lazy} from "~/shared/helpers/control/lazy";
 import {Id} from "~/shared/id/id";
@@ -14,20 +15,25 @@ import {Id} from "~/shared/id/id";
  * to modify the session cookie.
  */
 export class AppWorkerUnauthenticatedRequestContext implements UnauthenticatedRequestContext {
-    protected constructor(protected readonly _state: AppWorkerRequestContextState) {}
+    protected constructor(
+        protected readonly _state: AppWorkerRequestContextState,
+        public readonly awsClient: AwsClient,
+    ) {}
 
     public static run(
         executionContext: ExecutionContext,
+        sessionStorage: SessionCookieStorage,
+        awsClient: AwsClient,
         request: Request,
         action: (context: AppWorkerUnauthenticatedRequestContext) => Promise<Response>,
     ): Promise<Response> {
-        return SessionCookie.with(request, async sessionCookiePromise => {
+        return sessionStorage.with(request, async sessionCookiePromise => {
             const state = new AppWorkerRequestContextState(
                 executionContext,
                 request,
                 sessionCookiePromise,
             );
-            const context = new AppWorkerUnauthenticatedRequestContext(state);
+            const context = new AppWorkerUnauthenticatedRequestContext(state, awsClient);
             try {
                 const response = await action(context);
                 return response;
@@ -59,7 +65,7 @@ export class AppWorkerUnauthenticatedRequestContext implements UnauthenticatedRe
             const {sessionId} = sessionCookie.get();
             if (!sessionId) return null;
 
-            const session = await Session.get(sessionId);
+            const session = await Session.get(this, sessionId);
             if (!session) {
                 // If the session was deleted since we stored the session in our cookie, remove
                 // the session from the cookie.
@@ -67,7 +73,7 @@ export class AppWorkerUnauthenticatedRequestContext implements UnauthenticatedRe
                 return null;
             }
 
-            return new AppWorkerRequestContext(this._state, session);
+            return new AppWorkerRequestContext(this._state, this.awsClient, session);
         });
 
     public async isAuthenticated(): Promise<boolean> {
@@ -108,8 +114,12 @@ export class AppWorkerRequestContext
     extends AppWorkerUnauthenticatedRequestContext
     implements RequestContext
 {
-    constructor(state: AppWorkerRequestContextState, private readonly _session: Session) {
-        super(state);
+    constructor(
+        state: AppWorkerRequestContextState,
+        awsClient: AwsClient,
+        private readonly _session: Session,
+    ) {
+        super(state, awsClient);
     }
 
     public override async authenticate(): Promise<AppWorkerRequestContext> {
@@ -123,7 +133,7 @@ export class AppWorkerRequestContext
 
     public getAuthenticatedAccount(): Promise<Account> {
         this._state.assertNotDestroyed();
-        return this._session.getAccount();
+        return this._session.getAccount(this);
     }
 }
 

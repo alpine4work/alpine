@@ -42,10 +42,23 @@ index 36f250ac7e880f64e078b8e39bc236a372bb891d..a64e8c0ff4a2982b691315a4f218c5b1
      entryPoints,
      outdir: config.assetsBuildDirectory,
 diff --git a/dist/compiler/compilerServer.js b/dist/compiler/compilerServer.js
-index fc9b1e24ae0365845d8879987770aea7bed767c7..eccdadc1ea2ed9188eca8b35cc3e315fd9e9cb18 100644
+index fc9b1e24ae0365845d8879987770aea7bed767c7..1060415bcc193bae4ced6354e5449c8c608f68a1 100644
 --- a/dist/compiler/compilerServer.js
 +++ b/dist/compiler/compilerServer.js
-@@ -121,7 +121,10 @@ async function writeServerBuildResult(config, outputFiles) {
+@@ -110,7 +110,11 @@ const createEsbuildConfig = (config, assetsManifestChannel, options) => {
+     },
+     jsx: "automatic",
+     jsxDev: options.mode !== "production",
+-    plugins
++    plugins,
++    // NOTE(calebmer): Cloudflare uses this weird module import syntax to
++    // support worker site static assets.
++    // See: https://github.com/cloudflare/wrangler/pull/2126
++    external: isCloudflareRuntime ? ["__STATIC_CONTENT_MANIFEST"] : undefined,
+   };
+ };
+ 
+@@ -121,7 +125,10 @@ async function writeServerBuildResult(config, outputFiles) {
      if (file.path.endsWith(".js")) {
        // fix sourceMappingURL to be relative to current path instead of /build
        let filename = file.path.substring(file.path.lastIndexOf(path__namespace.sep) + 1);
@@ -57,22 +70,6 @@ index fc9b1e24ae0365845d8879987770aea7bed767c7..eccdadc1ea2ed9188eca8b35cc3e315f
        let pattern = `(//# sourceMappingURL=)(.*)${escapedFilename}`;
        let contents = Buffer.from(file.contents).toString("utf-8");
        contents = contents.replace(new RegExp(pattern), `$1${filename}`);
-diff --git a/dist/config.js b/dist/config.js
-index 7c0e43a19155c60d8b2122daba31707574477cce..cc6e044af6c3bb6eebc6de1ff51d6920bb6b5989 100644
---- a/dist/config.js
-+++ b/dist/config.js
-@@ -255,7 +255,10 @@ function addTrailingSlash(path) {
-   return path.endsWith("/") ? path : path + "/";
- }
- 
--const entryExts = [".js", ".jsx", ".ts", ".tsx"];
-+// NOTE(calebmer): If a TypeScript file exists, use that first. The Remix
-+// compiler running in Bazel worker mode will not be sandboxed so the compiled
-+// JS file may be in the directory next to the source TS file.
-+const entryExts = [".ts", ".tsx", ".js", ".jsx"];
- 
- function findEntry(dir, basename) {
-   for (let ext of entryExts) {
 diff --git a/dist/config/routesConvention.js b/dist/config/routesConvention.js
 index 94179914f536e0fcd62a6d99996379e9db8eb98b..a3a3d3ed5590ec439cda56021d413169364ae21d 100644
 --- a/dist/config/routesConvention.js
@@ -143,3 +140,19 @@ index 94179914f536e0fcd62a6d99996379e9db8eb98b..a3a3d3ed5590ec439cda56021d413169
      }
    }
  }
+diff --git a/dist/config.js b/dist/config.js
+index 7c0e43a19155c60d8b2122daba31707574477cce..cc6e044af6c3bb6eebc6de1ff51d6920bb6b5989 100644
+--- a/dist/config.js
++++ b/dist/config.js
+@@ -255,7 +255,10 @@ function addTrailingSlash(path) {
+   return path.endsWith("/") ? path : path + "/";
+ }
+ 
+-const entryExts = [".js", ".jsx", ".ts", ".tsx"];
++// NOTE(calebmer): If a TypeScript file exists, use that first. The Remix
++// compiler running in Bazel worker mode will not be sandboxed so the compiled
++// JS file may be in the directory next to the source TS file.
++const entryExts = [".ts", ".tsx", ".js", ".jsx"];
+ 
+ function findEntry(dir, basename) {
+   for (let ext of entryExts) {

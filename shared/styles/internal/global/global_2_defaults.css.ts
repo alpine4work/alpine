@@ -1,4 +1,4 @@
-/*!
+/**
  * Opinionated global styles.
  *
  * If you want to remove browser styles or fix compatibility issues, put the

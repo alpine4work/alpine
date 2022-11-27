@@ -1,6 +1,7 @@
 import {Step} from "prosemirror-transform";
 import {RequestContext} from "~/server/context/context";
 import {
+    DurableObjectEnv,
     DurableObjectProcessContext,
     DurableObjectRequestContext,
     DurableObjectUnauthenticatedRequestContext,
@@ -46,9 +47,9 @@ class DocumentCollaborationDurableObjectWrapper {
     private readonly _context: DurableObjectProcessContext;
     private _objectPromise: Promise<DocumentCollaborationDurableObject> | null = null;
 
-    constructor(state: DurableObjectState) {
+    constructor(state: DurableObjectState, env: DurableObjectEnv) {
         this._state = state;
-        this._context = new DurableObjectProcessContext(state);
+        this._context = new DurableObjectProcessContext(state, env);
     }
 
     public fetch(request: Request): Promise<Response> {

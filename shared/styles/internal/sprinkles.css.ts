@@ -1,4 +1,4 @@
-/*!
+/**
  * We use [vanilla extract's sprinkles][1] library to create our own atomic
  * CSS system.
  *

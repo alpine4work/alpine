@@ -15,4 +15,5 @@ NPM_PATCHES = {
     "media-query-parser@2.0.2": ["//admin/patches:media-query-parser@2.0.2.patch"],
     "outdent@0.8.0": ["//admin/patches:outdent@0.8.0.patch"],
     "prosemirror-view@1.27.2": ["//admin/patches:prosemirror-view@1.27.2.patch"],
+    "wrangler@2.4.4": ["//admin/patches:wrangler@2.4.4.patch"],
 }

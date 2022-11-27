@@ -1,4 +1,4 @@
-/*!
+/**
  * Our CSS reset is derived from the [tailwindcss preflight][1] file.
  *
  * This file is aimed at removing browser styles and fixing compatibility

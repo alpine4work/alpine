@@ -1,5 +1,5 @@
 import {Step} from "prosemirror-transform";
-import {RequestContext} from "~/server/context/context";
+import {ProcessContext, RequestContext} from "~/server/context/context";
 import {getUpdateDocumentContentResult} from "~/server/documents/get_update_document_content_result";
 import {DynamoConditionExpression} from "~/server/dynamo/internal/dynamo_condition";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
@@ -248,6 +248,7 @@ export async function createDocument(
     await authorizeAccountHasSpaceAccess(context, spaceId);
 
     await DynamoTableSchema.executeTransaction(
+        context,
         [
             DocumentsTable.transactionPutItem(
                 {
@@ -300,7 +301,7 @@ export async function getDocumentPreview(
     context: RequestContext,
     id: Id,
 ): Promise<DocumentPreviewModel | null> {
-    const attributes = await DocumentsTable.getItem({
+    const attributes = await DocumentsTable.getItem(context, {
         partitionType: "Document",
         documentId: id,
         sortRangeType: "Attributes",
@@ -344,7 +345,7 @@ async function getInternalDocument(
     let stepTransactionsAfterSnapshot: Array<DocumentStepTransactionAfterSnapshotItem> = [];
     let maybeSnapshot: DocumentSnapshotItem | null = null;
 
-    for await (const item of DocumentsTable.query({
+    for await (const item of DocumentsTable.query(context, {
         startKey: {
             partitionType: "Document",
             documentId: id,
@@ -551,7 +552,7 @@ export class DocumentContentCacheForUpdate {
         // this process wouldn't know. If another process wrote to the database we
         // can't use our cached entry so should update our cache appropriately.
         if (wasEntryCached) {
-            const attributes = await DocumentsTable.getItem({
+            const attributes = await DocumentsTable.getItem(context, {
                 partitionType: "Document",
                 documentId: id,
                 sortRangeType: "Attributes",
@@ -572,7 +573,7 @@ export class DocumentContentCacheForUpdate {
             // load the steps we are missing and apply them to our content.
             if (entry.version < attributes.version) {
                 const nullableEntry = await this._entries.setEntry(id, async () => {
-                    const steps = await getDocumentStepsBetweenValidatedVersionRange({
+                    const steps = await getDocumentStepsBetweenValidatedVersionRange(context, {
                         id,
                         startVersion: entry.version,
                         endVersion: attributes.version,
@@ -961,13 +962,16 @@ export async function updateDocumentContent(
                             ),
                         );
                     } else {
-                        const otherSteps = await getDocumentStepsBetweenValidatedVersionRange({
-                            id,
-                            startVersion: clientVersion,
-                            endVersion:
-                                internalDocument.version -
-                                internalDocument.stepsAfterInitialSnapshot.length,
-                        });
+                        const otherSteps = await getDocumentStepsBetweenValidatedVersionRange(
+                            context,
+                            {
+                                id,
+                                startVersion: clientVersion,
+                                endVersion:
+                                    internalDocument.version -
+                                    internalDocument.stepsAfterInitialSnapshot.length,
+                            },
+                        );
 
                         return [...otherSteps, ...internalDocument.stepsAfterInitialSnapshot];
                     }
@@ -982,7 +986,7 @@ export async function updateDocumentContent(
         });
 
         if (steps.length > 0) {
-            await DynamoTableSchema.executeTransaction([
+            await DynamoTableSchema.executeTransaction(context, [
                 DocumentsTable.transactionPutItem(
                     {
                         partitionType: "Document",
@@ -1041,7 +1045,7 @@ export async function updateDocumentContent(
     // `updateDocumentSnapshotAfterStepCount` steps.
     if (oldVersion < lastVersionToTriggerSnapshot) {
         context.waitUntil(
-            updateDocumentSnapshotAfterUpdatingContent({
+            updateDocumentSnapshotAfterUpdatingContent(context, {
                 id,
                 newVersion,
                 newContent,
@@ -1070,16 +1074,20 @@ const updateDocumentSnapshotAfterStepCount = 100;
 
 export const updateDocumentSnapshotBeforeDeletingStepsTestCheckpoint = new TestCheckpoint<Id>();
 
-async function updateDocumentSnapshotAfterUpdatingContent({
-    id,
-    newVersion,
-    newContent,
-}: {
-    id: Id;
-    newVersion: number;
-    newContent: DocumentContent;
-}) {
+async function updateDocumentSnapshotAfterUpdatingContent(
+    context: ProcessContext,
+    {
+        id,
+        newVersion,
+        newContent,
+    }: {
+        id: Id;
+        newVersion: number;
+        newContent: DocumentContent;
+    },
+) {
     const snapshot = await DocumentsTable.getPartialItem(
+        context,
         {
             partitionType: "Document",
             documentId: id,
@@ -1098,6 +1106,7 @@ async function updateDocumentSnapshotAfterUpdatingContent({
         // First, update the snapshot. We can't start moving steps until we know the
         // snapshot has successfully updated.
         await DocumentsTable.putItem(
+            context,
             {
                 partitionType: "Document",
                 documentId: id,
@@ -1122,7 +1131,7 @@ async function updateDocumentSnapshotAfterUpdatingContent({
     // `StepTransactionsBeforeSnapshot` range so in the future when we read the
     // full document we don't read those steps.
     const stepTransactions = await arrayFromAsyncIterable(
-        DocumentsTable.query({
+        DocumentsTable.query(context, {
             startKey: {
                 partitionType: "Document",
                 documentId: id,
@@ -1142,7 +1151,7 @@ async function updateDocumentSnapshotAfterUpdatingContent({
     // in parallel like this.
     await runAllPromises(
         stepTransactions.map(async stepTransaction => {
-            await DocumentsTable.putItem({
+            await DocumentsTable.putItem(context, {
                 ...stepTransaction,
                 sortRangeType: "StepTransactionsBeforeSnapshot",
             });
@@ -1151,7 +1160,7 @@ async function updateDocumentSnapshotAfterUpdatingContent({
 
             // It's important that we wait for our put in the
             // `StepTransactionsBeforeSnapshot` to successfully complete before we delete.
-            await DocumentsTable.deleteItem(stepTransaction);
+            await DocumentsTable.deleteItem(context, stepTransaction);
         }),
     );
 }
@@ -1178,6 +1187,7 @@ export async function getDocumentContentSteps(
     },
 ) {
     const document = await DocumentsTable.getPartialItem(
+        context,
         {partitionType: "Document", documentId: id, sortRangeType: "Attributes"},
         {attributes: ["spaceId", "version"]},
     );
@@ -1198,7 +1208,7 @@ export async function getDocumentContentSteps(
 
     getDocumentContentStepsTestCounter.incrementForTest({id, startVersion, endVersion});
 
-    return getDocumentStepsBetweenValidatedVersionRange({id, startVersion, endVersion});
+    return getDocumentStepsBetweenValidatedVersionRange(context, {id, startVersion, endVersion});
 }
 
 /**
@@ -1217,22 +1227,28 @@ export async function getDocumentContentSteps(
  * historical steps. If we can't find all the steps we need then we check the
  * `StepsAfterSnapshot` range.
  */
-async function getDocumentStepsBetweenValidatedVersionRange({
-    id,
-    startVersion,
-    endVersion,
-}: {
-    id: Id;
-    startVersion: number;
-    endVersion: number;
-}): Promise<Array<{step: Step; invertedStep: Step; clientId: Id}>> {
-    const stepByVersion = new Map<number, {step: Step; invertedStep: Step; clientId: Id}>();
-
-    for await (const stepTransaction of getDocumentStepTransactionsBetweenValidatedVersionRange({
+async function getDocumentStepsBetweenValidatedVersionRange(
+    context: ProcessContext,
+    {
         id,
         startVersion,
         endVersion,
-    })) {
+    }: {
+        id: Id;
+        startVersion: number;
+        endVersion: number;
+    },
+): Promise<Array<{step: Step; invertedStep: Step; clientId: Id}>> {
+    const stepByVersion = new Map<number, {step: Step; invertedStep: Step; clientId: Id}>();
+
+    for await (const stepTransaction of getDocumentStepTransactionsBetweenValidatedVersionRange(
+        context,
+        {
+            id,
+            startVersion,
+            endVersion,
+        },
+    )) {
         for (let i = 0; i < stepTransaction.steps.length; i++) {
             const version = stepTransaction.startVersion + i;
             const step = stepTransaction.steps[i]!;
@@ -1274,22 +1290,25 @@ async function getDocumentStepsBetweenValidatedVersionRange({
  * Returns an async iterator that yields step transactions immediately when we
  * get them in no particular order.
  */
-async function* getDocumentStepTransactionsBetweenValidatedVersionRange({
-    id,
-    startVersion,
-    endVersion,
-}: {
-    id: Id;
-    startVersion: number;
-    endVersion: number;
-}): AsyncIterableIterator<DocumentStepTransactionItem> {
+async function* getDocumentStepTransactionsBetweenValidatedVersionRange(
+    context: ProcessContext,
+    {
+        id,
+        startVersion,
+        endVersion,
+    }: {
+        id: Id;
+        startVersion: number;
+        endVersion: number;
+    },
+): AsyncIterableIterator<DocumentStepTransactionItem> {
     assert(Number.isSafeInteger(startVersion));
     assert(Number.isSafeInteger(endVersion));
     assert(startVersion < endVersion);
     assert(startVersion >= 0);
 
     const stepTransactionContainingStartVersion =
-        await getDocumentStepTransactionContainingValidatedVersion(id, startVersion);
+        await getDocumentStepTransactionContainingValidatedVersion(context, id, startVersion);
 
     yield stepTransactionContainingStartVersion;
 
@@ -1313,7 +1332,7 @@ async function* getDocumentStepTransactionsBetweenValidatedVersionRange({
         // If we start in the after snapshot range then we will also end in the after
         // snapshot range.
         case "StepTransactionsAfterSnapshot": {
-            for await (const stepTransaction of DocumentsTable.query({
+            for await (const stepTransaction of DocumentsTable.query(context, {
                 startKey: {
                     partitionType: "Document",
                     documentId: id,
@@ -1337,7 +1356,7 @@ async function* getDocumentStepTransactionsBetweenValidatedVersionRange({
         // steps we need in the before snapshot range. So query the before snapshot
         // range and then determine if we also need to query the after snapshot range.
         case "StepTransactionsBeforeSnapshot": {
-            const stepTransactionBeforeSnapshotIterator = DocumentsTable.query({
+            const stepTransactionBeforeSnapshotIterator = DocumentsTable.query(context, {
                 startKey: {
                     partitionType: "Document",
                     documentId: id,
@@ -1373,7 +1392,7 @@ async function* getDocumentStepTransactionsBetweenValidatedVersionRange({
                 return;
             }
 
-            const stepTransactionAfterSnapshotIterator = DocumentsTable.query({
+            const stepTransactionAfterSnapshotIterator = DocumentsTable.query(context, {
                 startKey: {
                     partitionType: "Document",
                     documentId: id,
@@ -1426,6 +1445,7 @@ async function* getDocumentStepTransactionsBetweenValidatedVersionRange({
 // in reverse with a limit of one. The first transaction in that range should
 // contain our version.
 async function getDocumentStepTransactionContainingValidatedVersion(
+    context: ProcessContext,
     id: Id,
     version: number,
 ): Promise<DocumentStepTransactionItem> {
@@ -1462,7 +1482,7 @@ async function getDocumentStepTransactionContainingValidatedVersion(
         // last transaction in this range is `transaction3` which contains version 8 so
         // we're good.
         const stepTransactionBeforeSnapshotContainingVersionArray = await arrayFromAsyncIterable(
-            DocumentsTable.query({
+            DocumentsTable.query(context, {
                 limit: 1,
                 descending: true,
                 startKey: {
@@ -1510,7 +1530,7 @@ async function getDocumentStepTransactionContainingValidatedVersion(
         // Same as the query above but on the `StepTransactionsAfterSnapshot` sort
         // range instead of the `StepTransactionsBeforeSnapshot` sort range.
         const stepTransactionAfterSnapshotContainingVersionArray = await arrayFromAsyncIterable(
-            DocumentsTable.query({
+            DocumentsTable.query(context, {
                 limit: 1,
                 descending: true,
                 startKey: {

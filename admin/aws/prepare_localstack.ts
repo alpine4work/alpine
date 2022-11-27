@@ -4,7 +4,6 @@ import path from "path";
 import prettyMilliseconds from "pretty-ms";
 import {runProcess} from "~/admin/helpers/run_process";
 import {runfilesPath} from "~/admin/helpers/runfiles_path";
-import {localstackEdgePort} from "~/server/aws/localstack_edge_port";
 import {seedDynamo} from "~/server/dynamo/seed_dynamo";
 
 // This function runs in Node.js but we execute some code that expects to run
@@ -16,6 +15,8 @@ const cdklocalExecutablePath = path.join(
     runfilesPath,
     "cyberworlds/node_modules/aws-cdk-local/bin/cdklocal",
 );
+
+export const localstackEdgePort = 4566;
 
 /**
  * Starts localstack (if its not already started) and deploys our resources using

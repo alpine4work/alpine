@@ -1,3 +1,4 @@
+import {ProcessContext} from "~/server/context/context";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
 import {DynamoReadConsistency, dynamoClient} from "~/server/dynamo/internal/dynamo_client";
 import {
@@ -276,12 +277,13 @@ export class DynamoTableSchema<
      * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
      */
     public async getItem<Key extends Types["Key"]>(
+        context: ProcessContext,
         key: Key,
         {consistency}: {consistency?: DynamoReadConsistency} = {},
     ): Promise<MergeObjectIntersection<Types["Item"] & Key> | null> {
         const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
 
-        const serializedItem = await dynamoClient.getItem({
+        const serializedItem = await dynamoClient.getItem(context, {
             tableName: this._config.name,
             key: {partitionKey, sortKey},
             consistency,
@@ -320,6 +322,7 @@ export class DynamoTableSchema<
         // of `keyof` that works for us. See `KeyofImplementedWithConditionalType`.
         Attributes extends string & KeyofImplementedWithConditionalType<Types["Item"] & Key>,
     >(
+        context: ProcessContext,
         key: Key,
         {
             attributes,
@@ -345,7 +348,7 @@ export class DynamoTableSchema<
             projectionExpressionEntries.push(serializedKey);
         }
 
-        const serializedItem = await dynamoClient.getItem({
+        const serializedItem = await dynamoClient.getItem(context, {
             tableName: this._config.name,
             key: {partitionKey, sortKey},
             consistency,
@@ -399,6 +402,7 @@ export class DynamoTableSchema<
      * [3]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
      */
     public async putItem<Item extends Types["Item"]>(
+        context: ProcessContext,
         item: Item,
         {
             condition,
@@ -414,7 +418,7 @@ export class DynamoTableSchema<
         attributesSchema.serializeInto(item, serializedItem);
 
         if (condition === undefined) {
-            return dynamoClient.putItem({
+            return dynamoClient.putItem(context, {
                 tableName: this._config.name,
                 key: {partitionKey, sortKey},
                 item: serializedItem,
@@ -427,7 +431,7 @@ export class DynamoTableSchema<
                 conditionCompilationContext,
             );
 
-            return dynamoClient.putItem({
+            return dynamoClient.putItem(context, {
                 tableName: this._config.name,
                 key: {partitionKey, sortKey},
                 item: serializedItem,
@@ -457,6 +461,7 @@ export class DynamoTableSchema<
      * [3]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
      */
     public deleteItem<Key extends Types["Key"]>(
+        context: ProcessContext,
         key: Key,
         {
             condition,
@@ -469,7 +474,7 @@ export class DynamoTableSchema<
         const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
 
         if (condition === undefined) {
-            return dynamoClient.deleteItem({
+            return dynamoClient.deleteItem(context, {
                 tableName: this._config.name,
                 key: {partitionKey, sortKey},
             });
@@ -481,7 +486,7 @@ export class DynamoTableSchema<
                 conditionCompilationContext,
             );
 
-            return dynamoClient.deleteItem({
+            return dynamoClient.deleteItem(context, {
                 tableName: this._config.name,
                 key: {partitionKey, sortKey},
                 conditionExpression: conditionExpressionString,
@@ -501,10 +506,11 @@ export class DynamoTableSchema<
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
      */
     public static async executeTransaction(
+        context: ProcessContext,
         entries: ReadonlyArray<DynamoTransactionEntry>,
         options?: {clientRequestToken?: string},
     ): Promise<void> {
-        await dynamoClient.executeTransaction(entries, options);
+        await dynamoClient.executeTransaction(context, entries, options);
     }
 
     /**
@@ -649,19 +655,22 @@ export class DynamoTableSchema<
         PartitionKey extends Types["PartitionKey"],
         StartKey extends Types["Key"] & PartitionKey,
         EndKey extends Types["Key"] & PartitionKey,
-    >({
-        startKey,
-        endKey,
-        limit,
-        descending,
-        consistency,
-    }: {
-        startKey: StartKey;
-        endKey: EndKey;
-        limit?: number;
-        descending?: boolean;
-        consistency?: DynamoReadConsistency;
-    }): AsyncIterableIterator<
+    >(
+        context: ProcessContext,
+        {
+            startKey,
+            endKey,
+            limit,
+            descending,
+            consistency,
+        }: {
+            startKey: StartKey;
+            endKey: EndKey;
+            limit?: number;
+            descending?: boolean;
+            consistency?: DynamoReadConsistency;
+        },
+    ): AsyncIterableIterator<
         MergeObjectIntersection<
             Types["Item"] &
                 PartitionKey & {
@@ -678,7 +687,7 @@ export class DynamoTableSchema<
                 "The partition key of our start key and end key should be the same",
             );
 
-        const iterator = dynamoClient.query({
+        const iterator = dynamoClient.query(context, {
             tableName: this._config.name,
             partitionKey: {
                 name: "partitionKey",
@@ -729,20 +738,23 @@ export class DynamoTableSchema<
      *
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Query.html
      */
-    public queryEntirePartition<PartitionKey extends Types["PartitionKey"]>({
-        partitionKey,
-        limit,
-        descending,
-        consistency,
-    }: {
-        partitionKey: PartitionKey;
-        limit?: number;
-        descending?: boolean;
-        consistency?: DynamoReadConsistency;
-    }): AsyncIterableIterator<MergeObjectIntersection<Types["Item"] & PartitionKey>> {
+    public queryEntirePartition<PartitionKey extends Types["PartitionKey"]>(
+        context: ProcessContext,
+        {
+            partitionKey,
+            limit,
+            descending,
+            consistency,
+        }: {
+            partitionKey: PartitionKey;
+            limit?: number;
+            descending?: boolean;
+            consistency?: DynamoReadConsistency;
+        },
+    ): AsyncIterableIterator<MergeObjectIntersection<Types["Item"] & PartitionKey>> {
         const serializedPartitionKey = this._serializePartitionKey(partitionKey);
 
-        const iterator = dynamoClient.query({
+        const iterator = dynamoClient.query(context, {
             tableName: this._config.name,
             partitionKey: {
                 name: "partitionKey",

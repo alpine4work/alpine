@@ -26,7 +26,7 @@ export function meta() {
 
 export async function loader({context}: DataFunctionArgs) {
     // Can not access this page while signed in.
-    if (await context.isAuthenticated()) return redirectToAuthenticatedHome();
+    if (await context.isAuthenticated()) return redirectToAuthenticatedHome(context);
 
     return json({});
 }
@@ -56,7 +56,7 @@ export async function action({request, context, params}: DataFunctionArgs) {
 
         await context.dangerouslySetSessionId(sessionId);
 
-        return redirectToAuthenticatedHome();
+        return redirectToAuthenticatedHome(context);
     } catch (error) {
         return jsonWithSchema(ActionSchema, {ok: false, error}, isHttp500Error(error) ? 500 : 400);
     }

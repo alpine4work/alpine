@@ -1,5 +1,5 @@
 import {differenceInHours, differenceInMinutes} from "date-fns";
-import {UnauthenticatedRequestContext} from "~/server/context/context";
+import {ProcessContext, UnauthenticatedRequestContext} from "~/server/context/context";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
 import {DynamoConditionExpression} from "~/server/dynamo/internal/dynamo_condition";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
@@ -11,7 +11,6 @@ import {FailedPreconditionError, NotFoundError, PermissionDeniedError} from "~/s
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {Lazy} from "~/shared/helpers/control/lazy";
 import {quote} from "~/shared/helpers/string/quote";
 import {Id, generateId} from "~/shared/id/id";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
@@ -202,12 +201,13 @@ type AccountEmailAddressItem = DynamoTableItemType<
 
 type SessionItem = DynamoTableItemType<typeof AccountsTable, "Session", "Attributes">;
 
-export async function seedTestAccounts() {
+export async function seedTestAccounts(context: ProcessContext) {
     assert(process.env.NODE_ENV !== "production");
     const {adminAccountId} = getSeedConstants();
 
     try {
         await AccountsTable.putItem(
+            context,
             {
                 partitionType: "Account",
                 sortRangeType: "Attributes",
@@ -231,6 +231,7 @@ export async function seedTestAccounts() {
 
     try {
         await AccountsTable.putItem(
+            context,
             {
                 partitionType: "AccountEmailAddress",
                 sortRangeType: "Attributes",
@@ -326,12 +327,15 @@ export function createAccountForAlphaTransactionEntries({
  * Generates a new one time password for signing into an account with the
  * provided email address. Sends the password to the account's email address.
  */
-export function regenerateOneTimePasswordSignIn(emailAddress: string): Promise<void> {
+export function regenerateOneTimePasswordSignIn(
+    context: ProcessContext,
+    emailAddress: string,
+): Promise<void> {
     return retryDynamoConditionCheckErrors(async () => {
         // Email address is case insensitive.
         emailAddress = emailAddress.toLowerCase();
 
-        const accountEmailAddressItem = await AccountsTable.getItem({
+        const accountEmailAddressItem = await AccountsTable.getItem(context, {
             partitionType: "AccountEmailAddress",
             sortRangeType: "Attributes",
             emailAddress,
@@ -348,6 +352,7 @@ export function regenerateOneTimePasswordSignIn(emailAddress: string): Promise<v
         const password = generateOneTimePassword();
 
         await AccountsTable.putItem(
+            context,
             {
                 ...accountEmailAddressItem,
                 lockVersion: accountEmailAddressItem.lockVersion + 1,
@@ -465,7 +470,7 @@ export function attemptOneTimePasswordSignIn(
         // Email address is case insensitive.
         emailAddress = emailAddress.toLowerCase();
 
-        const accountEmailAddressItem = await AccountsTable.getItem({
+        const accountEmailAddressItem = await AccountsTable.getItem(context, {
             partitionType: "AccountEmailAddress",
             sortRangeType: "Attributes",
             emailAddress,
@@ -499,6 +504,7 @@ export function attemptOneTimePasswordSignIn(
 
         if (!isCorrectOneTimePassword) {
             await AccountsTable.putItem(
+                context,
                 {
                     ...accountEmailAddressItem,
                     lockVersion: accountEmailAddressItem.lockVersion + 1,
@@ -530,7 +536,7 @@ export function attemptOneTimePasswordSignIn(
         } else {
             const sessionId = generateId();
 
-            await DynamoTableSchema.executeTransaction([
+            await DynamoTableSchema.executeTransaction(context, [
                 AccountsTable.transactionPutItem(
                     {
                         ...accountEmailAddressItem,
@@ -654,8 +660,8 @@ export class Session {
         this.accountId = sessionItem.accountId;
     }
 
-    public static async get(sessionId: Id): Promise<Session | null> {
-        const sessionItem = await AccountsTable.getItem({
+    public static async get(context: ProcessContext, sessionId: Id): Promise<Session | null> {
+        const sessionItem = await AccountsTable.getItem(context, {
             partitionType: "Session",
             sortRangeType: "Attributes",
             sessionId,
@@ -664,29 +670,32 @@ export class Session {
         return new Session(sessionId, sessionItem);
     }
 
-    private readonly _account = new Lazy<Promise<Account>>(async () => {
-        const accountItem = assertExists(
-            // TODO(calebmer): We have a read request waterfall here. Given how frequently
-            // we need to get the account from a session, maybe we should add an LRU cache?
-            await AccountsTable.getItem({
-                partitionType: "Account",
-                sortRangeType: "Attributes",
-                accountId: this.accountId,
-            }),
-            "Expected account referenced by session to exist",
-        );
+    private _accountPromise: Promise<Account> | null = null;
 
-        return {
-            id: this.accountId,
-            name: accountItem.name,
-            createdTime: accountItem.createdTime,
-            hasInternalAccess: accountItem.hasInternalAccess,
-        };
-    });
+    public getAccount(context: ProcessContext): Promise<Account> {
+        if (this._accountPromise === null) {
+            this._accountPromise = (async () => {
+                const accountItem = assertExists(
+                    // TODO(calebmer): We have a read request waterfall here. Given how frequently
+                    // we need to get the account from a session, maybe we should add an LRU cache?
+                    await AccountsTable.getItem(context, {
+                        partitionType: "Account",
+                        sortRangeType: "Attributes",
+                        accountId: this.accountId,
+                    }),
+                    "Expected account referenced by session to exist",
+                );
 
-    public getAccount(): Promise<Account> {
-        // Get the account once for the session and cache it.
-        return this._account.get();
+                return {
+                    id: this.accountId,
+                    name: accountItem.name,
+                    createdTime: accountItem.createdTime,
+                    hasInternalAccess: accountItem.hasInternalAccess,
+                };
+            })();
+        }
+
+        return this._accountPromise;
     }
 }
 

@@ -14,8 +14,6 @@ exports_files([
     "tsconfig.json",
     "tsconfig.bazel.json",
     "remix.config.js",
-    "cdk.json",
-    "cdk.context.json",
 ])
 
 ts_config(
@@ -70,5 +68,14 @@ copy_to_bin(
 copy_to_bin(
     name = "jest_config_file",
     srcs = ["jest.config.js"],
+    visibility = ["//visibility:public"],
+)
+
+copy_to_bin(
+    name = "cdk_files",
+    srcs = [
+        "cdk.context.json",
+        "cdk.json",
+    ],
     visibility = ["//visibility:public"],
 )

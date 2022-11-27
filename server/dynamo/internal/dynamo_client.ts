@@ -2,8 +2,7 @@
 // for executing any AWS commands.
 import type * as types from "@aws-sdk/client-dynamodb";
 import jsonStableStringify from "json-stable-stringify";
-import {awsClient} from "~/server/aws/aws_client";
-import {localstackEdgePort} from "~/server/aws/localstack_edge_port";
+import {ProcessContext} from "~/server/context/context";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
 import {classifyDynamoError} from "~/server/dynamo/internal/classify_dynamo_error";
 import {DeadlineExceededError, InternalError, InvalidArgumentError} from "~/shared/error/error";
@@ -72,27 +71,31 @@ class DynamoClient {
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html
      * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
      */
-    public async getItem({
-        tableName,
-        key,
-        consistency = "Eventual",
-        projectionExpression,
-    }: {
-        tableName: string;
-        key: SchemaSerializedObjectValue;
-        consistency?: DynamoReadConsistency;
-        projectionExpression?: string;
-    }): Promise<SchemaSerializedObjectValue | null> {
+    public async getItem(
+        context: ProcessContext,
+        {
+            tableName,
+            key,
+            consistency = "Eventual",
+            projectionExpression,
+        }: {
+            tableName: string;
+            key: SchemaSerializedObjectValue;
+            consistency?: DynamoReadConsistency;
+            projectionExpression?: string;
+        },
+    ): Promise<SchemaSerializedObjectValue | null> {
         // Reads without a projection expression may be batched.
         //
         // NOTE: If we end up using `projectionExpression` a lot, consider in the
         // future sending batch requests with `projectionExpression`.
         if (projectionExpression === undefined) {
             const batcher = this._getItemBatcherByConsistency[consistency];
-            return batcher.getItem(tableName, key);
+            return batcher.getItem(context, tableName, key);
         }
 
         const output = await executeDynamoCommand<types.GetItemInput, types.GetItemOutput>(
+            context,
             "GetItem",
             {
                 TableName: tableName,
@@ -120,21 +123,24 @@ class DynamoClient {
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
      * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
      */
-    public async putItem({
-        tableName,
-        key,
-        item,
-        conditionExpression,
-        expressionAttributeValues,
-        expressionAttributeNames,
-    }: {
-        tableName: string;
-        key: SchemaSerializedObjectValue;
-        item: SchemaSerializedObjectValue;
-        conditionExpression?: string;
-        expressionAttributeValues?: ReadonlyMap<string, SchemaSerializedValue>;
-        expressionAttributeNames?: ReadonlyMap<string, string>;
-    }): Promise<void> {
+    public async putItem(
+        context: ProcessContext,
+        {
+            tableName,
+            key,
+            item,
+            conditionExpression,
+            expressionAttributeValues,
+            expressionAttributeNames,
+        }: {
+            tableName: string;
+            key: SchemaSerializedObjectValue;
+            item: SchemaSerializedObjectValue;
+            conditionExpression?: string;
+            expressionAttributeValues?: ReadonlyMap<string, SchemaSerializedValue>;
+            expressionAttributeNames?: ReadonlyMap<string, string>;
+        },
+    ): Promise<void> {
         // Make sure that all the properties in our `key` also exist in our `item`.
         for (const keyEntry of Object.entries(key)) {
             if (!isDeepEqual(keyEntry[1], item[keyEntry[0]]))
@@ -145,9 +151,9 @@ class DynamoClient {
 
         // Writes without a condition may be batched.
         if (conditionExpression === undefined)
-            return this._writeItemBatcher.putItem(tableName, key, item);
+            return this._writeItemBatcher.putItem(context, tableName, key, item);
 
-        await executeDynamoCommand<types.PutItemInput, types.PutItemOutput>("PutItem", {
+        await executeDynamoCommand<types.PutItemInput, types.PutItemOutput>(context, "PutItem", {
             TableName: tableName,
             Item: intoDynamoAttributeValueObject(item),
             ConditionExpression: conditionExpression,
@@ -178,41 +184,50 @@ class DynamoClient {
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DeleteItem.html
      * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
      */
-    public async deleteItem({
-        tableName,
-        key,
-        conditionExpression,
-        expressionAttributeValues,
-        expressionAttributeNames,
-    }: {
-        tableName: string;
-        key: SchemaSerializedObjectValue;
-        conditionExpression?: string;
-        expressionAttributeValues?: ReadonlyMap<string, SchemaSerializedValue>;
-        expressionAttributeNames?: ReadonlyMap<string, string>;
-    }): Promise<void> {
+    public async deleteItem(
+        context: ProcessContext,
+        {
+            tableName,
+            key,
+            conditionExpression,
+            expressionAttributeValues,
+            expressionAttributeNames,
+        }: {
+            tableName: string;
+            key: SchemaSerializedObjectValue;
+            conditionExpression?: string;
+            expressionAttributeValues?: ReadonlyMap<string, SchemaSerializedValue>;
+            expressionAttributeNames?: ReadonlyMap<string, string>;
+        },
+    ): Promise<void> {
         // Writes without a condition may be batched.
         if (conditionExpression === undefined)
-            return this._writeItemBatcher.deleteItem(tableName, key);
+            return this._writeItemBatcher.deleteItem(context, tableName, key);
 
-        await executeDynamoCommand<types.DeleteItemInput, types.DeleteItemOutput>("DeleteItem", {
-            TableName: tableName,
-            Key: intoDynamoAttributeValueObject(key),
-            ConditionExpression: conditionExpression,
-            ExpressionAttributeValues:
-                expressionAttributeValues && expressionAttributeValues.size > 0
-                    ? Object.fromEntries(
-                          mapIterable(expressionAttributeValues, ([name, value]) => [
-                              name,
-                              intoDynamoAttributeValue(value),
-                          ]),
-                      )
-                    : undefined,
-            ExpressionAttributeNames:
-                conditionExpression && expressionAttributeNames && expressionAttributeNames.size > 0
-                    ? Object.fromEntries(expressionAttributeNames)
-                    : undefined,
-        });
+        await executeDynamoCommand<types.DeleteItemInput, types.DeleteItemOutput>(
+            context,
+            "DeleteItem",
+            {
+                TableName: tableName,
+                Key: intoDynamoAttributeValueObject(key),
+                ConditionExpression: conditionExpression,
+                ExpressionAttributeValues:
+                    expressionAttributeValues && expressionAttributeValues.size > 0
+                        ? Object.fromEntries(
+                              mapIterable(expressionAttributeValues, ([name, value]) => [
+                                  name,
+                                  intoDynamoAttributeValue(value),
+                              ]),
+                          )
+                        : undefined,
+                ExpressionAttributeNames:
+                    conditionExpression &&
+                    expressionAttributeNames &&
+                    expressionAttributeNames.size > 0
+                        ? Object.fromEntries(expressionAttributeNames)
+                        : undefined,
+            },
+        );
     }
 
     /**
@@ -223,10 +238,12 @@ class DynamoClient {
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
      */
     public async executeTransaction(
+        context: ProcessContext,
         entries: ReadonlyArray<DynamoTransactionEntry>,
         {clientRequestToken}: {clientRequestToken?: string} = {},
     ): Promise<void> {
         await executeDynamoCommand<types.TransactWriteItemsInput, types.TransactWriteItemsOutput>(
+            context,
             "TransactWriteItems",
             {
                 TransactItems: entries.map(entry => entry._getTransactItemForClient(this)),
@@ -385,28 +402,31 @@ class DynamoClient {
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Query.html
      * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Query.Pagination.html
      */
-    public async *query({
-        tableName,
-        partitionKey,
-        sortKey,
-        consistency = "Eventual",
-        limit,
-        descending = false,
-    }: {
-        tableName: string;
-        partitionKey: {
-            name: string;
-            value: SchemaSerializedValue;
-        };
-        sortKey?: {
-            name: string;
-            startValue?: SchemaSerializedValue;
-            endValue?: SchemaSerializedValue;
-        };
-        consistency?: DynamoReadConsistency;
-        limit?: number;
-        descending?: boolean;
-    }): AsyncIterableIterator<SchemaSerializedObjectValue> {
+    public async *query(
+        context: ProcessContext,
+        {
+            tableName,
+            partitionKey,
+            sortKey,
+            consistency = "Eventual",
+            limit,
+            descending = false,
+        }: {
+            tableName: string;
+            partitionKey: {
+                name: string;
+                value: SchemaSerializedValue;
+            };
+            sortKey?: {
+                name: string;
+                startValue?: SchemaSerializedValue;
+                endValue?: SchemaSerializedValue;
+            };
+            consistency?: DynamoReadConsistency;
+            limit?: number;
+            descending?: boolean;
+        },
+    ): AsyncIterableIterator<SchemaSerializedObjectValue> {
         const keyConditionExpression = !sortKey
             ? `${partitionKey.name} = :pkv`
             : sortKey.startValue !== undefined && sortKey.endValue !== undefined
@@ -432,6 +452,7 @@ class DynamoClient {
 
         do {
             const output = await executeDynamoCommand<types.QueryInput, types.QueryOutput>(
+                context,
                 "Query",
                 {
                     TableName: tableName,
@@ -484,23 +505,24 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
         this._maxBatchItemCount = maxBatchItemCount;
     }
 
-    private _getScheduledBatch(): DynamoClientBatch<Input, Output> {
+    private _getScheduledBatch(context: ProcessContext): DynamoClientBatch<Input, Output> {
         if (this._scheduledBatch === null) {
             this._scheduledBatch = {
                 itemCount: 0,
                 tableBatches: new Map(),
             };
-            this._scheduleBatchExecution();
+            this._scheduleBatchExecution(context);
         }
         return this._scheduledBatch;
     }
 
     protected _addItem(
+        context: ProcessContext,
         tableName: string,
         key: SchemaSerializedObjectValue,
         input: Input,
     ): Promise<Output> {
-        const scheduledBatch = this._getScheduledBatch();
+        const scheduledBatch = this._getScheduledBatch(context);
 
         const keyAttributes = new Set(Object.keys(key));
         const promiseResolver = createPromiseResolver<Output>();
@@ -570,7 +592,7 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
      *
      * [1]: https://developer.mozilla.org/en-US/docs/Web/API/HTML_DOM_API/Microtask_guide/In_depth
      */
-    private _scheduleBatchExecution() {
+    private _scheduleBatchExecution(context: ProcessContext) {
         assert(this._scheduledBatch !== null);
         const scheduledBatch = this._scheduledBatch;
 
@@ -585,7 +607,7 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
                     maybeExecuteBatch();
                 } else {
                     this._scheduledBatch = null;
-                    this._executeFullBatch(scheduledBatch);
+                    this._executeFullBatch(context, scheduledBatch);
                 }
             });
         };
@@ -593,7 +615,10 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
         scheduleMicrotask(maybeExecuteBatch);
     }
 
-    protected _executeFullBatch(fullBatch: DynamoClientBatch<Input, Output>) {
+    protected _executeFullBatch(
+        context: ProcessContext,
+        fullBatch: DynamoClientBatch<Input, Output>,
+    ) {
         // This batch execution is performed in a microtask, so if an error is thrown
         // it's thrown into the void. Add a try/catch so that errors reject the promise
         // resolvers in our batch.
@@ -601,7 +626,7 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
             const batches = splitDynamoClientBatch(fullBatch, this._maxBatchItemCount);
 
             for (const batch of batches) {
-                void this._executeBatch(batch, 1);
+                void this._executeBatch(context, batch, 1);
             }
         } catch (error) {
             for (const {keyBatches} of fullBatch.tableBatches.values()) {
@@ -614,14 +639,18 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
         }
     }
 
-    private async _executeBatch(batch: DynamoClientBatch<Input, Output>, attemptNumber: number) {
+    private async _executeBatch(
+        context: ProcessContext,
+        batch: DynamoClientBatch<Input, Output>,
+        attemptNumber: number,
+    ) {
         // This function is async but called from a synchronous function. So if an
         // error is thrown it's thrown in the void. Add a try/catch so that errors
         // reject the promise resolvers in our batch.
         try {
             assert(batch.itemCount <= 100);
 
-            const {unprocessedBatch} = await this._sendBatchCommand(batch);
+            const {unprocessedBatch} = await this._sendBatchCommand(context, batch);
 
             if (unprocessedBatch.itemCount > 0) {
                 // The DynamoDB docs strongly recommend us to retry unprocessed key requests
@@ -638,7 +667,7 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
                 const delayMsWithJitter = Math.floor(Math.random() * delayMs);
 
                 setTimeout(() => {
-                    void this._executeBatch(unprocessedBatch, attemptNumber + 1);
+                    void this._executeBatch(context, unprocessedBatch, attemptNumber + 1);
                 }, delayMsWithJitter);
             }
         } catch (error) {
@@ -660,6 +689,7 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
      * `unprocessedBatch` with `itemCount` of 0.
      */
     protected abstract _sendBatchCommand(
+        context: ProcessContext,
         batch: DynamoClientBatch<Input, Output>,
     ): Promise<{unprocessedBatch: DynamoClientBatch<Input, Output>}>;
 }
@@ -763,17 +793,18 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
         this._consistency = consistency;
     }
 
-    public getItem(tableName: string, key: SchemaSerializedObjectValue) {
-        return this._addItem(tableName, key, null);
+    public getItem(context: ProcessContext, tableName: string, key: SchemaSerializedObjectValue) {
+        return this._addItem(context, tableName, key, null);
     }
 
     protected async _sendBatchCommand(
+        context: ProcessContext,
         batch: DynamoClientBatch<null, SchemaSerializedObjectValue | null>,
     ) {
         const output = await executeDynamoCommand<
             types.BatchGetItemInput,
             types.BatchGetItemOutput
-        >("BatchGetItem", {
+        >(context, "BatchGetItem", {
             RequestItems: Object.fromEntries(
                 Array.from(batch.tableBatches, ([tableName, tableBatch]) => {
                     return [
@@ -911,24 +942,30 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
     }
 
     public putItem(
+        context: ProcessContext,
         tableName: string,
         key: SchemaSerializedObjectValue,
         item: SchemaSerializedObjectValue,
     ): Promise<void> {
-        return this._addItem(tableName, key, {action: "Put", item});
+        return this._addItem(context, tableName, key, {action: "Put", item});
     }
 
-    public deleteItem(tableName: string, key: SchemaSerializedObjectValue): Promise<void> {
-        return this._addItem(tableName, key, {action: "Delete"});
+    public deleteItem(
+        context: ProcessContext,
+        tableName: string,
+        key: SchemaSerializedObjectValue,
+    ): Promise<void> {
+        return this._addItem(context, tableName, key, {action: "Delete"});
     }
 
     protected async _sendBatchCommand(
+        context: ProcessContext,
         batch: DynamoClientBatch<DynamoClientWriteItemBatchAction, void>,
     ) {
         const output = await executeDynamoCommand<
             types.BatchWriteItemInput,
             types.BatchWriteItemOutput
-        >("BatchWriteItem", {
+        >(context, "BatchWriteItem", {
             RequestItems: Object.fromEntries(
                 Array.from(batch.tableBatches, ([tableName, tableBatch]) => {
                     return [
@@ -1039,13 +1076,17 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
 
 export const dynamoClient = new DynamoClient();
 
-const dynamoUrl = `http://127.0.0.1:${localstackEdgePort}`;
+const dynamoUrl =
+    process.env.NODE_ENV === "production"
+        ? "https://dynamodb.us-east-1.amazonaws.com"
+        : "http://127.0.0.1:4566";
 
 async function executeDynamoCommand<Input = never, Output = unknown>(
+    context: ProcessContext,
     command: string,
     input: Input,
 ): Promise<Output> {
-    const response = await awsClient.fetch(dynamoUrl, {
+    const response = await context.awsClient.fetch(dynamoUrl, {
         method: "POST",
         headers: {
             "Content-Type": "application/x-amz-json-1.0",

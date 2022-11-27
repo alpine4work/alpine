@@ -3,6 +3,7 @@ import {
     RequestContext,
     UnauthenticatedRequestContext,
 } from "~/server/context/context";
+import {createAwsClientFromEnv} from "~/server/context/helpers/create_aws_client_from_env";
 import {InternalError, UnimplementedError} from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
@@ -39,6 +40,8 @@ export class TestProcessContext implements ProcessContext {
             throw new InternalError("May only construct a test server context in Jest tests");
     }
 
+    public readonly awsClient = createAwsClientFromEnv({});
+
     public waitUntil(promise: Promise<void>): void {
         jestAfterEachPromises.push(promise);
     }
@@ -58,6 +61,10 @@ export class TestUnauthenticatedRequestContext
 
     public getClientUserAgent() {
         return null;
+    }
+
+    public isAuthenticated(): Promise<boolean> {
+        throw new UnimplementedError("Unimplemented");
     }
 
     public authenticate(): Promise<RequestContext> {

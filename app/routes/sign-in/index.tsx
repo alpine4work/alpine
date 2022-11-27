@@ -1,4 +1,4 @@
-import {ActionArgs, json, redirect} from "@remix-run/cloudflare";
+import {json, redirect} from "@remix-run/cloudflare";
 import {Form, Link, useTransition} from "@remix-run/react";
 import {useState} from "react";
 import {redirectToAuthenticatedHome} from "~/app/helpers/redirect_to_authenticated_home";
@@ -27,7 +27,7 @@ export function meta() {
 
 export async function loader({context}: DataFunctionArgs) {
     // Can not access this page while signed in.
-    if (await context.isAuthenticated()) return redirectToAuthenticatedHome();
+    if (await context.isAuthenticated()) return redirectToAuthenticatedHome(context);
 
     return json({});
 }
@@ -37,7 +37,7 @@ const ActionSchema = Schema.object({
     error: ErrorSchema,
 });
 
-export async function action({request}: ActionArgs) {
+export async function action({request, context}: DataFunctionArgs) {
     try {
         const formData = await request.formData();
         const emailAddress = formData.get("emailAddress");
@@ -45,7 +45,7 @@ export async function action({request}: ActionArgs) {
         if (typeof emailAddress !== "string")
             throw new InvalidArgumentError('Expected property "emailAddress" in form data');
 
-        await regenerateOneTimePasswordSignIn(emailAddress);
+        await regenerateOneTimePasswordSignIn(context, emailAddress);
 
         // After we send the email, challenge the user to sign in using the code
         // we sent them.
