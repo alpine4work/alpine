@@ -4,34 +4,38 @@ import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
 import {ErrorBase} from "~/shared/error/error";
 import {ErrorCode} from "~/shared/error/error_code";
-import {ErrorDisplayMessage, errorDisplayMessage} from "~/shared/error/error_display_message";
+import {errorDisplayMessage} from "~/shared/error/error_display_message";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol";
-import {contentSchemaStyles, typographySize} from "~/shared/styles/styles";
+import {contentSchemaStyles} from "~/shared/styles/styles";
+
+const defaultErrorDisplayMessage = errorDisplayMessage`An unexpected error occurred. Please try again. If the problem continues, let us know at ${errorDisplayMessage.supportLink}.`;
 
 export function ErrorDisplayMessageRenderer({
     error,
     size = "small",
 }: {
     error: unknown;
-    size?: keyof typeof typographySize;
+    size?: "small" | "body";
 }) {
-    const displayMessage =
-        (error instanceof ErrorBase ? error.displayMessage : null) ??
-        getDefaultErrorDisplayMessageByCode(
-            error instanceof ErrorBase ? error.code : ErrorCode.Unknown,
-        );
+    const displayMessage = error instanceof ErrorBase ? error.displayMessage : null;
 
     // Log errors to the console as well after we render them to help the
     // developer debug.
     useEffect(() => {
-        // eslint-disable-next-line no-console
-        console.error(error);
+        // Log after a microtask so we don't get the React component trace in the error
+        // log. The trace will always point to our error message renderer which
+        // isn't useful.
+        scheduleMicrotask(() => {
+            // eslint-disable-next-line no-console
+            console.error(error);
+        });
     }, [error]);
 
     return (
         <Box color="grey-80" typographyStyle="primary" typographySize={size}>
-            {displayMessage.map((displayMessageSegment, index) => {
+            {(displayMessage ?? defaultErrorDisplayMessage).map((displayMessageSegment, index) => {
                 switch (displayMessageSegment.type) {
                     case "Text":
                     case "SensitiveText":
@@ -61,54 +65,25 @@ export function ErrorDisplayMessageRenderer({
                         throw exhaustive(displayMessageSegment);
                 }
             })}
+            {!displayMessage && (
+                <Box
+                    paddingTop="2"
+                    color="grey-40"
+                    typographySize={{small: "tiny" as const, body: "small" as const}[size]}
+                    style={{
+                        // HACK(calebmer): This text uses an inaccessible color. We are ok with this
+                        // since the content is meant for developers, not for end users. In fact, end
+                        // users should ignore this text! But we want the text to be included in error
+                        // message screenshots.
+                        //
+                        // By setting a background image Axe ignores the inaccessible text color
+                        // because it can't figure out the background color.
+                        backgroundImage: "linear-gradient(rgb(0 0 0 / 0), rgb(0 0 0 / 0))",
+                    }}
+                >
+                    Error code: {error instanceof ErrorBase ? error.code : ErrorCode.Unknown}
+                </Box>
+            )}
         </Box>
     );
-}
-
-/**
- * Get a default error message to display to the user for a given error code.
- * These error messages have no context around what the user was doing so need
- * to be very generic. This leads to unhelpful error messages.
- *
- * We should aim to never show a default error message to users. They exist as
- * a fallback when all else fails.
- */
-// TODO(calebmer): These error messages are so unspecific. Add instrumentation
-// for when we show a default error message to users and aim to clean them.
-function getDefaultErrorDisplayMessageByCode(code: ErrorCode): ErrorDisplayMessage {
-    switch (code) {
-        case ErrorCode.Cancelled:
-        case ErrorCode.Aborted:
-            return errorDisplayMessage`Some process was stopped before it could complete. Please try again.`;
-        case ErrorCode.Unknown:
-        case ErrorCode.Internal:
-        case ErrorCode.DataLoss:
-            return errorDisplayMessage`An unexpected error occurred. Please try again. If the problem continues, let us know at ${errorDisplayMessage.supportLink}.`;
-        case ErrorCode.InvalidArgument:
-            return errorDisplayMessage`Some data is incorrectly formatted. Please review any information you\u2019ve entered and try again. If the problem continues, let us know at ${errorDisplayMessage.supportLink}.`;
-        case ErrorCode.DeadlineExceeded:
-            return errorDisplayMessage`Some process was taking to long to complete so we stopped it. Please try again. If the problem continues, let us know at ${errorDisplayMessage.supportLink}.`;
-        case ErrorCode.NotFound:
-            return errorDisplayMessage`Some data was not found. Please try again. If the problem continues, let us know at ${errorDisplayMessage.supportLink}.`;
-        case ErrorCode.AlreadyExists:
-            return errorDisplayMessage`Some data already exists and can not be recreated. Please try again. If the problem continues, let us know at ${errorDisplayMessage.supportLink}.`;
-        case ErrorCode.PermissionDenied:
-            return errorDisplayMessage`You are not allowed to. Ask the owner of this data for access.`;
-        case ErrorCode.ResourceExhausted:
-            return errorDisplayMessage`All of some resource has been used up. Please wait a few seconds and try again. If the problem continues, let us know at ${errorDisplayMessage.supportLink}.`;
-        case ErrorCode.FailedPrecondition:
-        case ErrorCode.OutOfRange:
-            return errorDisplayMessage`Some data was different than what was expected. Please wait a few seconds and try again. If the problem continues, let us know at ${errorDisplayMessage.supportLink}.`;
-        case ErrorCode.Unimplemented:
-            return errorDisplayMessage`You are trying to do something that isn\u2019t supported. Please let us know at ${errorDisplayMessage.supportLink}.`;
-        case ErrorCode.Unavailable:
-            return errorDisplayMessage`Some system is currently unavailable. Please wait a few minutes and try again. If the problem continues, let us know at ${errorDisplayMessage.supportLink}.`;
-        case ErrorCode.Unauthenticated:
-            return errorDisplayMessage`You are not signed in. Please ${errorDisplayMessage.link(
-                "sign in",
-                "/sign-in",
-            )} and try again.`;
-        default:
-            throw exhaustive(code);
-    }
 }

@@ -1,7 +1,17 @@
 import {LinkDescriptor} from "@remix-run/cloudflare";
-import {Links, LiveReload, Meta, Outlet, Scripts, ScrollRestoration} from "@remix-run/react";
+import {
+    Links,
+    LiveReload,
+    Meta,
+    Outlet,
+    Scripts,
+    ScrollRestoration,
+    ThrownResponse,
+    useCatch,
+} from "@remix-run/react";
 import {IconContext, Warning} from "phosphor-react";
 import prosemirrorStylesHref from "prosemirror-view/style/prosemirror.css";
+import {useMemo} from "react";
 import {Box} from "~/client/design/box";
 import {
     InitializeColorSchemeScript,
@@ -13,7 +23,10 @@ import {ErrorDisplayMessageRenderer} from "~/client/error/error_display_message_
 import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useStableValue} from "~/client/helpers/use_stable_value";
 import {spacing} from "~/shared/design/spacing";
+import {NotFoundError, UnknownError} from "~/shared/error/error";
+import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {ErrorSchema} from "~/shared/error/error_schema";
+import {quote} from "~/shared/helpers/string/quote";
 import {sprinkles, typographySize} from "~/shared/styles/styles";
 import sharedStylesHref from "~/shared/styles/styles.css";
 
@@ -40,7 +53,30 @@ export function links(): Array<LinkDescriptor> {
 }
 
 export default function Root({error}: {error?: unknown}) {
-    const children = error !== undefined ? <RootErrorRenderer error={error} /> : <Outlet />;
+    const caught = useCatch() as ThrownResponse | undefined;
+
+    const caughtResponseError = useMemo(() => {
+        if (!caught) return undefined;
+        if (caught.status === 404)
+            return new NotFoundError("Route not found", {
+                displayMessage: errorDisplayMessage`The page you opened could not be found. If you got here from a broken link let us know at ${errorDisplayMessage.supportLink}.`,
+            });
+        return new UnknownError(
+            quote`Response thrown with status ${caught.status} ${caught.statusText}`,
+        );
+    }, [caught]);
+
+    const children =
+        error !== undefined ? (
+            <RootErrorRenderer error={error} />
+        ) : caughtResponseError !== undefined ? (
+            <RootErrorRenderer
+                error={caughtResponseError}
+                title={caught?.status === 404 ? "Could not find content" : undefined}
+            />
+        ) : (
+            <Outlet />
+        );
 
     const wrappedChildren = (
         <IconContext.Provider value={{color: "currentColor", size: spacing["5"]}}>
@@ -71,7 +107,7 @@ export default function Root({error}: {error?: unknown}) {
     );
 }
 
-function RootErrorRenderer({error: _error}: {error: unknown}) {
+function RootErrorRenderer({error: _error, title}: {error: unknown; title?: string}) {
     // It appears that Remix does not `useMemo()` its error object. So stabilize
     // the object reference here. Our error rendering components use referential
     // identity to determine whether we need to log the error.
@@ -108,7 +144,7 @@ function RootErrorRenderer({error: _error}: {error: unknown}) {
                             typographyStyle: "primaryMedium",
                         })}
                     >
-                        Could not load page
+                        {title ?? "Could not show content"}
                     </h1>
                 </Box>
                 <ErrorDisplayMessageRenderer error={error} size="body" />
@@ -121,3 +157,4 @@ function RootErrorRenderer({error: _error}: {error: unknown}) {
 // if Remix navigates between root and error boundary we don't remount the
 // HTML. (Which appears to cause CSS to flash off.)
 export const ErrorBoundary = Root;
+export const CatchBoundary = Root;

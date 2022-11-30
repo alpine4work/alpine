@@ -60,11 +60,13 @@ const serveStaticMiddleware = createServeStaticMiddleware(
  *                                LocalStack                                  *
 \* ========================================================================== */
 
-prepareLocalstack().catch(error => {
-    // eslint-disable-next-line no-console
-    console.error(error);
-    process.exit(1);
-});
+// TODO(calebmer): LocalStack???
+//
+// prepareLocalstack().catch(error => {
+//     // eslint-disable-next-line no-console
+//     console.error(error);
+//     process.exit(1);
+// });
 
 /* ========================================================================== *\
  *                                  ibazel                                    *
