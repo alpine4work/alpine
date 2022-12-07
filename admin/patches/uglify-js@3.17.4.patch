@@ -1,0 +1,323 @@
+diff --git a/lib/ast.js b/lib/ast.js
+index 16ea9c805e57d7d2d0a2383648e3594b2bdd8e61..0f4dad89eae9325a9fe65ce809e979df9b83faea 100644
+--- a/lib/ast.js
++++ b/lib/ast.js
+@@ -48,20 +48,20 @@ function DEFNODE(type, props, methods, base) {
+     props = props ? props.split(/\s+/) : [];
+     var self_props = props;
+     if (base && base.PROPS) props = props.concat(base.PROPS);
+-    var code = [
+-        "return function AST_", type, "(props){",
+-        // not essential, but speeds up compress by a few percent
+-        "this._bits=0;",
+-        "if(props){",
+-    ];
+-    props.forEach(function(prop) {
+-        code.push("this.", prop, "=props.", prop, ";");
+-    });
+-    code.push("}");
+     var proto = Object.create(base && base.prototype);
+-    if (methods.initialize || proto.initialize) code.push("this.initialize();");
+-    code.push("};");
+-    var ctor = new Function(code.join(""))();
++    // NOTE(calebmer): Can not codegen at runtime in a Cloudflare Worker.
++    function AST(_props) {
++        // not essential, but speeds up compress by a few percent
++        this._bits = 0;
++        if (_props) {
++            props.forEach(function(prop) {
++                this[prop] = _props[prop];
++            });
++        }
++        if (methods.initialize || proto.initialize) this.initialize();
++    }
++    Object.defineProperty(AST, "name", {value: "AST_" + type});
++    var ctor = AST;
+     ctor.prototype = proto;
+     ctor.prototype.CTOR = ctor;
+     ctor.prototype.TYPE = ctor.TYPE = type;
+diff --git a/lib/mozilla-ast.js b/lib/mozilla-ast.js
+index 3e0534c8d551c4ade3030ce446ecb40ef9bc2890..7a955ca7ba5d24624fbb03bf8f2fb12fe516c1d2 100644
+--- a/lib/mozilla-ast.js
++++ b/lib/mozilla-ast.js
+@@ -1161,54 +1161,68 @@
+     }
+ 
+     function map(moztype, mytype, propmap) {
+-        var moz_to_me = [
+-            "start: my_start_token(M)",
+-            "end: my_end_token(M)",
+-        ];
+-        var me_to_moz = [
+-            "type: " + JSON.stringify(moztype),
+-        ];
+-
+-        if (propmap) propmap.split(/\s*,\s*/).forEach(function(prop) {
+-            var m = /([a-z0-9$_]+)(=|@|>|%)([a-z0-9$_]+)/i.exec(prop);
+-            if (!m) throw new Error("Can't understand property map: " + prop);
+-            var moz = m[1], how = m[2], my = m[3];
+-            switch (how) {
+-              case "@":
+-                moz_to_me.push(my + ": M." + moz + ".map(from_moz)");
+-                me_to_moz.push(moz + ": M." +  my + ".map(to_moz)");
+-                break;
+-              case ">":
+-                moz_to_me.push(my + ": from_moz(M." + moz + ")");
+-                me_to_moz.push(moz + ": to_moz(M." + my + ")");
+-                break;
+-              case "=":
+-                moz_to_me.push(my + ": M." + moz);
+-                me_to_moz.push(moz + ": M." + my);
+-                break;
+-              case "%":
+-                moz_to_me.push(my + ": from_moz(M." + moz + ").body");
+-                me_to_moz.push(moz + ": to_moz_block(M)");
+-                break;
+-              default:
+-                throw new Error("Can't understand operator in propmap: " + prop);
+-            }
+-        });
++        // NOTE(calebmer): Can not codegen at runtime in a Cloudflare Worker.
++        function From_Moz(M) {
++            var props = {
++                start: my_start_token(M),
++                end: my_end_token(M),
++            };
++            if (propmap) propmap.split(/\s*,\s*/).forEach(function(prop) {
++                var m = /([a-z0-9$_]+)(=|@|>|%)([a-z0-9$_]+)/i.exec(prop);
++                if (!m) throw new Error("Can't understand property map: " + prop);
++                var moz = m[1], how = m[2], my = m[3];    
++                switch (how) {
++                  case "@":
++                    props[my] = M[moz].map(from_moz);
++                    break;
++                  case ">":
++                    props[my] = from_moz(M[moz]);
++                    break;
++                  case "=":
++                    props[my] = M[moz];
++                    break;
++                  case "%":
++                    props[my] = from_moz(M[moz]).body;
++                    break;
++                  default:
++                    throw new Error("Can't understand operator in propmap: " + prop);
++                }      
++            });
++            return new exports["AST_" + mytype.TYPE](props);
++        }
++        Object.defineProperty(From_Moz, "name", {value: "From_Moz_" + moztype});
++
++        function To_Moz(M) {
++            var props = {
++                type: moztype,
++            };
++            if (propmap) propmap.split(/\s*,\s*/).forEach(function(prop) {
++                var m = /([a-z0-9$_]+)(=|@|>|%)([a-z0-9$_]+)/i.exec(prop);
++                if (!m) throw new Error("Can't understand property map: " + prop);
++                var moz = m[1], how = m[2], my = m[3];    
++                switch (how) {
++                  case "@":
++                    props[moz] = M[my].map(to_moz);
++                    break;
++                  case ">":
++                    props[moz] = to_moz(M[my]);
++                    break;
++                  case "=":
++                    props[moz] = M[my];
++                    break;
++                  case "%":
++                    props[moz] = to_moz_block(M);
++                    break;
++                  default:
++                    throw new Error("Can't understand operator in propmap: " + prop);
++                }      
++            });
++            return props;
++        }
++        Object.defineProperty(To_Moz, "name", {value: "To_Moz_" + moztype});
+ 
+-        MOZ_TO_ME[moztype] = new Function("U2", "my_start_token", "my_end_token", "from_moz", [
+-            "return function From_Moz_" + moztype + "(M) {",
+-            "    return new U2.AST_" + mytype.TYPE + "({",
+-            moz_to_me.join(",\n"),
+-            "    });",
+-            "};",
+-        ].join("\n"))(exports, my_start_token, my_end_token, from_moz);
+-        def_to_moz(mytype, new Function("to_moz", "to_moz_block", "to_moz_scope", [
+-            "return function To_Moz_" + moztype + "(M) {",
+-            "    return {",
+-            me_to_moz.join(",\n"),
+-            "    };",
+-            "};",
+-        ].join("\n"))(to_moz, to_moz_block, to_moz_scope));
++        MOZ_TO_ME[moztype] = From_Moz;
++        def_to_moz(mytype, To_Moz);
+     }
+ 
+     var FROM_MOZ_STACK = null;
+diff --git a/package.json b/package.json
+index 5776de16c00f455b1d27da8e698abd74efa293ca..30fbed0b71708e7a83352be7c889ec6b01d6c8f3 100644
+--- a/package.json
++++ b/package.json
+@@ -27,6 +27,7 @@
+     "semver": "~6.3.0"
+   },
+   "scripts": {
++    "postinstall": "rm -f build.js && echo '\"use strict\";\\n\\nvar domprops = require(\"./tools/domprops.json\");\\n' > build.js && cat lib/utils.js lib/ast.js lib/transform.js lib/parse.js lib/scope.js lib/compress.js lib/output.js lib/sourcemap.js lib/mozilla-ast.js lib/propmangle.js lib/minify.js tools/exports.js >> build.js",
+     "test": "node test/compress.js && node test/mocha.js"
+   },
+   "keywords": [
+diff --git a/tools/exports.js b/tools/exports.js
+index 1d2d510eb3f727d2bbd2982c76bb09983c589b86..2a0ce2df94d514bacd07a9ec7dc57730b28ad087 100644
+--- a/tools/exports.js
++++ b/tools/exports.js
+@@ -6,3 +6,41 @@ exports["parse"] = parse;
+ exports["push_uniq"] = push_uniq;
+ exports["TreeTransformer"] = TreeTransformer;
+ exports["TreeWalker"] = TreeWalker;
++
++exports.describe_ast = function describe_ast() {
++  var out = OutputStream({ beautify: true });
++  doitem(AST_Node);
++  return out.get() + "\n";
++
++  function doitem(ctor) {
++      out.print("AST_" + ctor.TYPE);
++      var props = ctor.SELF_PROPS.filter(function(prop) {
++          return !/^\$/.test(prop);
++      });
++      if (props.length > 0) {
++          out.space();
++          out.with_parens(function() {
++              props.forEach(function(prop, i) {
++                  if (i) out.space();
++                  out.print(prop);
++              });
++          });
++      }
++      if (ctor.documentation) {
++          out.space();
++          out.print_string(ctor.documentation);
++      }
++      if (ctor.SUBCLASSES.length > 0) {
++          out.space();
++          out.with_block(function() {
++              ctor.SUBCLASSES.sort(function(a, b) {
++                  return a.TYPE < b.TYPE ? -1 : 1;
++              }).forEach(function(ctor, i) {
++                  out.indent();
++                  doitem(ctor);
++                  out.newline();
++              });
++          });
++      }
++  }
++}
+diff --git a/tools/node.js b/tools/node.js
+index 7ca19829d5d293fc90e5e84cce9b4f24429fd14a..ffba7cf022f95adc5d0d2acdbb3e5df2c9c5828f 100644
+--- a/tools/node.js
++++ b/tools/node.js
+@@ -1,96 +1,9 @@
+-var fs = require("fs");
+-
+-exports.FILES = [
+-    require.resolve("../lib/utils.js"),
+-    require.resolve("../lib/ast.js"),
+-    require.resolve("../lib/transform.js"),
+-    require.resolve("../lib/parse.js"),
+-    require.resolve("../lib/scope.js"),
+-    require.resolve("../lib/compress.js"),
+-    require.resolve("../lib/output.js"),
+-    require.resolve("../lib/sourcemap.js"),
+-    require.resolve("../lib/mozilla-ast.js"),
+-    require.resolve("../lib/propmangle.js"),
+-    require.resolve("../lib/minify.js"),
+-    require.resolve("./exports.js"),
+-];
+-
+-new Function("domprops", "exports", function() {
+-    var code = exports.FILES.map(function(file) {
+-        return fs.readFileSync(file, "utf8");
+-    });
+-    code.push("exports.describe_ast = " + describe_ast.toString());
+-    return code.join("\n\n");
+-}())(require("./domprops.json"), exports);
+-
+-function to_comment(value) {
+-    if (typeof value != "string") value = JSON.stringify(value, function(key, value) {
+-        return typeof value == "function" ? "<[ " + value + " ]>" : value;
+-    }, 2);
+-    return "// " + value.replace(/\n/g, "\n// ");
+-}
+-
+-if (+process.env["UGLIFY_BUG_REPORT"]) exports.minify = function(files, options) {
+-    if (typeof options == "undefined") options = "<<undefined>>";
+-    var code = [
+-        "// UGLIFY_BUG_REPORT",
+-        to_comment(options),
+-    ];
+-    if (typeof files == "string") {
+-        code.push("");
+-        code.push("//-------------------------------------------------------------")
+-        code.push("// INPUT CODE", files);
+-    } else for (var name in files) {
+-        code.push("");
+-        code.push("//-------------------------------------------------------------")
+-        code.push(to_comment(name), files[name]);
+-    }
+-    if (options.sourceMap && options.sourceMap.url) {
+-        code.push("");
+-        code.push("//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IiJ9");
+-    }
+-    var result = { code: code.join("\n") };
+-    if (options.sourceMap) result.map = '{"version":3,"sources":[],"names":[],"mappings":""}';
+-    return result;
+-};
+-
+-function describe_ast() {
+-    var out = OutputStream({ beautify: true });
+-    doitem(AST_Node);
+-    return out.get() + "\n";
+-
+-    function doitem(ctor) {
+-        out.print("AST_" + ctor.TYPE);
+-        var props = ctor.SELF_PROPS.filter(function(prop) {
+-            return !/^\$/.test(prop);
+-        });
+-        if (props.length > 0) {
+-            out.space();
+-            out.with_parens(function() {
+-                props.forEach(function(prop, i) {
+-                    if (i) out.space();
+-                    out.print(prop);
+-                });
+-            });
+-        }
+-        if (ctor.documentation) {
+-            out.space();
+-            out.print_string(ctor.documentation);
+-        }
+-        if (ctor.SUBCLASSES.length > 0) {
+-            out.space();
+-            out.with_block(function() {
+-                ctor.SUBCLASSES.sort(function(a, b) {
+-                    return a.TYPE < b.TYPE ? -1 : 1;
+-                }).forEach(function(ctor, i) {
+-                    out.indent();
+-                    doitem(ctor);
+-                    out.newline();
+-                });
+-            });
+-        }
+-    }
+-}
++// NOTE(calebmer): Cloudflare Workers do not have access to the file system so
++// we need to run the file concatenation at build time instead of runtime.
++//
++// Importantly, we manually set `requiresBuild: true` in the `pnpm-lock.yaml`
++// file so that Bazel detects this module needs to be built.
++Object.assign(exports, require('../build.js'));
+ 
+ function infer_options(options) {
+     var result = exports.minify("", options);

@@ -43,8 +43,10 @@ function FocusRing(
          *
          * Setting to `border` will render the focus ring on top of the
          * element's border. (Equivalent to a -1px offset.)
+         *
+         * Setting to `inset` will render the focus ring inside of the element.
          */
-        offset?: Spacing | "border";
+        offset?: Spacing | "border" | "inset";
 
         /**
          * The focusable element we draw a ring around.
@@ -207,7 +209,7 @@ function FocusRingBox({
     offset = "0.5",
     targetRef,
 }: {
-    offset?: Spacing | "border";
+    offset?: Spacing | "border" | "inset";
     targetRef: RefObject<HTMLElement | null>;
 }) {
     const ringRef = useRef<HTMLDivElement>(null);
@@ -216,11 +218,17 @@ function FocusRingBox({
 
     // Overlay must be focused to render so we know we're on the client and
     // `window` should exist.
-    let ringOffsetPx = assertExists(useSpacingPx(offset !== "border" ? offset : "0"));
+    let ringOffsetPx = assertExists(
+        useSpacingPx(offset !== "border" && offset !== "inset" ? offset : "0"),
+    );
 
     // If we are using a border ring offset, we want the focus ring to render on
     // top of the element's 1px border.
     if (offset === "border") ringOffsetPx = -1;
+
+    // If we are using an inset offset, we want the focus ring to render entirely
+    // inside the element.
+    if (offset === "inset") ringOffsetPx = -ringWidthPx;
 
     useLayoutEffect(() => {
         assert(ringRef.current && targetRef.current);

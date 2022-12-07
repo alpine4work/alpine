@@ -339,7 +339,7 @@ export function OverlayScopeContextProvider({children}: {children: ReactNode}) {
                 left="0"
                 right="0"
                 height="0"
-                zIndex="10"
+                zIndex="50"
             />
         </OverlaySinkContext.Provider>
     );
