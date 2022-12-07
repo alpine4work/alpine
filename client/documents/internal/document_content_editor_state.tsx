@@ -33,7 +33,7 @@ import {ContentEditorPhantomSelection} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {useDeveloperConsoleTool} from "~/client/helpers/developer_console";
 import {useWebSocket} from "~/client/helpers/use_web_socket";
-import {themeColors} from "~/shared/design/theme_colors";
+import {defaultThemeColor, themeColors} from "~/shared/design/theme_colors";
 import {
     DocumentCollaborationMessageFromClientSchema,
     DocumentCollaborationMessageFromServerSchema,
@@ -49,7 +49,6 @@ import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {Id, generateId} from "~/shared/id/id";
 import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema";
-import {defaultThemeColor} from "~/shared/styles/styles";
 
 type State = {
     /**

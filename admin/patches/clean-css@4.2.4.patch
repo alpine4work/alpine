@@ -1,0 +1,113 @@
+diff --git a/lib/reader/load-remote-resource.js b/lib/reader/load-remote-resource.js
+index 0133c78bf2e30f0e4e3a366c74fb16c8575f5d94..29b2f54d5f2461709b3957c1b0e03858ed6e84be 100644
+--- a/lib/reader/load-remote-resource.js
++++ b/lib/reader/load-remote-resource.js
+@@ -1,74 +1,7 @@
+-var http = require('http');
+-var https = require('https');
+-var url = require('url');
+-
+-var isHttpResource = require('../utils/is-http-resource');
+-var isHttpsResource = require('../utils/is-https-resource');
+-var override = require('../utils/override');
+-
+-var HTTP_PROTOCOL = 'http:';
+-
+ function loadRemoteResource(uri, inlineRequest, inlineTimeout, callback) {
+-  var proxyProtocol = inlineRequest.protocol || inlineRequest.hostname;
+-  var errorHandled = false;
+-  var requestOptions;
+-  var fetch;
+-
+-  requestOptions = override(
+-    url.parse(uri),
+-    inlineRequest || {}
+-  );
+-
+-  if (inlineRequest.hostname !== undefined) {
+-    // overwrite as we always expect a http proxy currently
+-    requestOptions.protocol = inlineRequest.protocol || HTTP_PROTOCOL;
+-    requestOptions.path = requestOptions.href;
+-  }
+-
+-  fetch = (proxyProtocol && !isHttpsResource(proxyProtocol)) || isHttpResource(uri) ?
+-    http.get :
+-    https.get;
+-
+-  fetch(requestOptions, function (res) {
+-    var chunks = [];
+-    var movedUri;
+-
+-    if (errorHandled) {
+-      return;
+-    }
+-
+-    if (res.statusCode < 200 || res.statusCode > 399) {
+-      return callback(res.statusCode, null);
+-    } else if (res.statusCode > 299) {
+-      movedUri = url.resolve(uri, res.headers.location);
+-      return loadRemoteResource(movedUri, inlineRequest, inlineTimeout, callback);
+-    }
+-
+-    res.on('data', function (chunk) {
+-      chunks.push(chunk.toString());
+-    });
+-    res.on('end', function () {
+-      var body = chunks.join('');
+-      callback(null, body);
+-    });
+-  })
+-  .on('error', function (res) {
+-    if (errorHandled) {
+-      return;
+-    }
+-
+-    errorHandled = true;
+-    callback(res.message, null);
+-  })
+-  .on('timeout', function () {
+-    if (errorHandled) {
+-      return;
+-    }
+-
+-    errorHandled = true;
+-    callback('timeout', null);
+-  })
+-  .setTimeout(inlineTimeout);
++  // NOTE(calebmer): Node.js `http` and `https` modules do not work in
++  // Cloudflare Workers. Require users to pass in a custom fetch function.
++  callback('Must provide custom fetch function', null);
+ }
+ 
+ module.exports = loadRemoteResource;
+diff --git a/lib/reader/rewrite-url.js b/lib/reader/rewrite-url.js
+index a4793fd1cac3b0715892f4f53aaf06afdda07f16..8ce574b9410c8bf6f27ecf0f611ae4bbc415e688 100644
+--- a/lib/reader/rewrite-url.js
++++ b/lib/reader/rewrite-url.js
+@@ -13,7 +13,8 @@ var URL_PREFIX_PATTERN = /^url\(/i;
+ var URL_SUFFIX_PATTERN = /\)$/;
+ var WHITESPACE_PATTERN = /\s/;
+ 
+-var isWindows = process.platform == 'win32';
++// NOTE(calebmer): `process` is not available in Cloudflare Workers.
++var isWindows = path.sep === '\\';
+ 
+ function rebase(uri, rebaseConfig) {
+   if (!rebaseConfig) {
+diff --git a/lib/writer/source-maps.js b/lib/writer/source-maps.js
+index 6856579f0e6643ab1d6f5ee0e22ce34b0e3e4b67..b1bef1d64a0fd33c3fdd9b561a65ef80acd78a3f 100644
+--- a/lib/writer/source-maps.js
++++ b/lib/writer/source-maps.js
+@@ -1,9 +1,11 @@
++var path = require('path');
+ var SourceMapGenerator = require('source-map').SourceMapGenerator;
+ var all = require('./helpers').all;
+ 
+ var isRemoteResource = require('../utils/is-remote-resource');
+ 
+-var isWindows = process.platform == 'win32';
++// NOTE(calebmer): `process` is not available in Cloudflare Workers.
++var isWindows = path.sep === '\\';
+ 
+ var NIX_SEPARATOR_PATTERN = /\//g;
+ var UNKNOWN_SOURCE = '$stdin';
