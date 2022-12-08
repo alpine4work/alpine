@@ -1,4 +1,5 @@
 import {Link, ShouldReloadFunction, useParams} from "@remix-run/react";
+import {render} from "mjml-react";
 import {Code, Desktop, DeviceMobileCamera, EnvelopeSimple, IconContext} from "phosphor-react";
 import {ReactNode, useRef} from "react";
 import {useButton} from "react-aria";
@@ -8,7 +9,7 @@ import {Tooltip} from "~/client/design/tooltip";
 import {ErrorBodyRenderer} from "~/client/error/error_body_renderer";
 import {useLoaderDataWithSchema} from "~/client/helpers/remix/use_loader_data_with_schema";
 import {useUrlSearchParamState} from "~/client/helpers/use_url_search_param_state";
-import {getEmailPreviews} from "~/server/emails/get_email_previews";
+import {emailPreviews} from "~/server/emails/email_previews";
 import {jsonWithSchema} from "~/server/helpers/remix/json_with_schema";
 import {notFoundResponse} from "~/server/helpers/remix/not_found_response";
 import {DataFunctionArgs} from "~/server/helpers/types/remix_data_function_args";
@@ -57,16 +58,18 @@ export const unstable_shouldReload: ShouldReloadFunction = ({url: _url, prevUrl:
     return url.toString() !== prevUrl.toString();
 };
 
-export async function loader({params}: DataFunctionArgs) {
-    const emailPreviews = await getEmailPreviews();
-
+export function loader({params}: DataFunctionArgs) {
     const slug = params["email_preview"] ?? "";
 
     const emailPreview = emailPreviews.get(slug);
     if (!emailPreview) throw notFoundResponse();
 
     const emailPreviewResult = captureResult(() => {
-        const {html} = emailPreview.render();
+        const {html} = render(emailPreview.element, {
+            // We can ignore `errors` since with a strict validation level we will throw if
+            // there is a validation error.
+            validationLevel: "strict",
+        });
 
         return {
             title: emailPreview.title,
