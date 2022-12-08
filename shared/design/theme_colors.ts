@@ -26,8 +26,3 @@ export const themeColors = [
     "purple",
     "pink",
 ] as const;
-
-/**
- * The default color theme when the user is not within a space.
- */
-export const defaultThemeColor: ThemeColor = "indigo";

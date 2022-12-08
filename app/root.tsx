@@ -9,7 +9,7 @@ import {
     ThrownResponse,
     useCatch,
 } from "@remix-run/react";
-import {IconContext} from "phosphor-react";
+import {IconContext, Warning} from "phosphor-react";
 import prosemirrorStylesHref from "prosemirror-view/style/prosemirror.css";
 import {useMemo} from "react";
 import {Box} from "~/client/design/box";
@@ -19,7 +19,7 @@ import {
 } from "~/client/design/color_scheme";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {TooltipCoordinationContextProvider} from "~/client/design/tooltip";
-import {ErrorBodyRenderer} from "~/client/error/error_body_renderer";
+import {ErrorDisplayMessageRenderer} from "~/client/error/error_display_message_renderer";
 import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useStableValue} from "~/client/helpers/use_stable_value";
 import {spacing} from "~/shared/design/spacing";
@@ -27,7 +27,7 @@ import {NotFoundError, UnknownError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {ErrorSchema} from "~/shared/error/error_schema";
 import {quote} from "~/shared/helpers/string/quote";
-import {sprinkles} from "~/shared/styles/styles";
+import {sprinkles, typographySize} from "~/shared/styles/styles";
 import sharedStylesHref from "~/shared/styles/styles.css";
 
 export function meta() {
@@ -123,7 +123,31 @@ function RootErrorRenderer({error: _error, title}: {error: unknown; title?: stri
                     paddingY: {desktop: "32", mobile: "16"},
                 })}
             >
-                <ErrorBodyRenderer title={title ?? "Could not show content"} error={error} />
+                <Box display="flex" gap="2" paddingBottom="2">
+                    <Box
+                        flexShrink="0"
+                        color="red-40"
+                        display="flex"
+                        justifyContent="center"
+                        alignItems="center"
+                        style={{
+                            fontSize: typographySize.heading4.fontSize,
+                            height: typographySize.heading4.lineHeight,
+                        }}
+                    >
+                        <Warning weight="fill" size={typographySize.heading4.fontSize} />
+                    </Box>
+                    <h1
+                        className={sprinkles({
+                            flexGrow: "1",
+                            typographySize: "heading4",
+                            typographyStyle: "primaryMedium",
+                        })}
+                    >
+                        {title ?? "Could not show content"}
+                    </h1>
+                </Box>
+                <ErrorDisplayMessageRenderer error={error} size="body" />
             </main>
         </Box>
     );

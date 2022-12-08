@@ -123,42 +123,42 @@ export const typographySize = {
     },
     heading5: {
         fontSize: "1.25rem",
-        lineHeight: `${1.4 * 1.25}rem`,
+        lineHeight: "1.4em",
         letterSpacing: "-0.017em",
     },
     heading4: {
         fontSize: "1.75rem",
-        lineHeight: `${1.3 * 1.75}rem`,
+        lineHeight: "1.3em",
         letterSpacing: "-0.021em",
     },
     heading3: {
         fontSize: "2.25rem",
-        lineHeight: `${1.25 * 2.25}rem`,
+        lineHeight: "1.25em",
         letterSpacing: "-0.022em",
     },
     heading2: {
         fontSize: "3rem",
-        lineHeight: `${1.2 * 3}rem`,
+        lineHeight: "1.2em",
         letterSpacing: "-0.022em",
     },
     heading1: {
         fontSize: "4.25rem",
-        lineHeight: `${1.2 * 4.25}rem`,
+        lineHeight: "1.2em",
         letterSpacing: "-0.022em",
     },
     hero3: {
         fontSize: "5.625rem",
-        lineHeight: `${1.2 * 5.625}rem`,
+        lineHeight: "1.2em",
         letterSpacing: "-0.022em",
     },
     hero2: {
         fontSize: "7.5rem",
-        lineHeight: `${1.2 * 7.5}rem`,
+        lineHeight: "1.2em",
         letterSpacing: "-0.022em",
     },
     hero1: {
         fontSize: "10rem",
-        lineHeight: `${1.2 * 10}rem`,
+        lineHeight: "1.2em",
         letterSpacing: "-0.022em",
     },
 } as const;

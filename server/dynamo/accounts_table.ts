@@ -452,7 +452,7 @@ const maxFailedOneTimePasswordAttemptCount = 5;
 /**
  * Expire one-time passwords after an hour.
  */
-export const expireOneTimePasswordAfterMinutes = 60;
+const expireOneTimePasswordAfterMinutes = 60;
 
 /**
  * Attempts to sign into the account with a one time password. After a few

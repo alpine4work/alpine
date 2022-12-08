@@ -3,12 +3,12 @@ import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
 import {Spacer} from "~/client/design/spacer";
 import {TextInput} from "~/client/design/text_input";
-import {useLoaderDataWithSchema} from "~/client/helpers/remix/use_loader_data_with_schema";
+import {useLoaderDataWithSchema} from "~/client/helpers/use_loader_data_with_schema";
 import {
     getAlphaConfiguration,
     getUndecidedAlphaAccessRequests,
 } from "~/server/dynamo/alpha_access_table";
-import {jsonWithSchema} from "~/server/helpers/remix/json_with_schema";
+import {jsonWithSchema} from "~/server/helpers/json_with_schema";
 import {DataFunctionArgs} from "~/server/helpers/types/remix_data_function_args";
 import {AlphaAccessRequestModel} from "~/shared/alpha/alpha_access_request_model";
 import {AlphaConfigurationSchema} from "~/shared/alpha/alpha_configuration_schema";

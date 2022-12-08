@@ -1,7 +1,7 @@
 import {assignVars, createGlobalTheme, globalStyle, style} from "@vanilla-extract/css";
 import {Color, colors} from "~/shared/design/colors";
 import {elevation} from "~/shared/design/elevation";
-import {ThemeColor, defaultThemeColor, themeColors} from "~/shared/design/theme_colors";
+import {ThemeColor, themeColors} from "~/shared/design/theme_colors";
 import {assert} from "~/shared/helpers/control/assert";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
@@ -135,6 +135,11 @@ globalStyle(darkColorSchemeSelector, {
 const constantColors = Object.fromEntries(
     Object.entries(colors).map(([colorName, colorHexCode]) => [`${colorName}-const`, colorHexCode]),
 ) as {[C in Color as `${C}-const`]: string};
+
+/**
+ * The default color theme when the user is not within a space.
+ */
+export const defaultThemeColor: ThemeColor = "indigo";
 
 function createTheme(color: ThemeColor) {
     return {

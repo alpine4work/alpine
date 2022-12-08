@@ -1,5 +1,5 @@
 import {json} from "@remix-run/cloudflare";
-import {deserializedValueSymbol} from "~/client/helpers/remix/use_loader_data_with_schema";
+import {deserializedValueSymbol} from "~/client/helpers/use_loader_data_with_schema";
 import {BlockInference} from "~/shared/helpers/types/block_inference";
 import {Schema} from "~/shared/schema/schema";
 
