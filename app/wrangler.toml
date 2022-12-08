@@ -9,3 +9,7 @@ zone_name = "cyberworlds.dev"
 
 [site]
 bucket = "./public"
+
+[[rules]]
+type = "ESModule"
+globs = ["**/*.js"]

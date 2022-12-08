@@ -42,10 +42,72 @@ index 36f250ac7e880f64e078b8e39bc236a372bb891d..a64e8c0ff4a2982b691315a4f218c5b1
      entryPoints,
      outdir: config.assetsBuildDirectory,
 diff --git a/dist/compiler/compilerServer.js b/dist/compiler/compilerServer.js
-index fc9b1e24ae0365845d8879987770aea7bed767c7..1060415bcc193bae4ced6354e5449c8c608f68a1 100644
+index fc9b1e24ae0365845d8879987770aea7bed767c7..80258341d4ea996cbdb5d3b2527f5397c33d17df 100644
 --- a/dist/compiler/compilerServer.js
 +++ b/dist/compiler/compilerServer.js
-@@ -110,7 +110,11 @@ const createEsbuildConfig = (config, assetsManifestChannel, options) => {
+@@ -71,11 +71,53 @@ const createEsbuildConfig = (config, assetsManifestChannel, options) => {
+     plugins.unshift(nodeModulesPolyfill.NodeModulesPolyfillPlugin());
+   }
+ 
++  // NOTE(calebmer): Allow bundle splitting for the Cloudflare runtime. This
++  // allows us to lazy load some modules and improve cold start performance.
++  let isSplittingEnabled = isCloudflareRuntime && config.serverModuleFormat === "esm";
++
++  // NOTE(calebmer): On the server, we only want `publicPath` to apply to files
++  // loaded with the `file` loader. We don't want `publicPath` to apply to code
++  // split chunks. So we add a plugin just for modules we import with the `file`
++  // loader that prepends `publicPath` from our config. Without actually setting
++  // the public path on on the esbuild config.
++  //
++  // Ideally we'd find a less hacky way to not add `publicPath` only to chunk
++  // file paths. Maybe with an esbuild option or a more principled plugin. For
++  // now this appears to work?
++  let fileLoaderExts = Object.entries(loaders.loaders).filter(([ext, loader]) => loader === "file").map(([ext]) => ext);
++  plugins.push({
++    name: "file-loader-public-path",
++    setup: build => {
++      let filter = new RegExp(`(${fileLoaderExts.map(ext => ext.replaceAll(".", "\\.")).join("|")})$`);
++      let publicPath = config.publicPath.endsWith("/") ? config.publicPath : `${config.publicPath}/`;
++
++      build.onResolve({filter}, args => {
++        if (args.namespace !== "file-loader-public-path") {
++          return {
++            path: `${args.path}?file-loader`,
++            namespace: "file-loader-public-path",
++          };
++        }
++      });
++
++      build.onLoad({filter: /\?file-loader$/, namespace: "file-loader-public-path"}, args => ({
++        contents: `import path from ${JSON.stringify(args.path.slice(0, args.path.length - "?file-loader".length))};\nexport default ${JSON.stringify(publicPath)} + path.slice(2);\n`,
++      }));
++
++      build.onResolve({filter: /.*/, namespace: "file-loader-public-path"}, args => ({
++        path: args.path,
++        namespace: "file-loader-public-path",
++      }));
++    },
++  });
++  
+   return {
+     absWorkingDir: config.rootDirectory,
+     stdin,
+     entryPoints,
+-    outfile: config.serverBuildPath,
++    outfile: !isSplittingEnabled ? config.serverBuildPath : undefined,
++    outdir: isSplittingEnabled ? path.dirname(config.serverBuildPath) : undefined,
++    splitting: isSplittingEnabled,
+     conditions: isCloudflareRuntime ? ["worker"] : isDenoRuntime ? ["deno", "worker"] : undefined,
+     platform: config.serverPlatform,
+     format: config.serverModuleFormat,
+@@ -103,14 +145,17 @@ const createEsbuildConfig = (config, assetsManifestChannel, options) => {
+     // The server build needs to know how to generate asset URLs for imports
+     // of CSS and other files.
+     assetNames: "_assets/[name]-[hash]",
+-    publicPath: config.publicPath,
+     define: {
+       "process.env.NODE_ENV": JSON.stringify(options.mode),
+       "process.env.REMIX_DEV_SERVER_WS_PORT": JSON.stringify(config.devServerPort)
      },
      jsx: "automatic",
      jsxDev: options.mode !== "production",
@@ -58,7 +120,7 @@ index fc9b1e24ae0365845d8879987770aea7bed767c7..1060415bcc193bae4ced6354e5449c8c
    };
  };
  
-@@ -121,7 +125,10 @@ async function writeServerBuildResult(config, outputFiles) {
+@@ -121,7 +166,10 @@ async function writeServerBuildResult(config, outputFiles) {
      if (file.path.endsWith(".js")) {
        // fix sourceMappingURL to be relative to current path instead of /build
        let filename = file.path.substring(file.path.lastIndexOf(path__namespace.sep) + 1);

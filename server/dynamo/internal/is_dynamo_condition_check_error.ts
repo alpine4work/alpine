@@ -6,6 +6,8 @@ import {isObject} from "~/shared/helpers/object/is_object";
  * True for failures in `PutItem` and `TransactWriteItems` alike.
  */
 export function isDynamoConditionCheckError(error: unknown): boolean {
+    console.log(error);
+
     // Recurse into the error's cause if there is one. `classifyDynamoError()` will
     // put the raw error JSON from the response in the cause property.
     if (error instanceof Error && "cause" in error) return isDynamoConditionCheckError(error.cause);

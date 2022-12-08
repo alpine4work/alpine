@@ -26,6 +26,7 @@ const devServerPort = 3001;
 const miniflare = new Miniflare({
     scriptPath: path.join(runfilesPath, "cyberworlds/app/build/server.js"),
     modules: true,
+    modulesRules: [{type: "ESModule", include: ["**/*.js"], fallthrough: true}],
     sourceMap: true,
     durableObjects: {
         DocumentCollaborationDurableObjectNamespace: "DocumentCollaborationDurableObject",

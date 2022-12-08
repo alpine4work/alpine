@@ -10,6 +10,7 @@ import {TextInput} from "~/client/design/text_input";
 import {ErrorInlineAlert} from "~/client/error/error_inline_alert";
 import {useActionDataWithSchema} from "~/client/helpers/remix/use_action_data_with_schema";
 import {regenerateOneTimePasswordSignIn} from "~/server/dynamo/accounts_table";
+import {getEmailPreviews} from "~/server/emails/get_email_previews";
 import {jsonWithSchema} from "~/server/helpers/remix/json_with_schema";
 import {DataFunctionArgs} from "~/server/helpers/types/remix_data_function_args";
 import {InvalidArgumentError} from "~/shared/error/error";
@@ -26,6 +27,8 @@ export function meta() {
 }
 
 export async function loader({context}: DataFunctionArgs) {
+    await getEmailPreviews();
+
     // Can not access this page while signed in.
     if (await context.isAuthenticated()) return redirectToAuthenticatedHome(context);
 
