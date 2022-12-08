@@ -14,13 +14,19 @@ export function isDynamoConditionCheckError(error: unknown): boolean {
 
     // If an individual `PutItem` request's condition failed we get this
     // error code.
-    if (error.__type === "ConditionalCheckFailedException") return true;
+    if (
+        typeof error.__type === "string" &&
+        error.__type.endsWith("ConditionalCheckFailedException")
+    ) {
+        return true;
+    }
 
     // If a transaction check in `TransactWriteItems` failed then we get this error
     // code. Check to make sure one of the cancellation reasons was specifically a
     // condition check failure.
     if (
-        error.__type === "TransactionCanceledException" &&
+        typeof error.__type === "string" &&
+        error.__type.endsWith("TransactionCanceledException") &&
         Array.isArray(error.CancellationReasons) &&
         error.CancellationReasons.some(
             cancellationReason =>
