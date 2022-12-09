@@ -13,46 +13,42 @@ export function classifyDynamoError(error: {
     Message?: string;
 }): ErrorBase {
     let errorCode: ErrorCode | null = null;
-    if (error.__type?.endsWith("InternalServerError")) {
+    if (error.__type === "InternalServerError") {
         errorCode = ErrorCode.Internal;
-    } else if (error.__type?.endsWith("RequestLimitExceeded")) {
+    } else if (error.__type === "RequestLimitExceeded") {
         errorCode = ErrorCode.Unavailable;
-    } else if (error.__type?.endsWith("ProvisionedThroughputExceededException")) {
+    } else if (error.__type === "ProvisionedThroughputExceededException") {
         errorCode = ErrorCode.Unavailable;
-    } else if (error.__type?.endsWith("ItemCollectionSizeLimitExceededException")) {
+    } else if (error.__type === "ItemCollectionSizeLimitExceededException") {
         errorCode = ErrorCode.ResourceExhausted;
-    } else if (error.__type?.endsWith("ConditionalCheckFailedException")) {
+    } else if (error.__type === "ConditionalCheckFailedException") {
         errorCode = ErrorCode.FailedPrecondition;
-    } else if (error.__type?.endsWith("TransactionConflictException")) {
+    } else if (error.__type === "TransactionConflictException") {
         errorCode = ErrorCode.Unavailable;
-    } else if (error.__type?.endsWith("DuplicateItemException")) {
+    } else if (error.__type === "DuplicateItemException") {
         errorCode = ErrorCode.FailedPrecondition;
-    } else if (error.__type?.endsWith("IdempotentParameterMismatchException")) {
+    } else if (error.__type === "IdempotentParameterMismatchException") {
         errorCode = ErrorCode.FailedPrecondition;
-    } else if (error.__type?.endsWith("TransactionInProgressException")) {
+    } else if (error.__type === "TransactionInProgressException") {
         errorCode = ErrorCode.Unavailable;
-    } else if (error.__type?.endsWith("TransactionCanceledException")) {
+    } else if (error.__type === "TransactionCanceledException") {
         errorCode = ErrorCode.FailedPrecondition;
     } else if (
-        error.__type?.endsWith("ResourceNotFoundException") ||
-        error.__type?.endsWith("TableNotFoundException") ||
-        error.__type?.endsWith("IndexNotFoundException") ||
+        error.__type === "ResourceNotFoundException" ||
+        error.__type === "TableNotFoundException" ||
+        error.__type === "IndexNotFoundException" ||
         // Requests to DynamoDB should all be valid. An invalid request is the
         // developer's fault, not the user's fault.
-        error.__type?.endsWith("ValidationException")
+        error.__type === "ValidationException"
     ) {
         // Our code should only references resources that exist. It's not a client
         // error if we don't.
         errorCode = ErrorCode.Internal;
     }
 
-    const message = `DynamoDB ${
-        error.__type
-            ? error.__type.includes("#")
-                ? error.__type.split("#")[1]!
-                : error.__type
-            : "unknown error"
-    }${error.message ? `: ${error.message}` : error.Message ? `: ${error.Message}` : ""}`;
+    const message = `DynamoDB ${error.__type ? error.__type : "unknown error"}${
+        error.message ? `: ${error.message}` : error.Message ? `: ${error.Message}` : ""
+    }`;
 
     if (errorCode !== null) {
         const ErrorConstructor = getErrorConstructorForCode(errorCode);
