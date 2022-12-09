@@ -1,6 +1,7 @@
 import {paramCase} from "change-case";
+import {render} from "mjml-react";
 import {ReactElement} from "react";
-import {SignInEmail} from "~/server/emails/sign_in_email";
+import {SignInEmail} from "~/server/emails/internal/sign_in_email";
 
 type EmailPreview = {
     title: string;
@@ -25,5 +26,16 @@ const emailPreviewArray: ReadonlyArray<EmailPreview> = [
 ];
 
 export const emailPreviews = new Map(
-    emailPreviewArray.map(preview => [paramCase(preview.title), preview]),
+    emailPreviewArray.map(preview => [
+        paramCase(preview.title),
+        {
+            title: preview.title,
+            render: () =>
+                render(preview.element, {
+                    // We can ignore `errors` since with a strict validation level we will throw if
+                    // there is a validation error.
+                    validationLevel: "strict",
+                }),
+        },
+    ]),
 );

@@ -1,6 +1,7 @@
 import {redirect} from "@remix-run/server-runtime";
-import {emailPreviews} from "~/server/emails/email_previews";
+import {getEmailPreviews} from "~/server/emails/get_email_previews";
 
-export function loader() {
+export async function loader() {
+    const emailPreviews = await getEmailPreviews();
     return redirect(`/internal/emails/preview/${Array.from(emailPreviews.keys())[0]!}`);
 }
