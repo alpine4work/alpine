@@ -55,6 +55,9 @@ patchedDependencies:
   mjml-parser-xml@4.13.0:
     hash: rdjh57cizesp5jd5a5v3n76apa
     path: admin/patches/mjml-parser-xml@4.13.0.patch
+  '@miniflare/runner-vm@2.11.0':
+    hash: 4sqfyt26snkgfwger7zzuolyhm
+    path: admin/patches/@miniflare__runner-vm@2.11.0.patch
 
 specifiers:
   '@aws-sdk/client-dynamodb': ^3.201.0
@@ -64,6 +67,7 @@ specifiers:
   '@cloudflare/workers-types': ^3.18.0
   '@juggle/resize-observer': ^3.4.0
   '@miniflare/http-server': ^2.11.0
+  '@miniflare/runner-vm': ^2.11.0
   '@miniflare/web-sockets': ^2.11.0
   '@popperjs/core': ^2.11.6
   '@react-aria/interactions': ^3.12.0
@@ -188,6 +192,7 @@ dependencies:
   '@cloudflare/workers-types': 3.18.0
   '@juggle/resize-observer': 3.4.0
   '@miniflare/http-server': 2.11.0_m2yyjeke34aaiqlhdp32rpsrre
+  '@miniflare/runner-vm': 2.11.0_4sqfyt26snkgfwger7zzuolyhm
   '@miniflare/web-sockets': 2.11.0
   '@popperjs/core': 2.11.6
   '@react-aria/interactions': 3.12.0_react@18.2.0
@@ -3045,12 +3050,13 @@ packages:
       '@miniflare/shared': 2.10.0
     dev: false
 
-  /@miniflare/runner-vm/2.11.0:
+  /@miniflare/runner-vm/2.11.0_4sqfyt26snkgfwger7zzuolyhm:
     resolution: {integrity: sha512-bkVSuvCf5+VylqN8lTiLxIYqYcKFbl+BywZGwGQndPC/3wh42J00mM0jw4hRbvXgwuBhlUyCVpEXtYlftFFT/g==}
     engines: {node: '>=16.13'}
     dependencies:
       '@miniflare/shared': 2.11.0
     dev: false
+    patched: true
 
   /@miniflare/scheduler/2.10.0:
     resolution: {integrity: sha512-eGt2cZFE/yo585nT8xINQwdbTotZfeRIh6FUWmZkbva1i5SW0zTiOojr5a95vAGBF3TzwWGsUuzJpLhBB69a/g==}
@@ -10635,7 +10641,7 @@ packages:
       '@miniflare/kv': 2.11.0
       '@miniflare/queues': 2.11.0
       '@miniflare/r2': 2.11.0
-      '@miniflare/runner-vm': 2.11.0
+      '@miniflare/runner-vm': 2.11.0_4sqfyt26snkgfwger7zzuolyhm
       '@miniflare/scheduler': 2.11.0
       '@miniflare/shared': 2.11.0
       '@miniflare/sites': 2.11.0

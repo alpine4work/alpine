@@ -4,6 +4,7 @@ Patches for `node_modules` generated with `pnpm patch`.
 
 NPM_PATCHES = {
     "@miniflare/http-server@2.11.0": ["//admin/patches:@miniflare__http-server@2.11.0.patch"],
+    "@miniflare/runner-vm@2.11.0": ["//admin/patches:@miniflare__runner-vm@2.11.0.patch"],
     "@remix-run/dev@1.7.5": ["//admin/patches:@remix-run__dev@1.7.5.patch"],
     "@remix-run/react@1.7.5": ["//admin/patches:@remix-run__react@1.7.5.patch"],
     "@remix-run/server-runtime@1.7.5": ["//admin/patches:@remix-run__server-runtime@1.7.5.patch"],
