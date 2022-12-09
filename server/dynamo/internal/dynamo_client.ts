@@ -1097,7 +1097,17 @@ async function executeDynamoCommand<Input = never, Output = unknown>(
 
     const output: any = await response.json();
 
-    if (response.status !== 200) throw classifyDynamoError(output);
+    if (response.status !== 200) {
+        // When talking to production DynamoDB (vs local DynamoDB), error types are of
+        // the form `com.amazonaws.dynamodb.v20120810#TransactionCanceledException`
+        // instead of `TransactionCanceledException`. Remove the version number so we
+        // just have the error type.
+        if (typeof output.__type === "string" && output.__type.includes("#")) {
+            output.__type = output.__type.split("#")[1];
+        }
+
+        throw classifyDynamoError(output);
+    }
 
     return output;
 }
