@@ -1,3 +1,5 @@
+import {DynamoEmailAddressSchema} from "~/server/dynamo/internal/dynamo_email_address_schema";
+import {EmailAddress} from "~/server/emails/email_address";
 import {assert} from "~/shared/helpers/control/assert";
 import {
     DateString,
@@ -137,6 +139,7 @@ export type DynamoKeyAttributeSchemaDescription =
     | {readonly type: "Float"}
     | {readonly type: "OrderKey"}
     | {readonly type: "LabelString"}
+    | {readonly type: "EmailAddress"}
     | {readonly type: "Reverse"; readonly schema: DynamoKeyAttributeSchemaDescription};
 
 /**
@@ -227,6 +230,24 @@ export class DynamoKeyAttributeSchema<Value> {
         },
         deserialize: keyAttribute =>
             LabelStringSchema.deserialize(deserializeStringDynamoKeyAttribute(keyAttribute)),
+    });
+
+    /**
+     * An email address string.
+     *
+     * Uses the `EmailAddress` type. Since we control all writers to the database
+     * we can assume a previous writer has validated the `EmailAddress`'s MX DNS
+     * records.
+     */
+    public static emailAddressString = new DynamoKeyAttributeSchema<EmailAddress>({
+        description: {type: "EmailAddress"},
+        serialize: value => {
+            const serializedString = DynamoEmailAddressSchema.serialize(value);
+            assert(typeof serializedString === "string");
+            return serializeStringDynamoKeyAttribute(serializedString);
+        },
+        deserialize: keyAttribute =>
+            DynamoEmailAddressSchema.deserialize(deserializeStringDynamoKeyAttribute(keyAttribute)),
     });
 
     /**

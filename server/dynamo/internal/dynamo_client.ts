@@ -1,5 +1,5 @@
-// IMPORTANT: We are only importing `@aws-sdk` for types. Use `aws-client.ts`
-// for executing any AWS commands.
+// IMPORTANT: We are only importing `@aws-sdk` for types. Use
+// `context.awsClient` for executing any AWS commands.
 import type * as types from "@aws-sdk/client-dynamodb";
 import jsonStableStringify from "json-stable-stringify";
 import {ProcessContext} from "~/server/context/context";

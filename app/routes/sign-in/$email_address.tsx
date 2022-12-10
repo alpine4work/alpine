@@ -8,6 +8,7 @@ import {Spacer} from "~/client/design/spacer";
 import {ErrorInlineAlert} from "~/client/error/error_inline_alert";
 import {useActionDataWithSchema} from "~/client/helpers/remix/use_action_data_with_schema";
 import {attemptOneTimePasswordSignIn} from "~/server/dynamo/accounts_table";
+import {validateEmailAddress} from "~/server/emails/email_address";
 import {jsonWithSchema} from "~/server/helpers/remix/json_with_schema";
 import {DataFunctionArgs} from "~/server/helpers/types/remix_data_function_args";
 import {InvalidArgumentError} from "~/shared/error/error";
@@ -50,7 +51,7 @@ export async function action({request, context, params}: DataFunctionArgs) {
 
         const {sessionId} = await attemptOneTimePasswordSignIn(
             context,
-            emailAddress,
+            await validateEmailAddress(emailAddress),
             oneTimePassword,
         );
 

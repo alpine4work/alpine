@@ -10,6 +10,7 @@ import {TextInput} from "~/client/design/text_input";
 import {ErrorInlineAlert} from "~/client/error/error_inline_alert";
 import {useActionDataWithSchema} from "~/client/helpers/remix/use_action_data_with_schema";
 import {regenerateOneTimePasswordSignIn} from "~/server/dynamo/accounts_table";
+import {validateEmailAddress} from "~/server/emails/email_address";
 import {jsonWithSchema} from "~/server/helpers/remix/json_with_schema";
 import {DataFunctionArgs} from "~/server/helpers/types/remix_data_function_args";
 import {InvalidArgumentError} from "~/shared/error/error";
@@ -45,7 +46,7 @@ export async function action({request, context}: DataFunctionArgs) {
         if (typeof emailAddress !== "string")
             throw new InvalidArgumentError('Expected property "emailAddress" in form data');
 
-        await regenerateOneTimePasswordSignIn(context, emailAddress);
+        await regenerateOneTimePasswordSignIn(context, await validateEmailAddress(emailAddress));
 
         // After we send the email, challenge the user to sign in using the code
         // we sent them.

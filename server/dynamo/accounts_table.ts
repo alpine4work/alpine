@@ -7,6 +7,9 @@ import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/d
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
 import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry_dynamo_condition_check_errors";
 import {getSeedConstants} from "~/server/dynamo/seed_constants";
+import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address";
+import {FromEmailAddress} from "~/server/emails/from_email_address";
+import {sendEmail} from "~/server/emails/send_email";
 import {FailedPreconditionError, NotFoundError, PermissionDeniedError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {assert} from "~/shared/helpers/control/assert";
@@ -58,7 +61,7 @@ const AccountsTable = DynamoTableSchema.new({
          */
         AccountEmailAddress: {
             partitionKeyAttributes: {
-                emailAddress: DynamoKeyAttributeSchema.labelString,
+                emailAddress: DynamoKeyAttributeSchema.emailAddressString,
             },
             sortRanges: {
                 Attributes: {
@@ -235,7 +238,7 @@ export async function seedTestAccounts(context: ProcessContext) {
             {
                 partitionType: "AccountEmailAddress",
                 sortRangeType: "Attributes",
-                emailAddress: "admin@test.cyberworlds.dev",
+                emailAddress: await validateEmailAddress("admin@test.cyberworlds.dev"),
                 lockVersion: 0,
                 accountId: adminAccountId,
                 isVerified: true,
@@ -259,7 +262,7 @@ export async function seedTestAccounts(context: ProcessContext) {
  * already exist.
  */
 export function checkAccountEmailAddressDoesNotExistTransactionEntry(
-    emailAddress: string,
+    emailAddress: EmailAddress,
 ): DynamoTransactionEntry {
     return AccountsTable.transactionConditionCheck(
         {
@@ -286,7 +289,7 @@ export function createAccountForAlphaTransactionEntries({
 }: {
     id: Id;
     name: string;
-    emailAddress: string;
+    emailAddress: EmailAddress;
 }): Array<DynamoTransactionEntry> {
     return [
         AccountsTable.transactionPutItem(
@@ -329,12 +332,9 @@ export function createAccountForAlphaTransactionEntries({
  */
 export function regenerateOneTimePasswordSignIn(
     context: ProcessContext,
-    emailAddress: string,
+    emailAddress: EmailAddress,
 ): Promise<void> {
     return retryDynamoConditionCheckErrors(async () => {
-        // Email address is case insensitive.
-        emailAddress = emailAddress.toLowerCase();
-
         const accountEmailAddressItem = await AccountsTable.getItem(context, {
             partitionType: "AccountEmailAddress",
             sortRangeType: "Attributes",
@@ -389,11 +389,20 @@ export function regenerateOneTimePasswordSignIn(
             oneTimePasswordSignInEmailsForTest.push({emailAddress, oneTimePassword: password});
         }
 
-        // TODO(calebmer): Actually send emails!
         if (process.env.NODE_ENV === "development") {
             // eslint-disable-next-line no-console
             console.log(quote`✉️  The one time password for ${emailAddress} is ${password}`);
         }
+
+        await sendEmail(context, {
+            fromEmailAddress: FromEmailAddress.SignIn,
+            toEmailAddress: emailAddress,
+            templateName: "SignIn",
+            templateProps: {
+                code: password,
+                emailAddress,
+            },
+        });
     });
 }
 
@@ -461,15 +470,12 @@ export const expireOneTimePasswordAfterMinutes = 60;
  */
 export function attemptOneTimePasswordSignIn(
     context: UnauthenticatedRequestContext,
-    emailAddress: string,
+    emailAddress: EmailAddress,
     oneTimePassword: string,
 ): Promise<{
     sessionId: Id;
 }> {
     return retryDynamoConditionCheckErrors(async () => {
-        // Email address is case insensitive.
-        emailAddress = emailAddress.toLowerCase();
-
         const accountEmailAddressItem = await AccountsTable.getItem(context, {
             partitionType: "AccountEmailAddress",
             sortRangeType: "Attributes",
@@ -610,7 +616,7 @@ function getHoursUntilRegenerateOneTimePasswordUnlocked({
 
 function accountEmailAddressNotFoundError(emailAddress: string) {
     return new NotFoundError("Account email address not found", {
-        displayMessage: errorDisplayMessage`An account for ${emailAddress} does not exist. Try again with a different email or ${errorDisplayMessage.link(
+        displayMessage: errorDisplayMessage`An account for “${emailAddress}” does not exist. Try again with a different email or ${errorDisplayMessage.link(
             "request access",
             "/",
         )}.`,

@@ -6,6 +6,7 @@ ts_project(
     visibility = ["//visibility:public"],
     deps = [
         "//:node_modules/@aws-sdk/client-dynamodb",
+        "//:node_modules/@aws-sdk/client-ses",
         "//:node_modules/@cloudflare/workers-types",
         "//:node_modules/@remix-run/cloudflare",
         "//:node_modules/@remix-run/dev",
@@ -18,6 +19,8 @@ ts_project(
         "//:node_modules/aws4fetch",
         "//:node_modules/bcrypt",
         "//:node_modules/change-case",
+        "//:node_modules/email-validator",
+        "//:node_modules/html-entities",
         "//:node_modules/jose",
         "//:node_modules/json-stable-stringify",
         "//:node_modules/mjml",

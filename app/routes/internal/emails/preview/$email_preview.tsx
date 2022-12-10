@@ -8,7 +8,7 @@ import {Tooltip} from "~/client/design/tooltip";
 import {ErrorBodyRenderer} from "~/client/error/error_body_renderer";
 import {useLoaderDataWithSchema} from "~/client/helpers/remix/use_loader_data_with_schema";
 import {useUrlSearchParamState} from "~/client/helpers/use_url_search_param_state";
-import {getEmailPreviews} from "~/server/emails/get_email_previews";
+import {getEmailTemplatePreviewBySlug} from "~/server/emails/get_email_template_preview_by_slug";
 import {jsonWithSchema} from "~/server/helpers/remix/json_with_schema";
 import {notFoundResponse} from "~/server/helpers/remix/not_found_response";
 import {DataFunctionArgs} from "~/server/helpers/types/remix_data_function_args";
@@ -37,6 +37,7 @@ const LoaderSchema = Schema.object({
             value: Schema.object({
                 title: Schema.string,
                 html: Schema.string,
+                htmlTitle: Schema.string,
             }),
         }),
         Schema.object({
@@ -58,24 +59,25 @@ export const unstable_shouldReload: ShouldReloadFunction = ({url: _url, prevUrl:
 };
 
 export async function loader({params}: DataFunctionArgs) {
-    const emailPreviews = await getEmailPreviews();
+    const emailTemplatePreviews = await getEmailTemplatePreviewBySlug();
 
     const slug = params["email_preview"] ?? "";
 
-    const emailPreview = emailPreviews.get(slug);
-    if (!emailPreview) throw notFoundResponse();
+    const emailTemplatePreview = emailTemplatePreviews.get(slug);
+    if (!emailTemplatePreview) throw notFoundResponse();
 
     const emailPreviewResult = captureResult(() => {
-        const {html} = emailPreview.render();
+        const renderedEmail = emailTemplatePreview.render();
 
         return {
-            title: emailPreview.title,
-            html,
+            title: emailTemplatePreview.title,
+            html: renderedEmail.html,
+            htmlTitle: renderedEmail.getHtmlTitle(),
         };
     });
 
     return jsonWithSchema(LoaderSchema, {
-        emailPreviewLinks: Array.from(emailPreviews, ([slug, preview]) => ({
+        emailPreviewLinks: Array.from(emailTemplatePreviews, ([slug, preview]) => ({
             title: preview.title,
             slug,
         })),
@@ -124,7 +126,7 @@ export default function EmailPreviewPage() {
                     })}
                 >
                     <EnvelopeSimple />
-                    Email Playground
+                    Email Templates
                 </h1>
                 <Box flexGrow="1" overflowY="scroll">
                     {emailPreviewLinks.map(emailPreviewLink => (
@@ -167,14 +169,9 @@ export default function EmailPreviewPage() {
                     borderBottom="grey-10"
                 >
                     {emailPreviewResult.ok && (
-                        <h2
-                            className={sprinkles({
-                                typographyStyle: "primaryMedium",
-                                typographySize: "body",
-                            })}
-                        >
-                            {emailPreviewResult.value.title}
-                        </h2>
+                        <Box typographyStyle="primaryMedium" typographySize="body">
+                            {emailPreviewResult.value.htmlTitle}
+                        </Box>
                     )}
                     <Box flexGrow="1" />
                     <Box display="flex" border="grey-10" borderRadius="base" overflow="hidden">
@@ -239,16 +236,19 @@ export default function EmailPreviewPage() {
                                 />
                             ),
                             html: (
-                                <pre
-                                    className={sprinkles({
-                                        width: "full",
-                                        padding: "4",
-                                        overflowX: "scroll",
-                                        userSelect: "text",
-                                    })}
-                                >
-                                    <code>{emailPreviewResult.value.html}</code>
-                                </pre>
+                                <FocusRing offset="inset">
+                                    <pre
+                                        className={sprinkles({
+                                            width: "full",
+                                            padding: "4",
+                                            overflowX: "scroll",
+                                            userSelect: "text",
+                                        })}
+                                        tabIndex={0}
+                                    >
+                                        <code>{emailPreviewResult.value.html}</code>
+                                    </pre>
+                                </FocusRing>
                             ),
                         }[view]
                     ) : (

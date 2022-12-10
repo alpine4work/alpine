@@ -11,6 +11,7 @@ import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
 import {getSeedConstants} from "~/server/dynamo/seed_constants";
 import {createSpaceAccountForAlphaTransactionEntries} from "~/server/dynamo/spaces_table";
+import {EmailAddress} from "~/server/emails/email_address";
 import {
     AlphaAccessRequestDecisionSchema,
     AlphaAccessRequestModel,
@@ -60,7 +61,7 @@ const AlphaAccessTable = DynamoTableSchema.new({
                         /**
                          * Can only have one access request per email address.
                          */
-                        emailAddress: DynamoKeyAttributeSchema.labelString,
+                        emailAddress: DynamoKeyAttributeSchema.emailAddressString,
                     },
                     attributes: Schema.object({
                         createdTime: Schema.date,
@@ -123,13 +124,10 @@ export async function requestAlphaAccess(
         message,
     }: {
         name: string;
-        emailAddress: string;
+        emailAddress: EmailAddress;
         message: string;
     },
 ) {
-    // Email address is case insensitive.
-    emailAddress = emailAddress.toLowerCase();
-
     try {
         await DynamoTableSchema.executeTransaction(context, [
             // Make sure an account does not already exist when requesting alpha access.
@@ -165,19 +163,19 @@ export async function requestAlphaAccess(
         let displayMessage;
         if (!decision) {
             // TODO(calebmer): Maybe this should have a "warn" severity?
-            displayMessage = errorDisplayMessage`Already requested access for the email address ${emailAddress}. You\u2019ll get an email to this address if your request is approved. Reach out to someone on our team if you\u2019d like to know the status of your request.`;
+            displayMessage = errorDisplayMessage`Already requested access for the email address “${emailAddress}”. You’ll get an email to this address if your request is approved. Reach out to someone on our team if you’d like to know the status of your request.`;
         } else {
             switch (decision.type) {
                 case "Approved": {
                     // TODO(calebmer): Maybe this should have a "success" severity?
-                    displayMessage = errorDisplayMessage`You\u2019re already approved! Try ${errorDisplayMessage.link(
+                    displayMessage = errorDisplayMessage`You’re already approved! Try ${errorDisplayMessage.link(
                         "signing in",
                         "/sign-in",
-                    )} with the email address ${emailAddress}.`;
+                    )} with the email address “${emailAddress}”.`;
                     break;
                 }
                 case "Denied": {
-                    displayMessage = errorDisplayMessage`Your access request for email address ${emailAddress} was denied by a member of our team. You may not submit another access request for this email address.`;
+                    displayMessage = errorDisplayMessage`Your access request for email address “${emailAddress}” was denied by a member of our team. You may not submit another access request for this email address.`;
                     break;
                 }
                 default:
@@ -231,7 +229,10 @@ export async function getUndecidedAlphaAccessRequests(context: RequestContext) {
  * When we approve a request for alpha access, we create a new account for the
  * user and we send them an email with instructions on how to sign in.
  */
-export async function approveAlphaAccessRequest(context: RequestContext, emailAddress: string) {
+export async function approveAlphaAccessRequest(
+    context: RequestContext,
+    emailAddress: EmailAddress,
+) {
     await authorizeAccountHasInternalAccess(context);
 
     const {defaultSpaceId} = await getAlphaConfiguration(context);
@@ -284,7 +285,7 @@ export async function approveAlphaAccessRequest(context: RequestContext, emailAd
 /**
  * Denies a request for alpha access.
  */
-export async function denyAlphaAccessRequest(context: RequestContext, emailAddress: string) {
+export async function denyAlphaAccessRequest(context: RequestContext, emailAddress: EmailAddress) {
     await authorizeAccountHasInternalAccess(context);
 
     const requestItem = await AlphaAccessTable.getItem(context, {

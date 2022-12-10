@@ -21,9 +21,7 @@ import {typographySize, typographyStyle} from "~/shared/styles/styles";
 // password expiration time, we should also change the copy.
 assert(expireOneTimePasswordAfterMinutes === 60);
 
-// TODO(calebmer): For security, we should say "didn't ask for this email?
-// report" or something similar. What's best practice...?
-export function SignInEmail({
+export function SignInEmailTemplate({
     code,
     emailAddress,
     shouldDangerouslyIncludeCodeInSubject = false,

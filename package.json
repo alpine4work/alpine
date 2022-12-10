@@ -4,6 +4,7 @@
     "version": "0.0.0",
     "dependencies": {
         "@aws-sdk/client-dynamodb": "^3.201.0",
+        "@aws-sdk/client-ses": "^3.226.0",
         "@axe-core/react": "4.4.3",
         "@bazel/ibazel": "^0.16.2",
         "@bazel/worker": "^5.7.1",
@@ -72,6 +73,7 @@
         "dedent": "^0.7.0",
         "dotenv": "^16.0.3",
         "dotenv-expand": "^9.0.0",
+        "email-validator": "^2.0.4",
         "env-paths": "2",
         "esbuild": "0.14.51",
         "esbuild-jest": "^0.5.0",
@@ -84,6 +86,7 @@
         "expect-type": "^0.14.2",
         "fs-extra": "^10.1.0",
         "functional-red-black-tree": "^1.0.1",
+        "html-entities": "^2.3.3",
         "html-minifier": "^4.0.0",
         "is-ci": "^3.0.1",
         "is-port-reachable": "3",

@@ -13,6 +13,7 @@ import {TextInput} from "~/client/design/text_input";
 import {ErrorInlineAlert} from "~/client/error/error_inline_alert";
 import {useActionDataWithSchema} from "~/client/helpers/remix/use_action_data_with_schema";
 import {requestAlphaAccess} from "~/server/dynamo/alpha_access_table";
+import {validateEmailAddress} from "~/server/emails/email_address";
 import {jsonWithSchema} from "~/server/helpers/remix/json_with_schema";
 import {DataFunctionArgs} from "~/server/helpers/types/remix_data_function_args";
 import {themeColors} from "~/shared/design/theme_colors";
@@ -68,7 +69,7 @@ export async function action({request, context}: DataFunctionArgs) {
 
         await requestAlphaAccess(context, {
             name,
-            emailAddress,
+            emailAddress: await validateEmailAddress(emailAddress),
             message,
         });
 
