@@ -13,3 +13,11 @@ bucket = "./public"
 [[rules]]
 type = "ESModule"
 globs = ["**/*.js"]
+
+[[durable_objects.bindings]]
+name = "DocumentCollaborationDurableObjectNamespace"
+class_name = "DocumentCollaborationDurableObject"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["DocumentCollaborationDurableObject"]
