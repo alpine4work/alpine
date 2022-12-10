@@ -8,6 +8,7 @@ import {FromEmailAddress, getFromEmailAddress} from "~/server/emails/from_email_
 // the email code bundle to avoid negatively impacting Cloudflare Worker
 // startup times.
 import type {emailTemplates} from "~/server/emails/internal/email_templates";
+import {encodeAwsUrlencodedFormat} from "~/server/helpers/aws/encode_aws_urlencoded_format";
 import {UnknownError} from "~/shared/error/error";
 
 /**
@@ -48,7 +49,7 @@ export async function sendEmail<Template extends keyof typeof emailTemplates>(
     }
 
     await executeSesSendEmailCommand(context, {
-        Source: getFromEmailAddress(fromEmailAddress),
+        Source: `"Cyberworlds" <${getFromEmailAddress(fromEmailAddress)}>`,
         Destination: {ToAddresses: [toEmailAddress]},
         Message: {
             Subject: {Charset: "utf8", Data: renderedEmail.getHtmlTitle()},
@@ -56,27 +57,35 @@ export async function sendEmail<Template extends keyof typeof emailTemplates>(
         },
         ReturnPath: "email-errors@cyberworlds.dev",
     });
+
+    // TODO(calebmer): Log message id somewhere
 }
 
 async function executeSesSendEmailCommand(
     context: ProcessContext,
     input: types.SendEmailCommandInput,
 ): Promise<types.SendEmailCommandOutput> {
-    const response = await context.awsClient.fetch(
-        "https://feedback-smtp.us-east-1.amazonses.com/v2/email/outbound-emails",
-        {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify(input),
+    const response = await context.awsClient.fetch("https://email.us-east-1.amazonaws.com", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            Accept: "application/json",
         },
-    );
+        body: encodeAwsUrlencodedFormat({
+            Action: "SendEmail",
+            Version: "2010-12-01",
+            ...input,
+        } as any),
+    });
 
-    const output: any = await response.json();
+    const body: any = await response.json();
+    const output = body.SendEmailResponse?.SendEmailResult;
 
-    if (response.status !== 200) {
-        const message = output.message ?? output.Message;
-        throw new UnknownError(`SES unknown error${message ? `: ${message}` : ""}`, {
-            cause: output,
+    if (response.status !== 200 || !output?.MessageId) {
+        const code = body.Error?.Code;
+        const message = body.Error?.Message;
+        throw new UnknownError(`SES ${code ?? "unknown error"}${message ? `: ${message}` : ""}`, {
+            cause: body,
         });
     }
 
