@@ -27,7 +27,8 @@ export type DocumentBlobFactorySettings = ReturnType<typeof useDocumentBlobSetti
 export function useDocumentBlobSettings({defaultSeed}: {defaultSeed: string}) {
     return useDeveloperConsoleSettingsObject("blobs", {
         textFillEnabled: {
-            defaultValue: true,
+            // TODO(calebmer): Decide what to do about text fill. I'm leaning off?
+            defaultValue: false,
             schema: Schema.boolean,
         },
         seed: {
