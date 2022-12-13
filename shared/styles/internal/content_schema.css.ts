@@ -8,7 +8,7 @@ import {
 } from "~/shared/design/spacing";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
 import {CssVarFunction, colorSchemeVars} from "~/shared/styles/internal/color_scheme.css";
-import {typographySize, typographyStyle} from "~/shared/styles/internal/typography.css";
+import {fontSizes, fontStyles} from "~/shared/styles/internal/fonts.css";
 
 // TODO(calebmer): Running list of style tweaks to explore.
 //
@@ -43,8 +43,8 @@ export const titlePaddingTop = spacing["24"];
 
 export const titleClassName = style({
     ...blockStyles,
-    ...typographyStyle.primarySemiBold,
-    ...typographySize.heading2,
+    ...fontStyles.primaryBold,
+    ...fontSizes.heading2,
     paddingTop: titlePaddingTop,
     marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
@@ -53,8 +53,8 @@ export const titleClassName = style({
 
 export const paragraphClassName = style({
     ...blockStyles,
-    ...typographyStyle.primary,
-    ...typographySize.body,
+    ...fontStyles.primary,
+    ...fontSizes.body,
     marginTop: paragraphMargin,
     marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
@@ -63,8 +63,8 @@ export const paragraphClassName = style({
 
 export const headingLevel1ClassName = style({
     ...blockStyles,
-    ...typographyStyle.primarySemiBold,
-    ...typographySize.heading3,
+    ...fontStyles.primaryBold,
+    ...fontSizes.heading3,
     marginTop: headerTopMargin,
     marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
@@ -73,8 +73,8 @@ export const headingLevel1ClassName = style({
 
 export const headingLevel2ClassName = style({
     ...blockStyles,
-    ...typographyStyle.primarySemiBold,
-    ...typographySize.heading4,
+    ...fontStyles.primaryBold,
+    ...fontSizes.heading4,
     marginTop: headerTopMargin,
     marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
@@ -83,8 +83,8 @@ export const headingLevel2ClassName = style({
 
 export const headingLevel3ClassName = style({
     ...blockStyles,
-    ...typographyStyle.primarySemiBold,
-    ...typographySize.heading5,
+    ...fontStyles.primaryBold,
+    ...fontSizes.heading5,
     marginTop: headerTopMargin,
     marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
@@ -155,7 +155,7 @@ export const orderedListItemClassName = style({
             left: `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${spacing["6"]})`,
             textAlign: "right",
             transform: "translateX(-100%)",
-            ...typographySize.body,
+            ...fontSizes.body,
             fontVariantNumeric: "tabular-nums",
         },
     },
@@ -248,11 +248,11 @@ export const dividerClassName = style({
 });
 
 export const codeClassName = style({
-    ...typographyStyle.code,
+    ...fontStyles.code,
     fontSize: `${(remPxByPlatform.desktop - 1) / remPxByPlatform.desktop}em`,
-    // The line height isn't `typographySize.base.lineHeight` because I've
+    // The line height isn't `fontSize.base.lineHeight` because I've
     // observed that it grows the paragraph container as a whole to a larger height
-    // than `typographySize.base.lineHeight`. But 1em seems to inherit the block
+    // than `fontSize.base.lineHeight`. But 1em seems to inherit the block
     // element's line height?
     lineHeight: "1em",
     backgroundColor: colorSchemeVars["grey-5"],
@@ -266,13 +266,13 @@ export const codeClassName = style({
 });
 
 export const boldClassName = style({
-    ...typographyStyle.primaryBold,
+    ...fontStyles.primaryExtraBold,
     // Inherit font feature settings from parent instead of turning them off. In a
     // link they should be off. Outside of a link they should be on.
     fontFeatureSettings: "inherit",
     selectors: {
         [`${codeClassName} &`]: {
-            ...typographyStyle.codeBold,
+            ...fontStyles.codeBold,
         },
     },
 });

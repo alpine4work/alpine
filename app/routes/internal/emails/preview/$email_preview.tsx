@@ -115,8 +115,8 @@ export default function EmailPreviewPage() {
                         position: "relative",
                         zIndex: "20",
                         flexShrink: "0",
-                        typographyStyle: "primaryMedium",
-                        typographySize: "body",
+                        fontStyle: "primaryMedium",
+                        fontSize: "body",
                         height: "12",
                         display: "flex",
                         gap: "2",
@@ -169,7 +169,7 @@ export default function EmailPreviewPage() {
                     borderBottom="grey-10"
                 >
                     {emailPreviewResult.ok && (
-                        <Box typographyStyle="primaryMedium" typographySize="body">
+                        <Box fontStyle="primaryMedium" fontSize="body">
                             {emailPreviewResult.value.htmlTitle}
                         </Box>
                     )}

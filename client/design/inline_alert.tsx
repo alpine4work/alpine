@@ -84,7 +84,7 @@ export function InlineAlert({
                 >
                     <IconComponent weight="fill" size={spacing["4"]} />
                 </Box>
-                <Box flexGrow="1" typographySize="body" typographyStyle="primaryMedium">
+                <Box flexGrow="1" fontSize="body" fontStyle="primaryMedium">
                     {title}
                 </Box>
             </Box>

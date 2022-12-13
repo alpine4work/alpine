@@ -566,7 +566,7 @@ function Tooltip(
                         <Box
                             paddingX="1"
                             paddingY="0.5"
-                            typographySize="tiny"
+                            fontSize="tiny"
                             color="grey-100"
                             backgroundColor={{light: "grey-0", dark: "grey-5"}}
                             borderRadius="small"

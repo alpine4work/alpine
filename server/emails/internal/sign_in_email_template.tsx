@@ -15,7 +15,7 @@ import {Color, colors} from "~/shared/design/colors";
 import {convertRemLengthToPx, remPxByPlatform} from "~/shared/design/spacing";
 import {defaultThemeColor} from "~/shared/design/theme_colors";
 import {assert} from "~/shared/helpers/control/assert";
-import {typographySize, typographyStyle} from "~/shared/styles/styles";
+import {fontSizes, fontStyles} from "~/shared/styles/styles";
 
 // We write in copy that the code expires after one hour. If we change the
 // password expiration time, we should also change the copy.
@@ -72,8 +72,8 @@ export function SignInEmailTemplate({
                     <MjmlColumn>
                         <MjmlText>You requested a sign in code. Your code is:</MjmlText>
                         <MjmlText
-                            typographySize="heading3"
-                            typographyStyle="primarySemiBold"
+                            fontSize="heading3"
+                            fontStyle="primaryBold"
                             letterSpacingOverride="0.03em"
                         >
                             {code}
@@ -97,7 +97,7 @@ export function SignInEmailTemplate({
                 </MjmlSection>
                 <MjmlSection>
                     <MjmlColumn>
-                        <MjmlText color="grey-60" typographySize="small">
+                        <MjmlText color="grey-60" fontSize="small">
                             If you aren't trying to sign in to{" "}
                             <a
                                 // TODO(calebmer): Should use localhost in development?
@@ -120,15 +120,15 @@ export function SignInEmailTemplate({
 function MjmlText({
     children,
     color = "grey-100",
-    typographySize: size = "body",
-    typographyStyle: style = "primary",
+    fontSize: size = "body",
+    fontStyle: style = "primary",
     margin = true,
     letterSpacingOverride,
 }: {
     children?: ReactNode;
     color?: Color;
-    typographySize?: keyof typeof typographySize;
-    typographyStyle?: keyof typeof typographyStyle & `primary${string}`;
+    fontSize?: keyof typeof fontSizes;
+    fontStyle?: keyof typeof fontStyles & `primary${string}`;
     margin?: boolean;
     letterSpacingOverride?: string;
 }) {
@@ -136,14 +136,14 @@ function MjmlText({
         <MjmlUnstyledText
             fontFamily="Inter, Arial"
             color={colors[color]}
-            fontSize={convertRemLengthToPx(typographySize[size].fontSize, remPxByPlatform.desktop)}
-            letterSpacing={letterSpacingOverride ?? typographySize[size].letterSpacing}
+            fontSize={convertRemLengthToPx(fontSizes[size].fontSize, remPxByPlatform.desktop)}
+            letterSpacing={letterSpacingOverride ?? fontSizes[size].letterSpacing}
             lineHeight={`${convertRemLengthToPx(
-                typographySize[size].lineHeight,
+                fontSizes[size].lineHeight,
                 remPxByPlatform.desktop,
             )}px`}
-            fontStyle={typographyStyle[style].fontStyle}
-            fontWeight={typographyStyle[style].fontWeight}
+            fontStyle={fontStyles[style].fontStyle}
+            fontWeight={fontStyles[style].fontWeight}
         >
             {children}
         </MjmlUnstyledText>

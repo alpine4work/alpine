@@ -180,7 +180,7 @@ function Button(
                     minWidth: variant !== "quiet" ? "16" : undefined,
                     width: fullWidth ? "full" : undefined,
                     paddingX: "3",
-                    typographySize: "small",
+                    fontSize: "small",
                     borderRadius: "base",
                     // You may notice our button doesn't have a pointer cursor. See:
                     // https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b

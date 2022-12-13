@@ -59,7 +59,7 @@ export type TextInputProps = {
      *
      * @default "primary"
      */
-    typographyStyle?: "primary" | "code";
+    fontStyle?: "primary" | "code";
 };
 
 /**
@@ -76,13 +76,13 @@ export function TextInput({
     autoComplete,
     formName,
     layout = "stacked",
-    typographyStyle = "primary",
+    fontStyle = "primary",
 }: TextInputProps) {
     const id = useId();
 
     return (
         <Box
-            typographySize="small"
+            fontSize="small"
             className={classNames(
                 layout === "inline" &&
                     sprinkles({
@@ -97,7 +97,7 @@ export function TextInput({
             <label
                 className={sprinkles({
                     display: "inline-block",
-                    typographyStyle: "primaryMedium",
+                    fontStyle: "primaryMedium",
                     paddingBottom: layout === "stacked" ? "1" : undefined,
                 })}
                 htmlFor={id}
@@ -114,7 +114,7 @@ export function TextInput({
                         border: "grey-20",
                         backgroundColor: "grey-0",
                         borderRadius: "base",
-                        typographyStyle,
+                        fontStyle,
                         flex: layout === "inline" ? "auto" : undefined,
                     })}
                     id={id}

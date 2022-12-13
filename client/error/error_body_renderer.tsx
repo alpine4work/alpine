@@ -1,7 +1,7 @@
 import {Warning} from "phosphor-react";
 import {Box} from "~/client/design/box";
 import {ErrorDisplayMessageRenderer} from "~/client/error/error_display_message_renderer";
-import {sprinkles, typographySize} from "~/shared/styles/styles";
+import {fontSizes, sprinkles} from "~/shared/styles/styles";
 
 /**
  * Renders an error with a title at body content size.
@@ -17,17 +17,17 @@ export function ErrorBodyRenderer({title, error}: {title: string; error: unknown
                     justifyContent="center"
                     alignItems="center"
                     style={{
-                        fontSize: typographySize.heading4.fontSize,
-                        height: typographySize.heading4.lineHeight,
+                        fontSize: fontSizes.heading4.fontSize,
+                        height: fontSizes.heading4.lineHeight,
                     }}
                 >
-                    <Warning weight="fill" size={typographySize.heading4.fontSize} />
+                    <Warning weight="fill" size={fontSizes.heading4.fontSize} />
                 </Box>
                 <h1
                     className={sprinkles({
                         flexGrow: "1",
-                        typographySize: "heading4",
-                        typographyStyle: "primaryMedium",
+                        fontSize: "heading4",
+                        fontStyle: "primaryMedium",
                     })}
                 >
                     {title}

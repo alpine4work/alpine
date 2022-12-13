@@ -6,8 +6,8 @@ import {
     paragraphClassName,
     titleClassName,
 } from "~/shared/styles/internal/content_schema.css";
+import {fontSizes} from "~/shared/styles/internal/fonts.css";
 import {inputPlaceholderColor} from "~/shared/styles/internal/input_placeholder_color.css";
-import {typographySize} from "~/shared/styles/internal/typography.css";
 
 export const containerClassName = style({
     height: "100%",
@@ -86,24 +86,24 @@ const inlineElementActualHeight = `${24 / 20}em`;
  * on Chrome for MacOS. Hopefully it works elsewhere?
  */
 export const inlineElementPaddingToLineHeightClassName = style({
-    paddingTop: `calc((${typographySize.body.lineHeight} - ${inlineElementActualHeight}) / 2)`,
-    paddingBottom: `calc((${typographySize.body.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+    paddingTop: `calc((${fontSizes.body.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+    paddingBottom: `calc((${fontSizes.body.lineHeight} - ${inlineElementActualHeight}) / 2)`,
     selectors: {
         [`${titleClassName} &`]: {
-            paddingTop: `calc((${typographySize.heading2.lineHeight} - ${inlineElementActualHeight}) / 2)`,
-            paddingBottom: `calc((${typographySize.heading2.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+            paddingTop: `calc((${fontSizes.heading2.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+            paddingBottom: `calc((${fontSizes.heading2.lineHeight} - ${inlineElementActualHeight}) / 2)`,
         },
         [`${headingLevel1ClassName} &`]: {
-            paddingTop: `calc((${typographySize.heading3.lineHeight} - ${inlineElementActualHeight}) / 2)`,
-            paddingBottom: `calc((${typographySize.heading3.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+            paddingTop: `calc((${fontSizes.heading3.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+            paddingBottom: `calc((${fontSizes.heading3.lineHeight} - ${inlineElementActualHeight}) / 2)`,
         },
         [`${headingLevel2ClassName} &`]: {
-            paddingTop: `calc((${typographySize.heading4.lineHeight} - ${inlineElementActualHeight}) / 2)`,
-            paddingBottom: `calc((${typographySize.heading4.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+            paddingTop: `calc((${fontSizes.heading4.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+            paddingBottom: `calc((${fontSizes.heading4.lineHeight} - ${inlineElementActualHeight}) / 2)`,
         },
         [`${headingLevel3ClassName} &`]: {
-            paddingTop: `calc((${typographySize.heading5.lineHeight} - ${inlineElementActualHeight}) / 2)`,
-            paddingBottom: `calc((${typographySize.heading5.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+            paddingTop: `calc((${fontSizes.heading5.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+            paddingBottom: `calc((${fontSizes.heading5.lineHeight} - ${inlineElementActualHeight}) / 2)`,
         },
     },
 });

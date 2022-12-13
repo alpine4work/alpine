@@ -34,7 +34,7 @@ export function ErrorDisplayMessageRenderer({
     }, [error]);
 
     return (
-        <Box color="grey-80" typographyStyle="primary" typographySize={size}>
+        <Box color="grey-80" fontStyle="primary" fontSize={size}>
             {(displayMessage ?? defaultErrorDisplayMessage).map((displayMessageSegment, index) => {
                 switch (displayMessageSegment.type) {
                     case "Text":
@@ -69,7 +69,7 @@ export function ErrorDisplayMessageRenderer({
                 <Box
                     paddingTop="2"
                     color="grey-40"
-                    typographySize={{small: "tiny" as const, body: "small" as const}[size]}
+                    fontSize={{small: "tiny" as const, body: "small" as const}[size]}
                     style={{
                         // HACK(calebmer): This text uses an inaccessible color. We are ok with this
                         // since the content is meant for developers, not for end users. In fact, end

@@ -1,6 +1,6 @@
 import {json} from "@remix-run/cloudflare";
 import {Form, useParams, useSubmit, useTransition} from "@remix-run/react";
-import {FocusEvent, UIEvent, useEffect, useRef, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import {redirectToAuthenticatedHome} from "~/app/helpers/redirect_to_authenticated_home";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
@@ -153,8 +153,8 @@ export default function SignInEmailCodePage() {
                 >
                     <h1
                         className={sprinkles({
-                            typographyStyle: "primarySemiBold",
-                            typographySize: "heading4",
+                            fontStyle: "primaryBold",
+                            fontSize: "heading4",
                         })}
                     >
                         Sign in
@@ -164,7 +164,7 @@ export default function SignInEmailCodePage() {
                         We sent a sign in code to{" "}
                         <span
                             className={sprinkles({
-                                typographyStyle: "primarySemiBold",
+                                fontStyle: "primaryBold",
                                 color: "grey-100",
                             })}
                         >
@@ -197,7 +197,7 @@ export default function SignInEmailCodePage() {
                                 width: "full",
                                 paddingY: "1",
                                 backgroundColor: "transparent",
-                                typographySize: "heading4",
+                                fontSize: "heading4",
                             })}
                             style={{
                                 lineHeight: 1.5,

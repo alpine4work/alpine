@@ -18,7 +18,7 @@ import {
     elevationVars,
     lightColorSchemeSelector,
 } from "~/shared/styles/internal/color_scheme.css";
-import {typographySize, typographyStyle} from "~/shared/styles/internal/typography.css";
+import {fontSizes, fontStyles} from "~/shared/styles/internal/fonts.css";
 
 const properties = defineProperties({
     properties: {
@@ -66,6 +66,8 @@ const properties = defineProperties({
         },
         boxShadow: elevationVars,
         textAlign: {left: "left", center: "center", right: "right", justify: "justify"},
+        fontSize: fontSizes,
+        fontStyle: fontStyles,
     },
 });
 
@@ -172,20 +174,6 @@ const responsiveProperties = defineProperties({
         height: spacingWithPercentages,
         minHeight: spacingWithPercentages,
         maxHeight: spacingWithPercentages,
-
-        // We intend for font properties to be used with the `typographySize` and
-        // `typographyStyle` shorthand. So you can say `typographySize="small"`
-        // and get the appropriate size, line height, and letter spacing at once.
-        fontFamily: mapObjectValues(typographyStyle, ({fontFamily}) => fontFamily),
-        fontWeight: mapObjectValues(typographyStyle, ({fontWeight}) => fontWeight),
-        fontStyle: mapObjectValues(typographyStyle, ({fontStyle}) => fontStyle),
-        fontFeatureSettings: mapObjectValues(
-            typographyStyle,
-            ({fontFeatureSettings}) => fontFeatureSettings,
-        ),
-        fontSize: mapObjectValues(typographySize, ({fontSize}) => fontSize),
-        lineHeight: mapObjectValues(typographySize, ({lineHeight}) => lineHeight),
-        letterSpacing: mapObjectValues(typographySize, ({letterSpacing}) => letterSpacing),
     },
     shorthands: {
         inset: ["top", "bottom", "left", "right"],
@@ -195,8 +183,6 @@ const responsiveProperties = defineProperties({
         margin: ["marginTop", "marginBottom", "marginLeft", "marginRight"],
         marginX: ["marginLeft", "marginRight"],
         marginY: ["marginTop", "marginBottom"],
-        typographyStyle: ["fontFamily", "fontWeight", "fontStyle", "fontFeatureSettings"],
-        typographySize: ["fontSize", "lineHeight", "letterSpacing"],
     },
 });
 

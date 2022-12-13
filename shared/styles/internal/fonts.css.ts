@@ -48,8 +48,14 @@ const firaCodeFontFamily = `${firaCodeFontFace}, ${firaCodeFallbackFontFace}`;
 
 /**
  * The typography styles available in our product.
+ *
+ * We only allow certain combinations of font families and weights
+ * for performance.
+ *
+ * Though for variable fonts we may provide more style variants since
+ * they're free to add.
  */
-export const typographyStyle = {
+export const fontStyles = {
     primary: {
         fontFamily: interFontFamily,
         fontWeight: 400,
@@ -62,13 +68,17 @@ export const typographyStyle = {
         fontStyle: "normal",
         fontFeatureSettings: '"calt" off',
     },
-    primarySemiBold: {
+    // Usually `font-weight: 600` maps to the name "Semi Bold" but since it is the
+    // most common heavy weight in our product we call it simply "Bold".
+    primaryBold: {
         fontFamily: interFontFamily,
         fontWeight: 600,
         fontStyle: "normal",
         fontFeatureSettings: '"calt" off',
     },
-    primaryBold: {
+    // Usually `font-weight: 700` maps to the name "Bold" but since it is less
+    // common in our product than `font-weight: 600` we call it "Extra Bold".
+    primaryExtraBold: {
         fontFamily: interFontFamily,
         fontWeight: 700,
         fontStyle: "normal",
@@ -99,7 +109,7 @@ export const typographyStyle = {
  *
  * [1]: https://rsms.me/inter/dynmetrics
  */
-export const typographySize = {
+export const fontSizes = {
     tiny: {
         fontSize: "0.625rem",
         // TODO(calebmer): Haven't really tested for what line height looks good here.
@@ -163,6 +173,10 @@ export const typographySize = {
     },
 } as const;
 
+/**
+ * Class that truncates text to a single line and shows ellipsis for
+ * truncated characters.
+ */
 export const truncateClassName = style({
     overflow: "hidden",
     textOverflow: "ellipsis",
