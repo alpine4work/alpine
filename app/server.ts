@@ -63,7 +63,9 @@ export default {
                 );
 
             const sessionCookieStorage = new SessionCookieStorage({
-                domain: process.env.NODE_ENV !== "production" ? "localhost" : "cyberworlds.dev",
+                // The session cookie domain is not set in development because we may be
+                // accessing from a proxied domain or an IP address on a mobile device.
+                domain: process.env.NODE_ENV === "production" ? "cyberworlds.dev" : null,
                 secret: sessionCookieSecret,
             });
 

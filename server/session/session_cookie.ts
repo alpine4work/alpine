@@ -39,17 +39,19 @@ const commitMethod = Symbol("commit");
 export class SessionCookieStorage {
     private readonly _storage: SessionStorage;
 
-    constructor({domain, secret}: {domain: string; secret: string}) {
+    constructor({domain, secret}: {domain: string | null; secret: string}) {
         this._storage = createCookieSessionStorage({
             cookie: {
                 name: "session",
-                domain,
+                domain: domain ?? undefined,
                 httpOnly: true,
                 maxAge: 60 * 60 * 24 * 365, // 1 year
                 path: "/",
                 sameSite: "lax",
                 secrets: [secret],
-                secure: true,
+                // Only allow the session cookie to be sent over HTTPS in production. In
+                // development we use plain HTTP.
+                secure: process.env.NODE_ENV === "production",
             },
         });
     }
@@ -173,7 +175,8 @@ export class SessionCookie {
         for (const key of Object.keys(this._session.data)) this._session.unset(key);
         for (const [key, value] of Object.entries(data)) this._session.set(key, value);
 
-        response.headers.set("Set-Cookie", await storage.commitSession(this._session));
+        const setCookieHeader = await storage.commitSession(this._session);
+        response.headers.set("Set-Cookie", setCookieHeader);
 
         // Can not update the session cookie after it has committed.
         this._hasCommitted = true;
