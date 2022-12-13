@@ -10,6 +10,17 @@ import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
 import {CssVarFunction, colorSchemeVars} from "~/shared/styles/internal/color_scheme.css";
 import {typographySize, typographyStyle} from "~/shared/styles/internal/typography.css";
 
+// TODO(calebmer): Running list of style tweaks to explore.
+//
+// - Link underline is too close to the link
+// - Link dark mode color too dark (light mode color feels right?)
+// - Single line bullets have so much margin between them
+// - Blobs still a little too overpowering of content
+// - Blobs that are just on the cusp of merging or not merging look weird to me? idk
+// - Selection style bar is a little too far from text selection
+// - Is bold text too bold?
+// - Bullet in bulleted list is a little low
+
 const paragraphMargin = spacing["3"];
 const headerTopMargin = spacing["6"];
 
