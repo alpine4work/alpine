@@ -64,7 +64,7 @@ export function ContentEditorLinkInput({
             alignItems="center"
             paddingRight="1.5"
             height="8"
-            width="64"
+            width="96"
             borderRadius="base"
             backgroundColor={{light: "grey-0", dark: "grey-5"}}
             boxShadow="elevation-20"

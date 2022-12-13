@@ -13,6 +13,7 @@ import {
     useRef,
     useState,
 } from "react";
+import {useNavigate} from "react-router-dom";
 import {
     ContentEditorState,
     getContentEditorFloaterState,
@@ -210,6 +211,7 @@ function ContentEditor<Content extends Node>(
         phantomSelections,
     } = props;
     const hasEnterCallback = typeof props.onEnter === "function";
+    const navigate = useNavigate();
 
     // The props for the current React commit. We are integrating with a stateful
     // component (ProseMirror's `EditorView`) so we need to be able to
@@ -222,8 +224,10 @@ function ContentEditor<Content extends Node>(
     // Please avoid using `propsRef` unless you can thoroughly reason through why
     // it's safe!
     const propsRef = useRef(props);
+    const navigateRef = useRef(navigate);
     useLayoutEffectWithoutServerSideWarning(() => {
         propsRef.current = props;
+        navigateRef.current = navigate;
     });
 
     const elementRef = useRef<HTMLDivElement>(null);
@@ -311,6 +315,7 @@ function ContentEditor<Content extends Node>(
                             );
                         }
                     },
+                    onNavigate: to => navigateRef.current(to),
                 }),
             },
 
@@ -396,6 +401,11 @@ function ContentEditor<Content extends Node>(
         return () => {
             view.destroy();
         };
+
+        // IMPORTANT: If the view ref ever changes I suspect things will start
+        // breaking. (Though I'm not entirely sure.) Child components may be written
+        // assuming a constant view. Make sure this is always an empty
+        // dependency array.
     }, []);
 
     // Effect which reconciles our editor state prop with the imperative editor

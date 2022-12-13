@@ -54,25 +54,27 @@ export const typographyStyle = {
         fontFamily: interFontFamily,
         fontWeight: 400,
         fontStyle: "normal",
-        fontFeatureSettings: "normal",
+        // TODO(calebmer): Consider enabling in paragraph content? Should be disabled
+        // for links though.
+        fontFeatureSettings: '"calt" off',
     },
     primaryMedium: {
         fontFamily: interFontFamily,
         fontWeight: 500,
         fontStyle: "normal",
-        fontFeatureSettings: "normal",
+        fontFeatureSettings: '"calt" off',
     },
     primarySemiBold: {
         fontFamily: interFontFamily,
         fontWeight: 600,
         fontStyle: "normal",
-        fontFeatureSettings: "normal",
+        fontFeatureSettings: '"calt" off',
     },
     primaryBold: {
         fontFamily: interFontFamily,
         fontWeight: 700,
         fontStyle: "normal",
-        fontFeatureSettings: "normal",
+        fontFeatureSettings: '"calt" off',
     },
     code: {
         fontFamily: firaCodeFontFamily,

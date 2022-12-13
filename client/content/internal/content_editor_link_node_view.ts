@@ -1,6 +1,9 @@
 import {DOMSerializer, Mark} from "prosemirror-model";
 import {MarkViewConstructor} from "prosemirror-view";
+import {To} from "react-router-dom";
 import {presentExtraContextAfterDelayMs} from "~/client/design/timing_constants";
+import {isMac} from "~/client/helpers/is_mac";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
 
 /**
@@ -11,10 +14,12 @@ export function createContentEditorMarkNodeViewConstructor({
     onPointerEnterAfterDelay,
     onPointerEnter,
     onPointerLeave,
+    onNavigate,
 }: {
     onPointerEnterAfterDelay: (options: {mark: Mark; range: {from: number; to: number}}) => void;
     onPointerEnter: (mark: Mark) => void;
     onPointerLeave: (mark: Mark) => void;
+    onNavigate: (to: To) => void;
 }): MarkViewConstructor {
     return (mark, view, inline) => {
         const {dom, contentDOM: contentDom} = DOMSerializer.renderSpec(
@@ -25,8 +30,48 @@ export function createContentEditorMarkNodeViewConstructor({
         assert(dom instanceof HTMLAnchorElement);
 
         dom.addEventListener("pointerdown", event => {
+            const isModifiedEvent =
+                event.metaKey || event.altKey || event.ctrlKey || event.shiftKey;
+            const isOpenInSeparateTabClick =
+                event.button === 1 || (isMac ? event.metaKey : event.ctrlKey);
+
+            // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
+            // modifier. Unless the click was meant to open the link in a separate tab. We
+            // need to implement that manually here given the text is editable.
+            if ((event.button !== 0 || isModifiedEvent) && !isOpenInSeparateTabClick) return;
+
             // Don't select the editable text. Instead we want to open the URL.
             event.preventDefault();
+
+            const oldUrl = new URL(window.location.href);
+
+            let newUrl: URL | null;
+            try {
+                newUrl = new URL(dom.href);
+            } catch {
+                newUrl = null;
+            }
+
+            // For URLs in the same space, open the link in the current tab instead of a
+            // new tab. Unless this click was a cmd-click on MacOS or other shortcut for
+            // opening links in a new tab.
+            if (!isOpenInSeparateTabClick && newUrl && oldUrl.host === newUrl.host) {
+                const spaceIdRegExp = /^\/s\/([a-zA-Z0-9]{26})(?:\/|$)/;
+                const oldUrlSpaceIdMatch = oldUrl.pathname.match(spaceIdRegExp);
+                const newUrlSpaceIdMatch = newUrl.pathname.match(spaceIdRegExp);
+                if (
+                    oldUrlSpaceIdMatch &&
+                    newUrlSpaceIdMatch &&
+                    oldUrlSpaceIdMatch[1] === newUrlSpaceIdMatch[1]
+                ) {
+                    onNavigate({
+                        pathname: newUrl.pathname,
+                        search: newUrl.search,
+                        hash: newUrl.hash,
+                    });
+                    return;
+                }
+            }
 
             window.open(
                 dom.href,
@@ -37,12 +82,12 @@ export function createContentEditorMarkNodeViewConstructor({
             );
         });
 
-        let pointerEnterDelayTimeoutId: number | null = null;
+        let pointerEnterDelayTimeout: Timeout | null = null;
 
         dom.addEventListener("pointerenter", event => {
-            if (pointerEnterDelayTimeoutId) {
-                window.clearTimeout(pointerEnterDelayTimeoutId);
-                pointerEnterDelayTimeoutId = null;
+            if (pointerEnterDelayTimeout) {
+                pointerEnterDelayTimeout.clear();
+                pointerEnterDelayTimeout = null;
             }
 
             const posResult = view.posAtCoords({left: event.clientX, top: event.clientY});
@@ -80,7 +125,11 @@ export function createContentEditorMarkNodeViewConstructor({
 
             onPointerEnter(mark);
 
-            pointerEnterDelayTimeoutId = window.setTimeout(() => {
+            pointerEnterDelayTimeout = createTimeout(() => {
+                // If the node was removed from the DOM, don't proceed with the timeout. We
+                // don't get a destroy callback for the mark so we have to be defensive here.
+                if (!document.body.contains(dom)) return;
+
                 onPointerEnterAfterDelay({
                     mark,
                     range: {
@@ -92,9 +141,9 @@ export function createContentEditorMarkNodeViewConstructor({
         });
 
         dom.addEventListener("pointerleave", () => {
-            if (pointerEnterDelayTimeoutId) {
-                clearTimeout(pointerEnterDelayTimeoutId);
-                pointerEnterDelayTimeoutId = null;
+            if (pointerEnterDelayTimeout) {
+                pointerEnterDelayTimeout.clear();
+                pointerEnterDelayTimeout = null;
             }
 
             onPointerLeave(mark);
