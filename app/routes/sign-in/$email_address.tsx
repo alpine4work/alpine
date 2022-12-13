@@ -50,8 +50,6 @@ export async function action({request, context, params}: DataFunctionArgs) {
         if (typeof oneTimePassword !== "string")
             throw new InvalidArgumentError('Expected property "oneTimePassword" in form data');
 
-        await new Promise(resolve => setTimeout(resolve, 5000));
-
         const {sessionId} = await attemptOneTimePasswordSignIn(
             context,
             await validateEmailAddress(emailAddress),
