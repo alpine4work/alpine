@@ -47,6 +47,8 @@ export const titleClassName = style({
     ...typographySize.heading2,
     paddingTop: titlePaddingTop,
     marginBottom: paragraphMargin,
+    // Allow contextual alternate glyphs in regular text content.
+    fontFeatureSettings: '"calt" on',
 });
 
 export const paragraphClassName = style({
@@ -55,6 +57,8 @@ export const paragraphClassName = style({
     ...typographySize.body,
     marginTop: paragraphMargin,
     marginBottom: paragraphMargin,
+    // Allow contextual alternate glyphs in regular text content.
+    fontFeatureSettings: '"calt" on',
 });
 
 export const headingLevel1ClassName = style({
@@ -63,6 +67,8 @@ export const headingLevel1ClassName = style({
     ...typographySize.heading3,
     marginTop: headerTopMargin,
     marginBottom: paragraphMargin,
+    // Allow contextual alternate glyphs in regular text content.
+    fontFeatureSettings: '"calt" on',
 });
 
 export const headingLevel2ClassName = style({
@@ -71,6 +77,8 @@ export const headingLevel2ClassName = style({
     ...typographySize.heading4,
     marginTop: headerTopMargin,
     marginBottom: paragraphMargin,
+    // Allow contextual alternate glyphs in regular text content.
+    fontFeatureSettings: '"calt" on',
 });
 
 export const headingLevel3ClassName = style({
@@ -79,6 +87,8 @@ export const headingLevel3ClassName = style({
     ...typographySize.heading5,
     marginTop: headerTopMargin,
     marginBottom: paragraphMargin,
+    // Allow contextual alternate glyphs in regular text content.
+    fontFeatureSettings: '"calt" on',
 });
 
 const quoteBlockIndentation = spacing["4"];
@@ -257,6 +267,9 @@ export const codeClassName = style({
 
 export const boldClassName = style({
     ...typographyStyle.primaryBold,
+    // Inherit font feature settings from parent instead of turning them off. In a
+    // link they should be off. Outside of a link they should be on.
+    fontFeatureSettings: "inherit",
     selectors: {
         [`${codeClassName} &`]: {
             ...typographyStyle.codeBold,
@@ -291,6 +304,10 @@ export const linkClassName = style({
     // Adobe Spectrum does this and I trust them:
     // https://github.com/adobe/spectrum-css/blob/0623bc93472afe3df13702531e119b62ad5291f2/components/link/index.css#L51-L52
     WebkitTextDecorationSkip: "objects",
+    // Turn off contextual alternatives which may look weird in URLs or other
+    // machine generated strings. For example, our IDs look weird when you have 3x9
+    // randomly generated in the string.
+    fontFeatureSettings: '"calt" off',
 });
 
 // Make sure the first child in our document never has top margin.

@@ -54,8 +54,6 @@ export const typographyStyle = {
         fontFamily: interFontFamily,
         fontWeight: 400,
         fontStyle: "normal",
-        // TODO(calebmer): Consider enabling in paragraph content? Should be disabled
-        // for links though.
         fontFeatureSettings: '"calt" off',
     },
     primaryMedium: {
