@@ -278,7 +278,6 @@ server.on("upgrade", (req, socket, head) => {
 \* ========================================================================== */
 
 const liveReloadServer = new WebSocket.Server({
-    host,
     port: devServerPort,
 });
 

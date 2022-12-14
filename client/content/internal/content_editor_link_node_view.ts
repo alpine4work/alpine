@@ -29,16 +29,44 @@ export function createContentEditorMarkNodeViewConstructor({
 
         assert(dom instanceof HTMLAnchorElement);
 
+        let isPointerDownAndOver = false;
+
         dom.addEventListener("pointerdown", event => {
-            const isModifiedEvent =
-                event.metaKey || event.altKey || event.ctrlKey || event.shiftKey;
-            const isOpenInSeparateTabClick =
-                event.button === 1 || (isMac ? event.metaKey : event.ctrlKey);
+            isPointerDownAndOver = true;
 
             // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
             // modifier. Unless the click was meant to open the link in a separate tab. We
             // need to implement that manually here given the text is editable.
-            if ((event.button !== 0 || isModifiedEvent) && !isOpenInSeparateTabClick) return;
+            if (
+                (event.button !== 0 || isModifiedPointerEvent(event)) &&
+                !isOpenLinkInSeparateTabPointerEvent(event)
+            ) {
+                return;
+            }
+
+            // This will be a navigation click if the pointer stays over our element. Don't
+            // select the editable text.
+            event.preventDefault();
+        });
+
+        dom.addEventListener("pointerup", event => {
+            const wasPointerDownAndOver = isPointerDownAndOver;
+            isPointerDownAndOver = false;
+
+            // Only process pointer up events that started on our element.
+            if (!wasPointerDownAndOver) return;
+
+            const isOpenLinkInSeparateTabEvent = isOpenLinkInSeparateTabPointerEvent(event);
+
+            // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
+            // modifier. Unless the click was meant to open the link in a separate tab. We
+            // need to implement that manually here given the text is editable.
+            if (
+                (event.button !== 0 || isModifiedPointerEvent(event)) &&
+                !isOpenLinkInSeparateTabEvent
+            ) {
+                return;
+            }
 
             // Don't select the editable text. Instead we want to open the URL.
             event.preventDefault();
@@ -55,7 +83,7 @@ export function createContentEditorMarkNodeViewConstructor({
             // For URLs in the same space, open the link in the current tab instead of a
             // new tab. Unless this click was a cmd-click on MacOS or other shortcut for
             // opening links in a new tab.
-            if (!isOpenInSeparateTabClick && newUrl && oldUrl.host === newUrl.host) {
+            if (!isOpenLinkInSeparateTabEvent && newUrl && oldUrl.host === newUrl.host) {
                 const spaceIdRegExp = /^\/s\/([a-zA-Z0-9]{26})(?:\/|$)/;
                 const oldUrlSpaceIdMatch = oldUrl.pathname.match(spaceIdRegExp);
                 const newUrlSpaceIdMatch = newUrl.pathname.match(spaceIdRegExp);
@@ -141,6 +169,9 @@ export function createContentEditorMarkNodeViewConstructor({
         });
 
         dom.addEventListener("pointerleave", () => {
+            // Cancel pointer downs so we don't process them as clicks.
+            isPointerDownAndOver = false;
+
             if (pointerEnterDelayTimeout) {
                 pointerEnterDelayTimeout.clear();
                 pointerEnterDelayTimeout = null;
@@ -149,9 +180,49 @@ export function createContentEditorMarkNodeViewConstructor({
             onPointerLeave(mark);
         });
 
+        // When the user is pressing the shift key anywhere on the page, we want the
+        // cursor for a link to be a normal text cursor not a pointer cursor. Since
+        // clicking on the link will allow the user to edit it instead of opening it.
+        {
+            let isShiftKeyOrAltKeyDown = false;
+
+            const handleKeyDownOrUp = (event: KeyboardEvent) => {
+                // Unfortunately, there is no destructor for ProseMirror marks. So cleanup our
+                // event handlers on the first keydown event where our DOM node no
+                // longer exists.
+                if (!document.body.contains(dom)) {
+                    document.removeEventListener("keydown", handleKeyDownOrUp);
+                    document.removeEventListener("keyup", handleKeyDownOrUp);
+                    return;
+                }
+
+                if (event.shiftKey || event.altKey) {
+                    if (!isShiftKeyOrAltKeyDown) {
+                        isShiftKeyOrAltKeyDown = true;
+                        dom.style.cursor = "inherit";
+                    }
+                } else {
+                    if (isShiftKeyOrAltKeyDown) {
+                        isShiftKeyOrAltKeyDown = false;
+                        dom.style.removeProperty("cursor");
+                    }
+                }
+            };
+            document.addEventListener("keydown", handleKeyDownOrUp);
+            document.addEventListener("keyup", handleKeyDownOrUp);
+        }
+
         return {
             dom,
             contentDOM: contentDom,
         };
     };
+}
+
+function isModifiedPointerEvent(event: PointerEvent) {
+    return event.metaKey || event.altKey || event.ctrlKey || event.shiftKey;
+}
+
+function isOpenLinkInSeparateTabPointerEvent(event: PointerEvent) {
+    return event.button === 1 || (isMac ? event.metaKey : event.ctrlKey);
 }

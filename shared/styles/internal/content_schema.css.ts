@@ -32,23 +32,33 @@ export const docClassName = style({
     cursor: "text",
 });
 
+const blockPaddingX = spacing["4"];
+
 const blockStyles = {
     width: "100%",
-    maxWidth: spacing["192"],
+    maxWidth: `calc(${spacing["192"]} + ${blockPaddingX} * 2)`,
+    paddingLeft: blockPaddingX,
+    paddingRight: blockPaddingX,
     marginLeft: "auto",
     marginRight: "auto",
 };
 
-export const titlePaddingTop = spacing["24"];
+export const desktopTitlePaddingTop = spacing["24"];
+export const mobileTitlePaddingTop = spacing["12"];
 
 export const titleClassName = style({
     ...blockStyles,
     ...fontStyles.primaryBold,
     ...fontSizes.heading2,
-    paddingTop: titlePaddingTop,
+    paddingTop: desktopTitlePaddingTop,
     marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
+    "@media": {
+        [mobilePlatformMediaQuery]: {
+            paddingTop: mobileTitlePaddingTop,
+        },
+    },
 });
 
 export const paragraphClassName = style({
@@ -137,7 +147,7 @@ export const bulletListItemClassName = style({
             width: bulletListItemBulletSize,
             height: bulletListItemBulletSize,
             top: "0.625rem",
-            left: `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${
+            left: `calc(${blockPaddingX} + (${listItemIndentationVar} * ${listItemIndentation}) + ${
                 parseRemLengthNumber(listItemIndentation) / 2 -
                 parseRemLengthNumber(bulletListItemBulletSize) / 2
             }rem)`,
@@ -152,7 +162,7 @@ export const orderedListItemClassName = style({
             position: "absolute",
             pointerEvents: "none",
             top: 0,
-            left: `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${spacing["6"]})`,
+            left: `calc(${blockPaddingX} + (${listItemIndentationVar} * ${listItemIndentation}) + ${spacing["6"]})`,
             textAlign: "right",
             transform: "translateX(-100%)",
             ...fontSizes.body,
@@ -175,7 +185,7 @@ export const checkListItemContentClassName = style({});
 export const checkListItemCheckboxContainerClassName = style({
     position: "absolute",
     top: 0,
-    left: `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${
+    left: `calc(${blockPaddingX} + (${listItemIndentationVar} * ${listItemIndentation}) + ${
         parseRemLengthNumber(listItemIndentation) / 2 -
         (parseRemLengthNumber(checkListItemCheckboxDesktopSize) +
             parseRemLengthNumber(spacing["1"]) * 2) /
@@ -188,7 +198,7 @@ export const checkListItemCheckboxContainerClassName = style({
     "@media": {
         [mobilePlatformMediaQuery]: {
             top: `-${spacing["0.5"]}`,
-            left: `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${
+            left: `calc(${blockPaddingX} + (${listItemIndentationVar} * ${listItemIndentation}) + ${
                 parseRemLengthNumber(listItemIndentation) / 2 -
                 (parseRemLengthNumber(checkListItemCheckboxMobileSize) +
                     parseRemLengthNumber(spacing["1"]) * 2) /

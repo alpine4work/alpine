@@ -1,4 +1,3 @@
-import classNames from "classnames";
 import Color from "color";
 import {useMemo, useRef, useState} from "react";
 import {generateBlobsForContent} from "~/client/blob_factory/generate_blobs_for_content";
@@ -18,7 +17,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {easeInOutSin} from "~/shared/helpers/easing";
 import {Vector2} from "~/shared/helpers/geometry/vector2";
 import {Schema} from "~/shared/schema/schema";
-import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles";
+import {contentSchemaStyles, documentBlobsStyles, sprinkles} from "~/shared/styles/styles";
 
 // TODO: responsive blobs
 const DefaultContentWidthPx = 768;
@@ -250,14 +249,7 @@ export function DocumentBlobFactory({
     return (
         <div
             ref={containerRef}
-            className={classNames(
-                sprinkles({
-                    zIndex: "-50",
-                    position: "absolute",
-                    inset: "0",
-                    width: "full",
-                }),
-            )}
+            className={documentBlobsStyles.blobsClassName}
             aria-hidden="true"
             style={{height: 800}}
         >

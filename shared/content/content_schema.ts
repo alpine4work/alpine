@@ -245,6 +245,56 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
         },
 
         /**
+         * This is the web! You just gotta have them links.
+         */
+        // NOTE(calebmer): This needs to be defined before `bold` and other styles so
+        // that in the DOM `link` will wrap other styles.
+        //
+        // We are ok with `code` wrapping `link`. We want `link` to be the outer
+        // wrapper so that hovering over build text within a link doesn't break the
+        // hover link preview.
+        link: {
+            attrs: {
+                url: {},
+            },
+            inclusive: false,
+            toDOM: node => {
+                const unknownUrl: unknown = node.attrs.url;
+
+                // We only allow linking to URLs with an HTTP or HTTPS scheme. That way
+                // we avoid XSS vulnerabilities with URLs that look like
+                // `javascript:alert('XSS')`.
+                const url =
+                    typeof unknownUrl === "string" && startsWithSafeUrlProtocol(unknownUrl)
+                        ? unknownUrl
+                        : "about:blank#blocked";
+
+                return [
+                    "a",
+                    {
+                        class: linkClassName,
+                        // Open link in a new tab.
+                        target: "_blank",
+                        // Important security measure. See:
+                        // https://mathiasbynens.github.io/rel-noopener
+                        rel: "noopener noreferrer",
+                        href: url,
+                    },
+                    0,
+                ];
+            },
+            parseDOM: [
+                {
+                    tag: "a",
+                    getAttrs: node => {
+                        if (!(node instanceof HTMLAnchorElement)) return false;
+                        return {url: node.href};
+                    },
+                },
+            ],
+        },
+
+        /**
          * Emphasize some text to let the user know it's important. Bolded text is
          * typically more eye catching than italics.
          */
@@ -290,52 +340,6 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
             inclusive: false,
             toDOM: () => ["del", {class: strikeClassName}, 0],
             parseDOM: [{tag: "del"}],
-        },
-
-        /**
-         * This is the web! You just gotta have them links.
-         */
-        // TODO(calebmer): If linking to an internal URL we should load it directly
-        // instead of opening in a new tab.
-        link: {
-            attrs: {
-                url: {},
-            },
-            inclusive: false,
-            toDOM: node => {
-                const unknownUrl: unknown = node.attrs.url;
-
-                // We only allow linking to URLs with an HTTP or HTTPS scheme. That way
-                // we avoid XSS vulnerabilities with URLs that look like
-                // `javascript:alert('XSS')`.
-                const url =
-                    typeof unknownUrl === "string" && startsWithSafeUrlProtocol(unknownUrl)
-                        ? unknownUrl
-                        : "about:blank#blocked";
-
-                return [
-                    "a",
-                    {
-                        class: linkClassName,
-                        // Open link in a new tab.
-                        target: "_blank",
-                        // Important security measure. See:
-                        // https://mathiasbynens.github.io/rel-noopener
-                        rel: "noopener noreferrer",
-                        href: url,
-                    },
-                    0,
-                ];
-            },
-            parseDOM: [
-                {
-                    tag: "a",
-                    getAttrs: node => {
-                        if (!(node instanceof HTMLAnchorElement)) return false;
-                        return {url: node.href};
-                    },
-                },
-            ],
         },
     },
 });

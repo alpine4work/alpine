@@ -1,4 +1,3 @@
-import {rejects} from "assert";
 import Color from "color";
 import {interpolateHcl} from "d3-interpolate";
 import {
