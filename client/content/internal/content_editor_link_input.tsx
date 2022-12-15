@@ -64,7 +64,12 @@ export function ContentEditorLinkInput({
             alignItems="center"
             paddingRight="1.5"
             height="8"
-            width="96"
+            // Give more space in the input for larger URLs. So you can see more of the URL
+            // without having to scroll. 64 spacing doesn't show much of long URLs.
+            //
+            // Maybe the width should grow with the URL length for a bit? Until a
+            // max width?
+            width={url.length > 40 ? "96" : "64"}
             borderRadius="base"
             backgroundColor={{light: "grey-0", dark: "grey-5"}}
             boxShadow="elevation-20"

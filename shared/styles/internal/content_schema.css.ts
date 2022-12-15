@@ -22,6 +22,8 @@ import {fontSizes, fontStyles} from "~/shared/styles/internal/fonts.css";
 // - Bullet in bulleted list is a little low
 // - Pressing a link should change the style of the link somehow as feedback.
 //   At least on mobile
+// - When there is a spellcheck squiggle on a link with an underline, the
+//   underline disappears.
 
 const paragraphMargin = spacing["3"];
 const headerTopMargin = spacing["6"];
@@ -34,11 +36,12 @@ export const docClassName = style({
     cursor: "text",
 });
 
+const blockWidth = spacing["192"];
 const blockPaddingX = spacing["4"];
 
 const blockStyles = {
     width: "100%",
-    maxWidth: `calc(${spacing["192"]} + ${blockPaddingX} * 2)`,
+    maxWidth: `calc(${blockWidth} + ${blockPaddingX} * 2)`,
     paddingLeft: blockPaddingX,
     paddingRight: blockPaddingX,
     marginLeft: "auto",
@@ -254,6 +257,9 @@ export const checkListItemCheckboxPressedClassName = style({
 
 export const dividerClassName = style({
     ...blockStyles,
+    width: blockWidth,
+    paddingLeft: 0,
+    paddingRight: 0,
     marginTop: headerTopMargin,
     marginBottom: headerTopMargin,
     borderColor: colorSchemeVars["grey-20"],
