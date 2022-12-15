@@ -169,7 +169,6 @@ export function createContentEditorMarkNodeViewConstructor({
         });
 
         dom.addEventListener("pointerleave", () => {
-            // Cancel pointer downs so we don't process them as clicks.
             isPointerDownAndOver = false;
 
             if (pointerEnterDelayTimeout) {
@@ -179,38 +178,6 @@ export function createContentEditorMarkNodeViewConstructor({
 
             onPointerLeave(mark);
         });
-
-        // When the user is pressing the shift key anywhere on the page, we want the
-        // cursor for a link to be a normal text cursor not a pointer cursor. Since
-        // clicking on the link will allow the user to edit it instead of opening it.
-        {
-            let isShiftKeyOrAltKeyDown = false;
-
-            const handleKeyDownOrUp = (event: KeyboardEvent) => {
-                // Unfortunately, there is no destructor for ProseMirror marks. So cleanup our
-                // event handlers on the first keydown event where our DOM node no
-                // longer exists.
-                if (!document.body.contains(dom)) {
-                    document.removeEventListener("keydown", handleKeyDownOrUp);
-                    document.removeEventListener("keyup", handleKeyDownOrUp);
-                    return;
-                }
-
-                if (event.shiftKey || event.altKey) {
-                    if (!isShiftKeyOrAltKeyDown) {
-                        isShiftKeyOrAltKeyDown = true;
-                        dom.style.cursor = "inherit";
-                    }
-                } else {
-                    if (isShiftKeyOrAltKeyDown) {
-                        isShiftKeyOrAltKeyDown = false;
-                        dom.style.removeProperty("cursor");
-                    }
-                }
-            };
-            document.addEventListener("keydown", handleKeyDownOrUp);
-            document.addEventListener("keyup", handleKeyDownOrUp);
-        }
 
         return {
             dom,

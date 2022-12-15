@@ -50,6 +50,7 @@ const {
     emptyTitleClassName,
     hideSelectionWhileUnfocusedClassName,
     inlineElementPaddingToLineHeightClassName,
+    shiftKeyOrAltKeyDownClassName,
 } = contentEditorStyles;
 
 // TODO(calebmer): Implement touch toolbar for mobile.
@@ -492,6 +493,37 @@ function ContentEditor<Content extends Node>(
             viewElement.classList.remove(emptyBodyClassName);
         }
     }
+
+    // Apply a class to the view element depending on whether the shift key is
+    // down or not.
+    useEffect(() => {
+        assert(viewRef.current);
+        const viewElement = viewRef.current.dom;
+
+        let isShiftKeyOrAltKeyDown = false;
+
+        const handleKeyDownOrUp = (event: KeyboardEvent) => {
+            if (event.shiftKey || event.altKey) {
+                if (!isShiftKeyOrAltKeyDown) {
+                    isShiftKeyOrAltKeyDown = true;
+                    viewElement.classList.add(shiftKeyOrAltKeyDownClassName);
+                }
+            } else {
+                if (isShiftKeyOrAltKeyDown) {
+                    isShiftKeyOrAltKeyDown = false;
+                    viewElement.classList.remove(shiftKeyOrAltKeyDownClassName);
+                }
+            }
+        };
+
+        document.addEventListener("keydown", handleKeyDownOrUp);
+        document.addEventListener("keyup", handleKeyDownOrUp);
+
+        return () => {
+            document.removeEventListener("keydown", handleKeyDownOrUp);
+            document.removeEventListener("keyup", handleKeyDownOrUp);
+        };
+    }, []);
 
     // Keep various attributes on the editor element up to date.
     useLayoutEffectWithoutServerSideWarning(() => {

@@ -20,6 +20,8 @@ import {fontSizes, fontStyles} from "~/shared/styles/internal/fonts.css";
 // - Selection style bar is a little too far from text selection
 // - Is bold text too bold?
 // - Bullet in bulleted list is a little low
+// - Pressing a link should change the style of the link somehow as feedback.
+//   At least on mobile
 
 const paragraphMargin = spacing["3"];
 const headerTopMargin = spacing["6"];

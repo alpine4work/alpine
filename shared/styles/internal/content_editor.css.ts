@@ -3,6 +3,7 @@ import {
     headingLevel1ClassName,
     headingLevel2ClassName,
     headingLevel3ClassName,
+    linkClassName,
     paragraphClassName,
     titleClassName,
 } from "~/shared/styles/internal/content_schema.css";
@@ -111,4 +112,13 @@ export const inlineElementPaddingToLineHeightClassName = style({
 // We use our `<FocusRing>` class for highlighting a selected node.
 globalStyle(".ProseMirror-selectednode", {
     outline: "none !important",
+});
+
+export const shiftKeyOrAltKeyDownClassName = style({});
+
+// When the shift or alt key is down then clicking on a link will select the
+// underlying text instead of opening it as a link. So show a regular text
+// cursor instead of a pointer cursor.
+globalStyle(`${shiftKeyOrAltKeyDownClassName} ${linkClassName}`, {
+    cursor: "inherit",
 });
