@@ -84,7 +84,7 @@ export default function AlphaManagementPage() {
                         fontStyle: "primaryBold",
                     })}
                 >
-                    Closed Alpha Management
+                    Alpha Control Panel
                 </h1>
                 <Box>
                     <Spacer space="3" />

@@ -27,6 +27,16 @@ export enum FromEmailAddress {
      * reputation for this email address.
      */
     SignIn = "SignIn",
+
+    /**
+     * We use this address to send alpha management emails to internal users.
+     */
+    Alpha = "Alpha",
+
+    /**
+     * Send an email as Caleb Meredith.
+     */
+    Caleb = "Caleb",
 }
 
 /**
@@ -35,7 +45,11 @@ export enum FromEmailAddress {
 export function getFromEmailAddress(fromEmailAddress: FromEmailAddress): string {
     switch (fromEmailAddress) {
         case FromEmailAddress.SignIn:
-            return "sign-in@auth.cyberworlds.dev";
+            return "sign-in@cyberworlds.dev";
+        case FromEmailAddress.Alpha:
+            return "alpha@cyberworlds.dev";
+        case FromEmailAddress.Caleb:
+            return "caleb@cyberworlds.dev";
         default:
             throw exhaustive(fromEmailAddress);
     }

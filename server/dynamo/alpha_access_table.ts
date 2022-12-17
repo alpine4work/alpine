@@ -11,7 +11,9 @@ import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
 import {getSeedConstants} from "~/server/dynamo/seed_constants";
 import {createSpaceAccountForAlphaTransactionEntries} from "~/server/dynamo/spaces_table";
-import {EmailAddress} from "~/server/emails/email_address";
+import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address";
+import {FromEmailAddress} from "~/server/emails/from_email_address";
+import {sendEmail} from "~/server/emails/send_email";
 import {
     AlphaAccessRequestDecisionSchema,
     AlphaAccessRequestModel,
@@ -188,6 +190,19 @@ export async function requestAlphaAccess(
             displayMessage,
         });
     }
+
+    // NOTE(calebmer): Send an email to me whenever someone requests alpha access
+    // so I know to approve it immediately.
+    await sendEmail(context, {
+        fromEmailAddress: FromEmailAddress.Alpha,
+        toEmailAddress: await validateEmailAddress("calebmeredith8@gmail.com"),
+        templateName: "RequestedAlphaAccess",
+        templateProps: {
+            name,
+            emailAddress,
+            message,
+        },
+    });
 }
 
 /**
@@ -279,7 +294,12 @@ export async function approveAlphaAccessRequest(
         }),
     ]);
 
-    // TODO(calebmer): Send an email when we approve the alpha access request.
+    await sendEmail(context, {
+        fromEmailAddress: FromEmailAddress.Caleb,
+        toEmailAddress: requestItem.emailAddress,
+        templateName: "AlphaAccessRequestApproved",
+        templateProps: {},
+    });
 }
 
 /**

@@ -65,7 +65,10 @@ export function SignInEmailTemplate({
                         have your code, return to where you were signing in and type the code.
                     </MjmlPreview>
                 )}
-                <MjmlFont name="Inter" href="https://fonts.googleapis.com/css?family=Inter" />
+                <MjmlFont
+                    name="Inter"
+                    href="https://fonts.googleapis.com/css?family=Inter:400,600"
+                />
             </MjmlHead>
             <MjmlBody>
                 <MjmlSection>

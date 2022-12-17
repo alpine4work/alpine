@@ -1,11 +1,15 @@
 import {decode as decodeHtmlEntities} from "html-entities";
 import {render} from "mjml-react";
 import {ComponentProps} from "react";
+import {AlphaAccessRequestApprovedEmailTemplate} from "~/server/emails/internal/alpha_access_request_approved_email_template";
+import {RequestedAlphaAccessEmailTemplate} from "~/server/emails/internal/requested_alpha_access_email_template";
 import {SignInEmailTemplate} from "~/server/emails/internal/sign_in_email_template";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
 
 const emailTemplateComponents = {
     SignIn: SignInEmailTemplate,
+    RequestedAlphaAccess: RequestedAlphaAccessEmailTemplate,
+    AlphaAccessRequestApproved: AlphaAccessRequestApprovedEmailTemplate,
 };
 
 /**
@@ -35,7 +39,7 @@ export type RenderedEmail = {
  */
 export const emailTemplates = mapObjectValues(emailTemplateComponents, Component => {
     return (props: ComponentProps<typeof Component>): RenderedEmail => {
-        const {html} = render(<Component {...props} />, {
+        const {html} = render(<Component {...(props as any)} />, {
             // We can ignore `errors` since with a strict validation level we will throw if
             // there is a validation error.
             validationLevel: "strict",

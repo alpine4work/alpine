@@ -1,4 +1,5 @@
 import {Link, ShouldReloadFunction, useParams} from "@remix-run/react";
+import classNames from "classnames";
 import {Code, Desktop, DeviceMobileCamera, EnvelopeSimple, IconContext} from "phosphor-react";
 import {ReactNode, useRef} from "react";
 import {useButton} from "react-aria";
@@ -16,7 +17,7 @@ import {spacing} from "~/shared/design/spacing";
 import {ErrorSchema} from "~/shared/error/error_schema";
 import {captureResult} from "~/shared/helpers/control/capture_result";
 import {Schema} from "~/shared/schema/schema";
-import {sprinkles} from "~/shared/styles/styles";
+import {sprinkles, truncateClassName} from "~/shared/styles/styles";
 
 export function meta() {
     return {
@@ -133,15 +134,20 @@ export default function EmailPreviewPage() {
                         <FocusRing key={emailPreviewLink.slug} offset="inset">
                             <Link
                                 to={`/internal/emails/preview/${emailPreviewLink.slug}${viewSearchParam}`}
-                                className={sprinkles({
-                                    display: "block",
-                                    width: "full",
-                                    paddingY: "2",
-                                    paddingX: "3",
-                                    backgroundColor:
-                                        activeSlug === emailPreviewLink.slug ? "grey-5" : undefined,
-                                    borderBottom: "grey-5",
-                                })}
+                                className={classNames(
+                                    truncateClassName,
+                                    sprinkles({
+                                        display: "block",
+                                        width: "full",
+                                        paddingY: "2",
+                                        paddingX: "3",
+                                        backgroundColor:
+                                            activeSlug === emailPreviewLink.slug
+                                                ? "grey-5"
+                                                : undefined,
+                                        borderBottom: "grey-5",
+                                    }),
+                                )}
                             >
                                 {emailPreviewLink.title}
                             </Link>
