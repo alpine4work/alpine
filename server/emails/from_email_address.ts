@@ -45,11 +45,11 @@ export enum FromEmailAddress {
 export function getFromEmailAddress(fromEmailAddress: FromEmailAddress): string {
     switch (fromEmailAddress) {
         case FromEmailAddress.SignIn:
-            return "sign-in@cyberworlds.dev";
+            return `"Cyberworlds" <sign-in@cyberworlds.dev>`;
         case FromEmailAddress.Alpha:
-            return "alpha@cyberworlds.dev";
+            return `"Cyberworlds" <alpha@cyberworlds.dev>`;
         case FromEmailAddress.Caleb:
-            return "caleb@cyberworlds.dev";
+            return `"Caleb Meredith" <caleb@cyberworlds.dev>`;
         default:
             throw exhaustive(fromEmailAddress);
     }

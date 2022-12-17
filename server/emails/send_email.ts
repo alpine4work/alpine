@@ -49,7 +49,7 @@ export async function sendEmail<Template extends keyof typeof emailTemplates>(
     }
 
     await executeSesSendEmailCommand(context, {
-        Source: `"Cyberworlds" <${getFromEmailAddress(fromEmailAddress)}>`,
+        Source: getFromEmailAddress(fromEmailAddress),
         Destination: {ToAddresses: [toEmailAddress]},
         Message: {
             Subject: {Charset: "utf8", Data: renderedEmail.getHtmlTitle()},
