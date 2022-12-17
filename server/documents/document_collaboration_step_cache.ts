@@ -1,5 +1,5 @@
 import {Step} from "prosemirror-transform";
-import {RequestContext} from "~/server/context/context";
+import {RequestContext} from "~/server/context/request_context";
 import {getDocumentContentSteps} from "~/server/dynamo/documents_table";
 import {FailedPreconditionError, InternalError, InvalidArgumentError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";

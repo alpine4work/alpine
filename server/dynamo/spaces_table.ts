@@ -1,4 +1,5 @@
-import {ProcessContext, RequestContext} from "~/server/context/context";
+import {RequestContext} from "~/server/context/request_context";
+import {DynamoContext} from "~/server/dynamo/dynamo_context";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
 import {DynamoConditionExpression} from "~/server/dynamo/internal/dynamo_condition";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
@@ -66,7 +67,7 @@ const SpacesTable = DynamoTableSchema.new({
     },
 });
 
-export async function seedTestSpaces(context: ProcessContext) {
+export async function seedTestSpaces(context: DynamoContext) {
     assert(process.env.NODE_ENV !== "production");
     const {defaultSpaceId, adminAccountId} = getSeedConstants();
 
@@ -178,7 +179,7 @@ export function authorizeAccountHasSpaceAccess(
     );
 
     return getOrSetDefaultMapValue(authorizationPromiseBySpaceId, spaceId, async () => {
-        const accountId = context.getAuthenticatedAccountId();
+        const accountId = context.auth().getAccountId();
 
         const spaceAccountItem = await SpacesTable.getItem(context, {
             partitionType: "Space",

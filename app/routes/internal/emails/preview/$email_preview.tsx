@@ -12,7 +12,7 @@ import {useUrlSearchParamState} from "~/client/helpers/use_url_search_param_stat
 import {getEmailTemplatePreviewBySlug} from "~/server/emails/get_email_template_preview_by_slug";
 import {jsonWithSchema} from "~/server/helpers/remix/json_with_schema";
 import {notFoundResponse} from "~/server/helpers/remix/not_found_response";
-import {DataFunctionArgs} from "~/server/helpers/types/remix_data_function_args";
+import {DataFunctionArgs} from "~/server/helpers/types/remix_context";
 import {spacing} from "~/shared/design/spacing";
 import {ErrorSchema} from "~/shared/error/error_schema";
 import {captureResult} from "~/shared/helpers/control/capture_result";

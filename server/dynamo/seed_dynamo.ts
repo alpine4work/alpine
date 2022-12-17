@@ -1,6 +1,6 @@
-import {ProcessContext} from "~/server/context/context";
 import {seedTestAccounts} from "~/server/dynamo/accounts_table";
 import {seedTestAlphaConfiguration} from "~/server/dynamo/alpha_access_table";
+import {DynamoContext} from "~/server/dynamo/dynamo_context";
 import {seedTestSpaces} from "~/server/dynamo/spaces_table";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
@@ -11,7 +11,7 @@ import {assert} from "~/shared/helpers/control/assert";
  * This seed function is idempotent. You may run it however many times you want
  * and it will keep working.
  */
-export async function seedDynamo(context: ProcessContext) {
+export async function seedDynamo(context: DynamoContext) {
     assert(process.env.NODE_ENV !== "production");
 
     await runAllPromises([

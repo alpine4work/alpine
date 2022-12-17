@@ -1,12 +1,16 @@
 import {paramCase} from "change-case";
-import {RenderedEmail, emailTemplates} from "~/server/emails/internal/email_templates";
+import {
+    EmailTemplates,
+    RenderedEmail,
+    emailTemplates,
+} from "~/server/emails/internal/email_templates";
 
 type NonEmptyArray<Value> = [Value, ...Array<Value>];
 
 const emailTemplatePreviews: {
-    [K in keyof typeof emailTemplates]: NonEmptyArray<{
+    [K in keyof EmailTemplates]: NonEmptyArray<{
         title: string;
-        props: Parameters<typeof emailTemplates[K]>[0];
+        props: Parameters<EmailTemplates[K]>[0];
     }>;
 } = {
     SignIn: [
@@ -80,7 +84,7 @@ export const emailTemplatePreviewBySlug = new Map(
             {
                 title: preview.title,
                 render: (): RenderedEmail =>
-                    emailTemplates[name as keyof typeof emailTemplates](preview.props),
+                    emailTemplates[name as keyof EmailTemplates](preview.props),
             },
         ]),
     ),

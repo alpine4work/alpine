@@ -1,4 +1,4 @@
-import {DataFunctionArgs} from "~/server/helpers/types/remix_data_function_args";
+import {DataFunctionArgs} from "~/server/helpers/types/remix_context";
 import {getNetworkFunctionImplementation} from "~/server/network/all_network_implementations";
 import {InvalidArgumentError, NotFoundError} from "~/shared/error/error";
 import {isHttp500Error} from "~/shared/error/is_http_500_error_code";

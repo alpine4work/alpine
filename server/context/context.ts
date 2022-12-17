@@ -1,119 +1,330 @@
-/**
- * We don't rely on implicit global propagation in our codebase. Instead when
- * there is context we want to pass around we use a context object. That way
- * the capabilities of what you can do at a given point in the code are made
- * clear by the types.
- *
- * We have a couple context interfaces that are implemented by actual classes.
- */
+import {ProcessContextModule} from "~/server/context/process_context_module";
+import {InternalError} from "~/shared/error/error";
+import {assert} from "~/shared/helpers/control/assert";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";
 
-import {AwsClient} from "aws4fetch";
-import {Account} from "~/server/dynamo/accounts_table";
-import {Id} from "~/shared/id/id";
+const brandSymbol = Symbol("brand");
 
 /**
- * This context provides information about the process our code is running in
- * and allows extending the lifetime of the process for code running in
- * serverless-like environments (e.g. Cloudflare Workers and Cloudflare
- * Durable Objects).
+ * The context abstraction is designed for passing shared environment
+ * capabilities deep throughout server side code.
+ *
+ * For example, logging is defined in the entrypoint for a given piece of code
+ * and propagated deeply to all code through the context abstraction.
+ *
+ * Code can use the `Modules` type parameter to declare what it depends on from
+ * the environment. A context object may contain many modules, but
+ * implementation code may only need a few. A small set of context modules is
+ * easier to test.
+ *
+ * The type of modules may also change which can be used to define different
+ * requirements for a piece of code. For example, an authentication context
+ * module may start with a "maybe authenticated" type then once authentication
+ * is challenged we create a new context with an "authenticated" context
+ * module.
+ *
+ * Finally, a context may be scoped to execution of a particular piece of code.
+ * Once the execution of that code is over, the context may be destroyed so
+ * that it's resources are not misused later.
  */
-export interface ProcessContext {
+export type Context<Modules> = {
+    readonly [Key in keyof Modules]: () => Modules[Key];
+} & {
     /**
-     * A client to use for accessing AWS resources.
+     * You can't create a context object outside of this module. So we
+     * use a private non-enumerable symbol property for branding the context
+     * object.
+     *
+     * Only the context module has access to the symbol and the symbol is not
+     * copied when cloning the object (because it's non-enumerable).
      */
-    readonly awsClient: AwsClient;
+    readonly [brandSymbol]: true;
 
     /**
-     * Don't let the process exit until this promise has completed.
+     * Clones a context with some new module initializers. The new module
+     * initializers either add to the set of modules in the context or replace an
+     * existing module of the same name.
      *
-     * Errors will be handled and attached to the execution trace.
+     * If the context we clone from is destroyed then the cloned context will
+     * also be destroyed. Cloned contexts can not outlive their parent context.
      *
-     * See the [Cloudflare documentation][1] for this method.
-     *
-     * [1]: https://developers.cloudflare.com/workers/runtime-apis/fetch-event/#waituntil
+     * You need to pass a type parameter into this function to get the correct
+     * return type. Like this: `context.clone<{ ... }>({ ... })`.
      */
-    // TODO(calebmer): Error handling! Unhandled exceptions should not crash
-    // the process.
-    waitUntil(promise: Promise<void>): void;
-}
+    clone<NewModules>(
+        moduleInitializers: ContextModuleInitializers<
+            NewModules,
+            Omit<Modules, keyof NewModules> & NewModules
+        >,
+    ): ContextWithDestroy<Omit<Modules, keyof NewModules> & NewModules>;
+
+    /**
+     * Clone the current context and make sure the clone is scoped to the provided
+     * async action. When the async action completes, the context is destroyed.
+     *
+     * Behaves the same as `context.clone()`.
+     *
+     * The context we are cloning must have a `ProcessContextModule`. Any
+     * `context.process().waitUntil()` calls will extend the lifetime of the
+     * context.
+     */
+    withClone<NewModules, Result>(
+        // Require the context we are cloning to have a `ProcessContextModule`. So we
+        // can extend the context lifetime with its task promises.
+        this: Context<Modules & {process: ProcessContextModule}>,
+        moduleInitializers: ContextModuleInitializers<
+            NewModules,
+            Omit<Modules, keyof NewModules> & NewModules
+        >,
+        action: (context: Context<Omit<Modules, keyof NewModules> & NewModules>) => Promise<Result>,
+    ): Promise<Result>;
+};
 
 /**
- * This context is constructed whenever we are running some code on behalf of a
- * client. Contains identifying information about that client.
+ * A context that can be destroyed.
  *
- * We could be running a request the client expects to return instantly, we
- * could have an open WebSocket connection to the client, or we could be
- * processing some task asynchronously for a client.
+ * We don't expect product code to destroy contexts. Instead framework level
+ * code that constructs a context object should also be responsible for
+ * destroying the context when it is done.
  */
-export interface ClientContext extends ProcessContext {
+export type ContextWithDestroy<Modules> = Context<Modules> & {
     /**
-     * The IP address of the original client which initiated this context.
-     *
-     * Even when we are many service layers deep, we expect this IP address to be
-     * the client of the original browser to call into our services.
+     * Destroys the context. Whenever you try to access a module an error will be
+     * thrown. Contexts can not be used after they are destroyed. This is how we
+     * make sure contexts don't "escape" async actions which create them.
      */
-    // TODO(calebmer): Come up with some propagation format for this info. We also
-    // probably want to record other info Cloudflare gives us like connecting
-    // country?
-    getClientIpAddress(): string | null;
-
-    /**
-     * The user agent of the original client which initiated this context.
-     *
-     * Even when we are many service layers deep, we expect this IP address to be
-     * the client of the original browser to call into our services.
-     */
-    getClientUserAgent(): string | null;
-}
+    destroy(): void;
+};
 
 /**
- * Context for a request against our services. Requests are expected to
- * complete as soon as possible and return a response.
+ * Functions that construct modules which we pass into context creation methods
+ * like `Context.new()` and `context.clone()`. These initializers are lazily
+ * invoked when the context module is requested.
  *
- * Most of the time you will be using a `RequestContext`, which is the same
- * but with information about the account accessing our service.
- *
- * Even though this is called an unauthenticated context, we don't
- * know whether the context is authenticated or not until you call
- * `isAuthenticated()` or `authenticate()`. More accurate to think of this
- * context as "possibly authenticated, possibly not".
- *
- * Implementations of this class are recommended to destroy the context once
- * the request is done. Preventing any method from being called on the
- * destroyed context.
+ * Context modules recursively have access to the context object being created
+ * so they can reference other context modules.
  */
-export interface UnauthenticatedRequestContext extends ClientContext {
+export type ContextModuleInitializers<Modules, ModulesForInitializer = Modules> = {
+    [Key in keyof Modules]: (context: Context<ModulesForInitializer>) => Modules[Key];
+};
+
+export const Context = {
     /**
-     * Tells us if the context is authenticated or not. If true then
-     * `authenticate()` should succeed. If false then `authenticate()` will throw
-     * an `UnauthenticatedError`.
+     * Create a new context object with the provided modules.
+     *
+     * You need to pass a type parameter into this function to get the correct
+     * return type. Like this: `Context.new<{ ... }>({ ... })`.
      */
-    isAuthenticated(): Promise<boolean>;
+    new<Modules>(
+        moduleInitializers: ContextModuleInitializers<Modules>,
+    ): ContextWithDestroy<Modules> {
+        const context: any = ContextImplementation.new(moduleInitializers as any);
+        return context;
+    },
 
     /**
-     * Parse this request's authentication credentials. If a request does not have
-     * authenticated credentials or the credentials are incorrect, we throw
-     * an `UnauthenticatedError`.
+     * Create a context scoped to the provided async action. When the async action
+     * completes, the context is destroyed.
+     *
+     * The context must come with a `ProcessContextModule`. Any
+     * `context.process().waitUntil()` calls will extend the lifetime of the
+     * context.
      */
-    authenticate(): Promise<RequestContext>;
-}
+    async with<Modules extends {process: ProcessContextModule}, Result>(
+        moduleInitializers: ContextModuleInitializers<Modules>,
+        action: (context: Context<Modules>) => Promise<Result>,
+    ): Promise<Result> {
+        let taskPromises: Array<Promise<void>> = [];
+
+        const context = Context.new<Modules>({
+            ...moduleInitializers,
+            process: context => {
+                const processContextModule = moduleInitializers.process(context);
+                return new ProcessContextModule({
+                    waitUntil: promise => {
+                        processContextModule.waitUntil(promise);
+
+                        // We keep track of tasks our request is waiting on since we don't want to
+                        // destroy the request context until all tasks have completed. Since the task
+                        // may reference the request context.
+                        taskPromises.push(promise);
+                    },
+                });
+            },
+        });
+
+        try {
+            const result = await action(context);
+            return result;
+        } finally {
+            // Wait for all our tasks to resolve before we can destroy our request context.
+            // The tasks may end up using the request context.
+            //
+            // We need to loop since while waiting for our tasks to finish, we may queue
+            // more tasks.
+            const loop = () => {
+                const currentTaskPromises = taskPromises;
+                taskPromises = [];
+
+                if (currentTaskPromises.length === 0) {
+                    context.destroy();
+                } else {
+                    Promise.allSettled(currentTaskPromises).finally(loop);
+                }
+            };
+
+            loop();
+        }
+    },
+};
 
 /**
- * Context for a request against our services. Requests are expected to
- * complete as soon as possible and return a response.
- *
- * See `UnauthenticatedRequestContext` for a version of this context without
- * information about the connected account.
+ * The class which implements our `Context` abstraction. This class is loosely
+ * typed. It does not know the types of modules unlike our `Context<Modules>`
+ * type. It's hard to write the actual implementation with the correct types so
+ * we cast to `any` at the typed layer.
  */
-export interface RequestContext extends UnauthenticatedRequestContext {
-    /**
-     * What is the ID of the account connected to our service? Returns the same ID
-     * as `getAccount()` but without loading the account from the database.
-     */
-    getAuthenticatedAccountId(): Id;
+// In stack traces, we want this class to be called `Context`. But that
+// conflicts with our existing `Context` type and object. So we alias the class
+// to `ContextImplementation` to avoid a name collision at the module level.
+const ContextImplementation = class Context {
+    public static new(moduleInitializers: {[key: string]: (context: Context) => unknown}): Context {
+        const moduleKeys = Object.keys(moduleInitializers);
+        const newContext: any = new Context(null, moduleKeys);
 
-    /**
-     * Returns the account connected to our service.
-     */
-    getAuthenticatedAccount(): Promise<Account>;
-}
+        for (const key of moduleKeys) {
+            assert(!(key in newContext));
+
+            const moduleInitializer = moduleInitializers[key]!;
+            let module: unknown;
+
+            // Using `function` instead of an arrow function is important here! If
+            // this function is copied onto a context clone then we want to use the
+            // `_isDestroyed` flag from that clone.
+            //
+            // Using `newContext` when initializing instead of `this` is also important.
+            // When the module was initialized, we want to initialize it with the set of
+            // modules in the context the initializer was defined.
+            newContext[key] = function (this: Context) {
+                if (this._isDestroyed) throw new InternalError("Context was destroyed");
+
+                if (module === undefined) {
+                    module = moduleInitializer(newContext);
+                    assert(module !== undefined);
+                }
+
+                return module;
+            };
+        }
+
+        return newContext;
+    }
+
+    private readonly [brandSymbol] = true;
+    private _isDestroyed = false;
+    private readonly _childContexts = new Set<Context>();
+
+    private constructor(
+        private readonly _parentContext: Context | null,
+        private readonly _moduleKeys: ReadonlyArray<string>,
+    ) {}
+
+    public destroy() {
+        if (this._isDestroyed) throw new InternalError("Context was already destroyed");
+        this._isDestroyed = true;
+
+        // Destroy all our child contexts. Remove ourselves from our parent context so
+        // the parent context won't destroy us when it's destroyed.
+        this._parentContext?._childContexts.delete(this);
+        for (const childContext of this._childContexts) childContext.destroy();
+    }
+
+    public clone(moduleInitializers: {[key: string]: (context: Context) => unknown}): Context {
+        const moduleKeys = Object.keys(moduleInitializers);
+        const oldContext: any = this;
+        const newContext: any = new Context(oldContext, moduleKeys);
+
+        for (const key of moduleKeys) {
+            assert(!(key in newContext));
+
+            const moduleInitializer = moduleInitializers[key]!;
+            let module: unknown;
+
+            // Using `function` instead of an arrow function is important here! If
+            // this function is copied onto a context clone then we want to use the
+            // `_isDestroyed` flag from that clone.
+            //
+            // Using `newContext` when initializing instead of `this` is also important.
+            // When the module was initialized, we want to initialize it with the set of
+            // modules in the context the initializer was defined.
+            newContext[key] = function (this: Context) {
+                if (this._isDestroyed) throw new InternalError("Context was destroyed");
+
+                if (module === undefined) {
+                    module = moduleInitializer(newContext);
+                    assert(module !== undefined);
+                }
+
+                return module;
+            };
+        }
+
+        // Copy over modules that were not updated in the clone.
+        for (const key of this._moduleKeys) {
+            if (hasOwnProperty(moduleInitializers, key)) continue;
+
+            moduleKeys.push(key);
+            newContext[key] = oldContext[key];
+        }
+
+        this._childContexts.add(newContext);
+        return newContext;
+    }
+
+    public async withClone<Result>(
+        moduleInitializers: {[key: string]: (context: Context) => unknown},
+        action: (context: Context) => Promise<Result>,
+    ): Promise<Result> {
+        let taskPromises: Array<Promise<void>> = [];
+
+        const newContext = this.clone({
+            ...moduleInitializers,
+            process: context => {
+                const processContextModule: ProcessContextModule = (context as any).process();
+                return new ProcessContextModule({
+                    waitUntil: promise => {
+                        processContextModule.waitUntil(promise);
+
+                        // We keep track of tasks our request is waiting on since we don't want to
+                        // destroy the request context until all tasks have completed. Since the task
+                        // may reference the request context.
+                        taskPromises.push(promise);
+                    },
+                });
+            },
+        });
+
+        try {
+            const result = await action(newContext);
+            return result;
+        } finally {
+            // Wait for all our tasks to resolve before we can destroy our request context.
+            // The tasks may end up using the request context.
+            //
+            // We need to loop since while waiting for our tasks to finish, we may queue
+            // more tasks.
+            const loop = () => {
+                const currentTaskPromises = taskPromises;
+                taskPromises = [];
+
+                if (currentTaskPromises.length === 0) {
+                    newContext.destroy();
+                } else {
+                    Promise.allSettled(currentTaskPromises).finally(loop);
+                }
+            };
+
+            loop();
+        }
+    }
+};

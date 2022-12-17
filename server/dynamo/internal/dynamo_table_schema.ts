@@ -1,4 +1,4 @@
-import {ProcessContext} from "~/server/context/context";
+import {DynamoContext} from "~/server/dynamo/dynamo_context";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
 import {DynamoReadConsistency, dynamoClient} from "~/server/dynamo/internal/dynamo_client";
 import {
@@ -277,7 +277,7 @@ export class DynamoTableSchema<
      * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
      */
     public async getItem<Key extends Types["Key"]>(
-        context: ProcessContext,
+        context: DynamoContext,
         key: Key,
         {consistency}: {consistency?: DynamoReadConsistency} = {},
     ): Promise<MergeObjectIntersection<Types["Item"] & Key> | null> {
@@ -322,7 +322,7 @@ export class DynamoTableSchema<
         // of `keyof` that works for us. See `KeyofImplementedWithConditionalType`.
         Attributes extends string & KeyofImplementedWithConditionalType<Types["Item"] & Key>,
     >(
-        context: ProcessContext,
+        context: DynamoContext,
         key: Key,
         {
             attributes,
@@ -402,7 +402,7 @@ export class DynamoTableSchema<
      * [3]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
      */
     public async putItem<Item extends Types["Item"]>(
-        context: ProcessContext,
+        context: DynamoContext,
         item: Item,
         {
             condition,
@@ -461,7 +461,7 @@ export class DynamoTableSchema<
      * [3]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
      */
     public deleteItem<Key extends Types["Key"]>(
-        context: ProcessContext,
+        context: DynamoContext,
         key: Key,
         {
             condition,
@@ -506,7 +506,7 @@ export class DynamoTableSchema<
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
      */
     public static async executeTransaction(
-        context: ProcessContext,
+        context: DynamoContext,
         entries: ReadonlyArray<DynamoTransactionEntry>,
         options?: {clientRequestToken?: string},
     ): Promise<void> {
@@ -656,7 +656,7 @@ export class DynamoTableSchema<
         StartKey extends Types["Key"] & PartitionKey,
         EndKey extends Types["Key"] & PartitionKey,
     >(
-        context: ProcessContext,
+        context: DynamoContext,
         {
             startKey,
             endKey,
@@ -739,7 +739,7 @@ export class DynamoTableSchema<
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Query.html
      */
     public queryEntirePartition<PartitionKey extends Types["PartitionKey"]>(
-        context: ProcessContext,
+        context: DynamoContext,
         {
             partitionKey,
             limit,

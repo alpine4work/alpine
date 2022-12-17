@@ -1,11 +1,15 @@
 import {AppLoadContext} from "@remix-run/cloudflare";
 import {createRequestHandler, handleAsset} from "@remix-run/cloudflare-workers";
 import * as build from "@remix-run/dev/server-build";
-import {AwsClient} from "aws4fetch";
 import {SignJWT} from "jose";
-import {AppWorkerUnauthenticatedRequestContext} from "~/server/context/app_worker_context";
+import {UnauthenticatedAuthContextModule} from "~/server/context/auth_context_module";
+import {AwsContextModule} from "~/server/context/aws_context_module";
+import {Context} from "~/server/context/context";
 import {createAwsClientFromEnv} from "~/server/context/helpers/create_aws_client_from_env";
 import {unauthenticatedSessionError} from "~/server/context/helpers/unauthenticated_session_error";
+import {ProcessContextModule} from "~/server/context/process_context_module";
+import {Session} from "~/server/dynamo/accounts_table";
+import {RemixContext, RemixContextModules} from "~/server/helpers/types/remix_context";
 import {SessionCookieStorage} from "~/server/session/session_cookie";
 import {InternalError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -24,7 +28,7 @@ const contextSymbol = Symbol("context");
 
 const handleRequest = createRequestHandler({
     build,
-    getLoadContext(event: FetchEvent & {[contextSymbol]?: AppWorkerUnauthenticatedRequestContext}) {
+    getLoadContext(event: FetchEvent & {[contextSymbol]?: RemixContext}) {
         const context = assertExists(event[contextSymbol]);
         return context as any as AppLoadContext;
     },
@@ -35,7 +39,7 @@ let sharedResources: {
     env: AppWorkerEnv;
     sessionCookieSecret: string;
     sessionCookieStorage: SessionCookieStorage;
-    awsClient: AwsClient;
+    awsContextModule: AwsContextModule;
 } | null = null;
 
 // See: https://github.com/cloudflare/wrangler/pull/2126
@@ -44,120 +48,147 @@ const staticContentManifestPromise =
         ? import("__STATIC_CONTENT_MANIFEST").then(manifestJson => JSON.parse(manifestJson.default))
         : null;
 
-export default {
-    async fetch(
-        request: Request,
-        env: AppWorkerEnv,
-        executionContext: ExecutionContext,
-    ): Promise<Response> {
-        // An env object that is referentially equal will be passed in as long as
-        // environment variables remain the same.
-        // https://developers.cloudflare.com/workers/runtime-apis/fetch-event/#parameters
-        if (sharedResources === null || sharedResources.env !== env) {
-            const sessionCookieSecret =
-                env.SESSION_COOKIE_SECRET ??
-                (process.env.NODE_ENV !== "production" ? "secret" : null);
-            if (!sessionCookieSecret)
-                throw new InternalError(
-                    "Environment variable `SESSION_COOKIE_SECRET` must be set in production",
-                );
+async function fetch(
+    request: Request,
+    env: AppWorkerEnv,
+    executionContext: ExecutionContext,
+): Promise<Response> {
+    // An env object that is referentially equal will be passed in as long as
+    // environment variables remain the same.
+    // https://developers.cloudflare.com/workers/runtime-apis/fetch-event/#parameters
+    if (sharedResources === null || sharedResources.env !== env) {
+        const sessionCookieSecret =
+            env.SESSION_COOKIE_SECRET ?? (process.env.NODE_ENV !== "production" ? "secret" : null);
+        if (!sessionCookieSecret)
+            throw new InternalError(
+                "Environment variable `SESSION_COOKIE_SECRET` must be set in production",
+            );
 
-            const sessionCookieStorage = new SessionCookieStorage({
-                // The session cookie domain is not set in development because we may be
-                // accessing from a proxied domain or an IP address on a mobile device.
-                domain: process.env.NODE_ENV === "production" ? "cyberworlds.dev" : null,
-                secret: sessionCookieSecret,
-            });
+        const sessionCookieStorage = new SessionCookieStorage({
+            // The session cookie domain is not set in development because we may be
+            // accessing from a proxied domain or an IP address on a mobile device.
+            domain: process.env.NODE_ENV === "production" ? "cyberworlds.dev" : null,
+            secret: sessionCookieSecret,
+        });
 
-            const awsClient = createAwsClientFromEnv(env);
+        const awsClient = createAwsClientFromEnv(env);
+        const awsContextModule = new AwsContextModule(awsClient);
 
-            sharedResources = {
-                env,
-                sessionCookieSecret,
-                sessionCookieStorage,
-                awsClient,
-            };
-        }
+        sharedResources = {
+            env,
+            sessionCookieSecret,
+            sessionCookieStorage,
+            awsContextModule,
+        };
+    }
 
-        const url = new URL(request.url);
+    const resources = sharedResources;
 
-        // Backwards compatibility with Cloudflare service worker syntax. (Instead of
-        // Cloudflare module syntax.)
-        // https://developers.cloudflare.com/workers/runtime-apis/fetch-event
-        const event: FetchEvent & {[contextSymbol]?: AppWorkerUnauthenticatedRequestContext} =
-            Object.assign(new Event("fetch"), {
-                request,
-                waitUntil: (promise: Promise<any>) => executionContext.waitUntil(promise),
-                passThroughOnException: () => executionContext.passThroughOnException(),
-                respondWith: () => {
-                    throw new InternalError("Can not respond through fetch event stub");
-                },
-            });
+    const url = new URL(request.url);
 
-        // In development we have middleware on our HTTP server that serves static
-        // files from the file system instead of a Cloudflare KV namespace.
-        if (process.env.NODE_ENV === "production") {
-            const response = await handleAsset(event, build, {
-                ASSET_NAMESPACE: env.__STATIC_CONTENT,
-                ASSET_MANIFEST: await staticContentManifestPromise,
-            });
-            if (response) return response;
-        }
+    // Backwards compatibility with Cloudflare service worker syntax. (Instead of
+    // Cloudflare module syntax.)
+    // https://developers.cloudflare.com/workers/runtime-apis/fetch-event
+    const event: FetchEvent & {[contextSymbol]?: RemixContext} = Object.assign(new Event("fetch"), {
+        request,
+        waitUntil: (promise: Promise<any>) => executionContext.waitUntil(promise),
+        passThroughOnException: () => executionContext.passThroughOnException(),
+        respondWith: () => {
+            throw new InternalError("Can not respond through fetch event stub");
+        },
+    });
 
-        if (url.pathname.startsWith("/durable-objects/")) {
-            const path = url.pathname.slice("/durable-objects/".length).split("/");
-            switch (path[0]) {
-                case "documents": {
-                    const documentId = Schema.id.deserialize(path[1] ?? null);
+    // In development we have middleware on our HTTP server that serves static
+    // files from the file system instead of a Cloudflare KV namespace.
+    if (process.env.NODE_ENV === "production") {
+        const response = await handleAsset(event, build, {
+            ASSET_NAMESPACE: env.__STATIC_CONTENT,
+            ASSET_MANIFEST: await staticContentManifestPromise,
+        });
+        if (response) return response;
+    }
 
-                    const durableObjectId =
-                        env.DocumentCollaborationDurableObjectNamespace.idFromName(documentId);
-                    const durableObjectStub =
-                        env.DocumentCollaborationDurableObjectNamespace.get(durableObjectId);
+    if (url.pathname.startsWith("/durable-objects/")) {
+        const path = url.pathname.slice("/durable-objects/".length).split("/");
+        switch (path[0]) {
+            case "documents": {
+                const documentId = Schema.id.deserialize(path[1] ?? null);
 
-                    const newUrl = new URL(event.request.url);
-                    newUrl.pathname = `/${path.slice(2).join("/")}`;
-                    const newRequest = new Request(newUrl.toString(), event.request);
-                    newRequest.headers.set("x-document-id", documentId);
+                const durableObjectId =
+                    env.DocumentCollaborationDurableObjectNamespace.idFromName(documentId);
+                const durableObjectStub =
+                    env.DocumentCollaborationDurableObjectNamespace.get(durableObjectId);
 
-                    const sessionCookie = await sharedResources.sessionCookieStorage.get(request);
-                    if (!sessionCookie.sessionId) throw unauthenticatedSessionError();
+                const newUrl = new URL(event.request.url);
+                newUrl.pathname = `/${path.slice(2).join("/")}`;
+                const newRequest = new Request(newUrl.toString(), event.request);
+                newRequest.headers.set("x-document-id", documentId);
 
-                    // Create a short-lived JWT for sharing the `sessionId` with the durable object.
-                    //
-                    // We use a JWT to ensure that it's our app worker sending the `sessionId`. If
-                    // an attacker got access to the Durable Object URL then they could send a
-                    // request with whatever `sessionId` they have access to! Using a signed JWT
-                    // prevents that.
-                    const authenticationToken = await new SignJWT({
-                        sessionId: sessionCookie.sessionId,
-                    })
-                        .setProtectedHeader({alg: "HS256"})
-                        .setIssuedAt()
-                        .setExpirationTime("2m")
-                        .sign(new TextEncoder().encode(sharedResources.sessionCookieSecret));
+                const sessionCookie = await resources.sessionCookieStorage.get(request);
+                if (!sessionCookie.sessionId) throw unauthenticatedSessionError();
 
-                    newRequest.headers.set("authorization", `bearer ${authenticationToken}`);
+                // Create a short-lived JWT for sharing the `sessionId` with the durable object.
+                //
+                // We use a JWT to ensure that it's our app worker sending the `sessionId`. If
+                // an attacker got access to the Durable Object URL then they could send a
+                // request with whatever `sessionId` they have access to! Using a signed JWT
+                // prevents that.
+                const authenticationToken = await new SignJWT({
+                    sessionId: sessionCookie.sessionId,
+                })
+                    .setProtectedHeader({alg: "HS256"})
+                    .setIssuedAt()
+                    .setExpirationTime("2m")
+                    .sign(new TextEncoder().encode(resources.sessionCookieSecret));
 
-                    return durableObjectStub.fetch(newRequest);
-                }
-                default:
-                    return new Response("Durable object not found", {status: 404});
+                newRequest.headers.set("authorization", `bearer ${authenticationToken}`);
+
+                return durableObjectStub.fetch(newRequest);
             }
+            default:
+                return new Response("Durable object not found", {status: 404});
         }
+    }
 
-        return AppWorkerUnauthenticatedRequestContext.run(
-            executionContext,
-            sharedResources.sessionCookieStorage,
-            sharedResources.awsClient,
-            request,
-            context => {
+    return resources.sessionCookieStorage.with(request, sessionCookiePromise => {
+        return Context.with<RemixContextModules, Response>(
+            {
+                aws: () => resources.awsContextModule,
+                sessionCookie: () => sessionCookiePromise,
+
+                process: () =>
+                    new ProcessContextModule({
+                        waitUntil: promise => executionContext.waitUntil(promise),
+                    }),
+
+                auth: context =>
+                    new UnauthenticatedAuthContextModule(context, async () => {
+                        const sessionCookie = await sessionCookiePromise;
+
+                        const {sessionId} = sessionCookie.get();
+                        if (!sessionId) return null;
+
+                        const session = await Session.get(context, sessionId);
+                        if (!session) {
+                            // If the session was deleted since we stored the session in our cookie, remove
+                            // the session from the cookie.
+                            sessionCookie.unsetSessionId();
+                            return null;
+                        }
+
+                        return session;
+                    }),
+            },
+            async context => {
                 event[contextSymbol] = context;
-                return handleRequest(event);
+                const response = await handleRequest(event);
+                return response;
             },
         );
-    },
-};
+    });
+}
+
+export default {fetch};
 
 // Export the durable object so Cloudflare can pick it up. in the future, we
 // should maybe use separate bundles for each durable object.

@@ -1,9 +1,8 @@
 import {useLoaderData} from "@remix-run/react";
 import {useMemo} from "react";
 import {assert} from "~/shared/helpers/control/assert";
+import {deserializedValueSymbol} from "~/shared/helpers/remix/use_loader_data_with_schema_shared";
 import {Schema} from "~/shared/schema/schema";
-
-export const deserializedValueSymbol = Symbol("deserializedValue");
 
 /**
  * Returns the data from our loader after deserializing with a schema.

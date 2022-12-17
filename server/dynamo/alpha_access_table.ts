@@ -1,10 +1,11 @@
 import {compareAsc as compareDatesAsc} from "date-fns";
-import {ProcessContext, RequestContext} from "~/server/context/context";
+import {RequestContext} from "~/server/context/request_context";
 import {
     authorizeAccountHasInternalAccess,
     checkAccountEmailAddressDoesNotExistTransactionEntry,
     createAccountForAlphaTransactionEntries,
 } from "~/server/dynamo/accounts_table";
+import {DynamoContext} from "~/server/dynamo/dynamo_context";
 import {DynamoConditionExpression} from "~/server/dynamo/internal/dynamo_condition";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
@@ -92,7 +93,7 @@ const AlphaAccessTable = DynamoTableSchema.new({
     },
 });
 
-export async function seedTestAlphaConfiguration(context: ProcessContext) {
+export async function seedTestAlphaConfiguration(context: DynamoContext) {
     assert(process.env.NODE_ENV !== "production");
     const {defaultSpaceId} = getSeedConstants();
 
@@ -119,7 +120,7 @@ export async function seedTestAlphaConfiguration(context: ProcessContext) {
  * Can not request alpha access twice for the same email address.
  */
 export async function requestAlphaAccess(
-    context: ProcessContext,
+    context: DynamoContext,
     {
         name,
         emailAddress,
@@ -273,7 +274,7 @@ export async function approveAlphaAccessRequest(
                 lockVersion: requestItem.lockVersion + 1,
                 decision: {
                     type: "Approved",
-                    approvedByAccountId: context.getAuthenticatedAccountId(),
+                    approvedByAccountId: context.auth().getAccountId(),
                     accountId,
                 },
             },
@@ -325,7 +326,7 @@ export async function denyAlphaAccessRequest(context: RequestContext, emailAddre
             lockVersion: requestItem.lockVersion + 1,
             decision: {
                 type: "Denied",
-                deniedByAccountId: context.getAuthenticatedAccountId(),
+                deniedByAccountId: context.auth().getAccountId(),
             },
         },
         {
@@ -336,7 +337,7 @@ export async function denyAlphaAccessRequest(context: RequestContext, emailAddre
     );
 }
 
-export async function getAlphaConfiguration(context: ProcessContext): Promise<AlphaConfiguration> {
+export async function getAlphaConfiguration(context: DynamoContext): Promise<AlphaConfiguration> {
     const configuration = await AlphaAccessTable.getItem(context, {
         partitionType: "AlphaConfiguration",
         sortRangeType: "Configuration",

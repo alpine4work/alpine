@@ -1,5 +1,6 @@
 import {subHours} from "date-fns";
-import {TestProcessContext} from "~/server/context/test_context";
+import {AwsContextModule} from "~/server/context/aws_context_module";
+import {Context} from "~/server/context/context";
 import {
     attemptOneTimePasswordSignIn,
     captureOneTimePasswordSignInEmailsForTest,
@@ -7,14 +8,18 @@ import {
     getAccountsTableForTest,
     regenerateOneTimePasswordSignIn,
 } from "~/server/dynamo/accounts_table";
+import {DynamoContext} from "~/server/dynamo/dynamo_context";
 import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
+import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address";
 import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {Id, generateId} from "~/shared/id/id";
 
 jest.setTimeout(10 * 1000);
 
-const context = new TestProcessContext();
+const context: DynamoContext = Context.new({
+    aws: () => AwsContextModule.test(),
+});
 
 const AccountsTable = getAccountsTableForTest();
 
@@ -22,7 +27,7 @@ async function createTestAccount({
     isEmailAddressVerified = false,
 }: {isEmailAddressVerified?: boolean} = {}) {
     const accountId = generateId();
-    const emailAddress = `test@${accountId}.test.cyberworlds.dev`;
+    const emailAddress = await validateEmailAddress(`test@${accountId}.test.cyberworlds.dev`);
 
     await DynamoTableSchema.executeTransaction(context, [
         AccountsTable.transactionPutItem({
@@ -48,7 +53,7 @@ async function createTestAccount({
     };
 }
 
-async function getAccountEmailAddressItemForExpect(account: {id: Id; emailAddress: string}) {
+async function getAccountEmailAddressItemForExpect(account: {id: Id; emailAddress: EmailAddress}) {
     const accountEmailAddressItem = await AccountsTable.getItem(context, {
         partitionType: "AccountEmailAddress",
         sortRangeType: "Attributes",
@@ -66,7 +71,7 @@ async function getAccountEmailAddressItemForExpect(account: {id: Id; emailAddres
     };
 }
 
-async function rewindOneTimePasswordSignInStateTime(emailAddress: string, hours: number) {
+async function rewindOneTimePasswordSignInStateTime(emailAddress: EmailAddress, hours: number) {
     const accountEmailAddressItem = await AccountsTable.getItem(context, {
         partitionType: "AccountEmailAddress",
         sortRangeType: "Attributes",
@@ -102,6 +107,11 @@ async function rewindOneTimePasswordSignInStateTime(emailAddress: string, hours:
     );
 }
 
+const sessionInfo = {
+    ipAddress: null,
+    userAgent: null,
+};
+
 test("generates a one time password login hash", async () => {
     const account = await createTestAccount();
 
@@ -111,7 +121,7 @@ test("generates a one time password login hash", async () => {
     });
 
     const oneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await regenerateOneTimePasswordSignIn(account.emailAddress);
+        await regenerateOneTimePasswordSignIn(context, account.emailAddress);
     });
 
     expect(await getAccountEmailAddressItemForExpect(account)).toEqual({
@@ -124,7 +134,7 @@ test("regenerates the one time password login hash even if there was one already
     const account = await createTestAccount();
 
     const oneTimePasswordEmails1 = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await regenerateOneTimePasswordSignIn(account.emailAddress);
+        await regenerateOneTimePasswordSignIn(context, account.emailAddress);
     });
 
     expect(await getAccountEmailAddressItemForExpect(account)).toEqual({
@@ -133,7 +143,7 @@ test("regenerates the one time password login hash even if there was one already
     });
 
     const oneTimePasswordEmails2 = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await regenerateOneTimePasswordSignIn(account.emailAddress);
+        await regenerateOneTimePasswordSignIn(context, account.emailAddress);
     });
 
     expect(await getAccountEmailAddressItemForExpect(account)).toEqual({
@@ -146,17 +156,17 @@ test("attempted login fails when account has no password", async () => {
     const account = await createTestAccount();
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXXX"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXXX", sessionInfo),
     ).rejects.toThrow(new FailedPreconditionError("Missing one time password"));
 });
 
 test("attempted login with wrong password fails when account has password", async () => {
     const account = await createTestAccount();
 
-    await regenerateOneTimePasswordSignIn(account.emailAddress);
+    await regenerateOneTimePasswordSignIn(context, account.emailAddress);
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXXX"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXXX", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 });
 
@@ -164,20 +174,20 @@ test("attempted login with correct password succeeds", async () => {
     const account = await createTestAccount();
 
     const oneTimePasswordLoginEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await regenerateOneTimePasswordSignIn(account.emailAddress);
+        await regenerateOneTimePasswordSignIn(context, account.emailAddress);
     });
 
     expect(oneTimePasswordLoginEmails.length).toEqual(1);
     const oneTimePassword = oneTimePasswordLoginEmails[0]!.oneTimePassword;
 
-    await attemptOneTimePasswordSignIn(context.request(), account.emailAddress, oneTimePassword);
+    await attemptOneTimePasswordSignIn(context, account.emailAddress, oneTimePassword, sessionInfo);
 });
 
 test("attempted correct password expires after a short window of time", async () => {
     const account = await createTestAccount();
 
     const oneTimePasswordLoginEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await regenerateOneTimePasswordSignIn(account.emailAddress);
+        await regenerateOneTimePasswordSignIn(context, account.emailAddress);
     });
 
     expect(oneTimePasswordLoginEmails.length).toEqual(1);
@@ -186,7 +196,7 @@ test("attempted correct password expires after a short window of time", async ()
     await rewindOneTimePasswordSignInStateTime(account.emailAddress, 2);
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, oneTimePassword),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, oneTimePassword, sessionInfo),
     ).rejects.toThrow(new FailedPreconditionError("Missing one time password"));
 });
 
@@ -194,46 +204,46 @@ test("attempted login with old correct password fails", async () => {
     const account = await createTestAccount();
 
     const oneTimePasswordLoginEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await regenerateOneTimePasswordSignIn(account.emailAddress);
+        await regenerateOneTimePasswordSignIn(context, account.emailAddress);
     });
 
     expect(oneTimePasswordLoginEmails.length).toEqual(1);
     const oneTimePassword = oneTimePasswordLoginEmails[0]!.oneTimePassword;
 
-    await regenerateOneTimePasswordSignIn(account.emailAddress);
+    await regenerateOneTimePasswordSignIn(context, account.emailAddress);
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, oneTimePassword),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, oneTimePassword, sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 });
 
 test("multiple incorrect password logins will lock the account", async () => {
     const account = await createTestAccount();
 
-    await regenerateOneTimePasswordSignIn(account.emailAddress);
+    await regenerateOneTimePasswordSignIn(context, account.emailAddress);
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX1"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX1", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX2"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX2", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX3"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX3", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX4"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX4", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX5"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX5", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX6"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX6", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Account email address is locked"));
 });
 
@@ -241,38 +251,38 @@ test("multiple incorrect password logins will lock the account and even a correc
     const account = await createTestAccount();
 
     const oneTimePasswordLoginEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await regenerateOneTimePasswordSignIn(account.emailAddress);
+        await regenerateOneTimePasswordSignIn(context, account.emailAddress);
     });
 
     expect(oneTimePasswordLoginEmails.length).toEqual(1);
     const oneTimePassword = oneTimePasswordLoginEmails[0]!.oneTimePassword;
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX1"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX1", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX2"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX2", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX3"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX3", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX4"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX4", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX5"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX5", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX6"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX6", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Account email address is locked"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, oneTimePassword),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, oneTimePassword, sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Account email address is locked"));
 });
 
@@ -280,46 +290,46 @@ test("correct password can not be used to login twice", async () => {
     const account = await createTestAccount();
 
     const oneTimePasswordLoginEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await regenerateOneTimePasswordSignIn(account.emailAddress);
+        await regenerateOneTimePasswordSignIn(context, account.emailAddress);
     });
 
     expect(oneTimePasswordLoginEmails.length).toEqual(1);
     const oneTimePassword = oneTimePasswordLoginEmails[0]!.oneTimePassword;
 
-    await attemptOneTimePasswordSignIn(context.request(), account.emailAddress, oneTimePassword);
+    await attemptOneTimePasswordSignIn(context, account.emailAddress, oneTimePassword, sessionInfo);
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, oneTimePassword),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, oneTimePassword, sessionInfo),
     ).rejects.toThrow(new FailedPreconditionError("Missing one time password"));
 });
 
 test("null last failed login attempt time continues to keep the account locked", async () => {
     const account = await createTestAccount();
 
-    await regenerateOneTimePasswordSignIn(account.emailAddress);
+    await regenerateOneTimePasswordSignIn(context, account.emailAddress);
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX1"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX1", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX2"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX2", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX3"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX3", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX4"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX4", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX5"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX5", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX6"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX6", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Account email address is locked"));
 
     {
@@ -349,53 +359,53 @@ test("null last failed login attempt time continues to keep the account locked",
     }
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX7"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX7", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Account email address is locked"));
 });
 
 test("last failed login attempt time more than 24 hours in the past will allow more attempts to unlock the account", async () => {
     const account = await createTestAccount();
 
-    await regenerateOneTimePasswordSignIn(account.emailAddress);
+    await regenerateOneTimePasswordSignIn(context, account.emailAddress);
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX1"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX1", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX2"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX2", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX3"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX3", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX4"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX4", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX5"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX5", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX6"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX6", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Account email address is locked"));
 
     await rewindOneTimePasswordSignInStateTime(account.emailAddress, 25);
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX7"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX7", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Missing one time password"));
 
-    await regenerateOneTimePasswordSignIn(account.emailAddress);
+    await regenerateOneTimePasswordSignIn(context, account.emailAddress);
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX8"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX8", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX9"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX9", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 });
 
@@ -403,133 +413,133 @@ test("last failed login attempt time more than 24 hours in the past will not all
     const account = await createTestAccount();
 
     const oneTimePasswordLoginEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await regenerateOneTimePasswordSignIn(account.emailAddress);
+        await regenerateOneTimePasswordSignIn(context, account.emailAddress);
     });
 
     expect(oneTimePasswordLoginEmails.length).toEqual(1);
     const oneTimePassword = oneTimePasswordLoginEmails[0]!.oneTimePassword;
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX1"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX1", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX2"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX2", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX3"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX3", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX4"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX4", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX5"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX5", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX6"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX6", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Account email address is locked"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, oneTimePassword),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, oneTimePassword, sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Account email address is locked"));
 
     await rewindOneTimePasswordSignInStateTime(account.emailAddress, 25);
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, oneTimePassword),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, oneTimePassword, sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Missing one time password"));
 
-    await regenerateOneTimePasswordSignIn(account.emailAddress);
+    await regenerateOneTimePasswordSignIn(context, account.emailAddress);
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, oneTimePassword),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, oneTimePassword, sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 });
 
 test("last failed login attempt time more than 24 hours in the past will allow unlocking the account with a new generated password", async () => {
     const account = await createTestAccount();
 
-    await regenerateOneTimePasswordSignIn(account.emailAddress);
+    await regenerateOneTimePasswordSignIn(context, account.emailAddress);
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX1"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX1", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX2"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX2", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX3"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX3", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX4"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX4", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX5"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX5", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX6"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX6", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Account email address is locked"));
 
     await rewindOneTimePasswordSignInStateTime(account.emailAddress, 25);
 
     const oneTimePasswordLoginEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await regenerateOneTimePasswordSignIn(account.emailAddress);
+        await regenerateOneTimePasswordSignIn(context, account.emailAddress);
     });
 
     expect(oneTimePasswordLoginEmails.length).toEqual(1);
     const oneTimePassword = oneTimePasswordLoginEmails[0]!.oneTimePassword;
 
-    await attemptOneTimePasswordSignIn(context.request(), account.emailAddress, oneTimePassword);
+    await attemptOneTimePasswordSignIn(context, account.emailAddress, oneTimePassword, sessionInfo);
 });
 
 test("last failed login attempt time less than 24 hours in the past will keep the account locked", async () => {
     const account = await createTestAccount();
 
-    await regenerateOneTimePasswordSignIn(account.emailAddress);
+    await regenerateOneTimePasswordSignIn(context, account.emailAddress);
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX1"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX1", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX2"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX2", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX3"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX3", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX4"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX4", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX5"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX5", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX6"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX6", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Account email address is locked"));
 
     await rewindOneTimePasswordSignInStateTime(account.emailAddress, 23);
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX7"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX7", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Account email address is locked"));
 
     const oneTimePasswordLoginEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await expect(regenerateOneTimePasswordSignIn(account.emailAddress)).rejects.toThrow(
-            new PermissionDeniedError("Account email address is locked"),
-        );
+        await expect(
+            regenerateOneTimePasswordSignIn(context, account.emailAddress),
+        ).rejects.toThrow(new PermissionDeniedError("Account email address is locked"));
     });
 
     expect(oneTimePasswordLoginEmails.length).toEqual(0);
@@ -538,36 +548,36 @@ test("last failed login attempt time less than 24 hours in the past will keep th
 test("regenerating one time password does not unlock an account", async () => {
     const account = await createTestAccount();
 
-    await regenerateOneTimePasswordSignIn(account.emailAddress);
+    await regenerateOneTimePasswordSignIn(context, account.emailAddress);
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX1"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX1", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX2"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX2", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX3"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX3", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX4"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX4", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX5"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX5", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX6"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX6", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Account email address is locked"));
 
     const oneTimePasswordLoginEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await expect(regenerateOneTimePasswordSignIn(account.emailAddress)).rejects.toThrow(
-            new PermissionDeniedError("Account email address is locked"),
-        );
+        await expect(
+            regenerateOneTimePasswordSignIn(context, account.emailAddress),
+        ).rejects.toThrow(new PermissionDeniedError("Account email address is locked"));
     });
 
     expect(oneTimePasswordLoginEmails.length).toEqual(0);
@@ -576,32 +586,32 @@ test("regenerating one time password does not unlock an account", async () => {
 test("regenerating one time password does not reset the login attempt counter", async () => {
     const account = await createTestAccount();
 
-    await regenerateOneTimePasswordSignIn(account.emailAddress);
+    await regenerateOneTimePasswordSignIn(context, account.emailAddress);
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX1"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX1", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX2"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX2", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX3"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX3", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
-    await regenerateOneTimePasswordSignIn(account.emailAddress);
+    await regenerateOneTimePasswordSignIn(context, account.emailAddress);
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX4"),
-    ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
-
-    await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX5"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX4", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX6"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX5", sessionInfo),
+    ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
+
+    await expect(
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX6", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Account email address is locked"));
 });
 
@@ -609,29 +619,29 @@ test("can not concurrently brute force login attempts", async () => {
     const account = await createTestAccount();
 
     const oneTimePasswordLoginEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await regenerateOneTimePasswordSignIn(account.emailAddress);
+        await regenerateOneTimePasswordSignIn(context, account.emailAddress);
     });
 
     expect(oneTimePasswordLoginEmails.length).toEqual(1);
     const oneTimePassword = oneTimePasswordLoginEmails[0]!.oneTimePassword;
 
     const results = await Promise.allSettled([
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXX01"),
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXX02"),
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXX03"),
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXX04"),
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXX05"),
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXX06"),
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXX07"),
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXX08"),
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXX09"),
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXX10"),
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXX11"),
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXX12"),
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXX13"),
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXX14"),
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXX15"),
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXX16"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXX01", sessionInfo),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXX02", sessionInfo),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXX03", sessionInfo),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXX04", sessionInfo),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXX05", sessionInfo),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXX06", sessionInfo),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXX07", sessionInfo),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXX08", sessionInfo),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXX09", sessionInfo),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXX10", sessionInfo),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXX11", sessionInfo),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXX12", sessionInfo),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXX13", sessionInfo),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXX14", sessionInfo),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXX15", sessionInfo),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXX16", sessionInfo),
     ]);
 
     expect(
@@ -661,14 +671,14 @@ test("can not concurrently brute force login attempts", async () => {
     ]);
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, oneTimePassword),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, oneTimePassword, sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Account email address is locked"));
 });
 
 test("attempted login with incorrect password does not verify account email address", async () => {
     const account = await createTestAccount();
 
-    await regenerateOneTimePasswordSignIn(account.emailAddress);
+    await regenerateOneTimePasswordSignIn(context, account.emailAddress);
 
     expect(await getAccountEmailAddressItemForExpect(account)).toEqual({
         isVerified: false,
@@ -676,7 +686,7 @@ test("attempted login with incorrect password does not verify account email addr
     });
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXXX"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXXX", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     expect(await getAccountEmailAddressItemForExpect(account)).toEqual({
@@ -689,7 +699,7 @@ test("login with correct password verifies account email address", async () => {
     const account = await createTestAccount();
 
     const oneTimePasswordLoginEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await regenerateOneTimePasswordSignIn(account.emailAddress);
+        await regenerateOneTimePasswordSignIn(context, account.emailAddress);
     });
 
     expect(oneTimePasswordLoginEmails.length).toEqual(1);
@@ -700,7 +710,7 @@ test("login with correct password verifies account email address", async () => {
         oneTimePassword: expect.any(String),
     });
 
-    await attemptOneTimePasswordSignIn(context.request(), account.emailAddress, oneTimePassword);
+    await attemptOneTimePasswordSignIn(context, account.emailAddress, oneTimePassword, sessionInfo);
 
     expect(await getAccountEmailAddressItemForExpect(account)).toEqual({
         isVerified: true,
@@ -711,30 +721,30 @@ test("login with correct password verifies account email address", async () => {
 test("multiple incorrect password logins will lock the account and not verify email address", async () => {
     const account = await createTestAccount();
 
-    await regenerateOneTimePasswordSignIn(account.emailAddress);
+    await regenerateOneTimePasswordSignIn(context, account.emailAddress);
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX1"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX1", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX2"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX2", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX3"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX3", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX4"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX4", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX5"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX5", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
     await expect(
-        attemptOneTimePasswordSignIn(context.request(), account.emailAddress, "XXXXX6"),
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX6", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Account email address is locked"));
 
     expect(await getAccountEmailAddressItemForExpect(account)).toEqual({
@@ -747,7 +757,7 @@ test("login with correct password does not verify account email address if email
     const account = await createTestAccount({isEmailAddressVerified: true});
 
     const oneTimePasswordLoginEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await regenerateOneTimePasswordSignIn(account.emailAddress);
+        await regenerateOneTimePasswordSignIn(context, account.emailAddress);
     });
 
     expect(oneTimePasswordLoginEmails.length).toEqual(1);
@@ -758,7 +768,7 @@ test("login with correct password does not verify account email address if email
         oneTimePassword: expect.any(String),
     });
 
-    await attemptOneTimePasswordSignIn(context.request(), account.emailAddress, oneTimePassword);
+    await attemptOneTimePasswordSignIn(context, account.emailAddress, oneTimePassword, sessionInfo);
 
     expect(await getAccountEmailAddressItemForExpect(account)).toEqual({
         isVerified: true,

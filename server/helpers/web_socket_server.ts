@@ -1,9 +1,15 @@
-import {RequestContext} from "~/server/context/context";
+import {AuthenticatedAuthContextModule} from "~/server/context/auth_context_module";
+import {AwsContextModule} from "~/server/context/aws_context_module";
+import {Context} from "~/server/context/context";
+import {ProcessContextModule} from "~/server/context/process_context_module";
+import {RequestContext, RequestContextModules} from "~/server/context/request_context";
+import {Session} from "~/server/dynamo/accounts_table";
 import {
-    DurableObjectConnectionContext,
-    DurableObjectRequestContext,
-} from "~/server/context/durable_object_context";
-import {ErrorBase, FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error";
+    ErrorBase,
+    FailedPreconditionError,
+    InvalidArgumentError,
+    NotFoundError,
+} from "~/shared/error/error";
 import {ErrorCode} from "~/shared/error/error_code";
 import {isHttp500ErrorCode} from "~/shared/error/is_http_500_error_code";
 import {Interval, createInterval} from "~/shared/helpers/async/interval";
@@ -11,6 +17,7 @@ import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_with
 import {assert} from "~/shared/helpers/control/assert";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {expirationTimeoutMs} from "~/shared/helpers/web_socket_shared";
+import {Id} from "~/shared/id/id";
 import {Schema, UnionSchema} from "~/shared/schema/schema";
 
 export interface WebSocketServerConnectionBase<MessageFromClient extends {type: string}> {
@@ -33,6 +40,7 @@ export class WebSocketServer<
     private _expirationInterval: Interval | null = null;
 
     constructor(
+        private readonly _context: Context<{process: ProcessContextModule; aws: AwsContextModule}>,
         // NOTE(calebmer): Force schemas to be union schemas so the protocol can evolve
         // in the future.
         private readonly _messageFromClientSchema: UnionSchema<MessageFromClient>,
@@ -48,7 +56,7 @@ export class WebSocketServer<
     /**
      * Upgrade an HTTP request to a WebSocket connection.
      */
-    public upgrade(requestContext: DurableObjectRequestContext, request: Request): Response {
+    public upgrade(requestContext: RequestContext, request: Request): Response {
         if (request.headers.get("Upgrade") !== "websocket")
             throw new InvalidArgumentError("Not a WebSocket request");
 
@@ -90,8 +98,10 @@ export class WebSocketServer<
             iterateOtherConnections,
         });
 
+        const sessionId = requestContext.auth().getSessionId();
+
         const connection = new WebSocketServerConnectionWrapper(
-            requestContext.upgrade(),
+            this._context.clone({sessionId: () => sessionId}),
             serverSocket,
             this._messageFromClientSchema,
             actualConnection,
@@ -198,7 +208,11 @@ class WebSocketServerConnectionWrapper<
     private _lastMessageTimeMs: number = Date.now();
 
     constructor(
-        private readonly _context: DurableObjectConnectionContext,
+        private readonly _context: Context<{
+            process: ProcessContextModule;
+            aws: AwsContextModule;
+            sessionId: Id;
+        }>,
         private readonly _socket: WebSocket,
         private readonly _messageFromClientSchema: Schema<MessageFromClient>,
         public readonly connection: Connection,
@@ -206,32 +220,46 @@ class WebSocketServerConnectionWrapper<
         this._socket.addEventListener("message", event => {
             runPromiseWithoutAwaiting(async () => {
                 try {
-                    await this._context.request(async context => {
-                        this._lastMessageTimeMs = Date.now();
+                    // TODO(calebmer): Can we at least give this some kind of TTL in-memory cache??
+                    const session = await Session.get(this._context, this._context.sessionId());
+                    if (!session)
+                        throw new NotFoundError("Session was deleted after the connection began");
 
-                        if (event.data === "pong") {
-                            // Updating the last message time is all the pong message does.
-                            return;
-                        }
+                    await this._context.withClone<
+                        {auth: AuthenticatedAuthContextModule<RequestContextModules>},
+                        // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
+                        void
+                    >(
+                        {auth: context => new AuthenticatedAuthContextModule(context, session)},
+                        async (context: RequestContext) => {
+                            this._lastMessageTimeMs = Date.now();
 
-                        if (event.data === "ping") {
-                            this.sendRawMessage("pong");
-                            return;
-                        }
+                            if (event.data === "pong") {
+                                // Updating the last message time is all the pong message does.
+                                return;
+                            }
 
-                        let serializedMessage;
-                        try {
-                            serializedMessage = JSON.parse(event.data);
-                        } catch (error) {
-                            // Classify JSON parse errors
-                            throw new InvalidArgumentError((error as any).message, {cause: error});
-                        }
+                            if (event.data === "ping") {
+                                this.sendRawMessage("pong");
+                                return;
+                            }
 
-                        const message =
-                            this._messageFromClientSchema.deserialize(serializedMessage);
+                            let serializedMessage;
+                            try {
+                                serializedMessage = JSON.parse(event.data);
+                            } catch (error) {
+                                // Classify JSON parse errors
+                                throw new InvalidArgumentError((error as any).message, {
+                                    cause: error,
+                                });
+                            }
 
-                        await this.connection.handleMessage(context, message);
-                    });
+                            const message =
+                                this._messageFromClientSchema.deserialize(serializedMessage);
+
+                            await this.connection.handleMessage(context, message);
+                        },
+                    );
                 } catch (error) {
                     // TODO(calebmer): Actual error reporting
                     // eslint-disable-next-line no-console

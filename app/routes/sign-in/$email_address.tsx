@@ -11,7 +11,7 @@ import {useActionDataWithSchema} from "~/client/helpers/remix/use_action_data_wi
 import {attemptOneTimePasswordSignIn} from "~/server/dynamo/accounts_table";
 import {validateEmailAddress} from "~/server/emails/email_address";
 import {jsonWithSchema} from "~/server/helpers/remix/json_with_schema";
-import {DataFunctionArgs} from "~/server/helpers/types/remix_data_function_args";
+import {DataFunctionArgs} from "~/server/helpers/types/remix_context";
 import {InvalidArgumentError} from "~/shared/error/error";
 import {ErrorSchema} from "~/shared/error/error_schema";
 import {isHttp500Error} from "~/shared/error/is_http_500_error_code";
@@ -28,7 +28,7 @@ export function meta() {
 
 export async function loader({context}: DataFunctionArgs) {
     // Can not access this page while signed in.
-    if (await context.isAuthenticated()) return redirectToAuthenticatedHome(context);
+    if (await context.auth().isAuthenticated()) return redirectToAuthenticatedHome(context);
 
     return json({});
 }
@@ -54,9 +54,16 @@ export async function action({request, context, params}: DataFunctionArgs) {
             context,
             await validateEmailAddress(emailAddress),
             oneTimePassword,
+            {
+                // We depend on Cloudflare to set the `cf-connecting-ip` header on our request
+                // to get the IP address.
+                // https://developers.cloudflare.com/fundamentals/get-started/reference/http-request-headers
+                ipAddress: request.headers.get("cf-connecting-ip"),
+                userAgent: request.headers.get("user-agent"),
+            },
         );
 
-        await context.dangerouslySetSessionId(sessionId);
+        (await context.sessionCookie()).dangerouslySetSessionId(sessionId);
 
         return redirectToAuthenticatedHome(context);
     } catch (error) {

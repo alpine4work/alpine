@@ -1,5 +1,6 @@
 import {differenceInHours, differenceInMinutes} from "date-fns";
-import {ProcessContext, UnauthenticatedRequestContext} from "~/server/context/context";
+import {RequestContext} from "~/server/context/request_context";
+import {DynamoContext} from "~/server/dynamo/dynamo_context";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
 import {DynamoConditionExpression} from "~/server/dynamo/internal/dynamo_condition";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
@@ -204,7 +205,7 @@ type AccountEmailAddressItem = DynamoTableItemType<
 
 type SessionItem = DynamoTableItemType<typeof AccountsTable, "Session", "Attributes">;
 
-export async function seedTestAccounts(context: ProcessContext) {
+export async function seedTestAccounts(context: DynamoContext) {
     assert(process.env.NODE_ENV !== "production");
     const {adminAccountId} = getSeedConstants();
 
@@ -331,7 +332,7 @@ export function createAccountForAlphaTransactionEntries({
  * provided email address. Sends the password to the account's email address.
  */
 export function regenerateOneTimePasswordSignIn(
-    context: ProcessContext,
+    context: DynamoContext,
     emailAddress: EmailAddress,
 ): Promise<void> {
     return retryDynamoConditionCheckErrors(async () => {
@@ -469,9 +470,24 @@ export const expireOneTimePasswordAfterMinutes = 60;
  * least 24 hours.
  */
 export function attemptOneTimePasswordSignIn(
-    context: UnauthenticatedRequestContext,
+    context: DynamoContext,
     emailAddress: EmailAddress,
     oneTimePassword: string,
+    {
+        ipAddress,
+        userAgent,
+    }: {
+        /**
+         * What is the IP address of the client attempting to sign in? We will store
+         * this with the created session to identify the device the session is for.
+         */
+        ipAddress: string | null;
+        /**
+         * What is the user agent of the client attempting to sign in? We will store
+         * this with the created session to identify the device the session is for.
+         */
+        userAgent: string | null;
+    },
 ): Promise<{
     sessionId: Id;
 }> {
@@ -564,8 +580,8 @@ export function attemptOneTimePasswordSignIn(
                     sessionId,
                     accountId: accountEmailAddressItem.accountId,
                     createdTime: new Date(),
-                    initialIpAddress: context.getClientIpAddress(),
-                    initialUserAgent: context.getClientUserAgent(),
+                    initialIpAddress: ipAddress,
+                    initialUserAgent: userAgent,
                 }),
             ]);
 
@@ -666,7 +682,7 @@ export class Session {
         this.accountId = sessionItem.accountId;
     }
 
-    public static async get(context: ProcessContext, sessionId: Id): Promise<Session | null> {
+    public static async get(context: DynamoContext, sessionId: Id): Promise<Session | null> {
         const sessionItem = await AccountsTable.getItem(context, {
             partitionType: "Session",
             sortRangeType: "Attributes",
@@ -678,7 +694,7 @@ export class Session {
 
     private _accountPromise: Promise<Account> | null = null;
 
-    public getAccount(context: ProcessContext): Promise<Account> {
+    public getAccount(context: DynamoContext): Promise<Account> {
         if (this._accountPromise === null) {
             this._accountPromise = (async () => {
                 const accountItem = assertExists(
@@ -709,9 +725,9 @@ export class Session {
  * Authorizes the account for this request has internal access. Throws a
  * `PermissionDeniedError` if not.
  */
-export async function authorizeAccountHasInternalAccess(context: UnauthenticatedRequestContext) {
-    const authenticatedContext = await context.authenticate();
-    const account = await authenticatedContext.getAuthenticatedAccount();
+export async function authorizeAccountHasInternalAccess(context: RequestContext) {
+    const authenticatedContext = await context.auth().authenticate();
+    const account = await authenticatedContext.auth().getAccount();
 
     if (!account.hasInternalAccess)
         throw new PermissionDeniedError("Account does not have internal access", {

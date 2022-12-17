@@ -4,7 +4,7 @@ import {DocumentContentEditor} from "~/client/documents/document_content_editor"
 import {useLoaderDataWithSchema} from "~/client/helpers/remix/use_loader_data_with_schema";
 import {getDocument} from "~/server/dynamo/documents_table";
 import {jsonWithSchema} from "~/server/helpers/remix/json_with_schema";
-import {DataFunctionArgs} from "~/server/helpers/types/remix_data_function_args";
+import {DataFunctionArgs} from "~/server/helpers/types/remix_context";
 import {DocumentModel} from "~/shared/documents/document_model";
 import {NotFoundError} from "~/shared/error/error";
 import {Schema} from "~/shared/schema/schema";
@@ -17,7 +17,7 @@ const schema = Schema.object({
 export async function loader({params, context}: DataFunctionArgs) {
     const documentId = Schema.id.deserialize(params.document_id ?? null);
 
-    const document = await getDocument(await context.authenticate(), documentId);
+    const document = await getDocument(await context.auth().authenticate(), documentId);
     if (!document) throw new NotFoundError("Document not found");
 
     return jsonWithSchema(schema, {document});

@@ -1,13 +1,14 @@
 // IMPORTANT: We are only importing `@aws-sdk` for types. Use
 // `context.awsClient` for executing any AWS commands.
 import type * as types from "@aws-sdk/client-ses";
-import {ProcessContext} from "~/server/context/context";
+import {AwsContextModule} from "~/server/context/aws_context_module";
+import {Context} from "~/server/context/context";
 import {EmailAddress} from "~/server/emails/email_address";
 import {FromEmailAddress, getFromEmailAddress} from "~/server/emails/from_email_address";
 // IMPORTANT: We only import the type for `emailTemplates` here. We lazily load
 // the email code bundle to avoid negatively impacting Cloudflare Worker
 // startup times.
-import type {emailTemplates} from "~/server/emails/internal/email_templates";
+import type {EmailTemplates} from "~/server/emails/internal/email_templates";
 import {encodeAwsUrlencodedFormat} from "~/server/helpers/aws/encode_aws_urlencoded_format";
 import {UnknownError} from "~/shared/error/error";
 
@@ -24,8 +25,8 @@ import {UnknownError} from "~/shared/error/error";
  * [1]: https://docs.aws.amazon.com/ses/latest/APIReference/API_SendEmail.html
  * [2]: https://docs.aws.amazon.com/ses/latest/dg/tips-and-best-practices.html
  */
-export async function sendEmail<Template extends keyof typeof emailTemplates>(
-    context: ProcessContext,
+export async function sendEmail<Template extends keyof EmailTemplates>(
+    context: Context<{aws: AwsContextModule}>,
     {
         fromEmailAddress,
         toEmailAddress,
@@ -35,7 +36,7 @@ export async function sendEmail<Template extends keyof typeof emailTemplates>(
         fromEmailAddress: FromEmailAddress;
         toEmailAddress: EmailAddress;
         templateName: Template;
-        templateProps: Parameters<typeof emailTemplates[Template]>[0];
+        templateProps: Parameters<EmailTemplates[Template]>[0];
     },
 ) {
     const {emailTemplates} = await import("~/server/emails/internal/email_templates");
@@ -62,10 +63,10 @@ export async function sendEmail<Template extends keyof typeof emailTemplates>(
 }
 
 async function executeSesSendEmailCommand(
-    context: ProcessContext,
+    context: Context<{aws: AwsContextModule}>,
     input: types.SendEmailCommandInput,
 ): Promise<types.SendEmailCommandOutput> {
-    const response = await context.awsClient.fetch("https://email.us-east-1.amazonaws.com", {
+    const response = await context.aws().client.fetch("https://email.us-east-1.amazonaws.com", {
         method: "POST",
         headers: {
             "Content-Type": "application/x-www-form-urlencoded",

@@ -22,6 +22,7 @@ ts_project(
         "//:node_modules/@remix-run/cloudflare",
         "//:node_modules/@remix-run/cloudflare-workers",
         "//:node_modules/@remix-run/dev",
+        "//:node_modules/@remix-run/server-runtime",
         "//:node_modules/@types/mjml-react",
         "//:node_modules/@types/react",
         "//:node_modules/jose",

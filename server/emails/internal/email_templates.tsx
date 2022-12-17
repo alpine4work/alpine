@@ -70,3 +70,5 @@ export const emailTemplates = mapObjectValues(emailTemplateComponents, Component
         };
     };
 });
+
+export type EmailTemplates = typeof emailTemplates;

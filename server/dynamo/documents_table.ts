@@ -1,6 +1,7 @@
 import {Step} from "prosemirror-transform";
-import {ProcessContext, RequestContext} from "~/server/context/context";
+import {RequestContext} from "~/server/context/request_context";
 import {getUpdateDocumentContentResult} from "~/server/documents/get_update_document_content_result";
+import {DynamoContext} from "~/server/dynamo/dynamo_context";
 import {DynamoConditionExpression} from "~/server/dynamo/internal/dynamo_condition";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
@@ -1044,7 +1045,7 @@ export async function updateDocumentContent(
     // Run a snapshot update task about every
     // `updateDocumentSnapshotAfterStepCount` steps.
     if (oldVersion < lastVersionToTriggerSnapshot) {
-        context.waitUntil(
+        context.process().waitUntil(
             updateDocumentSnapshotAfterUpdatingContent(context, {
                 id,
                 newVersion,
@@ -1075,7 +1076,7 @@ const updateDocumentSnapshotAfterStepCount = 100;
 export const updateDocumentSnapshotBeforeDeletingStepsTestCheckpoint = new TestCheckpoint<Id>();
 
 async function updateDocumentSnapshotAfterUpdatingContent(
-    context: ProcessContext,
+    context: DynamoContext,
     {
         id,
         newVersion,
@@ -1228,7 +1229,7 @@ export async function getDocumentContentSteps(
  * `StepsAfterSnapshot` range.
  */
 async function getDocumentStepsBetweenValidatedVersionRange(
-    context: ProcessContext,
+    context: DynamoContext,
     {
         id,
         startVersion,
@@ -1291,7 +1292,7 @@ async function getDocumentStepsBetweenValidatedVersionRange(
  * get them in no particular order.
  */
 async function* getDocumentStepTransactionsBetweenValidatedVersionRange(
-    context: ProcessContext,
+    context: DynamoContext,
     {
         id,
         startVersion,
@@ -1445,7 +1446,7 @@ async function* getDocumentStepTransactionsBetweenValidatedVersionRange(
 // in reverse with a limit of one. The first transaction in that range should
 // contain our version.
 async function getDocumentStepTransactionContainingValidatedVersion(
-    context: ProcessContext,
+    context: DynamoContext,
     id: Id,
     version: number,
 ): Promise<DocumentStepTransactionItem> {

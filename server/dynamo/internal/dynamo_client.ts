@@ -1,8 +1,8 @@
 // IMPORTANT: We are only importing `@aws-sdk` for types. Use
-// `context.awsClient` for executing any AWS commands.
+// `context.aws().client` for executing any AWS commands.
 import type * as types from "@aws-sdk/client-dynamodb";
 import jsonStableStringify from "json-stable-stringify";
-import {ProcessContext} from "~/server/context/context";
+import {DynamoContext} from "~/server/dynamo/dynamo_context";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
 import {classifyDynamoError} from "~/server/dynamo/internal/classify_dynamo_error";
 import {DeadlineExceededError, InternalError, InvalidArgumentError} from "~/shared/error/error";
@@ -72,7 +72,7 @@ class DynamoClient {
      * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
      */
     public async getItem(
-        context: ProcessContext,
+        context: DynamoContext,
         {
             tableName,
             key,
@@ -124,7 +124,7 @@ class DynamoClient {
      * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
      */
     public async putItem(
-        context: ProcessContext,
+        context: DynamoContext,
         {
             tableName,
             key,
@@ -185,7 +185,7 @@ class DynamoClient {
      * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
      */
     public async deleteItem(
-        context: ProcessContext,
+        context: DynamoContext,
         {
             tableName,
             key,
@@ -238,7 +238,7 @@ class DynamoClient {
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
      */
     public async executeTransaction(
-        context: ProcessContext,
+        context: DynamoContext,
         entries: ReadonlyArray<DynamoTransactionEntry>,
         {clientRequestToken}: {clientRequestToken?: string} = {},
     ): Promise<void> {
@@ -403,7 +403,7 @@ class DynamoClient {
      * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Query.Pagination.html
      */
     public async *query(
-        context: ProcessContext,
+        context: DynamoContext,
         {
             tableName,
             partitionKey,
@@ -505,7 +505,7 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
         this._maxBatchItemCount = maxBatchItemCount;
     }
 
-    private _getScheduledBatch(context: ProcessContext): DynamoClientBatch<Input, Output> {
+    private _getScheduledBatch(context: DynamoContext): DynamoClientBatch<Input, Output> {
         if (this._scheduledBatch === null) {
             this._scheduledBatch = {
                 itemCount: 0,
@@ -517,7 +517,7 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
     }
 
     protected _addItem(
-        context: ProcessContext,
+        context: DynamoContext,
         tableName: string,
         key: SchemaSerializedObjectValue,
         input: Input,
@@ -592,7 +592,7 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
      *
      * [1]: https://developer.mozilla.org/en-US/docs/Web/API/HTML_DOM_API/Microtask_guide/In_depth
      */
-    private _scheduleBatchExecution(context: ProcessContext) {
+    private _scheduleBatchExecution(context: DynamoContext) {
         assert(this._scheduledBatch !== null);
         const scheduledBatch = this._scheduledBatch;
 
@@ -616,7 +616,7 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
     }
 
     protected _executeFullBatch(
-        context: ProcessContext,
+        context: DynamoContext,
         fullBatch: DynamoClientBatch<Input, Output>,
     ) {
         // This batch execution is performed in a microtask, so if an error is thrown
@@ -640,7 +640,7 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
     }
 
     private async _executeBatch(
-        context: ProcessContext,
+        context: DynamoContext,
         batch: DynamoClientBatch<Input, Output>,
         attemptNumber: number,
     ) {
@@ -689,7 +689,7 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
      * `unprocessedBatch` with `itemCount` of 0.
      */
     protected abstract _sendBatchCommand(
-        context: ProcessContext,
+        context: DynamoContext,
         batch: DynamoClientBatch<Input, Output>,
     ): Promise<{unprocessedBatch: DynamoClientBatch<Input, Output>}>;
 }
@@ -793,12 +793,12 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
         this._consistency = consistency;
     }
 
-    public getItem(context: ProcessContext, tableName: string, key: SchemaSerializedObjectValue) {
+    public getItem(context: DynamoContext, tableName: string, key: SchemaSerializedObjectValue) {
         return this._addItem(context, tableName, key, null);
     }
 
     protected async _sendBatchCommand(
-        context: ProcessContext,
+        context: DynamoContext,
         batch: DynamoClientBatch<null, SchemaSerializedObjectValue | null>,
     ) {
         const output = await executeDynamoCommand<
@@ -942,7 +942,7 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
     }
 
     public putItem(
-        context: ProcessContext,
+        context: DynamoContext,
         tableName: string,
         key: SchemaSerializedObjectValue,
         item: SchemaSerializedObjectValue,
@@ -951,7 +951,7 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
     }
 
     public deleteItem(
-        context: ProcessContext,
+        context: DynamoContext,
         tableName: string,
         key: SchemaSerializedObjectValue,
     ): Promise<void> {
@@ -959,7 +959,7 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
     }
 
     protected async _sendBatchCommand(
-        context: ProcessContext,
+        context: DynamoContext,
         batch: DynamoClientBatch<DynamoClientWriteItemBatchAction, void>,
     ) {
         const output = await executeDynamoCommand<
@@ -1082,11 +1082,11 @@ const dynamoUrl =
         : "http://127.0.0.1:4566";
 
 async function executeDynamoCommand<Input = never, Output = unknown>(
-    context: ProcessContext,
+    context: DynamoContext,
     command: string,
     input: Input,
 ): Promise<Output> {
-    const response = await context.awsClient.fetch(dynamoUrl, {
+    const response = await context.aws().client.fetch(dynamoUrl, {
         method: "POST",
         headers: {
             "Content-Type": "application/x-amz-json-1.0",

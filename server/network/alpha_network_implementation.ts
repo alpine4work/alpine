@@ -9,7 +9,7 @@ import * as definition from "~/shared/network/alpha_network_definition";
 
 implementNetworkFunction(definition.approveAlphaAccessRequest, async (context, input) => {
     await approveAlphaAccessRequest(
-        await context.authenticate(),
+        await context.auth().authenticate(),
         await validateEmailAddress(input.emailAddress),
     );
     return {};
@@ -17,13 +17,13 @@ implementNetworkFunction(definition.approveAlphaAccessRequest, async (context, i
 
 implementNetworkFunction(definition.denyAlphaAccessRequest, async (context, input) => {
     await denyAlphaAccessRequest(
-        await context.authenticate(),
+        await context.auth().authenticate(),
         await validateEmailAddress(input.emailAddress),
     );
     return {};
 });
 
 implementNetworkFunction(definition.saveAlphaConfiguration, async (context, input) => {
-    await saveAlphaConfiguration(await context.authenticate(), input.configuration);
+    await saveAlphaConfiguration(await context.auth().authenticate(), input.configuration);
     return {};
 });
