@@ -55,8 +55,8 @@ export function AlphaAccessRequestApprovedEmailTemplate() {
                         </MjmlText>
                         <MjmlText>
                             What you'll find when you sign in is the very beginning of our product.
-                            There's not much, it's early stage, works best on desktop, but will work
-                            on mobile. We'll continuously deploy updates to{" "}
+                            There's not much, it's early stage, and works best on desktop (but will
+                            work on mobile). We'll continuously deploy updates to{" "}
                             <a
                                 // TODO(calebmer): Should use localhost in development?
                                 href="https://cyberworlds.dev"
