@@ -287,10 +287,12 @@ const ContextImplementation = class Context {
     ): Promise<Result> {
         let taskPromises: Array<Promise<void>> = [];
 
-        const newContext = this.clone({
+        const oldContext = this;
+
+        const newContext = oldContext.clone({
             ...moduleInitializers,
-            process: context => {
-                const processContextModule: ProcessContextModule = (context as any).process();
+            process: () => {
+                const processContextModule: ProcessContextModule = (oldContext as any).process();
                 return new ProcessContextModule({
                     waitUntil: promise => {
                         processContextModule.waitUntil(promise);
