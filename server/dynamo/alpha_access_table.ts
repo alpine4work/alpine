@@ -295,12 +295,15 @@ export async function approveAlphaAccessRequest(
         }),
     ]);
 
-    await sendEmail(context, {
-        fromEmailAddress: FromEmailAddress.Caleb,
-        toEmailAddress: requestItem.emailAddress,
-        templateName: "AlphaAccessRequestApproved",
-        templateProps: {},
-    });
+    // TODO(calebmer): For now I am sending alpha request approval emails manually
+    // so they don't get trapped in a junk email folder.
+    //
+    // await sendEmail(context, {
+    //     fromEmailAddress: FromEmailAddress.Caleb,
+    //     toEmailAddress: requestItem.emailAddress,
+    //     templateName: "AlphaAccessRequestApproved",
+    //     templateProps: {},
+    // });
 }
 
 /**
