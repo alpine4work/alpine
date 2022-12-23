@@ -4,10 +4,10 @@ import {
     saveAlphaConfiguration,
 } from "~/server/dynamo/alpha_access_table";
 import {validateEmailAddress} from "~/server/emails/email_address";
-import {implementNetworkFunction} from "~/server/network/internal/implement_network_function";
-import * as definition from "~/shared/network/alpha_network_definition";
+import {implementRpc} from "~/server/rpc/internal/implement_rpc";
+import * as definition from "~/shared/rpc/alpha_rpc_definitions";
 
-implementNetworkFunction(definition.approveAlphaAccessRequest, async (context, input) => {
+implementRpc(definition.approveAlphaAccessRequest, async (context, input) => {
     await approveAlphaAccessRequest(
         await context.auth().authenticate(),
         await validateEmailAddress(input.emailAddress),
@@ -15,7 +15,7 @@ implementNetworkFunction(definition.approveAlphaAccessRequest, async (context, i
     return {};
 });
 
-implementNetworkFunction(definition.denyAlphaAccessRequest, async (context, input) => {
+implementRpc(definition.denyAlphaAccessRequest, async (context, input) => {
     await denyAlphaAccessRequest(
         await context.auth().authenticate(),
         await validateEmailAddress(input.emailAddress),
@@ -23,7 +23,7 @@ implementNetworkFunction(definition.denyAlphaAccessRequest, async (context, inpu
     return {};
 });
 
-implementNetworkFunction(definition.saveAlphaConfiguration, async (context, input) => {
+implementRpc(definition.saveAlphaConfiguration, async (context, input) => {
     await saveAlphaConfiguration(await context.auth().authenticate(), input.configuration);
     return {};
 });

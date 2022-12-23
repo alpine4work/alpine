@@ -5,7 +5,7 @@ import {emptyDocumentContent} from "~/shared/documents/document_content_schema";
 import {dummyDocumentContent} from "~/shared/documents/dummy_document_content";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 import {generateId} from "~/shared/id/id";
-import {createDocument} from "~/shared/network/documents_network_definition";
+import {createDocument} from "~/shared/rpc/documents_rpc_definitions";
 import {Schema} from "~/shared/schema/schema";
 
 export default function CreateDocumentRoute() {

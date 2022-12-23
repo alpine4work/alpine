@@ -1,7 +1,7 @@
 import {ErrorSchema} from "~/shared/error/error_schema";
 import {Schema} from "~/shared/schema/schema";
 
-export const NetworkFunctionHttpInputSchema = Schema.object({
+export const RpcHttpInputSchema = Schema.object({
     calls: Schema.array(
         Schema.object({
             name: Schema.string,
@@ -10,7 +10,7 @@ export const NetworkFunctionHttpInputSchema = Schema.object({
     ),
 });
 
-export const NetworkFunctionHttpOutputCallSchema = Schema.result(
+export const RpcHttpOutputCallSchema = Schema.result(
     Schema.object({
         ok: Schema.value(true),
         output: Schema.unknown,
@@ -21,10 +21,10 @@ export const NetworkFunctionHttpOutputCallSchema = Schema.result(
     }),
 );
 
-export const NetworkFunctionHttpOutputSchema = Schema.result(
+export const RpcHttpOutputSchema = Schema.result(
     Schema.object({
         ok: Schema.value(true),
-        calls: Schema.array(NetworkFunctionHttpOutputCallSchema),
+        calls: Schema.array(RpcHttpOutputCallSchema),
     }),
     Schema.object({
         ok: Schema.value(false),

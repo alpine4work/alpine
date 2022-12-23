@@ -2,10 +2,10 @@ import {
     DocumentContentSchema,
     DocumentContentStepSchema,
 } from "~/shared/documents/document_content_schema";
-import {defineNetworkFunction} from "~/shared/network/internal/define_network_function";
+import {defineRpc} from "~/shared/rpc/internal/define_rpc";
 import {Schema} from "~/shared/schema/schema";
 
-export const createDocument = defineNetworkFunction({
+export const createDocument = defineRpc({
     name: "createDocument",
     input: {
         id: Schema.id,
@@ -15,7 +15,7 @@ export const createDocument = defineNetworkFunction({
     output: {},
 });
 
-export const getDocumentContentSteps = defineNetworkFunction({
+export const getDocumentContentSteps = defineRpc({
     name: "getDocumentContentSteps",
     input: {
         id: Schema.id,

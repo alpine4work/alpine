@@ -31,7 +31,7 @@ export function useAsyncIterable<Value>({
         const iterator = iterable[Symbol.asyncIterator]();
 
         let isCancelled = false;
-        const cancelError = new CancelledError("Unsubscribed from network channel");
+        const cancelError = new CancelledError("Unsubscribed from async iterable");
 
         const loop = () => {
             if (isCancelled) return;

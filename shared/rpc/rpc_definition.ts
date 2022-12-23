@@ -1,23 +1,22 @@
 import {ObjectSchema} from "~/shared/schema/schema";
 
-export type NetworkFunctionInputType<Definition extends NetworkFunction<any, any>> =
-    Definition extends NetworkFunction<infer Input, any> ? Input : never;
+export type RpcDefinitionInputType<Definition extends RpcDefinition<any, any>> =
+    Definition extends RpcDefinition<infer Input, any> ? Input : never;
 
-export type NetworkFunctionOutputType<Definition extends NetworkFunction<any, any>> =
-    Definition extends NetworkFunction<any, infer Output> ? Output : never;
+export type RpcDefinitionOutputType<Definition extends RpcDefinition<any, any>> =
+    Definition extends RpcDefinition<any, infer Output> ? Output : never;
 
 /**
  * A function that is implemented on the server and can be called from the
  * client using an HTTP interface. Also known as a remote procedure which is
  * executed with a [remote procedure call][1].
  *
- * You define network functions in `~/shared/network` with
- * `defineNetworkFunction()` so the definition can be accessed anywhere in our
- * codebase.
+ * You define RPC functions in `~/shared/rpc` with `defineRpc()` so the
+ * definition can be accessed anywhere in our codebase.
  *
  * [1]: https://en.wikipedia.org/wiki/Remote_procedure_call
  */
-export interface NetworkFunction<Input, Output> {
+export interface RpcDefinition<Input, Output> {
     /**
      * The function is actually a function! You can call it on either the client or
      * the server and it will execute.
@@ -36,7 +35,7 @@ export interface NetworkFunction<Input, Output> {
      * Must be an identifier that starts with a lowercase letter.
      *
      * Functions also have a `name` property so we do override the JavaScript
-     * function name with the network name.
+     * function name with the RPC function name.
      */
     readonly name: string;
 

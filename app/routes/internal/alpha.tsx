@@ -19,7 +19,7 @@ import {
     approveAlphaAccessRequest,
     denyAlphaAccessRequest,
     saveAlphaConfiguration,
-} from "~/shared/network/alpha_network_definition";
+} from "~/shared/rpc/alpha_rpc_definitions";
 import {Schema} from "~/shared/schema/schema";
 import {sprinkles} from "~/shared/styles/styles";
 
