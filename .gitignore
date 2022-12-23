@@ -6,9 +6,6 @@ node_modules
 # Bazel
 bazel-*
 
-# CDK
-/admin/aws/output
-
 # Misc
 .DS_Store
 *.pem
@@ -25,3 +22,6 @@ yarn-error.log*
 # Playground
 /.local/*
 !/.local/README.md
+
+# CDK
+/admin/aws/output

@@ -55,7 +55,7 @@ export function getAllImplementedRpcNames(): IterableIterator<string> {
 /**
  * Get the implementation for an RPC with the given name if it has been
  * implemented by now. Usually you will want import
- * `~/server/rpc/all_rpc_implementations` to make sure all RPC implementations
+ * `~/server/rpc/get_rpc_implementation` to make sure all RPC implementations
  * have been initialized.
  */
 export function getRpcImplementationIfExists(name: string): RpcImplementation | null {

@@ -1,5 +1,5 @@
 import {DataFunctionArgs} from "~/server/helpers/types/remix_context";
-import {getRpcImplementation} from "~/server/rpc/all_rpc_implementations";
+import {getRpcImplementation} from "~/server/rpc/get_rpc_implementation";
 import {InvalidArgumentError, NotFoundError} from "~/shared/error/error";
 import {isHttp500Error} from "~/shared/error/is_http_500_error_code";
 import {

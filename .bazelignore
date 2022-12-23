@@ -1,8 +1,8 @@
 # git
-/.git
+.git
 
 # npm
 node_modules
 
 # Bazel
-/bazel-*
+bazel-*
