@@ -15,6 +15,7 @@ module.exports = {
         // TODO(calebmer): Consider putting these in a plugin instead of a custom
         // rules directory to simplify things.
         "no-global-error": "error",
+        "no-global-fetch": "error",
         "sort-imports-by-source": "warn",
         "no-internal-imports": "error",
 

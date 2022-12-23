@@ -4,7 +4,7 @@ module.exports = {
     meta: {
         schema: [],
         messages: {
-            newGlobalError:
+            noGlobalError:
                 "Instead of using `new Error()` use a class from `~/shared/error/error`.",
         },
     },
@@ -15,7 +15,7 @@ module.exports = {
                 if (node.callee.type === "Identifier" && node.callee.name === "Error") {
                     context.report({
                         node: node.callee,
-                        messageId: "newGlobalError",
+                        messageId: "noGlobalError",
                     });
                 }
             },
