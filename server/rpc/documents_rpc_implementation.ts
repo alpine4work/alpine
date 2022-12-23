@@ -2,12 +2,12 @@ import {createDocument, getDocumentContentSteps} from "~/server/dynamo/documents
 import {implementRpc} from "~/server/rpc/internal/implement_rpc";
 import * as definition from "~/shared/rpc/documents_rpc_definitions";
 
-implementRpc(definition.createDocument, async (context, input) => {
+implementRpc(definition.createDocumentRpc, async (context, input) => {
     await createDocument(await context.auth().authenticate(), input);
     return {};
 });
 
-implementRpc(definition.getDocumentContentSteps, async (context, input) => {
+implementRpc(definition.getDocumentContentStepsRpc, async (context, input) => {
     const steps = await getDocumentContentSteps(await context.auth().authenticate(), input);
     return {steps};
 });

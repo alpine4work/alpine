@@ -243,6 +243,14 @@ export type TracerEventFullData = TracerEventData & {
 
         /** The ID of this span's parent span. */
         readonly parentId?: Id;
+
+        readonly link?: {
+            /** The span ID you wish to link to. */
+            readonly spanId?: Id;
+
+            /** The trace ID you wish to link to. */
+            readonly traceId?: Id;
+        };
     };
 
     /**

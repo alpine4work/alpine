@@ -7,7 +7,7 @@ import {validateEmailAddress} from "~/server/emails/email_address";
 import {implementRpc} from "~/server/rpc/internal/implement_rpc";
 import * as definition from "~/shared/rpc/alpha_rpc_definitions";
 
-implementRpc(definition.approveAlphaAccessRequest, async (context, input) => {
+implementRpc(definition.approveAlphaAccessRequestRpc, async (context, input) => {
     await approveAlphaAccessRequest(
         await context.auth().authenticate(),
         await validateEmailAddress(input.emailAddress),
@@ -15,7 +15,7 @@ implementRpc(definition.approveAlphaAccessRequest, async (context, input) => {
     return {};
 });
 
-implementRpc(definition.denyAlphaAccessRequest, async (context, input) => {
+implementRpc(definition.denyAlphaAccessRequestRpc, async (context, input) => {
     await denyAlphaAccessRequest(
         await context.auth().authenticate(),
         await validateEmailAddress(input.emailAddress),
@@ -23,7 +23,7 @@ implementRpc(definition.denyAlphaAccessRequest, async (context, input) => {
     return {};
 });
 
-implementRpc(definition.saveAlphaConfiguration, async (context, input) => {
+implementRpc(definition.saveAlphaConfigurationRpc, async (context, input) => {
     await saveAlphaConfiguration(await context.auth().authenticate(), input.configuration);
     return {};
 });

@@ -6,6 +6,10 @@ import {Id, generateId} from "~/shared/id/id";
 import {Tracer} from "~/shared/tracer/tracer";
 import {TracerEventData, TracerEventFullData} from "~/shared/tracer/types/tracer_event_data";
 
+export type TracerSpanWithFinish = InstanceType<typeof TracerSpanWithFinish>;
+
+export type TracerSpan = Omit<TracerSpanWithFinish, "finish">;
+
 /**
  * A distributed tracing span.
  *
@@ -14,7 +18,11 @@ import {TracerEventData, TracerEventFullData} from "~/shared/tracer/types/tracer
  *
  * [1]: https://opentelemetry.io
  */
-export class TracerSpan {
+// The class is named `TracerSpan` but we alias it to `TracerSpanWithFinish`
+// before exporting. By default when people use the `TracerSpan` type we want
+// it to not include the `finish()` function. So whatever wrapping code
+// controls when a span finishes and when it doesn't.
+export const TracerSpanWithFinish = class TracerSpan {
     /**
      * The ID of the trace this span is in.
      */
@@ -48,8 +56,7 @@ export class TracerSpan {
      */
     private _propagatedEventData: LinkedList<TracerEventData>;
 
-    // Private: Only `Tracer` and `TracerSpan` should be able to create new spans.
-    private constructor(
+    constructor(
         private readonly _tracer: Tracer,
         public readonly name: string,
         parentSpan: TracerSpan | null = null,
@@ -158,7 +165,18 @@ export class TracerSpan {
     }
 
     /**
-     * Start a new span as a child of this one. Part of the same trace.
+     * Start a new span as a child of this one.
+     *
+     * Generally you should prefer using `withChildSpan()` as it handles
+     * asynchronous functions and errors for you. See the documentation on that
+     * function for guidance on how to name spans.
+     */
+    public startChildSpan(name: string): TracerSpan {
+        return new TracerSpan(this._tracer, name, this);
+    }
+
+    /**
+     * Track a function execution with a child span of this one.
      *
      * The name should be a short, low cardinality, string. You should be able to
      * easily search the codebase for the code defining a span based on its name
@@ -170,7 +188,46 @@ export class TracerSpan {
      * can include spaces between words). For example: "Get admin account" is a
      * good span name.
      */
-    public startChildSpan(name: string): TracerSpan {
-        return new TracerSpan(this._tracer, name, this);
+    public async withChildSpan<Value>(
+        name: string,
+        action: (span: Omit<TracerSpan, "finish">) => Promise<Value>,
+    ): Promise<Value> {
+        const span = this.startChildSpan(name);
+        try {
+            const value = await action(span);
+            span.finish();
+            return value;
+        } catch (error) {
+            span.addException(error, {escaped: true});
+            span.finish();
+            throw error;
+        }
     }
-}
+
+    /**
+     * Usually it's enough to express span relationships as parent/child
+     * relationships. However, sometimes you have causal relationships between
+     * spans that don't have a clean parent/child relationship. For example batch
+     * processing from many spans. You may use the link function to express a
+     * causal relationship between these spans.
+     */
+    public link(span: Omit<TracerSpan, "finish">) {
+        // Link this span with another using the Honeycomb link event format:
+        // https://docs.honeycomb.io/getting-data-in/tracing/send-trace-data/#links
+        const eventData: TracerEventFullData = {
+            meta: {annotationType: "link"},
+            trace: {
+                parentId: this.spanId,
+                traceId: this.traceId,
+                link: {
+                    spanId: span.spanId,
+                    traceId: span.traceId,
+                },
+            },
+        };
+
+        // TODO(calebmer): Actually send this event somewhere!
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        eventData;
+    }
+};
