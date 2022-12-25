@@ -9,9 +9,11 @@ import {DocumentModel} from "~/shared/documents/document_model";
 import {NotFoundError} from "~/shared/error/error";
 import {Schema} from "~/shared/schema/schema";
 import {sprinkles} from "~/shared/styles/styles";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
 
 const schema = Schema.object({
     document: DocumentModel.schema(),
+    propagateEventData: Schema.unknown,
 });
 
 export async function loader({params, context}: DataFunctionArgs) {
@@ -19,6 +21,12 @@ export async function loader({params, context}: DataFunctionArgs) {
 
     const document = await getDocument(await context.auth().authenticate(), documentId);
     if (!document) throw new NotFoundError("Document not found");
+
+    const propagateEventData: TracerEventData = {
+        context: {
+            space: {id: documentId},
+        },
+    };
 
     return jsonWithSchema(schema, {document});
 }

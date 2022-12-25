@@ -1,7 +1,7 @@
 import {AwsContextModule} from "~/server/context/aws_context_module";
-import {Context} from "~/server/context/context";
 import {unauthenticatedSessionError} from "~/server/context/helpers/unauthenticated_session_error";
 import {Account, Session} from "~/server/dynamo/accounts_table";
+import {Context} from "~/shared/context/context";
 import {Lazy} from "~/shared/helpers/control/lazy";
 import {Replace} from "~/shared/helpers/types/replace";
 import {Id} from "~/shared/id/id";

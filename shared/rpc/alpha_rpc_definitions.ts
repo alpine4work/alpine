@@ -2,7 +2,7 @@ import {AlphaConfigurationSchema} from "~/shared/alpha/alpha_configuration_schem
 import {defineRpc} from "~/shared/rpc/internal/define_rpc";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
 
-export const approveAlphaAccessRequestRpc = defineRpc({
+export const approveAlphaAccessRequest = defineRpc({
     name: "approveAlphaAccessRequest",
     input: {
         emailAddress: LabelStringSchema,
@@ -10,7 +10,7 @@ export const approveAlphaAccessRequestRpc = defineRpc({
     output: {},
 });
 
-export const denyAlphaAccessRequestRpc = defineRpc({
+export const denyAlphaAccessRequest = defineRpc({
     name: "denyAlphaAccessRequest",
     input: {
         emailAddress: LabelStringSchema,
@@ -18,7 +18,7 @@ export const denyAlphaAccessRequestRpc = defineRpc({
     output: {},
 });
 
-export const saveAlphaConfigurationRpc = defineRpc({
+export const saveAlphaConfiguration = defineRpc({
     name: "saveAlphaConfiguration",
     input: {
         configuration: AlphaConfigurationSchema,

@@ -1,9 +1,9 @@
 import {AuthenticatedAuthContextModule} from "~/server/context/auth_context_module";
 import {AwsContextModule} from "~/server/context/aws_context_module";
-import {Context} from "~/server/context/context";
-import {ProcessContextModule} from "~/server/context/process_context_module";
 import {RequestContext, RequestContextModules} from "~/server/context/request_context";
 import {Session} from "~/server/dynamo/accounts_table";
+import {Context} from "~/shared/context/context";
+import {ProcessContextModule} from "~/shared/context/process_context_module";
 import {
     ErrorBase,
     FailedPreconditionError,

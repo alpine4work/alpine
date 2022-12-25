@@ -9,9 +9,10 @@ import {
     ThrownResponse,
     useCatch,
 } from "@remix-run/react";
+import {RemixEntryContext} from "@remix-run/react/dist/esm/components";
 import {IconContext} from "phosphor-react";
 import prosemirrorStylesHref from "prosemirror-view/style/prosemirror.css";
-import {useMemo} from "react";
+import {useContext, useMemo} from "react";
 import {Box} from "~/client/design/box";
 import {
     InitializeColorSchemeScript,
@@ -26,9 +27,17 @@ import {spacing} from "~/shared/design/spacing";
 import {NotFoundError, UnknownError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {ErrorSchema} from "~/shared/error/error_schema";
+import {assert} from "~/shared/helpers/control/assert";
+import {LinkedList} from "~/shared/helpers/immutable/linked_list";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";
+import {propagatedEventDataKey} from "~/shared/helpers/remix/json_with_schema_shared";
 import {quote} from "~/shared/helpers/string/quote";
 import {sprinkles} from "~/shared/styles/styles";
 import sharedStylesHref from "~/shared/styles/styles.css";
+import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data";
+import {Tracer} from "~/shared/tracer/tracer";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
 
 export function meta() {
     return {
@@ -53,6 +62,28 @@ export function links(): Array<LinkDescriptor> {
 }
 
 export default function Root({error}: {error?: unknown}) {
+    const remixEntryContext = useContext(RemixEntryContext);
+    assert(remixEntryContext, "Expected Remix entry context");
+
+    let tracer: Tracer = useTracer();
+
+    // Add propagated event data to our tracer so that child React components
+    // log events with the right context.
+    tracer = useMemo(() => {
+        const routeData = Object.values(remixEntryContext.routeData);
+
+        const propagatedEventData = Array.from(
+            filterMapIterable(routeData, data => {
+                if (!hasOwnProperty(propagatedEventDataKey, data)) return null;
+                return data[propagatedEventDataKey];
+            }),
+        );
+
+        if (propagatedEventData.length === 0) return tracer;
+
+        return tracer.withPropagatedData(mergeTracerEventData(propagatedEventData));
+    }, [remixEntryContext.routeData, tracer]);
+
     const caught = useCatch() as ThrownResponse | undefined;
 
     const caughtResponseError = useMemo(() => {

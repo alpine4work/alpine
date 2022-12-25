@@ -3,6 +3,7 @@ import {formatISO, isValid as isValidDate, parseISO} from "date-fns";
 import {InvalidArgumentError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier";
 import {Optionalize} from "~/shared/helpers/types/optionalize";
@@ -108,6 +109,34 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      */
     public readonly deserialize: (serializedValue: SchemaSerializedValue) => Value;
 
+    /**
+     * Validates that the provided value matches any constraints in the schema
+     * beyond the TypeScript type. Throws an error if it doesn't. Valid values
+     * can be serialized without throwing an error and will deserialize to
+     * exactly the same value you serialized.
+     *
+     * Validation also doesn't recurse over the entire value. Only the parts of
+     * the value which need validation. If nothing needs validation this
+     * property will be null.
+     *
+     * Some examples:
+     *
+     * - The TypeScript type of both `Schema.float` and `Schema.integer` is
+     *   `number`. We don't need to validate `Schema.float` because all
+     *   TypeScript `number`s match this schema. We do need to validate
+     *   `Schema.integer` since not all `number`s are `integer`s.
+     *
+     * - `Schema.string.trim()` will remove whitespace from a string while
+     *   serializing. However, validation will fail if there is whitespace at
+     *   the beginning or end of the string. Since that means
+     *   `deserialize(serialize(value))` won't return exactly the same value.
+     *
+     * - Validating `Schema.array(Schema.float)` is a noop since we know
+     *   recursively nothing needs validation. However, validating
+     *   `Schema.array(Schema.integer)` will visit every item in the array.
+     */
+    public readonly validate: ((value: Value) => void) | null;
+
     // NOTE(calebmer): Some ideas on serialization/deserialization performance.
     // Two performance problems:
     //
@@ -138,14 +167,17 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
         description,
         serialize,
         deserialize,
+        validate,
     }: {
         description: SchemaSerializedValueDescription;
         serialize: (value: Value) => SchemaSerializedValue;
         deserialize: (serializedValue: SchemaSerializedValue) => Value;
+        validate: ((value: Value) => void) | null;
     }) {
         this.description = description;
         this.serialize = serialize;
         this.deserialize = deserialize;
+        this.validate = validate;
     }
 
     /**
@@ -158,6 +190,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
         description: {type: "Unknown"},
         serialize: value => value,
         deserialize: value => value,
+        validate: null,
     });
 
     /**
@@ -171,6 +204,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
                 throw new SchemaDeserializationError("Expected boolean");
             return value;
         },
+        validate: null,
     });
 
     /**
@@ -187,6 +221,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
             if (typeof value !== "number") throw new SchemaDeserializationError("Expected number");
             return value;
         },
+        validate: null,
     });
 
     /**
@@ -211,6 +246,9 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
 
             return value;
         },
+        validate: value => {
+            if (!Number.isSafeInteger(value)) throw new InvalidArgumentError("Expected integer");
+        },
     });
 
     /**
@@ -229,6 +267,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
             if (!isId(value)) throw new SchemaDeserializationError("Expected id");
             return value;
         },
+        validate: null,
     });
 
     /**
@@ -256,6 +295,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
                 throw new SchemaDeserializationError("Unable to parse base64 string");
             }
         },
+        validate: null,
     });
 
     /**
@@ -282,12 +322,15 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
 
             return date;
         },
+        validate: null,
     });
 
     /**
      * Accept null in addition to any underlying value.
      */
     public nullable(): Schema<Value | null> {
+        const {validate} = this;
+
         return new Schema({
             description: {
                 type: "Nullable",
@@ -301,6 +344,13 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
                 if (value === null) return null;
                 return this.deserialize(value);
             },
+            validate: validate
+                ? value => {
+                      if (value !== null) {
+                          validate(value);
+                      }
+                  }
+                : null,
         });
     }
 
@@ -372,6 +422,8 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      * Mutates the array in-place when parsing if the item schema changes values.
      */
     public static array<Value>(itemSchema: Schema<Value>): Schema<ReadonlyArray<Value>> {
+        const {validate} = itemSchema;
+
         return new Schema({
             description: {
                 type: "Array",
@@ -388,6 +440,13 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
                     });
                 });
             },
+            validate: validate
+                ? value => {
+                      for (const item of value) {
+                          validate(item);
+                      }
+                  }
+                : null,
         });
     }
 
@@ -453,6 +512,9 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
         okSchema: OkSchema,
         errorSchema: ErrorSchema,
     ): Schema<SchemaType<OkSchema> | SchemaType<ErrorSchema>> {
+        const {validate: validateOk} = okSchema;
+        const {validate: validateError} = errorSchema;
+
         return new Schema<SchemaType<OkSchema> | SchemaType<ErrorSchema>>({
             description: {
                 type: "Result",
@@ -485,6 +547,16 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
                     );
                 }
             },
+            validate:
+                validateOk || validateError
+                    ? value => {
+                          if ((value as any).ok) {
+                              validateOk?.(value);
+                          } else {
+                              validateError?.(value);
+                          }
+                      }
+                    : null,
         });
     }
 
@@ -502,6 +574,8 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
         serialize: (value: NewValue) => Value;
         deserialize: (value: Value) => NewValue;
     }): Schema<NewValue> {
+        const {validate} = this;
+
         return new Schema({
             description: this.description,
             serialize: newValue => {
@@ -512,6 +586,12 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
                 const value = this.deserialize(unknownValue);
                 return deserialize(value);
             },
+            validate: validate
+                ? newValue => {
+                      const value = serialize(newValue);
+                      validate(value);
+                  }
+                : null,
         });
     }
 }
@@ -591,6 +671,7 @@ export class ObjectSchema<Value> extends Schema<Value> {
         description,
         serializeInto,
         deserializeInto,
+        validate,
     }: {
         propertySchemaByKey: ReadonlyMap<string, ObjectPropertySchema<unknown, unknown>>;
         description: SchemaSerializedValueDescription;
@@ -599,6 +680,7 @@ export class ObjectSchema<Value> extends Schema<Value> {
             serializedValue: SchemaSerializedValue,
             target?: {[key: string]: SchemaSerializedValue},
         ) => Value;
+        validate: ((value: Value) => void) | null;
     }) {
         super({
             description,
@@ -608,6 +690,7 @@ export class ObjectSchema<Value> extends Schema<Value> {
                 return newValue;
             },
             deserialize: deserializeInto,
+            validate,
         });
         this.propertySchemaByKey = propertySchemaByKey;
         this.serializeInto = serializeInto;
@@ -624,6 +707,13 @@ export class ObjectSchema<Value> extends Schema<Value> {
             Object.entries(config).map(([key, schema]) => {
                 assert(isIdentifier(key));
                 return [key, schema instanceof Schema ? ObjectPropertySchema.wrap(schema) : schema];
+            }),
+        );
+
+        const validatePropertyByKey = new Map<string, (value: unknown) => void>(
+            filterMapIterable(propertySchemaByKey, ([key, propertySchema]) => {
+                if (propertySchema.validateProperty === null) return null;
+                return [key, propertySchema.validateProperty];
             }),
         );
 
@@ -663,6 +753,14 @@ export class ObjectSchema<Value> extends Schema<Value> {
 
                 return newValue;
             },
+            validate:
+                validatePropertyByKey.size > 0
+                    ? value => {
+                          for (const [key, validateProperty] of validatePropertyByKey) {
+                              validateProperty((value as any)[key]);
+                          }
+                      }
+                    : null,
         });
     }
 
@@ -726,12 +824,22 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
         key: string,
     ) => Value;
 
+    /**
+     * Validates that any constraints for the schema are met beyond the
+     * schema's TypeScript type.
+     *
+     * If the TypeScript type is enough to validate the property then this
+     * is null.
+     */
+    public readonly validateProperty: ((value: Value) => void) | null;
+
     private constructor({
         serializedKey,
         valueSchema,
         description,
         serializeProperty,
         deserializeProperty,
+        validateProperty,
     }: {
         serializedKey: string | null;
         valueSchema: Schema<SchemaValue>;
@@ -742,12 +850,14 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
             value: Value,
         ) => void;
         deserializeProperty: (object: SchemaSerializedObjectValue, key: string) => Value;
+        validateProperty: ((value: Value) => void) | null;
     }) {
         this.serializedKey = serializedKey;
         this.valueSchema = valueSchema;
         this.description = description;
         this.serializeProperty = serializeProperty;
         this.deserializeProperty = deserializeProperty;
+        this.validateProperty = validateProperty;
     }
 
     /**
@@ -774,11 +884,14 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
                     schema.deserialize(value),
                 );
             },
+            validateProperty: schema.validate,
         });
     }
 
     /** @see Schema.optional */
     public optional(): ObjectPropertySchema<Value | undefined, SchemaValue> {
+        const {validateProperty} = this;
+
         return new ObjectPropertySchema({
             serializedKey: this.serializedKey,
             valueSchema: this.valueSchema,
@@ -794,6 +907,13 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
                 if (!hasOwnProperty(object, key) || object[key] === undefined) return undefined;
                 return this.deserializeProperty(object, key);
             },
+            validateProperty: validateProperty
+                ? value => {
+                      if (value !== undefined) {
+                          validateProperty(value);
+                      }
+                  }
+                : null,
         });
     }
 
@@ -813,6 +933,7 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
                 if (!hasOwnProperty(object, key) || object[key] === undefined) return defaultValue;
                 return this.deserializeProperty(object, key);
             },
+            validateProperty: this.validateProperty,
         });
     }
 
@@ -826,6 +947,7 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
             description: this.description,
             serializeProperty: this.serializeProperty,
             deserializeProperty: this.deserializeProperty,
+            validateProperty: this.validateProperty,
         });
     }
 }
@@ -854,6 +976,7 @@ export class ValueSchema<Value extends string | number | boolean> extends Schema
                     );
                 return actualValue as Value;
             },
+            validate: null,
         });
         this.value = value;
     }
@@ -913,16 +1036,19 @@ export class UnionSchema<Value extends {readonly type: string}> extends Schema<V
         description,
         serialize,
         deserialize,
+        validate,
     }: {
         variantSchemaByType: ReadonlyMap<string, UnionSchemaVariant<{readonly type: string}>>;
         description: SchemaSerializedValueDescription;
         serialize: (value: Value) => SchemaSerializedValue;
         deserialize: (serializedValue: SchemaSerializedValue) => Value;
+        validate: ((value: Value) => void) | null;
     }) {
         super({
             description,
             serialize,
             deserialize,
+            validate,
         });
         this.variantSchemaByType = variantSchemaByType;
     }
@@ -951,6 +1077,13 @@ export class UnionSchema<Value extends {readonly type: string}> extends Schema<V
 
         const schemaBySerializedType = new Map<string, UnionSchemaVariant<{type: string}>>(
             Array.from(schemaByType, ([type, schema]) => [schema.serializedType, schema]),
+        );
+
+        const validateByType = new Map<string, (value: {type: string}) => void>(
+            filterMapIterable(schemaByType, ([type, {schema}]) => {
+                if (schema.validate === null) return null;
+                return [type, schema.validate];
+            }),
         );
 
         return new UnionSchema<UnionSchemaConfigType<Config>>({
@@ -1012,6 +1145,13 @@ export class UnionSchema<Value extends {readonly type: string}> extends Schema<V
 
                 return schema.deserialize(value) as any;
             },
+            validate:
+                validateByType.size > 0
+                    ? value => {
+                          const validate = validateByType.get(value.type);
+                          validate?.(value);
+                      }
+                    : null,
         });
     }
 }
@@ -1106,15 +1246,20 @@ class StringSchema extends Schema<string> {
             if (typeof value !== "string") throw new SchemaDeserializationError("Expected string");
             return value;
         },
+        validate: null,
     });
 
     public _transformString({
         serialize,
         deserialize,
+        validate: newValidate,
     }: {
         serialize: (value: string) => string;
         deserialize: (value: string) => string;
+        validate: ((value: string) => void) | null;
     }): StringSchema {
+        const {validate: oldValidate} = this;
+
         return new StringSchema({
             description: this.description,
             serialize: newValue => {
@@ -1125,6 +1270,13 @@ class StringSchema extends Schema<string> {
                 const value = this.deserialize(unknownValue);
                 return deserialize(value);
             },
+            validate:
+                newValidate || oldValidate
+                    ? value => {
+                          oldValidate?.(value);
+                          newValidate?.(value);
+                      }
+                    : null,
         });
     }
 
@@ -1150,6 +1302,12 @@ class StringSchema extends Schema<string> {
                     );
 
                 return value;
+            },
+            validate: value => {
+                if (value.length < length)
+                    throw new InvalidArgumentError(
+                        `Expected string to have a length greater than or equal to ${length}`,
+                    );
             },
         });
     }
@@ -1177,6 +1335,12 @@ class StringSchema extends Schema<string> {
 
                 return value;
             },
+            validate: value => {
+                if (value.length > length)
+                    throw new InvalidArgumentError(
+                        `Expected string to have a length less than or equal to ${length}`,
+                    );
+            },
         });
     }
 
@@ -1198,6 +1362,10 @@ class StringSchema extends Schema<string> {
 
                 return value;
             },
+            validate: value => {
+                if (/[\n\r]/g.test(value))
+                    throw new InvalidArgumentError("Expected single line string");
+            },
         });
     }
 
@@ -1209,6 +1377,12 @@ class StringSchema extends Schema<string> {
         return this._transformString({
             serialize: value => value.trim(),
             deserialize: value => value.trim(),
+            validate: value => {
+                if (value !== value.trim())
+                    throw new InvalidArgumentError(
+                        "Expected string to not have whitespace at the start or end",
+                    );
+            },
         });
     }
 
@@ -1219,6 +1393,10 @@ class StringSchema extends Schema<string> {
         return this._transformString({
             serialize: value => value.toLowerCase(),
             deserialize: value => value.toLowerCase(),
+            validate: value => {
+                if (value !== value.toLowerCase())
+                    throw new InvalidArgumentError("Expected string to be lower case");
+            },
         });
     }
 
@@ -1242,6 +1420,12 @@ class StringSchema extends Schema<string> {
                     );
 
                 return value;
+            },
+            validate: value => {
+                if (!regExp.test(value))
+                    throw new InvalidArgumentError(
+                        `Expected string to match regular expression ${regExp.toString()}`,
+                    );
             },
         });
     }

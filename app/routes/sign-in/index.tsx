@@ -52,7 +52,11 @@ export async function action({request, context}: DataFunctionArgs) {
         // we sent them.
         return redirect(`/sign-in/${encodeURIComponent(emailAddress)}`);
     } catch (error) {
-        return jsonWithSchema(ActionSchema, {ok: false, error}, isHttp500Error(error) ? 500 : 400);
+        return jsonWithSchema(
+            ActionSchema,
+            {ok: false, error},
+            {status: isHttp500Error(error) ? 500 : 400},
+        );
     }
 }
 

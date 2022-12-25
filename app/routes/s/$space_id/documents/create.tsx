@@ -6,7 +6,7 @@ import {emptyDocumentContent} from "~/shared/documents/document_content_schema";
 import {dummyDocumentContent} from "~/shared/documents/dummy_document_content";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 import {generateId} from "~/shared/id/id";
-import {createDocumentRpc} from "~/shared/rpc/documents_rpc_definitions";
+import {createDocument} from "~/shared/rpc/documents_rpc_definitions";
 import {Schema} from "~/shared/schema/schema";
 
 export default function CreateDocumentRoute() {
@@ -22,7 +22,7 @@ export default function CreateDocumentRoute() {
                     runPromiseWithoutAwaiting(async () => {
                         const documentId = generateId();
 
-                        await callRpc(createDocumentRpc, {
+                        await callRpc(createDocument, {
                             id: documentId,
                             spaceId,
                             content: emptyDocumentContent,
@@ -39,7 +39,7 @@ export default function CreateDocumentRoute() {
                     runPromiseWithoutAwaiting(async () => {
                         const documentId = generateId();
 
-                        await callRpc(createDocumentRpc, {
+                        await callRpc(createDocument, {
                             id: documentId,
                             spaceId,
                             content: dummyDocumentContent(),

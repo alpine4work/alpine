@@ -1,4 +1,4 @@
-import {Context} from "~/server/context/context";
+import {Context} from "~/shared/context/context";
 import {InternalError} from "~/shared/error/error";
 
 test("lazily initializes modules once when they are accessed", () => {

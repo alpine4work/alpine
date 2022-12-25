@@ -1,6 +1,6 @@
-import type {Context} from "~/server/context/context";
 import type {UnauthenticatedRequestContextModules} from "~/server/context/request_context";
 import type {SessionCookie} from "~/server/session/session_cookie";
+import type {Context} from "~/shared/context/context";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection";
 
 export type RemixContext = Context<RemixContextModules>;

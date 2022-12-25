@@ -1,6 +1,8 @@
+import {Context} from "~/shared/context/context";
 import {assert} from "~/shared/helpers/control/assert";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier";
 import {quote} from "~/shared/helpers/string/quote";
+import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition";
 import {ObjectSchemaConfigBase, ObjectSchemaConfigType, Schema} from "~/shared/schema/schema";
 
@@ -40,11 +42,24 @@ export function defineRpc<
     const inputSchema = Schema.object(inputConfig);
     const outputSchema = Schema.object(outputConfig);
 
-    return {
-        name,
+    const execute = async (
+        context: Context<{rpc: RpcContextModuleBase}>,
+        input: ObjectSchemaConfigType<InputConfig>,
+    ): Promise<ObjectSchemaConfigType<OutputConfig>> => {
+        return context.rpc().execute(definition, input);
+    };
+
+    // Override the JavaScript function name with our RPC name. We
+    // need to use `Object.defineProperty()` to override the JavaScript
+    // builtin name.
+    Object.defineProperty(execute, "name", {value: name});
+
+    const definition = Object.assign(execute, {
         inputSchema,
         outputSchema,
-    };
+    });
+
+    return definition;
 }
 
 const definedRpcNames = new Set<string>();

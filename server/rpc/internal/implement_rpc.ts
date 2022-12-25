@@ -10,6 +10,10 @@ export type RpcImplementation = {
         context: UnauthenticatedRequestContext,
         input: SchemaSerializedValue,
     ): Promise<SchemaSerializedValue>;
+    executeWithoutSerialization(
+        context: UnauthenticatedRequestContext,
+        input: unknown,
+    ): Promise<unknown>;
 };
 
 /**
@@ -40,6 +44,7 @@ export function implementRpc<Input, Output>(
 
     rpcImplementationByName.set(rpcDefinition.name, {
         execute,
+        executeWithoutSerialization: implementation,
     });
 }
 

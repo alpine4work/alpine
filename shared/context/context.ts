@@ -1,4 +1,4 @@
-import {ProcessContextModule} from "~/server/context/process_context_module";
+import {ProcessContextModule} from "~/shared/context/process_context_module";
 import {InternalError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";
@@ -71,7 +71,7 @@ export type Context<Modules> = {
     withClone<NewModules, Result>(
         // Require the context we are cloning to have a `ProcessContextModule`. So we
         // can extend the context lifetime with its task promises.
-        this: Context<Modules & {process: ProcessContextModule}>,
+        this: Context<Modules>,
         moduleInitializers: ContextModuleInitializers<
             NewModules,
             Omit<Modules, keyof NewModules> & NewModules
@@ -126,20 +126,38 @@ export const Context = {
      * Create a context scoped to the provided async action. When the async action
      * completes, the context is destroyed.
      *
-     * The context must come with a `ProcessContextModule`. Any
-     * `context.process().waitUntil()` calls will extend the lifetime of the
+     * If the context comes with a `ProcessContextModule` under the `process` key,
+     * any `context.process().waitUntil()` calls will extend the lifetime of the
      * context.
      */
-    async with<Modules extends {process: ProcessContextModule}, Result>(
+    async with<Modules, Result>(
         moduleInitializers: ContextModuleInitializers<Modules>,
         action: (context: Context<Modules>) => Promise<Result>,
     ): Promise<Result> {
+        // If we do not have a `ProcessContextModule` then don't extend the lifetime of
+        // the context with other tasks.
+        if (!hasOwnProperty(moduleInitializers, "process")) {
+            const context = Context.new<Modules>(moduleInitializers);
+            try {
+                const result = await action(context);
+                return result;
+            } finally {
+                context.destroy();
+            }
+        }
+
         let taskPromises: Array<Promise<void>> = [];
 
         const context = Context.new<Modules>({
             ...moduleInitializers,
             process: context => {
+                // Expect the context module at the `process()` key to be a
+                // `ProcessContextModule`. If it's not then we can't extend the lifetime of this
+                // context.
+                assert(typeof moduleInitializers.process === "function");
                 const processContextModule = moduleInitializers.process(context);
+                assert(processContextModule instanceof ProcessContextModule);
+
                 return new ProcessContextModule({
                     waitUntil: promise => {
                         processContextModule.waitUntil(promise);
@@ -285,14 +303,28 @@ const ContextImplementation = class Context {
         moduleInitializers: {[key: string]: (context: Context) => unknown},
         action: (context: Context) => Promise<Result>,
     ): Promise<Result> {
-        let taskPromises: Array<Promise<void>> = [];
-
         const oldContext = this;
+
+        // If we do not have a `ProcessContextModule` then don't extend the lifetime of
+        // the context with other tasks.
+        if (!hasOwnProperty(oldContext, "process")) {
+            const newContext = oldContext.clone(moduleInitializers);
+            try {
+                const result = await action(newContext);
+                return result;
+            } finally {
+                newContext.destroy();
+            }
+        }
+
+        let taskPromises: Array<Promise<void>> = [];
 
         const newContext = oldContext.clone({
             ...moduleInitializers,
             process: () => {
-                const processContextModule: ProcessContextModule = (oldContext as any).process();
+                const processContextModule = (oldContext as any).process();
+                assert(processContextModule instanceof ProcessContextModule);
+
                 return new ProcessContextModule({
                     waitUntil: promise => {
                         processContextModule.waitUntil(promise);

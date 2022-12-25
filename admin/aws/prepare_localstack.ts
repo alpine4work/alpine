@@ -4,7 +4,6 @@ import path from "path";
 import prettyMilliseconds from "pretty-ms";
 import {runProcess} from "~/admin/helpers/run_process";
 import {runfilesPath} from "~/admin/helpers/runfiles_path";
-import {seedDynamo} from "~/server/dynamo/seed_dynamo";
 
 // This function runs in Node.js but we execute some code that expects to run
 // in Cloudflare workers. So set the global `crypto` object to the Web
@@ -71,7 +70,8 @@ export async function prepareLocalstack() {
     console.log(`☁️  Deployed AWS resources to LocalStack in ${prettyMilliseconds(durationMs)}`);
 
     const seedStartTime = process.hrtime.bigint();
-    await seedDynamo();
+    // TODO(calebmer): Re-enable seeding!
+    // await seedDynamo();
     const seedDurationMs = Number((process.hrtime.bigint() - seedStartTime) / BigInt("1000000"));
 
     // eslint-disable-next-line no-console

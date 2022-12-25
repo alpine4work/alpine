@@ -1,54 +1,63 @@
-import {getGlobalClientTracer} from "~/client/tracer/client_tracer";
+import {Context} from "~/shared/context/context";
+import {TracerContextModule} from "~/shared/context/tracer_context_module";
 import {InternalError, UnavailableError} from "~/shared/error/error";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error";
 import {assert} from "~/shared/helpers/control/assert";
 import {RpcHttpInputSchema, RpcHttpOutputSchema} from "~/shared/rpc/helpers/rpc_http_schema";
-import {
-    RpcDefinition,
-    RpcDefinitionInputType,
-    RpcDefinitionOutputType,
-} from "~/shared/rpc/rpc_definition";
+import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base";
+import {RpcDefinition} from "~/shared/rpc/rpc_definition";
 import {SchemaDeserializationError, SchemaSerializedValue} from "~/shared/schema/schema";
 import {fetchWithTracerAndReturnSpan} from "~/shared/tracer/fetch_with_tracer";
-import {TracerSpan} from "~/shared/tracer/tracer_span";
+import {TracerSpan} from "~/shared/tracer/tracer";
 
 /**
- * Call an RPC function. Multiple RPC calls in a single synchronous function
- * call stack will be batched into a single execution.
- *
- * Can only call an RPC function from a web browser at the moment.
+ * Executes an RPC in the web browser. Uses cookies stored in the browser to
+ * authenticate the user. If many RPC calls are made in the same synchronous
+ * call stack we will batch them together into one network request to avoid
+ * HTTP roundtrip latency.
  */
-export function callRpc<Definition extends RpcDefinition<any, any>>(
-    definition: Definition,
-    input: RpcDefinitionInputType<Definition>,
-): Promise<RpcDefinitionOutputType<Definition>> {
-    assert(typeof document !== "undefined", "Can only call RPCs in a web browser");
+export class ClientRpcContextModule extends RpcContextModuleBase {
+    constructor(private readonly context: Context<{tracer: TracerContextModule<{}>}>) {
+        super();
 
-    return getGlobalClientTracer().withRootSpan(`RPC ${definition.name}`, async span => {
-        const outputPromiseResolver = createPromiseResolver<SchemaSerializedValue>();
+        // We can only use this implementation of `RpcContextModuleBase` in a web
+        // browser because the web browser has globally available cookies which
+        // authenticate our user.
+        //
+        // In other environments we need to authenticate our user in some way.
+        assert(typeof document !== "undefined");
+    }
 
-        scheduleRpcCall({
-            name: definition.name,
-            input: definition.inputSchema.serialize(input),
-            outputPromiseResolver,
-            span,
-        });
+    public execute<Input, Output>(
+        definition: RpcDefinition<Input, Output>,
+        input: Input,
+    ): Promise<Output> {
+        return this.context.tracer().withSpan(`RPC ${definition.name}`, async (context, span) => {
+            const outputPromiseResolver = createPromiseResolver<SchemaSerializedValue>();
 
-        const output = await outputPromiseResolver.promise;
+            scheduleRpcCall({
+                name: definition.name,
+                input: definition.inputSchema.serialize(input),
+                outputPromiseResolver,
+                span,
+            });
 
-        try {
-            return definition.outputSchema.deserialize(output);
-        } catch (error) {
-            // Reclassify deserialization errors as internal errors if we can't deserialize
-            // the data coming from our RPC HTTP endpoint.
-            if (error instanceof SchemaDeserializationError) {
-                throw new InternalError(error.message, {cause: error});
+            const output = await outputPromiseResolver.promise;
+
+            try {
+                return definition.outputSchema.deserialize(output);
+            } catch (error) {
+                // Reclassify deserialization errors as internal errors if we can't deserialize
+                // the data coming from our RPC HTTP endpoint.
+                if (error instanceof SchemaDeserializationError) {
+                    throw new InternalError(error.message, {cause: error});
+                }
+                throw error;
             }
-            throw error;
-        }
-    });
+        });
+    }
 }
 
 type RpcCall = {

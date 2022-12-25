@@ -1,5 +1,5 @@
 import {AwsContextModule} from "~/server/context/aws_context_module";
-import {Context} from "~/server/context/context";
+import {Context} from "~/shared/context/context";
 
 /**
  * Context with only the modules required by DynamoDB.

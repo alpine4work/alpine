@@ -175,16 +175,19 @@ export type TracerEventData = {
         readonly type?: string;
     };
 
-    /** Information about the account which caused this event. */
-    readonly account?: {
-        /** The ID of the account. */
-        readonly id?: Id;
-    };
+    /**
+     * Information about where this event ocurred in the product. Usually set
+     * in the client's web browser then propagated.
+     */
+    readonly context?: {
+        /** Information about the account who caused this event. */
+        readonly account?: {readonly id?: Id};
 
-    /** Information about the space the event was fired in. */
-    readonly space?: {
-        /** The ID of the space. */
-        readonly id?: Id;
+        /** Information about the space the event was fired while looking at. */
+        readonly space?: {readonly id?: Id};
+
+        /** Information about the document the event was fired while looking at. */
+        readonly document?: {readonly id?: Id};
     };
 };
 

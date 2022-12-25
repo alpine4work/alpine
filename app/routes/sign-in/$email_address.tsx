@@ -67,7 +67,11 @@ export async function action({request, context, params}: DataFunctionArgs) {
 
         return redirectToAuthenticatedHome(context);
     } catch (error) {
-        return jsonWithSchema(ActionSchema, {ok: false, error}, isHttp500Error(error) ? 500 : 400);
+        return jsonWithSchema(
+            ActionSchema,
+            {ok: false, error},
+            {status: isHttp500Error(error) ? 500 : 400},
+        );
     }
 }
 

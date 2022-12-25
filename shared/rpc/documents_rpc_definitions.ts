@@ -5,7 +5,7 @@ import {
 import {defineRpc} from "~/shared/rpc/internal/define_rpc";
 import {Schema} from "~/shared/schema/schema";
 
-export const createDocumentRpc = defineRpc({
+export const createDocument = defineRpc({
     name: "createDocument",
     input: {
         id: Schema.id,
@@ -15,7 +15,7 @@ export const createDocumentRpc = defineRpc({
     output: {},
 });
 
-export const getDocumentContentStepsRpc = defineRpc({
+export const getDocumentContentSteps = defineRpc({
     name: "getDocumentContentSteps",
     input: {
         id: Schema.id,

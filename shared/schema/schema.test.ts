@@ -1,9 +1,11 @@
+import {InvalidArgumentError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {Schema, SchemaDeserializationError} from "~/shared/schema/schema";
 
 function validate<Value>(schema: Schema<Value>, value: unknown): boolean {
     try {
-        schema.deserialize(value as any);
+        const deserializedValue = schema.deserialize(value as any);
+        schema.validate?.(deserializedValue);
         return true;
     } catch (error) {
         if (error instanceof SchemaDeserializationError) {
@@ -682,4 +684,53 @@ test("can rename optional object properties no matter where the combinator lies"
     expect(schema4.deserialize({})).toEqual({foo: 0});
     expect(schema4.deserialize({foo: 1})).toEqual({foo: 0});
     expect(schema4.deserialize({bar: 1})).toEqual({foo: 1});
+});
+
+test("validate will be null if validation is a noop", () => {
+    expect(Schema.float.validate).toEqual(null);
+    expect(Schema.integer.validate).not.toEqual(null);
+
+    expect(() => Schema.float.validate?.(3)).not.toThrow(InvalidArgumentError);
+    expect(() => Schema.float.validate?.(3.14)).not.toThrow(InvalidArgumentError);
+    expect(() => Schema.integer.validate?.(3)).not.toThrow(InvalidArgumentError);
+    expect(() => Schema.integer.validate?.(3.14)).toThrow(InvalidArgumentError);
+});
+
+test("validate will be null if validation is a noop through levels of composition", () => {
+    const schema1 = Schema.array(Schema.object({p: Schema.float}).nullable());
+    const schema2 = Schema.array(Schema.object({p: Schema.integer}).nullable());
+
+    expect(schema1.validate).toEqual(null);
+    expect(schema2.validate).not.toEqual(null);
+
+    expect(() => schema1.validate?.([{p: 1}, null, {p: 3}])).not.toThrow(InvalidArgumentError);
+    expect(() => schema1.validate?.([{p: 1}, null, {p: 3.14}])).not.toThrow(InvalidArgumentError);
+    expect(() => schema2.validate?.([{p: 1}, null, {p: 3}])).not.toThrow(InvalidArgumentError);
+    expect(() => schema2.validate?.([{p: 1}, null, {p: 3.14}])).toThrow(InvalidArgumentError);
+});
+
+test("string trim will actually trim on serialization and throw on validation", () => {
+    const schema = Schema.string.trim();
+
+    expect(schema.serialize("foo")).toEqual("foo");
+    expect(schema.serialize(" foo")).toEqual("foo");
+    expect(schema.serialize("foo ")).toEqual("foo");
+    expect(schema.serialize(" foo ")).toEqual("foo");
+
+    expect(() => schema.validate?.("foo")).not.toThrow(InvalidArgumentError);
+    expect(() => schema.validate?.(" foo")).toThrow(InvalidArgumentError);
+    expect(() => schema.validate?.("foo ")).toThrow(InvalidArgumentError);
+    expect(() => schema.validate?.(" foo ")).toThrow(InvalidArgumentError);
+});
+
+test("string lower case will actually lower case on serialization and throw on validation", () => {
+    const schema = Schema.string.lowerCase();
+
+    expect(schema.serialize("foo")).toEqual("foo");
+    expect(schema.serialize("Foo")).toEqual("foo");
+    expect(schema.serialize("FOO")).toEqual("foo");
+
+    expect(() => schema.validate?.("foo")).not.toThrow(InvalidArgumentError);
+    expect(() => schema.validate?.("Foo")).toThrow(InvalidArgumentError);
+    expect(() => schema.validate?.("FOO")).toThrow(InvalidArgumentError);
 });

@@ -1,7 +1,7 @@
 import {assert} from "~/shared/helpers/control/assert";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {tracerEventHttpHeaderNames} from "~/shared/tracer/helpers/tracer_event_http_header_names";
-import {TracerSpan} from "~/shared/tracer/tracer_span";
+import {TracerSpan} from "~/shared/tracer/tracer";
 
 /**
  * Same as the global [`fetch()`][1] but we create a span for the HTTP request.
@@ -82,7 +82,7 @@ export function fetchWithTracerAndReturnSpan(
     // eslint-disable-next-line no-global-fetch
     const responsePromise = fetch(request);
 
-    const span = parentSpan.startChildSpan(`HTTP ${request.method}`);
+    const {span, finishSpan} = parentSpan.startSpan(`HTTP ${request.method}`);
 
     span.addData({
         net: {
@@ -133,7 +133,7 @@ export function fetchWithTracerAndReturnSpan(
 
             if (!response.body) {
                 span.addData({http: {response: {contentLength: 0}}});
-                span.finish();
+                finishSpan();
                 return response;
             }
 
@@ -142,7 +142,7 @@ export function fetchWithTracerAndReturnSpan(
 
             // Wait until we read the entire body before finishing the span so we can add
             // the response content length.
-            const finishSpan = () => {
+            const finishSpanAfterResponseBodyRead = () => {
                 span.addData({
                     http: {
                         response: {
@@ -153,12 +153,12 @@ export function fetchWithTracerAndReturnSpan(
                         },
                     },
                 });
-                span.finish();
+                finishSpan();
             };
 
-            const finishSpanWithError = (error: any) => {
+            const finishSpanAfterResponseBodyError = (error: any) => {
                 span.addException(error, {escaped: true});
-                span.finish();
+                finishSpan();
             };
 
             let newResponseBodyController:
@@ -187,7 +187,7 @@ export function fetchWithTracerAndReturnSpan(
                                     controller.close(),
                                 );
                             }
-                            finishSpan();
+                            finishSpanAfterResponseBodyRead();
                         } else {
                             responseUncompressedContentLength += value.length;
 
@@ -209,7 +209,7 @@ export function fetchWithTracerAndReturnSpan(
                                 controller.error(error),
                             );
                         }
-                        finishSpanWithError(error);
+                        finishSpanAfterResponseBodyError(error);
                     },
                 );
             };
@@ -238,7 +238,7 @@ export function fetchWithTracerAndReturnSpan(
             return new Response(newResponseBody, response);
         } catch (error) {
             span.addException(error, {escaped: true});
-            span.finish();
+            finishSpan();
             throw error;
         }
     })();

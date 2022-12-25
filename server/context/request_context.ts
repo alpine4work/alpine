@@ -3,8 +3,10 @@ import {
     AuthenticatedAuthContextModule,
 } from "~/server/context/auth_context_module";
 import {AwsContextModule} from "~/server/context/aws_context_module";
-import {Context} from "~/server/context/context";
-import {ProcessContextModule} from "~/server/context/process_context_module";
+import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module";
+import {Context} from "~/shared/context/context";
+import {ProcessContextModule} from "~/shared/context/process_context_module";
+import {TracerContextModule} from "~/shared/context/tracer_context_module";
 
 /**
  * Generic context for handling authenticated requests.
@@ -13,8 +15,10 @@ export type RequestContext = Context<RequestContextModules>;
 
 export type RequestContextModules = {
     process: ProcessContextModule;
+    tracer: TracerContextModule<RequestContextModules>;
     aws: AwsContextModule;
     auth: AuthenticatedAuthContextModule<RequestContextModules>;
+    rpc: LocalRpcContextModule;
 };
 
 /**
@@ -24,6 +28,8 @@ export type UnauthenticatedRequestContext = Context<UnauthenticatedRequestContex
 
 export type UnauthenticatedRequestContextModules = {
     process: ProcessContextModule;
+    tracer: TracerContextModule<RequestContextModules>;
     aws: AwsContextModule;
     auth: AuthContextModule<UnauthenticatedRequestContextModules>;
+    rpc: LocalRpcContextModule;
 };

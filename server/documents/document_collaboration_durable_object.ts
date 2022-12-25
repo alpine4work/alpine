@@ -2,9 +2,7 @@ import {jwtVerify} from "jose";
 import {Step} from "prosemirror-transform";
 import {UnauthenticatedAuthContextModule} from "~/server/context/auth_context_module";
 import {AwsContextModule} from "~/server/context/aws_context_module";
-import {Context} from "~/server/context/context";
 import {createAwsClientFromEnv} from "~/server/context/helpers/create_aws_client_from_env";
-import {ProcessContextModule} from "~/server/context/process_context_module";
 import {
     RequestContext,
     UnauthenticatedRequestContextModules,
@@ -18,6 +16,9 @@ import {
     updateDocumentContent,
 } from "~/server/dynamo/documents_table";
 import {WebSocketServer} from "~/server/helpers/web_socket_server";
+import {Context} from "~/shared/context/context";
+import {ProcessContextModule} from "~/shared/context/process_context_module";
+import {TracerContextModule} from "~/shared/context/tracer_context_module";
 import {
     DocumentCollaborationMessageFromClient,
     DocumentCollaborationMessageFromClientSchema,
@@ -40,6 +41,16 @@ import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {Id, generateId} from "~/shared/id/id";
 import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema";
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema";
+import {Tracer} from "~/shared/tracer/tracer";
+
+const tracer = Tracer.new({
+    serviceName: "DocumentCollaborationService",
+    jsHost: "CloudflareWorker",
+    // In Cloudflare Workers, `Date.now()` only moves forward on I/O as a part of
+    // their security model. This means timers won't be perfectly accurate.
+    // https://developers.cloudflare.com/workers/learning/security-model
+    getTime: () => Date.now(),
+});
 
 type DurableObjectEnv = {
     SESSION_COOKIE_SECRET?: string;
@@ -75,6 +86,7 @@ class DocumentCollaborationDurableObjectWrapper {
                 new ProcessContextModule({
                     waitUntil: promise => this._state.waitUntil(promise),
                 }),
+            tracer: () => new TracerContextModule(context, tracer),
             aws: () => {
                 const awsClient = createAwsClientFromEnv(env);
                 return new AwsContextModule(awsClient);

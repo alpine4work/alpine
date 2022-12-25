@@ -2,7 +2,6 @@
 // `context.awsClient` for executing any AWS commands.
 import type * as types from "@aws-sdk/client-ses";
 import {AwsContextModule} from "~/server/context/aws_context_module";
-import {Context} from "~/server/context/context";
 import {EmailAddress} from "~/server/emails/email_address";
 import {FromEmailAddress, getFromEmailAddress} from "~/server/emails/from_email_address";
 // IMPORTANT: We only import the type for `emailTemplates` here. We lazily load
@@ -10,6 +9,7 @@ import {FromEmailAddress, getFromEmailAddress} from "~/server/emails/from_email_
 // startup times.
 import type {EmailTemplates} from "~/server/emails/internal/email_templates";
 import {encodeAwsUrlencodedFormat} from "~/server/helpers/aws/encode_aws_urlencoded_format";
+import {Context} from "~/shared/context/context";
 import {UnknownError} from "~/shared/error/error";
 
 /**

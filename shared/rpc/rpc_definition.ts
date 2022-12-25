@@ -1,3 +1,5 @@
+import {Context} from "~/shared/context/context";
+import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base";
 import {ObjectSchema} from "~/shared/schema/schema";
 
 export type RpcDefinitionInputType<Definition extends RpcDefinition<any, any>> =
@@ -14,16 +16,28 @@ export type RpcDefinitionOutputType<Definition extends RpcDefinition<any, any>> 
  * You define RPC functions in `~/shared/rpc` with `defineRpc()` so the
  * definition can be accessed anywhere in our codebase.
  *
- * You call RPC functions with `callRpc()` from `~/client/rpc`. Currently you
- * may only call RPC functions on the client.
- *
  * [1]: https://en.wikipedia.org/wiki/Remote_procedure_call
  */
 export interface RpcDefinition<Input, Output> {
     /**
+     * The function is actually a function! You can call it on either the client or
+     * the server and it will execute.
+     *
+     * The function does depend on some context like the current user. On the
+     * client, this context is available globally. On the server we use
+     * [`AsyncLocalStorage`][1].
+     *
+     * [1]: https://nodejs.org/api/async_context.html#class-asynclocalstorage
+     */
+    (context: Context<{rpc: RpcContextModuleBase}>, input: Input): Promise<Output>;
+
+    /**
      * The name used to identify the function on client and server.
      *
      * Must be an identifier that starts with a lowercase letter.
+     *
+     * Functions also have a `name` property so we do override the JavaScript
+     * function name with the RPC function name.
      */
     readonly name: string;
 

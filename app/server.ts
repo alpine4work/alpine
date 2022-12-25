@@ -4,16 +4,20 @@ import * as build from "@remix-run/dev/server-build";
 import {SignJWT} from "jose";
 import {UnauthenticatedAuthContextModule} from "~/server/context/auth_context_module";
 import {AwsContextModule} from "~/server/context/aws_context_module";
-import {Context} from "~/server/context/context";
 import {createAwsClientFromEnv} from "~/server/context/helpers/create_aws_client_from_env";
 import {unauthenticatedSessionError} from "~/server/context/helpers/unauthenticated_session_error";
-import {ProcessContextModule} from "~/server/context/process_context_module";
+import {UnauthenticatedRequestContextModules} from "~/server/context/request_context";
 import {Session} from "~/server/dynamo/accounts_table";
 import {RemixContext, RemixContextModules} from "~/server/helpers/types/remix_context";
+import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module";
 import {SessionCookieStorage} from "~/server/session/session_cookie";
+import {Context} from "~/shared/context/context";
+import {ProcessContextModule} from "~/shared/context/process_context_module";
+import {TracerContextModule} from "~/shared/context/tracer_context_module";
 import {InternalError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {Schema} from "~/shared/schema/schema";
+import {Tracer} from "~/shared/tracer/tracer";
 
 type AppWorkerEnv = {
     DocumentCollaborationDurableObjectNamespace: DurableObjectNamespace;
@@ -32,6 +36,15 @@ const handleRequest = createRequestHandler({
         const context = assertExists(event[contextSymbol]);
         return context as any as AppLoadContext;
     },
+});
+
+const tracer = Tracer.new({
+    serviceName: "AppServer",
+    jsHost: "CloudflareWorker",
+    // In Cloudflare Workers, `Date.now()` only moves forward on I/O as a part of
+    // their security model. This means timers won't be perfectly accurate.
+    // https://developers.cloudflare.com/workers/learning/security-model
+    getTime: () => Date.now(),
 });
 
 // Cache some shared resources across requests.
@@ -161,6 +174,10 @@ async function fetch(
                         waitUntil: promise => executionContext.waitUntil(promise),
                     }),
 
+                // TODO(calebmer): Start a root span for this HTTP request and put that in the
+                // tracer context module.
+                tracer: context => new TracerContextModule<RemixContextModules>(context, tracer),
+
                 auth: context =>
                     new UnauthenticatedAuthContextModule(context, async () => {
                         const sessionCookie = await sessionCookiePromise;
@@ -178,6 +195,8 @@ async function fetch(
 
                         return session;
                     }),
+
+                rpc: context => new LocalRpcContextModule(context),
             },
             async context => {
                 event[contextSymbol] = context;

@@ -1,6 +1,5 @@
 import {subHours} from "date-fns";
 import {AwsContextModule} from "~/server/context/aws_context_module";
-import {Context} from "~/server/context/context";
 import {
     attemptOneTimePasswordSignIn,
     captureOneTimePasswordSignInEmailsForTest,
@@ -11,6 +10,7 @@ import {
 import {DynamoContext} from "~/server/dynamo/dynamo_context";
 import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address";
+import {Context} from "~/shared/context/context";
 import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {Id, generateId} from "~/shared/id/id";
