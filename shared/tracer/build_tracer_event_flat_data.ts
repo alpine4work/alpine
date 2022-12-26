@@ -1,0 +1,65 @@
+import {LinkedList} from "~/shared/helpers/immutable/linked_list";
+import {TracerEventDataBase} from "~/shared/tracer/types/tracer_event_data";
+
+export type TracerEventFlatData = {
+    [key: string]: string | number | boolean;
+};
+
+/**
+ * Takes a nested `TracerEventData` object and builds the flat, snake case
+ * keyed, object we transport over the wire and report to our observability
+ * provider.
+ *
+ * We use a flat, snake case, event format since that's the most universal
+ * format for this kind of event based instrumentation. It's used across
+ * programming languages, observability vendors, and (perhaps most importantly)
+ * [OpenTelemetry semantic conventions][1].
+ *
+ * [1]: https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/trace/semantic_conventions
+ */
+export function buildTracerEventFlatData(
+    nestedDataList: LinkedList<TracerEventDataBase>,
+): TracerEventFlatData {
+    const data: TracerEventFlatData = {};
+
+    const add = (
+        snakeCaseKeyPath: string,
+        value: string | number | boolean | undefined | TracerEventDataBase,
+    ) => {
+        if (value === undefined) {
+            // Ignore undefined values...
+        } else if (typeof value !== "object") {
+            // Values at the top of the linked list override values at the bottom. If we've
+            // already set a value at this property, then don't set it again.
+            if (data[snakeCaseKeyPath] === undefined) {
+                data[snakeCaseKeyPath] = value;
+            }
+        } else {
+            for (const [camelCaseKey, keyValue] of Object.entries(value)) {
+                const snakeCaseKey = convertCamelCaseToSnakeCase(camelCaseKey);
+                add(`${snakeCaseKeyPath}.${snakeCaseKey}`, keyValue);
+            }
+        }
+    };
+
+    while (nestedDataList !== null) {
+        const nestedData = nestedDataList.value;
+
+        for (const [camelCaseKey, keyValue] of Object.entries(nestedData)) {
+            const snakeCaseKey = convertCamelCaseToSnakeCase(camelCaseKey);
+            add(snakeCaseKey, keyValue);
+        }
+
+        nestedDataList = nestedDataList.next;
+    }
+
+    return data;
+}
+
+function convertCamelCaseToSnakeCase(string: string): string {
+    return string
+        .replace(/([a-zA-Z0-9]?)([A-Z])/g, (substring, char1, char2) =>
+            char1.length > 0 ? `${char1}_${char2.toLowerCase()}` : char2.toLowerCase(),
+        )
+        .replace(/-/g, "_");
+}

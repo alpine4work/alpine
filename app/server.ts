@@ -38,14 +38,7 @@ const handleRequest = createRequestHandler({
     },
 });
 
-const tracer = Tracer.new({
-    serviceName: "AppServer",
-    jsHost: "CloudflareWorker",
-    // In Cloudflare Workers, `Date.now()` only moves forward on I/O as a part of
-    // their security model. This means timers won't be perfectly accurate.
-    // https://developers.cloudflare.com/workers/learning/security-model
-    getTime: () => Date.now(),
-});
+let sharedTracer: Tracer | null = null;
 
 // Cache some shared resources across requests.
 let sharedResources: {
@@ -66,6 +59,20 @@ async function fetch(
     env: AppWorkerEnv,
     executionContext: ExecutionContext,
 ): Promise<Response> {
+    if (sharedTracer === null) {
+        sharedTracer = Tracer.new({
+            serviceName: "AppServer",
+            jsHost: "CloudflareWorker",
+            // In Cloudflare Workers, `Date.now()` only moves forward on I/O as a part of
+            // their security model. This means timers won't be perfectly accurate.
+            // https://developers.cloudflare.com/workers/learning/security-model
+            getTime: () => Date.now(),
+            sendEvent: () => {
+                // TODO(calebmer): Implement!
+            },
+        });
+    }
+
     // An env object that is referentially equal will be passed in as long as
     // environment variables remain the same.
     // https://developers.cloudflare.com/workers/runtime-apis/fetch-event/#parameters
@@ -95,6 +102,8 @@ async function fetch(
         };
     }
 
+    // Capture non-nullable references to be used in asynchronous callbacks.
+    const tracer = sharedTracer;
     const resources = sharedResources;
 
     const url = new URL(request.url);

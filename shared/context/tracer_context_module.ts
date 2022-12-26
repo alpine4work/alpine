@@ -11,8 +11,11 @@ import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
  * `withSpan()` will create a new context object
  */
 export class TracerContextModule extends ContextModuleBase {
-    constructor(private readonly _tracer: TracerBase) {
+    private readonly _tracer: TracerBase;
+
+    constructor(tracer: TracerBase) {
         super();
+        this._tracer = tracer;
     }
 
     /**

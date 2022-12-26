@@ -4,18 +4,17 @@ import ReactDom, {hydrateRoot} from "react-dom/client";
 import {AppContext, AppContextProvider} from "~/client/helpers/app_context";
 import {attachDeveloperConsole} from "~/client/helpers/developer_console";
 import {ClientRpcContextModule} from "~/client/rpc/client_rpc_context_module";
+import {createClientTracer} from "~/client/tracer/client_tracer";
 import {Context} from "~/shared/context/context";
 import {TracerContextModule} from "~/shared/context/tracer_context_module";
 import {ErrorSchema} from "~/shared/error/error_schema";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
-import {assert} from "~/shared/helpers/control/assert";
-import {Tracer} from "~/shared/tracer/tracer";
 
 // We've patched Remix so that when it serializes and deserializes errors it
 // looks for this global and uses it.
 (globalThis as any).__remixErrorSchema = ErrorSchema;
 
-const tracer = createTracer();
+const tracer = createClientTracer();
 
 const context: AppContext = Context.new({
     tracer: new TracerContextModule(tracer),
@@ -51,29 +50,5 @@ if (process.env.NODE_ENV === "development" && typeof window !== "undefined") {
                 },
             ],
         });
-    });
-}
-
-function createTracer() {
-    assert(typeof document !== "undefined");
-
-    const initialDateNow = Date.now();
-    const initialPerformanceNow = Math.floor(performance.now());
-
-    return Tracer.new({
-        serviceName: "AppClient",
-        jsHost: "Web",
-        getTime: () => {
-            // We use `performance.now()` for measuring time on the client since it is a
-            // monotonically increasing clock designed for measuring performance.
-            //
-            // The user may change their system clock which would give `Date.now()` weird
-            // inconsistent values whereas `performance.now()` (to our knowledge) should
-            // only move forward.
-            //
-            // We capture the initial time from `Date.now()` so we get a timestamp since
-            // the Unix epoch instead of the window origin.
-            return initialDateNow + (Math.floor(performance.now()) - initialPerformanceNow);
-        },
     });
 }

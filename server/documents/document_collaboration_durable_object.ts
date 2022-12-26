@@ -44,15 +44,6 @@ import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_sele
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema";
 import {Tracer} from "~/shared/tracer/tracer";
 
-const tracer = Tracer.new({
-    serviceName: "DocumentCollaborationService",
-    jsHost: "CloudflareWorker",
-    // In Cloudflare Workers, `Date.now()` only moves forward on I/O as a part of
-    // their security model. This means timers won't be perfectly accurate.
-    // https://developers.cloudflare.com/workers/learning/security-model
-    getTime: () => Date.now(),
-});
-
 type DurableObjectEnv = {
     SESSION_COOKIE_SECRET?: string;
     AWS_ACCESS_KEY_ID?: string;
@@ -87,6 +78,18 @@ class DocumentCollaborationDurableObjectWrapper {
             );
 
         this._sessionCookieSecret = sessionCookieSecret;
+
+        const tracer = Tracer.new({
+            serviceName: "DocumentCollaborationService",
+            jsHost: "CloudflareWorker",
+            // In Cloudflare Workers, `Date.now()` only moves forward on I/O as a part of
+            // their security model. This means timers won't be perfectly accurate.
+            // https://developers.cloudflare.com/workers/learning/security-model
+            getTime: () => Date.now(),
+            sendEvent: () => {
+                // TODO(calebmer): Implement!
+            },
+        });
 
         const awsClient = createAwsClientFromEnv(env);
 

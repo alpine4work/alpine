@@ -2,6 +2,9 @@
 import type {Context} from "~/shared/context/context";
 import {InternalError} from "~/shared/error/error";
 
+// Never actually used at runtime. Only used by the type system.
+const modulesTypeSymbol = Symbol("modulesType");
+
 /**
  * A `Context` is made up of a couple modules. All modules inherit from this
  * class.
@@ -33,7 +36,7 @@ export class ContextModuleBase<Modules extends {[key: string]: ContextModuleBase
     // TypeScript to infer the type of `Modules` when performing inference of the
     // form `Context<infer Modules>`. Otherwise TypeScript sometimes considers the
     // `clone()` function on the `Context` object to be a part of modules!
-    public readonly [modulesTypeSymbol]!: Modules;
+    public declare readonly [modulesTypeSymbol]: Modules;
 
     protected get _context(): Context<Modules> {
         throw new InternalError(
@@ -41,8 +44,6 @@ export class ContextModuleBase<Modules extends {[key: string]: ContextModuleBase
         );
     }
 }
-
-declare const modulesTypeSymbol: unique symbol;
 
 /**
  * Get the `Modules` type for a context module.

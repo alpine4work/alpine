@@ -1,5 +1,5 @@
 import type {Id} from "~/shared/id/id";
-import type {TracerEventHttpHeaderName} from "~/shared/tracer/helpers/tracer_event_http_header_names";
+import type {TracerEventHttpHeaderName} from "~/shared/tracer/tracer_event_http_header_names";
 
 /**
  * The data present in an event logged by our tracer.
@@ -200,7 +200,11 @@ export type TracerEventData = {
  * Any names relevant to [Honeycomb][1] need to be the same here but
  * camel case.
  *
+ * `time` is not included. The event time is sent separately from the event
+ * data as the [Honeycomb events API prescribes][2].
+ *
  * [1]: https://docs.honeycomb.io/getting-data-in/tracing/send-trace-data/
+ * [2]: https://docs.honeycomb.io/api/events/#batched-events-body
  */
 export type TracerEventFullData = TracerEventData & {
     /**
@@ -274,6 +278,18 @@ export type TracerEventFullData = TracerEventData & {
         /** What is the host running our JavaScript code? */
         readonly host?: TracerEventJsHost;
     };
+};
+
+/**
+ * `TracerEventData` should be assignable to this base type. Useful for doing
+ * generic manipulation on tracer event data.
+ *
+ * Only supports the data types that [Honeycomb supports][1].
+ *
+ * [1]: https://docs.honeycomb.io/api/events/#data-types
+ */
+export type TracerEventDataBase = {
+    [key: string]: TracerEventDataBase | string | number | boolean | undefined;
 };
 
 /**

@@ -98,16 +98,13 @@ async function executeRpcs(callBatch: Array<RpcCall>): Promise<void> {
         const [firstCall, ...otherCalls] = callBatch;
         assert(firstCall);
 
-        const {span, responsePromise} = fetchWithTracerAndReturnSpan(
-            firstCall.span,
-            new Request("/api/rpc", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(RpcHttpInputSchema.serialize(input)),
-            }),
-        );
+        const {span, responsePromise} = fetchWithTracerAndReturnSpan(firstCall.span, "/api/rpc", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(RpcHttpInputSchema.serialize(input)),
+        });
 
         // The first call is the parent of our HTTP execution. Link the other calls to
         // the HTTP execution span so we can see the causal relationship.

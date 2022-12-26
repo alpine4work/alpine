@@ -1,7 +1,7 @@
 import {assert} from "~/shared/helpers/control/assert";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
-import {tracerEventHttpHeaderNames} from "~/shared/tracer/helpers/tracer_event_http_header_names";
 import {TracerSpan} from "~/shared/tracer/tracer";
+import {tracerEventHttpHeaderNames} from "~/shared/tracer/tracer_event_http_header_names";
 
 /**
  * Same as the global [`fetch()`][1] but we create a span for the HTTP request.
@@ -9,8 +9,12 @@ import {TracerSpan} from "~/shared/tracer/tracer";
  *
  * [1]: https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
  */
-export async function fetchWithTracer(parentSpan: TracerSpan, request: Request): Promise<Response> {
-    return fetchWithTracerAndReturnSpan(parentSpan, request).responsePromise;
+export async function fetchWithTracer(
+    parentSpan: TracerSpan,
+    url: string,
+    requestInit?: RequestInit,
+): Promise<Response> {
+    return fetchWithTracerAndReturnSpan(parentSpan, url, requestInit).responsePromise;
 }
 
 /**
@@ -19,52 +23,12 @@ export async function fetchWithTracer(parentSpan: TracerSpan, request: Request):
  */
 export function fetchWithTracerAndReturnSpan(
     parentSpan: TracerSpan,
-    request: Request,
+    url: string,
+    requestInit?: RequestInit,
 ): {
     span: TracerSpan;
     responsePromise: Promise<Response>;
 } {
-    const url = new URL(request.url);
-
-    if (request.body) {
-        let requestUncompressedContentLength = 0;
-        const requestBodyReader = request.body.getReader();
-
-        const newRequestBody = new ReadableStream<Uint8Array>({
-            start: controller => {
-                const read = () => {
-                    requestBodyReader.read().then(
-                        ({done, value}) => {
-                            if (done) {
-                                controller.close();
-
-                                // Add the uncompressed content length to the span once we have it.
-                                if (!span.isFinished()) {
-                                    span.addData({
-                                        http: {
-                                            request: {
-                                                uncompressedContentLength:
-                                                    requestUncompressedContentLength,
-                                            },
-                                        },
-                                    });
-                                }
-                            } else {
-                                requestUncompressedContentLength += value.length;
-                                controller.enqueue(value);
-                            }
-                        },
-                        error => controller.error(error),
-                    );
-                };
-
-                read();
-            },
-        });
-
-        request = new Request(request, {body: newRequestBody});
-    }
-
     // This is a little weird, but start the fetch before starting the span. This
     // won't count any blocking time spent constructing the span.
     //
@@ -80,25 +44,29 @@ export function fetchWithTracerAndReturnSpan(
     //
     // TODO(calebmer): Include span propagation headers!
     // eslint-disable-next-line no-global-fetch
-    const responsePromise = fetch(request);
+    const responsePromise = fetch(url, requestInit);
 
-    const {span, finishSpan} = parentSpan.startSpan(`HTTP ${request.method}`);
+    const requestUrl = new URL(url, window.location.href);
+    const requestMethod = requestInit?.method ?? "GET";
+    const requestHeaders = new Headers(requestInit?.headers);
+
+    const {span, finishSpan} = parentSpan.startSpan(`HTTP ${requestMethod}`);
 
     span.addData({
         net: {
             peer: {
-                name: url.hostname,
-                port: url.port.length > 0 ? url.port : undefined,
+                name: requestUrl.hostname,
+                port: requestUrl.port.length > 0 ? requestUrl.port : undefined,
             },
         },
         http: {
-            url: request.url,
-            method: request.method,
-            userAgent: request.headers.get("user-agent") ?? undefined,
+            url: requestUrl.toString(),
+            method: requestMethod,
+            userAgent: requestHeaders.get("user-agent") ?? undefined,
             request: {
                 header: Object.fromEntries(
                     filterMapIterable(tracerEventHttpHeaderNames, headerName => {
-                        const headerValue = request.headers.get(headerName);
+                        const headerValue = requestHeaders.get(headerName);
                         if (!headerValue) return null;
                         return [headerName, headerValue];
                     }),

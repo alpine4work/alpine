@@ -4,7 +4,8 @@ import {assert} from "~/shared/helpers/control/assert";
 import {LinkedList, NonEmptyLinkedList} from "~/shared/helpers/immutable/linked_list";
 import {Id, generateId} from "~/shared/id/id";
 import {getRealmId} from "~/shared/id/realm_id";
-import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data";
+import {mergeTracerEventData} from "~/shared/tracer/merge_tracer_event_data";
+import {TracerEvent} from "~/shared/tracer/tracer_event";
 import {
     TracerEventData,
     TracerEventFullData,
@@ -105,6 +106,11 @@ export class Tracer extends TracerBase {
     public readonly getTime: () => number;
 
     /**
+     * Send an event to our observability tool for storage and analysis.
+     */
+    public readonly sendEvent: (event: TracerEvent) => void;
+
+    /**
      * Event data shared across all spans created by this tracer.
      *
      * Different from propagated data in that it's not propagated across network
@@ -120,15 +126,18 @@ export class Tracer extends TracerBase {
 
     private constructor({
         getTime,
+        sendEvent,
         sharedEventData,
         propagatedEventData,
     }: {
         getTime: () => number;
+        sendEvent: (event: TracerEvent) => void;
         sharedEventData: TracerEventFullData;
         propagatedEventData: TracerEventData | null;
     }) {
         super();
         this.getTime = getTime;
+        this.sendEvent = sendEvent;
         this.sharedEventData = sharedEventData;
         this.propagatedEventData = propagatedEventData;
     }
@@ -137,13 +146,16 @@ export class Tracer extends TracerBase {
         serviceName,
         jsHost,
         getTime,
+        sendEvent,
     }: {
         serviceName: TracerServiceName;
         jsHost: TracerEventJsHost;
         getTime: () => number;
+        sendEvent: (event: TracerEvent) => void;
     }) {
         return new Tracer({
             getTime,
+            sendEvent,
             sharedEventData: {
                 service: {
                     name: serviceName,
@@ -172,6 +184,7 @@ export class Tracer extends TracerBase {
     public withPropagatedData(data: TracerEventData): Tracer {
         return new Tracer({
             getTime: this.getTime,
+            sendEvent: this.sendEvent,
             sharedEventData: this.sharedEventData,
             propagatedEventData: this.propagatedEventData
                 ? // We merge here instead of using a linked list we lazily merge later since we
@@ -226,6 +239,8 @@ export class TracerSpan extends TracerBase {
     private _propagatedEventData: LinkedList<TracerEventData>;
 
     private constructor(
+        // TODO(calebmer): I'm thinking about recommending against and linting against
+        // properties of this style. Leads to classes that are hard to maintain.
         private readonly _tracer: Tracer,
         public readonly name: string,
         parentSpan: TracerSpan | null,
@@ -356,6 +371,8 @@ export class TracerSpan extends TracerBase {
             value: {durationMs: endTime - this._startTime},
             next: this._eventData,
         };
+
+        this._tracer.sendEvent(new TracerEvent(this._startTime, this._eventData));
     }
 
     /**
@@ -366,6 +383,8 @@ export class TracerSpan extends TracerBase {
      * causal relationship between these spans.
      */
     public link(span: Omit<TracerSpan, "finish">) {
+        const time = this._tracer.getTime();
+
         // Link this span with another using the Honeycomb link event format:
         // https://docs.honeycomb.io/getting-data-in/tracing/send-trace-data/#links
         const data: TracerEventFullData = {
@@ -380,8 +399,6 @@ export class TracerSpan extends TracerBase {
             },
         };
 
-        // TODO(calebmer): Actually send this event somewhere!
-        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-        data;
+        this._tracer.sendEvent(new TracerEvent(time, {value: data, next: null}));
     }
 }

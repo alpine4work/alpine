@@ -1,0 +1,38 @@
+import {NonEmptyLinkedList} from "~/shared/helpers/immutable/linked_list";
+import {
+    TracerEventFlatData,
+    buildTracerEventFlatData,
+} from "~/shared/tracer/build_tracer_event_flat_data";
+import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data";
+
+/**
+ * An in-memory tracer event. Events are structured so they can be cheaply
+ * constructed and modified to avoid slowing down performance critical code.
+ * Then when we send tracer events to the server we convert them into their
+ * final format.
+ *
+ * Event data is represented as a linked list. Every time we call
+ * `span.addData()` it adds to the linked list instead of doing an O(data)
+ * merge. Then we merge data before sending it to the server.
+ */
+export class TracerEvent {
+    public readonly time: number;
+    private readonly _eventData: NonEmptyLinkedList<TracerEventFullData>;
+    private _flatEventData: TracerEventFlatData | null = null;
+
+    constructor(time: number, eventData: NonEmptyLinkedList<TracerEventFullData>) {
+        this.time = time;
+        this._eventData = eventData;
+    }
+
+    /**
+     * Gets the flattened data for this tracer event which we can send over the
+     * wire. We lazily flatten data the first time this function is called.
+     */
+    public getFlatData(): TracerEventFlatData {
+        if (this._flatEventData === null) {
+            this._flatEventData = buildTracerEventFlatData(this._eventData);
+        }
+        return this._flatEventData;
+    }
+}

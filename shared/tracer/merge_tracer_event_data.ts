@@ -1,6 +1,4 @@
-import {isPlainObject} from "~/shared/helpers/object/is_plain_object";
-import {SchemaSerializedValue} from "~/shared/schema/schema";
-import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data";
+import {TracerEventDataBase, TracerEventFullData} from "~/shared/tracer/types/tracer_event_data";
 
 /**
  * Merges data from multiple tracer events together into one event.
@@ -14,10 +12,7 @@ export function mergeTracerEventData(sources: Array<TracerEventFullData>): Trace
     return target;
 }
 
-function mergeTracerEventDataInto(
-    target: {[key: string]: SchemaSerializedValue | undefined},
-    source: {[key: string]: SchemaSerializedValue | undefined},
-) {
+function mergeTracerEventDataInto(target: TracerEventDataBase, source: TracerEventDataBase) {
     for (const [key, sourceValue] of Object.entries(source)) {
         const targetValue = target[key];
 
@@ -26,7 +21,7 @@ function mergeTracerEventDataInto(
 
         // If both the source value and target value are plain objects then recursively
         // merge them together. Otherwise override the key with our source value.
-        if (isPlainObject(targetValue) && isPlainObject(sourceValue)) {
+        if (typeof targetValue === "object" && typeof sourceValue === "object") {
             mergeTracerEventDataInto(targetValue, sourceValue);
         } else {
             target[key] = sourceValue;

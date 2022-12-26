@@ -1,9 +1,11 @@
-import {json} from "@remix-run/cloudflare";
 import {Outlet, ShouldReloadFunction} from "@remix-run/react";
 import {authorizeAccountHasSpaceAccess} from "~/server/dynamo/spaces_table";
 import {DataFunctionArgs} from "~/server/helpers/remix/data_function_args";
+import {jsonWithSchema} from "~/server/helpers/remix/json_with_schema";
 import {Schema} from "~/shared/schema/schema";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
+
+const LoaderSchema = Schema.object({});
 
 // Run the loader again when the space ID changes.
 export const unstable_shouldReload: ShouldReloadFunction = ({url, prevUrl}) =>
@@ -21,7 +23,7 @@ export async function loader({context, params}: DataFunctionArgs) {
         },
     };
 
-    return json({propagateEventData});
+    return jsonWithSchema(LoaderSchema, {}, {propagateEventData});
 }
 
 export default function InternalLayout() {
