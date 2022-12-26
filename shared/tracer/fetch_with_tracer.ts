@@ -1,5 +1,5 @@
 import {assert} from "~/shared/helpers/control/assert";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable";
 import {TracerSpan} from "~/shared/tracer/tracer";
 import {tracerEventHttpHeaderNames} from "~/shared/tracer/tracer_event_http_header_names";
 
@@ -50,13 +50,15 @@ export function fetchWithTracerAndReturnSpan(
     const requestMethod = requestInit?.method ?? "GET";
     const requestHeaders = new Headers(requestInit?.headers);
 
-    const {span, finishSpan} = parentSpan.startSpan(`HTTP ${requestMethod}`);
+    const {span, finishSpan} = parentSpan.startSpan(`HTTP client ${requestMethod}`);
 
     span.addData({
         net: {
-            peer: {
-                name: requestUrl.hostname,
-                port: requestUrl.port.length > 0 ? requestUrl.port : undefined,
+            sock: {
+                peer: {
+                    name: requestUrl.hostname,
+                    port: requestUrl.port.length > 0 ? requestUrl.port : undefined,
+                },
             },
         },
         http: {
@@ -65,11 +67,9 @@ export function fetchWithTracerAndReturnSpan(
             userAgent: requestHeaders.get("user-agent") ?? undefined,
             request: {
                 header: Object.fromEntries(
-                    filterMapIterable(tracerEventHttpHeaderNames, headerName => {
-                        const headerValue = requestHeaders.get(headerName);
-                        if (!headerValue) return null;
-                        return [headerName, headerValue];
-                    }),
+                    filterIterable(requestHeaders, ([headerName]) =>
+                        tracerEventHttpHeaderNames.has(headerName),
+                    ),
                 ),
             },
         },
@@ -84,11 +84,9 @@ export function fetchWithTracerAndReturnSpan(
                     statusCode: response.status,
                     response: {
                         header: Object.fromEntries(
-                            filterMapIterable(tracerEventHttpHeaderNames, headerName => {
-                                const headerValue = response.headers.get(headerName);
-                                if (!headerValue) return null;
-                                return [headerName, headerValue];
-                            }),
+                            filterIterable(response.headers, ([headerName]) =>
+                                tracerEventHttpHeaderNames.has(headerName),
+                            ),
                         ),
                     },
                 },

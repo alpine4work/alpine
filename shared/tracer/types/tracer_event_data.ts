@@ -15,30 +15,6 @@ export type TracerEventData = {
      * [1]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/semantic_conventions/span-general.md
      */
     readonly net?: {
-        readonly host?: {
-            /** Name of the local HTTP server that received the request. */
-            readonly name?: string;
-
-            /**
-             * Port of the local HTTP server that received the request.
-             *
-             * String since doing statistics on port doesn't really make sense.
-             */
-            readonly port?: string;
-        };
-
-        readonly peer?: {
-            /** Remote socket peer name. */
-            readonly name?: string;
-
-            /**
-             * Remote socket peer port.
-             *
-             * String since doing statistics on port doesn't really make sense.
-             */
-            readonly port?: string;
-        };
-
         readonly sock?: {
             /**
              * Protocol [address family][1] which is used for communication (e.g. `inet`,
@@ -49,16 +25,36 @@ export type TracerEventData = {
             readonly family?: string;
 
             readonly peer?: {
+                /** Remote socket peer name. */
+                readonly name?: string;
+
                 /**
                  * Remote socket peer address: IPv4 or IPv6 for internet protocols, path for
                  * local communication.
                  */
                 readonly addr?: string;
+
+                /**
+                 * Remote socket peer port.
+                 *
+                 * String since doing statistics on port doesn't really make sense.
+                 */
+                readonly port?: string;
             };
 
             readonly host?: {
+                /** Name of the local HTTP server that received the request. */
+                readonly name?: string;
+
                 /** Local socket address. Useful in case of a multi-IP host. */
                 readonly addr?: string;
+
+                /**
+                 * Port of the local HTTP server that received the request.
+                 *
+                 * String since doing statistics on port doesn't really make sense.
+                 */
+                readonly port?: string;
             };
         };
     };

@@ -43,6 +43,8 @@ const externalHost = (() => {
 
 const miniflare = new Miniflare({
     scriptPath: path.join(runfilesPath, "cyberworlds/app/build/server.js"),
+    compatibilityDate: "2022-07-12",
+    compatibilityFlags: ["streams_enable_constructors"],
     modules: true,
     modulesRules: [{type: "ESModule", include: ["**/*.js"], fallthrough: true}],
     sourceMap: true,

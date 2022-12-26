@@ -62,9 +62,7 @@ export async function action({request, context}: DataFunctionArgs) {
             ),
             {
                 status,
-                headers: {
-                    "Content-Type": "application/json",
-                },
+                headers: {"content-type": "application/json"},
             },
         );
     } catch (error) {
@@ -79,9 +77,7 @@ export async function action({request, context}: DataFunctionArgs) {
             ),
             {
                 status,
-                headers: {
-                    "Content-Type": "application/json",
-                },
+                headers: {"content-type": "application/json"},
             },
         );
     }

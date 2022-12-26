@@ -121,6 +121,6 @@ const tracerEventHttpHeaderNameMap: TracerEventHttpHeaderNameMap = {
  * All of the header names in our `TracerEventHttpHeaderName` type
  * available at runtime.
  */
-export const tracerEventHttpHeaderNames = Object.keys(
-    tracerEventHttpHeaderNameMap,
-) as ReadonlyArray<TracerEventHttpHeaderName>;
+export const tracerEventHttpHeaderNames: ReadonlySet<string> = new Set(
+    Object.keys(tracerEventHttpHeaderNameMap),
+);

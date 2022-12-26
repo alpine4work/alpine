@@ -14,14 +14,14 @@ export async function action({request, context}: DataFunctionArgs) {
 
         return new Response(JSON.stringify({ok: true}), {
             status: 200,
-            headers: {"Content-Type": "application/json"},
+            headers: {"content-type": "application/json"},
         });
     } catch (error) {
         const status = isHttp500Error(error) ? 500 : 400;
 
         return new Response(JSON.stringify({ok: false, error: ErrorSchema.serialize(error)}), {
             status,
-            headers: {"Content-Type": "application/json"},
+            headers: {"content-type": "application/json"},
         });
     }
 }
