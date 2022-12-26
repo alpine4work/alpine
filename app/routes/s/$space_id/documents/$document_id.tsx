@@ -22,9 +22,7 @@ export async function loader({params, context}: DataFunctionArgs) {
     if (!document) throw new NotFoundError("Document not found");
 
     const propagateEventData: TracerEventData = {
-        context: {
-            space: {id: documentId},
-        },
+        context: {documentId},
     };
 
     return jsonWithSchema(schema, {document}, {propagateEventData});

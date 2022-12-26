@@ -177,13 +177,13 @@ export type TracerEventData = {
      */
     readonly context?: {
         /** Information about the account who caused this event. */
-        readonly account?: {readonly id?: Id};
+        readonly accountId?: Id;
 
         /** Information about the space the event was fired while looking at. */
-        readonly space?: {readonly id?: Id};
+        readonly spaceId?: Id;
 
         /** Information about the document the event was fired while looking at. */
-        readonly document?: {readonly id?: Id};
+        readonly documentId?: Id;
     };
 };
 

@@ -18,8 +18,8 @@ export async function loader({context, params}: DataFunctionArgs) {
 
     const propagateEventData: TracerEventData = {
         context: {
-            account: {id: authenticatedContext.auth.getAccountId()},
-            space: {id: spaceId},
+            accountId: authenticatedContext.auth.getAccountId(),
+            spaceId,
         },
     };
 

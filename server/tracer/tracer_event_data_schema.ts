@@ -109,9 +109,9 @@ const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullData> = {
         type: IdentifierStringSchema,
     },
     context: {
-        account: {id: Schema.id},
-        space: {id: Schema.id},
-        document: {id: Schema.id},
+        accountId: Schema.id,
+        spaceId: Schema.id,
+        documentId: Schema.id,
     },
 };
 
