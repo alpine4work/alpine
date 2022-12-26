@@ -79,6 +79,18 @@ export interface SchemaWithOnlySerialization<Value> {
 }
 
 /**
+ * `Schema` but you can only deserialize.
+ *
+ * Useful if you want to be [covariant][1] on `Value`.
+ *
+ * [1]: https://en.wikipedia.org/wiki/Covariance_and_contravariance_(computer_science)
+ */
+export interface SchemaWithOnlyDeserialization<Value> {
+    readonly description: SchemaSerializedValueDescription;
+    deserialize(serializedValue: SchemaSerializedValue): Value;
+}
+
+/**
  * The schema class is a type-safe combinator-style utility for validating and
  * migrating unknown JavaScript values. You may use it for reading values from
  * a dynamic JSON data store, messages from an untyped event stream, or for
@@ -1470,7 +1482,7 @@ type SchemaDeserializationStackFrame =
 
 const schemaDeserializationStack: Array<SchemaDeserializationStackFrame> = [];
 
-function withSchemaDeserializationStackFrame<Value>(
+export function withSchemaDeserializationStackFrame<Value>(
     frame: SchemaDeserializationStackFrame,
     action: () => Value,
 ): Value {

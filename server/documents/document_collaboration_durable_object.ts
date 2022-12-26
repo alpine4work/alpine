@@ -42,7 +42,7 @@ import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {Id, generateId} from "~/shared/id/id";
 import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema";
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema";
-import {Tracer} from "~/shared/tracer/tracer";
+import {TracerRoot} from "~/shared/tracer/tracer_root";
 
 type DurableObjectEnv = {
     SESSION_COOKIE_SECRET?: string;
@@ -79,7 +79,7 @@ class DocumentCollaborationDurableObjectWrapper {
 
         this._sessionCookieSecret = sessionCookieSecret;
 
-        const tracer = Tracer.new({
+        const tracer = TracerRoot.new({
             serviceName: "DocumentCollaborationService",
             jsHost: "CloudflareWorker",
             // In Cloudflare Workers, `Date.now()` only moves forward on I/O as a part of

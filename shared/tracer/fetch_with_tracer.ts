@@ -1,7 +1,8 @@
 import {assert} from "~/shared/helpers/control/assert";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable";
-import {TracerSpan} from "~/shared/tracer/tracer";
-import {tracerEventHttpHeaderNames} from "~/shared/tracer/tracer_event_http_header_names";
+import {tracerEventHttpHeaderNames} from "~/shared/tracer/helpers/tracer_event_http_header_names";
+import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_header_propagation";
+import {TracerSpan} from "~/shared/tracer/tracer_span";
 
 /**
  * Same as the global [`fetch()`][1] but we create a span for the HTTP request.
@@ -29,28 +30,16 @@ export function fetchWithTracerAndReturnSpan(
     span: TracerSpan;
     responsePromise: Promise<Response>;
 } {
-    // This is a little weird, but start the fetch before starting the span. This
-    // won't count any blocking time spent constructing the span.
-    //
-    // We do this because in Cloudflare Workers `Date.now()` [returns the time of
-    // the last I/O][1] for [security against timing attacks][2]. So we want to
-    // measure the start time of the HTTP request span after I/O happens so the
-    // Cloudflare timer progresses.
-    //
-    // [1]: https://developers.cloudflare.com/workers/runtime-apis/web-standards/
-    // [2]: https://developers.cloudflare.com/workers/learning/security-model/
-    //
-    // TODO(calebmer): Test that this actually works?
-    //
-    // TODO(calebmer): Include span propagation headers!
-    // eslint-disable-next-line no-global-fetch
-    const responsePromise = fetch(url, requestInit);
-
     const requestUrl = new URL(url, window.location.href);
     const requestMethod = requestInit?.method ?? "GET";
-    const requestHeaders = new Headers(requestInit?.headers);
 
     const {span, finishSpan} = parentSpan.startSpan(`HTTP client ${requestMethod}`);
+
+    const requestHeaders = new Headers(requestInit?.headers);
+    addTracerPropagationContextHeader(requestHeaders, span);
+
+    // eslint-disable-next-line no-global-fetch
+    const responsePromise = fetch(url, {...requestInit, headers: requestHeaders});
 
     span.addData({
         net: {
@@ -123,7 +112,7 @@ export function fetchWithTracerAndReturnSpan(
             };
 
             const finishSpanAfterResponseBodyError = (error: any) => {
-                span.addException(error, {escaped: true});
+                span.addExceptionData(error, {escaped: true});
                 finishSpan();
             };
 
@@ -203,7 +192,7 @@ export function fetchWithTracerAndReturnSpan(
 
             return new Response(newResponseBody, response);
         } catch (error) {
-            span.addException(error, {escaped: true});
+            span.addExceptionData(error, {escaped: true});
             finishSpan();
             throw error;
         }

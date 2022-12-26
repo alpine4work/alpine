@@ -1,4 +1,4 @@
-const identifierRegExp = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+export const identifierRegExp = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
 /**
  * Is the provided string a valid ASCII identifier?

@@ -19,6 +19,7 @@ export type TracerEventFlatData = {
  */
 export function buildTracerEventFlatData(
     nestedDataList: LinkedList<TracerEventDataBase>,
+    propagatedFlatData: TracerEventFlatData | null,
 ): TracerEventFlatData {
     const data: TracerEventFlatData = {};
 
@@ -53,10 +54,24 @@ export function buildTracerEventFlatData(
         nestedDataList = nestedDataList.next;
     }
 
+    if (propagatedFlatData !== null) {
+        for (const [key, value] of Object.entries(propagatedFlatData)) {
+            // Propagated event data is overridden by event data defined in this process.
+            // So make sure the key doesn't have a value already before copying over
+            // propagated flat data.
+            if (data[key] === undefined) {
+                data[key] = value;
+            }
+        }
+    }
+
     return data;
 }
 
-function convertCamelCaseToSnakeCase(string: string): string {
+/**
+ * Convert a camelCase string into snake_case.
+ */
+export function convertCamelCaseToSnakeCase(string: string): string {
     return string
         .replace(/([a-zA-Z0-9]?)([A-Z])/g, (substring, char1, char2) =>
             char1.length > 0 ? `${char1}_${char2.toLowerCase()}` : char2.toLowerCase(),

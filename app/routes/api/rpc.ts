@@ -66,6 +66,8 @@ export async function action({request, context}: DataFunctionArgs) {
             },
         );
     } catch (error) {
+        context.tracer.logException(error);
+
         const status = isHttp500Error(error) ? 500 : 400;
 
         return new Response(

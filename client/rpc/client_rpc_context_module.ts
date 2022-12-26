@@ -9,7 +9,7 @@ import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition";
 import {SchemaDeserializationError, SchemaSerializedValue} from "~/shared/schema/schema";
 import {fetchWithTracerAndReturnSpan} from "~/shared/tracer/fetch_with_tracer";
-import {TracerSpan} from "~/shared/tracer/tracer";
+import {TracerSpan} from "~/shared/tracer/tracer_span";
 
 /**
  * Executes an RPC in the web browser. Uses cookies stored in the browser to

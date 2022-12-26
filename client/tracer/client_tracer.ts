@@ -6,7 +6,7 @@ import {
 } from "scheduler";
 import {uninterruptedThoughtLimitMs} from "~/client/design/timing_constants";
 import {assert} from "~/shared/helpers/control/assert";
-import {Tracer} from "~/shared/tracer/tracer";
+import {TracerRoot} from "~/shared/tracer/tracer_root";
 import {TracerEvent} from "~/shared/tracer/tracer_event";
 
 /**
@@ -21,7 +21,7 @@ export function createClientTracer() {
     let queuedEvents: Array<TracerEvent> = [];
     let scheduledFlushEventsCallbackNode: CallbackNode | null = null;
 
-    const tracer = Tracer.new({
+    const tracer = TracerRoot.new({
         serviceName: "AppClient",
         jsHost: "Web",
         getTime: () => {

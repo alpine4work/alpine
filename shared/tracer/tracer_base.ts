@@ -1,33 +1,19 @@
-import {Context} from "~/shared/context/context";
-import {ContextModuleBase} from "~/shared/context/context_module_base";
-import {Replace} from "~/shared/helpers/types/replace";
-import {TracerBase} from "~/shared/tracer/tracer_base";
+import {getExceptionTracerEventData} from "~/shared/tracer/helpers/get_exception_tracer_event_data";
 import {TracerSpan} from "~/shared/tracer/tracer_span";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
 
 /**
- * A wrapper around either a `Tracer` or `TracerSpan` for instrumenting code
- * using our context abstraction.
- *
- * `withSpan()` will create a new context object
+ * An object you can create new spans from. These spans may be child of other
+ * spans or may be root-level spans.
  */
-export class TracerContextModule extends ContextModuleBase {
-    private readonly _tracer: TracerBase;
-
-    constructor(tracer: TracerBase) {
-        super();
-        this._tracer = tracer;
-    }
-
+export abstract class TracerBase {
     /**
      * Start a span that you will manually finish. We recommend using `withSpan()`
      * wherever possible which automatically finishes spans and handles exceptions.
      *
      * See `withSpan()` on guidance for naming spans.
      */
-    public startSpan(name: string) {
-        return this._tracer.startSpan(name);
-    }
+    public abstract startSpan(name: string): {span: TracerSpan; finishSpan: () => void};
 
     /**
      * Runs some code with a span around it. Tracks the time the span takes to
@@ -44,34 +30,37 @@ export class TracerContextModule extends ContextModuleBase {
      * can include spaces between words). For example: "Get admin account" is a
      * good span name.
      */
-    public withSpan<Modules extends {}, Value>(
-        this: ContextModuleBase<Modules> & TracerContextModule,
+    public async withSpan<Value>(
         name: string,
-        action: (
-            context: Context<Replace<Modules, {tracer: TracerContextModule}>>,
-            span: TracerSpan,
-        ) => Promise<Value>,
+        action: (span: TracerSpan) => Promise<Value>,
     ): Promise<Value> {
-        return this._tracer.withSpan(name, span => {
-            return this._context.with({tracer: new TracerContextModule(span)}, context =>
-                action(context, span),
-            );
-        });
+        const {span, finishSpan} = this.startSpan(name);
+        try {
+            const value = await action(span);
+            finishSpan();
+            return value;
+        } catch (error) {
+            span.addExceptionData(error, {escaped: true});
+            finishSpan();
+            throw error;
+        }
     }
 
     /**
-     * Returns a context where all spans created by the tracer will include the
-     * data passed into this function. The propagated data will also be sent over
+     * Returns a tracer where all spans created by the tracer will include the data
+     * passed into this function. The propagated data will also be sent over
      * network boundaries.
+     *
+     * If this tracer is, itself, a span then we will add this data to the span
+     * itself and all future child spans (not just child spans created by the
+     * returned object). When we add propagated data through mutation (instead of
+     * creating a new immutable object) then the returned object will be
+     * referentially equal to `this`.
+     *
+     * Regardless of the implementation, this function guarantees that spans
+     * created by the returned tracer will have the propagated data.
      */
-    public withPropagatedData<Modules extends {tracer: TracerContextModule}>(
-        this: ContextModuleBase<Modules> & TracerContextModule,
-        data: TracerEventData,
-    ): Context<Replace<Modules, {tracer: TracerContextModule}>> {
-        const newTracer = this._tracer.withPropagatedData(data);
-        if (newTracer === this._tracer) return this._context;
-        return this._context.clone({tracer: new TracerContextModule(newTracer)});
-    }
+    public abstract withPropagatedData(data: TracerEventData): TracerBase;
 
     /**
      * Add a structured log to a span.
@@ -89,9 +78,7 @@ export class TracerContextModule extends ContextModuleBase {
      * can include spaces between words). For example: "Get admin account" is a
      * good span name.
      */
-    public log(name: string, data?: TracerEventData) {
-        this._tracer.log(name, data);
-    }
+    public abstract log(name: string, data?: TracerEventData): void;
 
     /**
      * Add a structured exception log event to this span.
@@ -99,6 +86,9 @@ export class TracerContextModule extends ContextModuleBase {
      * Uses `this.log()` but with exception event attributes.
      */
     public logException(error: unknown, data: TracerEventData = {}) {
-        this._tracer.logException(error, data);
+        this.log("Exception", {
+            ...data,
+            exception: getExceptionTracerEventData(error, {escaped: false}),
+        });
     }
 }

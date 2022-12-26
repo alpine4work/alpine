@@ -18,7 +18,7 @@ import {TracerContextModule} from "~/shared/context/tracer_context_module";
 import {InternalError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {Schema} from "~/shared/schema/schema";
-import {Tracer} from "~/shared/tracer/tracer";
+import {TracerRoot} from "~/shared/tracer/tracer_root";
 
 type AppWorkerEnv = {
     DocumentCollaborationDurableObjectNamespace: DurableObjectNamespace;
@@ -39,7 +39,7 @@ const handleRequest = createRequestHandler({
     },
 });
 
-let sharedTracer: Tracer | null = null;
+let sharedTracer: TracerRoot | null = null;
 
 // Cache some shared resources across requests.
 let sharedResources: {
@@ -61,7 +61,7 @@ async function fetch(
     executionContext: ExecutionContext,
 ): Promise<Response> {
     if (sharedTracer === null) {
-        sharedTracer = Tracer.new({
+        sharedTracer = TracerRoot.new({
             serviceName: "AppServer",
             jsHost: "CloudflareWorker",
             // In Cloudflare Workers, `Date.now()` only moves forward on I/O as a part of

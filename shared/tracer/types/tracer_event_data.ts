@@ -1,5 +1,5 @@
 import type {Id} from "~/shared/id/id";
-import type {TracerEventHttpHeaderName} from "~/shared/tracer/tracer_event_http_header_names";
+import type {TracerEventHttpHeaderName} from "~/shared/tracer/helpers/tracer_event_http_header_names";
 
 /**
  * The data present in an event logged by our tracer.

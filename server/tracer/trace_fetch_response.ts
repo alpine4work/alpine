@@ -1,19 +1,30 @@
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable";
-import {Tracer, TracerSpan} from "~/shared/tracer/tracer";
-import {tracerEventHttpHeaderNames} from "~/shared/tracer/tracer_event_http_header_names";
+import {tracerEventHttpHeaderNames} from "~/shared/tracer/helpers/tracer_event_http_header_names";
+import {startSpanFromPropagationContextHeader} from "~/shared/tracer/tracer_header_propagation";
+import {TracerRoot} from "~/shared/tracer/tracer_root";
+import {TracerSpan} from "~/shared/tracer/tracer_span";
 
 /**
  * Create a span for the server response to the fetch HTTP API.
  *
+ * If there are trace propagation headers, then we setup our span as a child of
+ * the propagation context.
+ *
  * May re-create the `Request` object so when responding to a request use the
  * `Request` object passed into the action.
  */
-export function traceFetchResponse(
-    tracer: Tracer,
+export async function traceFetchResponse(
+    tracer: TracerRoot,
     request: Request,
     action: (span: TracerSpan, request: Request, url: URL) => Promise<Response>,
 ): Promise<Response> {
-    return tracer.withSpan(`HTTP server ${request.method}`, async span => {
+    const {span, finishSpan} = startSpanFromPropagationContextHeader(
+        tracer,
+        `HTTP server ${request.method}`,
+        request,
+    );
+
+    try {
         const url = new URL(request.url);
 
         const requestContentLengthHeader = request.headers.get("content-length");
@@ -99,6 +110,11 @@ export function traceFetchResponse(
             },
         });
 
+        finishSpan();
         return response;
-    });
+    } catch (error) {
+        span.addExceptionData(error, {escaped: true});
+        finishSpan();
+        throw error;
+    }
 }

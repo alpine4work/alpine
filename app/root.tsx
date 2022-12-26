@@ -35,7 +35,7 @@ import {propagatedEventDataKey} from "~/shared/helpers/remix/json_with_schema_sh
 import {quote} from "~/shared/helpers/string/quote";
 import {sprinkles} from "~/shared/styles/styles";
 import sharedStylesHref from "~/shared/styles/styles.css";
-import {mergeTracerEventData} from "~/shared/tracer/merge_tracer_event_data";
+import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data";
 import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data";
 
 export function meta() {

@@ -2,7 +2,7 @@ import {NonEmptyLinkedList} from "~/shared/helpers/immutable/linked_list";
 import {
     TracerEventFlatData,
     buildTracerEventFlatData,
-} from "~/shared/tracer/build_tracer_event_flat_data";
+} from "~/shared/tracer/helpers/build_tracer_event_flat_data";
 import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data";
 
 /**
@@ -18,11 +18,17 @@ import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data";
 export class TracerEvent {
     public readonly time: number;
     private readonly _eventData: NonEmptyLinkedList<TracerEventFullData>;
+    private readonly _propagatedEventFlatData: TracerEventFlatData | null;
     private _flatEventData: TracerEventFlatData | null = null;
 
-    constructor(time: number, eventData: NonEmptyLinkedList<TracerEventFullData>) {
+    constructor(
+        time: number,
+        eventData: NonEmptyLinkedList<TracerEventFullData>,
+        propagatedEventFlatData: TracerEventFlatData | null,
+    ) {
         this.time = time;
         this._eventData = eventData;
+        this._propagatedEventFlatData = propagatedEventFlatData;
     }
 
     /**
@@ -31,7 +37,10 @@ export class TracerEvent {
      */
     public getFlatData(): TracerEventFlatData {
         if (this._flatEventData === null) {
-            this._flatEventData = buildTracerEventFlatData(this._eventData);
+            this._flatEventData = buildTracerEventFlatData(
+                this._eventData,
+                this._propagatedEventFlatData,
+            );
         }
         return this._flatEventData;
     }
