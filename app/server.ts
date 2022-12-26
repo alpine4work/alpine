@@ -6,11 +6,14 @@ import {UnauthenticatedAuthContextModule} from "~/server/context/auth_context_mo
 import {AwsContextModule} from "~/server/context/aws_context_module";
 import {createAwsClientFromEnv} from "~/server/context/helpers/create_aws_client_from_env";
 import {unauthenticatedSessionError} from "~/server/context/helpers/unauthenticated_session_error";
-import {UnauthenticatedRequestContextModules} from "~/server/context/request_context";
 import {Session} from "~/server/dynamo/accounts_table";
-import {RemixContext, RemixContextModules} from "~/server/helpers/types/remix_context";
+import {
+    DataFunctionContext,
+    DataFunctionContextModules,
+} from "~/server/helpers/remix/data_function_args";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module";
 import {SessionCookieStorage} from "~/server/session/session_cookie";
+import {SessionCookieContextModule} from "~/server/session/session_cookie_context_module";
 import {Context} from "~/shared/context/context";
 import {ProcessContextModule} from "~/shared/context/process_context_module";
 import {TracerContextModule} from "~/shared/context/tracer_context_module";
@@ -32,7 +35,7 @@ const contextSymbol = Symbol("context");
 
 const handleRequest = createRequestHandler({
     build,
-    getLoadContext(event: FetchEvent & {[contextSymbol]?: RemixContext}) {
+    getLoadContext(event: FetchEvent & {[contextSymbol]?: DataFunctionContext}) {
         const context = assertExists(event[contextSymbol]);
         return context as any as AppLoadContext;
     },
@@ -102,14 +105,17 @@ async function fetch(
     // Backwards compatibility with Cloudflare service worker syntax. (Instead of
     // Cloudflare module syntax.)
     // https://developers.cloudflare.com/workers/runtime-apis/fetch-event
-    const event: FetchEvent & {[contextSymbol]?: RemixContext} = Object.assign(new Event("fetch"), {
-        request,
-        waitUntil: (promise: Promise<any>) => executionContext.waitUntil(promise),
-        passThroughOnException: () => executionContext.passThroughOnException(),
-        respondWith: () => {
-            throw new InternalError("Can not respond through fetch event stub");
+    const event: FetchEvent & {[contextSymbol]?: DataFunctionContext} = Object.assign(
+        new Event("fetch"),
+        {
+            request,
+            waitUntil: (promise: Promise<any>) => executionContext.waitUntil(promise),
+            passThroughOnException: () => executionContext.passThroughOnException(),
+            respondWith: () => {
+                throw new InternalError("Can not respond through fetch event stub");
+            },
         },
-    });
+    );
 
     // In development we have middleware on our HTTP server that serves static
     // files from the file system instead of a Cloudflare KV namespace.
@@ -164,39 +170,34 @@ async function fetch(
     }
 
     return resources.sessionCookieStorage.with(request, sessionCookiePromise => {
-        return Context.with<RemixContextModules, Response>(
+        return Context.with<DataFunctionContextModules, Response>(
             {
-                aws: () => resources.awsContextModule,
-                sessionCookie: () => sessionCookiePromise,
-
-                process: () =>
-                    new ProcessContextModule({
-                        waitUntil: promise => executionContext.waitUntil(promise),
-                    }),
-
+                process: new ProcessContextModule({
+                    waitUntil: promise => executionContext.waitUntil(promise),
+                }),
                 // TODO(calebmer): Start a root span for this HTTP request and put that in the
                 // tracer context module.
-                tracer: context => new TracerContextModule<RemixContextModules>(context, tracer),
+                tracer: new TracerContextModule(tracer),
+                aws: resources.awsContextModule,
+                rpc: new LocalRpcContextModule(),
+                sessionCookie: new SessionCookieContextModule(sessionCookiePromise),
 
-                auth: context =>
-                    new UnauthenticatedAuthContextModule(context, async () => {
-                        const sessionCookie = await sessionCookiePromise;
+                auth: new UnauthenticatedAuthContextModule(async context => {
+                    const sessionCookie = await sessionCookiePromise;
 
-                        const {sessionId} = sessionCookie.get();
-                        if (!sessionId) return null;
+                    const {sessionId} = sessionCookie.get();
+                    if (!sessionId) return null;
 
-                        const session = await Session.get(context, sessionId);
-                        if (!session) {
-                            // If the session was deleted since we stored the session in our cookie, remove
-                            // the session from the cookie.
-                            sessionCookie.unsetSessionId();
-                            return null;
-                        }
+                    const session = await Session.get(context, sessionId);
+                    if (!session) {
+                        // If the session was deleted since we stored the session in our cookie, remove
+                        // the session from the cookie.
+                        sessionCookie.unsetSessionId();
+                        return null;
+                    }
 
-                        return session;
-                    }),
-
-                rpc: context => new LocalRpcContextModule(context),
+                    return session;
+                }),
             },
             async context => {
                 event[contextSymbol] = context;

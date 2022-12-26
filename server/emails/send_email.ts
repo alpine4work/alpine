@@ -66,7 +66,7 @@ async function executeSesSendEmailCommand(
     context: Context<{aws: AwsContextModule}>,
     input: types.SendEmailCommandInput,
 ): Promise<types.SendEmailCommandOutput> {
-    const response = await context.aws().client.fetch("https://email.us-east-1.amazonaws.com", {
+    const response = await context.aws.client.fetch("https://email.us-east-1.amazonaws.com", {
         method: "POST",
         headers: {
             "Content-Type": "application/x-www-form-urlencoded",

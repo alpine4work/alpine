@@ -46,7 +46,7 @@ export function defineRpc<
         context: Context<{rpc: RpcContextModuleBase}>,
         input: ObjectSchemaConfigType<InputConfig>,
     ): Promise<ObjectSchemaConfigType<OutputConfig>> => {
-        return context.rpc().execute(definition, input);
+        return context.rpc.execute(definition, input);
     };
 
     // Override the JavaScript function name with our RPC name. We

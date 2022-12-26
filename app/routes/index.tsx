@@ -15,7 +15,7 @@ import {useActionDataWithSchema} from "~/client/helpers/remix/use_action_data_wi
 import {requestAlphaAccess} from "~/server/dynamo/alpha_access_table";
 import {validateEmailAddress} from "~/server/emails/email_address";
 import {jsonWithSchema} from "~/server/helpers/remix/json_with_schema";
-import {DataFunctionArgs} from "~/server/helpers/types/remix_context";
+import {DataFunctionArgs} from "~/server/helpers/remix/data_function_args";
 import {themeColors} from "~/shared/design/theme_colors";
 import {InvalidArgumentError} from "~/shared/error/error";
 import {ErrorSchema} from "~/shared/error/error_schema";
@@ -37,7 +37,7 @@ export function meta() {
 
 export async function loader({context}: DataFunctionArgs) {
     // Can not access this page while signed in.
-    if (await context.auth().isAuthenticated()) return redirectToAuthenticatedHome(context);
+    if (await context.auth.isAuthenticated()) return redirectToAuthenticatedHome(context);
 
     return json({});
 }

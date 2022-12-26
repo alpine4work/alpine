@@ -1,3 +1,4 @@
+import {ContextModuleBase} from "~/shared/context/context_module_base";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition";
 
 /**
@@ -7,7 +8,9 @@ import {RpcDefinition} from "~/shared/rpc/rpc_definition";
  * authenticated with cookies. In our app worker this will be a local function
  * call using authentication from the context.
  */
-export abstract class RpcContextModuleBase {
+export abstract class RpcContextModuleBase<
+    Modules extends {} = {},
+> extends ContextModuleBase<Modules> {
     public abstract execute<Input, Output>(
         definition: RpcDefinition<Input, Output>,
         input: Input,

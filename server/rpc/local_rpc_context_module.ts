@@ -1,4 +1,4 @@
-import {UnauthenticatedRequestContext} from "~/server/context/request_context";
+import {UnauthenticatedRequestContextModules} from "~/server/context/request_context";
 import {getRpcImplementation} from "~/server/rpc/get_rpc_implementation";
 import {InternalError} from "~/shared/error/error";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base";
@@ -15,11 +15,7 @@ import {RpcDefinition} from "~/shared/rpc/rpc_definition";
  * important to the logic of the RPC. For example, validating a string is only
  * a single line.
  */
-export class LocalRpcContextModule extends RpcContextModuleBase {
-    constructor(private readonly context: UnauthenticatedRequestContext) {
-        super();
-    }
-
+export class LocalRpcContextModule extends RpcContextModuleBase<UnauthenticatedRequestContextModules> {
     public async execute<Input, Output>(
         definition: RpcDefinition<Input, Output>,
         input: Input,
@@ -33,7 +29,7 @@ export class LocalRpcContextModule extends RpcContextModuleBase {
         // full serialization and deserialization pass.
         definition.inputSchema.validate?.(input);
 
-        const output = await implementation.executeWithoutSerialization(this.context, input);
+        const output = await implementation.executeWithoutSerialization(this._context, input);
         return output as Output;
     }
 }

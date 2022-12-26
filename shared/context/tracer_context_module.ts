@@ -1,5 +1,5 @@
 import {Context} from "~/shared/context/context";
-import {UnimplementedError} from "~/shared/error/error";
+import {ContextModuleBase} from "~/shared/context/context_module_base";
 import {Replace} from "~/shared/helpers/types/replace";
 import {TracerBase, TracerSpan} from "~/shared/tracer/tracer";
 
@@ -9,8 +9,10 @@ import {TracerBase, TracerSpan} from "~/shared/tracer/tracer";
  *
  * `withSpan()` will create a new context object
  */
-export class TracerContextModule<Modules> {
-    constructor(private readonly context: Context<Modules>, private readonly tracer: TracerBase) {}
+export class TracerContextModule extends ContextModuleBase {
+    constructor(private readonly _tracer: TracerBase) {
+        super();
+    }
 
     /**
      * Start a span that you will manually finish. We recommend using `withSpan()`
@@ -19,7 +21,7 @@ export class TracerContextModule<Modules> {
      * See `withSpan()` on guidance for naming spans.
      */
     public startSpan(name: string) {
-        return this.tracer.startSpan(name);
+        return this._tracer.startSpan(name);
     }
 
     /**
@@ -37,25 +39,16 @@ export class TracerContextModule<Modules> {
      * can include spaces between words). For example: "Get admin account" is a
      * good span name.
      */
-    public withSpan<Value>(
+    public withSpan<Modules extends {}, Value>(
+        this: ContextModuleBase<Modules> & TracerContextModule,
         name: string,
         action: (
-            context: Context<
-                Replace<Modules, {tracer: TracerContextModule<Omit<Modules, "tracer">>}>
-            >,
+            context: Context<Replace<Modules, {tracer: TracerContextModule}>>,
             span: TracerSpan,
         ) => Promise<Value>,
     ): Promise<Value> {
-        throw new UnimplementedError("TODO: This implementation has a critical bug");
-
-        return this.tracer.withSpan(name, span => {
-            // TODO(calebmer): If we are in a clone this won't work quite right! We will be
-            // using the parent `this` not the child `this`. So like an authenticated
-            // context module could become unauthenticated!
-            return this.context.withClone<
-                {tracer: TracerContextModule<Omit<Modules, "tracer">>},
-                Value
-            >({tracer: context => new TracerContextModule(context, span)}, context =>
+        return this._tracer.withSpan(name, span => {
+            return this._context.with({tracer: new TracerContextModule(span)}, context =>
                 action(context, span),
             );
         });

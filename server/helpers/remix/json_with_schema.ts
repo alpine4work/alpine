@@ -3,7 +3,7 @@ import {assert} from "~/shared/helpers/control/assert";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object";
 import {
     deserializedValueSymbol,
-    propagatedEventDataKey,
+    propagatedEventDataKey as propagateEventDataKey,
 } from "~/shared/helpers/remix/json_with_schema_shared";
 import {BlockInference} from "~/shared/helpers/types/block_inference";
 import {Schema} from "~/shared/schema/schema";
@@ -16,14 +16,14 @@ export function jsonWithSchema<Value>(
     schema: Schema<Value>,
     value: BlockInference<Value>,
     {
-        propagatedEventData,
+        propagateEventData,
         ...responseInit
     }: ResponseInit & {
         /**
          * Data to propagate in all tracer events while on this route. We collect all
          * propagated event data in the `<Root>` component and add it to our tracer.
          */
-        propagatedEventData?: TracerEventData;
+        propagateEventData?: TracerEventData;
     } = {},
 ): Response {
     const serializedValue = schema.serialize(value as Value);
@@ -39,8 +39,8 @@ export function jsonWithSchema<Value>(
 
     // If we are propagating event data, stash it on the serialized result. Our
     // `<Root>` component will read this property and add it to the tracer.
-    if (propagatedEventData) {
-        (serializedValue as any)[propagatedEventDataKey] = propagatedEventData;
+    if (propagateEventData) {
+        (serializedValue as any)[propagateEventDataKey] = propagateEventData;
     }
 
     return json(serializedValue, responseInit);

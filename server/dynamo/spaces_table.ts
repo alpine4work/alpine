@@ -179,7 +179,7 @@ export function authorizeAccountHasSpaceAccess(
     );
 
     return getOrSetDefaultMapValue(authorizationPromiseBySpaceId, spaceId, async () => {
-        const accountId = context.auth().getAccountId();
+        const accountId = context.auth.getAccountId();
 
         const spaceAccountItem = await SpacesTable.getItem(context, {
             partitionType: "Space",

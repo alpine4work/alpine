@@ -1,9 +1,11 @@
 import {AuthenticatedAuthContextModule} from "~/server/context/auth_context_module";
 import {AwsContextModule} from "~/server/context/aws_context_module";
-import {RequestContext, RequestContextModules} from "~/server/context/request_context";
+import {RequestContext} from "~/server/context/request_context";
 import {Session} from "~/server/dynamo/accounts_table";
+import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module";
 import {Context} from "~/shared/context/context";
 import {ProcessContextModule} from "~/shared/context/process_context_module";
+import {TracerContextModule} from "~/shared/context/tracer_context_module";
 import {
     ErrorBase,
     FailedPreconditionError,
@@ -40,7 +42,11 @@ export class WebSocketServer<
     private _expirationInterval: Interval | null = null;
 
     constructor(
-        private readonly _context: Context<{process: ProcessContextModule; aws: AwsContextModule}>,
+        private readonly _context: Context<{
+            process: ProcessContextModule;
+            tracer: TracerContextModule;
+            aws: AwsContextModule;
+        }>,
         // NOTE(calebmer): Force schemas to be union schemas so the protocol can evolve
         // in the future.
         private readonly _messageFromClientSchema: UnionSchema<MessageFromClient>,
@@ -98,13 +104,12 @@ export class WebSocketServer<
             iterateOtherConnections,
         });
 
-        const sessionId = requestContext.auth().getSessionId();
-
         const connection = new WebSocketServerConnectionWrapper(
-            this._context.clone({sessionId: () => sessionId}),
+            this._context,
             serverSocket,
             this._messageFromClientSchema,
             actualConnection,
+            requestContext.auth.getSessionId(),
         );
 
         this._connections.add(connection);
@@ -210,27 +215,28 @@ class WebSocketServerConnectionWrapper<
     constructor(
         private readonly _context: Context<{
             process: ProcessContextModule;
+            tracer: TracerContextModule;
             aws: AwsContextModule;
-            sessionId: Id;
         }>,
         private readonly _socket: WebSocket,
         private readonly _messageFromClientSchema: Schema<MessageFromClient>,
         public readonly connection: Connection,
+        private readonly _sessionId: Id,
     ) {
         this._socket.addEventListener("message", event => {
             runPromiseWithoutAwaiting(async () => {
                 try {
                     // TODO(calebmer): Can we at least give this some kind of TTL in-memory cache??
-                    const session = await Session.get(this._context, this._context.sessionId());
+                    // TODO(calebmer): Can we put this in a trace?
+                    const session = await Session.get(this._context, this._sessionId);
                     if (!session)
-                        throw new NotFoundError("Session was deleted after the connection began");
+                        throw new NotFoundError("Session was revoked after the connection began");
 
-                    await this._context.withClone<
-                        {auth: AuthenticatedAuthContextModule<RequestContextModules>},
-                        // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
-                        void
-                    >(
-                        {auth: context => new AuthenticatedAuthContextModule(context, session)},
+                    await this._context.with(
+                        {
+                            auth: new AuthenticatedAuthContextModule(session),
+                            rpc: new LocalRpcContextModule(),
+                        },
                         async (context: RequestContext) => {
                             this._lastMessageTimeMs = Date.now();
 

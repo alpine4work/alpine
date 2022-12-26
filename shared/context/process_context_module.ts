@@ -1,3 +1,4 @@
+import {ContextModuleBase} from "~/shared/context/context_module_base";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
 
@@ -7,10 +8,11 @@ import {assert} from "~/shared/helpers/control/assert";
  * serverless-like environments with the `waitUntil()` function
  * (e.g. Cloudflare Workers and Cloudflare Durable Objects).
  */
-export class ProcessContextModule {
+export class ProcessContextModule extends ContextModuleBase {
     private readonly _waitUntil: (promise: Promise<void>) => void;
 
     constructor({waitUntil}: {waitUntil: (promise: Promise<void>) => void}) {
+        super();
         this._waitUntil = waitUntil;
     }
 

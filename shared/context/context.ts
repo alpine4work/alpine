@@ -1,9 +1,9 @@
+import {ContextModuleBase, ContextModuleModulesType} from "~/shared/context/context_module_base";
 import {ProcessContextModule} from "~/shared/context/process_context_module";
 import {InternalError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";
-
-const brandSymbol = Symbol("brand");
+import {Replace} from "~/shared/helpers/types/replace";
+import {UnionToIntersection} from "~/shared/helpers/types/union_to_intersection";
 
 /**
  * The context abstraction is designed for passing shared environment
@@ -27,19 +27,13 @@ const brandSymbol = Symbol("brand");
  * Once the execution of that code is over, the context may be destroyed so
  * that it's resources are not misused later.
  */
-export type Context<Modules> = {
-    readonly [Key in keyof Modules]: () => Modules[Key];
+export type Context<Modules extends {[key: string]: ContextModuleBase}> = {
+    // We intersect the module type with a `ContextModuleBase` type that has the
+    // full modules object. That way we can write clone functions in context
+    // modules of the form `clone<Modules>(this: ContextModuleBase<Modules>)` that
+    // know about all modules in a context.
+    [Key in keyof Modules]: Modules[Key] & ContextModuleBase<Modules>;
 } & {
-    /**
-     * You can't create a context object outside of this module. So we
-     * use a private non-enumerable symbol property for branding the context
-     * object.
-     *
-     * Only the context module has access to the symbol and the symbol is not
-     * copied when cloning the object (because it's non-enumerable).
-     */
-    readonly [brandSymbol]: true;
-
     /**
      * Clones a context with some new module initializers. The new module
      * initializers either add to the set of modules in the context or replace an
@@ -48,36 +42,35 @@ export type Context<Modules> = {
      * If the context we clone from is destroyed then the cloned context will
      * also be destroyed. Cloned contexts can not outlive their parent context.
      *
-     * You need to pass a type parameter into this function to get the correct
+     * You may only add new modules and replace existing modules when cloning. If
+     * you are replacing an existing module, the new module must be a subclass of
+     * the old module. This requirement means you can only add behavior to the
+     * context, not take behavior away. So old context modules can be used even
+     * with a new context object because the new context object is guaranteed to be
+     * API compatible with the context object where the old module was added.
+     *
+     * You may need to pass a type parameter into this function to get the correct
      * return type. Like this: `context.clone<{ ... }>({ ... })`.
      */
-    clone<NewModules>(
-        moduleInitializers: ContextModuleInitializers<
-            NewModules,
-            Omit<Modules, keyof NewModules> & NewModules
-        >,
-    ): ContextWithDestroy<Omit<Modules, keyof NewModules> & NewModules>;
+    clone<NewModules extends {[key: string]: ContextModuleBase}>(
+        newModules: NewModules,
+    ): ContextWithDestroy<Replace<Modules, NewModules>>;
 
     /**
      * Clone the current context and make sure the clone is scoped to the provided
      * async action. When the async action completes, the context is destroyed.
      *
-     * Behaves the same as `context.clone()`.
+     * Behaves the same as `context.clone()`. See the documentation on that method
+     * for relevant implementation details.
      *
      * The context we are cloning must have a `ProcessContextModule`. Any
-     * `context.process().waitUntil()` calls will extend the lifetime of the
+     * `context.process.waitUntil()` calls will extend the lifetime of the
      * context.
      */
-    withClone<NewModules, Result>(
-        // Require the context we are cloning to have a `ProcessContextModule`. So we
-        // can extend the context lifetime with its task promises.
-        this: Context<Modules>,
-        moduleInitializers: ContextModuleInitializers<
-            NewModules,
-            Omit<Modules, keyof NewModules> & NewModules
-        >,
-        action: (context: Context<Omit<Modules, keyof NewModules> & NewModules>) => Promise<Result>,
-    ): Promise<Result>;
+    with<NewModules extends {[key: string]: ContextModuleBase}, Value>(
+        newModules: NewModules,
+        action: (context: Context<Replace<Modules, NewModules>>) => Promise<Value>,
+    ): Promise<Value>;
 };
 
 /**
@@ -87,39 +80,37 @@ export type Context<Modules> = {
  * code that constructs a context object should also be responsible for
  * destroying the context when it is done.
  */
-export type ContextWithDestroy<Modules> = Context<Modules> & {
-    /**
-     * Destroys the context. Whenever you try to access a module an error will be
-     * thrown. Contexts can not be used after they are destroyed. This is how we
-     * make sure contexts don't "escape" async actions which create them.
-     */
-    destroy(): void;
-};
+export type ContextWithDestroy<Modules extends {[key: string]: ContextModuleBase}> =
+    Context<Modules> & {
+        /**
+         * Destroys the context. Whenever you try to access a module an error will be
+         * thrown. Contexts can not be used after they are destroyed. This is how we
+         * make sure contexts don't "escape" async actions which create them.
+         */
+        destroy(): void;
+    };
 
 /**
- * Functions that construct modules which we pass into context creation methods
- * like `Context.new()` and `context.clone()`. These initializers are lazily
- * invoked when the context module is requested.
- *
- * Context modules recursively have access to the context object being created
- * so they can reference other context modules.
+ * For a `Modules` object type, construct a new object type with the
+ * dependencies from each module. We can use this type to make sure we've
+ * satisfied all our module requirements.
  */
-export type ContextModuleInitializers<Modules, ModulesForInitializer = Modules> = {
-    [Key in keyof Modules]: (context: Context<ModulesForInitializer>) => Modules[Key];
-};
+type ContextModulesDependencies<Modules extends {[key: string]: ContextModuleBase}> =
+    UnionToIntersection<
+        {[Key in keyof Modules]: ContextModuleModulesType<Modules[Key]>}[keyof Modules]
+    >;
 
 export const Context = {
     /**
      * Create a new context object with the provided modules.
      *
-     * You need to pass a type parameter into this function to get the correct
+     * You may need to pass a type parameter into this function to get the correct
      * return type. Like this: `Context.new<{ ... }>({ ... })`.
      */
-    new<Modules>(
-        moduleInitializers: ContextModuleInitializers<Modules>,
+    new<Modules extends {[key: string]: ContextModuleBase}>(
+        modules: Modules & ContextModulesDependencies<Modules>,
     ): ContextWithDestroy<Modules> {
-        const context: any = ContextImplementation.new(moduleInitializers as any);
-        return context;
+        return new ContextImplementation(null, modules) as any;
     },
 
     /**
@@ -127,38 +118,32 @@ export const Context = {
      * completes, the context is destroyed.
      *
      * If the context comes with a `ProcessContextModule` under the `process` key,
-     * any `context.process().waitUntil()` calls will extend the lifetime of the
+     * any `context.process.waitUntil()` calls will extend the lifetime of the
      * context.
      */
-    async with<Modules, Result>(
-        moduleInitializers: ContextModuleInitializers<Modules>,
-        action: (context: Context<Modules>) => Promise<Result>,
-    ): Promise<Result> {
-        // If we do not have a `ProcessContextModule` then don't extend the lifetime of
-        // the context with other tasks.
-        if (!hasOwnProperty(moduleInitializers, "process")) {
-            const context = Context.new<Modules>(moduleInitializers);
+    async with<Modules extends {[key: string]: ContextModuleBase}, Value>(
+        modules: Modules & ContextModulesDependencies<Modules>,
+        action: (context: Context<Modules>) => Promise<Value>,
+    ): Promise<Value> {
+        // If we have a `ProcessContextModule` then extend the lifetime of the context
+        // with any `context.process.waitUntil()` calls.
+        if (!modules.process) {
+            const context = Context.new(modules);
             try {
-                const result = await action(context);
-                return result;
+                const value = await action(context);
+                return value;
             } finally {
                 context.destroy();
             }
-        }
+        } else {
+            const processContextModule = modules.process;
+            assert(processContextModule instanceof ProcessContextModule);
 
-        let taskPromises: Array<Promise<void>> = [];
+            let taskPromises: Array<Promise<void>> = [];
 
-        const context = Context.new<Modules>({
-            ...moduleInitializers,
-            process: context => {
-                // Expect the context module at the `process()` key to be a
-                // `ProcessContextModule`. If it's not then we can't extend the lifetime of this
-                // context.
-                assert(typeof moduleInitializers.process === "function");
-                const processContextModule = moduleInitializers.process(context);
-                assert(processContextModule instanceof ProcessContextModule);
-
-                return new ProcessContextModule({
+            const context = Context.new<Modules>({
+                ...modules,
+                process: new ProcessContextModule({
                     waitUntil: promise => {
                         processContextModule.waitUntil(promise);
 
@@ -167,31 +152,31 @@ export const Context = {
                         // may reference the request context.
                         taskPromises.push(promise);
                     },
-                });
-            },
-        });
+                }),
+            });
 
-        try {
-            const result = await action(context);
-            return result;
-        } finally {
-            // Wait for all our tasks to resolve before we can destroy our request context.
-            // The tasks may end up using the request context.
-            //
-            // We need to loop since while waiting for our tasks to finish, we may queue
-            // more tasks.
-            const loop = () => {
-                const currentTaskPromises = taskPromises;
-                taskPromises = [];
+            try {
+                const result = await action(context);
+                return result;
+            } finally {
+                // Wait for all our tasks to resolve before we can destroy our request context.
+                // The tasks may end up using the request context.
+                //
+                // We need to loop since while waiting for our tasks to finish, we may queue
+                // more tasks.
+                const loop = () => {
+                    const currentTaskPromises = taskPromises;
+                    taskPromises = [];
 
-                if (currentTaskPromises.length === 0) {
-                    context.destroy();
-                } else {
-                    Promise.allSettled(currentTaskPromises).finally(loop);
-                }
-            };
+                    if (currentTaskPromises.length === 0) {
+                        context.destroy();
+                    } else {
+                        Promise.allSettled(currentTaskPromises).finally(loop);
+                    }
+                };
 
-            loop();
+                loop();
+            }
         }
     },
 };
@@ -206,50 +191,66 @@ export const Context = {
 // conflicts with our existing `Context` type and object. So we alias the class
 // to `ContextImplementation` to avoid a name collision at the module level.
 const ContextImplementation = class Context {
-    public static new(moduleInitializers: {[key: string]: (context: Context) => unknown}): Context {
-        const moduleKeys = Object.keys(moduleInitializers);
-        const newContext: any = new Context(null, moduleKeys);
-
-        for (const key of moduleKeys) {
-            assert(!(key in newContext));
-
-            const moduleInitializer = moduleInitializers[key]!;
-            let module: unknown;
-
-            // Using `function` instead of an arrow function is important here! If
-            // this function is copied onto a context clone then we want to use the
-            // `_isDestroyed` flag from that clone.
-            //
-            // Using `newContext` when initializing instead of `this` is also important.
-            // When the module was initialized, we want to initialize it with the set of
-            // modules in the context the initializer was defined.
-            newContext[key] = function (this: Context) {
-                if (this._isDestroyed) throw new InternalError("Context was destroyed");
-
-                if (module === undefined) {
-                    module = moduleInitializer(newContext);
-                    assert(module !== undefined);
-                }
-
-                return module;
-            };
-        }
-
-        return newContext;
-    }
-
-    private readonly [brandSymbol] = true;
+    private readonly _modules: {[key: string]: ContextModuleBase<{}>};
     private _isDestroyed = false;
+    private readonly _parentContext: Context | null;
     private readonly _childContexts = new Set<Context>();
 
-    private constructor(
-        private readonly _parentContext: Context | null,
-        private readonly _moduleKeys: ReadonlyArray<string>,
-    ) {}
+    constructor(parentContext: Context | null, modules: {[key: string]: ContextModuleBase<{}>}) {
+        this._parentContext = parentContext;
+        this._modules = modules;
+
+        for (const [key, actualModule] of Object.entries(modules)) {
+            // Create a clone of the context module and set the context module as the
+            // prototype! This way whenever you call a method on the context module you get
+            // the latest context module as `this.context`.
+            // *Insert meme* (https://knowyourmeme.com/memes/roll-safe)
+            const localModule = Object.create(actualModule, {
+                _context: {value: this, configurable: false, writable: false},
+            });
+
+            // Freeze the module so developers don't run into issues where they try to
+            // assign something to `this` in their class and it assigns to the local
+            // context object (so the write is ignored in other context clones) instead of
+            // the actual context object.
+            //
+            // If a developer wants some mutable state in their context they can create a
+            // "ref" style object and assign to that. For example
+            // `private readonly _counterRef: {current: number}`. Now you can assign to
+            // `this._counterRef.current++` and it will be reflected in all contexts in the
+            // clone tree.
+            //
+            // We use `Object.preventExtensions()` instead of `Object.freeze()` because the
+            // one "own" property we add to this object is `context` and we define it above
+            // as non-configurable and non-writable. All that's left to do is prevent
+            // extensions to make sure developers don't shoot themselves in the foot.
+            //
+            // [`Object.freeze()` has some unclear performance characteristics][1].
+            // `Object.preventExtensions()` is more narrow in scope and hopefully doesn't
+            // have problems.
+            //
+            // [1]: https://github.com/automerge/automerge/issues/177
+            Object.preventExtensions(localModule);
+
+            (this as any)[key] = localModule;
+        }
+
+        this._parentContext?._childContexts.add(this);
+    }
 
     public destroy() {
         if (this._isDestroyed) throw new InternalError("Context was already destroyed");
         this._isDestroyed = true;
+
+        const throwDestroyedError = () => {
+            throw new InternalError("Context was destroyed");
+        };
+
+        // When we destroy the context, replace all our modules with getters that throw
+        // an error when you try to access the property.
+        for (const key of Object.keys(this._modules)) {
+            Object.defineProperty(this, key, {get: throwDestroyedError});
+        }
 
         // Destroy all our child contexts. Remove ourselves from our parent context so
         // the parent context won't destroy us when it's destroyed.
@@ -257,75 +258,51 @@ const ContextImplementation = class Context {
         for (const childContext of this._childContexts) childContext.destroy();
     }
 
-    public clone(moduleInitializers: {[key: string]: (context: Context) => unknown}): Context {
-        const moduleKeys = Object.keys(moduleInitializers);
-        const oldContext: any = this;
-        const newContext: any = new Context(oldContext, moduleKeys);
+    public clone(newModules: {[key: string]: ContextModuleBase<{}>}): Context {
+        const modules = {...this._modules};
 
-        for (const key of moduleKeys) {
-            assert(!(key in newContext));
+        for (const [key, newModule] of Object.entries(newModules)) {
+            const oldModule = modules[key];
 
-            const moduleInitializer = moduleInitializers[key]!;
-            let module: unknown;
+            // If replacing a context module, then the new one should be a part of the same
+            // class hierarchy as the old one. That way any context modules which depend on
+            // the old context module can safely call methods on the new context as well.
+            if (oldModule) {
+                assert(
+                    newModule instanceof oldModule.constructor,
+                    "If replacing a context module, the new context module should be a subclass of the old context module",
+                );
+            }
 
-            // Using `function` instead of an arrow function is important here! If
-            // this function is copied onto a context clone then we want to use the
-            // `_isDestroyed` flag from that clone.
-            //
-            // Using `newContext` when initializing instead of `this` is also important.
-            // When the module was initialized, we want to initialize it with the set of
-            // modules in the context the initializer was defined.
-            newContext[key] = function (this: Context) {
-                if (this._isDestroyed) throw new InternalError("Context was destroyed");
-
-                if (module === undefined) {
-                    module = moduleInitializer(newContext);
-                    assert(module !== undefined);
-                }
-
-                return module;
-            };
+            modules[key] = newModule;
         }
 
-        // Copy over modules that were not updated in the clone.
-        for (const key of this._moduleKeys) {
-            if (hasOwnProperty(moduleInitializers, key)) continue;
-
-            moduleKeys.push(key);
-            newContext[key] = oldContext[key];
-        }
-
-        this._childContexts.add(newContext);
-        return newContext;
+        return new Context(this, modules);
     }
 
-    public async withClone<Result>(
-        moduleInitializers: {[key: string]: (context: Context) => unknown},
-        action: (context: Context) => Promise<Result>,
-    ): Promise<Result> {
-        const oldContext = this;
-
-        // If we do not have a `ProcessContextModule` then don't extend the lifetime of
-        // the context with other tasks.
-        if (!hasOwnProperty(oldContext, "process")) {
-            const newContext = oldContext.clone(moduleInitializers);
+    public async with<Value>(
+        newModules: {[key: string]: ContextModuleBase<{}>},
+        action: (context: Context) => Promise<Value>,
+    ): Promise<Value> {
+        // If we have a `ProcessContextModule` then extend the lifetime of the context
+        // with any `context.process.waitUntil()` calls.
+        if (!this._modules.process && !newModules.process) {
+            const newContext = this.clone(newModules);
             try {
-                const result = await action(newContext);
-                return result;
+                const value = await action(newContext);
+                return value;
             } finally {
                 newContext.destroy();
             }
-        }
+        } else {
+            const processContextModule = newModules.process ?? this._modules.process;
+            assert(processContextModule instanceof ProcessContextModule);
 
-        let taskPromises: Array<Promise<void>> = [];
+            let taskPromises: Array<Promise<void>> = [];
 
-        const newContext = oldContext.clone({
-            ...moduleInitializers,
-            process: () => {
-                const processContextModule = (oldContext as any).process();
-                assert(processContextModule instanceof ProcessContextModule);
-
-                return new ProcessContextModule({
+            const newContext = this.clone({
+                ...newModules,
+                process: new ProcessContextModule({
                     waitUntil: promise => {
                         processContextModule.waitUntil(promise);
 
@@ -334,31 +311,31 @@ const ContextImplementation = class Context {
                         // may reference the request context.
                         taskPromises.push(promise);
                     },
-                });
-            },
-        });
+                }),
+            });
 
-        try {
-            const result = await action(newContext);
-            return result;
-        } finally {
-            // Wait for all our tasks to resolve before we can destroy our request context.
-            // The tasks may end up using the request context.
-            //
-            // We need to loop since while waiting for our tasks to finish, we may queue
-            // more tasks.
-            const loop = () => {
-                const currentTaskPromises = taskPromises;
-                taskPromises = [];
+            try {
+                const result = await action(newContext);
+                return result;
+            } finally {
+                // Wait for all our tasks to resolve before we can destroy our request context.
+                // The tasks may end up using the request context.
+                //
+                // We need to loop since while waiting for our tasks to finish, we may queue
+                // more tasks.
+                const loop = () => {
+                    const currentTaskPromises = taskPromises;
+                    taskPromises = [];
 
-                if (currentTaskPromises.length === 0) {
-                    newContext.destroy();
-                } else {
-                    Promise.allSettled(currentTaskPromises).finally(loop);
-                }
-            };
+                    if (currentTaskPromises.length === 0) {
+                        newContext.destroy();
+                    } else {
+                        Promise.allSettled(currentTaskPromises).finally(loop);
+                    }
+                };
 
-            loop();
+                loop();
+            }
         }
     }
 };

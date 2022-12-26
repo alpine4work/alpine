@@ -274,7 +274,7 @@ export async function approveAlphaAccessRequest(
                 lockVersion: requestItem.lockVersion + 1,
                 decision: {
                     type: "Approved",
-                    approvedByAccountId: context.auth().getAccountId(),
+                    approvedByAccountId: context.auth.getAccountId(),
                     accountId,
                 },
             },
@@ -329,7 +329,7 @@ export async function denyAlphaAccessRequest(context: RequestContext, emailAddre
             lockVersion: requestItem.lockVersion + 1,
             decision: {
                 type: "Denied",
-                deniedByAccountId: context.auth().getAccountId(),
+                deniedByAccountId: context.auth.getAccountId(),
             },
         },
         {

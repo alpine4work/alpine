@@ -1,4 +1,3 @@
-import {Context} from "~/shared/context/context";
 import {TracerContextModule} from "~/shared/context/tracer_context_module";
 import {InternalError, UnavailableError} from "~/shared/error/error";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
@@ -18,8 +17,8 @@ import {TracerSpan} from "~/shared/tracer/tracer";
  * call stack we will batch them together into one network request to avoid
  * HTTP roundtrip latency.
  */
-export class ClientRpcContextModule extends RpcContextModuleBase {
-    constructor(private readonly context: Context<{tracer: TracerContextModule<{}>}>) {
+export class ClientRpcContextModule extends RpcContextModuleBase<{tracer: TracerContextModule}> {
+    constructor() {
         super();
 
         // We can only use this implementation of `RpcContextModuleBase` in a web
@@ -34,7 +33,7 @@ export class ClientRpcContextModule extends RpcContextModuleBase {
         definition: RpcDefinition<Input, Output>,
         input: Input,
     ): Promise<Output> {
-        return this.context.tracer().withSpan(`RPC ${definition.name}`, async (context, span) => {
+        return this._context.tracer.withSpan(`RPC ${definition.name}`, async (context, span) => {
             const outputPromiseResolver = createPromiseResolver<SchemaSerializedValue>();
 
             scheduleRpcCall({

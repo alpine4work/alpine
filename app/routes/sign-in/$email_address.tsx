@@ -10,8 +10,8 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useActionDataWithSchema} from "~/client/helpers/remix/use_action_data_with_schema";
 import {attemptOneTimePasswordSignIn} from "~/server/dynamo/accounts_table";
 import {validateEmailAddress} from "~/server/emails/email_address";
+import {DataFunctionArgs} from "~/server/helpers/remix/data_function_args";
 import {jsonWithSchema} from "~/server/helpers/remix/json_with_schema";
-import {DataFunctionArgs} from "~/server/helpers/types/remix_context";
 import {InvalidArgumentError} from "~/shared/error/error";
 import {ErrorSchema} from "~/shared/error/error_schema";
 import {isHttp500Error} from "~/shared/error/is_http_500_error_code";
@@ -28,7 +28,7 @@ export function meta() {
 
 export async function loader({context}: DataFunctionArgs) {
     // Can not access this page while signed in.
-    if (await context.auth().isAuthenticated()) return redirectToAuthenticatedHome(context);
+    if (await context.auth.isAuthenticated()) return redirectToAuthenticatedHome(context);
 
     return json({});
 }
@@ -63,7 +63,7 @@ export async function action({request, context, params}: DataFunctionArgs) {
             },
         );
 
-        (await context.sessionCookie()).dangerouslySetSessionId(sessionId);
+        await context.sessionCookie.dangerouslySetSessionId(sessionId);
 
         return redirectToAuthenticatedHome(context);
     } catch (error) {

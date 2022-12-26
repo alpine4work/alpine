@@ -1,5 +1,5 @@
 import {
-    AuthContextModule,
+    UnauthenticatedAuthContextModule,
     AuthenticatedAuthContextModule,
 } from "~/server/context/auth_context_module";
 import {AwsContextModule} from "~/server/context/aws_context_module";
@@ -15,9 +15,9 @@ export type RequestContext = Context<RequestContextModules>;
 
 export type RequestContextModules = {
     process: ProcessContextModule;
-    tracer: TracerContextModule<RequestContextModules>;
+    tracer: TracerContextModule;
     aws: AwsContextModule;
-    auth: AuthenticatedAuthContextModule<RequestContextModules>;
+    auth: AuthenticatedAuthContextModule;
     rpc: LocalRpcContextModule;
 };
 
@@ -28,8 +28,8 @@ export type UnauthenticatedRequestContext = Context<UnauthenticatedRequestContex
 
 export type UnauthenticatedRequestContextModules = {
     process: ProcessContextModule;
-    tracer: TracerContextModule<RequestContextModules>;
+    tracer: TracerContextModule;
     aws: AwsContextModule;
-    auth: AuthContextModule<UnauthenticatedRequestContextModules>;
+    auth: UnauthenticatedAuthContextModule;
     rpc: LocalRpcContextModule;
 };

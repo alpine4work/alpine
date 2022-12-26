@@ -1,5 +1,5 @@
 // IMPORTANT: We are only importing `@aws-sdk` for types. Use
-// `context.aws().client` for executing any AWS commands.
+// `context.aws.client` for executing any AWS commands.
 import type * as types from "@aws-sdk/client-dynamodb";
 import jsonStableStringify from "json-stable-stringify";
 import {DynamoContext} from "~/server/dynamo/dynamo_context";
@@ -1086,7 +1086,7 @@ async function executeDynamoCommand<Input = never, Output = unknown>(
     command: string,
     input: Input,
 ): Promise<Output> {
-    const response = await context.aws().client.fetch(dynamoUrl, {
+    const response = await context.aws.client.fetch(dynamoUrl, {
         method: "POST",
         headers: {
             "Content-Type": "application/x-amz-json-1.0",

@@ -8,8 +8,8 @@ import {
     getAlphaConfiguration,
     getUndecidedAlphaAccessRequests,
 } from "~/server/dynamo/alpha_access_table";
+import {DataFunctionArgs} from "~/server/helpers/remix/data_function_args";
 import {jsonWithSchema} from "~/server/helpers/remix/json_with_schema";
-import {DataFunctionArgs} from "~/server/helpers/types/remix_context";
 import {AlphaAccessRequestModel} from "~/shared/alpha/alpha_access_request_model";
 import {AlphaConfigurationSchema} from "~/shared/alpha/alpha_configuration_schema";
 import {InvalidArgumentError} from "~/shared/error/error";
@@ -37,7 +37,7 @@ const LoaderSchema = Schema.object({
 export async function loader({context}: DataFunctionArgs) {
     const [configuration, requests] = await runAllPromises([
         getAlphaConfiguration(context),
-        getUndecidedAlphaAccessRequests(await context.auth().authenticate()),
+        getUndecidedAlphaAccessRequests(await context.auth.authenticate()),
     ]);
     return jsonWithSchema(LoaderSchema, {configuration, requests});
 }

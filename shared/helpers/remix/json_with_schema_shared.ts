@@ -19,4 +19,4 @@ export const deserializedValueSymbol = Symbol("deserializedValue");
  * `jsonWithSchema()` easier to track. We include some random characters at the
  * end to discourage hardcoding this property.
  */
-export const propagatedEventDataKey = "_propagatedEventData_e215dc3a";
+export const propagatedEventDataKey = "_propagateEventData_e215dc3a";

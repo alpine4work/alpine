@@ -1045,7 +1045,7 @@ export async function updateDocumentContent(
     // Run a snapshot update task about every
     // `updateDocumentSnapshotAfterStepCount` steps.
     if (oldVersion < lastVersionToTriggerSnapshot) {
-        context.process().waitUntil(
+        context.process.waitUntil(
             updateDocumentSnapshotAfterUpdatingContent(context, {
                 id,
                 newVersion,

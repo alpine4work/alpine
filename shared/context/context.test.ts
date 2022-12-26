@@ -1,227 +1,447 @@
-import {Context} from "~/shared/context/context";
+import {expectTypeOf} from "expect-type";
+import {Context, ContextWithDestroy} from "~/shared/context/context";
+import {ContextModuleBase} from "~/shared/context/context_module_base";
 import {InternalError} from "~/shared/error/error";
+import {Replace} from "~/shared/helpers/types/replace";
+
+class TestContextModule extends ContextModuleBase {
+    public readonly id = Symbol();
+
+    public clone<Modules extends {}>(
+        this: ContextModuleBase<Modules> & TestContextModule,
+    ): ContextWithDestroy<Replace<Modules, {test2: TestContextModule}>> {
+        return this._context.clone({
+            test2: new TestContextModule(),
+        });
+    }
+}
+
+class DependantTestContextModule extends ContextModuleBase<{test1: TestContextModule}> {
+    public readonly id = Symbol();
+
+    public test1() {
+        return this._context.test1;
+    }
+}
 
 test("lazily initializes modules once when they are accessed", () => {
-    const testModule1 = Symbol();
-    const testModule1Initializer = jest.fn(() => testModule1);
-
-    const testModule2 = Symbol();
-    const testModule2Initializer = jest.fn(() => testModule2);
+    const testModule1 = new TestContextModule();
+    const testModule2 = new TestContextModule();
 
     const context = Context.new({
-        test1: testModule1Initializer,
-        test2: testModule2Initializer,
+        test1: testModule1,
+        test2: testModule2,
     });
 
-    expect(testModule1Initializer).toBeCalledTimes(0);
-    expect(testModule2Initializer).toBeCalledTimes(0);
-
-    expect(context.test1()).toEqual(testModule1);
-
-    expect(testModule1Initializer).toBeCalledTimes(1);
-    expect(testModule2Initializer).toBeCalledTimes(0);
-
-    expect(context.test1()).toEqual(testModule1);
-
-    expect(testModule1Initializer).toBeCalledTimes(1);
-    expect(testModule2Initializer).toBeCalledTimes(0);
-
-    expect(context.test2()).toEqual(testModule2);
-
-    expect(testModule1Initializer).toBeCalledTimes(1);
-    expect(testModule2Initializer).toBeCalledTimes(1);
-
-    expect(context.test1()).toEqual(testModule1);
-
-    expect(testModule1Initializer).toBeCalledTimes(1);
-    expect(testModule2Initializer).toBeCalledTimes(1);
-
-    expect(context.test2()).toEqual(testModule2);
-
-    expect(testModule1Initializer).toBeCalledTimes(1);
-    expect(testModule2Initializer).toBeCalledTimes(1);
+    expect(context.test1.id).toEqual(testModule1.id);
+    expect(context.test2.id).toEqual(testModule2.id);
 });
 
 test("destroy prevents module from being accessed again", () => {
-    const testModule1 = Symbol();
-    const testModule1Initializer = jest.fn(() => testModule1);
-
-    const testModule2 = Symbol();
-    const testModule2Initializer = jest.fn(() => testModule2);
+    const testModule1 = new TestContextModule();
+    const testModule2 = new TestContextModule();
 
     const context = Context.new({
-        test1: testModule1Initializer,
-        test2: testModule2Initializer,
+        test1: testModule1,
+        test2: testModule2,
     });
 
-    expect(testModule1Initializer).toBeCalledTimes(0);
-    expect(testModule2Initializer).toBeCalledTimes(0);
-
-    expect(context.test1()).toEqual(testModule1);
-
-    expect(testModule1Initializer).toBeCalledTimes(1);
-    expect(testModule2Initializer).toBeCalledTimes(0);
+    expect(context.test1.id).toEqual(testModule1.id);
+    expect(context.test2.id).toEqual(testModule2.id);
 
     context.destroy();
 
-    expect(testModule1Initializer).toBeCalledTimes(1);
-    expect(testModule2Initializer).toBeCalledTimes(0);
-
-    expect(() => context.test1()).toThrow(InternalError);
-
-    expect(testModule1Initializer).toBeCalledTimes(1);
-    expect(testModule2Initializer).toBeCalledTimes(0);
-
-    expect(() => context.test2()).toThrow(InternalError);
-
-    expect(testModule1Initializer).toBeCalledTimes(1);
-    expect(testModule2Initializer).toBeCalledTimes(0);
+    expect(() => context.test1.id).toThrow(InternalError);
+    expect(() => context.test2.id).toThrow(InternalError);
 });
 
 test("context modules can reference each other", () => {
-    const testModule1 = Symbol();
-    const testModule1Initializer = jest.fn(context => testModule1);
-
-    const testModule2 = Symbol();
-    const testModule2Initializer = jest.fn(context => [context.test1(), testModule2]);
+    const testModule1 = new TestContextModule();
+    const testModule2 = new DependantTestContextModule();
 
     const context = Context.new({
-        test1: testModule1Initializer,
-        test2: testModule2Initializer,
+        test1: testModule1,
+        test2: testModule2,
     });
 
-    expect(testModule1Initializer).toBeCalledTimes(0);
-    expect(testModule2Initializer).toBeCalledTimes(0);
+    expect(context.test1.id).toEqual(testModule1.id);
+    expect(context.test2.id).toEqual(testModule2.id);
+    expect(context.test2.test1().id).toEqual(testModule1.id);
+});
 
-    expect(context.test2()).toEqual([testModule1, testModule2]);
+test("context module that references each other must have dependency modules of the right type", async () => {
+    class BadTestContextModule extends ContextModuleBase {}
 
-    expect(testModule1Initializer).toBeCalledTimes(1);
-    expect(testModule2Initializer).toBeCalledTimes(1);
+    Context.new(
+        // @ts-expect-error: Missing `test1` property.
+        {
+            test2: new DependantTestContextModule(),
+        },
+    );
 
-    expect(context.test1()).toEqual(testModule1);
+    Context.new({
+        // @ts-expect-error: Incorrect `test1` property.
+        test1: new BadTestContextModule(),
+        test2: new DependantTestContextModule(),
+    });
 
-    expect(testModule1Initializer).toBeCalledTimes(1);
-    expect(testModule2Initializer).toBeCalledTimes(1);
+    await Context.with(
+        // @ts-expect-error: Missing `test1` property.
+        {
+            test2: new DependantTestContextModule(),
+        },
+        async () => {},
+    );
 
-    expect(context.test2()).toEqual([testModule1, testModule2]);
+    await Context.with(
+        {
+            // @ts-expect-error: Incorrect `test1` property.
+            test1: new BadTestContextModule(),
+            test2: new DependantTestContextModule(),
+        },
+        async () => {},
+    );
+});
 
-    expect(testModule1Initializer).toBeCalledTimes(1);
-    expect(testModule2Initializer).toBeCalledTimes(1);
+test("context module that references each other must have dependency modules of the right type when cloning too", async () => {
+    class BadTestContextModule extends ContextModuleBase {
+        public readonly bad = true;
+    }
 
-    expect(testModule1Initializer.mock.calls[0]![0]).toBe(context);
-    expect(testModule2Initializer.mock.calls[0]![0]).toBe(context);
+    const context1 = Context.new({});
+    const context2 = Context.new({test1: new BadTestContextModule()});
+    const context3 = Context.new({test1: new TestContextModule()});
+
+    // TODO(calebmer): Would ideally create some kind of TypeScript error.
+    // Struggling to find a good way to do that.
+    context1.clone({
+        test2: new DependantTestContextModule(),
+    });
+
+    // Would ideally create some kind of TypeScript error. Struggling to find a
+    // good way to do that.
+    context2.clone({
+        test2: new DependantTestContextModule(),
+    });
+
+    context3.clone({
+        test2: new DependantTestContextModule(),
+    });
+
+    // Would ideally create some kind of TypeScript error. Struggling to find a
+    // good way to do that.
+    context1.clone({
+        test1: new BadTestContextModule(),
+        test2: new DependantTestContextModule(),
+    });
+
+    context1.clone({
+        test1: new TestContextModule(),
+        test2: new DependantTestContextModule(),
+    });
+
+    // Would ideally create some kind of TypeScript error. Struggling to find a
+    // good way to do that.
+    await context1.with(
+        {
+            test2: new DependantTestContextModule(),
+        },
+        async () => {},
+    );
+
+    // Would ideally create some kind of TypeScript error. Struggling to find a
+    // good way to do that.
+    await context2.with(
+        {
+            test2: new DependantTestContextModule(),
+        },
+        async () => {},
+    );
+
+    await context3.with(
+        {
+            test2: new DependantTestContextModule(),
+        },
+        async () => {},
+    );
+
+    // Would ideally create some kind of TypeScript error. Struggling to find a
+    // good way to do that.
+    await context1.with(
+        {
+            test1: new BadTestContextModule(),
+            test2: new DependantTestContextModule(),
+        },
+        async () => {},
+    );
+
+    await context1.with(
+        {
+            test1: new TestContextModule(),
+            test2: new DependantTestContextModule(),
+        },
+        async () => {},
+    );
 });
 
 test("context modules can create a context clone", () => {
-    const testModule2 = Symbol();
-    const testModule2Initializer = jest.fn(() => testModule2);
-
-    const testModule1Initializer = jest.fn(context => ({
-        clone: () => context.clone({test2: testModule2Initializer}),
-    }));
-
     const context = Context.new({
-        test1: testModule1Initializer,
+        test1: new TestContextModule(),
     });
 
     expect("test1" in context).toEqual(true);
     expect("test2" in context).toEqual(false);
 
-    expect(testModule1Initializer).toBeCalledTimes(0);
-    expect(testModule2Initializer).toBeCalledTimes(0);
+    const clonedContext = context.test1.clone();
 
-    const clonedContext = context.test1().clone();
-
-    expect(testModule1Initializer).toBeCalledTimes(1);
-    expect(testModule2Initializer).toBeCalledTimes(0);
-
+    expect("test1" in context).toEqual(true);
+    expect("test2" in context).toEqual(false);
     expect("test1" in clonedContext).toEqual(true);
     expect("test2" in clonedContext).toEqual(true);
-    expect(clonedContext.test2()).toEqual(testModule2);
-
-    expect(testModule1Initializer).toBeCalledTimes(1);
-    expect(testModule2Initializer).toBeCalledTimes(1);
-
-    clonedContext.test1();
-
-    expect(testModule1Initializer).toBeCalledTimes(1);
-    expect(testModule2Initializer).toBeCalledTimes(1);
+    expect(clonedContext.test1.id).toEqual(context.test1.id);
+    expect(clonedContext.test2.id).not.toEqual(clonedContext.test1.id);
 });
 
 test("can destroy a cloned context", () => {
-    const testModule2 = Symbol();
-    const testModule2Initializer = jest.fn(() => testModule2);
-
-    const testModule1Initializer = jest.fn(context => ({
-        clone: () => context.clone({test2: testModule2Initializer}),
-    }));
-
     const context = Context.new({
-        test1: testModule1Initializer,
+        test1: new TestContextModule(),
     });
 
-    expect(testModule1Initializer).toBeCalledTimes(0);
-    expect(testModule2Initializer).toBeCalledTimes(0);
+    const clonedContext = context.test1.clone();
 
-    const clonedContext = context.test1().clone();
-
-    expect(testModule1Initializer).toBeCalledTimes(1);
-    expect(testModule2Initializer).toBeCalledTimes(0);
-
-    clonedContext.test1();
-    expect(clonedContext.test2()).toEqual(testModule2);
-
-    expect(testModule1Initializer).toBeCalledTimes(1);
-    expect(testModule2Initializer).toBeCalledTimes(1);
+    expect(() => context.test1.id).not.toThrow(InternalError);
+    expect(() => clonedContext.test1.id).not.toThrow(InternalError);
+    expect(() => clonedContext.test2.id).not.toThrow(InternalError);
 
     clonedContext.destroy();
-    expect(() => clonedContext.test1()).toThrow(InternalError);
-    expect(() => clonedContext.test2()).toThrow(InternalError);
 
-    expect(testModule1Initializer).toBeCalledTimes(1);
-    expect(testModule2Initializer).toBeCalledTimes(1);
-
-    context.test1();
+    expect(() => context.test1.id).not.toThrow(InternalError);
+    expect(() => clonedContext.test1.id).toThrow(InternalError);
+    expect(() => clonedContext.test2.id).toThrow(InternalError);
 
     context.destroy();
 
-    expect(() => context.test1()).toThrow(InternalError);
-
-    expect(testModule1Initializer).toBeCalledTimes(1);
-    expect(testModule2Initializer).toBeCalledTimes(1);
+    expect(() => context.test1.id).toThrow(InternalError);
+    expect(() => clonedContext.test1.id).toThrow(InternalError);
+    expect(() => clonedContext.test2.id).toThrow(InternalError);
 });
 
 test("destroying a parent context also destroys the child context", () => {
-    const testModule2 = Symbol();
-    const testModule2Initializer = jest.fn(() => testModule2);
-
-    const testModule1Initializer = jest.fn(context => ({
-        clone: () => context.clone({test2: testModule2Initializer}),
-    }));
-
     const context = Context.new({
-        test1: testModule1Initializer,
+        test1: new TestContextModule(),
     });
 
-    expect(testModule1Initializer).toBeCalledTimes(0);
-    expect(testModule2Initializer).toBeCalledTimes(0);
+    const clonedContext = context.test1.clone();
 
-    const clonedContext = context.test1().clone();
-
-    expect(testModule1Initializer).toBeCalledTimes(1);
-    expect(testModule2Initializer).toBeCalledTimes(0);
-
-    clonedContext.test1();
-    expect(clonedContext.test2()).toEqual(testModule2);
-
-    expect(testModule1Initializer).toBeCalledTimes(1);
-    expect(testModule2Initializer).toBeCalledTimes(1);
+    expect(() => context.test1.id).not.toThrow(InternalError);
+    expect(() => clonedContext.test1.id).not.toThrow(InternalError);
+    expect(() => clonedContext.test2.id).not.toThrow(InternalError);
 
     context.destroy();
-    expect(() => context.test1()).toThrow(InternalError);
-    expect(() => clonedContext.test1()).toThrow(InternalError);
-    expect(() => clonedContext.test2()).toThrow(InternalError);
 
-    expect(testModule1Initializer).toBeCalledTimes(1);
-    expect(testModule2Initializer).toBeCalledTimes(1);
+    expect(() => context.test1.id).toThrow(InternalError);
+    expect(() => clonedContext.test1.id).toThrow(InternalError);
+    expect(() => clonedContext.test2.id).toThrow(InternalError);
+});
+
+test("updates in a different context module stay when cloning from another context module", () => {
+    class Counter1ContextModule extends ContextModuleBase {
+        constructor(public readonly count: number) {
+            super();
+        }
+
+        public increment<Modules extends {}>(
+            this: ContextModuleBase<Modules> & Counter1ContextModule,
+        ) {
+            return this._context.clone({
+                counter1: new Counter1ContextModule(this.count + 1),
+            });
+        }
+    }
+
+    class Counter2ContextModule extends ContextModuleBase {
+        constructor(public readonly count: number) {
+            super();
+        }
+
+        public increment<Modules extends {}>(
+            this: ContextModuleBase<Modules> & Counter2ContextModule,
+        ) {
+            return this._context.clone({
+                counter2: new Counter2ContextModule(this.count + 1),
+            });
+        }
+    }
+
+    let context = Context.new({
+        counter1: new Counter1ContextModule(0),
+        counter2: new Counter2ContextModule(0),
+    });
+
+    expect(context.counter1.count).toEqual(0);
+    expect(context.counter2.count).toEqual(0);
+
+    context = context.counter1.increment();
+
+    expect(context.counter1.count).toEqual(1);
+    expect(context.counter2.count).toEqual(0);
+
+    context = context.counter1.increment();
+    context = context.counter1.increment();
+
+    expect(context.counter1.count).toEqual(3);
+    expect(context.counter2.count).toEqual(0);
+
+    context = context.counter2.increment();
+
+    expect(context.counter1.count).toEqual(3);
+    expect(context.counter2.count).toEqual(1);
+});
+
+test("can not assign to own property in context module", () => {
+    class TestContextModule extends ContextModuleBase {
+        public counter1 = 0;
+        public readonly counter2 = {current: 0};
+
+        public increment1() {
+            this.counter1++;
+        }
+
+        public increment2() {
+            this.counter2.current++;
+        }
+    }
+
+    const context = Context.new({
+        test: new TestContextModule(),
+    });
+
+    expect(context.test.counter1).toEqual(0);
+    expect(context.test.counter2.current).toEqual(0);
+
+    expect(() => context.test.increment1()).toThrow(
+        new TypeError("Cannot add property counter1, object is not extensible"),
+    );
+    expect(() => context.test.increment2()).not.toThrow();
+
+    expect(context.test.counter1).toEqual(0);
+    expect(context.test.counter2.current).toEqual(1);
+
+    const clonedContext = context.clone({});
+
+    expect(context.test.counter1).toEqual(0);
+    expect(context.test.counter2.current).toEqual(1);
+    expect(clonedContext.test.counter1).toEqual(0);
+    expect(clonedContext.test.counter2.current).toEqual(1);
+
+    expect(() => context.test.increment1()).toThrow(
+        new TypeError("Cannot add property counter1, object is not extensible"),
+    );
+    expect(() => context.test.increment2()).not.toThrow();
+
+    expect(context.test.counter1).toEqual(0);
+    expect(context.test.counter2.current).toEqual(2);
+    expect(clonedContext.test.counter1).toEqual(0);
+    expect(clonedContext.test.counter2.current).toEqual(2);
+});
+
+test("can clone into subclass but not superclass", () => {
+    class SuperClassTestContextModule extends ContextModuleBase {
+        public intoSubClass<Modules extends {}>(
+            this: ContextModuleBase<Modules> & SuperClassTestContextModule,
+        ) {
+            return this._context.clone({
+                test: new SubClassTestContextModule(),
+            });
+        }
+    }
+
+    class SubClassTestContextModule extends SuperClassTestContextModule {
+        public intoSuperClass<Modules extends {}>(
+            this: ContextModuleBase<Modules> & SubClassTestContextModule,
+        ) {
+            return this._context.clone({
+                test: new SuperClassTestContextModule(),
+            });
+        }
+    }
+
+    class OtherTestContextModule extends ContextModuleBase {
+        public get<Modules extends {}>(
+            this: ContextModuleBase<Modules> & OtherTestContextModule,
+        ): Context<Modules> {
+            return this._context;
+        }
+    }
+
+    const context1 = Context.new({
+        test: new SuperClassTestContextModule(),
+        otherTest: new OtherTestContextModule(),
+    });
+
+    const context2 = context1.test.intoSubClass();
+    context2.test.intoSubClass();
+
+    expect(() => context2.test.intoSuperClass()).toThrow(
+        new InternalError(
+            "Assertion failure: If replacing a context module, the new context module should be a subclass of the old context module",
+        ),
+    );
+});
+
+test("can clone into subclass and the type for other contexts will reflect that", () => {
+    class SuperClassTestContextModule extends ContextModuleBase {
+        public intoSubClass<Modules extends {}>(
+            this: ContextModuleBase<Modules> & SuperClassTestContextModule,
+        ) {
+            return this._context.clone({
+                test: new SubClassTestContextModule(),
+            });
+        }
+    }
+
+    class SubClassTestContextModule extends SuperClassTestContextModule {
+        public intoSuperClass<Modules extends {}>(
+            this: ContextModuleBase<Modules> & SubClassTestContextModule,
+        ) {
+            return this._context.clone({
+                test: new SuperClassTestContextModule(),
+            });
+        }
+    }
+
+    class OtherTestContextModule extends ContextModuleBase {
+        public get<Modules extends {}>(
+            this: ContextModuleBase<Modules> & OtherTestContextModule,
+        ): Context<Modules> {
+            return this._context;
+        }
+    }
+
+    const context1 = Context.new({
+        test: new SuperClassTestContextModule(),
+        otherTest: new OtherTestContextModule(),
+    });
+
+    const context2 = context1.test.intoSubClass();
+
+    expectTypeOf(context1.otherTest.get()).toMatchTypeOf<{
+        test: SuperClassTestContextModule;
+        otherTest: OtherTestContextModule;
+    }>();
+
+    expectTypeOf(context1.otherTest.get()).not.toMatchTypeOf<{
+        test: SubClassTestContextModule;
+        otherTest: OtherTestContextModule;
+    }>();
+
+    expectTypeOf(context2.otherTest.get()).toMatchTypeOf<{
+        test: SuperClassTestContextModule;
+        otherTest: OtherTestContextModule;
+    }>();
+
+    expectTypeOf(context2.otherTest.get()).toMatchTypeOf<{
+        test: SubClassTestContextModule;
+        otherTest: OtherTestContextModule;
+    }>();
 });

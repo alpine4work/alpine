@@ -2,7 +2,7 @@ import {AwsContextModule} from "~/server/context/aws_context_module";
 import {unauthenticatedSessionError} from "~/server/context/helpers/unauthenticated_session_error";
 import {Account, Session} from "~/server/dynamo/accounts_table";
 import {Context} from "~/shared/context/context";
-import {Lazy} from "~/shared/helpers/control/lazy";
+import {ContextModuleBase} from "~/shared/context/context_module_base";
 import {Replace} from "~/shared/helpers/types/replace";
 import {Id} from "~/shared/id/id";
 
@@ -13,50 +13,50 @@ import {Id} from "~/shared/id/id";
  * The `authenticate()` method returns a context module with methods that let
  * you ask questions about the authenticated account.
  */
-export interface AuthContextModule<Modules extends {aws: AwsContextModule}> {
-    /**
-     * Tells us if the context is authenticated or not. If true then
-     * `authenticate()` should succeed. If false then `authenticate()` will throw
-     * an `UnauthenticatedError`.
-     */
-    isAuthenticated(): Promise<boolean>;
+export class UnauthenticatedAuthContextModule<
+    Modules extends {
+        aws: AwsContextModule;
+        auth: UnauthenticatedAuthContextModule;
+    } = {
+        aws: AwsContextModule;
+        auth: UnauthenticatedAuthContextModule;
+    },
+> extends ContextModuleBase<Modules> {
+    private readonly _createSession: (
+        context: Context<{aws: AwsContextModule}>,
+    ) => Promise<Session | null>;
+    private readonly _sessionPromiseRef: {current: Promise<Session | null> | null};
 
-    /**
-     * Parse this request's authentication credentials. If a request does not have
-     * authenticated credentials or the credentials are incorrect, we throw
-     * an `UnauthenticatedError`.
-     *
-     * Returns a context with an authenticated `auth` context module.
-     */
-    authenticate(): Promise<
-        Context<Replace<Modules, {auth: AuthenticatedAuthContextModule<Modules>}>>
-    >;
-}
+    constructor(
+        getSession: (context: Context<{aws: AwsContextModule}>) => Promise<Session | null>,
+    ) {
+        super();
+        this._createSession = getSession;
+        this._sessionPromiseRef = {current: null};
+    }
 
-export class UnauthenticatedAuthContextModule<Modules extends {aws: AwsContextModule}>
-    implements AuthContextModule<Modules>
-{
-    private readonly _context: Context<Modules>;
-    private readonly _sessionPromise: Lazy<Promise<Session | null>>;
-
-    constructor(context: Context<Modules>, getSession: () => Promise<Session | null>) {
-        this._context = context;
-        this._sessionPromise = new Lazy(getSession);
+    private _getSession(): Promise<Session | null> {
+        if (this._sessionPromiseRef.current === null) {
+            this._sessionPromiseRef.current = this._createSession(this._context);
+        }
+        return this._sessionPromiseRef.current;
     }
 
     public async isAuthenticated(): Promise<boolean> {
-        const session = await this._sessionPromise.get();
+        const session = await this._getSession();
         return !!session;
     }
 
-    public async authenticate() {
-        const session = await this._sessionPromise.get();
+    public async authenticate<
+        Modules extends {aws: AwsContextModule; auth: UnauthenticatedAuthContextModule},
+    >(
+        this: UnauthenticatedAuthContextModule<Modules>,
+    ): Promise<Context<Replace<Modules, {auth: AuthenticatedAuthContextModule}>>> {
+        const session = await this._getSession();
         if (!session) throw unauthenticatedSessionError();
 
-        return this._context.clone<{
-            auth: AuthenticatedAuthContextModule<Modules>;
-        }>({
-            auth: context => new AuthenticatedAuthContextModule(context, session),
+        return this._context.clone({
+            auth: new AuthenticatedAuthContextModule(session),
         });
     }
 }
@@ -66,22 +66,27 @@ export class UnauthenticatedAuthContextModule<Modules extends {aws: AwsContextMo
  * service. Provides access to session information like the authenticated
  * account's ID.
  */
-export class AuthenticatedAuthContextModule<Modules extends {aws: AwsContextModule}>
-    implements AuthContextModule<Modules>
-{
-    constructor(
-        private readonly _context: Context<
-            Replace<Modules, {auth: AuthenticatedAuthContextModule<Modules>}>
-        >,
-        private readonly _session: Session,
-    ) {}
+export class AuthenticatedAuthContextModule extends UnauthenticatedAuthContextModule<{
+    aws: AwsContextModule;
+    auth: AuthenticatedAuthContextModule;
+}> {
+    private readonly _session: Session;
 
-    public async isAuthenticated() {
+    constructor(session: Session) {
+        super(() => Promise.resolve(session));
+        this._session = session;
+    }
+
+    public override async isAuthenticated() {
         return true;
     }
 
-    public async authenticate() {
-        return this._context;
+    public override async authenticate<
+        Modules extends {aws: AwsContextModule; auth: UnauthenticatedAuthContextModule},
+    >(
+        this: UnauthenticatedAuthContextModule<Modules> & AuthenticatedAuthContextModule,
+    ): Promise<Context<Replace<Modules, {auth: AuthenticatedAuthContextModule}>>> {
+        return this._context as any;
     }
 
     /**

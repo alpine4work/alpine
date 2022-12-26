@@ -16,6 +16,7 @@ import {
     updateDocumentContent,
 } from "~/server/dynamo/documents_table";
 import {WebSocketServer} from "~/server/helpers/web_socket_server";
+import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module";
 import {Context} from "~/shared/context/context";
 import {ProcessContextModule} from "~/shared/context/process_context_module";
 import {TracerContextModule} from "~/shared/context/tracer_context_module";
@@ -58,6 +59,12 @@ type DurableObjectEnv = {
     AWS_SECRET_ACCESS_KEY?: string;
 };
 
+type DocumentCollaborationDurableObjectContextModules = {
+    process: ProcessContextModule;
+    tracer: TracerContextModule;
+    aws: AwsContextModule;
+};
+
 /**
  * Wrapper for our actual durable object class. There's some initialization we
  * need to do on the first request. This wrapper allows us to initialize that
@@ -66,7 +73,7 @@ type DurableObjectEnv = {
 class DocumentCollaborationDurableObjectWrapper {
     private readonly _state: DurableObjectState;
     private readonly _sessionCookieSecret: string;
-    private readonly _context: Context<{process: ProcessContextModule; aws: AwsContextModule}>;
+    private readonly _context: Context<DocumentCollaborationDurableObjectContextModules>;
     private _objectPromise: Promise<DocumentCollaborationDurableObject> | null = null;
 
     constructor(state: DurableObjectState, env: DurableObjectEnv) {
@@ -81,54 +88,52 @@ class DocumentCollaborationDurableObjectWrapper {
 
         this._sessionCookieSecret = sessionCookieSecret;
 
+        const awsClient = createAwsClientFromEnv(env);
+
         this._context = Context.new({
-            process: () =>
-                new ProcessContextModule({
-                    waitUntil: promise => this._state.waitUntil(promise),
-                }),
-            tracer: () => new TracerContextModule(context, tracer),
-            aws: () => {
-                const awsClient = createAwsClientFromEnv(env);
-                return new AwsContextModule(awsClient);
-            },
+            process: new ProcessContextModule({
+                waitUntil: promise => this._state.waitUntil(promise),
+            }),
+            tracer: new TracerContextModule(tracer),
+            aws: new AwsContextModule(awsClient),
         });
     }
 
     public fetch(request: Request): Promise<Response> {
-        return this._context.withClone<
-            Omit<UnauthenticatedRequestContextModules, "process" | "aws">,
+        return this._context.with<
+            Omit<
+                UnauthenticatedRequestContextModules,
+                keyof DocumentCollaborationDurableObjectContextModules
+            >,
             Response
         >(
             {
-                auth: context =>
-                    new UnauthenticatedAuthContextModule(context, async () => {
-                        const authorizationHeader = request.headers.get("authorization");
-                        if (!authorizationHeader) return null;
-                        const authorizationHeaderMatch =
-                            authorizationHeader.match(/^bearer (.+)$/i);
+                auth: new UnauthenticatedAuthContextModule(async context => {
+                    const authorizationHeader = request.headers.get("authorization");
+                    if (!authorizationHeader) return null;
+                    const authorizationHeaderMatch = authorizationHeader.match(/^bearer (.+)$/i);
 
-                        if (!authorizationHeaderMatch)
-                            throw new InvalidArgumentError(
-                                'Expected "Authorization" header to have "Bearer" authentication scheme',
-                            );
-
-                        const authenticationToken = authorizationHeaderMatch[1] ?? "";
-
-                        const {sessionId} = await this._verifyAuthenticationToken(
-                            authenticationToken,
+                    if (!authorizationHeaderMatch)
+                        throw new InvalidArgumentError(
+                            'Expected "Authorization" header to have "Bearer" authentication scheme',
                         );
 
-                        const session = await Session.get(context, sessionId);
-                        if (!session)
-                            throw new NotFoundError(
-                                'Could not find session from "Authorization" header',
-                            );
+                    const authenticationToken = authorizationHeaderMatch[1] ?? "";
 
-                        return session;
-                    }),
+                    const {sessionId} = await this._verifyAuthenticationToken(authenticationToken);
+
+                    const session = await Session.get(context, sessionId);
+                    if (!session)
+                        throw new NotFoundError(
+                            'Could not find session from "Authorization" header',
+                        );
+
+                    return session;
+                }),
+                rpc: new LocalRpcContextModule(),
             },
             async _requestContext => {
-                const requestContext: RequestContext = await _requestContext.auth().authenticate();
+                const requestContext: RequestContext = await _requestContext.auth.authenticate();
                 const id = Schema.id.deserialize(request.headers.get("x-document-id"));
 
                 if (this._objectPromise === null) {
@@ -166,7 +171,7 @@ class DocumentCollaborationDurableObjectWrapper {
 export {DocumentCollaborationDurableObjectWrapper as DocumentCollaborationDurableObject};
 
 class DocumentCollaborationDurableObject {
-    private readonly _context: Context<{process: ProcessContextModule; aws: AwsContextModule}>;
+    private readonly _context: Context<DocumentCollaborationDurableObjectContextModules>;
     public readonly id: Id;
     private readonly _contentManager: DocumentCollaborationContentManager;
     private readonly _destroyCallback: () => void;
@@ -183,7 +188,7 @@ class DocumentCollaborationDurableObject {
         id,
         destroy,
     }: {
-        processContext: Context<{process: ProcessContextModule; aws: AwsContextModule}>;
+        processContext: Context<DocumentCollaborationDurableObjectContextModules>;
         requestContext: RequestContext;
         id: Id;
         destroy: () => void;
@@ -207,7 +212,7 @@ class DocumentCollaborationDurableObject {
         initialContent,
         destroy,
     }: {
-        context: Context<{process: ProcessContextModule; aws: AwsContextModule}>;
+        context: Context<DocumentCollaborationDurableObjectContextModules>;
         id: Id;
         initialVersion: number;
         initialContent: DocumentContent;
@@ -225,7 +230,7 @@ class DocumentCollaborationDurableObject {
         this._destroyCallback = destroy;
 
         this._webSocketServer = new WebSocketServer(
-            context,
+            this._context,
             DocumentCollaborationMessageFromClientSchema,
             DocumentCollaborationMessageFromServerSchema,
             ({sendMessage, sendMessageToOthers, iterateOtherConnections}) =>
@@ -500,7 +505,7 @@ class DocumentCollaborationContentManager {
                 };
 
                 // Make sure the durable object stays alive until we've finished persisting.
-                context.process().waitUntil(this._persistenceState.promise);
+                context.process.waitUntil(this._persistenceState.promise);
             }
 
             return {presenceState, hasSentPresenceState: true};

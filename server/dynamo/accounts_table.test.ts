@@ -18,7 +18,7 @@ import {Id, generateId} from "~/shared/id/id";
 jest.setTimeout(10 * 1000);
 
 const context: DynamoContext = Context.new({
-    aws: () => AwsContextModule.test(),
+    aws: AwsContextModule.test(),
 });
 
 const AccountsTable = getAccountsTableForTest();

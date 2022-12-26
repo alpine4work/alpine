@@ -3,8 +3,8 @@ import {DocumentBlobFactory, useDocumentBlobSettings} from "~/client/blob_factor
 import {DocumentContentEditor} from "~/client/documents/document_content_editor";
 import {useLoaderDataWithSchema} from "~/client/helpers/remix/use_loader_data_with_schema";
 import {getDocument} from "~/server/dynamo/documents_table";
+import {DataFunctionArgs} from "~/server/helpers/remix/data_function_args";
 import {jsonWithSchema} from "~/server/helpers/remix/json_with_schema";
-import {DataFunctionArgs} from "~/server/helpers/types/remix_context";
 import {DocumentModel} from "~/shared/documents/document_model";
 import {NotFoundError} from "~/shared/error/error";
 import {Schema} from "~/shared/schema/schema";
@@ -13,13 +13,12 @@ import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
 
 const schema = Schema.object({
     document: DocumentModel.schema(),
-    propagateEventData: Schema.unknown,
 });
 
 export async function loader({params, context}: DataFunctionArgs) {
     const documentId = Schema.id.deserialize(params.document_id ?? null);
 
-    const document = await getDocument(await context.auth().authenticate(), documentId);
+    const document = await getDocument(await context.auth.authenticate(), documentId);
     if (!document) throw new NotFoundError("Document not found");
 
     const propagateEventData: TracerEventData = {
@@ -28,7 +27,7 @@ export async function loader({params, context}: DataFunctionArgs) {
         },
     };
 
-    return jsonWithSchema(schema, {document});
+    return jsonWithSchema(schema, {document}, {propagateEventData});
 }
 
 export default function DocumentRoute() {
