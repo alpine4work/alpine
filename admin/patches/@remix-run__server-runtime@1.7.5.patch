@@ -88,7 +88,7 @@ index 8b7d9946ae80f161654f8db93d0ccdd4721edc07..3d3e29b5d4c6f3aad3f595405db0ae8f
  
  /**
 diff --git a/dist/esm/server.js b/dist/esm/server.js
-index 026576dd4e92f4be414d957a01084f29a243b43d..31b41b0e360f30c93611591348e16836ed9c0ac9 100644
+index 026576dd4e92f4be414d957a01084f29a243b43d..1c37e495d095a72f1836aa4a9d72d66f31081fdd 100644
 --- a/dist/esm/server.js
 +++ b/dist/esm/server.js
 @@ -163,7 +163,9 @@ async function handleDataRequest({
@@ -102,6 +102,26 @@ index 026576dd4e92f4be414d957a01084f29a243b43d..31b41b0e360f30c93611591348e16836
        return errorBoundaryError(error, 500);
      }
  
+@@ -410,7 +412,8 @@ async function handleDocumentRequest({
+   let handleDocumentRequest = build.entry.module.default;
+ 
+   try {
+-    return await handleDocumentRequest(request, responseStatusCode, responseHeaders, entryContext);
++    // NOTE(calebmer): Give `entry.server.js` access to the load context object.
++    return await handleDocumentRequest(request, responseStatusCode, responseHeaders, entryContext, loadContext);
+   } catch (error) {
+     responseStatusCode = 500; // Go again, this time with the componentDidCatch emulation. As it rendered
+     // last time we mutated `componentDidCatch.routeId` for the last rendered
+@@ -424,7 +427,8 @@ async function handleDocumentRequest({
+     entryContext.serverHandoffString = createServerHandoffString(serverHandoff);
+ 
+     try {
+-      return await handleDocumentRequest(request, responseStatusCode, responseHeaders, entryContext);
++      // NOTE(calebmer): Give `entry.server.js` access to the load context object.
++      return await handleDocumentRequest(request, responseStatusCode, responseHeaders, entryContext, loadContext);
+     } catch (error) {
+       return returnLastResortErrorResponse(error, serverMode);
+     }
 diff --git a/dist/responses.js b/dist/responses.js
 index 2d72257c81c4a8ca1903aa3d69a32d8b8db19811..7303da657003331c8b0e5b3e3fb4ea3808267f8f 100644
 --- a/dist/responses.js
@@ -124,7 +144,7 @@ index 2d72257c81c4a8ca1903aa3d69a32d8b8db19811..7303da657003331c8b0e5b3e3fb4ea38
  
  /**
 diff --git a/dist/server.js b/dist/server.js
-index 5ac23044d85bf98b9a9daf8d6109a903c2790645..95fec0f5da972bcf5fde3395360fa63e9b45452f 100644
+index 5ac23044d85bf98b9a9daf8d6109a903c2790645..2657c37de01802c19e9e93c5c5db49eec93899a3 100644
 --- a/dist/server.js
 +++ b/dist/server.js
 @@ -167,7 +167,9 @@ async function handleDataRequest({
@@ -138,3 +158,23 @@ index 5ac23044d85bf98b9a9daf8d6109a903c2790645..95fec0f5da972bcf5fde3395360fa63e
        return errorBoundaryError(error, 500);
      }
  
+@@ -414,7 +416,8 @@ async function handleDocumentRequest({
+   let handleDocumentRequest = build.entry.module.default;
+ 
+   try {
+-    return await handleDocumentRequest(request, responseStatusCode, responseHeaders, entryContext);
++    // NOTE(calebmer): Give `entry.server.js` access to the load context object.
++    return await handleDocumentRequest(request, responseStatusCode, responseHeaders, entryContext, loadContext);
+   } catch (error) {
+     responseStatusCode = 500; // Go again, this time with the componentDidCatch emulation. As it rendered
+     // last time we mutated `componentDidCatch.routeId` for the last rendered
+@@ -428,7 +431,8 @@ async function handleDocumentRequest({
+     entryContext.serverHandoffString = serverHandoff.createServerHandoffString(serverHandoff$1);
+ 
+     try {
+-      return await handleDocumentRequest(request, responseStatusCode, responseHeaders, entryContext);
++      // NOTE(calebmer): Give `entry.server.js` access to the load context object.
++      return await handleDocumentRequest(request, responseStatusCode, responseHeaders, entryContext, loadContext);
+     } catch (error) {
+       return returnLastResortErrorResponse(error, serverMode);
+     }

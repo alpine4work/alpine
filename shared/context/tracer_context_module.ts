@@ -2,6 +2,7 @@ import {Context} from "~/shared/context/context";
 import {ContextModuleBase} from "~/shared/context/context_module_base";
 import {Replace} from "~/shared/helpers/types/replace";
 import {TracerBase, TracerSpan} from "~/shared/tracer/tracer";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
 
 /**
  * A wrapper around either a `Tracer` or `TracerSpan` for instrumenting code
@@ -52,5 +53,19 @@ export class TracerContextModule extends ContextModuleBase {
                 action(context, span),
             );
         });
+    }
+
+    /**
+     * Returns a context where all spans created by the tracer will include the
+     * data passed into this function. The propagated data will also be sent over
+     * network boundaries.
+     */
+    public withPropagatedData<Modules extends {tracer: TracerContextModule}>(
+        this: ContextModuleBase<Modules> & TracerContextModule,
+        data: TracerEventData,
+    ): Context<Replace<Modules, {tracer: TracerContextModule}>> {
+        const newTracer = this._tracer.withPropagatedData(data);
+        if (newTracer === this._tracer) return this._context;
+        return this._context.clone({tracer: new TracerContextModule(newTracer)});
     }
 }

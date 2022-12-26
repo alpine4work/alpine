@@ -21,6 +21,7 @@ import {
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {TooltipCoordinationContextProvider} from "~/client/design/tooltip";
 import {ErrorBodyRenderer} from "~/client/error/error_body_renderer";
+import {AppContextProvider, useAppContext} from "~/client/helpers/app_context";
 import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useStableValue} from "~/client/helpers/use_stable_value";
 import {spacing} from "~/shared/design/spacing";
@@ -28,7 +29,6 @@ import {NotFoundError, UnknownError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {ErrorSchema} from "~/shared/error/error_schema";
 import {assert} from "~/shared/helpers/control/assert";
-import {LinkedList} from "~/shared/helpers/immutable/linked_list";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";
 import {propagatedEventDataKey} from "~/shared/helpers/remix/json_with_schema_shared";
@@ -36,8 +36,6 @@ import {quote} from "~/shared/helpers/string/quote";
 import {sprinkles} from "~/shared/styles/styles";
 import sharedStylesHref from "~/shared/styles/styles.css";
 import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data";
-import {Tracer} from "~/shared/tracer/tracer";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
 
 export function meta() {
     return {
@@ -65,11 +63,11 @@ export default function Root({error}: {error?: unknown}) {
     const remixEntryContext = useContext(RemixEntryContext);
     assert(remixEntryContext, "Expected Remix entry context");
 
-    let tracer: Tracer = useTracer();
+    let context = useAppContext();
 
     // Add propagated event data to our tracer so that child React components
     // log events with the right context.
-    tracer = useMemo(() => {
+    context = useMemo(() => {
         const routeData = Object.values(remixEntryContext.routeData);
 
         const propagatedEventData = Array.from(
@@ -79,10 +77,10 @@ export default function Root({error}: {error?: unknown}) {
             }),
         );
 
-        if (propagatedEventData.length === 0) return tracer;
+        if (propagatedEventData.length === 0) return context;
 
-        return tracer.withPropagatedData(mergeTracerEventData(propagatedEventData));
-    }, [remixEntryContext.routeData, tracer]);
+        return context.tracer.withPropagatedData(mergeTracerEventData(propagatedEventData));
+    }, [remixEntryContext.routeData, context]);
 
     const caught = useCatch() as ThrownResponse | undefined;
 
@@ -111,13 +109,15 @@ export default function Root({error}: {error?: unknown}) {
 
     const wrappedChildren = (
         <IconContext.Provider value={{color: "currentColor", size: spacing["5"]}}>
-            <AppInitialRenderContextProvider>
-                <OverlayScopeContextProvider>
-                    <TooltipCoordinationContextProvider>
-                        {children}
-                    </TooltipCoordinationContextProvider>
-                </OverlayScopeContextProvider>
-            </AppInitialRenderContextProvider>
+            <AppContextProvider value={context}>
+                <AppInitialRenderContextProvider>
+                    <OverlayScopeContextProvider>
+                        <TooltipCoordinationContextProvider>
+                            {children}
+                        </TooltipCoordinationContextProvider>
+                    </OverlayScopeContextProvider>
+                </AppInitialRenderContextProvider>
+            </AppContextProvider>
         </IconContext.Provider>
     );
 

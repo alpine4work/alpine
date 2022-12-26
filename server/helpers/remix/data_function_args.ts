@@ -3,9 +3,9 @@ import {SessionCookieContextModule} from "~/server/session/session_cookie_contex
 import type {Context} from "~/shared/context/context";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection";
 
-export type DataFunctionContext = Context<DataFunctionContextModules>;
+export type LoadContext = Context<LoadContextModules>;
 
-export type DataFunctionContextModules = MergeObjectIntersection<
+export type LoadContextModules = MergeObjectIntersection<
     UnauthenticatedRequestContextModules & {
         sessionCookie: SessionCookieContextModule;
     }
@@ -13,6 +13,6 @@ export type DataFunctionContextModules = MergeObjectIntersection<
 
 export interface DataFunctionArgs {
     request: Request;
-    context: DataFunctionContext;
+    context: LoadContext;
     params: {readonly [key: string]: string | undefined};
 }

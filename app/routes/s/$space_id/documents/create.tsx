@@ -1,7 +1,7 @@
 import {useNavigate, useParams} from "react-router-dom";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
-import {callRpc} from "~/client/rpc/call_rpc";
+import {useAppContext} from "~/client/helpers/app_context";
 import {emptyDocumentContent} from "~/shared/documents/document_content_schema";
 import {dummyDocumentContent} from "~/shared/documents/dummy_document_content";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
@@ -10,6 +10,7 @@ import {createDocument} from "~/shared/rpc/documents_rpc_definitions";
 import {Schema} from "~/shared/schema/schema";
 
 export default function CreateDocumentRoute() {
+    const context = useAppContext();
     const navigate = useNavigate();
 
     const params = useParams();
@@ -22,7 +23,7 @@ export default function CreateDocumentRoute() {
                     runPromiseWithoutAwaiting(async () => {
                         const documentId = generateId();
 
-                        await callRpc(createDocument, {
+                        await createDocument(context, {
                             id: documentId,
                             spaceId,
                             content: emptyDocumentContent,
@@ -39,7 +40,7 @@ export default function CreateDocumentRoute() {
                     runPromiseWithoutAwaiting(async () => {
                         const documentId = generateId();
 
-                        await callRpc(createDocument, {
+                        await createDocument(context, {
                             id: documentId,
                             spaceId,
                             content: dummyDocumentContent(),

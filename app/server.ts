@@ -7,10 +7,7 @@ import {AwsContextModule} from "~/server/context/aws_context_module";
 import {createAwsClientFromEnv} from "~/server/context/helpers/create_aws_client_from_env";
 import {unauthenticatedSessionError} from "~/server/context/helpers/unauthenticated_session_error";
 import {Session} from "~/server/dynamo/accounts_table";
-import {
-    DataFunctionContext,
-    DataFunctionContextModules,
-} from "~/server/helpers/remix/data_function_args";
+import {LoadContext, LoadContextModules} from "~/server/helpers/remix/data_function_args";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module";
 import {SessionCookieStorage} from "~/server/session/session_cookie";
 import {SessionCookieContextModule} from "~/server/session/session_cookie_context_module";
@@ -35,7 +32,7 @@ const contextSymbol = Symbol("context");
 
 const handleRequest = createRequestHandler({
     build,
-    getLoadContext(event: FetchEvent & {[contextSymbol]?: DataFunctionContext}) {
+    getLoadContext(event: FetchEvent & {[contextSymbol]?: LoadContext}) {
         const context = assertExists(event[contextSymbol]);
         return context as any as AppLoadContext;
     },
@@ -105,17 +102,14 @@ async function fetch(
     // Backwards compatibility with Cloudflare service worker syntax. (Instead of
     // Cloudflare module syntax.)
     // https://developers.cloudflare.com/workers/runtime-apis/fetch-event
-    const event: FetchEvent & {[contextSymbol]?: DataFunctionContext} = Object.assign(
-        new Event("fetch"),
-        {
-            request,
-            waitUntil: (promise: Promise<any>) => executionContext.waitUntil(promise),
-            passThroughOnException: () => executionContext.passThroughOnException(),
-            respondWith: () => {
-                throw new InternalError("Can not respond through fetch event stub");
-            },
+    const event: FetchEvent & {[contextSymbol]?: LoadContext} = Object.assign(new Event("fetch"), {
+        request,
+        waitUntil: (promise: Promise<any>) => executionContext.waitUntil(promise),
+        passThroughOnException: () => executionContext.passThroughOnException(),
+        respondWith: () => {
+            throw new InternalError("Can not respond through fetch event stub");
         },
-    );
+    });
 
     // In development we have middleware on our HTTP server that serves static
     // files from the file system instead of a Cloudflare KV namespace.
@@ -170,7 +164,7 @@ async function fetch(
     }
 
     return resources.sessionCookieStorage.with(request, sessionCookiePromise => {
-        return Context.with<DataFunctionContextModules, Response>(
+        return Context.with<LoadContextModules, Response>(
             {
                 process: new ProcessContextModule({
                     waitUntil: promise => executionContext.waitUntil(promise),

@@ -3,6 +3,7 @@ import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
 import {Spacer} from "~/client/design/spacer";
 import {TextInput} from "~/client/design/text_input";
+import {useAppContext} from "~/client/helpers/app_context";
 import {useLoaderDataWithSchema} from "~/client/helpers/remix/use_loader_data_with_schema";
 import {
     getAlphaConfiguration,
@@ -43,6 +44,7 @@ export async function loader({context}: DataFunctionArgs) {
 }
 
 export default function AlphaManagementPage() {
+    const context = useAppContext();
     const {configuration, requests: loadedRequests} = useLoaderDataWithSchema(LoaderSchema);
 
     const dateTimeFormatter = useMemo(() => {
@@ -115,7 +117,7 @@ export default function AlphaManagementPage() {
                                     validatedAddAccountsToSpaceId = defaultSpaceId;
                                 }
 
-                                await callRpc(saveAlphaConfiguration, {
+                                await saveAlphaConfiguration(context, {
                                     configuration: {
                                         defaultSpaceId: validatedAddAccountsToSpaceId,
                                         authenticatedHomeUrl:
@@ -168,6 +170,8 @@ function AlphaAccessRequest({
     dateTimeFormatter: Intl.DateTimeFormat;
     onDecided: () => void;
 }) {
+    const context = useAppContext();
+
     return (
         <Box padding="3" borderRadius="base" border="grey-10">
             <Box marginBottom="3" paddingBottom="3" borderBottom="grey-10" display="flex" gap="2">
@@ -177,7 +181,7 @@ function AlphaAccessRequest({
                 <Button
                     variant="quiet"
                     onPress={async () => {
-                        await callRpc(denyAlphaAccessRequest, {
+                        await denyAlphaAccessRequest(context, {
                             emailAddress: request.emailAddress,
                         });
                         onDecided();
@@ -188,7 +192,7 @@ function AlphaAccessRequest({
                 <Button
                     variant="accent"
                     onPress={async () => {
-                        await callRpc(approveAlphaAccessRequest, {
+                        await approveAlphaAccessRequest(context, {
                             emailAddress: request.emailAddress,
                         });
                         onDecided();

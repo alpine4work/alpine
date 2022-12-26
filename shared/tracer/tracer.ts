@@ -17,13 +17,13 @@ import {
 export type TracerServiceName = "AppClient" | "AppServer" | "DocumentCollaborationService";
 
 // TODO(calebmer): Tracer stuff
-// - Apply source map to error stack trace on server.
-// - Sample rate.
-// - Make sure client and server timestamps match.
-// - Redact URLs.
-// - Unhandled errors on the client and server.
+// - Apply source map to error stack trace on server
+// - Sample rate
+// - Make sure client and server timestamps match
+// - Redact URLs
+// - Unhandled errors on the client and server
 // - Only allow propagating some data. Should error if client tries to
-//   propagate more.
+//   propagate more
 // - Maybe in Cloudflare workers, whenever `getTime` is called we should do
 //   some light IO to progress the time? Maybe a cache read or something?
 
@@ -70,6 +70,22 @@ export abstract class TracerBase {
             throw error;
         }
     }
+
+    /**
+     * Returns a tracer where all spans created by the tracer will include the data
+     * passed into this function. The propagated data will also be sent over
+     * network boundaries.
+     *
+     * If this tracer is, itself, a span then we will add this data to the span
+     * itself and all future child spans (not just child spans created by the
+     * returned object). When we add propagated data through mutation (instead of
+     * creating a new immutable object) then the returned object will be
+     * referentially equal to `this`.
+     *
+     * Regardless of the implementation, this function guarantees that spans
+     * created by the returned tracer will have the propagated data.
+     */
+    public abstract withPropagatedData(data: TracerEventData): TracerBase;
 }
 
 /**
@@ -153,7 +169,7 @@ export class Tracer extends TracerBase {
      * Propagated data will also be propagated across process boundaries. So if we
      * make an HTTP request then we send our propagated data with us.
      */
-    public withPropagatedData(data: TracerEventData) {
+    public withPropagatedData(data: TracerEventData): Tracer {
         return new Tracer({
             getTime: this.getTime,
             sharedEventData: this.sharedEventData,
@@ -317,6 +333,15 @@ export class TracerSpan extends TracerBase {
             value: data,
             next: this._propagatedEventData,
         };
+    }
+
+    /**
+     * Implementation of `TracerBase.withPropagatedData()`. Directly calls
+     * `TracerSpan.addPropagatedData()`.
+     */
+    public withPropagatedData(data: TracerEventData): TracerSpan {
+        this.addPropagatedData(data);
+        return this;
     }
 
     /**

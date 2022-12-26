@@ -1,7 +1,11 @@
 import {RemixBrowser} from "@remix-run/react";
 import React from "react";
 import ReactDom, {hydrateRoot} from "react-dom/client";
+import {AppContext, AppContextProvider} from "~/client/helpers/app_context";
 import {attachDeveloperConsole} from "~/client/helpers/developer_console";
+import {ClientRpcContextModule} from "~/client/rpc/client_rpc_context_module";
+import {Context} from "~/shared/context/context";
+import {TracerContextModule} from "~/shared/context/tracer_context_module";
 import {ErrorSchema} from "~/shared/error/error_schema";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 import {assert} from "~/shared/helpers/control/assert";
@@ -13,7 +17,17 @@ import {Tracer} from "~/shared/tracer/tracer";
 
 const tracer = createTracer();
 
-hydrateRoot(document, <RemixBrowser />);
+const context: AppContext = Context.new({
+    tracer: new TracerContextModule(tracer),
+    rpc: new ClientRpcContextModule(),
+});
+
+hydrateRoot(
+    document,
+    <AppContextProvider value={context}>
+        <RemixBrowser />
+    </AppContextProvider>,
+);
 
 attachDeveloperConsole();
 
