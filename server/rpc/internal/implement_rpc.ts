@@ -22,29 +22,39 @@ export type RpcImplementation = {
  * definitions but only the server can actually implement them.
  */
 export function implementRpc<Input, Output>(
-    rpcDefinition: RpcDefinition<Input, Output>,
+    definition: RpcDefinition<Input, Output>,
     implementation: (
         context: UnauthenticatedRequestContext,
         input: Input,
     ) => Promise<BlockInference<Output>>,
 ) {
     assert(
-        !rpcImplementationByName.has(rpcDefinition.name),
-        quote`An implementation for RPC ${rpcDefinition.name} already exists`,
+        !rpcImplementationByName.has(definition.name),
+        quote`An implementation for RPC ${definition.name} already exists`,
     );
+
+    const executeWithoutSerialization = (
+        context: UnauthenticatedRequestContext,
+        input: Input,
+    ): Promise<Output> => {
+        return context.tracer.withSpan(`RPC server ${definition.name}`, async context => {
+            const output = (await implementation(context, input)) as Output;
+            return output;
+        });
+    };
 
     const execute = async (
         context: UnauthenticatedRequestContext,
         serializedInput: SchemaSerializedValue,
     ): Promise<SchemaSerializedValue> => {
-        const input = rpcDefinition.inputSchema.deserialize(serializedInput);
-        const output = (await implementation(context, input)) as Output;
-        return rpcDefinition.outputSchema.serialize(output);
+        const input = definition.inputSchema.deserialize(serializedInput);
+        const output = await executeWithoutSerialization(context, input);
+        return definition.outputSchema.serialize(output);
     };
 
-    rpcImplementationByName.set(rpcDefinition.name, {
+    rpcImplementationByName.set(definition.name, {
         execute,
-        executeWithoutSerialization: implementation,
+        executeWithoutSerialization,
     });
 }
 
