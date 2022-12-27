@@ -19,9 +19,6 @@ export type TracerServiceName = "AppClient" | "AppServer" | "DocumentCollaborati
 // - Sample rate
 // - Make sure client and server timestamps match
 // - Redact URLs
-// - Unhandled errors on the client and server
-// - Only allow propagating some data. Should error if client tries to
-//   propagate more
 // - Maybe in Cloudflare workers, whenever `getTime` is called we should do
 //   some light IO to progress the time? Maybe a cache read or something?
 
