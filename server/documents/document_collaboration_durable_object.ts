@@ -105,7 +105,9 @@ class DocumentCollaborationDurableObjectWrapper {
     }
 
     public fetch(request: Request): Promise<Response> {
-        return traceFetchResponse(this._tracer, request, (span, request, url) => {
+        const url = new URL(request.url);
+
+        return traceFetchResponse(this._tracer, request, url, (span, request) => {
             return this._context.with<
                 Omit<
                     UnauthenticatedRequestContextModules,

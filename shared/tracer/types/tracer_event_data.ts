@@ -55,6 +55,12 @@ export type TracerEventFullData = TracerEventData & {
          * suspicious events.
          */
         readonly untrusted?: boolean;
+
+        /**
+         * How far offset is the client clock from the server clock? If you add
+         * `time + clientTimeOffsetMs` you will get the client's time.
+         */
+        readonly clientTimeOffsetMs?: number;
     };
 
     /**

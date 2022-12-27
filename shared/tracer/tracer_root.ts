@@ -17,7 +17,6 @@ export type TracerServiceName = "AppClient" | "AppServer" | "DocumentCollaborati
 // TODO(calebmer): Tracer stuff
 // - Apply source map to error stack trace on server
 // - Sample rate
-// - Make sure client and server timestamps match
 // - Redact URLs
 // - Maybe in Cloudflare workers, whenever `getTime` is called we should do
 //   some light IO to progress the time? Maybe a cache read or something?

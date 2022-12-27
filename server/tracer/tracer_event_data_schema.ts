@@ -43,6 +43,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
     meta: {
         annotationType: Schema.enum(["span_event", "link"]),
         untrusted: Schema.boolean,
+        clientTimeOffsetMs: Schema.integer,
     },
     trace: {
         traceId: Schema.id,

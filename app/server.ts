@@ -65,6 +65,33 @@ async function fetch(
     env: AppWorkerEnv,
     executionContext: ExecutionContext,
 ): Promise<Response> {
+    const url = new URL(request.url);
+
+    // We implement the time API route directly in our Cloudflare Worker body and
+    // put it before all other work.
+    //
+    // We use this route to implement [clock synchronization with NTP][1].
+    //
+    // Normally, NTP needs the time of both server packet reception and server
+    // packet transmission to work. But Cloudflare only updates the clock during IO
+    // (not synchronous CPU work, see [security model][2]) so we only have the time
+    // at which our worker received the request. That's fine, that time can be both
+    // the server start time and server end time and we pretend like the server
+    // response was less than 1ms.
+    //
+    // So we want to respond to this route the absolute fastest Cloudflare Workers
+    // can allow so that the route time is as close to under 1ms as possible. Which
+    // is why we put this route handler first before all other processing.
+    //
+    // [1]: https://en.wikipedia.org/wiki/Network_Time_Protocol
+    // [2]: https://developers.cloudflare.com/workers/learning/security-model/
+    if (url.pathname === "/api/time") {
+        return new Response(JSON.stringify({time: Date.now()}), {
+            status: 200,
+            headers: {"content-type": "application/json"},
+        });
+    }
+
     if (sharedTracer === null) {
         sharedTracer = TracerRoot.new({
             serviceName: "AppServer",
@@ -140,7 +167,7 @@ async function fetch(
 
     // Don't trace asset requests. If we do one day trace asset requests we should
     // do it with a low sample rate.
-    return traceFetchResponse(tracer, request, async (span, request, url) => {
+    return traceFetchResponse(tracer, request, url, async (span, request) => {
         // Backwards compatibility with Cloudflare service worker syntax. (Instead of
         // Cloudflare module syntax.)
         // https://developers.cloudflare.com/workers/runtime-apis/fetch-event

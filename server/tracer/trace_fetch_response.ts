@@ -16,7 +16,8 @@ import {TracerSpan} from "~/shared/tracer/tracer_span";
 export async function traceFetchResponse(
     tracer: TracerRoot,
     request: Request,
-    action: (span: TracerSpan, request: Request, url: URL) => Promise<Response>,
+    requestUrl: URL,
+    action: (span: TracerSpan, request: Request) => Promise<Response>,
 ): Promise<Response> {
     const {span, finishSpan} = startSpanFromPropagationContextHeader(
         tracer,
@@ -25,8 +26,6 @@ export async function traceFetchResponse(
     );
 
     try {
-        const url = new URL(request.url);
-
         const requestContentLengthHeader = request.headers.get("content-length");
         const requestContentLengthHeaderNumber = requestContentLengthHeader
             ? parseInt(requestContentLengthHeader, 10)
@@ -35,8 +34,8 @@ export async function traceFetchResponse(
         span.addData({
             http: {
                 method: request.method,
-                scheme: url.protocol.slice(0, -1),
-                target: `${url.pathname}${url.search}`,
+                scheme: requestUrl.protocol.slice(0, -1),
+                target: `${requestUrl.pathname}${requestUrl.search}`,
                 // We depend on Cloudflare to set the `cf-connecting-ip` header on our request
                 // to get the IP address.
                 // https://developers.cloudflare.com/fundamentals/get-started/reference/http-request-headers
@@ -95,7 +94,7 @@ export async function traceFetchResponse(
             request = new Request(request, {body: newRequestBody});
         }
 
-        const response = await action(span, request, url);
+        const response = await action(span, request);
 
         span.addData({
             http: {
