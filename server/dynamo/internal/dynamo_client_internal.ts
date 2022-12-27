@@ -271,13 +271,13 @@ export class DynamoClientInternal {
             // We need to set `ReturnConsumedCapacity` for tracing.
             assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "TOTAL");
 
-            const tableNames: Array<string> = [];
+            const tableNames = new Set<string>();
             const transactItemsSummary = [];
 
             for (const transactItem of input.TransactItems ?? []) {
                 if (transactItem.ConditionCheck) {
                     if (transactItem.ConditionCheck.TableName)
-                        tableNames.push(transactItem.ConditionCheck.TableName);
+                        tableNames.add(transactItem.ConditionCheck.TableName);
 
                     transactItemsSummary.push({
                         ConditionCheck: {
@@ -288,7 +288,7 @@ export class DynamoClientInternal {
                 }
 
                 if (transactItem.Put) {
-                    if (transactItem.Put.TableName) tableNames.push(transactItem.Put.TableName);
+                    if (transactItem.Put.TableName) tableNames.add(transactItem.Put.TableName);
 
                     transactItemsSummary.push({
                         Put: {
@@ -300,7 +300,7 @@ export class DynamoClientInternal {
 
                 if (transactItem.Delete) {
                     if (transactItem.Delete.TableName)
-                        tableNames.push(transactItem.Delete.TableName);
+                        tableNames.add(transactItem.Delete.TableName);
 
                     transactItemsSummary.push({
                         Delete: {
@@ -312,7 +312,7 @@ export class DynamoClientInternal {
 
                 if (transactItem.Update) {
                     if (transactItem.Update.TableName)
-                        tableNames.push(transactItem.Update.TableName);
+                        tableNames.add(transactItem.Update.TableName);
 
                     transactItemsSummary.push({
                         Update: {
@@ -327,7 +327,7 @@ export class DynamoClientInternal {
             span.addData({
                 dynamodb: {
                     action: "TransactWriteItems",
-                    tableName: tableNames.sort().join("+"),
+                    tableName: Array.from(tableNames).sort().join("+"),
                     transactWrite: {
                         items: JSON.stringify(transactItemsSummary),
                         clientRequestToken: input.ClientRequestToken,

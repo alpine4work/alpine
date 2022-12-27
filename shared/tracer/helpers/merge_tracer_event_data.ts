@@ -1,3 +1,4 @@
+import {assert} from "~/shared/helpers/control/assert";
 import {TracerEventDataBase, TracerEventFullData} from "~/shared/tracer/types/tracer_event_data";
 
 /**
@@ -14,14 +15,16 @@ export function mergeTracerEventData(sources: Array<TracerEventFullData>): Trace
 
 function mergeTracerEventDataInto(target: TracerEventDataBase, source: TracerEventDataBase) {
     for (const [key, sourceValue] of Object.entries(source)) {
-        const targetValue = target[key];
+        let targetValue = target[key];
 
         // Skip undefined values. Treat it as if the key doesn't exist.
         if (sourceValue === undefined) continue;
 
         // If both the source value and target value are plain objects then recursively
         // merge them together. Otherwise override the key with our source value.
-        if (typeof targetValue === "object" && typeof sourceValue === "object") {
+        if (typeof sourceValue === "object") {
+            if (targetValue === undefined) targetValue = target[key] = {};
+            assert(typeof targetValue === "object");
             mergeTracerEventDataInto(targetValue, sourceValue);
         } else {
             target[key] = sourceValue;

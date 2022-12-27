@@ -1,7 +1,8 @@
 import {Link} from "@remix-run/react";
-import {Fragment, useEffect} from "react";
+import {Fragment, useEffect, useRef} from "react";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
+import {useAppContext} from "~/client/helpers/app_context";
 import {ErrorBase} from "~/shared/error/error";
 import {ErrorCode} from "~/shared/error/error_code";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
@@ -19,7 +20,16 @@ export function ErrorDisplayMessageRenderer({
     error: unknown;
     size?: "small" | "body";
 }) {
+    const context = useAppContext();
     const displayMessage = error instanceof ErrorBase ? error.displayMessage : null;
+
+    // If we are server-side rendering then log the exception as part of our trace
+    // here in the React renderer.
+    const hasLoggedErrorRef = useRef(false);
+    if (typeof document === "undefined" && !hasLoggedErrorRef.current) {
+        context.tracer.logException(error);
+        hasLoggedErrorRef.current = true;
+    }
 
     // Log errors to the console as well after we render them to help the
     // developer debug.

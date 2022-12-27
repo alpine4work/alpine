@@ -126,6 +126,10 @@ export class WebSocketServer<
             );
         };
 
+        const connectionProcessContext = this._processContext.tracer.withPropagatedData({
+            context: {accountId: requestContext.auth.getAccountId()},
+        });
+
         const connectionId = generateId();
 
         const actualConnection = this._createConnection({
@@ -138,7 +142,7 @@ export class WebSocketServer<
 
         const connection = new WebSocketServerConnectionWrapper({
             id: connectionId,
-            processContext: this._processContext,
+            processContext: connectionProcessContext,
             socket: serverSocket,
             messageFromClientSchema: this._messageFromClientSchema,
             connection: actualConnection,
@@ -191,7 +195,7 @@ export class WebSocketServer<
             this._handleConnectionClose(
                 // Hopefully this is fired synchronously and we get the context object passed
                 // into our `close()` call.
-                contextForCloseEventListener ?? this._processContext,
+                contextForCloseEventListener ?? connectionProcessContext,
                 connection,
             );
         });
@@ -400,7 +404,6 @@ class WebSocketServerConnectionWrapper<
                             span.addData({webSocket: {messageType: message.type}});
 
                             const session = await getSession();
-                            span.addPropagatedData({context: {accountId: session.accountId}});
 
                             await context.with(
                                 {
