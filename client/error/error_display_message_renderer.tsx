@@ -23,12 +23,18 @@ export function ErrorDisplayMessageRenderer({
     const context = useAppContext();
     const displayMessage = error instanceof ErrorBase ? error.displayMessage : null;
 
+    const errorToLogRef = useRef({error, hasLogged: false});
+
+    // If the error prop changed, then we need to log it again.
+    if (!Object.is(errorToLogRef.current.error, error)) {
+        errorToLogRef.current = {error, hasLogged: false};
+    }
+
     // If we are server-side rendering then log the exception as part of our trace
-    // here in the React renderer.
-    const hasLoggedErrorRef = useRef(false);
-    if (typeof document === "undefined" && !hasLoggedErrorRef.current) {
-        context.tracer.logException(error);
-        hasLoggedErrorRef.current = true;
+    // here in the React renderer. When server-side rendering effects won't run.
+    if (typeof document === "undefined" && !errorToLogRef.current.hasLogged) {
+        context.tracer.logException(errorToLogRef.current.error);
+        errorToLogRef.current.hasLogged = true;
     }
 
     // Log errors to the console as well after we render them to help the
@@ -38,10 +44,17 @@ export function ErrorDisplayMessageRenderer({
         // log. The trace will always point to our error message renderer which
         // isn't useful.
         scheduleMicrotask(() => {
-            // eslint-disable-next-line no-console
-            console.error(error);
+            if (!errorToLogRef.current.hasLogged) {
+                // TODO(calebmer): Is `logException()` not enough? It would be nice to log to
+                // the console from there.
+                // eslint-disable-next-line no-console
+                console.error(error);
+
+                context.tracer.logException(errorToLogRef.current.error);
+                errorToLogRef.current.hasLogged = true;
+            }
         });
-    }, [error]);
+    }, [context.tracer, error]);
 
     return (
         <Box color="grey-80" fontStyle="primary" fontSize={size}>
