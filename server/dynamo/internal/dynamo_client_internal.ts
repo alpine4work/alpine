@@ -3,7 +3,7 @@
 import type * as types from "@aws-sdk/client-dynamodb";
 import {AwsClient} from "aws4fetch";
 import {classifyDynamoError} from "~/server/dynamo/internal/classify_dynamo_error";
-import {TracerEventDataSchema} from "~/server/tracer/tracer_event_data_schema";
+import {isConstructedDynamoTableSchemaName} from "~/server/dynamo/internal/dynamo_table_schema";
 import {assert} from "~/shared/helpers/control/assert";
 import {TracerBase} from "~/shared/tracer/tracer_base";
 import {TracerSpan} from "~/shared/tracer/tracer_span";
@@ -413,7 +413,7 @@ function getConsumedCapacityTracerEventData(
         // name then don't return any consumed capacity info.
         if (
             !consumedCapacity.TableName ||
-            !TracerEventDataSchema.dynamodb.consumedCapacity[consumedCapacity.TableName]
+            !isConstructedDynamoTableSchemaName(consumedCapacity.TableName)
         ) {
             return;
         }

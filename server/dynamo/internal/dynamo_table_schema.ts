@@ -823,6 +823,14 @@ const allConstructedDynamoTableSchemas = new Map<
 >();
 
 /**
+ * Is the provided name the name of a `DynamoTableSchema` that has been
+ * constructed?
+ */
+export function isConstructedDynamoTableSchemaName(name: string): boolean {
+    return allConstructedDynamoTableSchemas.has(name);
+}
+
+/**
  * Get all `DynamoTableSchema`s that have been constructed so far.
  *
  * They will be sorted by name so the order is deterministic.
