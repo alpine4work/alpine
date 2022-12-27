@@ -12,7 +12,7 @@ import {
 import {RemixEntryContext} from "@remix-run/react/dist/esm/components";
 import {IconContext} from "phosphor-react";
 import prosemirrorStylesHref from "prosemirror-view/style/prosemirror.css";
-import {useContext, useMemo} from "react";
+import {useContext, useEffect, useMemo} from "react";
 import {Box} from "~/client/design/box";
 import {
     InitializeColorSchemeScript,
@@ -81,6 +81,18 @@ export default function Root({error}: {error?: unknown}) {
         if (propagatedEventData.length === 0) return context;
         return context.tracer.withPropagatedData(mergeTracerEventData(propagatedEventData));
     }, [remixEntryContext.routeData, context]);
+
+    // If there are any unhandled browser errors then report them with our tracer.
+    useEffect(() => {
+        const handleError = (event: ErrorEvent) => {
+            context.tracer.logException(event.error);
+        };
+
+        window.addEventListener("error", handleError);
+        return () => {
+            window.removeEventListener("error", handleError);
+        };
+    }, [context.tracer]);
 
     const caught = useCatch() as ThrownResponse | undefined;
 
