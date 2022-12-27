@@ -1,6 +1,6 @@
 import {DynamoContext} from "~/server/dynamo/dynamo_context";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
-import {DynamoReadConsistency, dynamoClient} from "~/server/dynamo/internal/dynamo_client";
+import {DynamoClient, DynamoReadConsistency} from "~/server/dynamo/internal/dynamo_client";
 import {
     DynamoCondition,
     DynamoConditionExpression,
@@ -10,6 +10,7 @@ import {
     DynamoKeyAttribute,
     dynamoKeySeparator,
 } from "~/server/dynamo/internal/dynamo_key_attribute_schema";
+import {getDynamoClient} from "~/server/dynamo/internal/get_dynamo_client";
 import {DynamoTableSchemaTypes} from "~/server/dynamo/internal/types/dynamo_table_schema_types";
 import {checkSchemaBackwardsCompatibility} from "~/server/schema/check_schema_backwards_compatibility";
 import {DataLossError, InvalidArgumentError} from "~/shared/error/error";
@@ -283,7 +284,7 @@ export class DynamoTableSchema<
     ): Promise<MergeObjectIntersection<Types["Item"] & Key> | null> {
         const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
 
-        const serializedItem = await dynamoClient.getItem(context, {
+        const serializedItem = await getDynamoClient(context).getItem(context.tracer.getTracer(), {
             tableName: this._config.name,
             key: {partitionKey, sortKey},
             consistency,
@@ -348,7 +349,7 @@ export class DynamoTableSchema<
             projectionExpressionEntries.push(serializedKey);
         }
 
-        const serializedItem = await dynamoClient.getItem(context, {
+        const serializedItem = await getDynamoClient(context).getItem(context.tracer.getTracer(), {
             tableName: this._config.name,
             key: {partitionKey, sortKey},
             consistency,
@@ -418,7 +419,7 @@ export class DynamoTableSchema<
         attributesSchema.serializeInto(item, serializedItem);
 
         if (condition === undefined) {
-            return dynamoClient.putItem(context, {
+            return getDynamoClient(context).putItem(context.tracer.getTracer(), {
                 tableName: this._config.name,
                 key: {partitionKey, sortKey},
                 item: serializedItem,
@@ -431,7 +432,7 @@ export class DynamoTableSchema<
                 conditionCompilationContext,
             );
 
-            return dynamoClient.putItem(context, {
+            return getDynamoClient(context).putItem(context.tracer.getTracer(), {
                 tableName: this._config.name,
                 key: {partitionKey, sortKey},
                 item: serializedItem,
@@ -474,7 +475,7 @@ export class DynamoTableSchema<
         const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
 
         if (condition === undefined) {
-            return dynamoClient.deleteItem(context, {
+            return getDynamoClient(context).deleteItem(context.tracer.getTracer(), {
                 tableName: this._config.name,
                 key: {partitionKey, sortKey},
             });
@@ -486,7 +487,7 @@ export class DynamoTableSchema<
                 conditionCompilationContext,
             );
 
-            return dynamoClient.deleteItem(context, {
+            return getDynamoClient(context).deleteItem(context.tracer.getTracer(), {
                 tableName: this._config.name,
                 key: {partitionKey, sortKey},
                 conditionExpression: conditionExpressionString,
@@ -510,7 +511,11 @@ export class DynamoTableSchema<
         entries: ReadonlyArray<DynamoTransactionEntry>,
         options?: {clientRequestToken?: string},
     ): Promise<void> {
-        await dynamoClient.executeTransaction(context, entries, options);
+        await getDynamoClient(context).executeTransaction(
+            context.tracer.getTracer(),
+            entries,
+            options,
+        );
     }
 
     /**
@@ -536,7 +541,7 @@ export class DynamoTableSchema<
         attributesSchema.serializeInto(item, serializedItem);
 
         if (condition === undefined) {
-            return dynamoClient.transactionPutItem({
+            return DynamoClient.transactionPutItem({
                 tableName: this._config.name,
                 item: serializedItem,
             });
@@ -548,7 +553,7 @@ export class DynamoTableSchema<
                 conditionCompilationContext,
             );
 
-            return dynamoClient.transactionPutItem({
+            return DynamoClient.transactionPutItem({
                 tableName: this._config.name,
                 item: serializedItem,
                 conditionExpression: conditionExpressionString,
@@ -580,7 +585,7 @@ export class DynamoTableSchema<
         const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
 
         if (condition === undefined) {
-            return dynamoClient.transactionDeleteItem({
+            return DynamoClient.transactionDeleteItem({
                 tableName: this._config.name,
                 key: {partitionKey, sortKey},
             });
@@ -592,7 +597,7 @@ export class DynamoTableSchema<
                 conditionCompilationContext,
             );
 
-            return dynamoClient.transactionDeleteItem({
+            return DynamoClient.transactionDeleteItem({
                 tableName: this._config.name,
                 key: {partitionKey, sortKey},
                 conditionExpression: conditionExpressionString,
@@ -629,7 +634,7 @@ export class DynamoTableSchema<
             conditionCompilationContext,
         );
 
-        return dynamoClient.transactionConditionCheck({
+        return DynamoClient.transactionConditionCheck({
             tableName: this._config.name,
             key: {partitionKey, sortKey},
             conditionExpression: conditionExpressionString,
@@ -687,7 +692,7 @@ export class DynamoTableSchema<
                 "The partition key of our start key and end key should be the same",
             );
 
-        const iterator = dynamoClient.query(context, {
+        const iterator = getDynamoClient(context).query(context.tracer.getTracer(), {
             tableName: this._config.name,
             partitionKey: {
                 name: "partitionKey",
@@ -754,7 +759,7 @@ export class DynamoTableSchema<
     ): AsyncIterableIterator<MergeObjectIntersection<Types["Item"] & PartitionKey>> {
         const serializedPartitionKey = this._serializePartitionKey(partitionKey);
 
-        const iterator = dynamoClient.query(context, {
+        const iterator = getDynamoClient(context).query(context.tracer.getTracer(), {
             tableName: this._config.name,
             partitionKey: {
                 name: "partitionKey",

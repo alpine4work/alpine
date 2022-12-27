@@ -16,7 +16,7 @@ const seedConstants = {
  *
  * You may only call this in development and test environments.
  */
-export function getSeedConstants() {
+export function getDynamoSeedConstants() {
     assert(process.env.NODE_ENV !== "production");
     return seedConstants;
 }

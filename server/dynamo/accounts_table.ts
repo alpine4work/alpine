@@ -1,16 +1,15 @@
 import {differenceInHours, differenceInMinutes} from "date-fns";
-import {RequestContext} from "~/server/context/request_context";
+import {RequestContext, UnauthenticatedRequestContext} from "~/server/context/request_context";
 import {DynamoContext} from "~/server/dynamo/dynamo_context";
+import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
 import {DynamoConditionExpression} from "~/server/dynamo/internal/dynamo_condition";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
 import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry_dynamo_condition_check_errors";
-import {getSeedConstants} from "~/server/dynamo/seed_constants";
 import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address";
 import {FromEmailAddress} from "~/server/emails/from_email_address";
-import {sendEmail} from "~/server/emails/send_email";
 import {FailedPreconditionError, NotFoundError, PermissionDeniedError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {assert} from "~/shared/helpers/control/assert";
@@ -207,7 +206,7 @@ type SessionItem = DynamoTableItemType<typeof AccountsTable, "Session", "Attribu
 
 export async function seedTestAccounts(context: DynamoContext) {
     assert(process.env.NODE_ENV !== "production");
-    const {adminAccountId} = getSeedConstants();
+    const {adminAccountId} = getDynamoSeedConstants();
 
     try {
         await AccountsTable.putItem(
@@ -332,7 +331,7 @@ export function createAccountForAlphaTransactionEntries({
  * provided email address. Sends the password to the account's email address.
  */
 export function regenerateOneTimePasswordSignIn(
-    context: DynamoContext,
+    context: UnauthenticatedRequestContext,
     emailAddress: EmailAddress,
 ): Promise<void> {
     return retryDynamoConditionCheckErrors(async () => {
@@ -395,7 +394,7 @@ export function regenerateOneTimePasswordSignIn(
             console.log(quote`✉️  The one time password for ${emailAddress} is ${password}`);
         }
 
-        await sendEmail(context, {
+        await context.email.send({
             fromEmailAddress: FromEmailAddress.SignIn,
             toEmailAddress: emailAddress,
             templateName: "SignIn",

@@ -2,6 +2,105 @@ import type {Id} from "~/shared/id/id";
 import type {TracerEventHttpHeaderName} from "~/shared/tracer/helpers/tracer_event_http_header_names";
 
 /**
+ * All data available in an event.
+ *
+ * Includes some properties that only the tracer may set that can't be
+ * overridden.
+ *
+ * Any names relevant to [Honeycomb][1] need to be the same here but
+ * camel case.
+ *
+ * `time` is not included. The event time is sent separately from the event
+ * data as the [Honeycomb events API prescribes][2].
+ *
+ * [1]: https://docs.honeycomb.io/getting-data-in/tracing/send-trace-data/
+ * [2]: https://docs.honeycomb.io/api/events/#batched-events-body
+ */
+export type TracerEventFullData = TracerEventData & {
+    /**
+     * The name of the event. For spans this corresponds to the function or method
+     * where the span was created. For events it's a short message.
+     *
+     * We recommend keeping event names low cardinality. So no interpolation of
+     * user data like `Hello ${account.id}`. That way you can search for all events
+     * with a given name. Or easily find the event in the codebase through a
+     * string search.
+     */
+    readonly name?: string;
+
+    /** How much time this event took to complete in milliseconds. */
+    readonly durationMs?: number;
+
+    readonly service?: {
+        /**
+         * The name of the instrumented service. This is set by the `Tracer` object and
+         * can't be changed.
+         */
+        readonly name?: string;
+    };
+
+    /**
+     * Information regarding how the event interacts with our systems.
+     */
+    readonly meta?: {
+        /**
+         * Configure the kind of span annotation this is in Honeycomb.
+         * See: https://docs.honeycomb.io/getting-data-in/tracing/send-trace-data
+         */
+        readonly annotationType?: "span_event" | "link";
+
+        /**
+         * Must be set to true if this event comes from an untrusted client. If we find
+         * bad actors are polluting our dataset you can use this flag to filter out
+         * suspicious events.
+         */
+        readonly untrusted?: boolean;
+    };
+
+    /**
+     * If this event is part of a distributed trace then we populate this
+     * trace object.
+     */
+    readonly trace?: {
+        /** The ID of the trace this span belongs to. */
+        readonly traceId?: Id;
+
+        /** The unique ID for each span. */
+        readonly spanId?: Id;
+
+        /** The ID of this span's parent span. */
+        readonly parentId?: Id;
+
+        readonly link?: {
+            /** The span ID you wish to link to. */
+            readonly spanId?: Id;
+
+            /** The trace ID you wish to link to. */
+            readonly traceId?: Id;
+        };
+    };
+
+    /**
+     * Information about the JavaScript runtime. Names come from the
+     * [ECMAScript][1] specification.
+     *
+     * [1]: https://262.ecma-international.org/13.0
+     */
+    readonly js?: {
+        /**
+         * Every realm is an instance of the JavaScript platform. We give every realm
+         * an ID.
+         *
+         * Useful for figuring out the efficacy of an in-memory cache for instance.
+         */
+        readonly realmId?: Id;
+
+        /** What is the host running our JavaScript code? */
+        readonly host?: TracerEventJsHost;
+    };
+};
+
+/**
  * The data present in an event logged by our tracer.
  */
 export type TracerEventData = {
@@ -185,94 +284,135 @@ export type TracerEventData = {
         /** Information about the document the event was fired while looking at. */
         readonly documentId?: Id;
     };
-};
-
-/**
- * All data available in an event.
- *
- * Includes some properties that only the tracer may set that can't be
- * overridden.
- *
- * Any names relevant to [Honeycomb][1] need to be the same here but
- * camel case.
- *
- * `time` is not included. The event time is sent separately from the event
- * data as the [Honeycomb events API prescribes][2].
- *
- * [1]: https://docs.honeycomb.io/getting-data-in/tracing/send-trace-data/
- * [2]: https://docs.honeycomb.io/api/events/#batched-events-body
- */
-export type TracerEventFullData = TracerEventData & {
-    /**
-     * The name of the event. For spans this corresponds to the function or method
-     * where the span was created. For events it's a short message.
-     *
-     * We recommend keeping event names low cardinality. So no interpolation of
-     * user data like `Hello ${account.id}`. That way you can search for all events
-     * with a given name. Or easily find the event in the codebase through a
-     * string search.
-     */
-    readonly name?: string;
-
-    /** How much time this event took to complete in milliseconds. */
-    readonly durationMs?: number;
-
-    readonly service?: {
-        /**
-         * The name of the instrumented service. This is set by the `Tracer` object and
-         * can't be changed.
-         */
-        readonly name?: string;
-    };
-
-    readonly meta?: {
-        /**
-         * Configure the kind of span annotation this is in Honeycomb.
-         * See: https://docs.honeycomb.io/getting-data-in/tracing/send-trace-data
-         */
-        readonly annotationType?: "span_event" | "link";
-    };
 
     /**
-     * If this event is part of a distributed trace then we populate this
-     * trace object.
+     * Information regarding the execution of a DynamoDB action.
      */
-    readonly trace?: {
-        /** The ID of the trace this span belongs to. */
-        readonly traceId?: Id;
+    readonly dynamodb?: {
+        /**
+         * The DynamoDB action. We expect this to be set on every span that executes
+         * a DynamoDB action.
+         */
+        readonly action?: string;
 
-        /** The unique ID for each span. */
-        readonly spanId?: Id;
+        /**
+         * The name of the table this DynamoDB action is targeting.
+         *
+         * ### Batch behavior
+         *
+         * If this is a batch read then we will take all our table names, sort them,
+         * and concatenate them with a `+`. So if you are only reading from one table
+         * in the batch you get just that table name. If you are reading from two
+         * tables in the batch you get `Table1+Table2`.
+         *
+         * We sort the names so that every combination of tables is represented by the
+         * same string.
+         */
+        readonly tableName?: string;
 
-        /** The ID of this span's parent span. */
-        readonly parentId?: Id;
+        /**
+         * If this was a read action, was it a consistent read?
+         *
+         * ### Batch behavior
+         *
+         * If this is a batch read action then this will be true if any of the reads in
+         * the batch were consistent. Since consistent reads slow down the entire batch.
+         *
+         * We also happen to know that our code will separate consistent and eventual reads
+         * into different batches. So "any read is consistent" usually means "every read is
+         * consistent".
+         */
+        readonly consistentRead?: boolean;
 
-        readonly link?: {
-            /** The span ID you wish to link to. */
-            readonly spanId?: Id;
+        /**
+         * Capacity units consumed by table name. We will include an entry for every
+         * table in the action that consumed capacity.
+         */
+        readonly consumedCapacity?: {
+            readonly [tableName: string]: {
+                readonly readCapacityUnits?: number;
+                readonly writeCapacityUnits?: number;
+            };
+        };
 
-            /** The trace ID you wish to link to. */
-            readonly traceId?: Id;
+        /**
+         * If this is a conditional write then this is the condition expression.
+         *
+         * Condition expressions never contain values, only variable substitutions.
+         */
+        readonly conditionExpression?: string;
+
+        /** Information regarding a DynamoDB query. */
+        readonly query?: {
+            /**
+             * The expression we pass to DynamoDB. Must always include an equality term on
+             * the primary key. May optionally include range terms on the sort keys.
+             *
+             * Expressions never include values. They always have variable substitutes
+             * for values.
+             */
+            readonly keyConditionExpression?: string;
+
+            /** The index name to use when querying a table. */
+            readonly indexName?: string;
+
+            /** Is this a query that's scanning forward? */
+            readonly scanIndexForward?: boolean;
+
+            /** What is the maximum number of items to return from this query? */
+            readonly limit?: number;
+
+            /**
+             * Is there an exclusive start key on this query? True if we are reading the
+             * next page in a query.
+             */
+            readonly hasExclusiveStartKey?: boolean;
+
+            /**
+             * The number of items scanned when evaluating this query. May be larger than
+             * the number of items returned by the query if the query had a filter
+             * expression.
+             */
+            readonly scannedCount?: number;
+        };
+
+        /** Information regarding a DynamoDB write transaction. */
+        readonly transactWrite?: {
+            /**
+             * A JSON object summarizing the transaction items. Does not include user
+             * values from the transaction.
+             */
+            readonly items?: string;
+
+            /**
+             * The client request token for the transaction. The client request token is
+             * used for executing idempotent transactions.
+             */
+            readonly clientRequestToken?: string;
+        };
+
+        /** Information about an exception from DynamoDB itself. */
+        readonly exception?: {
+            /** The DynamoDB exception type. */
+            readonly type?: string;
+
+            /** JSON string of cancellation reasons associated with a transaction failure. */
+            readonly cancellationReasons?: string;
         };
     };
 
-    /**
-     * Information about the JavaScript runtime. Names come from the
-     * [ECMAScript][1] specification.
-     *
-     * [1]: https://262.ecma-international.org/13.0
-     */
-    readonly js?: {
-        /**
-         * Every realm is an instance of the JavaScript platform. We give every realm
-         * an ID.
-         *
-         * Useful for figuring out the efficacy of an in-memory cache for instance.
-         */
-        readonly realmId?: Id;
+    readonly email?: {
+        /** Which of our email templates are we using? */
+        readonly template?: string;
 
-        /** What is the host running our JavaScript code? */
-        readonly host?: TracerEventJsHost;
+        /** Information regarding our use of Amazon SES for sending email. */
+        readonly ses?: {
+            /** The email address we are sending from. */
+            readonly source?: string;
+
+            /** The AWS SES message id. Can be used to track deliverability status. */
+            readonly messageId?: string;
+        };
     };
 };
 

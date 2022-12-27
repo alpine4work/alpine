@@ -1,20 +1,19 @@
 import {compareAsc as compareDatesAsc} from "date-fns";
-import {RequestContext} from "~/server/context/request_context";
+import {RequestContext, UnauthenticatedRequestContext} from "~/server/context/request_context";
 import {
     authorizeAccountHasInternalAccess,
     checkAccountEmailAddressDoesNotExistTransactionEntry,
     createAccountForAlphaTransactionEntries,
 } from "~/server/dynamo/accounts_table";
 import {DynamoContext} from "~/server/dynamo/dynamo_context";
+import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
 import {DynamoConditionExpression} from "~/server/dynamo/internal/dynamo_condition";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
-import {getSeedConstants} from "~/server/dynamo/seed_constants";
 import {createSpaceAccountForAlphaTransactionEntries} from "~/server/dynamo/spaces_table";
 import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address";
 import {FromEmailAddress} from "~/server/emails/from_email_address";
-import {sendEmail} from "~/server/emails/send_email";
 import {
     AlphaAccessRequestDecisionSchema,
     AlphaAccessRequestModel,
@@ -95,7 +94,7 @@ const AlphaAccessTable = DynamoTableSchema.new({
 
 export async function seedTestAlphaConfiguration(context: DynamoContext) {
     assert(process.env.NODE_ENV !== "production");
-    const {defaultSpaceId} = getSeedConstants();
+    const {defaultSpaceId} = getDynamoSeedConstants();
 
     const configuration = await AlphaAccessTable.getItem(context, {
         partitionType: "AlphaConfiguration",
@@ -120,7 +119,7 @@ export async function seedTestAlphaConfiguration(context: DynamoContext) {
  * Can not request alpha access twice for the same email address.
  */
 export async function requestAlphaAccess(
-    context: DynamoContext,
+    context: UnauthenticatedRequestContext,
     {
         name,
         emailAddress,
@@ -194,7 +193,7 @@ export async function requestAlphaAccess(
 
     // NOTE(calebmer): Send an email to me whenever someone requests alpha access
     // so I know to approve it immediately.
-    await sendEmail(context, {
+    await context.email.send({
         fromEmailAddress: FromEmailAddress.Alpha,
         toEmailAddress: await validateEmailAddress("calebmeredith8@gmail.com"),
         templateName: "RequestedAlphaAccess",

@@ -45,11 +45,26 @@ export enum FromEmailAddress {
 export function getFromEmailAddress(fromEmailAddress: FromEmailAddress): string {
     switch (fromEmailAddress) {
         case FromEmailAddress.SignIn:
-            return `"Cyberworlds" <sign-in@cyberworlds.dev>`;
+            return "sign-in@cyberworlds.dev";
         case FromEmailAddress.Alpha:
-            return `"Cyberworlds" <alpha@cyberworlds.dev>`;
+            return "alpha@cyberworlds.dev";
         case FromEmailAddress.Caleb:
-            return `"Caleb Meredith" <caleb@cyberworlds.dev>`;
+            return "caleb@cyberworlds.dev";
+        default:
+            throw exhaustive(fromEmailAddress);
+    }
+}
+
+/**
+ * Get the name associated with a `FromEmailAddress`.
+ */
+export function getFromEmailAddressName(fromEmailAddress: FromEmailAddress): string {
+    switch (fromEmailAddress) {
+        case FromEmailAddress.SignIn:
+        case FromEmailAddress.Alpha:
+            return "Cyberworlds";
+        case FromEmailAddress.Caleb:
+            return "Caleb Meredith";
         default:
             throw exhaustive(fromEmailAddress);
     }

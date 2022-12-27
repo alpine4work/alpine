@@ -1,3 +1,4 @@
+import {getAllDynamoTableSchemas} from "~/server/dynamo/get_all_dynamo_table_schemas";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object";
 import {IdentifierStringSchema} from "~/shared/schema/identifier_string_schema";
@@ -33,7 +34,7 @@ type TracerEventDataSchemaBase = {
  * `TracerEventFullData` is in a `types` directory so that none of its
  * dependencies are a part of client bundles.
  */
-const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullData> = {
+export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullData> = {
     name: LabelStringSchema,
     durationMs: Schema.float,
     service: {
@@ -41,6 +42,7 @@ const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullData> = {
     },
     meta: {
         annotationType: Schema.enum(["span_event", "link"]),
+        untrusted: Schema.boolean,
     },
     trace: {
         traceId: Schema.id,
@@ -112,6 +114,44 @@ const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullData> = {
         accountId: Schema.id,
         spaceId: Schema.id,
         documentId: Schema.id,
+    },
+    dynamodb: {
+        action: IdentifierStringSchema,
+        tableName: LabelStringSchema,
+        consistentRead: Schema.boolean,
+        consumedCapacity: Object.fromEntries(
+            getAllDynamoTableSchemas().map(tableSchema => [
+                tableSchema.getName(),
+                {
+                    readCapacityUnits: Schema.float,
+                    writeCapacityUnits: Schema.float,
+                },
+            ]),
+        ),
+        conditionExpression: Schema.string,
+        query: {
+            keyConditionExpression: Schema.string,
+            indexName: IdentifierStringSchema,
+            scanIndexForward: Schema.boolean,
+            limit: Schema.integer,
+            hasExclusiveStartKey: Schema.boolean,
+            scannedCount: Schema.integer,
+        },
+        transactWrite: {
+            items: Schema.string,
+            clientRequestToken: Schema.string,
+        },
+        exception: {
+            type: LabelStringSchema,
+            cancellationReasons: Schema.string,
+        },
+    },
+    email: {
+        template: IdentifierStringSchema,
+        ses: {
+            source: LabelStringSchema,
+            messageId: Schema.string,
+        },
     },
 };
 

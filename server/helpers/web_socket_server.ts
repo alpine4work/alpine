@@ -1,7 +1,8 @@
 import {AuthenticatedAuthContextModule} from "~/server/context/auth_context_module";
-import {AwsContextModule} from "~/server/context/aws_context_module";
 import {RequestContext} from "~/server/context/request_context";
 import {Session} from "~/server/dynamo/accounts_table";
+import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
+import {EmailContextModuleBase} from "~/server/emails/email_context_module_base";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module";
 import {Context} from "~/shared/context/context";
 import {ProcessContextModule} from "~/shared/context/process_context_module";
@@ -21,6 +22,15 @@ import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {expirationTimeoutMs} from "~/shared/helpers/web_socket_shared";
 import {Id} from "~/shared/id/id";
 import {Schema, UnionSchema} from "~/shared/schema/schema";
+
+export type WebSocketServerProcessContext = Context<WebSocketServerProcessContextModules>;
+
+export type WebSocketServerProcessContextModules = {
+    process: ProcessContextModule;
+    tracer: TracerContextModule;
+    dynamo: DynamoContextModule;
+    email: EmailContextModuleBase;
+};
 
 export interface WebSocketServerConnectionBase<MessageFromClient extends {type: string}> {
     handleMessage(context: RequestContext, message: MessageFromClient): Promise<void>;
@@ -42,11 +52,7 @@ export class WebSocketServer<
     private _expirationInterval: Interval | null = null;
 
     constructor(
-        private readonly _context: Context<{
-            process: ProcessContextModule;
-            tracer: TracerContextModule;
-            aws: AwsContextModule;
-        }>,
+        private readonly _context: WebSocketServerProcessContext,
         // NOTE(calebmer): Force schemas to be union schemas so the protocol can evolve
         // in the future.
         private readonly _messageFromClientSchema: UnionSchema<MessageFromClient>,
@@ -213,11 +219,7 @@ class WebSocketServerConnectionWrapper<
     private _lastMessageTimeMs: number = Date.now();
 
     constructor(
-        private readonly _context: Context<{
-            process: ProcessContextModule;
-            tracer: TracerContextModule;
-            aws: AwsContextModule;
-        }>,
+        private readonly _context: WebSocketServerProcessContext,
         private readonly _socket: WebSocket,
         private readonly _messageFromClientSchema: Schema<MessageFromClient>,
         public readonly connection: Connection,

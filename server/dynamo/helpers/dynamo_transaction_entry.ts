@@ -1,7 +1,7 @@
-// IMPORTANT: We are only importing `@aws-sdk` for types. Use `aws-client.ts`
+// IMPORTANT: We are only importing `@aws-sdk` for types. Use `aws4fetch`
 // for executing any AWS commands.
 import type * as types from "@aws-sdk/client-dynamodb";
-import {dynamoClient} from "~/server/dynamo/internal/dynamo_client";
+import {DynamoClient} from "~/server/dynamo/internal/dynamo_client";
 
 /**
  * An entry within a DynamoDB write transaction. Entries within a transaction
@@ -19,7 +19,7 @@ export class DynamoTransactionEntry {
      * which is in an internal directory.
      */
     public static _newFromClient(
-        client: typeof dynamoClient,
+        client: typeof DynamoClient,
         transactItem: types.TransactWriteItem,
     ) {
         return new DynamoTransactionEntry(transactItem);
@@ -31,7 +31,7 @@ export class DynamoTransactionEntry {
      * in a `DynamoClient` to make sure you at least have access to a
      * `DynamoClient` which is in an internal directory..
      */
-    public _getTransactItemForClient(client: typeof dynamoClient): types.TransactWriteItem {
+    public _getTransactItemForClient(client: typeof DynamoClient): types.TransactWriteItem {
         return this._transactItem;
     }
 }

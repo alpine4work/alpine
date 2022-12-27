@@ -6,8 +6,8 @@ import {
 } from "scheduler";
 import {uninterruptedThoughtLimitMs} from "~/client/design/timing_constants";
 import {assert} from "~/shared/helpers/control/assert";
-import {TracerRoot} from "~/shared/tracer/tracer_root";
 import {TracerEvent} from "~/shared/tracer/tracer_event";
+import {TracerRoot} from "~/shared/tracer/tracer_root";
 
 /**
  * Creates a tracer to be used in a web browser.
@@ -24,6 +24,12 @@ export function createClientTracer() {
     const tracer = TracerRoot.new({
         serviceName: "AppClient",
         jsHost: "Web",
+        // Events from our client tracer are untrusted because any bad actor could get
+        // ahold of our client tracer and send whatever event they want to the server.
+        //
+        // We can filter out events with this untrusted flag on the server to get
+        // clean data.
+        untrusted: true,
         getTime: () => {
             // We use `performance.now()` for measuring time on the client since it is a
             // monotonically increasing clock designed for measuring performance.

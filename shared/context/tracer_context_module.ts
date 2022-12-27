@@ -20,6 +20,13 @@ export class TracerContextModule extends ContextModuleBase {
     }
 
     /**
+     * Return the underlying tracer.
+     */
+    public getTracer(): TracerBase {
+        return this._tracer;
+    }
+
+    /**
      * Start a span that you will manually finish. We recommend using `withSpan()`
      * wherever possible which automatically finishes spans and handles exceptions.
      *

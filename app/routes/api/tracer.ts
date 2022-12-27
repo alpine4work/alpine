@@ -31,6 +31,19 @@ export async function action({request, context}: DataFunctionArgs) {
             try {
                 validateTracerEventFlatData(event.data);
 
+                if (event.data["meta.untrusted"] !== true)
+                    throw new InvalidArgumentError(
+                        'All events coming from an untrusted client must have the "meta.untrusted" attribute set to true',
+                    );
+
+                // We may have other untrusted hosts in the future. We validate both the
+                // `meta.untrusted` attribute and `js.host` so that we can filter on
+                // `js.host = "Node"` and be guaranteed to see only trusted events.
+                if (event.data["js.host"] !== "Web")
+                    throw new InvalidArgumentError(
+                        'All events coming from an untrusted client must have "js.host" set to an untrusted host',
+                    );
+
                 // eslint-disable-next-line no-console
                 console.log(event);
             } catch (error) {

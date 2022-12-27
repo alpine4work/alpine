@@ -1,8 +1,7 @@
 import {jwtVerify} from "jose";
 import {Step} from "prosemirror-transform";
+import {createAwsContextModulesFromEnv} from "~/server/aws/create_aws_context_modules_from_env";
 import {UnauthenticatedAuthContextModule} from "~/server/context/auth_context_module";
-import {AwsContextModule} from "~/server/context/aws_context_module";
-import {createAwsClientFromEnv} from "~/server/context/helpers/create_aws_client_from_env";
 import {
     RequestContext,
     UnauthenticatedRequestContextModules,
@@ -15,7 +14,11 @@ import {
     getDocumentPreview,
     updateDocumentContent,
 } from "~/server/dynamo/documents_table";
-import {WebSocketServer} from "~/server/helpers/web_socket_server";
+import {
+    WebSocketServer,
+    WebSocketServerProcessContext,
+    WebSocketServerProcessContextModules,
+} from "~/server/helpers/web_socket_server";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module";
 import {Context} from "~/shared/context/context";
 import {ProcessContextModule} from "~/shared/context/process_context_module";
@@ -50,12 +53,6 @@ type DurableObjectEnv = {
     AWS_SECRET_ACCESS_KEY?: string;
 };
 
-type DocumentCollaborationDurableObjectContextModules = {
-    process: ProcessContextModule;
-    tracer: TracerContextModule;
-    aws: AwsContextModule;
-};
-
 /**
  * Wrapper for our actual durable object class. There's some initialization we
  * need to do on the first request. This wrapper allows us to initialize that
@@ -64,7 +61,7 @@ type DocumentCollaborationDurableObjectContextModules = {
 class DocumentCollaborationDurableObjectWrapper {
     private readonly _state: DurableObjectState;
     private readonly _sessionCookieSecret: string;
-    private readonly _context: Context<DocumentCollaborationDurableObjectContextModules>;
+    private readonly _context: WebSocketServerProcessContext;
     private _objectPromise: Promise<DocumentCollaborationDurableObject> | null = null;
 
     constructor(state: DurableObjectState, env: DurableObjectEnv) {
@@ -82,6 +79,7 @@ class DocumentCollaborationDurableObjectWrapper {
         const tracer = TracerRoot.new({
             serviceName: "DocumentCollaborationService",
             jsHost: "CloudflareWorker",
+            untrusted: false,
             // In Cloudflare Workers, `Date.now()` only moves forward on I/O as a part of
             // their security model. This means timers won't be perfectly accurate.
             // https://developers.cloudflare.com/workers/learning/security-model
@@ -91,23 +89,20 @@ class DocumentCollaborationDurableObjectWrapper {
             },
         });
 
-        const awsClient = createAwsClientFromEnv(env);
+        const awsContextModules = createAwsContextModulesFromEnv(env);
 
         this._context = Context.new({
+            ...awsContextModules,
             process: new ProcessContextModule({
                 waitUntil: promise => this._state.waitUntil(promise),
             }),
             tracer: new TracerContextModule(tracer),
-            aws: new AwsContextModule(awsClient),
         });
     }
 
     public fetch(request: Request): Promise<Response> {
         return this._context.with<
-            Omit<
-                UnauthenticatedRequestContextModules,
-                keyof DocumentCollaborationDurableObjectContextModules
-            >,
+            Omit<UnauthenticatedRequestContextModules, keyof WebSocketServerProcessContextModules>,
             Response
         >(
             {
@@ -174,7 +169,7 @@ class DocumentCollaborationDurableObjectWrapper {
 export {DocumentCollaborationDurableObjectWrapper as DocumentCollaborationDurableObject};
 
 class DocumentCollaborationDurableObject {
-    private readonly _context: Context<DocumentCollaborationDurableObjectContextModules>;
+    private readonly _context: WebSocketServerProcessContext;
     public readonly id: Id;
     private readonly _contentManager: DocumentCollaborationContentManager;
     private readonly _destroyCallback: () => void;
@@ -191,7 +186,7 @@ class DocumentCollaborationDurableObject {
         id,
         destroy,
     }: {
-        processContext: Context<DocumentCollaborationDurableObjectContextModules>;
+        processContext: WebSocketServerProcessContext;
         requestContext: RequestContext;
         id: Id;
         destroy: () => void;
@@ -215,7 +210,7 @@ class DocumentCollaborationDurableObject {
         initialContent,
         destroy,
     }: {
-        context: Context<DocumentCollaborationDurableObjectContextModules>;
+        context: WebSocketServerProcessContext;
         id: Id;
         initialVersion: number;
         initialContent: DocumentContent;

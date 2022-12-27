@@ -5,7 +5,7 @@ import {DynamoConditionExpression} from "~/server/dynamo/internal/dynamo_conditi
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
-import {getSeedConstants} from "~/server/dynamo/seed_constants";
+import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
 import {PermissionDeniedError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {assert} from "~/shared/helpers/control/assert";
@@ -69,7 +69,7 @@ const SpacesTable = DynamoTableSchema.new({
 
 export async function seedTestSpaces(context: DynamoContext) {
     assert(process.env.NODE_ENV !== "production");
-    const {defaultSpaceId, adminAccountId} = getSeedConstants();
+    const {defaultSpaceId, adminAccountId} = getDynamoSeedConstants();
 
     try {
         await SpacesTable.putItem(

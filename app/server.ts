@@ -2,11 +2,12 @@ import {AppLoadContext} from "@remix-run/cloudflare";
 import {createRequestHandler, handleAsset} from "@remix-run/cloudflare-workers";
 import * as build from "@remix-run/dev/server-build";
 import {SignJWT} from "jose";
+import {createAwsContextModulesFromEnv} from "~/server/aws/create_aws_context_modules_from_env";
 import {UnauthenticatedAuthContextModule} from "~/server/context/auth_context_module";
-import {AwsContextModule} from "~/server/context/aws_context_module";
-import {createAwsClientFromEnv} from "~/server/context/helpers/create_aws_client_from_env";
 import {unauthenticatedSessionError} from "~/server/context/helpers/unauthenticated_session_error";
 import {Session} from "~/server/dynamo/accounts_table";
+import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
+import {EmailContextModuleBase} from "~/server/emails/email_context_module_base";
 import {LoadContext, LoadContextModules} from "~/server/helpers/remix/data_function_args";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module";
 import {SessionCookieStorage} from "~/server/session/session_cookie";
@@ -46,7 +47,10 @@ let sharedResources: {
     env: AppWorkerEnv;
     sessionCookieSecret: string;
     sessionCookieStorage: SessionCookieStorage;
-    awsContextModule: AwsContextModule;
+    awsContextModules: {
+        dynamo: DynamoContextModule;
+        email: EmailContextModuleBase;
+    };
 } | null = null;
 
 // See: https://github.com/cloudflare/wrangler/pull/2126
@@ -64,6 +68,7 @@ async function fetch(
         sharedTracer = TracerRoot.new({
             serviceName: "AppServer",
             jsHost: "CloudflareWorker",
+            untrusted: false,
             // In Cloudflare Workers, `Date.now()` only moves forward on I/O as a part of
             // their security model. This means timers won't be perfectly accurate.
             // https://developers.cloudflare.com/workers/learning/security-model
@@ -98,14 +103,11 @@ async function fetch(
             secret: sessionCookieSecret,
         });
 
-        const awsClient = createAwsClientFromEnv(env);
-        const awsContextModule = new AwsContextModule(awsClient);
-
         sharedResources = {
             env,
             sessionCookieSecret,
             sessionCookieStorage,
-            awsContextModule,
+            awsContextModules: createAwsContextModulesFromEnv(env),
         };
     }
     const resources = sharedResources;
@@ -198,11 +200,11 @@ async function fetch(
         return resources.sessionCookieStorage.with(request, sessionCookiePromise => {
             return Context.with<LoadContextModules, Response>(
                 {
+                    ...resources.awsContextModules,
                     process: new ProcessContextModule({
                         waitUntil: promise => executionContext.waitUntil(promise),
                     }),
                     tracer: new TracerContextModule(tracerSpan),
-                    aws: resources.awsContextModule,
                     rpc: new LocalRpcContextModule(),
                     sessionCookie: new SessionCookieContextModule(sessionCookiePromise),
 

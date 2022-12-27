@@ -1,10 +1,10 @@
 // IMPORTANT: We are only importing `@aws-sdk` for types. Use
-// `context.aws.client` for executing any AWS commands.
+// the `aws4fetch` module for executing any AWS commands.
 import type * as types from "@aws-sdk/client-dynamodb";
+import {AwsClient} from "aws4fetch";
 import jsonStableStringify from "json-stable-stringify";
-import {DynamoContext} from "~/server/dynamo/dynamo_context";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
-import {classifyDynamoError} from "~/server/dynamo/internal/classify_dynamo_error";
+import {DynamoClientInternal} from "~/server/dynamo/internal/dynamo_client_internal";
 import {DeadlineExceededError, InternalError, InvalidArgumentError} from "~/shared/error/error";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
@@ -20,16 +20,19 @@ import {
     SchemaSerializedObjectValue,
     SchemaSerializedValue,
 } from "~/shared/schema/schema";
+import {TracerBase} from "~/shared/tracer/tracer_base";
 
 export type DynamoReadConsistency = "Eventual" | "Strong";
 
 /**
  * Our client interface to DynamoDB.
  *
- * Wraps the AWS SDK DynamoDB client with some extra functionality like command
- * batching.
+ * Wraps the low-level `DynamoClientInternal` class with some extra
+ * functionality like action batching.
  */
-class DynamoClient {
+export class DynamoClient {
+    private readonly _client: DynamoClientInternal;
+
     /**
      * Batchers for the [`GetItem`][1] command.
      *
@@ -51,12 +54,13 @@ class DynamoClient {
      */
     private readonly _writeItemBatcher: DynamoClientWriteItemBatcher;
 
-    constructor() {
+    constructor(client: AwsClient, url: string) {
+        this._client = new DynamoClientInternal(client, url);
         this._getItemBatcherByConsistency = {
-            Eventual: new DynamoClientGetItemBatcher("Eventual"),
-            Strong: new DynamoClientGetItemBatcher("Strong"),
+            Eventual: new DynamoClientGetItemBatcher(this._client, "Eventual"),
+            Strong: new DynamoClientGetItemBatcher(this._client, "Strong"),
         };
-        this._writeItemBatcher = new DynamoClientWriteItemBatcher();
+        this._writeItemBatcher = new DynamoClientWriteItemBatcher(this._client);
     }
 
     /**
@@ -72,7 +76,7 @@ class DynamoClient {
      * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
      */
     public async getItem(
-        context: DynamoContext,
+        tracer: TracerBase,
         {
             tableName,
             key,
@@ -91,19 +95,15 @@ class DynamoClient {
         // future sending batch requests with `projectionExpression`.
         if (projectionExpression === undefined) {
             const batcher = this._getItemBatcherByConsistency[consistency];
-            return batcher.getItem(context, tableName, key);
+            return batcher.getItem(tracer, tableName, key);
         }
 
-        const output = await executeDynamoCommand<types.GetItemInput, types.GetItemOutput>(
-            context,
-            "GetItem",
-            {
-                TableName: tableName,
-                Key: intoDynamoAttributeValueObject(key),
-                ConsistentRead: consistency === "Strong",
-                ProjectionExpression: projectionExpression,
-            },
-        );
+        const output = await this._client.GetItem(tracer, {
+            TableName: tableName,
+            Key: intoDynamoAttributeValueObject(key),
+            ConsistentRead: consistency === "Strong",
+            ProjectionExpression: projectionExpression,
+        });
 
         if (!output.Item) return null;
         return fromDynamoAttributeValueObject(output.Item);
@@ -124,7 +124,7 @@ class DynamoClient {
      * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
      */
     public async putItem(
-        context: DynamoContext,
+        tracer: TracerBase,
         {
             tableName,
             key,
@@ -151,9 +151,9 @@ class DynamoClient {
 
         // Writes without a condition may be batched.
         if (conditionExpression === undefined)
-            return this._writeItemBatcher.putItem(context, tableName, key, item);
+            return this._writeItemBatcher.putItem(tracer, tableName, key, item);
 
-        await executeDynamoCommand<types.PutItemInput, types.PutItemOutput>(context, "PutItem", {
+        await this._client.PutItem(tracer, {
             TableName: tableName,
             Item: intoDynamoAttributeValueObject(item),
             ConditionExpression: conditionExpression,
@@ -185,7 +185,7 @@ class DynamoClient {
      * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
      */
     public async deleteItem(
-        context: DynamoContext,
+        tracer: TracerBase,
         {
             tableName,
             key,
@@ -202,32 +202,26 @@ class DynamoClient {
     ): Promise<void> {
         // Writes without a condition may be batched.
         if (conditionExpression === undefined)
-            return this._writeItemBatcher.deleteItem(context, tableName, key);
+            return this._writeItemBatcher.deleteItem(tracer, tableName, key);
 
-        await executeDynamoCommand<types.DeleteItemInput, types.DeleteItemOutput>(
-            context,
-            "DeleteItem",
-            {
-                TableName: tableName,
-                Key: intoDynamoAttributeValueObject(key),
-                ConditionExpression: conditionExpression,
-                ExpressionAttributeValues:
-                    expressionAttributeValues && expressionAttributeValues.size > 0
-                        ? Object.fromEntries(
-                              mapIterable(expressionAttributeValues, ([name, value]) => [
-                                  name,
-                                  intoDynamoAttributeValue(value),
-                              ]),
-                          )
-                        : undefined,
-                ExpressionAttributeNames:
-                    conditionExpression &&
-                    expressionAttributeNames &&
-                    expressionAttributeNames.size > 0
-                        ? Object.fromEntries(expressionAttributeNames)
-                        : undefined,
-            },
-        );
+        await this._client.DeleteItem(tracer, {
+            TableName: tableName,
+            Key: intoDynamoAttributeValueObject(key),
+            ConditionExpression: conditionExpression,
+            ExpressionAttributeValues:
+                expressionAttributeValues && expressionAttributeValues.size > 0
+                    ? Object.fromEntries(
+                          mapIterable(expressionAttributeValues, ([name, value]) => [
+                              name,
+                              intoDynamoAttributeValue(value),
+                          ]),
+                      )
+                    : undefined,
+            ExpressionAttributeNames:
+                conditionExpression && expressionAttributeNames && expressionAttributeNames.size > 0
+                    ? Object.fromEntries(expressionAttributeNames)
+                    : undefined,
+        });
     }
 
     /**
@@ -238,18 +232,14 @@ class DynamoClient {
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
      */
     public async executeTransaction(
-        context: DynamoContext,
+        tracer: TracerBase,
         entries: ReadonlyArray<DynamoTransactionEntry>,
         {clientRequestToken}: {clientRequestToken?: string} = {},
     ): Promise<void> {
-        await executeDynamoCommand<types.TransactWriteItemsInput, types.TransactWriteItemsOutput>(
-            context,
-            "TransactWriteItems",
-            {
-                TransactItems: entries.map(entry => entry._getTransactItemForClient(this)),
-                ClientRequestToken: clientRequestToken,
-            },
-        );
+        await this._client.TransactWriteItems(tracer, {
+            TransactItems: entries.map(entry => entry._getTransactItemForClient(DynamoClient)),
+            ClientRequestToken: clientRequestToken,
+        });
     }
 
     /**
@@ -259,7 +249,7 @@ class DynamoClient {
      *
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
      */
-    public transactionPutItem({
+    public static transactionPutItem({
         tableName,
         item,
         conditionExpression,
@@ -272,7 +262,7 @@ class DynamoClient {
         expressionAttributeValues?: ReadonlyMap<string, SchemaSerializedValue>;
         expressionAttributeNames?: ReadonlyMap<string, string>;
     }): DynamoTransactionEntry {
-        return DynamoTransactionEntry._newFromClient(this, {
+        return DynamoTransactionEntry._newFromClient(DynamoClient, {
             Put: {
                 TableName: tableName,
                 Item: intoDynamoAttributeValueObject(item),
@@ -305,7 +295,7 @@ class DynamoClient {
      *
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
      */
-    public transactionDeleteItem({
+    public static transactionDeleteItem({
         tableName,
         key,
         conditionExpression,
@@ -318,7 +308,7 @@ class DynamoClient {
         expressionAttributeValues?: ReadonlyMap<string, SchemaSerializedValue>;
         expressionAttributeNames?: ReadonlyMap<string, string>;
     }): DynamoTransactionEntry {
-        return DynamoTransactionEntry._newFromClient(this, {
+        return DynamoTransactionEntry._newFromClient(DynamoClient, {
             Delete: {
                 TableName: tableName,
                 Key: intoDynamoAttributeValueObject(key),
@@ -351,7 +341,7 @@ class DynamoClient {
      *
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
      */
-    public transactionConditionCheck({
+    public static transactionConditionCheck({
         tableName,
         key,
         conditionExpression,
@@ -364,7 +354,7 @@ class DynamoClient {
         expressionAttributeValues?: ReadonlyMap<string, SchemaSerializedValue>;
         expressionAttributeNames?: ReadonlyMap<string, string>;
     }): DynamoTransactionEntry {
-        return DynamoTransactionEntry._newFromClient(this, {
+        return DynamoTransactionEntry._newFromClient(DynamoClient, {
             ConditionCheck: {
                 TableName: tableName,
                 Key: intoDynamoAttributeValueObject(key),
@@ -402,8 +392,8 @@ class DynamoClient {
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Query.html
      * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Query.Pagination.html
      */
-    public async *query(
-        context: DynamoContext,
+    async *query(
+        tracer: TracerBase,
         {
             tableName,
             partitionKey,
@@ -451,21 +441,17 @@ class DynamoClient {
         let lastEvaluatedKey: {[key: string]: types.AttributeValue} | undefined;
 
         do {
-            const output = await executeDynamoCommand<types.QueryInput, types.QueryOutput>(
-                context,
-                "Query",
-                {
-                    TableName: tableName,
-                    ConsistentRead: consistency === "Strong",
-                    // If we have a limit of 100 and we scanned 40 rows in our previous queries,
-                    // then our new limit is 60 since we don't want to exceed our initial limit.
-                    Limit: limit !== undefined ? limit - totalScannedCount : undefined,
-                    ScanIndexForward: !descending,
-                    KeyConditionExpression: keyConditionExpression,
-                    ExpressionAttributeValues: expressionAttributeValues,
-                    ExclusiveStartKey: lastEvaluatedKey,
-                },
-            );
+            const output = await this._client.Query(tracer, {
+                TableName: tableName,
+                ConsistentRead: consistency === "Strong",
+                // If we have a limit of 100 and we scanned 40 rows in our previous queries,
+                // then our new limit is 60 since we don't want to exceed our initial limit.
+                Limit: limit !== undefined ? limit - totalScannedCount : undefined,
+                ScanIndexForward: !descending,
+                KeyConditionExpression: keyConditionExpression,
+                ExpressionAttributeValues: expressionAttributeValues,
+                ExclusiveStartKey: lastEvaluatedKey,
+            });
 
             totalScannedCount += output.ScannedCount ?? 0;
             lastEvaluatedKey = output.LastEvaluatedKey;
@@ -505,24 +491,24 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
         this._maxBatchItemCount = maxBatchItemCount;
     }
 
-    private _getScheduledBatch(context: DynamoContext): DynamoClientBatch<Input, Output> {
+    private _getScheduledBatch(tracer: TracerBase): DynamoClientBatch<Input, Output> {
         if (this._scheduledBatch === null) {
             this._scheduledBatch = {
                 itemCount: 0,
                 tableBatches: new Map(),
             };
-            this._scheduleBatchExecution(context);
+            this._scheduleBatchExecution(tracer);
         }
         return this._scheduledBatch;
     }
 
     protected _addItem(
-        context: DynamoContext,
+        tracer: TracerBase,
         tableName: string,
         key: SchemaSerializedObjectValue,
         input: Input,
     ): Promise<Output> {
-        const scheduledBatch = this._getScheduledBatch(context);
+        const scheduledBatch = this._getScheduledBatch(tracer);
 
         const keyAttributes = new Set(Object.keys(key));
         const promiseResolver = createPromiseResolver<Output>();
@@ -592,7 +578,7 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
      *
      * [1]: https://developer.mozilla.org/en-US/docs/Web/API/HTML_DOM_API/Microtask_guide/In_depth
      */
-    private _scheduleBatchExecution(context: DynamoContext) {
+    private _scheduleBatchExecution(tracer: TracerBase) {
         assert(this._scheduledBatch !== null);
         const scheduledBatch = this._scheduledBatch;
 
@@ -607,7 +593,7 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
                     maybeExecuteBatch();
                 } else {
                     this._scheduledBatch = null;
-                    this._executeFullBatch(context, scheduledBatch);
+                    this._executeFullBatch(tracer, scheduledBatch);
                 }
             });
         };
@@ -615,10 +601,7 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
         scheduleMicrotask(maybeExecuteBatch);
     }
 
-    protected _executeFullBatch(
-        context: DynamoContext,
-        fullBatch: DynamoClientBatch<Input, Output>,
-    ) {
+    protected _executeFullBatch(tracer: TracerBase, fullBatch: DynamoClientBatch<Input, Output>) {
         // This batch execution is performed in a microtask, so if an error is thrown
         // it's thrown into the void. Add a try/catch so that errors reject the promise
         // resolvers in our batch.
@@ -626,7 +609,7 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
             const batches = splitDynamoClientBatch(fullBatch, this._maxBatchItemCount);
 
             for (const batch of batches) {
-                void this._executeBatch(context, batch, 1);
+                void this._executeBatch(tracer, batch, 1);
             }
         } catch (error) {
             for (const {keyBatches} of fullBatch.tableBatches.values()) {
@@ -640,7 +623,7 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
     }
 
     private async _executeBatch(
-        context: DynamoContext,
+        tracer: TracerBase,
         batch: DynamoClientBatch<Input, Output>,
         attemptNumber: number,
     ) {
@@ -650,7 +633,7 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
         try {
             assert(batch.itemCount <= 100);
 
-            const {unprocessedBatch} = await this._sendBatchCommand(context, batch);
+            const {unprocessedBatch} = await this._sendBatchCommand(tracer, batch);
 
             if (unprocessedBatch.itemCount > 0) {
                 // The DynamoDB docs strongly recommend us to retry unprocessed key requests
@@ -667,7 +650,7 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
                 const delayMsWithJitter = Math.floor(Math.random() * delayMs);
 
                 setTimeout(() => {
-                    void this._executeBatch(context, unprocessedBatch, attemptNumber + 1);
+                    void this._executeBatch(tracer, unprocessedBatch, attemptNumber + 1);
                 }, delayMsWithJitter);
             }
         } catch (error) {
@@ -689,7 +672,7 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
      * `unprocessedBatch` with `itemCount` of 0.
      */
     protected abstract _sendBatchCommand(
-        context: DynamoContext,
+        tracer: TracerBase,
         batch: DynamoClientBatch<Input, Output>,
     ): Promise<{unprocessedBatch: DynamoClientBatch<Input, Output>}>;
 }
@@ -786,25 +769,24 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
     null,
     SchemaSerializedObjectValue | null
 > {
+    private readonly _client: DynamoClientInternal;
     private readonly _consistency: DynamoReadConsistency;
 
-    constructor(consistency: DynamoReadConsistency) {
+    constructor(client: DynamoClientInternal, consistency: DynamoReadConsistency) {
         super({maxBatchItemCount: 100});
+        this._client = client;
         this._consistency = consistency;
     }
 
-    public getItem(context: DynamoContext, tableName: string, key: SchemaSerializedObjectValue) {
-        return this._addItem(context, tableName, key, null);
+    public getItem(tracer: TracerBase, tableName: string, key: SchemaSerializedObjectValue) {
+        return this._addItem(tracer, tableName, key, null);
     }
 
     protected async _sendBatchCommand(
-        context: DynamoContext,
+        tracer: TracerBase,
         batch: DynamoClientBatch<null, SchemaSerializedObjectValue | null>,
     ) {
-        const output = await executeDynamoCommand<
-            types.BatchGetItemInput,
-            types.BatchGetItemOutput
-        >(context, "BatchGetItem", {
+        const output = await this._client.BatchGetItem(tracer, {
             RequestItems: Object.fromEntries(
                 Array.from(batch.tableBatches, ([tableName, tableBatch]) => {
                     return [
@@ -937,35 +919,35 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
     DynamoClientWriteItemBatchAction,
     void
 > {
-    constructor() {
+    private readonly _client: DynamoClientInternal;
+
+    constructor(client: DynamoClientInternal) {
         super({maxBatchItemCount: 25});
+        this._client = client;
     }
 
     public putItem(
-        context: DynamoContext,
+        tracer: TracerBase,
         tableName: string,
         key: SchemaSerializedObjectValue,
         item: SchemaSerializedObjectValue,
     ): Promise<void> {
-        return this._addItem(context, tableName, key, {action: "Put", item});
+        return this._addItem(tracer, tableName, key, {action: "Put", item});
     }
 
     public deleteItem(
-        context: DynamoContext,
+        tracer: TracerBase,
         tableName: string,
         key: SchemaSerializedObjectValue,
     ): Promise<void> {
-        return this._addItem(context, tableName, key, {action: "Delete"});
+        return this._addItem(tracer, tableName, key, {action: "Delete"});
     }
 
     protected async _sendBatchCommand(
-        context: DynamoContext,
+        tracer: TracerBase,
         batch: DynamoClientBatch<DynamoClientWriteItemBatchAction, void>,
     ) {
-        const output = await executeDynamoCommand<
-            types.BatchWriteItemInput,
-            types.BatchWriteItemOutput
-        >(context, "BatchWriteItem", {
+        const output = await this._client.BatchWriteItem(tracer, {
             RequestItems: Object.fromEntries(
                 Array.from(batch.tableBatches, ([tableName, tableBatch]) => {
                     return [
@@ -1072,44 +1054,6 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
 
         return {unprocessedBatch};
     }
-}
-
-export const dynamoClient = new DynamoClient();
-
-const dynamoUrl =
-    process.env.NODE_ENV === "production"
-        ? "https://dynamodb.us-east-1.amazonaws.com"
-        : "http://127.0.0.1:4566";
-
-async function executeDynamoCommand<Input = never, Output = unknown>(
-    context: DynamoContext,
-    command: string,
-    input: Input,
-): Promise<Output> {
-    const response = await context.aws.client.fetch(dynamoUrl, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/x-amz-json-1.0",
-            "X-Amz-Target": `DynamoDB_20120810.${command}`,
-        },
-        body: JSON.stringify(input),
-    });
-
-    const output: any = await response.json();
-
-    if (response.status !== 200) {
-        // When talking to production DynamoDB (vs local DynamoDB), error types are of
-        // the form `com.amazonaws.dynamodb.v20120810#TransactionCanceledException`
-        // instead of `TransactionCanceledException`. Remove the version number so we
-        // just have the error type.
-        if (typeof output.__type === "string" && output.__type.includes("#")) {
-            output.__type = output.__type.split("#")[1];
-        }
-
-        throw classifyDynamoError(output);
-    }
-
-    return output;
 }
 
 /**

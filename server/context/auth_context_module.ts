@@ -1,8 +1,10 @@
-import {AwsContextModule} from "~/server/context/aws_context_module";
 import {unauthenticatedSessionError} from "~/server/context/helpers/unauthenticated_session_error";
 import {Account, Session} from "~/server/dynamo/accounts_table";
+import {DynamoContext} from "~/server/dynamo/dynamo_context";
+import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
 import {Context} from "~/shared/context/context";
 import {ContextModuleBase} from "~/shared/context/context_module_base";
+import {TracerContextModule} from "~/shared/context/tracer_context_module";
 import {Replace} from "~/shared/helpers/types/replace";
 import {Id} from "~/shared/id/id";
 
@@ -15,21 +17,19 @@ import {Id} from "~/shared/id/id";
  */
 export class UnauthenticatedAuthContextModule<
     Modules extends {
-        aws: AwsContextModule;
+        tracer: TracerContextModule;
+        dynamo: DynamoContextModule;
         auth: UnauthenticatedAuthContextModule;
     } = {
-        aws: AwsContextModule;
+        tracer: TracerContextModule;
+        dynamo: DynamoContextModule;
         auth: UnauthenticatedAuthContextModule;
     },
 > extends ContextModuleBase<Modules> {
-    private readonly _createSession: (
-        context: Context<{aws: AwsContextModule}>,
-    ) => Promise<Session | null>;
+    private readonly _createSession: (context: DynamoContext) => Promise<Session | null>;
     private readonly _sessionPromiseRef: {current: Promise<Session | null> | null};
 
-    constructor(
-        getSession: (context: Context<{aws: AwsContextModule}>) => Promise<Session | null>,
-    ) {
+    constructor(getSession: (context: DynamoContext) => Promise<Session | null>) {
         super();
         this._createSession = getSession;
         this._sessionPromiseRef = {current: null};
@@ -48,7 +48,11 @@ export class UnauthenticatedAuthContextModule<
     }
 
     public async authenticate<
-        Modules extends {aws: AwsContextModule; auth: UnauthenticatedAuthContextModule},
+        Modules extends {
+            tracer: TracerContextModule;
+            dynamo: DynamoContextModule;
+            auth: UnauthenticatedAuthContextModule;
+        },
     >(
         this: UnauthenticatedAuthContextModule<Modules>,
     ): Promise<Context<Replace<Modules, {auth: AuthenticatedAuthContextModule}>>> {
@@ -67,7 +71,8 @@ export class UnauthenticatedAuthContextModule<
  * account's ID.
  */
 export class AuthenticatedAuthContextModule extends UnauthenticatedAuthContextModule<{
-    aws: AwsContextModule;
+    tracer: TracerContextModule;
+    dynamo: DynamoContextModule;
     auth: AuthenticatedAuthContextModule;
 }> {
     private readonly _session: Session;
@@ -82,7 +87,11 @@ export class AuthenticatedAuthContextModule extends UnauthenticatedAuthContextMo
     }
 
     public override async authenticate<
-        Modules extends {aws: AwsContextModule; auth: UnauthenticatedAuthContextModule},
+        Modules extends {
+            tracer: TracerContextModule;
+            dynamo: DynamoContextModule;
+            auth: UnauthenticatedAuthContextModule;
+        },
     >(
         this: UnauthenticatedAuthContextModule<Modules> & AuthenticatedAuthContextModule,
     ): Promise<Context<Replace<Modules, {auth: AuthenticatedAuthContextModule}>>> {

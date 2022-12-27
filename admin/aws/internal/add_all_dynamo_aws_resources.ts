@@ -1,9 +1,6 @@
 import * as cdk from "aws-cdk-lib";
 import {Construct} from "constructs";
-import {importAllDynamoModules} from "~/admin/aws/internal/import_all_dynamo_modules";
-// Allow access to DynamoDB internals from `admin/aws`.
-// eslint-disable-next-line no-internal-imports
-import {getAllConstructedDynamoTableSchemas} from "~/server/dynamo/internal/dynamo_table_schema";
+import {getAllDynamoTableSchemas} from "~/server/dynamo/get_all_dynamo_table_schemas";
 
 /**
  * Adds all DynamoDB AWS resources to the provided scope.
@@ -13,9 +10,7 @@ import {getAllConstructedDynamoTableSchemas} from "~/server/dynamo/internal/dyna
  * constructed by those imported modules.
  */
 export async function addAllDynamoAwsResources(scope: Construct) {
-    await importAllDynamoModules();
-
-    for (const tableSchema of getAllConstructedDynamoTableSchemas()) {
+    for (const tableSchema of getAllDynamoTableSchemas()) {
         const tableName = tableSchema.getName();
 
         new cdk.aws_dynamodb.Table(scope, `${tableName}Table`, {

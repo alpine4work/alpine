@@ -81,11 +81,13 @@ export class TracerRoot extends TracerBase {
     public static new({
         serviceName,
         jsHost,
+        untrusted,
         getTime,
         sendEvent,
     }: {
         serviceName: TracerServiceName;
         jsHost: TracerEventJsHost;
+        untrusted: boolean;
         getTime: () => number;
         sendEvent: (event: TracerEvent) => void;
     }) {
@@ -96,6 +98,7 @@ export class TracerRoot extends TracerBase {
                 service: {
                     name: serviceName,
                 },
+                ...(untrusted ? {meta: {untrusted}} : {}),
                 js: {
                     realmId: getRealmId(),
                     host: jsHost,
