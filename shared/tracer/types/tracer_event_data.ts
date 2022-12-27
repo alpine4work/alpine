@@ -414,6 +414,19 @@ export type TracerEventData = {
             readonly messageId?: string;
         };
     };
+
+    readonly webSocket?: {
+        /** The ID of the connection our event is about. */
+        readonly connectionId?: Id;
+
+        /**
+         * What is the type of the message we're processing?
+         *
+         * Will be `Ping` or `Pong` for ping/pong messages and will be the `type`
+         * property of the message object for actual messages.
+         */
+        readonly messageType?: string;
+    };
 };
 
 /**

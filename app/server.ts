@@ -19,6 +19,7 @@ import {TracerContextModule} from "~/shared/context/tracer_context_module";
 import {InternalError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {Schema} from "~/shared/schema/schema";
+import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_header_propagation";
 import {TracerRoot} from "~/shared/tracer/tracer_root";
 
 type AppWorkerEnv = {
@@ -139,7 +140,7 @@ async function fetch(
 
     // Don't trace asset requests. If we do one day trace asset requests we should
     // do it with a low sample rate.
-    return traceFetchResponse(tracer, request, async (tracerSpan, request, url) => {
+    return traceFetchResponse(tracer, request, async (span, request, url) => {
         // Backwards compatibility with Cloudflare service worker syntax. (Instead of
         // Cloudflare module syntax.)
         // https://developers.cloudflare.com/workers/runtime-apis/fetch-event
@@ -169,7 +170,8 @@ async function fetch(
                     const newUrl = new URL(url);
                     newUrl.pathname = `/${path.slice(2).join("/")}`;
                     const newRequest = new Request(newUrl.toString(), event.request);
-                    newRequest.headers.set("x-document-id", documentId);
+                    newRequest.headers.set("cyberworlds-document-id", documentId);
+                    addTracerPropagationContextHeader(newRequest.headers, span);
 
                     const sessionCookie = await resources.sessionCookieStorage.get(request);
                     if (!sessionCookie.sessionId) throw unauthenticatedSessionError();
@@ -204,7 +206,7 @@ async function fetch(
                     process: new ProcessContextModule({
                         waitUntil: promise => executionContext.waitUntil(promise),
                     }),
-                    tracer: new TracerContextModule(tracerSpan),
+                    tracer: new TracerContextModule(span),
                     rpc: new LocalRpcContextModule(),
                     sessionCookie: new SessionCookieContextModule(sessionCookiePromise),
 

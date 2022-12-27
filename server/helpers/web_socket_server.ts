@@ -1,11 +1,8 @@
 import {AuthenticatedAuthContextModule} from "~/server/context/auth_context_module";
+import {ProcessContext} from "~/server/context/process_context";
 import {RequestContext} from "~/server/context/request_context";
 import {Session} from "~/server/dynamo/accounts_table";
-import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
-import {EmailContextModuleBase} from "~/server/emails/email_context_module_base";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module";
-import {Context} from "~/shared/context/context";
-import {ProcessContextModule} from "~/shared/context/process_context_module";
 import {TracerContextModule} from "~/shared/context/tracer_context_module";
 import {
     ErrorBase,
@@ -20,21 +17,13 @@ import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_with
 import {assert} from "~/shared/helpers/control/assert";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {expirationTimeoutMs} from "~/shared/helpers/web_socket_shared";
-import {Id} from "~/shared/id/id";
-import {Schema, UnionSchema} from "~/shared/schema/schema";
-
-export type WebSocketServerProcessContext = Context<WebSocketServerProcessContextModules>;
-
-export type WebSocketServerProcessContextModules = {
-    process: ProcessContextModule;
-    tracer: TracerContextModule;
-    dynamo: DynamoContextModule;
-    email: EmailContextModuleBase;
-};
+import {Id, generateId} from "~/shared/id/id";
+import {UnionSchema} from "~/shared/schema/schema";
+import {getExceptionTracerEventData} from "~/shared/tracer/helpers/get_exception_tracer_event_data";
 
 export interface WebSocketServerConnectionBase<MessageFromClient extends {type: string}> {
     handleMessage(context: RequestContext, message: MessageFromClient): Promise<void>;
-    handleClose?(): void;
+    handleClose?(context: ProcessContext): void;
 }
 
 /**
@@ -46,24 +35,42 @@ export class WebSocketServer<
     MessageFromServer extends {type: string},
     Connection extends WebSocketServerConnectionBase<MessageFromClient>,
 > {
-    private readonly _connections = new Set<
+    private readonly _processContext: ProcessContext;
+    // NOTE(calebmer): Force schemas to be union schemas so the protocol can evolve
+    // in the future.
+    private readonly _messageFromClientSchema: UnionSchema<MessageFromClient>;
+    private readonly _messageFromServerSchema: UnionSchema<MessageFromServer>;
+    private readonly _createConnection: (connection: {
+        request: Request;
+        connectionId: Id;
+        sendMessage: (context: ProcessContext, message: MessageFromServer) => void;
+        sendMessageToOthers: (context: ProcessContext, message: MessageFromServer) => void;
+        iterateOtherConnections: () => Iterable<Connection>;
+    }) => Connection;
+
+    private readonly _connections = new Map<
+        Id,
         WebSocketServerConnectionWrapper<MessageFromClient, Connection>
     >();
     private _expirationInterval: Interval | null = null;
 
     constructor(
-        private readonly _context: WebSocketServerProcessContext,
-        // NOTE(calebmer): Force schemas to be union schemas so the protocol can evolve
-        // in the future.
-        private readonly _messageFromClientSchema: UnionSchema<MessageFromClient>,
-        private readonly _messageFromServerSchema: UnionSchema<MessageFromServer>,
-        private readonly _createConnection: (connection: {
+        processContext: ProcessContext,
+        messageFromClientSchema: UnionSchema<MessageFromClient>,
+        messageFromServerSchema: UnionSchema<MessageFromServer>,
+        createConnection: (connection: {
             request: Request;
-            sendMessage: (message: MessageFromServer) => void;
-            sendMessageToOthers: (message: MessageFromServer) => void;
+            connectionId: Id;
+            sendMessage: (context: ProcessContext, message: MessageFromServer) => void;
+            sendMessageToOthers: (context: ProcessContext, message: MessageFromServer) => void;
             iterateOtherConnections: () => Iterable<Connection>;
         }) => Connection,
-    ) {}
+    ) {
+        this._processContext = processContext;
+        this._messageFromClientSchema = messageFromClientSchema;
+        this._messageFromServerSchema = messageFromServerSchema;
+        this._createConnection = createConnection;
+    }
 
     /**
      * Upgrade an HTTP request to a WebSocket connection.
@@ -78,47 +85,68 @@ export class WebSocketServer<
 
         const response = new Response(null, {status: 101, webSocket: clientSocket});
 
-        // @ts-expect-error: Why aren't my cloudflare types getting picked up properly?
-        serverSocket.accept();
-
-        const sendMessage = (message: MessageFromServer) => {
+        const sendMessage = (context: ProcessContext, message: MessageFromServer) => {
             const serializedMessage = this._messageFromServerSchema.serialize(message);
             const serializedMessageString = JSON.stringify(serializedMessage);
-            connection.sendRawMessage(serializedMessageString);
+            connection.sendRawMessage(context, message.type, serializedMessageString);
         };
 
-        const sendMessageToOthers = (message: MessageFromServer) => {
-            const serializedMessage = this._messageFromServerSchema.serialize(message);
-            const serializedMessageString = JSON.stringify(serializedMessage);
+        const sendMessageToOthers = (context: ProcessContext, message: MessageFromServer) => {
+            const {span, finishSpan} = context.tracer.startSpan(
+                "Sending all other WebSocket connections a message",
+            );
+            span.addData({
+                webSocket: {
+                    connectionId,
+                    messageType: message.type,
+                },
+            });
+            context = context.clone({tracer: new TracerContextModule(span)});
 
-            for (const otherConnection of this._connections) {
-                if (otherConnection === connection) continue;
-                otherConnection.sendRawMessage(serializedMessageString);
+            try {
+                const serializedMessage = this._messageFromServerSchema.serialize(message);
+                const serializedMessageString = JSON.stringify(serializedMessage);
+
+                for (const otherConnection of this._connections.values()) {
+                    if (otherConnection.id === connection.id) continue;
+                    otherConnection.sendRawMessage(context, message.type, serializedMessageString);
+                }
+
+                finishSpan();
+            } catch (error) {
+                span.addExceptionData(error, {escaped: true});
+                finishSpan();
+                throw error;
             }
         };
 
         const iterateOtherConnections = (): Iterable<Connection> => {
-            return filterMapIterable(this._connections, otherConnection =>
-                otherConnection !== connection ? otherConnection.connection : null,
+            return filterMapIterable(this._connections.values(), otherConnection =>
+                otherConnection.id !== connection.id ? otherConnection.connection : null,
             );
         };
 
+        const connectionId = generateId();
+
         const actualConnection = this._createConnection({
             request,
+            connectionId,
             sendMessage,
             sendMessageToOthers,
             iterateOtherConnections,
         });
 
-        const connection = new WebSocketServerConnectionWrapper(
-            this._context,
-            serverSocket,
-            this._messageFromClientSchema,
-            actualConnection,
-            requestContext.auth.getSessionId(),
-        );
+        const connection = new WebSocketServerConnectionWrapper({
+            id: connectionId,
+            processContext: this._processContext,
+            socket: serverSocket,
+            messageFromClientSchema: this._messageFromClientSchema,
+            connection: actualConnection,
+            sessionId: requestContext.auth.getSessionId(),
+        });
 
-        this._connections.add(connection);
+        assert(!this._connections.has(connection.id));
+        this._connections.set(connection.id, connection);
 
         // When we get our first connection, start an interval to expire sockets we
         // haven't received a message from in a while.
@@ -130,6 +158,8 @@ export class WebSocketServer<
 
             let currentTimeMs = Date.now();
 
+            // TODO(calebmer): Implement this with durable object alarms so the time
+            // works correctly.
             this._expirationInterval = createInterval(() => {
                 // This is a workaround for Cloudflare `Date.now()` always returning the same
                 // time for a given request. Whenever our interval runs, increment the time by
@@ -137,23 +167,42 @@ export class WebSocketServer<
                 // https://developers.cloudflare.com/workers/learning/security-model
                 currentTimeMs += expirationTimeoutMs / 2;
 
-                for (const connection of this._connections) {
-                    connection.maybeExpire(currentTimeMs);
+                void this._processContext.tracer.withSpan(
+                    "Expiring idle WebSocket connections",
+                    async context => {
+                        for (const connection of this._connections.values()) {
+                            connection.maybeExpire(context, currentTimeMs);
 
-                    // In case the `close` event wasn't fired, look for closed connections in our
-                    // expiration interval loop and remove them from our connection set.
-                    //
-                    // NOTE(calebmer): I'm observing the `close` event not firing after
-                    // `serverSocket.close()` and I'm not sure whether it is a bug or not.
-                    if (connection.isClosed()) {
-                        this._handleConnectionClose(connection);
-                    }
-                }
+                            // In case the `close` event wasn't fired, look for closed connections in our
+                            // expiration interval loop and remove them from our connection set.
+                            //
+                            // NOTE(calebmer): I'm observing the `close` event not firing after
+                            // `serverSocket.close()` and I'm not sure whether it is a bug or not.
+                            if (connection.isClosed()) {
+                                this._handleConnectionClose(context, connection);
+                            }
+                        }
+                    },
+                );
             }, expirationTimeoutMs / 2);
         }
 
         serverSocket.addEventListener("close", () => {
-            this._handleConnectionClose(connection);
+            this._handleConnectionClose(
+                // Hopefully this is fired synchronously and we get the context object passed
+                // into our `close()` call.
+                contextForCloseEventListener ?? this._processContext,
+                connection,
+            );
+        });
+
+        // @ts-expect-error: Why aren't my cloudflare types getting picked up properly?
+        serverSocket.accept();
+
+        requestContext.tracer.log("WebSocket connected", {
+            webSocket: {
+                connectionId: connection.id,
+            },
         });
 
         return response;
@@ -166,15 +215,28 @@ export class WebSocketServer<
      * firing so we call this function multiple times when a socket is closing.
      */
     private _handleConnectionClose(
+        context: ProcessContext,
         connection: WebSocketServerConnectionWrapper<MessageFromClient, Connection>,
     ) {
-        if (this._connections.delete(connection)) {
+        const existingConnection = this._connections.get(connection.id);
+        if (existingConnection && existingConnection === connection) {
+            this._connections.delete(connection.id);
+
             try {
-                connection.connection.handleClose?.();
+                connection.connection.handleClose?.(context);
+
+                context.tracer.log("WebSocket connection closed", {
+                    webSocket: {
+                        connectionId: connection.id,
+                    },
+                });
             } catch (error) {
-                // TODO(calebmer): Actually report error
-                // eslint-disable-next-line no-console
-                console.error(error);
+                context.tracer.log("WebSocket connection closed", {
+                    webSocket: {
+                        connectionId: connection.id,
+                    },
+                    exception: getExceptionTracerEventData(error, {escaped: false}),
+                });
             }
         }
 
@@ -188,26 +250,55 @@ export class WebSocketServer<
     /**
      * Send a message to all connected clients.
      */
-    public sendMessageToAll(message: MessageFromServer) {
-        const serializedMessage = this._messageFromServerSchema.serialize(message);
-        const serializedMessageString = JSON.stringify(serializedMessage);
+    public sendMessageToAll(context: ProcessContext, message: MessageFromServer) {
+        const {span, finishSpan} = context.tracer.startSpan(
+            "Sending all WebSocket connections a message",
+        );
+        span.addData({
+            webSocket: {
+                messageType: message.type,
+            },
+        });
+        context = context.clone({tracer: new TracerContextModule(span)});
 
-        for (const connection of this._connections) {
-            connection.sendRawMessage(serializedMessageString);
+        try {
+            const serializedMessage = this._messageFromServerSchema.serialize(message);
+            const serializedMessageString = JSON.stringify(serializedMessage);
+
+            for (const connection of this._connections.values()) {
+                connection.sendRawMessage(context, message.type, serializedMessageString);
+            }
+
+            finishSpan();
+        } catch (error) {
+            span.addExceptionData(error, {escaped: true});
+            finishSpan();
+            throw error;
         }
     }
 
     /**
      * Close all connected clients.
      */
-    public closeAll() {
-        for (const connection of this._connections) {
-            connection.close(1001, "Closing all WebSocket connections");
+    public closeAll(context: ProcessContext) {
+        const {span, finishSpan} = context.tracer.startSpan("Closing all WebSocket connections");
+        context = context.clone({tracer: new TracerContextModule(span)});
 
-            // NOTE(calebmer): In case the `close` event wasn't fired manually call our
-            // event handler. Since I've seen the close event not fire before in response
-            // to calling `close()` I'm paranoid and adding a second call here.
-            this._handleConnectionClose(connection);
+        try {
+            for (const connection of this._connections.values()) {
+                connection.close(context, 1001, "Closing all WebSocket connections");
+
+                // NOTE(calebmer): In case the `close` event wasn't fired manually call our
+                // event handler. Since I've seen the close event not fire before in response
+                // to calling `close()` I'm paranoid and adding a second call here.
+                this._handleConnectionClose(context, connection);
+            }
+
+            finishSpan();
+        } catch (error) {
+            span.addExceptionData(error, {escaped: true});
+            finishSpan();
+            throw error;
         }
     }
 }
@@ -216,39 +307,81 @@ class WebSocketServerConnectionWrapper<
     MessageFromClient extends {type: string},
     Connection extends WebSocketServerConnectionBase<MessageFromClient>,
 > {
+    public readonly id: Id;
+    private readonly _processContext: ProcessContext;
+    private readonly _socket: WebSocket;
+    private readonly _messageFromClientSchema: UnionSchema<MessageFromClient>;
+    public readonly connection: Connection;
+    private readonly _sessionId: Id;
     private _lastMessageTimeMs: number = Date.now();
 
-    constructor(
-        private readonly _context: WebSocketServerProcessContext,
-        private readonly _socket: WebSocket,
-        private readonly _messageFromClientSchema: Schema<MessageFromClient>,
-        public readonly connection: Connection,
-        private readonly _sessionId: Id,
-    ) {
+    constructor({
+        id,
+        processContext,
+        socket,
+        messageFromClientSchema,
+        connection,
+        sessionId,
+    }: {
+        id: Id;
+        processContext: ProcessContext;
+        socket: WebSocket;
+        messageFromClientSchema: UnionSchema<MessageFromClient>;
+        connection: Connection;
+        sessionId: Id;
+    }) {
+        this.id = id;
+        this._processContext = processContext;
+        this._socket = socket;
+        this._messageFromClientSchema = messageFromClientSchema;
+        this.connection = connection;
+        this._sessionId = sessionId;
+
         this._socket.addEventListener("message", event => {
             runPromiseWithoutAwaiting(async () => {
-                try {
-                    // TODO(calebmer): Can we at least give this some kind of TTL in-memory cache??
-                    // TODO(calebmer): Can we put this in a trace?
-                    const session = await Session.get(this._context, this._sessionId);
-                    if (!session)
-                        throw new NotFoundError("Session was revoked after the connection began");
+                await this._processContext.tracer.withSpan(
+                    "Received message from WebSocket connection",
+                    async (context, span) => {
+                        try {
+                            span.addData({
+                                webSocket: {
+                                    connectionId: this.id,
+                                },
+                            });
 
-                    await this._context.with(
-                        {
-                            auth: new AuthenticatedAuthContextModule(session),
-                            rpc: new LocalRpcContextModule(),
-                        },
-                        async (context: RequestContext) => {
+                            const getSession = async () => {
+                                // TODO(calebmer): Can we at least give this some kind of TTL in-memory cache??
+                                const session = await Session.get(context, this._sessionId);
+                                if (!session)
+                                    throw new NotFoundError(
+                                        "Session was revoked after the connection began",
+                                    );
+
+                                return session;
+                            };
+
                             this._lastMessageTimeMs = Date.now();
 
+                            // In response to a pong event, we update the last message time for this
+                            // connection and that's it. Pong events only let us know the client is
+                            // still alive.
                             if (event.data === "pong") {
-                                // Updating the last message time is all the pong message does.
+                                span.addData({webSocket: {messageType: "pong"}});
+
+                                // Will throw if the session is expired.
+                                await getSession();
                                 return;
                             }
 
+                            // In response to a ping event, we want to send "pong" to the client so it
+                            // knows we are alive and didn't silently disconnect.
                             if (event.data === "ping") {
-                                this.sendRawMessage("pong");
+                                span.addData({webSocket: {messageType: "ping"}});
+
+                                // Will throw if the session is expired.
+                                await getSession();
+
+                                this.sendRawMessage(context, "pong", "pong");
                                 return;
                             }
 
@@ -264,20 +397,31 @@ class WebSocketServerConnectionWrapper<
 
                             const message =
                                 this._messageFromClientSchema.deserialize(serializedMessage);
+                            span.addData({webSocket: {messageType: message.type}});
 
-                            await this.connection.handleMessage(context, message);
-                        },
-                    );
-                } catch (error) {
-                    // TODO(calebmer): Actual error reporting
-                    // eslint-disable-next-line no-console
-                    console.error(error);
+                            const session = await getSession();
+                            span.addPropagatedData({context: {accountId: session.accountId}});
 
-                    // If we got an unexpected error while handling the message close the socket
-                    // connection.
-                    const code = error instanceof ErrorBase ? error.code : ErrorCode.Unknown;
-                    this._socket.close(isHttp500ErrorCode(code) ? 1011 : 1008);
-                }
+                            await context.with(
+                                {
+                                    auth: new AuthenticatedAuthContextModule(session),
+                                    rpc: new LocalRpcContextModule(),
+                                },
+                                async (context: RequestContext) => {
+                                    await this.connection.handleMessage(context, message);
+                                },
+                            );
+                        } catch (error) {
+                            span.addExceptionData(error, {escaped: false});
+
+                            // If we got an unexpected error while handling the message close the socket
+                            // connection.
+                            const code =
+                                error instanceof ErrorBase ? error.code : ErrorCode.Unknown;
+                            this.close(context, isHttp500ErrorCode(code) ? 1011 : 1008);
+                        }
+                    },
+                );
             });
         });
     }
@@ -286,7 +430,7 @@ class WebSocketServerConnectionWrapper<
         return this._socket.readyState === 2 || this._socket.readyState === 3;
     }
 
-    public maybeExpire(currentTimeMs: number) {
+    public maybeExpire(context: ProcessContext, currentTimeMs: number) {
         // If our socket is already closed then we don't need to expire.
         if (this.isClosed()) {
             return;
@@ -295,7 +439,7 @@ class WebSocketServerConnectionWrapper<
         // If we haven't gotten a message from the client in a while, close it. Maybe
         // the client's power went out and it silently went away without telling us.
         if (currentTimeMs - this._lastMessageTimeMs >= expirationTimeoutMs) {
-            this.close(1002, "WebSocket connection expired due to inactivity");
+            this.close(context, 1002, "WebSocket connection expired due to inactivity");
             return;
         }
 
@@ -303,7 +447,7 @@ class WebSocketServerConnectionWrapper<
         // should immediately send back a pong message updating which updates the last
         // message time and prevents the client from expiring.
         if (currentTimeMs - this._lastMessageTimeMs >= expirationTimeoutMs / 2) {
-            this.sendRawMessage("ping");
+            this.sendRawMessage(context, "ping", "ping");
             return;
         }
     }
@@ -312,11 +456,18 @@ class WebSocketServerConnectionWrapper<
      * Send a message over our WebSocket connection. Throws an error if the
      * connection is closed!
      */
-    public sendRawMessage(message: string) {
+    public sendRawMessage(context: ProcessContext, messageType: string, message: string) {
         if (this.isClosed())
             throw new FailedPreconditionError("Can not send message to closed WebSocket");
 
         this._socket.send(message);
+
+        context.tracer.log("Sent WebSocket connection a message", {
+            webSocket: {
+                connectionId: this.id,
+                messageType,
+            },
+        });
     }
 
     /**
@@ -327,7 +478,19 @@ class WebSocketServerConnectionWrapper<
      *
      * [1]: https://www.rfc-editor.org/rfc/rfc6455.html#section-7.4.1
      */
-    public close(code?: number, reason?: string) {
-        this._socket.close(code, reason);
+    public close(context: ProcessContext, code?: number, reason?: string) {
+        const previousContextForCloseEventListener = contextForCloseEventListener;
+        contextForCloseEventListener = context;
+        try {
+            this._socket.close(code, reason);
+        } finally {
+            contextForCloseEventListener = previousContextForCloseEventListener;
+        }
     }
 }
+
+/**
+ * Used to pass a `context` object from our `close()` function call to the
+ * event listener which logs a close event.
+ */
+let contextForCloseEventListener: ProcessContext | null = null;

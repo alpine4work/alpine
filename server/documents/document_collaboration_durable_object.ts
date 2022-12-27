@@ -2,6 +2,7 @@ import {jwtVerify} from "jose";
 import {Step} from "prosemirror-transform";
 import {createAwsContextModulesFromEnv} from "~/server/aws/create_aws_context_modules_from_env";
 import {UnauthenticatedAuthContextModule} from "~/server/context/auth_context_module";
+import {ProcessContext, ProcessContextModules} from "~/server/context/process_context";
 import {
     RequestContext,
     UnauthenticatedRequestContextModules,
@@ -14,12 +15,9 @@ import {
     getDocumentPreview,
     updateDocumentContent,
 } from "~/server/dynamo/documents_table";
-import {
-    WebSocketServer,
-    WebSocketServerProcessContext,
-    WebSocketServerProcessContextModules,
-} from "~/server/helpers/web_socket_server";
+import {WebSocketServer} from "~/server/helpers/web_socket_server";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module";
+import {traceFetchResponse} from "~/server/tracer/trace_fetch_response";
 import {Context} from "~/shared/context/context";
 import {ProcessContextModule} from "~/shared/context/process_context_module";
 import {TracerContextModule} from "~/shared/context/tracer_context_module";
@@ -42,7 +40,7 @@ import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_with
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
-import {Id, generateId} from "~/shared/id/id";
+import {Id} from "~/shared/id/id";
 import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema";
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema";
 import {TracerRoot} from "~/shared/tracer/tracer_root";
@@ -61,7 +59,8 @@ type DurableObjectEnv = {
 class DocumentCollaborationDurableObjectWrapper {
     private readonly _state: DurableObjectState;
     private readonly _sessionCookieSecret: string;
-    private readonly _context: WebSocketServerProcessContext;
+    private readonly _tracer: TracerRoot;
+    private readonly _context: ProcessContext;
     private _objectPromise: Promise<DocumentCollaborationDurableObject> | null = null;
 
     constructor(state: DurableObjectState, env: DurableObjectEnv) {
@@ -76,7 +75,7 @@ class DocumentCollaborationDurableObjectWrapper {
 
         this._sessionCookieSecret = sessionCookieSecret;
 
-        const tracer = TracerRoot.new({
+        this._tracer = TracerRoot.new({
             serviceName: "DocumentCollaborationService",
             jsHost: "CloudflareWorker",
             untrusted: false,
@@ -84,8 +83,13 @@ class DocumentCollaborationDurableObjectWrapper {
             // their security model. This means timers won't be perfectly accurate.
             // https://developers.cloudflare.com/workers/learning/security-model
             getTime: () => Date.now(),
-            sendEvent: () => {
+            sendEvent: event => {
                 // TODO(calebmer): Implement!
+                // eslint-disable-next-line no-console
+                console.log({
+                    time: event.time,
+                    data: event.getFlatData(),
+                });
             },
         });
 
@@ -96,63 +100,78 @@ class DocumentCollaborationDurableObjectWrapper {
             process: new ProcessContextModule({
                 waitUntil: promise => this._state.waitUntil(promise),
             }),
-            tracer: new TracerContextModule(tracer),
+            tracer: new TracerContextModule(this._tracer),
         });
     }
 
     public fetch(request: Request): Promise<Response> {
-        return this._context.with<
-            Omit<UnauthenticatedRequestContextModules, keyof WebSocketServerProcessContextModules>,
-            Response
-        >(
-            {
-                auth: new UnauthenticatedAuthContextModule(async context => {
-                    const authorizationHeader = request.headers.get("authorization");
-                    if (!authorizationHeader) return null;
-                    const authorizationHeaderMatch = authorizationHeader.match(/^bearer (.+)$/i);
+        return traceFetchResponse(this._tracer, request, (span, request, url) => {
+            return this._context.with<
+                Omit<
+                    UnauthenticatedRequestContextModules,
+                    Exclude<keyof ProcessContextModules, "tracer">
+                >,
+                Response
+            >(
+                {
+                    // Replace the tracer context module with one that uses our span for
+                    // this request.
+                    tracer: new TracerContextModule(span),
 
-                    if (!authorizationHeaderMatch)
-                        throw new InvalidArgumentError(
-                            'Expected "Authorization" header to have "Bearer" authentication scheme',
+                    auth: new UnauthenticatedAuthContextModule(async context => {
+                        const authorizationHeader = request.headers.get("authorization");
+                        if (!authorizationHeader) return null;
+                        const authorizationHeaderMatch =
+                            authorizationHeader.match(/^bearer (.+)$/i);
+
+                        if (!authorizationHeaderMatch)
+                            throw new InvalidArgumentError(
+                                'Expected "Authorization" header to have "Bearer" authentication scheme',
+                            );
+
+                        const authenticationToken = authorizationHeaderMatch[1] ?? "";
+
+                        const {sessionId} = await this._verifyAuthenticationToken(
+                            authenticationToken,
                         );
 
-                    const authenticationToken = authorizationHeaderMatch[1] ?? "";
+                        const session = await Session.get(context, sessionId);
+                        if (!session)
+                            throw new NotFoundError(
+                                'Could not find session from "Authorization" header',
+                            );
 
-                    const {sessionId} = await this._verifyAuthenticationToken(authenticationToken);
-
-                    const session = await Session.get(context, sessionId);
-                    if (!session)
-                        throw new NotFoundError(
-                            'Could not find session from "Authorization" header',
-                        );
-
-                    return session;
-                }),
-                rpc: new LocalRpcContextModule(),
-            },
-            async _requestContext => {
-                const requestContext: RequestContext = await _requestContext.auth.authenticate();
-                const id = Schema.id.deserialize(request.headers.get("x-document-id"));
-
-                if (this._objectPromise === null) {
-                    this._objectPromise = DocumentCollaborationDurableObject.initialize({
-                        processContext: this._context,
-                        requestContext,
-                        id,
-                        destroy: () => (this._objectPromise = null),
-                    });
-                }
-
-                const object = await this._objectPromise;
-
-                if (id !== object.id)
-                    throw new FailedPreconditionError(
-                        "Document id in HTTP header does not match durable object document id",
+                        return session;
+                    }),
+                    rpc: new LocalRpcContextModule(),
+                },
+                async _requestContext => {
+                    const requestContext: RequestContext =
+                        await _requestContext.auth.authenticate();
+                    const id = Schema.id.deserialize(
+                        request.headers.get("cyberworlds-document-id"),
                     );
 
-                return object.fetch(requestContext, request);
-            },
-        );
+                    if (this._objectPromise === null) {
+                        this._objectPromise = DocumentCollaborationDurableObject.initialize({
+                            processContext: this._context,
+                            requestContext,
+                            id,
+                            destroy: () => (this._objectPromise = null),
+                        });
+                    }
+
+                    const object = await this._objectPromise;
+
+                    if (id !== object.id)
+                        throw new FailedPreconditionError(
+                            "Document id in HTTP header does not match durable object document id",
+                        );
+
+                    return object.fetch(requestContext, request);
+                },
+            );
+        });
     }
 
     private async _verifyAuthenticationToken(token: string): Promise<{sessionId: Id}> {
@@ -169,7 +188,8 @@ class DocumentCollaborationDurableObjectWrapper {
 export {DocumentCollaborationDurableObjectWrapper as DocumentCollaborationDurableObject};
 
 class DocumentCollaborationDurableObject {
-    private readonly _context: WebSocketServerProcessContext;
+    private readonly _context: ProcessContext;
+    public readonly spaceId: Id;
     public readonly id: Id;
     private readonly _contentManager: DocumentCollaborationContentManager;
     private readonly _destroyCallback: () => void;
@@ -186,7 +206,7 @@ class DocumentCollaborationDurableObject {
         id,
         destroy,
     }: {
-        processContext: WebSocketServerProcessContext;
+        processContext: ProcessContext;
         requestContext: RequestContext;
         id: Id;
         destroy: () => void;
@@ -196,6 +216,7 @@ class DocumentCollaborationDurableObject {
 
         return new DocumentCollaborationDurableObject({
             context: processContext,
+            spaceId: document.spaceId,
             id: document.id,
             initialVersion: document.version,
             initialContent: document.content,
@@ -205,25 +226,32 @@ class DocumentCollaborationDurableObject {
 
     private constructor({
         context,
+        spaceId,
         id,
         initialVersion,
         initialContent,
         destroy,
     }: {
-        context: WebSocketServerProcessContext;
+        context: ProcessContext;
+        spaceId: Id;
         id: Id;
         initialVersion: number;
         initialContent: DocumentContent;
         destroy: () => void;
     }) {
+        // Propagate the document id to all logs for this durable object.
+        context = context.tracer.withPropagatedData({context: {spaceId, documentId: id}});
+
         this._context = context;
+        this.spaceId = spaceId;
         this.id = id;
         this._contentManager = new DocumentCollaborationContentManager({
             id,
             initialVersion,
             initialContent,
-            sendMessageToAll: message => this._webSocketServer.sendMessageToAll(message),
-            destroyDurableObject: () => this._destroy(),
+            sendMessageToAll: (context, message) =>
+                this._webSocketServer.sendMessageToAll(context, message),
+            destroyDurableObject: context => this._destroy(context),
         });
         this._destroyCallback = destroy;
 
@@ -231,25 +259,31 @@ class DocumentCollaborationDurableObject {
             this._context,
             DocumentCollaborationMessageFromClientSchema,
             DocumentCollaborationMessageFromServerSchema,
-            ({sendMessage, sendMessageToOthers, iterateOtherConnections}) =>
+            ({connectionId, sendMessage, sendMessageToOthers, iterateOtherConnections}) =>
                 new DocumentCollaborationDurableObjectConnection({
+                    connectionId,
                     contentManager: this._contentManager,
                     sendMessage,
                     sendMessageToOthers,
                     iterateOtherConnections,
-                    destroyDurableObject: () => this._destroy(),
+                    destroyDurableObject: context => this._destroy(context),
                 }),
         );
     }
 
     public fetch(context: RequestContext, request: Request): Response {
+        // Propagate the document id to all logs for this durable object.
+        context = context.tracer.withPropagatedData({
+            context: {spaceId: this.spaceId, documentId: this.id},
+        });
+
         const url = new URL(request.url);
         if (url.pathname !== "/") throw new NotFoundError("Unexpected path");
         return this._webSocketServer.upgrade(context, request);
     }
 
-    private _destroy() {
-        this._webSocketServer.closeAll();
+    private _destroy(context: ProcessContext) {
+        this._webSocketServer.closeAll(context);
         this._destroyCallback();
     }
 }
@@ -263,8 +297,11 @@ class DocumentCollaborationContentManager {
     private _version: number;
     private _content: DocumentContent;
     public readonly stepCache: DocumentCollaborationStepCache;
-    private readonly _sendMessageToAll: (message: DocumentCollaborationMessageFromServer) => void;
-    private readonly _destroyDurableObject: () => void;
+    private readonly _sendMessageToAll: (
+        context: ProcessContext,
+        message: DocumentCollaborationMessageFromServer,
+    ) => void;
+    private readonly _destroyDurableObject: (context: ProcessContext) => void;
     private _updateSequentialQueue = new AsyncSequentialQueue();
 
     private _persistenceState: {
@@ -285,8 +322,11 @@ class DocumentCollaborationContentManager {
         id: Id;
         initialVersion: number;
         initialContent: DocumentContent;
-        sendMessageToAll: (message: DocumentCollaborationMessageFromServer) => void;
-        destroyDurableObject: () => void;
+        sendMessageToAll: (
+            context: ProcessContext,
+            message: DocumentCollaborationMessageFromServer,
+        ) => void;
+        destroyDurableObject: (context: ProcessContext) => void;
     }) {
         this._id = id;
         this._version = initialVersion;
@@ -419,7 +459,7 @@ class DocumentCollaborationContentManager {
                 });
             }
 
-            this._sendMessageToAll({
+            this._sendMessageToAll(context, {
                 type: "UpdateContentBeforePersistence",
                 newVersion: oldVersion + steps.length,
                 steps,
@@ -481,23 +521,22 @@ class DocumentCollaborationContentManager {
                                 );
                             }
 
-                            this._sendMessageToAll({
+                            this._sendMessageToAll(context, {
                                 type: "PersistedContent",
                                 newVersion: oldVersion + nextSteps.length,
                             });
                         } catch (_error) {
-                            // TODO(calebmer): Report this error somewhere in addition to sending it to
-                            // the client.
+                            context.tracer.logException(_error);
 
                             // If we failed to update, always classify it as an internal error since
                             // clients have seen the update.
                             const error = InternalError.from(_error);
 
-                            this._sendMessageToAll({
+                            this._sendMessageToAll(context, {
                                 type: "Error",
                                 error,
                             });
-                            this._destroyDurableObject();
+                            this._destroyDurableObject(context);
                         }
                     })(),
                 };
@@ -512,32 +551,45 @@ class DocumentCollaborationContentManager {
 }
 
 class DocumentCollaborationDurableObjectConnection {
-    public readonly id = generateId();
+    public readonly connectionId: Id;
 
     private readonly _contentManager: DocumentCollaborationContentManager;
-    private readonly _sendMessage: (message: DocumentCollaborationMessageFromServer) => void;
+    private readonly _sendMessage: (
+        context: ProcessContext,
+        message: DocumentCollaborationMessageFromServer,
+    ) => void;
     private readonly _sendMessageToOthers: (
+        context: ProcessContext,
         message: DocumentCollaborationMessageFromServer,
     ) => void;
     private readonly _iterateOtherConnections: () => Iterable<DocumentCollaborationDurableObjectConnection>;
-    private readonly _destroyDurableObject: () => void;
+    private readonly _destroyDurableObject: (context: ProcessContext) => void;
 
     private _presenceState: DocumentCollaborationPresenceState | null = null;
     private _sequentialQueue = new AsyncSequentialQueue();
 
     constructor({
+        connectionId,
         contentManager,
         sendMessage,
         sendMessageToOthers,
         iterateOtherConnections,
         destroyDurableObject,
     }: {
+        connectionId: Id;
         contentManager: DocumentCollaborationContentManager;
-        sendMessage: (message: DocumentCollaborationMessageFromServer) => void;
-        sendMessageToOthers: (message: DocumentCollaborationMessageFromServer) => void;
+        sendMessage: (
+            context: ProcessContext,
+            message: DocumentCollaborationMessageFromServer,
+        ) => void;
+        sendMessageToOthers: (
+            context: ProcessContext,
+            message: DocumentCollaborationMessageFromServer,
+        ) => void;
         iterateOtherConnections: () => Iterable<DocumentCollaborationDurableObjectConnection>;
-        destroyDurableObject: () => void;
+        destroyDurableObject: (context: ProcessContext) => void;
     }) {
+        this.connectionId = connectionId;
         this._contentManager = contentManager;
         this._sendMessage = sendMessage;
         this._sendMessageToOthers = sendMessageToOthers;
@@ -571,9 +623,13 @@ class DocumentCollaborationDurableObjectConnection {
                             //
                             // So load the document from our database and if its version is ahead of the
                             // one in our durable object then we want to destroy the entire durable object.
-                            const documentPreview = await getDocumentPreview(context, this.id);
+                            const documentPreview = await getDocumentPreview(
+                                context,
+                                this.connectionId,
+                            );
                             if (!documentPreview) {
                                 this._sendFatalErrorMessageAndDestroyDurableObject(
+                                    context,
                                     new NotFoundError(
                                         "Document was deleted since durable object started",
                                     ),
@@ -582,6 +638,7 @@ class DocumentCollaborationDurableObjectConnection {
                             }
                             if (documentPreview.version > version) {
                                 this._sendFatalErrorMessageAndDestroyDurableObject(
+                                    context,
                                     new InternalError(
                                         "Document version in durable object is out of sync with actual document version",
                                     ),
@@ -611,7 +668,7 @@ class DocumentCollaborationDurableObjectConnection {
                                     smallestPresenceStateVersion = state.version;
                                 }
 
-                                return {connectionId: connection.id, state};
+                                return {connectionId: connection.connectionId, state};
                             }),
                         );
 
@@ -633,7 +690,7 @@ class DocumentCollaborationDurableObjectConnection {
 
                         // Load steps from our store and send them to the client to catch
                         // the client up...
-                        this._sendMessage({
+                        this._sendMessage(context, {
                             type: "BackfillResponse",
                             newVersion: version,
                             steps,
@@ -646,13 +703,13 @@ class DocumentCollaborationDurableObjectConnection {
                     }
                     case "UpdateContent": {
                         const {presenceState, hasSentPresenceState} =
-                            await this._contentManager.update(context, this.id, message);
+                            await this._contentManager.update(context, this.connectionId, message);
                         this._presenceState = presenceState;
 
                         if (!hasSentPresenceState) {
-                            this._sendMessageToOthers({
+                            this._sendMessageToOthers(context, {
                                 type: "UpdateOtherPresenceState",
-                                connectionId: this.id,
+                                connectionId: this.connectionId,
                                 state: this._presenceState,
                             });
                         }
@@ -685,9 +742,9 @@ class DocumentCollaborationDurableObjectConnection {
                             this._presenceState = message.state;
                         }
 
-                        this._sendMessageToOthers({
+                        this._sendMessageToOthers(context, {
                             type: "UpdateOtherPresenceState",
-                            connectionId: this.id,
+                            connectionId: this.connectionId,
                             state: this._presenceState,
                         });
                         return;
@@ -699,7 +756,7 @@ class DocumentCollaborationDurableObjectConnection {
                 // NOTE(calebmer): I wonder if error handling should be a part of the
                 // `WebSocketServer` abstraction instead of doing one-off error handling like
                 // this? There are not enough examples of `WebSocketServer` usage to know.
-                this._sendMessage({
+                this._sendMessage(context, {
                     type: "Error",
                     error,
                 });
@@ -707,7 +764,7 @@ class DocumentCollaborationDurableObjectConnection {
         });
     }
 
-    public handleClose() {
+    public handleClose(context: ProcessContext) {
         runPromiseWithoutAwaiting(
             // Make sure we run in the queue in case we're wrapping up message handling. We
             // want to send our null presence state after we send any other
@@ -716,9 +773,9 @@ class DocumentCollaborationDurableObjectConnection {
                 // When the connection closes, clear the presence state in our other
                 // connections.
                 if (this._presenceState !== null) {
-                    this._sendMessageToOthers({
+                    this._sendMessageToOthers(context, {
                         type: "UpdateOtherPresenceState",
-                        connectionId: this.id,
+                        connectionId: this.connectionId,
                         state: null,
                     });
                 }
@@ -726,17 +783,17 @@ class DocumentCollaborationDurableObjectConnection {
         );
     }
 
-    private _sendFatalErrorMessageAndDestroyDurableObject(error: unknown) {
-        // TODO(calebmer): Report this error somewhere in addition to sending it to
-        // the client.
-        this._sendMessage({
+    private _sendFatalErrorMessageAndDestroyDurableObject(context: ProcessContext, error: unknown) {
+        context.tracer.logException(error);
+
+        this._sendMessage(context, {
             type: "Error",
             error,
         });
-        this._sendMessageToOthers({
+        this._sendMessageToOthers(context, {
             type: "Error",
             error,
         });
-        this._destroyDurableObject();
+        this._destroyDurableObject(context);
     }
 }
