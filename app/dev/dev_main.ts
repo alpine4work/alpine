@@ -153,7 +153,9 @@ const server = http.createServer((req, res) => {
         // Start by trying to serve our assets...
         serveStaticMiddleware(req, res, () => {
             // If we could not serve an asset then run our Cloudflare worker...
-            runPromiseWithoutAwaiting(miniflareListener(req, res));
+            runPromiseWithoutAwaiting(async () => {
+                await miniflareListener(req, res);
+            });
         });
     }
 });

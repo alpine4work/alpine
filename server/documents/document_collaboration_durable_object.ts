@@ -31,13 +31,14 @@ import {
 } from "~/shared/documents/document_collaboration_schema";
 import {DocumentContent, isDocumentContent} from "~/shared/documents/document_content_schema";
 import {
+    ErrorBase,
     FailedPreconditionError,
     InternalError,
     InvalidArgumentError,
     NotFoundError,
 } from "~/shared/error/error";
+import {isHttp500ErrorCode} from "~/shared/error/is_http_500_error_code";
 import {AsyncSequentialQueue} from "~/shared/helpers/async/async_sequential_queue";
-import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
@@ -523,11 +524,15 @@ class DocumentCollaborationContentManager {
                                         newVersion: oldVersion + nextSteps.length,
                                     });
                                 } catch (_error) {
-                                    span.addException(_error);
+                                    // Upgrade the severity of non-internal errors to internal since the client has
+                                    // already seen the update.
+                                    const error =
+                                        !(_error instanceof ErrorBase) ||
+                                        !isHttp500ErrorCode(_error.code)
+                                            ? InternalError.from(_error)
+                                            : _error;
 
-                                    // If we failed to update, always classify it as an internal error since
-                                    // clients have seen the update.
-                                    const error = InternalError.from(_error);
+                                    span.addException(error);
 
                                     this._sendMessageToAll(context, {
                                         type: "Error",
@@ -770,7 +775,7 @@ class DocumentCollaborationDurableObjectConnection {
     }
 
     public handleClose(context: ProcessContext) {
-        runPromiseWithoutAwaiting(
+        context.process.waitUntil(
             // Make sure we run in the queue in case we're wrapping up message handling. We
             // want to send our null presence state after we send any other
             // presence states.

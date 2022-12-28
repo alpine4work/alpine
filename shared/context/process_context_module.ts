@@ -35,10 +35,10 @@ export class ProcessContextModule extends ContextModuleBase {
      *
      * [1]: https://developers.cloudflare.com/workers/runtime-apis/fetch-event/#waituntil
      */
-    public waitUntil(promise: Promise<void>): void {
+    public waitUntil(action: Promise<void> | (() => Promise<void>)): void {
         // TODO(calebmer): Error handling! Unhandled exceptions should not crash
         // the process.
-        this._waitUntil(promise);
+        this._waitUntil(typeof action === "function" ? action() : action);
     }
 }
 

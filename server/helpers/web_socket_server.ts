@@ -13,7 +13,6 @@ import {
 import {ErrorCode} from "~/shared/error/error_code";
 import {isHttp500ErrorCode} from "~/shared/error/is_http_500_error_code";
 import {Interval, createInterval} from "~/shared/helpers/async/interval";
-import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 import {assert} from "~/shared/helpers/control/assert";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {expirationTimeoutMs} from "~/shared/helpers/web_socket_shared";
@@ -343,7 +342,7 @@ class WebSocketServerConnectionWrapper<
         this._sessionId = sessionId;
 
         this._socket.addEventListener("message", event => {
-            runPromiseWithoutAwaiting(async () => {
+            this._processContext.process.waitUntil(async () => {
                 await this._processContext.tracer.withSpan(
                     "Received message from WebSocket connection",
                     async (context, span) => {

@@ -42,11 +42,8 @@ export abstract class ErrorBase extends Error {
      */
     public static from(error: unknown): ErrorBase {
         const ErrorConstructor =
-            this.constructor !== ErrorBase
-                ? (this.constructor as new (
-                      message: string,
-                      options?: {cause?: unknown},
-                  ) => ErrorBase)
+            this !== ErrorBase
+                ? (this as any as new (message: string, options?: {cause?: unknown}) => ErrorBase)
                 : UnknownError;
 
         return new ErrorConstructor(error instanceof Error ? error.message : String(error), {
