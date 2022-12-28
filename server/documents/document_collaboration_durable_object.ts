@@ -17,6 +17,7 @@ import {
 } from "~/server/dynamo/documents_table";
 import {WebSocketServer} from "~/server/helpers/web_socket_server";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module";
+import {createServerTracer} from "~/server/tracer/server_tracer";
 import {traceFetchResponse} from "~/server/tracer/trace_fetch_response";
 import {Context} from "~/shared/context/context";
 import {ProcessContextModule} from "~/shared/context/process_context_module";
@@ -46,9 +47,11 @@ import {Schema, SchemaSerializedValue} from "~/shared/schema/schema";
 import {TracerRoot} from "~/shared/tracer/tracer_root";
 
 type DurableObjectEnv = {
+    DEV_SERVER_PORT?: string;
     SESSION_COOKIE_SECRET?: string;
     AWS_ACCESS_KEY_ID?: string;
     AWS_SECRET_ACCESS_KEY?: string;
+    HONEYCOMB_API_KEY?: string;
 };
 
 /**
@@ -66,31 +69,16 @@ class DocumentCollaborationDurableObjectWrapper {
     constructor(state: DurableObjectState, env: DurableObjectEnv) {
         this._state = state;
 
-        const sessionCookieSecret =
-            env.SESSION_COOKIE_SECRET ?? (process.env.NODE_ENV !== "production" ? "secret" : null);
+        const sessionCookieSecret = env.SESSION_COOKIE_SECRET;
         if (!sessionCookieSecret)
-            throw new InternalError(
-                "Environment variable `SESSION_COOKIE_SECRET` must be set in production",
-            );
+            throw new InternalError("Missing `SESSION_COOKIE_SECRET` environment variable");
 
         this._sessionCookieSecret = sessionCookieSecret;
 
-        this._tracer = TracerRoot.new({
+        this._tracer = createServerTracer({
             serviceName: "DocumentCollaborationService",
-            jsHost: "CloudflareWorker",
-            untrusted: false,
-            // In Cloudflare Workers, `Date.now()` only moves forward on I/O as a part of
-            // their security model. This means timers won't be perfectly accurate.
-            // https://developers.cloudflare.com/workers/learning/security-model
-            getTime: () => Date.now(),
-            sendEvent: event => {
-                // TODO(calebmer): Implement!
-                // eslint-disable-next-line no-console
-                console.log({
-                    time: event.time,
-                    data: event.getFlatData(),
-                });
-            },
+            env,
+            waitUntil: promise => state.waitUntil(promise),
         });
 
         const awsContextModules = createAwsContextModulesFromEnv(env);

@@ -1,4 +1,5 @@
 import {getExceptionTracerEventData} from "~/shared/tracer/helpers/get_exception_tracer_event_data";
+import {TracerRoot} from "~/shared/tracer/tracer_root";
 import {TracerSpan} from "~/shared/tracer/tracer_span";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
 
@@ -7,6 +8,11 @@ import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
  * spans or may be root-level spans.
  */
 export abstract class TracerBase {
+    /**
+     * Get the root tracer.
+     */
+    public abstract getRoot(): TracerRoot;
+
     /**
      * Start a span that you will manually finish. We recommend using `withSpan()`
      * wherever possible which automatically finishes spans and handles exceptions.

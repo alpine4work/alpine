@@ -24,6 +24,8 @@ import {ErrorBodyRenderer} from "~/client/error/error_body_renderer";
 import {AppContextProvider, useAppContext} from "~/client/helpers/app_context";
 import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useStableValue} from "~/client/helpers/use_stable_value";
+import {jsonWithSchema} from "~/server/remix/json_with_schema";
+import {LoaderArgs} from "~/server/remix/loader_context";
 import {spacing} from "~/shared/design/spacing";
 import {NotFoundError, UnknownError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
@@ -31,8 +33,9 @@ import {ErrorSchema} from "~/shared/error/error_schema";
 import {assert} from "~/shared/helpers/control/assert";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";
-import {propagatedEventDataKey} from "~/shared/helpers/remix/json_with_schema_shared";
 import {quote} from "~/shared/helpers/string/quote";
+import {propagatedEventDataKey} from "~/shared/remix/json_with_schema_shared";
+import {Schema, SchemaType} from "~/shared/schema/schema";
 import {sprinkles} from "~/shared/styles/styles";
 import sharedStylesHref from "~/shared/styles/styles.css";
 import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data";
@@ -58,6 +61,19 @@ export function links(): Array<LinkDescriptor> {
         // work correctly.
         {rel: "stylesheet", href: prosemirrorStylesHref},
     ];
+}
+
+// The loader returns constants. We don't need to reload on page change.
+export const unstable_shouldReload = () => false;
+
+const LoaderSchema = Schema.object({
+    devServerPort: Schema.integer.optional(),
+});
+
+export function loader({context}: LoaderArgs) {
+    return jsonWithSchema(LoaderSchema, {
+        devServerPort: context.loader.getDevServerPort() ?? undefined,
+    });
 }
 
 export default function Root({error}: {error?: unknown}) {
@@ -93,6 +109,18 @@ export default function Root({error}: {error?: unknown}) {
             window.removeEventListener("error", handleError);
         };
     }, [context.tracer]);
+
+    // `useLoaderData()` doesn't work in an error boundary or catch boundary.
+    // We use this exact component for error and catch boundaries to avoid
+    // remounting when navigating between errors and non-errors. So manually
+    // deserialize the data for this route.
+    const loaderData = useMemo(
+        () =>
+            remixEntryContext.routeData.root
+                ? LoaderSchema.deserialize(remixEntryContext.routeData.root)
+                : null,
+        [remixEntryContext.routeData.root],
+    ) as SchemaType<typeof LoaderSchema> | null;
 
     const caught = useCatch() as ThrownResponse | undefined;
 
@@ -143,7 +171,7 @@ export default function Root({error}: {error?: unknown}) {
             <body>
                 {wrappedChildren}
                 <ScrollRestoration />
-                <LiveReload port={3001} />
+                {loaderData?.devServerPort && <LiveReload port={loaderData.devServerPort} />}
                 <Scripts />
             </body>
         </html>

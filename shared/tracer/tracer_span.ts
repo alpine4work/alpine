@@ -121,6 +121,10 @@ export class TracerSpan extends TracerBase {
         return {span, finishSpan};
     }
 
+    public getRoot(): TracerRoot {
+        return this._tracer;
+    }
+
     /**
      * See documentation for this method on `TracerBase.startSpan()`.
      */
@@ -228,7 +232,7 @@ export class TracerSpan extends TracerBase {
             next: this._eventData,
         };
 
-        this._tracer.sendEvent(
+        this._tracer._sendEvent(
             new TracerEvent(this._startTime, this._eventData, this._propagatedEventFlatData),
         );
     }
@@ -257,7 +261,7 @@ export class TracerSpan extends TracerBase {
             },
         };
 
-        this._tracer.sendEvent(
+        this._tracer._sendEvent(
             new TracerEvent(time, {value: data, next: null}, this._propagatedEventFlatData),
         );
     }
@@ -268,7 +272,7 @@ export class TracerSpan extends TracerBase {
     public log(name: string, data: TracerEventData = {}) {
         const time = this._tracer.getTime();
 
-        this._tracer.sendEvent(
+        this._tracer._sendEvent(
             new TracerEvent(
                 time,
                 {

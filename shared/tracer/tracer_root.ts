@@ -1,3 +1,4 @@
+import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {getRealmId} from "~/shared/id/realm_id";
 import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data";
 import {TracerBase} from "~/shared/tracer/tracer_base";
@@ -16,7 +17,6 @@ export type TracerServiceName = "AppClient" | "AppServer" | "DocumentCollaborati
 
 // TODO(calebmer): Tracer stuff
 // - Apply source map to error stack trace on server
-// - Sample rate
 // - Redact URLs
 // - Maybe in Cloudflare workers, whenever `getTime` is called we should do
 //   some light IO to progress the time? Maybe a cache read or something?
@@ -39,8 +39,12 @@ export class TracerRoot extends TracerBase {
 
     /**
      * Send an event to our observability tool for storage and analysis.
+     *
+     * This is private, only code that's part of the tracer implementation can call
+     * it. We do have some callers outside of this class. So while we give it a
+     * private name as an underscore, we label it as `public` with TypeScript.
      */
-    public readonly sendEvent: (event: TracerEvent) => void;
+    public readonly _sendEvent: (event: TracerEvent) => void;
 
     /**
      * Event data shared across all spans created by this tracer.
@@ -69,7 +73,7 @@ export class TracerRoot extends TracerBase {
     }) {
         super();
         this.getTime = getTime;
-        this.sendEvent = sendEvent;
+        this._sendEvent = sendEvent;
         this.sharedEventData = sharedEventData;
         this.propagatedEventData = propagatedEventData;
     }
@@ -98,10 +102,15 @@ export class TracerRoot extends TracerBase {
                 js: {
                     realmId: getRealmId(),
                     host: jsHost,
+                    nodeEnv: assertExists(process.env.NODE_ENV),
                 },
             },
             propagatedEventData: null,
         });
+    }
+
+    public getRoot(): TracerRoot {
+        return this;
     }
 
     public startSpan(name: string) {
@@ -135,7 +144,7 @@ export class TracerRoot extends TracerBase {
     public withPropagatedData(data: TracerEventData): TracerRoot {
         return new TracerRoot({
             getTime: this.getTime,
-            sendEvent: this.sendEvent,
+            sendEvent: this._sendEvent,
             sharedEventData: this.sharedEventData,
             propagatedEventData: this.propagatedEventData
                 ? // We merge here instead of using a linked list we lazily merge later since we
@@ -152,7 +161,7 @@ export class TracerRoot extends TracerBase {
     public log(name: string, data: TracerEventData = {}) {
         const time = this.getTime();
 
-        this.sendEvent(
+        this._sendEvent(
             new TracerEvent(
                 time,
                 {

@@ -1,5 +1,9 @@
 "use strict";
 
+const {parseDotenv} = require("./admin/helpers/parse_dotenv");
+
+const env = parseDotenv();
+
 /** @type {import('@remix-run/dev').AppConfig} */
 module.exports = {
     serverBuildTarget: "cloudflare-workers",
@@ -7,5 +11,5 @@ module.exports = {
     assetsBuildDirectory: "./app/public/build",
     serverBuildPath: "./app/build/server.js",
     ignoredRouteFiles: ["**/.*"],
-    devServerPort: 3001,
+    devServerPort: parseInt(env.DEV_SERVER_PORT, 10),
 };

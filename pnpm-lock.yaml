@@ -86,6 +86,7 @@ specifiers:
   '@types/cookie-session': ^2.0.44
   '@types/d3-interpolate': ^3.0.1
   '@types/dedent': ^0.7.0
+  '@types/express': ^4.17.15
   '@types/fs-extra': ^9.0.13
   '@types/functional-red-black-tree': ^1.0.1
   '@types/is-ci': ^3.0.0
@@ -131,7 +132,7 @@ specifiers:
   dotenv: ^16.0.3
   dotenv-expand: ^9.0.0
   email-validator: ^2.0.4
-  env-paths: '2'
+  env-paths: ^2.2.1
   esbuild: 0.14.51
   esbuild-jest: ^0.5.0
   eslint: 8.20.0
@@ -141,6 +142,7 @@ specifiers:
   eslint-plugin-jest-dom: ^4.0.2
   eslint-plugin-testing-library: ^5.9.1
   expect-type: ^0.14.2
+  express: ^4.18.2
   fs-extra: ^10.1.0
   functional-red-black-tree: ^1.0.1
   html-entities: ^2.3.3
@@ -214,6 +216,7 @@ dependencies:
   '@types/cookie-session': 2.0.44
   '@types/d3-interpolate': 3.0.1
   '@types/dedent': 0.7.0
+  '@types/express': 4.17.15
   '@types/fs-extra': 9.0.13
   '@types/functional-red-black-tree': 1.0.1
   '@types/is-ci': 3.0.0
@@ -269,6 +272,7 @@ dependencies:
   eslint-plugin-jest-dom: 4.0.2_eslint@8.20.0
   eslint-plugin-testing-library: 5.9.1_5m4fzlpnwdphldehhnooy3hiqa
   expect-type: 0.14.2
+  express: 4.18.2
   fs-extra: 10.1.0
   functional-red-black-tree: 1.0.1
   html-entities: 2.3.3
@@ -5378,7 +5382,7 @@ packages:
   /@types/cookie-session/2.0.44:
     resolution: {integrity: sha512-3DheOZ41pql6raSIkqEPphJdhA2dX2bkS+s2Qacv8YMKkoCbAIEXbsDil7351ARzMqvfyDUGNeHGiRZveIzhqQ==}
     dependencies:
-      '@types/express': 4.17.14
+      '@types/express': 4.17.15
       '@types/keygrip': 1.0.2
     dev: false
 
@@ -5430,8 +5434,8 @@ packages:
       '@types/range-parser': 1.2.4
     dev: false
 
-  /@types/express/4.17.14:
-    resolution: {integrity: sha512-TEbt+vaPFQ+xpxFLFssxUDXj5cWCxZJjIcB7Yg0k0GMHGtgtQgpvx/MUQUeAkNbA9AAGrwkAsoeItdTgS7FMyg==}
+  /@types/express/4.17.15:
+    resolution: {integrity: sha512-Yv0k4bXGOH+8a+7bELd2PqHQsuiANB+A8a4gnQrkRWzrkKlb6KHaVvyXhqs04sVW/OWlbPyYxRgYlIXLfrufMQ==}
     dependencies:
       '@types/body-parser': 1.19.2
       '@types/express-serve-static-core': 4.17.31

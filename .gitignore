@@ -25,3 +25,6 @@ yarn-error.log*
 
 # CDK
 /admin/aws/output
+
+# dotenv
+.env*.local

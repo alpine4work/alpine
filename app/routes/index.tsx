@@ -11,11 +11,11 @@ import {MultilineTextInput} from "~/client/design/multiline_text_input";
 import {Spacer} from "~/client/design/spacer";
 import {TextInput} from "~/client/design/text_input";
 import {ErrorInlineAlert} from "~/client/error/error_inline_alert";
-import {useActionDataWithSchema} from "~/client/helpers/remix/use_action_data_with_schema";
+import {useActionDataWithSchema} from "~/client/remix/use_action_data_with_schema";
 import {requestAlphaAccess} from "~/server/dynamo/alpha_access_table";
 import {validateEmailAddress} from "~/server/emails/email_address";
-import {DataFunctionArgs} from "~/server/helpers/remix/data_function_args";
-import {jsonWithSchema} from "~/server/helpers/remix/json_with_schema";
+import {LoaderArgs} from "~/server/remix/loader_context";
+import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {themeColors} from "~/shared/design/theme_colors";
 import {InvalidArgumentError} from "~/shared/error/error";
 import {ErrorSchema} from "~/shared/error/error_schema";
@@ -35,7 +35,7 @@ export function meta() {
     };
 }
 
-export async function loader({context}: DataFunctionArgs) {
+export async function loader({context}: LoaderArgs) {
     // Can not access this page while signed in.
     if (await context.auth.isAuthenticated()) return redirectToAuthenticatedHome(context);
 
@@ -53,7 +53,7 @@ const ActionSchema = Schema.result(
     }),
 );
 
-export async function action({request, context}: DataFunctionArgs) {
+export async function action({request, context}: LoaderArgs) {
     try {
         const formData = await request.formData();
         const name = formData.get("name");

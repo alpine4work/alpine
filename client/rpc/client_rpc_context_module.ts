@@ -104,7 +104,7 @@ async function executeRpcs(callBatch: Array<RpcCall>): Promise<void> {
         const {span, responsePromise} = fetchWithTracerAndReturnSpan(firstCall.span, "/api/rpc", {
             method: "POST",
             headers: {
-                "Content-Type": "application/json",
+                "content-type": "application/json",
             },
             body: JSON.stringify(RpcHttpInputSchema.serialize(input)),
         });

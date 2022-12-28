@@ -8,10 +8,14 @@ import {unauthenticatedSessionError} from "~/server/context/helpers/unauthentica
 import {Session} from "~/server/dynamo/accounts_table";
 import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base";
-import {LoadContext, LoadContextModules} from "~/server/helpers/remix/data_function_args";
+import {
+    LoaderContext,
+    LoaderContextModule,
+    LoaderContextModules,
+} from "~/server/remix/loader_context";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module";
 import {SessionCookieStorage} from "~/server/session/session_cookie";
-import {SessionCookieContextModule} from "~/server/session/session_cookie_context_module";
+import {createServerTracer} from "~/server/tracer/server_tracer";
 import {traceFetchResponse} from "~/server/tracer/trace_fetch_response";
 import {Context} from "~/shared/context/context";
 import {ProcessContextModule} from "~/shared/context/process_context_module";
@@ -20,14 +24,14 @@ import {InternalError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {Schema} from "~/shared/schema/schema";
 import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_header_propagation";
-import {TracerRoot} from "~/shared/tracer/tracer_root";
 
 type AppWorkerEnv = {
     DocumentCollaborationDurableObjectNamespace: DurableObjectNamespace;
+    DEV_SERVER_PORT?: string;
     SESSION_COOKIE_SECRET?: string;
     AWS_SECRET_ACCESS_KEY?: string;
     AWS_ACCESS_KEY_ID?: string;
-    ABLY_API_KEY?: string;
+    HONEYCOMB_API_KEY?: string;
     __STATIC_CONTENT?: string;
 };
 
@@ -35,13 +39,11 @@ const contextSymbol = Symbol("context");
 
 const handleRequest = createRequestHandler({
     build,
-    getLoadContext(event: FetchEvent & {[contextSymbol]?: LoadContext}) {
+    getLoadContext(event: FetchEvent & {[contextSymbol]?: LoaderContext}) {
         const context = assertExists(event[contextSymbol]);
         return context as any as AppLoadContext;
     },
 });
-
-let sharedTracer: TracerRoot | null = null;
 
 // Cache some shared resources across requests.
 let sharedResources: {
@@ -54,13 +56,39 @@ let sharedResources: {
     };
 } | null = null;
 
+function getSharedResources(env: AppWorkerEnv) {
+    // An env object that is referentially equal will be passed in as long as
+    // environment variables remain the same.
+    // https://developers.cloudflare.com/workers/runtime-apis/fetch-event/#parameters
+    if (sharedResources === null || sharedResources.env !== env) {
+        const sessionCookieSecret = env.SESSION_COOKIE_SECRET;
+        if (!sessionCookieSecret)
+            throw new InternalError("Missing `SESSION_COOKIE_SECRET` environment variable");
+
+        const sessionCookieStorage = new SessionCookieStorage({
+            // The session cookie domain is not set in development because we may be
+            // accessing from a proxied domain or an IP address on a mobile device.
+            domain: process.env.NODE_ENV === "production" ? "cyberworlds.dev" : null,
+            secret: sessionCookieSecret,
+        });
+
+        sharedResources = {
+            env,
+            sessionCookieSecret,
+            sessionCookieStorage,
+            awsContextModules: createAwsContextModulesFromEnv(env),
+        };
+    }
+    return sharedResources;
+}
+
 // See: https://github.com/cloudflare/wrangler/pull/2126
 const staticContentManifestPromise =
     process.env.NODE_ENV === "production"
         ? import("__STATIC_CONTENT_MANIFEST").then(manifestJson => JSON.parse(manifestJson.default))
         : null;
 
-async function fetch(
+async function handleFetch(
     request: Request,
     env: AppWorkerEnv,
     executionContext: ExecutionContext,
@@ -92,53 +120,7 @@ async function fetch(
         });
     }
 
-    if (sharedTracer === null) {
-        sharedTracer = TracerRoot.new({
-            serviceName: "AppServer",
-            jsHost: "CloudflareWorker",
-            untrusted: false,
-            // In Cloudflare Workers, `Date.now()` only moves forward on I/O as a part of
-            // their security model. This means timers won't be perfectly accurate.
-            // https://developers.cloudflare.com/workers/learning/security-model
-            getTime: () => Date.now(),
-            sendEvent: event => {
-                // TODO(calebmer): Implement!
-                // eslint-disable-next-line no-console
-                console.log({
-                    time: event.time,
-                    data: event.getFlatData(),
-                });
-            },
-        });
-    }
-    const tracer = sharedTracer;
-
-    // An env object that is referentially equal will be passed in as long as
-    // environment variables remain the same.
-    // https://developers.cloudflare.com/workers/runtime-apis/fetch-event/#parameters
-    if (sharedResources === null || sharedResources.env !== env) {
-        const sessionCookieSecret =
-            env.SESSION_COOKIE_SECRET ?? (process.env.NODE_ENV !== "production" ? "secret" : null);
-        if (!sessionCookieSecret)
-            throw new InternalError(
-                "Environment variable `SESSION_COOKIE_SECRET` must be set in production",
-            );
-
-        const sessionCookieStorage = new SessionCookieStorage({
-            // The session cookie domain is not set in development because we may be
-            // accessing from a proxied domain or an IP address on a mobile device.
-            domain: process.env.NODE_ENV === "production" ? "cyberworlds.dev" : null,
-            secret: sessionCookieSecret,
-        });
-
-        sharedResources = {
-            env,
-            sessionCookieSecret,
-            sessionCookieStorage,
-            awsContextModules: createAwsContextModulesFromEnv(env),
-        };
-    }
-    const resources = sharedResources;
+    const resources = getSharedResources(env);
 
     // In development we have middleware on our HTTP server that serves static
     // files from the file system instead of a Cloudflare KV namespace.
@@ -146,7 +128,7 @@ async function fetch(
         // Backwards compatibility with Cloudflare service worker syntax. (Instead of
         // Cloudflare module syntax.)
         // https://developers.cloudflare.com/workers/runtime-apis/fetch-event
-        const event: FetchEvent & {[contextSymbol]?: LoadContext} = Object.assign(
+        const event: FetchEvent & {[contextSymbol]?: LoaderContext} = Object.assign(
             new Event("fetch"),
             {
                 request,
@@ -165,13 +147,22 @@ async function fetch(
         if (response) return response;
     }
 
+    // Create a new tracer for every request because we need a Honeycomb client and
+    // the Honeycomb client needs `executionContext.waitUntil()` which is request
+    // scoped. Tracers are cheap to construct so this is fine.
+    const tracer = createServerTracer({
+        serviceName: "AppServer",
+        env,
+        waitUntil: promise => executionContext.waitUntil(promise),
+    });
+
     // Don't trace asset requests. If we do one day trace asset requests we should
     // do it with a low sample rate.
     return traceFetchResponse(tracer, request, url, async (span, request) => {
         // Backwards compatibility with Cloudflare service worker syntax. (Instead of
         // Cloudflare module syntax.)
         // https://developers.cloudflare.com/workers/runtime-apis/fetch-event
-        const event: FetchEvent & {[contextSymbol]?: LoadContext} = Object.assign(
+        const event: FetchEvent & {[contextSymbol]?: LoaderContext} = Object.assign(
             new Event("fetch"),
             {
                 request,
@@ -227,7 +218,7 @@ async function fetch(
         }
 
         return resources.sessionCookieStorage.with(request, sessionCookiePromise => {
-            return Context.with<LoadContextModules, Response>(
+            return Context.with<LoaderContextModules, Response>(
                 {
                     ...resources.awsContextModules,
                     process: new ProcessContextModule({
@@ -235,7 +226,12 @@ async function fetch(
                     }),
                     tracer: new TracerContextModule(span),
                     rpc: new LocalRpcContextModule(),
-                    sessionCookie: new SessionCookieContextModule(sessionCookiePromise),
+                    loader: new LoaderContextModule({
+                        sessionCookiePromise,
+                        devServerPort: env.DEV_SERVER_PORT
+                            ? parseInt(env.DEV_SERVER_PORT, 10)
+                            : null,
+                    }),
 
                     auth: new UnauthenticatedAuthContextModule(async context => {
                         const sessionCookie = await sessionCookiePromise;
@@ -264,7 +260,7 @@ async function fetch(
     });
 }
 
-export default {fetch};
+export default {fetch: handleFetch};
 
 // Export the durable object so Cloudflare can pick it up. in the future, we
 // should maybe use separate bundles for each durable object.

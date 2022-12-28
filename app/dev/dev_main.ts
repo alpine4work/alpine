@@ -1,6 +1,8 @@
 import {createRequestListener, writeResponse} from "@miniflare/http-server";
 import {coupleWebSocket} from "@miniflare/web-sockets";
 import chalk from "chalk";
+import express from "express";
+import fs from "fs-extra";
 import http from "http";
 import {Miniflare} from "miniflare";
 import {Socket} from "net";
@@ -10,32 +12,21 @@ import createServeStaticMiddleware from "serve-static";
 import {Headers} from "undici";
 import WebSocket from "ws";
 import {prepareLocalstack} from "~/admin/aws/prepare_localstack";
+import {devEnvPaths} from "~/admin/helpers/dev_env_paths";
+import {parseDotenv} from "~/admin/helpers/parse_dotenv";
 import {runfilesPath} from "~/admin/helpers/runfiles_path";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 import {assert} from "~/shared/helpers/control/assert";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
 
-const host = "127.0.0.1";
-const prettyHost = host === "127.0.0.1" ? "localhost" : host;
-const port = 3000;
-const devServerPort = 3001;
+const env = parseDotenv();
 
-const externalHost = (() => {
-    for (const [name, nets] of Object.entries(networkInterfaces())) {
-        if (!nets) continue;
-        for (const networkInterface of nets) {
-            // Skip over non-IPv4 and internal (i.e. 127.0.0.1) addresses
-            // 'IPv4' is in Node <= 17, from 18 it's a number 4 or 6
-            const familyV4Value = typeof networkInterface.family === "string" ? "IPv4" : 4;
-            if (networkInterface.family === familyV4Value && !networkInterface.internal) {
-                if (name === "en0") {
-                    return networkInterface.address;
-                }
-            }
-        }
-    }
-    return null;
-})();
+const port = parseInt(assertExists(env.APP_PORT), 10);
+const devServerPort = parseInt(assertExists(env.DEV_SERVER_PORT), 10);
+
+const tracerLogDirectoryPath = path.join(devEnvPaths.log, "tracer");
+fs.ensureDirSync(tracerLogDirectoryPath);
 
 /* ========================================================================== *\
  *                                Miniflare                                   *
@@ -48,6 +39,7 @@ const miniflare = new Miniflare({
     modules: true,
     modulesRules: [{type: "ESModule", include: ["**/*.js"], fallthrough: true}],
     sourceMap: true,
+    bindings: env,
     durableObjects: {
         DocumentCollaborationDurableObjectNamespace: "DocumentCollaborationDurableObject",
     },
@@ -167,14 +159,39 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(port, () => {
-    // eslint-disable-next-line no-console
-    console.log(`🚀 App listening on ${chalk.underline.bold(`http://${prettyHost}:${port}`)}`);
-    if (externalHost) {
-        // eslint-disable-next-line no-console
-        console.log(
-            `🚀 App listening on ${chalk.underline.bold(`http://${externalHost}:${port}`)}`,
-        );
-    }
+    const externalHost = (() => {
+        for (const [name, nets] of Object.entries(networkInterfaces())) {
+            if (!nets) continue;
+            for (const networkInterface of nets) {
+                // Skip over non-IPv4 and internal (i.e. 127.0.0.1) addresses
+                // 'IPv4' is in Node <= 17, from 18 it's a number 4 or 6
+                const familyV4Value = typeof networkInterface.family === "string" ? "IPv4" : 4;
+                if (networkInterface.family === familyV4Value && !networkInterface.internal) {
+                    if (name === "en0") {
+                        return networkInterface.address;
+                    }
+                }
+            }
+        }
+        return null;
+    })();
+
+    process.stdout.write(`\
+
+
+Development environment running on ${chalk.underline.bold(`http://localhost:${port}`)}
+
+${
+    externalHost
+        ? `- Other devices on your network can access: ${chalk.underline(
+              `http://${externalHost}:${port}`,
+          )}\n`
+        : ""
+}\
+- Tracer logs are available at: ${chalk.underline(tracerLogDirectoryPath)}
+
+
+`);
 });
 
 /* ========================================================================== *\
@@ -276,15 +293,46 @@ server.on("upgrade", (req, socket, head) => {
 });
 
 /* ========================================================================== *\
- *                       Live Reload WebSocket Server                         *
+ *                                Dev Server                                  *
 \* ========================================================================== */
 
-const liveReloadServer = new WebSocket.Server({
-    port: devServerPort,
+const devServer = express();
+
+devServer.use(express.json());
+
+devServer.post("/tracer", (req, res, next) => {
+    const promise = (async () => {
+        const event = req.body;
+
+        const date = new Date();
+        const dateString =
+            date.getUTCFullYear().toString().padStart(4, "0") +
+            "-" +
+            (date.getUTCMonth() + 1).toString().padStart(2, "0") +
+            "-" +
+            date.getUTCDate().toString().padStart(2, "0");
+
+        const tracerLogFilePath = path.join(tracerLogDirectoryPath, `tracer-${dateString}.log`);
+
+        await fs.appendFile(tracerLogFilePath, JSON.stringify(event) + "\n");
+    })();
+
+    promise.then(
+        () => res.status(200).end(),
+        error => next(error),
+    );
+});
+
+const actualDevServer = http.createServer();
+actualDevServer.on("request", devServer);
+actualDevServer.listen(devServerPort);
+
+const devWebSocketServer = new WebSocket.Server({
+    server: actualDevServer,
 });
 
 function broadcast(event: unknown) {
-    liveReloadServer.clients.forEach(client => {
+    devWebSocketServer.clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) {
             client.send(JSON.stringify(event));
         }

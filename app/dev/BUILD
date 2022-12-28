@@ -6,9 +6,12 @@ ts_project(
     deps = [
         "//:node_modules/@miniflare/http-server",
         "//:node_modules/@miniflare/web-sockets",
+        "//:node_modules/@types/express",
         "//:node_modules/@types/serve-static",
         "//:node_modules/@types/ws",
         "//:node_modules/chalk",
+        "//:node_modules/express",
+        "//:node_modules/fs-extra",
         "//:node_modules/miniflare",
         "//:node_modules/serve-static",
         "//:node_modules/undici",

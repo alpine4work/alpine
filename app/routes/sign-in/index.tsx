@@ -8,11 +8,11 @@ import {FocusRing} from "~/client/design/focus_ring";
 import {Spacer} from "~/client/design/spacer";
 import {TextInput} from "~/client/design/text_input";
 import {ErrorInlineAlert} from "~/client/error/error_inline_alert";
-import {useActionDataWithSchema} from "~/client/helpers/remix/use_action_data_with_schema";
+import {useActionDataWithSchema} from "~/client/remix/use_action_data_with_schema";
 import {regenerateOneTimePasswordSignIn} from "~/server/dynamo/accounts_table";
 import {validateEmailAddress} from "~/server/emails/email_address";
-import {DataFunctionArgs} from "~/server/helpers/remix/data_function_args";
-import {jsonWithSchema} from "~/server/helpers/remix/json_with_schema";
+import {LoaderArgs} from "~/server/remix/loader_context";
+import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {InvalidArgumentError} from "~/shared/error/error";
 import {ErrorSchema} from "~/shared/error/error_schema";
 import {isHttp500Error} from "~/shared/error/is_http_500_error_code";
@@ -26,7 +26,7 @@ export function meta() {
     };
 }
 
-export async function loader({context}: DataFunctionArgs) {
+export async function loader({context}: LoaderArgs) {
     // Can not access this page while signed in.
     if (await context.auth.isAuthenticated()) return redirectToAuthenticatedHome(context);
 
@@ -38,7 +38,7 @@ const ActionSchema = Schema.object({
     error: ErrorSchema,
 });
 
-export async function action({request, context}: DataFunctionArgs) {
+export async function action({request, context}: LoaderArgs) {
     try {
         const formData = await request.formData();
         const emailAddress = formData.get("emailAddress");

@@ -1,6 +1,7 @@
 import {assert} from "~/shared/helpers/control/assert";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable";
 import {tracerEventHttpHeaderNames} from "~/shared/tracer/helpers/tracer_event_http_header_names";
+import {TracerBase} from "~/shared/tracer/tracer_base";
 import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_header_propagation";
 import {TracerSpan} from "~/shared/tracer/tracer_span";
 
@@ -11,11 +12,11 @@ import {TracerSpan} from "~/shared/tracer/tracer_span";
  * [1]: https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
  */
 export async function fetchWithTracer(
-    parentSpan: TracerSpan,
+    tracer: TracerBase,
     url: string,
     requestInit?: RequestInit,
 ): Promise<Response> {
-    return fetchWithTracerAndReturnSpan(parentSpan, url, requestInit).responsePromise;
+    return fetchWithTracerAndReturnSpan(tracer, url, requestInit).responsePromise;
 }
 
 /**
@@ -23,7 +24,7 @@ export async function fetchWithTracer(
  * You should almost always prefer using `fetchWithTracer()`.
  */
 export function fetchWithTracerAndReturnSpan(
-    parentSpan: TracerSpan,
+    tracer: TracerBase,
     url: string,
     requestInit?: RequestInit,
 ): {
@@ -33,7 +34,7 @@ export function fetchWithTracerAndReturnSpan(
     const requestUrl = new URL(url, window.location.href);
     const requestMethod = requestInit?.method ?? "GET";
 
-    const {span, finishSpan} = parentSpan.startSpan(`HTTP client ${requestMethod}`);
+    const {span, finishSpan} = tracer.startSpan(`HTTP client ${requestMethod}`);
 
     const requestHeaders = new Headers(requestInit?.headers);
     addTracerPropagationContextHeader(requestHeaders, span);

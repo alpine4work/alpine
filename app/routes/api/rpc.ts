@@ -1,4 +1,4 @@
-import {DataFunctionArgs} from "~/server/helpers/remix/data_function_args";
+import {LoaderArgs} from "~/server/remix/loader_context";
 import {getRpcImplementation} from "~/server/rpc/get_rpc_implementation";
 import {InvalidArgumentError, NotFoundError} from "~/shared/error/error";
 import {isHttp500Error} from "~/shared/error/is_http_500_error_code";
@@ -9,7 +9,7 @@ import {
 } from "~/shared/rpc/helpers/rpc_http_schema";
 import {SchemaType} from "~/shared/schema/schema";
 
-export async function action({request, context}: DataFunctionArgs) {
+export async function action({request, context}: LoaderArgs) {
     try {
         if (request.method !== "POST")
             throw new InvalidArgumentError("Must use POST HTTP method when executing RPCs");

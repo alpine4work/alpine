@@ -57,6 +57,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
     js: {
         realmId: Schema.id,
         host: Schema.enum(["Web", "Node", "CloudflareWorker"]),
+        nodeEnv: IdentifierStringSchema,
     },
     net: {
         sock: {

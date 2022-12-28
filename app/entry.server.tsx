@@ -2,7 +2,7 @@ import type {EntryContext} from "@remix-run/cloudflare";
 import {RemixServer} from "@remix-run/react";
 import {renderToString} from "react-dom/server";
 import {AppContextProvider} from "~/client/helpers/app_context";
-import {LoadContext} from "~/server/helpers/remix/data_function_args";
+import {LoaderContext} from "~/server/remix/loader_context";
 import {ErrorSchema} from "~/shared/error/error_schema";
 import {assert} from "~/shared/helpers/control/assert";
 
@@ -15,7 +15,7 @@ export default function handleRequest(
     responseStatusCode: number,
     responseHeaders: Headers,
     remixContext: EntryContext,
-    loadContext: LoadContext,
+    loadContext: LoaderContext,
 ) {
     // We patched Remix to get the `loadContext` parameter here so make sure the
     // patch worked.

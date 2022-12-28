@@ -4,13 +4,13 @@ import {Button} from "~/client/design/button";
 import {Spacer} from "~/client/design/spacer";
 import {TextInput} from "~/client/design/text_input";
 import {useAppContext} from "~/client/helpers/app_context";
-import {useLoaderDataWithSchema} from "~/client/helpers/remix/use_loader_data_with_schema";
+import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {
     getAlphaConfiguration,
     getUndecidedAlphaAccessRequests,
 } from "~/server/dynamo/alpha_access_table";
-import {DataFunctionArgs} from "~/server/helpers/remix/data_function_args";
-import {jsonWithSchema} from "~/server/helpers/remix/json_with_schema";
+import {LoaderArgs} from "~/server/remix/loader_context";
+import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {AlphaAccessRequestModel} from "~/shared/alpha/alpha_access_request_model";
 import {AlphaConfigurationSchema} from "~/shared/alpha/alpha_configuration_schema";
 import {InvalidArgumentError} from "~/shared/error/error";
@@ -35,7 +35,7 @@ const LoaderSchema = Schema.object({
     requests: Schema.array(AlphaAccessRequestModel.schema()),
 });
 
-export async function loader({context}: DataFunctionArgs) {
+export async function loader({context}: LoaderArgs) {
     const [configuration, requests] = await runAllPromises([
         getAlphaConfiguration(context),
         getUndecidedAlphaAccessRequests(await context.auth.authenticate()),

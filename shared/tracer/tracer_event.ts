@@ -1,4 +1,4 @@
-import {NonEmptyLinkedList} from "~/shared/helpers/immutable/linked_list";
+import {LinkedList} from "~/shared/helpers/immutable/linked_list";
 import {
     TracerEventFlatData,
     buildTracerEventFlatData,
@@ -17,13 +17,13 @@ import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data";
  */
 export class TracerEvent {
     public readonly time: number;
-    private readonly _eventData: NonEmptyLinkedList<TracerEventFullData>;
+    private readonly _eventData: LinkedList<TracerEventFullData>;
     private readonly _propagatedEventFlatData: TracerEventFlatData | null;
     private _flatEventData: TracerEventFlatData | null = null;
 
     constructor(
         time: number,
-        eventData: NonEmptyLinkedList<TracerEventFullData>,
+        eventData: LinkedList<TracerEventFullData>,
         propagatedEventFlatData: TracerEventFlatData | null,
     ) {
         this.time = time;
@@ -37,10 +37,10 @@ export class TracerEvent {
      */
     public getFlatData(): TracerEventFlatData {
         if (this._flatEventData === null) {
-            this._flatEventData = buildTracerEventFlatData(
-                this._eventData,
-                this._propagatedEventFlatData,
-            );
+            this._flatEventData =
+                this._eventData !== null
+                    ? buildTracerEventFlatData(this._eventData, this._propagatedEventFlatData)
+                    : this._propagatedEventFlatData ?? {};
         }
         return this._flatEventData;
     }

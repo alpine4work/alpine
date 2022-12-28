@@ -7,12 +7,12 @@ import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
 import {Tooltip} from "~/client/design/tooltip";
 import {ErrorBodyRenderer} from "~/client/error/error_body_renderer";
-import {useLoaderDataWithSchema} from "~/client/helpers/remix/use_loader_data_with_schema";
+import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {useUrlSearchParamState} from "~/client/helpers/use_url_search_param_state";
 import {getEmailTemplatePreviewBySlug} from "~/server/emails/get_email_template_preview_by_slug";
-import {jsonWithSchema} from "~/server/helpers/remix/json_with_schema";
-import {notFoundResponse} from "~/server/helpers/remix/not_found_response";
-import {DataFunctionArgs} from "~/server/helpers/remix/data_function_args";
+import {jsonWithSchema} from "~/server/remix/json_with_schema";
+import {notFoundResponse} from "~/server/remix/not_found_response";
+import {LoaderArgs} from "~/server/remix/loader_context";
 import {spacing} from "~/shared/design/spacing";
 import {ErrorSchema} from "~/shared/error/error_schema";
 import {captureResult} from "~/shared/helpers/control/capture_result";
@@ -59,7 +59,7 @@ export const unstable_shouldReload: ShouldReloadFunction = ({url: _url, prevUrl:
     return url.toString() !== prevUrl.toString();
 };
 
-export async function loader({params}: DataFunctionArgs) {
+export async function loader({params}: LoaderArgs) {
     const emailTemplatePreviews = await getEmailTemplatePreviewBySlug();
 
     const slug = params["email_preview"] ?? "";

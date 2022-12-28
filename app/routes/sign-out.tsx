@@ -1,7 +1,7 @@
 import {redirect} from "@remix-run/cloudflare";
-import {DataFunctionArgs} from "~/server/helpers/remix/data_function_args";
+import {LoaderArgs} from "~/server/remix/loader_context";
 
-export async function loader({context}: DataFunctionArgs) {
-    await context.sessionCookie.unsetSessionId();
+export async function loader({context}: LoaderArgs) {
+    (await context.loader.getSessionCookie()).unsetSessionId();
     return redirect("/");
 }

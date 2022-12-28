@@ -103,6 +103,9 @@ export type TracerEventFullData = TracerEventData & {
 
         /** What is the host running our JavaScript code? */
         readonly host?: TracerEventJsHost;
+
+        /** The value of `process.env.NODE_ENV`. */
+        readonly nodeEnv?: string;
     };
 };
 

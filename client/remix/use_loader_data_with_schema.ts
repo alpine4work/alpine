@@ -1,7 +1,7 @@
 import {useLoaderData} from "@remix-run/react";
 import {useMemo} from "react";
 import {assert} from "~/shared/helpers/control/assert";
-import {deserializedValueSymbol} from "~/shared/helpers/remix/json_with_schema_shared";
+import {deserializedValueSymbol} from "~/shared/remix/json_with_schema_shared";
 import {Schema} from "~/shared/schema/schema";
 
 /**
