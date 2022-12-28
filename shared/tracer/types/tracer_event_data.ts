@@ -263,12 +263,6 @@ export type TracerEventData = {
      * [1]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/semantic_conventions/exceptions.md
      */
     readonly exception?: {
-        /**
-         * Should be set to true if the exception event is recorded at a point where it
-         * is known that the exception is escaping the scope of the span.
-         */
-        readonly escaped?: boolean;
-
         /** The exception message. */
         readonly message?: string;
 

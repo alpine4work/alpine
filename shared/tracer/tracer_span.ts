@@ -161,15 +161,9 @@ export class TracerSpan extends TracerBase {
     /**
      * Add an exception to the span's data. Puts the span in an error state.
      */
-    public addExceptionData(
-        error: unknown,
-        options: {
-            /** Has this error escaped the scope of the span? */
-            escaped: boolean;
-        },
-    ) {
+    public addException(error: unknown) {
         this.addData({
-            exception: getExceptionTracerEventData(error, options),
+            exception: getExceptionTracerEventData(error),
         });
     }
 

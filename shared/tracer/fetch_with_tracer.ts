@@ -113,7 +113,7 @@ export function fetchWithTracerAndReturnSpan(
             };
 
             const finishSpanAfterResponseBodyError = (error: any) => {
-                span.addExceptionData(error, {escaped: true});
+                span.addException(error);
                 finishSpan();
             };
 
@@ -193,7 +193,7 @@ export function fetchWithTracerAndReturnSpan(
 
             return new Response(newResponseBody, response);
         } catch (error) {
-            span.addExceptionData(error, {escaped: true});
+            span.addException(error);
             finishSpan();
             throw error;
         }

@@ -45,6 +45,7 @@ import {Id} from "~/shared/id/id";
 import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema";
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema";
 import {TracerRoot} from "~/shared/tracer/tracer_root";
+import {TracerSpan} from "~/shared/tracer/tracer_span";
 
 type DurableObjectEnv = {
     DEV_SERVER_PORT?: string;
@@ -492,42 +493,50 @@ class DocumentCollaborationContentManager {
                         if (this._persistenceState?.next?.steps === nextSteps)
                             this._persistenceState.next = null;
 
-                        try {
-                            const {conflictingSteps} = await updateDocumentContent(context, {
-                                id: this._id,
-                                version: oldVersion,
-                                steps: nextSteps,
-                                clientId: update.clientId,
-                            });
+                        await context.tracer.withSpan(
+                            "Persist document content",
+                            async (context, span) => {
+                                try {
+                                    const {conflictingSteps} = await updateDocumentContent(
+                                        context,
+                                        {
+                                            id: this._id,
+                                            version: oldVersion,
+                                            steps: nextSteps,
+                                            clientId: update.clientId,
+                                        },
+                                    );
 
-                            // The document collaboration durable object should be the only process writing
-                            // to a document! If some other process is writing to a document, weird
-                            // things may start breaking in the durable object and on the client.
-                            //
-                            // We save steps anyway to preserve as much user data as we can.
-                            if (conflictingSteps.length > 0) {
-                                throw new InternalError(
-                                    "Some process updated document content other than the document's durable object. This may cause many downstream issues as a core assumption about the document collaboration implementation has been violated",
-                                );
-                            }
+                                    // The document collaboration durable object should be the only process writing
+                                    // to a document! If some other process is writing to a document, weird
+                                    // things may start breaking in the durable object and on the client.
+                                    //
+                                    // We save steps anyway to preserve as much user data as we can.
+                                    if (conflictingSteps.length > 0) {
+                                        throw new InternalError(
+                                            "Some process updated document content other than the document's durable object. This may cause many downstream issues as a core assumption about the document collaboration implementation has been violated",
+                                        );
+                                    }
 
-                            this._sendMessageToAll(context, {
-                                type: "PersistedContent",
-                                newVersion: oldVersion + nextSteps.length,
-                            });
-                        } catch (_error) {
-                            context.tracer.logException(_error);
+                                    this._sendMessageToAll(context, {
+                                        type: "PersistedContent",
+                                        newVersion: oldVersion + nextSteps.length,
+                                    });
+                                } catch (_error) {
+                                    span.addException(_error);
 
-                            // If we failed to update, always classify it as an internal error since
-                            // clients have seen the update.
-                            const error = InternalError.from(_error);
+                                    // If we failed to update, always classify it as an internal error since
+                                    // clients have seen the update.
+                                    const error = InternalError.from(_error);
 
-                            this._sendMessageToAll(context, {
-                                type: "Error",
-                                error,
-                            });
-                            this._destroyDurableObject(context);
-                        }
+                                    this._sendMessageToAll(context, {
+                                        type: "Error",
+                                        error,
+                                    });
+                                    this._destroyDurableObject(context);
+                                }
+                            },
+                        );
                     })(),
                 };
 
@@ -591,7 +600,11 @@ class DocumentCollaborationDurableObjectConnection {
         return this._presenceState;
     }
 
-    public handleMessage(context: RequestContext, message: DocumentCollaborationMessageFromClient) {
+    public handleMessage(
+        context: RequestContext,
+        message: DocumentCollaborationMessageFromClient,
+        span: TracerSpan,
+    ) {
         // Handle all messages for this connection in sequence as a defense against
         // race conditions.
         //
@@ -620,6 +633,7 @@ class DocumentCollaborationDurableObjectConnection {
                             if (!documentPreview) {
                                 this._sendFatalErrorMessageAndDestroyDurableObject(
                                     context,
+                                    span,
                                     new NotFoundError(
                                         "Document was deleted since durable object started",
                                     ),
@@ -629,6 +643,7 @@ class DocumentCollaborationDurableObjectConnection {
                             if (documentPreview.version > version) {
                                 this._sendFatalErrorMessageAndDestroyDurableObject(
                                     context,
+                                    span,
                                     new InternalError(
                                         "Document version in durable object is out of sync with actual document version",
                                     ),
@@ -773,8 +788,12 @@ class DocumentCollaborationDurableObjectConnection {
         );
     }
 
-    private _sendFatalErrorMessageAndDestroyDurableObject(context: ProcessContext, error: unknown) {
-        context.tracer.logException(error);
+    private _sendFatalErrorMessageAndDestroyDurableObject(
+        context: ProcessContext,
+        span: TracerSpan,
+        error: unknown,
+    ) {
+        span.addException(error);
 
         this._sendMessage(context, {
             type: "Error",

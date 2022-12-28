@@ -63,8 +63,7 @@ export function startSpanFromPropagationContextHeader(
             data: propagationContext.data,
         });
     } catch (error) {
-        const {span, finishSpan} = tracer.startSpan(name);
-        span.logException(error);
-        return {span, finishSpan};
+        tracer.getRoot().logUncaughtException(error);
+        return tracer.startSpan(name);
     }
 }

@@ -1,5 +1,6 @@
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {getRealmId} from "~/shared/id/realm_id";
+import {getExceptionTracerEventData} from "~/shared/tracer/helpers/get_exception_tracer_event_data";
 import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data";
 import {TracerBase} from "~/shared/tracer/tracer_base";
 import {TracerEvent} from "~/shared/tracer/tracer_event";
@@ -186,5 +187,21 @@ export class TracerRoot extends TracerBase {
                 null,
             ),
         );
+    }
+
+    /**
+     * Add a structured exception log event to this span.
+     *
+     * Uses `this.log()` but with exception event attributes.
+     *
+     * We only have `this.logUncaughtException()` on the tracer root because
+     * Honeycomb ignores exceptions on span events. It expects exceptions only on
+     * spans or events outside of a span.
+     */
+    public logUncaughtException(error: unknown, data: TracerEventData = {}) {
+        this.log("Uncaught exception", {
+            ...data,
+            exception: getExceptionTracerEventData(error),
+        });
     }
 }

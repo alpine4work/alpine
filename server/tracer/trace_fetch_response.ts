@@ -112,7 +112,7 @@ export async function traceFetchResponse(
         finishSpan();
         return response;
     } catch (error) {
-        span.addExceptionData(error, {escaped: true});
+        span.addException(error);
         finishSpan();
         throw error;
     }

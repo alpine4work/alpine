@@ -66,7 +66,7 @@ export async function action({request, context}: LoaderArgs) {
             },
         );
     } catch (error) {
-        context.tracer.logException(error);
+        context.loader.requestSpan.addException(error);
 
         const status = isHttp500Error(error) ? 500 : 400;
 

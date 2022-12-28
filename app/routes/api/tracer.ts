@@ -47,14 +47,10 @@ export async function action({request, context}: LoaderArgs) {
 
                 // Now that we've validated our event, send it with our root tracer. The root
                 // tracer will handle batching events into one request to Honeycomb.
-                context.tracer
-                    .getTracer()
-                    .getRoot()
-                    ._sendEvent(new TracerEvent(event.time, null, event.data));
+                context.tracer.getRoot()._sendEvent(new TracerEvent(event.time, null, event.data));
             } catch (error) {
                 // A bad event should not stop us from recording other good events in the batch
                 // sent by the client.
-                context.tracer.logException(error);
                 errors.push(error);
             }
         }
@@ -65,6 +61,8 @@ export async function action({request, context}: LoaderArgs) {
                 headers: {"content-type": "application/json"},
             });
         } else {
+            context.loader.requestSpan.addException(errors[0]);
+
             return new Response(
                 JSON.stringify({
                     ok: false,
@@ -80,7 +78,7 @@ export async function action({request, context}: LoaderArgs) {
             );
         }
     } catch (error) {
-        context.tracer.logException(error);
+        context.loader.requestSpan.addException(error);
 
         const status = isHttp500Error(error) ? 500 : 400;
 

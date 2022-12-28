@@ -30,13 +30,6 @@ export function ErrorDisplayMessageRenderer({
         errorToLogRef.current = {error, hasLogged: false};
     }
 
-    // If we are server-side rendering then log the exception as part of our trace
-    // here in the React renderer. When server-side rendering effects won't run.
-    if (typeof document === "undefined" && !errorToLogRef.current.hasLogged) {
-        context.tracer.logException(errorToLogRef.current.error);
-        errorToLogRef.current.hasLogged = true;
-    }
-
     // Log errors to the console as well after we render them to help the
     // developer debug.
     useEffect(() => {
@@ -45,12 +38,11 @@ export function ErrorDisplayMessageRenderer({
         // isn't useful.
         scheduleMicrotask(() => {
             if (!errorToLogRef.current.hasLogged) {
-                // TODO(calebmer): Is `logException()` not enough? It would be nice to log to
-                // the console from there.
+                // Log the error to the console to make the error easier to debug.
                 // eslint-disable-next-line no-console
                 console.error(error);
 
-                context.tracer.logException(errorToLogRef.current.error);
+                context.tracer.getRoot().logUncaughtException(errorToLogRef.current.error);
                 errorToLogRef.current.hasLogged = true;
             }
         });

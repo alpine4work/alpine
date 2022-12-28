@@ -2,6 +2,7 @@ import {Context} from "~/shared/context/context";
 import {ContextModuleBase} from "~/shared/context/context_module_base";
 import {Replace} from "~/shared/helpers/types/replace";
 import {TracerBase} from "~/shared/tracer/tracer_base";
+import {TracerRoot} from "~/shared/tracer/tracer_root";
 import {TracerSpan} from "~/shared/tracer/tracer_span";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
 
@@ -27,6 +28,13 @@ export class TracerContextModule extends ContextModuleBase {
     }
 
     /**
+     * Get the root tracer.
+     */
+    public getRoot(): TracerRoot {
+        return this._tracer.getRoot();
+    }
+
+    /**
      * Start a span that you will manually finish. We recommend using `withSpan()`
      * wherever possible which automatically finishes spans and handles exceptions.
      *
@@ -44,6 +52,10 @@ export class TracerContextModule extends ContextModuleBase {
      * The name should be a short, low cardinality, string. You should be able to
      * easily search the codebase for the code defining a span based on its name
      * after seeing a span in our observability tool.
+     *
+     * The name should be written in present simple tense. So "Update document
+     * content" instead of "Updating document content" (present continuous tense)
+     * or "Updated document content" (past tense).
      *
      * The name should not contain IDs or other dynamic content.
      *
@@ -98,14 +110,5 @@ export class TracerContextModule extends ContextModuleBase {
      */
     public log(name: string, data?: TracerEventData) {
         this._tracer.log(name, data);
-    }
-
-    /**
-     * Add a structured exception log event to this span.
-     *
-     * Uses `this.log()` but with exception event attributes.
-     */
-    public logException(error: unknown, data: TracerEventData = {}) {
-        this._tracer.logException(error, data);
     }
 }

@@ -228,6 +228,7 @@ async function handleFetch(
                     rpc: new LocalRpcContextModule(),
                     loader: new LoaderContextModule({
                         sessionCookiePromise,
+                        requestSpan: span,
                         devServerPort: env.DEV_SERVER_PORT
                             ? parseInt(env.DEV_SERVER_PORT, 10)
                             : null,

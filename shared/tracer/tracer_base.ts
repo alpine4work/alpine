@@ -1,4 +1,3 @@
-import {getExceptionTracerEventData} from "~/shared/tracer/helpers/get_exception_tracer_event_data";
 import {TracerRoot} from "~/shared/tracer/tracer_root";
 import {TracerSpan} from "~/shared/tracer/tracer_span";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
@@ -46,7 +45,7 @@ export abstract class TracerBase {
             finishSpan();
             return value;
         } catch (error) {
-            span.addExceptionData(error, {escaped: true});
+            span.addException(error);
             finishSpan();
             throw error;
         }
@@ -85,16 +84,4 @@ export abstract class TracerBase {
      * good span name.
      */
     public abstract log(name: string, data?: TracerEventData): void;
-
-    /**
-     * Add a structured exception log event to this span.
-     *
-     * Uses `this.log()` but with exception event attributes.
-     */
-    public logException(error: unknown, data: TracerEventData = {}) {
-        this.log("Exception", {
-            ...data,
-            exception: getExceptionTracerEventData(error, {escaped: false}),
-        });
-    }
 }

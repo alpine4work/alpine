@@ -72,7 +72,7 @@ const LoaderSchema = Schema.object({
 
 export function loader({context}: LoaderArgs) {
     return jsonWithSchema(LoaderSchema, {
-        devServerPort: context.loader.getDevServerPort() ?? undefined,
+        devServerPort: context.loader.devServerPort ?? undefined,
     });
 }
 
@@ -99,9 +99,11 @@ export default function Root({error}: {error?: unknown}) {
     }, [remixEntryContext.routeData, context]);
 
     // If there are any unhandled browser errors then report them with our tracer.
+    // We put uncaught error handling here because we want it to include propagated
+    // data from loaders.
     useEffect(() => {
         const handleError = (event: ErrorEvent) => {
-            context.tracer.logException(event.error);
+            context.tracer.getRoot().logUncaughtException(event.error);
         };
 
         window.addEventListener("error", handleError);

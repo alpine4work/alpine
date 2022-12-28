@@ -3,8 +3,8 @@ import {DocumentBlobFactory, useDocumentBlobSettings} from "~/client/blob_factor
 import {DocumentContentEditor} from "~/client/documents/document_content_editor";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {getDocument} from "~/server/dynamo/documents_table";
-import {LoaderArgs} from "~/server/remix/loader_context";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
+import {LoaderArgs} from "~/server/remix/loader_context";
 import {DocumentModel} from "~/shared/documents/document_model";
 import {NotFoundError} from "~/shared/error/error";
 import {Schema} from "~/shared/schema/schema";

@@ -107,7 +107,6 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         clientIp: LabelStringSchema,
     },
     exception: {
-        escaped: Schema.boolean,
         message: Schema.string,
         stacktrace: Schema.string,
         type: IdentifierStringSchema,

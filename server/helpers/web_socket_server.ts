@@ -19,10 +19,14 @@ import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {expirationTimeoutMs} from "~/shared/helpers/web_socket_shared";
 import {Id, generateId} from "~/shared/id/id";
 import {UnionSchema} from "~/shared/schema/schema";
-import {getExceptionTracerEventData} from "~/shared/tracer/helpers/get_exception_tracer_event_data";
+import {TracerSpan} from "~/shared/tracer/tracer_span";
 
 export interface WebSocketServerConnectionBase<MessageFromClient extends {type: string}> {
-    handleMessage(context: RequestContext, message: MessageFromClient): Promise<void>;
+    handleMessage(
+        context: RequestContext,
+        message: MessageFromClient,
+        span: TracerSpan,
+    ): Promise<void>;
     handleClose?(context: ProcessContext): void;
 }
 
@@ -114,7 +118,7 @@ export class WebSocketServer<
 
                 finishSpan();
             } catch (error) {
-                span.addExceptionData(error, {escaped: true});
+                span.addException(error);
                 finishSpan();
                 throw error;
             }
@@ -226,21 +230,18 @@ export class WebSocketServer<
         if (existingConnection && existingConnection === connection) {
             this._connections.delete(connection.id);
 
+            const {span, finishSpan} = context.tracer.startSpan("Close WebSocket connection");
+            span.addData({
+                webSocket: {
+                    connectionId: connection.id,
+                },
+            });
             try {
                 connection.connection.handleClose?.(context);
-
-                context.tracer.log("WebSocket connection closed", {
-                    webSocket: {
-                        connectionId: connection.id,
-                    },
-                });
+                finishSpan();
             } catch (error) {
-                context.tracer.log("WebSocket connection closed", {
-                    webSocket: {
-                        connectionId: connection.id,
-                    },
-                    exception: getExceptionTracerEventData(error, {escaped: false}),
-                });
+                span.addException(error);
+                finishSpan();
             }
         }
 
@@ -275,7 +276,7 @@ export class WebSocketServer<
 
             finishSpan();
         } catch (error) {
-            span.addExceptionData(error, {escaped: true});
+            span.addException(error);
             finishSpan();
             throw error;
         }
@@ -300,7 +301,7 @@ export class WebSocketServer<
 
             finishSpan();
         } catch (error) {
-            span.addExceptionData(error, {escaped: true});
+            span.addException(error);
             finishSpan();
             throw error;
         }
@@ -411,11 +412,11 @@ class WebSocketServerConnectionWrapper<
                                     rpc: new LocalRpcContextModule(),
                                 },
                                 async (context: RequestContext) => {
-                                    await this.connection.handleMessage(context, message);
+                                    await this.connection.handleMessage(context, message, span);
                                 },
                             );
                         } catch (error) {
-                            span.addExceptionData(error, {escaped: false});
+                            span.addException(error);
 
                             // If we got an unexpected error while handling the message close the socket
                             // connection.

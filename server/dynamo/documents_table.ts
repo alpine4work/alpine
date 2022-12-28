@@ -1087,7 +1087,7 @@ async function updateDocumentSnapshotAfterUpdatingContent(
         newContent: DocumentContent;
     },
 ) {
-    await context.tracer.withSpan("Updating document snapshot", async (context, span) => {
+    await context.tracer.withSpan("Update document snapshot", async (context, span) => {
         span.addPropagatedData({context: {documentId: id}});
 
         const snapshot = await DocumentsTable.getPartialItem(
