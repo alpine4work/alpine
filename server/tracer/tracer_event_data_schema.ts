@@ -110,6 +110,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         message: Schema.string,
         stacktrace: Schema.string,
         type: IdentifierStringSchema,
+        displayMessage: Schema.string,
     },
     context: {
         accountId: Schema.id,

@@ -1,5 +1,6 @@
 import {ErrorBase} from "~/shared/error/error";
 import {ErrorCode, getErrorCodeName} from "~/shared/error/error_code";
+import {renderDebugErrorDisplayMessage} from "~/shared/error/render_debug_error_display_message";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
 
 /**
@@ -12,5 +13,9 @@ export function getExceptionTracerEventData(error: unknown): TracerEventData["ex
         message: error instanceof Error ? error.message : undefined,
         stacktrace: error instanceof Error ? error.stack : undefined,
         type: `${getErrorCodeName(errorCode)}Error`,
+        displayMessage:
+            error instanceof ErrorBase && error.displayMessage
+                ? renderDebugErrorDisplayMessage(error.displayMessage)
+                : undefined,
     };
 }

@@ -194,12 +194,14 @@ export class TracerRoot extends TracerBase {
      *
      * Uses `this.log()` but with exception event attributes.
      *
-     * We only have `this.logUncaughtException()` on the tracer root because
-     * Honeycomb ignores exceptions on span events. It expects exceptions only on
-     * spans or events outside of a span.
+     * See `TracerBase.log` for how to name this event.
+     *
+     * We only have `this.logUncaughtException()` on the tracer root because Honeycomb
+     * ignores exceptions on span events. It expects exceptions only on spans or
+     * events outside of a span.
      */
-    public logUncaughtException(error: unknown, data: TracerEventData = {}) {
-        this.log("Uncaught exception", {
+    public logUncaughtException(name: string, error: unknown, data: TracerEventData = {}) {
+        this.log(name, {
             ...data,
             exception: getExceptionTracerEventData(error),
         });

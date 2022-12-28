@@ -6,7 +6,7 @@ import {getDocument} from "~/server/dynamo/documents_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
 import {DocumentModel} from "~/shared/documents/document_model";
-import {NotFoundError} from "~/shared/error/error";
+import {NotFoundError, UnimplementedError} from "~/shared/error/error";
 import {Schema} from "~/shared/schema/schema";
 import {sprinkles} from "~/shared/styles/styles";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
@@ -29,6 +29,8 @@ export async function loader({params, context}: LoaderArgs) {
 }
 
 export default function DocumentRoute() {
+    throw new UnimplementedError("test");
+
     const id = useId().replace(/:/g, "_");
     const {document} = useLoaderDataWithSchema(schema);
 

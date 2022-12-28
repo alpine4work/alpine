@@ -1,7 +1,7 @@
 import {useNavigate, useParams} from "react-router-dom";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
-import {useAppContext} from "~/client/helpers/app_context";
+import {useAppContext} from "~/client/context/app_context";
 import {emptyDocumentContent} from "~/shared/documents/document_content_schema";
 import {dummyDocumentContent} from "~/shared/documents/dummy_document_content";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";

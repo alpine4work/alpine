@@ -1,4 +1,5 @@
 import {createContext, useContext} from "react";
+import {ReactContextModule} from "~/client/context/react_context_module";
 import {Context} from "~/shared/context/context";
 import {TracerContextModule} from "~/shared/context/tracer_context_module";
 import {assert} from "~/shared/helpers/control/assert";
@@ -11,6 +12,7 @@ import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base";
 export type AppContext = Context<{
     tracer: TracerContextModule;
     rpc: RpcContextModuleBase;
+    react: ReactContextModule;
 }>;
 
 const AppReactContext = createContext<AppContext | null>(null);

@@ -21,7 +21,7 @@ import {
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {TooltipCoordinationContextProvider} from "~/client/design/tooltip";
 import {ErrorBodyRenderer} from "~/client/error/error_body_renderer";
-import {AppContextProvider, useAppContext} from "~/client/helpers/app_context";
+import {AppContextProvider, useAppContext} from "~/client/context/app_context";
 import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useStableValue} from "~/client/helpers/use_stable_value";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
@@ -103,7 +103,7 @@ export default function Root({error}: {error?: unknown}) {
     // data from loaders.
     useEffect(() => {
         const handleError = (event: ErrorEvent) => {
-            context.tracer.getRoot().logUncaughtException(event.error);
+            context.tracer.getRoot().logUncaughtException("Uncaught error", event.error);
         };
 
         window.addEventListener("error", handleError);

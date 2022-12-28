@@ -78,6 +78,7 @@ export class HoneycombTracerClient {
 
                         if (response.status >= 400) {
                             this._tracer.logUncaughtException(
+                                "Failed to send event batch to Honeycomb",
                                 new DataLossError(
                                     `Failed to send event batch to Honeycomb (status code: ${response.status})`,
                                 ),
@@ -90,6 +91,7 @@ export class HoneycombTracerClient {
                         for (const eventResponse of eventResponses) {
                             if (eventResponse.status >= 400) {
                                 this._tracer.logUncaughtException(
+                                    "Failed to send event to Honeycomb",
                                     new DataLossError(
                                         `Failed to send event to Honeycomb${
                                             eventResponse.error ? `: ${eventResponse.error}` : ""
@@ -100,6 +102,7 @@ export class HoneycombTracerClient {
                         }
                     } catch (error) {
                         this._tracer.logUncaughtException(
+                            "Failed to send event batch to Honeycomb",
                             new DataLossError(
                                 `Failed to send event batch to Honeycomb${
                                     error instanceof Error ? `: ${error.message}` : ""

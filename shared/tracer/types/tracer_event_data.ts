@@ -271,6 +271,9 @@ export type TracerEventData = {
 
         /** The type of an exception. Always one of our `ErrorCode` types. */
         readonly type?: string;
+
+        /** The `ErrorDisplayMessage` if one exists with any sensitive text redacted. */
+        readonly displayMessage?: string;
     };
 
     /**

@@ -4,6 +4,7 @@ ts_project(
     name = "admin",
     visibility = [
         ":__subpackages__",
+        "//app:__pkg__",
         "//app/dev:__pkg__",
     ],
     deps = [
@@ -13,6 +14,7 @@ ts_project(
         "//:node_modules/@types/node-fetch",
         "//:node_modules/@vanilla-extract/esbuild-plugin",
         "//:node_modules/chalk",
+        "//:node_modules/dotenv",
         "//:node_modules/env-paths",
         "//:node_modules/esbuild",
         "//:node_modules/fs-extra",

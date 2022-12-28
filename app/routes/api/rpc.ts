@@ -9,7 +9,7 @@ import {
 } from "~/shared/rpc/helpers/rpc_http_schema";
 import {SchemaType} from "~/shared/schema/schema";
 
-export async function action({request, context}: LoaderArgs) {
+export async function action({request, context, span}: LoaderArgs) {
     try {
         if (request.method !== "POST")
             throw new InvalidArgumentError("Must use POST HTTP method when executing RPCs");
@@ -66,7 +66,7 @@ export async function action({request, context}: LoaderArgs) {
             },
         );
     } catch (error) {
-        context.loader.requestSpan.addException(error);
+        span.addException(error);
 
         const status = isHttp500Error(error) ? 500 : 400;
 

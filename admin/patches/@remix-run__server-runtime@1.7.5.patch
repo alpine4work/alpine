@@ -1,8 +1,92 @@
 diff --git a/dist/data.js b/dist/data.js
-index 8ba58ebade2ae9c4c430a45a030bb4612f691c4b..14999c270f2d9d19b416224260b2590dd9a8be61 100644
+index 8ba58ebade2ae9c4c430a45a030bb4612f691c4b..fc46e0270b726391d99c650e4da2841671f6b38a 100644
 --- a/dist/data.js
 +++ b/dist/data.js
-@@ -122,7 +122,10 @@ function extractData(response) {
+@@ -14,7 +14,7 @@ Object.defineProperty(exports, '__esModule', { value: true });
+ 
+ var responses = require('./responses.js');
+ 
+-async function callRouteAction({
++function callRouteAction({
+   loadContext,
+   routeId,
+   action,
+@@ -29,13 +29,26 @@ async function callRouteAction({
+     return response;
+   }
+ 
++  // NOTE(calebmer): Add spans around Remix action functions at the framework
++  // level. This lets us see when an action has an error. It also lets us see
++  // the action nested spans are associated with since an action and loader may
++  // run for the same route.
++  //
++  // Importantly, throwing a response should not be considered an error for a
++  // Remix loader. The logic for handling thrown responses happens within this
++  // function.
++  //
++  // We don't increase the indentation level so we can get a clean diff for our
++  // patch file.
++  return loadContext.tracer.withSpan(`Remix action: ${routeId}`, async (loadContext, span) => {
+   let result;
+ 
+   try {
+     result = await action({
+       request: stripDataParam(stripIndexParam(request)),
+       context: loadContext,
+-      params
++      params,
++      span,
+     });
+   } catch (error) {
+     if (!responses.isResponse(error)) {
+@@ -54,14 +67,27 @@ async function callRouteAction({
+   }
+ 
+   return responses.isResponse(result) ? result : responses.json(result);
++  });
+ }
+-async function callRouteLoader({
++function callRouteLoader({
+   loadContext,
+   routeId,
+   loader,
+   params,
+   request
+ }) {
++  // NOTE(calebmer): Add spans around Remix loader functions at the framework
++  // level. This lets us see when a loader has an error. It also lets us see
++  // the loader nested spans are associated with since multiple loaders may run
++  // in a nested route.
++  //
++  // Importantly, throwing a response should not be considered an error for a
++  // Remix loader. The logic for handling thrown responses happens within this
++  // function.
++  //
++  // We don't increase the indentation level so we can get a clean diff for our
++  // patch file.
++  return loadContext.tracer.withSpan(`Remix loader: ${routeId}`, async (loadContext, span) => {
+   if (!loader) {
+     throw new Error(`You made a ${request.method} request to ${request.url} but did not provide ` + `a default component or \`loader\` for route "${routeId}", ` + `so there is no way to handle the request.`);
+   }
+@@ -72,7 +98,8 @@ async function callRouteLoader({
+     result = await loader({
+       request: stripDataParam(stripIndexParam(request)),
+       context: loadContext,
+-      params
++      params,
++      span,
+     });
+   } catch (error) {
+     if (!responses.isResponse(error)) {
+@@ -91,6 +118,7 @@ async function callRouteLoader({
+   }
+ 
+   return responses.isResponse(result) ? result : responses.json(result);
++  });
+ }
+ 
+ function stripIndexParam(request) {
+@@ -122,7 +150,10 @@ function extractData(response) {
    let contentType = response.headers.get("Content-Type");
  
    if (contentType && /\bapplication\/json\b/.test(contentType)) {
@@ -33,10 +117,94 @@ index 9f314a69b1007f6b44f5c7731462bd87cb616ea0..477fee449e9b6d6f99b5056cf496b87a
      message: error.message,
      stack: error.stack
 diff --git a/dist/esm/data.js b/dist/esm/data.js
-index 0f1eaa5905ded564ea90b9bd756276e6557f24bb..2a0f4faac0eed0caf01968cea7ab545d4df703e7 100644
+index 0f1eaa5905ded564ea90b9bd756276e6557f24bb..32516685284d5233b8c6d9339048a1e7416127c0 100644
 --- a/dist/esm/data.js
 +++ b/dist/esm/data.js
-@@ -118,7 +118,10 @@ function extractData(response) {
+@@ -10,7 +10,7 @@
+  */
+ import { isResponse, isRedirectResponse, json } from './responses.js';
+ 
+-async function callRouteAction({
++function callRouteAction({
+   loadContext,
+   routeId,
+   action,
+@@ -25,13 +25,26 @@ async function callRouteAction({
+     return response;
+   }
+ 
++  // NOTE(calebmer): Add spans around Remix action functions at the framework
++  // level. This lets us see when an action has an error. It also lets us see
++  // the action nested spans are associated with since an action and loader may
++  // run for the same route.
++  //
++  // Importantly, throwing a response should not be considered an error for a
++  // Remix loader. The logic for handling thrown responses happens within this
++  // function.
++  //
++  // We don't increase the indentation level so we can get a clean diff for our
++  // patch file.
++  return loadContext.tracer.withSpan(`Remix action: ${routeId}`, async (loadContext, span) => {
+   let result;
+ 
+   try {
+     result = await action({
+       request: stripDataParam(stripIndexParam(request)),
+       context: loadContext,
+-      params
++      params,
++      span,
+     });
+   } catch (error) {
+     if (!isResponse(error)) {
+@@ -50,14 +63,27 @@ async function callRouteAction({
+   }
+ 
+   return isResponse(result) ? result : json(result);
++  });
+ }
+-async function callRouteLoader({
++function callRouteLoader({
+   loadContext,
+   routeId,
+   loader,
+   params,
+   request
+ }) {
++  // NOTE(calebmer): Add spans around Remix loader functions at the framework
++  // level. This lets us see when a loader has an error. It also lets us see
++  // the loader nested spans are associated with since multiple loaders may run
++  // in a nested route.
++  //
++  // Importantly, throwing a response should not be considered an error for a
++  // Remix loader. The logic for handling thrown responses happens within this
++  // function.
++  //
++  // We don't increase the indentation level so we can get a clean diff for our
++  // patch file.
++  return loadContext.tracer.withSpan(`Remix loader: ${routeId}`, async (loadContext, span) => {
+   if (!loader) {
+     throw new Error(`You made a ${request.method} request to ${request.url} but did not provide ` + `a default component or \`loader\` for route "${routeId}", ` + `so there is no way to handle the request.`);
+   }
+@@ -68,7 +94,8 @@ async function callRouteLoader({
+     result = await loader({
+       request: stripDataParam(stripIndexParam(request)),
+       context: loadContext,
+-      params
++      params,
++      span,
+     });
+   } catch (error) {
+     if (!isResponse(error)) {
+@@ -87,6 +114,7 @@ async function callRouteLoader({
+   }
+ 
+   return isResponse(result) ? result : json(result);
++  });
+ }
+ 
+ function stripIndexParam(request) {
+@@ -118,7 +146,10 @@ function extractData(response) {
    let contentType = response.headers.get("Content-Type");
  
    if (contentType && /\bapplication\/json\b/.test(contentType)) {

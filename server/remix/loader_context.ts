@@ -17,6 +17,8 @@ export interface LoaderArgs {
     request: Request;
     context: LoaderContext;
     params: {readonly [key: string]: string | undefined};
+    // This is added by a patch to `@remix-run/server-runtime`.
+    span: TracerSpan;
 }
 
 /**
@@ -24,21 +26,17 @@ export interface LoaderArgs {
  */
 export class LoaderContextModule extends ContextModuleBase {
     private readonly _sessionCookiePromise: Promise<SessionCookie>;
-    public readonly requestSpan: TracerSpan;
     public readonly devServerPort: number | null;
 
     constructor({
         sessionCookiePromise,
-        requestSpan,
         devServerPort,
     }: {
         sessionCookiePromise: Promise<SessionCookie>;
-        requestSpan: TracerSpan;
         devServerPort: number | null;
     }) {
         super();
         this._sessionCookiePromise = sessionCookiePromise;
-        this.requestSpan = requestSpan;
         this.devServerPort = devServerPort;
     }
 

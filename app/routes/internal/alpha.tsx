@@ -3,7 +3,7 @@ import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
 import {Spacer} from "~/client/design/spacer";
 import {TextInput} from "~/client/design/text_input";
-import {useAppContext} from "~/client/helpers/app_context";
+import {useAppContext} from "~/client/context/app_context";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {
     getAlphaConfiguration,

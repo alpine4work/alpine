@@ -1,12 +1,11 @@
 import {Link} from "@remix-run/react";
-import {Fragment, useEffect, useRef} from "react";
+import {Fragment, useRef} from "react";
+import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
-import {useAppContext} from "~/client/helpers/app_context";
 import {ErrorBase} from "~/shared/error/error";
 import {ErrorCode} from "~/shared/error/error_code";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
-import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol";
 import {contentSchemaStyles} from "~/shared/styles/styles";
@@ -23,30 +22,20 @@ export function ErrorDisplayMessageRenderer({
     const context = useAppContext();
     const displayMessage = error instanceof ErrorBase ? error.displayMessage : null;
 
-    const errorToLogRef = useRef({error, hasLogged: false});
+    const errorToReportRef = useRef({error, hasReported: false});
 
     // If the error prop changed, then we need to log it again.
-    if (!Object.is(errorToLogRef.current.error, error)) {
-        errorToLogRef.current = {error, hasLogged: false};
+    if (!Object.is(errorToReportRef.current.error, error)) {
+        errorToReportRef.current = {error, hasReported: false};
     }
 
-    // Log errors to the console as well after we render them to help the
-    // developer debug.
-    useEffect(() => {
-        // Log after a microtask so we don't get the React component trace in the error
-        // log. The trace will always point to our error message renderer which
-        // isn't useful.
-        scheduleMicrotask(() => {
-            if (!errorToLogRef.current.hasLogged) {
-                // Log the error to the console to make the error easier to debug.
-                // eslint-disable-next-line no-console
-                console.error(error);
-
-                context.tracer.getRoot().logUncaughtException(errorToLogRef.current.error);
-                errorToLogRef.current.hasLogged = true;
-            }
-        });
-    }, [context.tracer, error]);
+    // We report rendered errors in the React render function since we want the
+    // errors to show up in our instrumentation while server-side rendering.
+    // Server-side rendering doesn't run effects.
+    if (!errorToReportRef.current.hasReported) {
+        errorToReportRef.current.hasReported = true;
+        context.react.reportRenderedError(errorToReportRef.current.error);
+    }
 
     return (
         <Box color="grey-80" fontStyle="primary" fontSize={size}>

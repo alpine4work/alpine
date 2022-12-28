@@ -8,7 +8,7 @@ import {isPlainObject} from "~/shared/helpers/object/is_plain_object";
 import {SchemaSerializedValue} from "~/shared/schema/schema";
 import {TracerEvent} from "~/shared/tracer/tracer_event";
 
-export async function action({request, context}: LoaderArgs) {
+export async function action({request, context, span}: LoaderArgs) {
     try {
         const events: SchemaSerializedValue = await request.json();
         if (!isReadonlyArray(events)) throw new InvalidArgumentError("Expected an array of events");
@@ -61,7 +61,7 @@ export async function action({request, context}: LoaderArgs) {
                 headers: {"content-type": "application/json"},
             });
         } else {
-            context.loader.requestSpan.addException(errors[0]);
+            span.addException(errors[0]);
 
             return new Response(
                 JSON.stringify({
@@ -78,7 +78,7 @@ export async function action({request, context}: LoaderArgs) {
             );
         }
     } catch (error) {
-        context.loader.requestSpan.addException(error);
+        span.addException(error);
 
         const status = isHttp500Error(error) ? 500 : 400;
 
