@@ -13,7 +13,7 @@ import {getExceptionTracerEventData} from "~/shared/tracer/helpers/get_exception
 // looks for this global and uses it.
 (globalThis as any).__remixErrorSchema = ErrorSchema;
 
-export default function handleRequest(
+export default async function handleRequest(
     request: Request,
     responseStatusCode: number,
     responseHeaders: Headers,
@@ -61,13 +61,43 @@ export default function handleRequest(
             headers: responseHeaders,
         });
 
-        // It's a shame we can't measure CPU time in Cloudflare Workers. Would really
-        // like to know what the CPU cost of server-side rendering is.
+        await updateCloudflareWorkerTime();
         finishSpan();
         return response;
     } catch (error) {
         span.addException(error);
+
+        await updateCloudflareWorkerTime();
         finishSpan();
         throw error;
     }
+}
+
+/**
+ * This is a hack! Cloudflare Workers do not update the time (accessible via
+ * `Date.now()`) during CPU time as part of the [Cloudflare Workers security
+ * model][1]. They will only update the time on IO. This function does a little
+ * noop IO which should be resolvable at the edge to let us measure React
+ * render time.
+ *
+ * The IO we do is to write a fake URL to the HTTP cache. We never read that
+ * URL back. We're ok paying <10ms here to get an accurate time for our React
+ * server render.
+ *
+ * This cache write will count against our sub-request limit! Which is 50 on
+ * bundled Cloudflare Workers plan. That's why we only use the technique here
+ * for React renders where we care about measuring performance.
+ *
+ * Got this idea from the [Cloudflare Honeycomb reference module][2]. It
+ * doesn't write to the cache to update the time but it does use the fake cache
+ * technique to store some state.
+ *
+ * [1]: https://developers.cloudflare.com/workers/learning/security-model/
+ * [2]: https://github.com/cloudflare/workers-honeycomb-logger/blob/80a04131f31bc5b6e9c3076b7da1f25db7749b15/src/modules.ts#L40-L55
+ */
+async function updateCloudflareWorkerTime() {
+    await ((caches as any).default as Cache).put(
+        "https://fake-cache.cyberworlds.dev/progress-time",
+        new Response("ok", {headers: {"cache-control": "max-age=90"}}),
+    );
 }
