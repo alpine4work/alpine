@@ -1087,83 +1087,87 @@ async function updateDocumentSnapshotAfterUpdatingContent(
         newContent: DocumentContent;
     },
 ) {
-    const snapshot = await DocumentsTable.getPartialItem(
-        context,
-        {
-            partitionType: "Document",
-            documentId: id,
-            sortRangeType: "Snapshot",
-        },
-        {
-            attributes: ["version"],
-        },
-    );
+    await context.tracer.withSpan("Updating document snapshot", async (context, span) => {
+        span.addPropagatedData({context: {documentId: id}});
 
-    // If there is no snapshot, maybe the document was deleted? Ignore. When we try
-    // to read the document there will be an error then.
-    if (!snapshot) return;
-
-    try {
-        // First, update the snapshot. We can't start moving steps until we know the
-        // snapshot has successfully updated.
-        await DocumentsTable.putItem(
+        const snapshot = await DocumentsTable.getPartialItem(
             context,
             {
                 partitionType: "Document",
                 documentId: id,
                 sortRangeType: "Snapshot",
-                version: newVersion,
-                content: newContent,
             },
             {
-                condition: {
-                    version: snapshot.version,
-                },
+                attributes: ["version"],
             },
         );
-    } catch (error) {
-        // If some other process concurrently updated the snapshot, then we don't need
-        // two processes updating the snapshot at once so we can bail out.
-        if (isDynamoConditionCheckError(error)) return;
-        throw error;
-    }
 
-    // Then, for all steps before our new snapshot version, move them into the
-    // `StepTransactionsBeforeSnapshot` range so in the future when we read the
-    // full document we don't read those steps.
-    const stepTransactions = await arrayFromAsyncIterable(
-        DocumentsTable.query(context, {
-            startKey: {
-                partitionType: "Document",
-                documentId: id,
-                sortRangeType: "StepTransactionsAfterSnapshot",
-                startVersion: 0,
-            },
-            endKey: {
-                partitionType: "Document",
-                documentId: id,
-                sortRangeType: "StepTransactionsAfterSnapshot",
-                startVersion: newVersion - 1,
-            },
-        }),
-    );
+        // If there is no snapshot, maybe the document was deleted? Ignore. When we try
+        // to read the document there will be an error then.
+        if (!snapshot) return;
 
-    // Our writes should be batched under the hood if we dispatch them
-    // in parallel like this.
-    await runAllPromises(
-        stepTransactions.map(async stepTransaction => {
-            await DocumentsTable.putItem(context, {
-                ...stepTransaction,
-                sortRangeType: "StepTransactionsBeforeSnapshot",
-            });
+        try {
+            // First, update the snapshot. We can't start moving steps until we know the
+            // snapshot has successfully updated.
+            await DocumentsTable.putItem(
+                context,
+                {
+                    partitionType: "Document",
+                    documentId: id,
+                    sortRangeType: "Snapshot",
+                    version: newVersion,
+                    content: newContent,
+                },
+                {
+                    condition: {
+                        version: snapshot.version,
+                    },
+                },
+            );
+        } catch (error) {
+            // If some other process concurrently updated the snapshot, then we don't need
+            // two processes updating the snapshot at once so we can bail out.
+            if (isDynamoConditionCheckError(error)) return;
+            throw error;
+        }
 
-            await updateDocumentSnapshotBeforeDeletingStepsTestCheckpoint.waitForTest(id);
+        // Then, for all steps before our new snapshot version, move them into the
+        // `StepTransactionsBeforeSnapshot` range so in the future when we read the
+        // full document we don't read those steps.
+        const stepTransactions = await arrayFromAsyncIterable(
+            DocumentsTable.query(context, {
+                startKey: {
+                    partitionType: "Document",
+                    documentId: id,
+                    sortRangeType: "StepTransactionsAfterSnapshot",
+                    startVersion: 0,
+                },
+                endKey: {
+                    partitionType: "Document",
+                    documentId: id,
+                    sortRangeType: "StepTransactionsAfterSnapshot",
+                    startVersion: newVersion - 1,
+                },
+            }),
+        );
 
-            // It's important that we wait for our put in the
-            // `StepTransactionsBeforeSnapshot` to successfully complete before we delete.
-            await DocumentsTable.deleteItem(context, stepTransaction);
-        }),
-    );
+        // Our writes should be batched under the hood if we dispatch them
+        // in parallel like this.
+        await runAllPromises(
+            stepTransactions.map(async stepTransaction => {
+                await DocumentsTable.putItem(context, {
+                    ...stepTransaction,
+                    sortRangeType: "StepTransactionsBeforeSnapshot",
+                });
+
+                await updateDocumentSnapshotBeforeDeletingStepsTestCheckpoint.waitForTest(id);
+
+                // It's important that we wait for our put in the
+                // `StepTransactionsBeforeSnapshot` to successfully complete before we delete.
+                await DocumentsTable.deleteItem(context, stepTransaction);
+            }),
+        );
+    });
 }
 
 export const getDocumentContentStepsTestCounter = new TestCounter<{
