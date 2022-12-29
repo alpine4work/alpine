@@ -1,6 +1,6 @@
 load("@aspect_rules_js//js:defs.bzl", "js_binary")
 load("@npm//:aws-cdk-local/package_json.bzl", cdk_local_bin = "bin")
-load("@npm//:aws-cdk/package_json.bzl", ck_production_bin = "bin")
+load("@npm//:aws-cdk/package_json.bzl", cdk_production_bin = "bin")
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
@@ -36,7 +36,7 @@ cdk_local_bin.cdklocal_binary(
     },
 )
 
-ck_production_bin.cdk_binary(
+cdk_production_bin.cdk_binary(
     name = "cdk_production",
     data = [
         ":aws",

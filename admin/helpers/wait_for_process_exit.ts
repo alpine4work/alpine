@@ -10,16 +10,31 @@ import {quote} from "~/shared/helpers/string/quote";
 export function waitForProcessExit(subprocess: ChildProcess): Promise<void> {
     return new Promise((resolve, reject) => {
         const name = path.basename(subprocess.spawnfile);
+
+        // If the process already exited then immediately resolve or reject.
+        if (subprocess.exitCode !== null) {
+            if (subprocess.exitCode === 0) {
+                resolve();
+            } else {
+                reject(
+                    new UnknownError(
+                        quote`Process exited with code ${subprocess.exitCode} (${name})`,
+                    ),
+                );
+            }
+            return;
+        }
+
         let finished = false;
 
-        subprocess.on("exit", (code, signal) => {
+        subprocess.on("exit", (exitCode, signal) => {
             if (finished) return;
             finished = true;
 
-            if (code === 0) {
+            if (exitCode === 0) {
                 resolve();
-            } else if (typeof code === "number") {
-                reject(new UnknownError(quote`Process exited with code ${code} (${name})`));
+            } else if (typeof exitCode === "number") {
+                reject(new UnknownError(quote`Process exited with code ${exitCode} (${name})`));
             } else {
                 reject(new UnknownError(quote`Process exited by signal ${signal} (${name})`));
             }

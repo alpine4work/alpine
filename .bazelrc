@@ -11,3 +11,12 @@ test --test_output=errors
 # We only want to build tests when testing multiple targets. For example
 # `bazel test //...` shouldn’t build the iOS app.
 test --build_tests_only
+
+# Java versions to use. By default, Bazel uses the local Java version for some
+# operations. To make sure we get hermetic builds we want to override to a
+# remote version of Java which Bazel will download.
+# https://bazel.build/docs/bazel-and-java#hermetic-testing
+build --java_language_version=17
+build --java_runtime_version=remote_jdk17
+build --tool_java_language_version=17
+build --tool_java_runtime_version=remote_jdk17
