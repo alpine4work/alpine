@@ -50,14 +50,14 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {Id, generateId} from "~/shared/id/id";
 import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema";
 
-type State = {
+export type DocumentContentEditorState = {
     /**
      * We may get `ReceiveSteps` actions out of order (e.g. the server sends an
      * `UpdateContent` message before a `BackfillResponse` message). If we see an
      * action for a future version we put it in this array and re-apply the action
      * when older steps are applied.
      */
-    readonly pendingActions: Array<ReceiveStepsAction>;
+    readonly pendingActions: Array<ReceiveStepsDocumentContentEditorAction>;
 
     /**
      * The current state of the editor.
@@ -111,7 +111,9 @@ type State = {
     readonly otherPresenceStateByConnectionId: ImmutableMap<Id, DocumentCollaborationPresenceState>;
 };
 
-function getInitialState(initialDocument: DocumentModel): State {
+export function getInitialDocumentContentEditorState(
+    initialDocument: DocumentModel,
+): DocumentContentEditorState {
     const editorState = ContentEditorState.createCollab({
         version: initialDocument.version,
         content: initialDocument.content,
@@ -130,48 +132,54 @@ function getInitialState(initialDocument: DocumentModel): State {
     };
 }
 
-type Action =
-    | EditAction
-    | ReceiveStepsAction
-    | AugmentRememberedStepsAction
-    | SetAllOtherPresenceStatesAction
-    | UpdateOtherPresenceStateAction;
+export type DocumentContentEditorAction =
+    | EditDocumentContentEditorAction
+    | ReceiveStepsDocumentContentEditorAction
+    | AugmentRememberedStepsDocumentContentEditorAction
+    | SetAllOtherPresenceStatesDocumentContentEditorAction
+    | UpdateOtherPresenceStateDocumentContentEditorAction;
 
-type EditAction = {
+type EditDocumentContentEditorAction = {
     readonly type: "Edit";
     readonly editorState: ContentEditorState<DocumentContent>;
 };
 
-type ReceiveStepsAction = {
+type ReceiveStepsDocumentContentEditorAction = {
     readonly type: "ReceiveSteps";
     readonly newVersion: number;
     readonly steps: ReadonlyArray<{readonly step: Step; readonly clientId: Id}>;
     readonly acknowledgeMessageId: Id | null;
 };
 
-type AugmentRememberedStepsAction = {
+type AugmentRememberedStepsDocumentContentEditorAction = {
     readonly type: "AugmentRememberedSteps";
     readonly startVersion: number;
     readonly invertedSteps: ReadonlyArray<Step>;
 };
 
-type SetAllOtherPresenceStatesAction = {
+type SetAllOtherPresenceStatesDocumentContentEditorAction = {
     readonly type: "SetAllOtherPresenceStates";
     readonly stateByConnectionId: ImmutableMap<Id, DocumentCollaborationPresenceState>;
 };
 
-type UpdateOtherPresenceStateAction = {
+type UpdateOtherPresenceStateDocumentContentEditorAction = {
     readonly type: "UpdateOtherPresenceState";
     readonly connectionId: Id;
     readonly state: DocumentCollaborationPresenceState | null;
 };
 
-function reduce(state: State, actions: ReadonlyArray<Action>): State {
+export function reduceDocumentContentEditorState(
+    state: DocumentContentEditorState,
+    actions: ReadonlyArray<DocumentContentEditorAction>,
+): DocumentContentEditorState {
     const oldRememberedSteps = state.rememberedSteps;
     const oldOtherPresenceStateByConnectionId = state.otherPresenceStateByConnectionId;
 
     const oldVersion = state.editorState.getVersion();
-    state = actions.reduce((state, action) => reduceWithAction(state, action), state);
+    state = actions.reduce(
+        (state, action) => actuallyReduceDocumentContentEditorState(state, action),
+        state,
+    );
     const newVersion = state.editorState.getVersion();
 
     // If we are not currently sending steps to the server but we have some
@@ -245,10 +253,13 @@ function reduce(state: State, actions: ReadonlyArray<Action>): State {
     // pending they will be put back into this array.
     state = {...state, pendingActions: []};
 
-    return pendingActions.reduce(reduceWithAction, state);
+    return pendingActions.reduce(actuallyReduceDocumentContentEditorState, state);
 }
 
-function reduceWithAction(oldState: State, action: Action): State {
+function actuallyReduceDocumentContentEditorState(
+    oldState: DocumentContentEditorState,
+    action: DocumentContentEditorAction,
+): DocumentContentEditorState {
     switch (action.type) {
         case "Edit": {
             // If an edit was made on top of a version of `editorState` that's different
@@ -300,7 +311,9 @@ function reduceWithAction(oldState: State, action: Action): State {
 
             // We may dispatch this action multiple times with the same steps. Remove any
             // steps we've already seen.
-            const steps = action.steps.slice(action.steps.length - action.newVersion - oldVersion);
+            const steps = action.steps.slice(
+                action.steps.length - (action.newVersion - oldVersion),
+            );
             assert(oldVersion + steps.length === action.newVersion);
 
             // If we've already seen all the steps, no change is needed.
@@ -434,9 +447,13 @@ function reduceWithAction(oldState: State, action: Action): State {
 export function useDocumentContentEditorState(initialDocument: DocumentModel) {
     const documentId = initialDocument.id;
 
-    const [state, _dispatch] = useReducer(reduce, initialDocument, getInitialState);
+    const [state, _dispatch] = useReducer(
+        reduceDocumentContentEditorState,
+        initialDocument,
+        getInitialDocumentContentEditorState,
+    );
 
-    const dispatch = useCallback((actions: ReadonlyArray<Action>) => {
+    const dispatch = useCallback((actions: ReadonlyArray<DocumentContentEditorAction>) => {
         // It is essential for correctness that actions which change `editorState` run
         // immediately. Consider the case where we receive some steps from the server
         // (`ReceiveSteps` action) and the user makes an edit (`Edit` action) at the
@@ -491,7 +508,7 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
         message => {
             switch (message.type) {
                 case "BackfillResponse": {
-                    const actions: Array<Action> = [];
+                    const actions: Array<DocumentContentEditorAction> = [];
 
                     actions.push({
                         type: "SetAllOtherPresenceStates",
@@ -527,7 +544,7 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
                     break;
                 }
                 case "UpdateContentBeforePersistence": {
-                    const actions: Array<Action> = [];
+                    const actions: Array<DocumentContentEditorAction> = [];
 
                     actions.push({
                         type: "ReceiveSteps",

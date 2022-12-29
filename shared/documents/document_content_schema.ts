@@ -300,6 +300,11 @@ export function isDocumentContent(node: Node): node is DocumentContent {
     return node.type.schema === DocumentContentProsemirrorSchema && node.type.name === "doc";
 }
 
+export function assertDocumentContent(node: Node): DocumentContent {
+    assert(isDocumentContent(node));
+    return node;
+}
+
 export const DocumentContentProsemirrorSchema = new ProsemirrorSchema(
     documentContentProsemirrorSchemaSpec,
 );
