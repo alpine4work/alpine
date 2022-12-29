@@ -280,7 +280,11 @@ export class DynamoTableSchema<
     public async getItem<Key extends Types["Key"]>(
         context: DynamoContext,
         key: Key,
-        {consistency}: {consistency?: DynamoReadConsistency} = {},
+        {
+            consistency = context.dynamo.defaultReadConsistency,
+        }: {
+            consistency?: DynamoReadConsistency;
+        } = {},
     ): Promise<MergeObjectIntersection<Types["Item"] & Key> | null> {
         const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
 
@@ -327,7 +331,7 @@ export class DynamoTableSchema<
         key: Key,
         {
             attributes,
-            consistency,
+            consistency = context.dynamo.defaultReadConsistency,
         }: {
             attributes: Array<Attributes>;
             consistency?: DynamoReadConsistency;
@@ -667,7 +671,7 @@ export class DynamoTableSchema<
             endKey,
             limit,
             descending,
-            consistency,
+            consistency = context.dynamo.defaultReadConsistency,
         }: {
             startKey: StartKey;
             endKey: EndKey;
@@ -749,7 +753,7 @@ export class DynamoTableSchema<
             partitionKey,
             limit,
             descending,
-            consistency,
+            consistency = context.dynamo.defaultReadConsistency,
         }: {
             partitionKey: PartitionKey;
             limit?: number;

@@ -1,6 +1,6 @@
 import {AwsClient} from "aws4fetch";
 import {createAwsClientFromEnv} from "~/server/aws/create_aws_client_from_env";
-import {DynamoClient} from "~/server/dynamo/internal/dynamo_client";
+import {DynamoClient, DynamoReadConsistency} from "~/server/dynamo/internal/dynamo_client";
 import {ContextModuleBase} from "~/shared/context/context_module_base";
 import {assert} from "~/shared/helpers/control/assert";
 
@@ -10,6 +10,14 @@ import {assert} from "~/shared/helpers/control/assert";
  */
 export class DynamoContextModule extends ContextModuleBase {
     private readonly _client: DynamoClient;
+
+    /**
+     * The default consistency for DynamoDB reads which use this context.
+     *
+     * Using `Eventual` consistency is much faster but it might give you slightly
+     * out of date data.
+     */
+    public readonly defaultReadConsistency: DynamoReadConsistency = "Eventual";
 
     constructor(client: AwsClient, url: string) {
         super();

@@ -553,22 +553,58 @@ export class DocumentContentCacheForUpdate {
         // this process wouldn't know. If another process wrote to the database we
         // can't use our cached entry so should update our cache appropriately.
         if (wasEntryCached) {
-            const attributes = await DocumentsTable.getItem(context, {
+            let _attributes = await DocumentsTable.getItem(context, {
                 partitionType: "Document",
                 documentId: id,
                 sortRangeType: "Attributes",
             });
 
             // The document was deleted from the database but not our cache.
-            if (!attributes) {
+            if (!_attributes) {
                 this._entries.evictEntry(id);
                 return null;
             }
 
-            if (entry.version > attributes.version)
-                throw new InternalError(
-                    "We've cached document content that has a version number ahead of what's in the database",
-                );
+            if (entry.version > _attributes.version) {
+                // If we read a past version of the document that might be because we're using
+                // DynamoDB eventual consistency and we can't yet read the latest write. So try
+                // to load the document one more time but with strong consistency instead.
+                //
+                // NOTE(calebmer, 2022-12-28): At the time of writing, `defaultReadConsistency`
+                // is always `Eventual`. I added the property because I think in the future we
+                // may want some blocks of code to run with strong consistency by default? I
+                // don't know yet...I need more experience to figure out what the right way to
+                // think about DynamoDB read consistency. It's unfortunate that in local
+                // development everything is strongly consistent. Maybe worth adding some kind
+                // of chaos code to randomly return inconsistent data in development once in
+                // a while.
+                if (context.dynamo.defaultReadConsistency === "Eventual") {
+                    _attributes = await DocumentsTable.getItem(
+                        context,
+                        {
+                            partitionType: "Document",
+                            documentId: id,
+                            sortRangeType: "Attributes",
+                        },
+                        {consistency: "Strong"},
+                    );
+
+                    // The document was deleted from the database but not our cache.
+                    if (!_attributes) {
+                        this._entries.evictEntry(id);
+                        return null;
+                    }
+                }
+
+                if (entry.version > _attributes.version) {
+                    throw new InternalError(
+                        "We've cached document content that has a version number ahead of what's in the database",
+                    );
+                }
+            }
+
+            // `const` reference so TypeScript doesn't think this is nullable.
+            const attributes = _attributes;
 
             // If the version in our cache is less than what's in the database, then let's
             // load the steps we are missing and apply them to our content.
