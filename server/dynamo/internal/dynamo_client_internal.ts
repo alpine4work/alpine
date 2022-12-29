@@ -421,7 +421,11 @@ function getConsumedCapacityTracerEventData(
         hasConsumedCapacityEventData = true;
 
         consumedCapacityEventData[consumedCapacity.TableName] = {
-            readCapacityUnits: consumedCapacity.ReadCapacityUnits ?? 0,
+            // DynamoDB appears to be returning read capacity units with the
+            // `CapacityUnits` key? This is strange. Since we appear to get the correct
+            // results let's support it, I guess.
+            readCapacityUnits:
+                consumedCapacity.ReadCapacityUnits ?? consumedCapacity.CapacityUnits ?? 0,
             writeCapacityUnits: consumedCapacity.WriteCapacityUnits ?? 0,
         };
     };
