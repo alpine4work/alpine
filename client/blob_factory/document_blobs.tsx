@@ -7,7 +7,7 @@ import {
     getInterpolatedThemeColor,
 } from "~/client/blob_factory/internal/draw_blob_factory";
 import {useColorScheme} from "~/client/design/color_scheme";
-import {useDeveloperConsoleSettingsObject} from "~/client/helpers/developer_console";
+import {useDevConsoleSettingsObject} from "~/client/dev/dev_console";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer";
 import {colors} from "~/shared/design/colors";
@@ -24,7 +24,7 @@ const DefaultContentWidthPx = 768;
 
 export type DocumentBlobFactorySettings = ReturnType<typeof useDocumentBlobSettings>;
 export function useDocumentBlobSettings({defaultSeed}: {defaultSeed: string}) {
-    return useDeveloperConsoleSettingsObject("blobs", {
+    return useDevConsoleSettingsObject("blobs", {
         textFillEnabled: {
             // TODO(calebmer): Decide what to do about text fill. I'm leaning off?
             defaultValue: false,

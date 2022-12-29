@@ -2,7 +2,7 @@ import {LoaderArgs} from "~/server/remix/loader_context";
 import {validateTracerEventFlatData} from "~/server/tracer/validate_tracer_event_flat_data";
 import {InvalidArgumentError} from "~/shared/error/error";
 import {ErrorSchema} from "~/shared/error/error_schema";
-import {isHttp500Error} from "~/shared/error/is_http_500_error_code";
+import {isSystemError} from "~/shared/error/is_system_error_code";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object";
 import {SchemaSerializedValue} from "~/shared/schema/schema";
@@ -70,7 +70,7 @@ export async function action({request, context, span}: LoaderArgs) {
                 }),
                 {
                     status: errors.reduce<number>(
-                        (status, error) => Math.max(status, isHttp500Error(error) ? 500 : 400),
+                        (status, error) => Math.max(status, isSystemError(error) ? 500 : 400),
                         200,
                     ),
                     headers: {"content-type": "application/json"},
@@ -80,7 +80,7 @@ export async function action({request, context, span}: LoaderArgs) {
     } catch (error) {
         span.addException(error);
 
-        const status = isHttp500Error(error) ? 500 : 400;
+        const status = isSystemError(error) ? 500 : 400;
 
         return new Response(
             JSON.stringify({

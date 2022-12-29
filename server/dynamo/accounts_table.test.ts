@@ -9,7 +9,7 @@ import {
     getAccountsTableForTest,
     regenerateOneTimePasswordSignIn,
 } from "~/server/dynamo/accounts_table";
-import {DynamoContext} from "~/server/dynamo/dynamo_context";
+import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
 import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address";
@@ -23,7 +23,7 @@ jest.setTimeout(10 * 1000);
 
 const context: DynamoContext = Context.new({
     tracer: new TracerContextModule(),
-    dynamo: DynamoContextModule.test(),
+    dynamo: new DynamoContextModule(createAwsClientFromEnv({}), "http://127.0.0.1:4566"),
 });
 
 const AccountsTable = getAccountsTableForTest();

@@ -1,0 +1,40 @@
+load("//admin/typescript:typescript.bzl", "ts_project")
+
+CORE_SRCS = [
+    "error.ts",
+    "error_code.ts",
+    "is_system_error_code.ts",
+    "types/error_display_message_type.ts",
+]
+
+# We have a separate `error_core` package that `//shared/helpers` and
+# `//shared/schema` can depend on to break the cycle between the packages.
+ts_project(
+    name = "error_core",
+    srcs = CORE_SRCS,
+    test_srcs = [],
+    visibility = [
+        "//shared/helpers:__pkg__",
+        "//shared/schema:__pkg__",
+    ],
+)
+
+ts_project(
+    name = "error",
+    srcs = glob(
+        [
+            "**/*.ts",
+            "**/*.tsx",
+        ],
+        exclude = CORE_SRCS + [
+            "**/*.test.ts",
+            "**/*.test.tsx",
+        ],
+    ),
+    visibility = ["//visibility:public"],
+    deps = [
+        ":error_core",
+        "//shared/helpers",
+        "//shared/schema",
+    ],
+)

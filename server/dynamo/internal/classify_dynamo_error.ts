@@ -1,5 +1,6 @@
-import {ErrorBase, UnknownError, getErrorConstructorForCode} from "~/shared/error/error";
+import {ErrorBase, UnknownError} from "~/shared/error/error";
 import {ErrorCode} from "~/shared/error/error_code";
+import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code";
 
 /**
  * Takes an [error returned by DynamoDB][1] and gives it one of our error

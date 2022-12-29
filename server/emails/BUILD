@@ -1,0 +1,26 @@
+load("//admin/typescript:typescript.bzl", "ts_project")
+
+ts_project(
+    name = "emails",
+    visibility = [
+        "//app:__subpackages__",
+        "//server:__subpackages__",
+    ],
+    deps = [
+        "//:node_modules/@aws-sdk/client-ses",
+        "//:node_modules/@types/mjml-react",
+        "//:node_modules/@types/react",
+        "//:node_modules/aws4fetch",
+        "//:node_modules/change-case",
+        "//:node_modules/email-validator",
+        "//:node_modules/html-entities",
+        "//:node_modules/mjml-react",
+        "//:node_modules/react",
+        "//server/helpers",
+        "//shared/context",
+        "//shared/design",
+        "//shared/error",
+        "//shared/helpers",
+        "//shared/styles",
+    ],
+)

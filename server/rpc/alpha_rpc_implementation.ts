@@ -10,7 +10,7 @@ import * as definition from "~/shared/rpc/alpha_rpc_definitions";
 implementRpc(definition.approveAlphaAccessRequest, async (context, input) => {
     await approveAlphaAccessRequest(
         await context.auth.authenticate(),
-        await validateEmailAddress(input.emailAddress),
+        await validateEmailAddress(context, input.emailAddress),
     );
     return {};
 });
@@ -18,7 +18,7 @@ implementRpc(definition.approveAlphaAccessRequest, async (context, input) => {
 implementRpc(definition.denyAlphaAccessRequest, async (context, input) => {
     await denyAlphaAccessRequest(
         await context.auth.authenticate(),
-        await validateEmailAddress(input.emailAddress),
+        await validateEmailAddress(context, input.emailAddress),
     );
     return {};
 });

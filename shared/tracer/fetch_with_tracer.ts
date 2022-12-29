@@ -2,7 +2,7 @@ import {assert} from "~/shared/helpers/control/assert";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable";
 import {tracerEventHttpHeaderNames} from "~/shared/tracer/helpers/tracer_event_http_header_names";
 import {TracerBase} from "~/shared/tracer/tracer_base";
-import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_header_propagation";
+import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header";
 import {TracerSpan} from "~/shared/tracer/tracer_span";
 
 /**
@@ -13,7 +13,7 @@ import {TracerSpan} from "~/shared/tracer/tracer_span";
  */
 export async function fetchWithTracer(
     tracer: TracerBase,
-    url: string,
+    url: URL | string,
     requestInit?: RequestInit,
 ): Promise<Response> {
     return fetchWithTracerAndReturnSpan(tracer, url, requestInit).responsePromise;
@@ -25,13 +25,17 @@ export async function fetchWithTracer(
  */
 export function fetchWithTracerAndReturnSpan(
     tracer: TracerBase,
-    url: string,
+    url: URL | string,
     requestInit?: RequestInit,
 ): {
     span: TracerSpan;
     responsePromise: Promise<Response>;
 } {
-    const requestUrl = new URL(url, window.location.href);
+    const requestUrl =
+        typeof url !== "string"
+            ? url
+            : new URL(url, typeof window !== "undefined" ? window.location.href : undefined);
+
     const requestMethod = requestInit?.method ?? "GET";
 
     const {span, finishSpan} = tracer.startSpan(`HTTP client ${requestMethod}`);

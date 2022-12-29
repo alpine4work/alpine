@@ -1,7 +1,7 @@
 import {LoaderArgs} from "~/server/remix/loader_context";
 import {getRpcImplementation} from "~/server/rpc/get_rpc_implementation";
 import {InvalidArgumentError, NotFoundError} from "~/shared/error/error";
-import {isHttp500Error} from "~/shared/error/is_http_500_error_code";
+import {isSystemError} from "~/shared/error/is_system_error_code";
 import {
     RpcHttpInputSchema,
     RpcHttpOutputCallSchema,
@@ -49,7 +49,7 @@ export async function action({request, context, span}: LoaderArgs) {
                 ? 200
                 : calls.reduce(
                       (status, call) =>
-                          Math.min(status, call.ok ? 200 : isHttp500Error(call.error) ? 500 : 400),
+                          Math.min(status, call.ok ? 200 : isSystemError(call.error) ? 500 : 400),
                       500,
                   );
 
@@ -68,7 +68,7 @@ export async function action({request, context, span}: LoaderArgs) {
     } catch (error) {
         span.addException(error);
 
-        const status = isHttp500Error(error) ? 500 : 400;
+        const status = isSystemError(error) ? 500 : 400;
 
         return new Response(
             JSON.stringify(

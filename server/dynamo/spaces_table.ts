@@ -1,5 +1,5 @@
-import {RequestContext} from "~/server/context/request_context";
-import {DynamoContext} from "~/server/dynamo/dynamo_context";
+import {RequestContext} from "~/server/dynamo/context/request_context";
+import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
 import {DynamoConditionExpression} from "~/server/dynamo/internal/dynamo_condition";

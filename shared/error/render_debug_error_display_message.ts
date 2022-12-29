@@ -1,4 +1,4 @@
-import {ErrorDisplayMessage} from "~/shared/error/error_display_message";
+import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 
 /**

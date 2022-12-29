@@ -12,13 +12,13 @@ import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
 import {generateId} from "~/shared/id/id";
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema";
 
-const cyberworlds = {
+const devConsole = {
     generateId,
     toggleColorScheme,
 };
 
 defineSchemaProperty<ColorScheme>(
-    cyberworlds,
+    devConsole,
     "colorScheme",
     Schema.enum(["light", "dark"]),
     () => assertExists(getColorSchemeWithoutListening()),
@@ -26,18 +26,15 @@ defineSchemaProperty<ColorScheme>(
 );
 
 /**
- * Attach the developer console object to window under `cyberworlds`
- * (or `c` for short).
+ * Attach the developer console object to window under `dev`.
  */
-export function attachDeveloperConsole() {
+export function attachDevConsole() {
     // Only give access to developer console tools in development environments (for
     // now). In the future we will allow signed in internal users to access
     // these tools.
     if (process.env.NODE_ENV !== "production") {
         // @ts-expect-error cyberworlds doesn't exist on windows types
-        window.cyberworlds = cyberworlds;
-        // @ts-expect-error c doesn't exist on windows types
-        window.c = cyberworlds;
+        window.dev = devConsole;
     }
 }
 
@@ -65,13 +62,13 @@ function defineSchemaProperty<T>(
  * These tools are useful for manipulating the application in development from
  * the browser console.
  */
-export function useDeveloperConsoleTool(key: string, createTools: () => object) {
+export function useDevConsoleTool(key: string, createTools: () => object) {
     useEffect(() => {
         // If the tools already exist, don't add them again. Only the first component
         // to attach debug tools will be usable.
-        if (hasOwnProperty(cyberworlds, key)) return;
+        if (hasOwnProperty(devConsole, key)) return;
 
-        Object.defineProperty(cyberworlds, key, {
+        Object.defineProperty(devConsole, key, {
             value: createTools(),
             enumerable: true,
             configurable: true,
@@ -79,29 +76,29 @@ export function useDeveloperConsoleTool(key: string, createTools: () => object) 
         });
 
         return () => {
-            delete cyberworlds[key];
+            delete devConsole[key];
         };
     });
 }
 
-type DeveloperConsoleSettingsObjectConfigProperty<T> = {schema: Schema<T>; defaultValue: T};
-type DeveloperConsoleSettingsObjectConfigMethod = (...args: Array<any>) => void;
-type UnknownDeveloperConsoleSettingsObjectConfig = Record<
+type DevConsoleSettingsObjectConfigProperty<T> = {schema: Schema<T>; defaultValue: T};
+type DevConsoleSettingsObjectConfigMethod = (...args: Array<any>) => void;
+type UnknownDevConsoleSettingsObjectConfig = Record<
     string,
-    DeveloperConsoleSettingsObjectConfigProperty<any> | DeveloperConsoleSettingsObjectConfigMethod
+    DevConsoleSettingsObjectConfigProperty<any> | DevConsoleSettingsObjectConfigMethod
 >;
-type DeveloperConsoleSettingsObject<Config extends UnknownDeveloperConsoleSettingsObjectConfig> = {
-    [K in keyof Config]: Config[K] extends DeveloperConsoleSettingsObjectConfigMethod
+type DevConsoleSettingsObject<Config extends UnknownDevConsoleSettingsObjectConfig> = {
+    [K in keyof Config]: Config[K] extends DevConsoleSettingsObjectConfigMethod
         ? Config[K]
-        : Config[K] extends DeveloperConsoleSettingsObjectConfigProperty<infer T>
+        : Config[K] extends DevConsoleSettingsObjectConfigProperty<infer T>
         ? T
         : never;
 };
 
-function getDefaultsFromConfig<Config extends UnknownDeveloperConsoleSettingsObjectConfig>(
+function getDefaultsFromConfig<Config extends UnknownDevConsoleSettingsObjectConfig>(
     groupKey: string,
     config: Config,
-): DeveloperConsoleSettingsObject<Config> {
+): DevConsoleSettingsObject<Config> {
     return mapObjectValues(config, (item, key) => {
         if (typeof item === "function") return item;
         return readSessionStorage(`${groupKey}.${key}`, item.schema, item.defaultValue);
@@ -112,14 +109,15 @@ function getDefaultsFromConfig<Config extends UnknownDeveloperConsoleSettingsObj
  * Expose an object on the developer console. Properties can be read and written
  * and are kept automatically in sync with the react component.
  */
-export function useDeveloperConsoleSettingsObject<
-    Config extends UnknownDeveloperConsoleSettingsObjectConfig,
->(groupKey: string, config: Config): DeveloperConsoleSettingsObject<Config> {
-    const [state, setState] = useState<DeveloperConsoleSettingsObject<Config>>(() =>
+export function useDevConsoleSettingsObject<Config extends UnknownDevConsoleSettingsObjectConfig>(
+    groupKey: string,
+    config: Config,
+): DevConsoleSettingsObject<Config> {
+    const [state, setState] = useState<DevConsoleSettingsObject<Config>>(() =>
         getDefaultsFromConfig(groupKey, config),
     );
 
-    useDeveloperConsoleTool(
+    useDevConsoleTool(
         groupKey,
         useCallback(() => {
             const wrappedState: Record<string, unknown> = {
@@ -166,7 +164,7 @@ export function useDeveloperConsoleSettingsObject<
 
 function readSessionStorage<T>(key: string, schema: Schema<T>, defaultValue: T): T {
     try {
-        const item = sessionStorage.getItem(`cyberworldsDeveloperConsole.${key}`);
+        const item = sessionStorage.getItem(`cyberworldsDevConsole.${key}`);
         if (!item) return defaultValue;
         return schema.deserialize(JSON.parse(item));
     } catch {
@@ -176,13 +174,13 @@ function readSessionStorage<T>(key: string, schema: Schema<T>, defaultValue: T):
 
 function writeSessionStorage<T>(key: string, schema: Schema<T>, newValue: T) {
     sessionStorage.setItem(
-        `cyberworldsDeveloperConsole.${key}`,
+        `cyberworldsDevConsole.${key}`,
         JSON.stringify(schema.serialize(newValue)),
     );
 }
 
 function clearSessionStoragePrefix(keyToFind: string) {
-    const prefix = `cyberworldsDeveloperConsole.${keyToFind}`;
+    const prefix = `cyberworldsDevConsole.${keyToFind}`;
     const keysToClear = [];
     for (let i = 0; i < sessionStorage.length; i++) {
         const key = sessionStorage.key(i);

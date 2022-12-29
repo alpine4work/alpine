@@ -1,7 +1,7 @@
 load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load("@aspect_rules_js//js:defs.bzl", "js_binary")
 load("@npm//:wrangler/package_json.bzl", wrangler_bin = "bin")
-load("//admin:bazel/opt_compilation_mode.bzl", "opt_compilation_mode")
+load("//admin/bazel:opt_compilation_mode.bzl", "opt_compilation_mode")
 load("//admin/typescript:typescript.bzl", "ts_project")
 load("//app:remix.bzl", "remix_app")
 
@@ -28,9 +28,35 @@ ts_project(
         "//:node_modules/jose",
         "//:node_modules/mjml-react",
         "//:node_modules/react",
-        "//client",
-        "//server",
-        "//shared",
+        "//client/blob_factory",
+        "//client/context",
+        "//client/design",
+        "//client/dev",
+        "//client/documents",
+        "//client/error",
+        "//client/helpers",
+        "//client/remix",
+        "//client/rpc",
+        "//client/tracer",
+        "//server/aws",
+        "//server/documents",
+        "//server/dynamo",
+        "//server/emails",
+        "//server/remix",
+        "//server/rpc",
+        "//server/tracer",
+        "//shared/alpha",
+        "//shared/context",
+        "//shared/design",
+        "//shared/documents",
+        "//shared/error",
+        "//shared/helpers",
+        "//shared/id",
+        "//shared/remix",
+        "//shared/rpc",
+        "//shared/schema",
+        "//shared/styles",
+        "//shared/tracer",
     ],
 )
 

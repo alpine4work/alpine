@@ -1,6 +1,7 @@
-import {ErrorBase, getErrorConstructorForCode} from "~/shared/error/error";
+import {ErrorBase} from "~/shared/error/error";
 import {ErrorCode, isErrorCode} from "~/shared/error/error_code";
 import {ErrorDisplayMessageSchema} from "~/shared/error/error_display_message";
+import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code";
 import {Schema} from "~/shared/schema/schema";
 
 export const ErrorSchema = Schema.object({

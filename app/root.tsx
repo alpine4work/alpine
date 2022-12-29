@@ -13,6 +13,7 @@ import {RemixEntryContext} from "@remix-run/react/dist/esm/components";
 import {IconContext} from "phosphor-react";
 import prosemirrorStylesHref from "prosemirror-view/style/prosemirror.css";
 import {useContext, useEffect, useMemo} from "react";
+import {AppContextProvider, useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
 import {
     InitializeColorSchemeScript,
@@ -21,7 +22,6 @@ import {
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {TooltipCoordinationContextProvider} from "~/client/design/tooltip";
 import {ErrorBodyRenderer} from "~/client/error/error_body_renderer";
-import {AppContextProvider, useAppContext} from "~/client/context/app_context";
 import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useStableValue} from "~/client/helpers/use_stable_value";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";

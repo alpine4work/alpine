@@ -36,13 +36,13 @@ def ts_project(
         **kwargs: Arguments that will be forwarded to `ts_project()` from `aspect_rules_ts`.
     """
 
-    if not srcs:
+    if srcs == None:
         srcs = native.glob(
             ["**/*.ts", "**/*.tsx"],
             exclude = ["**/*.test.ts", "**/*.test.tsx"],
         )
 
-    if not test_srcs:
+    if test_srcs == None:
         test_srcs = native.glob(["**/*.test.ts", "**/*.test.tsx"])
 
     _ts_project(
@@ -68,7 +68,7 @@ def ts_project(
 
         native.genrule(
             name = "{}_tests_typecheck_tsconfig".format(name),
-            outs = ["tsconfig_tests.json"],
+            outs = ["{}_tsconfig_tests.json".format(name)],
             srcs = ["//:tsconfig.bazel.json"] + test_srcs,
             cmd = """\
 cat <<EOF >> $@
@@ -174,7 +174,7 @@ def ts_lint_and_format_test(
         performs type checking.
     """
 
-    if not srcs:
+    if srcs == None:
         srcs = native.glob([
             "**/*.js",
             "**/*.jsx",
@@ -224,7 +224,7 @@ def ts_lint_and_format_test(
             "//:.eslintignore",
             "//:package.json",
             "//:tsconfig.json",
-            "//admin:eslint_custom_rules",
+            "//admin/eslint:eslint_custom_rules",
             # Include the type information of our dependencies since we use type-aware
             # lint rules.
             ":{}_deps_typings".format(name),

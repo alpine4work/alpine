@@ -17,7 +17,8 @@ ts_project(
         "//:node_modules/undici",
         "//:node_modules/ws",
         "//admin/aws",
-        "//shared",
+        "//admin/helpers",
+        "//shared/helpers",
     ],
 )
 

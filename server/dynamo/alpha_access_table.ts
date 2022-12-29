@@ -1,11 +1,14 @@
 import {compareAsc as compareDatesAsc} from "date-fns";
-import {RequestContext, UnauthenticatedRequestContext} from "~/server/context/request_context";
+import {
+    RequestContext,
+    UnauthenticatedRequestContext,
+} from "~/server/dynamo/context/request_context";
 import {
     authorizeAccountHasInternalAccess,
     checkAccountEmailAddressDoesNotExistTransactionEntry,
     createAccountForAlphaTransactionEntries,
 } from "~/server/dynamo/accounts_table";
-import {DynamoContext} from "~/server/dynamo/dynamo_context";
+import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
 import {DynamoConditionExpression} from "~/server/dynamo/internal/dynamo_condition";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
@@ -195,7 +198,7 @@ export async function requestAlphaAccess(
     // so I know to approve it immediately.
     await context.email.send({
         fromEmailAddress: FromEmailAddress.Alpha,
-        toEmailAddress: await validateEmailAddress("calebmeredith8@gmail.com"),
+        toEmailAddress: await validateEmailAddress(context, "calebmeredith8@gmail.com"),
         templateName: "RequestedAlphaAccess",
         templateProps: {
             name,

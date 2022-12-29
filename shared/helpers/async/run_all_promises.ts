@@ -1,5 +1,5 @@
 import {ErrorBase} from "~/shared/error/error";
-import {isHttp500ErrorCode} from "~/shared/error/is_http_500_error_code";
+import {isSystemError} from "~/shared/error/is_system_error_code";
 
 type AwaitedThunk<T> = T extends () => infer U ? Awaited<U> : Awaited<T>;
 
@@ -39,12 +39,9 @@ export async function runAllPromises<
             if (!hasRejection) firstRejectionReason = result.reason;
             hasRejection = true;
 
-            if (
-                result.reason instanceof ErrorBase &&
-                // Maybe we should rank errors by severity instead of a binary "is internal
-                // server error or user error" ranking.
-                isHttp500ErrorCode(result.reason.code)
-            ) {
+            // Maybe we should rank errors by severity instead of a binary "is internal
+            // server error or user error" ranking.
+            if (isSystemError(result.reason)) {
                 internalError = result.reason;
                 break;
             }

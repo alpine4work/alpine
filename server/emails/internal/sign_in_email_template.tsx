@@ -10,16 +10,11 @@ import {
     MjmlText as MjmlUnstyledText,
 } from "mjml-react";
 import {ReactNode} from "react";
-import {expireOneTimePasswordAfterMinutes} from "~/server/dynamo/accounts_table";
 import {Color, colors} from "~/shared/design/colors";
 import {convertRemLengthToPx, remPxByPlatform} from "~/shared/design/spacing";
 import {defaultThemeColor} from "~/shared/design/theme_colors";
 import {assert} from "~/shared/helpers/control/assert";
 import {fontSizes, fontStyles} from "~/shared/styles/styles";
-
-// We write in copy that the code expires after one hour. If we change the
-// password expiration time, we should also change the copy.
-assert(expireOneTimePasswordAfterMinutes === 60);
 
 export function SignInEmailTemplate({
     code,

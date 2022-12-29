@@ -3,8 +3,8 @@ import {createRequestHandler, handleAsset} from "@remix-run/cloudflare-workers";
 import * as build from "@remix-run/dev/server-build";
 import {SignJWT} from "jose";
 import {createAwsContextModulesFromEnv} from "~/server/aws/create_aws_context_modules_from_env";
-import {UnauthenticatedAuthContextModule} from "~/server/context/auth_context_module";
-import {unauthenticatedSessionError} from "~/server/context/helpers/unauthenticated_session_error";
+import {UnauthenticatedAuthContextModule} from "~/server/dynamo/context/auth_context_module";
+import {unauthenticatedSessionError} from "~/server/dynamo/context/helpers/unauthenticated_session_error";
 import {Session} from "~/server/dynamo/accounts_table";
 import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base";
@@ -13,8 +13,8 @@ import {
     LoaderContextModule,
     LoaderContextModules,
 } from "~/server/remix/loader_context";
+import {SessionCookieStorage} from "~/server/remix/session_cookie";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module";
-import {SessionCookieStorage} from "~/server/session/session_cookie";
 import {createServerTracer} from "~/server/tracer/server_tracer";
 import {traceFetchResponse} from "~/server/tracer/trace_fetch_response";
 import {Context} from "~/shared/context/context";
@@ -23,7 +23,7 @@ import {TracerContextModule} from "~/shared/context/tracer_context_module";
 import {InternalError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {Schema} from "~/shared/schema/schema";
-import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_header_propagation";
+import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header";
 
 type AppWorkerEnv = {
     DocumentCollaborationDurableObjectNamespace: DurableObjectNamespace;

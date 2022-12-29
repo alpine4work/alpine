@@ -1,5 +1,4 @@
 import dedent from "dedent";
-import React from "react";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {assert} from "~/shared/helpers/control/assert";
 import {SafeString, isSafeString} from "~/shared/helpers/string/safe_string";

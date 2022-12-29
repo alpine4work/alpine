@@ -1,4 +1,4 @@
-import {DynamoContext} from "~/server/dynamo/dynamo_context";
+import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {DynamoClient} from "~/server/dynamo/internal/dynamo_client";
 
 /**

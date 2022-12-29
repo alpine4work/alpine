@@ -13,6 +13,7 @@ import {
     GlUniformVector2,
 } from "~/client/helpers/gl/gl_uniform";
 import {GlVertexArray} from "~/client/helpers/gl/gl_vertex_array";
+import {InternalError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {Vector2} from "~/shared/helpers/geometry/vector2";
 
@@ -33,7 +34,7 @@ export class GlProgram {
         if (!success) {
             const error = `Failed to link shaders: ${gl.getProgramInfoLog(program) ?? ""}`;
             gl.deleteProgram(program);
-            fail(error);
+            throw new InternalError(error);
         }
 
         this.program = program;

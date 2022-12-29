@@ -1,5 +1,5 @@
 import {Instance, Rect, createPopper} from "@popperjs/core";
-import React, {
+import {
     ReactElement,
     ReactNode,
     Ref,

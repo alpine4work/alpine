@@ -9,11 +9,12 @@ ts_project(
     deps = [
         "//:node_modules/aws-cdk-lib",
         "//:node_modules/aws-cdk-local",
+        "//:node_modules/chalk",
         "//:node_modules/constructs",
         "//:node_modules/fs-extra",
-        "//admin",
-        "//server",
-        "//shared",
+        "//:node_modules/pretty-ms",
+        "//admin/helpers",
+        "//server/dynamo",
     ],
 )
 

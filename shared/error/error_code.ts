@@ -1,4 +1,4 @@
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {InternalError} from "~/shared/error/error";
 
 /**
  * We use [gRPC status codes][1] for our error codes. gRPC status codes are
@@ -191,7 +191,13 @@ export function getErrorCodeName(code: ErrorCode): string {
             return "DataLoss";
         case ErrorCode.Unauthenticated:
             return "Unauthenticated";
-        default:
-            throw exhaustive(code);
+        default: {
+            // We inline the implementation of `exhaustive()` here because core error files
+            // can not import `~/shared/helpers`. Since `~/shared/helpers` depends on core
+            // error files.
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const never: never = code;
+            throw new InternalError("Unexpected value in exhaustive check");
+        }
     }
 }

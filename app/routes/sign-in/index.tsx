@@ -11,11 +11,11 @@ import {ErrorInlineAlert} from "~/client/error/error_inline_alert";
 import {useActionDataWithSchema} from "~/client/remix/use_action_data_with_schema";
 import {regenerateOneTimePasswordSignIn} from "~/server/dynamo/accounts_table";
 import {validateEmailAddress} from "~/server/emails/email_address";
-import {LoaderArgs} from "~/server/remix/loader_context";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
+import {LoaderArgs} from "~/server/remix/loader_context";
 import {InvalidArgumentError} from "~/shared/error/error";
 import {ErrorSchema} from "~/shared/error/error_schema";
-import {isHttp500Error} from "~/shared/error/is_http_500_error_code";
+import {isSystemError} from "~/shared/error/is_system_error_code";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles";
 
@@ -46,7 +46,10 @@ export async function action({request, context}: LoaderArgs) {
         if (typeof emailAddress !== "string")
             throw new InvalidArgumentError('Expected property "emailAddress" in form data');
 
-        await regenerateOneTimePasswordSignIn(context, await validateEmailAddress(emailAddress));
+        await regenerateOneTimePasswordSignIn(
+            context,
+            await validateEmailAddress(context, emailAddress),
+        );
 
         // After we send the email, challenge the user to sign in using the code
         // we sent them.
@@ -55,7 +58,7 @@ export async function action({request, context}: LoaderArgs) {
         return jsonWithSchema(
             ActionSchema,
             {ok: false, error},
-            {status: isHttp500Error(error) ? 500 : 400},
+            {status: isSystemError(error) ? 500 : 400},
         );
     }
 }

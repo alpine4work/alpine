@@ -1,6 +1,6 @@
 import {seedTestAccounts} from "~/server/dynamo/accounts_table";
 import {seedTestAlphaConfiguration} from "~/server/dynamo/alpha_access_table";
-import {DynamoContext} from "~/server/dynamo/dynamo_context";
+import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {seedTestSpaces} from "~/server/dynamo/spaces_table";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";

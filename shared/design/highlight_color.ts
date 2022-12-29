@@ -1,7 +1,8 @@
 import {Color} from "~/shared/design/colors";
 
 /**
- * All the possible highlight colors for the inline style.
+ * All the possible highlight colors for our content schema highlight
+ * inline style.
  */
 export enum HighlightColor {
     Red = "red",

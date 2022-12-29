@@ -1,4 +1,4 @@
-import {UnauthenticatedRequestContextModules} from "~/server/context/request_context";
+import {UnauthenticatedRequestContextModules} from "~/server/dynamo/context/request_context";
 import {getRpcImplementation} from "~/server/rpc/get_rpc_implementation";
 import {InternalError} from "~/shared/error/error";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base";

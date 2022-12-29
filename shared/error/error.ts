@@ -1,6 +1,5 @@
 import {ErrorCode, getErrorCodeName} from "~/shared/error/error_code";
-import {ErrorDisplayMessage} from "~/shared/error/error_display_message";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type";
 
 /**
  * An exception in our codebase that interrupts the normal flow of execution.
@@ -240,52 +239,5 @@ export class DataLossError extends ErrorBase {
 export class UnauthenticatedError extends ErrorBase {
     protected _getCode() {
         return ErrorCode.Unauthenticated as const;
-    }
-}
-
-/**
- * Get a the error constructor for the provided error code.
- */
-export function getErrorConstructorForCode(
-    code: ErrorCode,
-): new (
-    message: string,
-    options?: {cause?: unknown; displayMessage?: ErrorDisplayMessage},
-) => ErrorBase {
-    switch (code) {
-        case ErrorCode.Cancelled:
-            return CancelledError;
-        case ErrorCode.Unknown:
-            return UnknownError;
-        case ErrorCode.InvalidArgument:
-            return InvalidArgumentError;
-        case ErrorCode.DeadlineExceeded:
-            return DeadlineExceededError;
-        case ErrorCode.NotFound:
-            return NotFoundError;
-        case ErrorCode.AlreadyExists:
-            return AlreadyExistsError;
-        case ErrorCode.PermissionDenied:
-            return PermissionDeniedError;
-        case ErrorCode.ResourceExhausted:
-            return ResourceExhaustedError;
-        case ErrorCode.FailedPrecondition:
-            return FailedPreconditionError;
-        case ErrorCode.Aborted:
-            return AbortedError;
-        case ErrorCode.OutOfRange:
-            return OutOfRangeError;
-        case ErrorCode.Unimplemented:
-            return UnimplementedError;
-        case ErrorCode.Internal:
-            return InternalError;
-        case ErrorCode.Unavailable:
-            return UnavailableError;
-        case ErrorCode.DataLoss:
-            return DataLossError;
-        case ErrorCode.Unauthenticated:
-            return UnauthenticatedError;
-        default:
-            throw exhaustive(code);
     }
 }

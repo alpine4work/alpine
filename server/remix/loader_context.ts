@@ -1,5 +1,6 @@
-import type {UnauthenticatedRequestContextModules} from "~/server/context/request_context";
-import {SessionCookie} from "~/server/session/session_cookie";
+import type {UnauthenticatedRequestContextModules} from "~/server/dynamo/context/request_context";
+import {SessionCookie} from "~/server/remix/session_cookie";
+import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module";
 import type {Context} from "~/shared/context/context";
 import {ContextModuleBase} from "~/shared/context/context_module_base";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection";
@@ -9,6 +10,7 @@ export type LoaderContext = Context<LoaderContextModules>;
 
 export type LoaderContextModules = MergeObjectIntersection<
     UnauthenticatedRequestContextModules & {
+        rpc: LocalRpcContextModule;
         loader: LoaderContextModule;
     }
 >;

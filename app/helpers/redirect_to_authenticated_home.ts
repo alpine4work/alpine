@@ -1,6 +1,6 @@
 import {redirect} from "@remix-run/cloudflare";
 import {getAlphaConfiguration} from "~/server/dynamo/alpha_access_table";
-import {DynamoContext} from "~/server/dynamo/dynamo_context";
+import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 
 /**
  * Redirect to the homepage for an account if they are successfully

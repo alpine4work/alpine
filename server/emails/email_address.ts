@@ -1,6 +1,9 @@
 import {validate as validateEmail} from "email-validator";
+import {Context} from "~/shared/context/context";
+import {TracerContextModule} from "~/shared/context/tracer_context_module";
 import {InternalError, InvalidArgumentError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer";
 
 /**
  * A correctly formatted [email address][1] with a domain that can
@@ -24,7 +27,10 @@ export type EmailAddress = string & {readonly _EmailAddress: never};
  *
  * [1]: https://developers.cloudflare.com/1.1.1.1/encryption/dns-over-https/make-api-requests/
  */
-export async function validateEmailAddress(emailAddress: string): Promise<EmailAddress> {
+export async function validateEmailAddress(
+    context: Context<{tracer: TracerContextModule}>,
+    emailAddress: string,
+): Promise<EmailAddress> {
     // Email address is case-insensitive. So normalize email address.
     emailAddress = emailAddress.toLowerCase();
 
@@ -51,7 +57,9 @@ export async function validateEmailAddress(emailAddress: string): Promise<EmailA
     dnsQueryUrl.searchParams.set("type", "mx");
     dnsQueryUrl.searchParams.set("name", domain);
 
-    const response = await fetch(dnsQueryUrl, {headers: {Accept: "application/dns-json"}});
+    const response = await fetchWithTracer(context.tracer.getTracer(), dnsQueryUrl, {
+        headers: {Accept: "application/dns-json"},
+    });
     if (response.status !== 200)
         throw new InternalError(
             `DNS query for domain MX records failed with status: ${response.status}`,

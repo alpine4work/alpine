@@ -1,24 +1,23 @@
 import {jwtVerify} from "jose";
 import {Step} from "prosemirror-transform";
 import {createAwsContextModulesFromEnv} from "~/server/aws/create_aws_context_modules_from_env";
-import {UnauthenticatedAuthContextModule} from "~/server/context/auth_context_module";
-import {ProcessContext, ProcessContextModules} from "~/server/context/process_context";
+import {DocumentCollaborationStepCache} from "~/server/documents/document_collaboration_step_cache";
+import {Session} from "~/server/dynamo/accounts_table";
+import {UnauthenticatedAuthContextModule} from "~/server/dynamo/context/auth_context_module";
+import {ProcessContext, ProcessContextModules} from "~/server/dynamo/context/process_context";
 import {
     RequestContext,
     UnauthenticatedRequestContextModules,
-} from "~/server/context/request_context";
-import {DocumentCollaborationStepCache} from "~/server/documents/document_collaboration_step_cache";
-import {getUpdateDocumentContentResult} from "~/server/documents/get_update_document_content_result";
-import {Session} from "~/server/dynamo/accounts_table";
+} from "~/server/dynamo/context/request_context";
 import {
     getDocument,
     getDocumentPreview,
+    getUpdateDocumentContentResult,
     updateDocumentContent,
 } from "~/server/dynamo/documents_table";
-import {WebSocketServer} from "~/server/helpers/web_socket_server";
-import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module";
 import {createServerTracer} from "~/server/tracer/server_tracer";
 import {traceFetchResponse} from "~/server/tracer/trace_fetch_response";
+import {WebSocketServer} from "~/server/web_socket/web_socket_server";
 import {Context} from "~/shared/context/context";
 import {ProcessContextModule} from "~/shared/context/process_context_module";
 import {TracerContextModule} from "~/shared/context/tracer_context_module";
@@ -31,13 +30,12 @@ import {
 } from "~/shared/documents/document_collaboration_schema";
 import {DocumentContent, isDocumentContent} from "~/shared/documents/document_content_schema";
 import {
-    ErrorBase,
     FailedPreconditionError,
     InternalError,
     InvalidArgumentError,
     NotFoundError,
 } from "~/shared/error/error";
-import {isHttp500ErrorCode} from "~/shared/error/is_http_500_error_code";
+import {isSystemError} from "~/shared/error/is_system_error_code";
 import {AsyncSequentialQueue} from "~/shared/helpers/async/async_sequential_queue";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
@@ -135,7 +133,6 @@ class DocumentCollaborationDurableObjectWrapper {
 
                         return session;
                     }),
-                    rpc: new LocalRpcContextModule(),
                 },
                 async _requestContext => {
                     const requestContext: RequestContext =
@@ -526,11 +523,9 @@ class DocumentCollaborationContentManager {
                                 } catch (_error) {
                                     // Upgrade the severity of non-internal errors to internal since the client has
                                     // already seen the update.
-                                    const error =
-                                        !(_error instanceof ErrorBase) ||
-                                        !isHttp500ErrorCode(_error.code)
-                                            ? InternalError.from(_error)
-                                            : _error;
+                                    const error = !isSystemError(_error)
+                                        ? InternalError.from(_error)
+                                        : _error;
 
                                     span.addException(error);
 

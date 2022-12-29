@@ -19,7 +19,7 @@ import {LoaderArgs} from "~/server/remix/loader_context";
 import {themeColors} from "~/shared/design/theme_colors";
 import {InvalidArgumentError} from "~/shared/error/error";
 import {ErrorSchema} from "~/shared/error/error_schema";
-import {isHttp500Error} from "~/shared/error/is_http_500_error_code";
+import {isSystemError} from "~/shared/error/is_system_error_code";
 import {randomArrayItem} from "~/shared/helpers/array/random_array_item";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles";
@@ -69,7 +69,7 @@ export async function action({request, context}: LoaderArgs) {
 
         await requestAlphaAccess(context, {
             name,
-            emailAddress: await validateEmailAddress(emailAddress),
+            emailAddress: await validateEmailAddress(context, emailAddress),
             message,
         });
 
@@ -78,7 +78,7 @@ export async function action({request, context}: LoaderArgs) {
         return jsonWithSchema(
             ActionSchema,
             {ok: false, error},
-            {status: isHttp500Error(error) ? 500 : 400},
+            {status: isSystemError(error) ? 500 : 400},
         );
     }
 }

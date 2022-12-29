@@ -15,7 +15,7 @@ import {trimSpacesFromRange} from "~/client/content/internal/content_editor_pros
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
 import {Tooltip} from "~/client/design/tooltip";
-import {HighlightColor, colorByHighlightColor} from "~/shared/content/highlight_color";
+import {HighlightColor, colorByHighlightColor} from "~/shared/design/highlight_color";
 import {assert} from "~/shared/helpers/control/assert";
 
 export type ContentEditorHighlightSelectorRef = {

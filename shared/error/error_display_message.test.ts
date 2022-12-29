@@ -1,4 +1,4 @@
-import {ErrorDisplayMessage} from "~/shared/error/error_display_message";
+import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type";
 
 test("can not manually create an error display message", () => {
     // @ts-expect-error: Must use `errorDisplayMessage()` to create error messages

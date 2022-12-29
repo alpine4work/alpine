@@ -1,4 +1,4 @@
-import {UnauthenticatedRequestContext} from "~/server/context/request_context";
+import {UnauthenticatedRequestContext} from "~/server/dynamo/context/request_context";
 import {assert} from "~/shared/helpers/control/assert";
 import {quote} from "~/shared/helpers/string/quote";
 import {BlockInference} from "~/shared/helpers/types/block_inference";

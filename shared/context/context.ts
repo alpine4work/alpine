@@ -100,18 +100,21 @@ type ContextModulesDependencies<Modules extends {[key: string]: ContextModuleBas
         {[Key in keyof Modules]: ContextModuleModulesType<Modules[Key]>}[keyof Modules]
     >;
 
-export const Context = {
+// We need to write the type of `Context` as a TypeScript type so that
+// TypeScript doesn't get confused by the `new` property when building type
+// declarations.
+type ContextStatic = {
     /**
      * Create a new context object with the provided modules.
      *
      * You may need to pass a type parameter into this function to get the correct
      * return type. Like this: `Context.new<{ ... }>({ ... })`.
      */
-    new<Modules extends {[key: string]: ContextModuleBase}>(
+    // TypeScript treats `new` as a keyword and not a property when it doesn't
+    // have quotes.
+    "new"<Modules extends {[key: string]: ContextModuleBase}>(
         modules: Modules & ContextModulesDependencies<Modules>,
-    ): ContextWithDestroy<Modules> {
-        return new ContextImplementation(null, modules) as any;
-    },
+    ): ContextWithDestroy<Modules>;
 
     /**
      * Create a context scoped to the provided async action. When the async action
@@ -121,6 +124,19 @@ export const Context = {
      * any `context.process.waitUntil()` calls will extend the lifetime of the
      * context.
      */
+    with<Modules extends {[key: string]: ContextModuleBase}, Value>(
+        modules: Modules & ContextModulesDependencies<Modules>,
+        action: (context: Context<Modules>) => Promise<Value>,
+    ): Promise<Value>;
+};
+
+export const Context: ContextStatic = {
+    new<Modules extends {[key: string]: ContextModuleBase}>(
+        modules: Modules & ContextModulesDependencies<Modules>,
+    ): ContextWithDestroy<Modules> {
+        return new ContextImplementation(null, modules) as any;
+    },
+
     async with<Modules extends {[key: string]: ContextModuleBase}, Value>(
         modules: Modules & ContextModulesDependencies<Modules>,
         action: (context: Context<Modules>) => Promise<Value>,

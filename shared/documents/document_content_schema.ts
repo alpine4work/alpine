@@ -9,7 +9,7 @@ import {
     createProsemirrorSchemaSpec,
     toDebugStringWithIndent,
 } from "~/shared/content/content_schema";
-import {HighlightColor, isHighlightColor} from "~/shared/content/highlight_color";
+import {HighlightColor, isHighlightColor} from "~/shared/design/highlight_color";
 import {assert} from "~/shared/helpers/control/assert";
 import {Schema, SchemaDeserializationError} from "~/shared/schema/schema";
 import {contentSchemaStyles} from "~/shared/styles/styles";

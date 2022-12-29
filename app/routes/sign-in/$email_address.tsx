@@ -10,11 +10,11 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useActionDataWithSchema} from "~/client/remix/use_action_data_with_schema";
 import {attemptOneTimePasswordSignIn} from "~/server/dynamo/accounts_table";
 import {validateEmailAddress} from "~/server/emails/email_address";
-import {LoaderArgs} from "~/server/remix/loader_context";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
+import {LoaderArgs} from "~/server/remix/loader_context";
 import {InvalidArgumentError} from "~/shared/error/error";
 import {ErrorSchema} from "~/shared/error/error_schema";
-import {isHttp500Error} from "~/shared/error/is_http_500_error_code";
+import {isSystemError} from "~/shared/error/is_system_error_code";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 import {sprinkles} from "~/shared/styles/styles";
 
@@ -52,7 +52,7 @@ export async function action({request, context, params}: LoaderArgs) {
 
         const {sessionId} = await attemptOneTimePasswordSignIn(
             context,
-            await validateEmailAddress(emailAddress),
+            await validateEmailAddress(context, emailAddress),
             oneTimePassword,
             {
                 // We depend on Cloudflare to set the `cf-connecting-ip` header on our request
@@ -70,7 +70,7 @@ export async function action({request, context, params}: LoaderArgs) {
         return jsonWithSchema(
             ActionSchema,
             {ok: false, error},
-            {status: isHttp500Error(error) ? 500 : 400},
+            {status: isSystemError(error) ? 500 : 400},
         );
     }
 }

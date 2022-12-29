@@ -31,7 +31,7 @@ import {
 import {unstable_ImmediatePriority, unstable_runWithPriority} from "scheduler";
 import {ContentEditorPhantomSelection} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
-import {useDeveloperConsoleTool} from "~/client/helpers/developer_console";
+import {useDevConsoleTool} from "~/client/dev/dev_console";
 import {useWebSocket} from "~/client/helpers/use_web_socket";
 import {defaultThemeColor, themeColors} from "~/shared/design/theme_colors";
 import {
@@ -821,7 +821,7 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
         return phantomSelections;
     }, [presenceStates]);
 
-    useDeveloperConsoleTool(
+    useDevConsoleTool(
         "DocumentContentEditor",
         useCallback(() => ({toggleShouldConnect}), [toggleShouldConnect]),
     );

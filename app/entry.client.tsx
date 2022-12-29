@@ -3,7 +3,7 @@ import React from "react";
 import ReactDom, {hydrateRoot} from "react-dom/client";
 import {AppContext, AppContextProvider} from "~/client/context/app_context";
 import {ReactContextModule} from "~/client/context/react_context_module";
-import {attachDeveloperConsole} from "~/client/helpers/developer_console";
+import {attachDevConsole} from "~/client/dev/dev_console";
 import {ClientRpcContextModule} from "~/client/rpc/client_rpc_context_module";
 import {createClientTracer} from "~/client/tracer/client_tracer";
 import {Context} from "~/shared/context/context";
@@ -44,7 +44,7 @@ hydrateRoot(
     </AppContextProvider>,
 );
 
-attachDeveloperConsole();
+attachDevConsole();
 
 // Initialize [axe][1] which is an automated accessibility tester.
 // Accessibility violations are printed to the console.

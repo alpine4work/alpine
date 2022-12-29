@@ -1,17 +1,10 @@
-import {AuthenticatedAuthContextModule} from "~/server/context/auth_context_module";
-import {ProcessContext} from "~/server/context/process_context";
-import {RequestContext} from "~/server/context/request_context";
 import {Session} from "~/server/dynamo/accounts_table";
-import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module";
+import {AuthenticatedAuthContextModule} from "~/server/dynamo/context/auth_context_module";
+import {ProcessContext} from "~/server/dynamo/context/process_context";
+import {RequestContext} from "~/server/dynamo/context/request_context";
 import {TracerContextModule} from "~/shared/context/tracer_context_module";
-import {
-    ErrorBase,
-    FailedPreconditionError,
-    InvalidArgumentError,
-    NotFoundError,
-} from "~/shared/error/error";
-import {ErrorCode} from "~/shared/error/error_code";
-import {isHttp500ErrorCode} from "~/shared/error/is_http_500_error_code";
+import {FailedPreconditionError, InvalidArgumentError, NotFoundError} from "~/shared/error/error";
+import {isSystemError} from "~/shared/error/is_system_error_code";
 import {Interval, createInterval} from "~/shared/helpers/async/interval";
 import {assert} from "~/shared/helpers/control/assert";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
@@ -408,7 +401,6 @@ class WebSocketServerConnectionWrapper<
                             await context.with(
                                 {
                                     auth: new AuthenticatedAuthContextModule(session),
-                                    rpc: new LocalRpcContextModule(),
                                 },
                                 async (context: RequestContext) => {
                                     await this.connection.handleMessage(context, message, span);
@@ -419,9 +411,7 @@ class WebSocketServerConnectionWrapper<
 
                             // If we got an unexpected error while handling the message close the socket
                             // connection.
-                            const code =
-                                error instanceof ErrorBase ? error.code : ErrorCode.Unknown;
-                            this.close(context, isHttp500ErrorCode(code) ? 1011 : 1008);
+                            this.close(context, isSystemError(error) ? 1011 : 1008);
                         }
                     },
                 );

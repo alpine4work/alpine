@@ -1,6 +1,9 @@
 import {differenceInHours, differenceInMinutes} from "date-fns";
-import {RequestContext, UnauthenticatedRequestContext} from "~/server/context/request_context";
-import {DynamoContext} from "~/server/dynamo/dynamo_context";
+import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
+import {
+    RequestContext,
+    UnauthenticatedRequestContext,
+} from "~/server/dynamo/context/request_context";
 import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
 import {DynamoConditionExpression} from "~/server/dynamo/internal/dynamo_condition";
@@ -238,7 +241,7 @@ export async function seedTestAccounts(context: DynamoContext) {
             {
                 partitionType: "AccountEmailAddress",
                 sortRangeType: "Attributes",
-                emailAddress: await validateEmailAddress("admin@test.cyberworlds.dev"),
+                emailAddress: await validateEmailAddress(context, "admin@test.cyberworlds.dev"),
                 lockVersion: 0,
                 accountId: adminAccountId,
                 isVerified: true,
@@ -461,6 +464,9 @@ const maxFailedOneTimePasswordAttemptCount = 5;
 /**
  * Expire one-time passwords after an hour.
  */
+// We write in our `SignInEmailTemplate` copy that the code expires after one
+// hour. If we change the password expiration time, we should also change
+// the copy.
 export const expireOneTimePasswordAfterMinutes = 60;
 
 /**

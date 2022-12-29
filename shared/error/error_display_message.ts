@@ -1,30 +1,20 @@
+import {
+    ErrorDisplayMessage,
+    ErrorDisplayMessageLinkSegment,
+    ErrorDisplayMessageSegment,
+} from "~/shared/error/types/error_display_message_type";
 import {assert} from "~/shared/helpers/control/assert";
 import {isObject} from "~/shared/helpers/object/is_object";
-import {Schema, SchemaType} from "~/shared/schema/schema";
+import {ObjectSchema, Schema} from "~/shared/schema/schema";
 
-/**
- * Error message which we will show to a user. Must be constructed with the
- * `errorDisplayMessage` template function.
- */
-export type ErrorDisplayMessage = SchemaType<typeof _ErrorDisplayMessageSchema> & {
-    // Make this a nominal type to force developers to construct an
-    // `ErrorDisplayMessage` with `errorDisplayMessage()`.
-    readonly _ErrorDisplayMessage: never;
-};
+export const ErrorDisplayMessageLinkSegmentSchema: ObjectSchema<ErrorDisplayMessageLinkSegment> =
+    Schema.object({
+        type: Schema.value("Link"),
+        text: Schema.string,
+        url: Schema.string,
+    });
 
-export type ErrorDisplayMessageSegment = SchemaType<typeof ErrorDisplayMessageSegmentSchema>;
-
-export type ErrorDisplayMessageLinkSegment = SchemaType<
-    typeof ErrorDisplayMessageLinkSegmentSchema
->;
-
-export const ErrorDisplayMessageLinkSegmentSchema = Schema.object({
-    type: Schema.value("Link"),
-    text: Schema.string,
-    url: Schema.string,
-});
-
-export const ErrorDisplayMessageSegmentSchema = Schema.union({
+export const ErrorDisplayMessageSegmentSchema: Schema<ErrorDisplayMessageSegment> = Schema.union({
     Text: Schema.object({
         type: Schema.value("Text"),
         text: Schema.string,
