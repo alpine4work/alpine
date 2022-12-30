@@ -12,7 +12,10 @@ export function waitForProcessExit(subprocess: ChildProcess): Promise<void> {
         const name = path.basename(subprocess.spawnfile);
 
         // If the process already exited then immediately resolve or reject.
-        if (subprocess.exitCode !== null) {
+        if (subprocess.killed) {
+            resolve();
+            return;
+        } else if (subprocess.exitCode !== null) {
             if (subprocess.exitCode === 0) {
                 resolve();
             } else {
@@ -31,7 +34,7 @@ export function waitForProcessExit(subprocess: ChildProcess): Promise<void> {
             if (finished) return;
             finished = true;
 
-            if (exitCode === 0) {
+            if (exitCode === 0 || subprocess.killed) {
                 resolve();
             } else if (typeof exitCode === "number") {
                 reject(new UnknownError(quote`Process exited with code ${exitCode} (${name})`));

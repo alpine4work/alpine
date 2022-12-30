@@ -125,6 +125,7 @@ export function getProcessEnvToPropagate() {
         NODE_ENV: process.env.NODE_ENV,
         RUNFILES: process.env.RUNFILES,
         BUILD_WORKSPACE_DIRECTORY: process.env.BUILD_WORKSPACE_DIRECTORY,
+        BAZEL_BINDIR: process.env.BAZEL_BINDIR,
     };
 
     for (const [key, value] of Object.entries(process.env)) {

@@ -18,6 +18,7 @@ def ts_project(
         lint_and_format_srcs = None,
         deps = [],
         test_deps = [],
+        test_data = [],
         **kwargs):
     """
     Macro for creating a TypeScript project that implements some codebase conventions.
@@ -33,6 +34,7 @@ def ts_project(
         JavaScript, TypeScript, JSON, and Markdown files.
         deps: Any dependencies this project needs to run.
         test_deps: Any dependencies this project needs to run tests.
+        test_data: Any data for this project that is only available in tests.
         **kwargs: Arguments that will be forwarded to `ts_project()` from `aspect_rules_ts`.
     """
 
@@ -138,7 +140,7 @@ EOF
                     # Each test run is only for a single file.
                     test_src_js,
                 ],
-                data = _dedupe_labels(deps + test_deps + [
+                data = _dedupe_labels(deps + test_deps + test_data + [
                                           "//:node_modules/@juggle/resize-observer",
                                           "//:node_modules/@testing-library/jest-dom",
                                           "//:node_modules/@types/jest",

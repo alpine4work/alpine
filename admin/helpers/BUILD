@@ -5,6 +5,7 @@ ts_project(
     visibility = [
         "//admin:__subpackages__",
         "//app/dev:__pkg__",
+        "//server/dynamo/test:__pkg__",
     ],
     deps = [
         "//:node_modules/@types/fs-extra",

@@ -13,8 +13,11 @@ import {
 
 /**
  * The name of the service our tracer is for.
+ *
+ * The "Test" service is a generic service we use for executing unit tests.
+ * Usually the tests are executed with Jest.
  */
-export type TracerServiceName = "AppClient" | "AppServer" | "DocumentCollaborationService";
+export type TracerServiceName = "Test" | "AppClient" | "AppServer" | "DocumentCollaborationService";
 
 // TODO(calebmer): Tracer stuff
 // - Apply source map to error stack trace on server

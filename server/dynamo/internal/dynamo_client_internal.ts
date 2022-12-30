@@ -2,8 +2,8 @@
 // the `aws4fetch` module for executing any AWS commands.
 import type * as types from "@aws-sdk/client-dynamodb";
 import {AwsClient} from "aws4fetch";
-import {classifyDynamoError} from "~/server/dynamo/internal/classify_dynamo_error";
 import {isConstructedDynamoTableSchemaName} from "~/server/dynamo/internal/dynamo_table_schema";
+import {executeDynamoCommand} from "~/server/dynamo/internal/execute_dynamo_command";
 import {assert} from "~/shared/helpers/control/assert";
 import {TracerBase} from "~/shared/tracer/tracer_base";
 import {TracerSpan} from "~/shared/tracer/tracer_span";
@@ -27,48 +27,12 @@ export class DynamoClientInternal {
         this._url = url;
     }
 
-    private async _execute<Input = never, Output = unknown>(
+    private _execute<Input = never, Output = unknown>(
         span: TracerSpan,
         command: string,
         input: Input,
     ): Promise<Output> {
-        const response = await this._client.fetch(this._url, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/x-amz-json-1.0",
-                "X-Amz-Target": `DynamoDB_20120810.${command}`,
-            },
-            body: JSON.stringify(input),
-        });
-
-        const output: any = await response.json();
-
-        if (response.status !== 200) {
-            // When talking to production DynamoDB (vs local DynamoDB), error types are of
-            // the form `com.amazonaws.dynamodb.v20120810#TransactionCanceledException`
-            // instead of `TransactionCanceledException`. Remove the version number so we
-            // just have the error type.
-            if (typeof output.__type === "string" && output.__type.includes("#")) {
-                output.__type = output.__type.split("#")[1];
-            }
-
-            if (typeof output.__type === "string") {
-                span.addData({
-                    dynamodb: {
-                        exception: {
-                            type: output.__type,
-                            cancellationReasons: output.CancellationReasons
-                                ? JSON.stringify(output.CancellationReasons)
-                                : undefined,
-                        },
-                    },
-                });
-            }
-
-            throw classifyDynamoError(output);
-        }
-
-        return output;
+        return executeDynamoCommand<Input, Output>(span, this._client, this._url, command, input);
     }
 
     /**

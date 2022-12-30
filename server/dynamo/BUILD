@@ -3,7 +3,10 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "dynamo",
-    test_deps = ["//:node_modules/expect-type"],
+    test_deps = [
+        "//:node_modules/expect-type",
+        "//server/dynamo/test",
+    ],
     visibility = [
         "//admin:__subpackages__",
         "//app:__subpackages__",
