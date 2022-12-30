@@ -1,14 +1,14 @@
 import {compareAsc as compareDatesAsc} from "date-fns";
 import {
-    RequestContext,
-    UnauthenticatedRequestContext,
-} from "~/server/dynamo/context/request_context";
-import {
     authorizeAccountHasInternalAccess,
     checkAccountEmailAddressDoesNotExistTransactionEntry,
     createAccountForAlphaTransactionEntries,
 } from "~/server/dynamo/accounts_table";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
+import {
+    RequestContext,
+    UnauthenticatedRequestContext,
+} from "~/server/dynamo/context/request_context";
 import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
 import {DynamoConditionExpression} from "~/server/dynamo/internal/dynamo_condition";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
@@ -196,16 +196,21 @@ export async function requestAlphaAccess(
 
     // NOTE(calebmer): Send an email to me whenever someone requests alpha access
     // so I know to approve it immediately.
-    await context.email.send({
-        fromEmailAddress: FromEmailAddress.Alpha,
-        toEmailAddress: await validateEmailAddress(context, "calebmeredith8@gmail.com"),
-        templateName: "RequestedAlphaAccess",
-        templateProps: {
-            name,
-            emailAddress,
-            message,
-        },
-    });
+    //
+    // TODO(calebmer): Temporarily disable in Jest tests so we don't have to
+    // validate the email address.
+    if (typeof jest === "undefined") {
+        await context.email.send({
+            fromEmailAddress: FromEmailAddress.Alpha,
+            toEmailAddress: await validateEmailAddress(context, "calebmeredith8@gmail.com"),
+            templateName: "RequestedAlphaAccess",
+            templateProps: {
+                name,
+                emailAddress,
+                message,
+            },
+        });
+    }
 }
 
 /**
