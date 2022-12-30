@@ -13,10 +13,7 @@ ts_project(
     name = "error_core",
     srcs = CORE_SRCS,
     test_srcs = [],
-    visibility = [
-        "//shared/helpers:__pkg__",
-        "//shared/schema:__pkg__",
-    ],
+    visibility = ["//visibility:public"],
 )
 
 ts_project(

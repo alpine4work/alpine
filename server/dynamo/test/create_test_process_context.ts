@@ -1,19 +1,22 @@
+// IMPORTANT: We are only importing `@aws-sdk` for types. Use
+// the `aws4fetch` module for executing any AWS commands.
+import type * as types from "@aws-sdk/client-dynamodb";
 import {AwsClient} from "aws4fetch";
 import fs from "fs-extra";
 import getPort from "get-port";
 import path from "path";
+import {executeAdminDynamoCommand} from "~/admin/dynamo/execute_admin_dynamo_command";
 import {startDynamoLocal} from "~/admin/dynamo/start_dynamo_local";
-import {runfilesPath} from "~/admin/helpers/runfiles_path";
 import {UnauthenticatedAuthContextModule} from "~/server/dynamo/context/auth_context_module";
 import {ProcessContext, ProcessContextModules} from "~/server/dynamo/context/process_context";
 import {UnauthenticatedRequestContext} from "~/server/dynamo/context/request_context";
 import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
+import {getAllDynamoTableSchemas} from "~/server/dynamo/get_all_dynamo_table_schemas";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module";
 import {Context} from "~/shared/context/context";
 import {ProcessContextModule} from "~/shared/context/process_context_module";
 import {TracerContextModule} from "~/shared/context/tracer_context_module";
 import {InternalError} from "~/shared/error/error";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {TracerRoot} from "~/shared/tracer/tracer_root";
@@ -44,29 +47,8 @@ export function createTestProcessContext(): () => ProcessContext & {
     let dynamoLocal: {stop: () => Promise<void>} | null = null;
 
     beforeAll(async () => {
-        const baseDataPath = path.join(
-            runfilesPath,
-            "cyberworlds/admin/dynamo/dynamo_local_base_data",
-        );
-
         const dataPath = await fs.mkdtemp(
             path.join(assertExists(process.env.TEST_TMPDIR), "dynamo_local_data_"),
-        );
-
-        await fs.ensureDir(dataPath);
-
-        // Copy our base data into a temporary test data directory. Our test will write
-        // to the copied database, leaving the base database alone. The test database
-        // will be thrown away when we are done.
-        const baseDataFileNames = await fs.readdir(baseDataPath);
-        await runAllPromises(
-            baseDataFileNames.map(async name => {
-                const stream = fs
-                    .createReadStream(path.join(baseDataPath, name))
-                    .pipe(fs.createWriteStream(path.join(dataPath, name)));
-
-                await new Promise(resolve => stream.on("finish", resolve));
-            }),
         );
 
         const port = await getPort();
@@ -76,6 +58,42 @@ export function createTestProcessContext(): () => ProcessContext & {
             accessKeyId: "local",
             secretAccessKey: "local",
         });
+
+        // Create all the tables we'll need in the DynamoDB database. We should
+        // consider lazily creating tables as we need them for performance.
+        for (const tableSchema of getAllDynamoTableSchemas()) {
+            const tableName = tableSchema.getName();
+
+            await executeAdminDynamoCommand<types.CreateTableInput>(
+                awsClient,
+                `http://localhost:${port}`,
+                "CreateTable",
+                {
+                    TableName: tableName,
+                    AttributeDefinitions: [
+                        {
+                            AttributeName: "partitionKey",
+                            AttributeType: "S",
+                        },
+                        {
+                            AttributeName: "sortKey",
+                            AttributeType: "S",
+                        },
+                    ],
+                    KeySchema: [
+                        {
+                            AttributeName: "partitionKey",
+                            KeyType: "HASH",
+                        },
+                        {
+                            AttributeName: "sortKey",
+                            KeyType: "RANGE",
+                        },
+                    ],
+                    BillingMode: "PAY_PER_REQUEST",
+                },
+            );
+        }
 
         const context = Context.new<ProcessContextModules>({
             process: ProcessContextModule.test(),

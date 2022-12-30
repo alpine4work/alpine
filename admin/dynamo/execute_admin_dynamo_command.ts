@@ -1,12 +1,13 @@
 import {AwsClient} from "aws4fetch";
-import {classifyDynamoError} from "~/server/dynamo/internal/classify_dynamo_error";
-import {TracerSpan} from "~/shared/tracer/tracer_span";
+import {InternalError} from "~/shared/error/error";
 
 /**
- * Low-level function for executing DynamoDB command.
+ * Executes a DynamoDB command in admin code.
+ *
+ * Mostly the same as the execute function in `DynamoClientInternal` but
+ * without tracing, error classification, and other production necessities.
  */
-export async function executeDynamoCommand<Input = never, Output = unknown>(
-    span: TracerSpan | null,
+export async function executeAdminDynamoCommand<Input = never, Output = unknown>(
     client: AwsClient,
     url: string,
     command: string,
@@ -32,20 +33,11 @@ export async function executeDynamoCommand<Input = never, Output = unknown>(
             output.__type = output.__type.split("#")[1];
         }
 
-        if (typeof output.__type === "string") {
-            span?.addData({
-                dynamodb: {
-                    exception: {
-                        type: output.__type,
-                        cancellationReasons: output.CancellationReasons
-                            ? JSON.stringify(output.CancellationReasons)
-                            : undefined,
-                    },
-                },
-            });
-        }
+        const message = `DynamoDB ${output.__type ?? "unknown error"}${
+            output.message ? `: ${output.message}` : output.Message ? `: ${output.Message}` : ""
+        }`;
 
-        throw classifyDynamoError(output);
+        throw new InternalError(message, {cause: output});
     }
 
     return output;
