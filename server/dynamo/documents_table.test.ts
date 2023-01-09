@@ -1239,6 +1239,10 @@ test("updates made in parallel will only read the document once", async () => {
     }
 
     // TODO(calebmer): Should debug why this is flaky and fix the root cause.
+    //
+    // Maybe by the time you see this the test won't be flaky and you can remove
+    // this! Or there will be better flake detection and retry logic built by some
+    // team with a cool name. Wouldn't that be neat.
     await retryFlakyTest(async () => {
         const documentId = generateId();
 
