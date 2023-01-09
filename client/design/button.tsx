@@ -90,6 +90,7 @@ function Button(
             // Disable the button while we are pending to avoid multiple clicks firing the
             // action multiple times.
             isDisabled: isDisabled || isPending,
+            type: shouldSubmitForm ? "submit" : undefined,
             onPress: event => {
                 const promise = onPress?.(event);
 
@@ -189,7 +190,6 @@ function Button(
                     // on other contents.
                     flexShrink: "0",
                 })}
-                type={shouldSubmitForm ? "submit" : undefined}
             >
                 {isPressed && variant === "accent" && (
                     // For accent buttons, instead of choosing a darker background color shade when
@@ -207,6 +207,7 @@ function Button(
                             position: "absolute",
                             inset: "0",
                             backgroundColor: "grey-100-const",
+                            pointerEvents: "none",
                         })}
                         style={{opacity: 0.2}}
                     />
