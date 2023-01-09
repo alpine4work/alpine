@@ -14,6 +14,7 @@ import {
     DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
 } from "~/shared/documents/document_content_schema";
+import {UnimplementedError} from "~/shared/error/error";
 
 jest.useFakeTimers();
 
@@ -26,7 +27,14 @@ function TestContentEditor({initialContent}: {initialContent?: Node}) {
     return (
         <OverlayScopeContextProvider>
             <TooltipCoordinationContextProvider>
-                <ContentEditor aria-label="Test" state={state} onChange={setState} />
+                <ContentEditor
+                    aria-label="Test"
+                    state={state}
+                    onChange={setState}
+                    onNavigate={() => {
+                        throw new UnimplementedError("Can not navigate in test");
+                    }}
+                />
             </TooltipCoordinationContextProvider>
         </OverlayScopeContextProvider>
     );

@@ -1,3 +1,4 @@
+import {useNavigate} from "react-router-dom";
 import {ContentEditor} from "~/client/content/content_editor";
 import {useDocumentContentEditorState} from "~/client/documents/internal/document_content_editor_state";
 import {DocumentModel} from "~/shared/documents/document_model";
@@ -22,6 +23,7 @@ function DocumentContentEditorStateful({initialDocument}: {initialDocument: Docu
         <ContentEditor
             state={editorState}
             onChange={onChangeEditorState}
+            onNavigate={useNavigate()}
             aria-label="Document editor"
             placeholder="Share your ideas…"
             className={sprinkles({paddingBottom: "24"})}

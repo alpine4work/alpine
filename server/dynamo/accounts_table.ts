@@ -205,7 +205,7 @@ type AccountEmailAddressItem = DynamoTableItemType<
     "Attributes"
 >;
 
-type SessionItem = DynamoTableItemType<typeof AccountsTable, "Session", "Attributes">;
+export type SessionItem = DynamoTableItemType<typeof AccountsTable, "Session", "Attributes">;
 
 export async function seedTestAccounts(context: DynamoContext) {
     assert(process.env.NODE_ENV !== "production");
@@ -694,6 +694,15 @@ export class Session {
             sessionId,
         });
         if (!sessionItem) return null;
+        return new Session(sessionId, sessionItem);
+    }
+
+    /**
+     * Allow creating a session class directly from ID and database item object
+     * in tests. Can only run in Jest tests.
+     */
+    public static test(sessionId: Id, sessionItem: SessionItem) {
+        assert(typeof jest !== "undefined");
         return new Session(sessionId, sessionItem);
     }
 

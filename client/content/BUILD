@@ -6,6 +6,7 @@ ts_project(
         "//:node_modules/@testing-library/react",
     ],
     visibility = [
+        "//admin/eslint:__pkg__",
         "//app:__subpackages__",
         "//client:__subpackages__",
     ],

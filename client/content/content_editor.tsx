@@ -13,7 +13,7 @@ import {
     useRef,
     useState,
 } from "react";
-import {useNavigate} from "react-router-dom";
+import {NavigateOptions, To} from "react-router-dom";
 import {
     ContentEditorState,
     getContentEditorFloaterState,
@@ -160,6 +160,11 @@ export type ContentEditorProps<Content extends Node> = {
      * represent the cursor position of other users.
      */
     phantomSelections?: ReadonlyArray<ContentEditorPhantomSelection>;
+
+    /**
+     * Navigate to a new URL without reloading the page.
+     */
+    onNavigate: (to: To, options?: NavigateOptions) => void;
 } & (
     | {
           /**
@@ -212,7 +217,6 @@ function ContentEditor<Content extends Node>(
         phantomSelections,
     } = props;
     const hasEnterCallback = typeof props.onEnter === "function";
-    const navigate = useNavigate();
 
     // The props for the current React commit. We are integrating with a stateful
     // component (ProseMirror's `EditorView`) so we need to be able to
@@ -225,10 +229,8 @@ function ContentEditor<Content extends Node>(
     // Please avoid using `propsRef` unless you can thoroughly reason through why
     // it's safe!
     const propsRef = useRef(props);
-    const navigateRef = useRef(navigate);
     useLayoutEffectWithoutServerSideWarning(() => {
         propsRef.current = props;
-        navigateRef.current = navigate;
     });
 
     const elementRef = useRef<HTMLDivElement>(null);
@@ -327,7 +329,7 @@ function ContentEditor<Content extends Node>(
                             );
                         }
                     },
-                    onNavigate: to => navigateRef.current(to),
+                    onNavigate: to => propsRef.current.onNavigate(to),
                 }),
             },
 

@@ -40,6 +40,20 @@ export class ProcessContextModule extends ContextModuleBase {
         // the process.
         this._waitUntil(typeof action === "function" ? action() : action);
     }
+
+    /**
+     * Wait for all the promises passed into the `waitUntil()` function of
+     * `ProcessContextModule.test()`s to resolve.
+     */
+    public static async waitForTestTasks() {
+        assert(typeof jest !== "undefined");
+
+        while (jestAfterEachPromises.length > 0) {
+            const promises = jestAfterEachPromises;
+            jestAfterEachPromises = [];
+            await runAllPromises(promises);
+        }
+    }
 }
 
 let jestAfterEachPromises: Array<Promise<void>> = [];

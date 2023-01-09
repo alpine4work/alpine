@@ -12,12 +12,24 @@ import {
     DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
 } from "~/shared/documents/document_content_schema";
+import {UnimplementedError} from "~/shared/error/error";
+
+function cantNavigate() {
+    throw new UnimplementedError("Can not navigate in test");
+}
 
 function TestContentEditor() {
     const [state, setState] = useState(() =>
         ContentEditorState.create(emptyDocumentWithoutTitleContent),
     );
-    return <ContentEditor aria-label="Test" state={state} onChange={setState} />;
+    return (
+        <ContentEditor
+            aria-label="Test"
+            state={state}
+            onChange={setState}
+            onNavigate={cantNavigate}
+        />
+    );
 }
 
 // Get the textbox `HTMLElement`.
@@ -50,6 +62,7 @@ test("renders an empty document", () => {
             aria-label="Test"
             state={ContentEditorState.create(emptyDocumentWithoutTitleContent)}
             onChange={() => {}}
+            onNavigate={cantNavigate}
         />,
     );
 
@@ -72,6 +85,7 @@ test("renders an initial editor state", () => {
             aria-label="Test"
             state={ContentEditorState.create(content)}
             onChange={() => {}}
+            onNavigate={cantNavigate}
         />,
     );
 
@@ -97,6 +111,7 @@ test("rerenders with a changed document", () => {
             aria-label="Test"
             state={ContentEditorState.create(doc1)}
             onChange={onTransaction}
+            onNavigate={cantNavigate}
         />,
     );
 
@@ -107,6 +122,7 @@ test("rerenders with a changed document", () => {
             aria-label="Test"
             state={ContentEditorState.create(doc2)}
             onChange={onTransaction}
+            onNavigate={cantNavigate}
         />,
     );
 
@@ -147,7 +163,12 @@ test("will revert optimistic update if it doesn't match props", () => {
     function NoopContentEditor() {
         const [state] = useState(() => ContentEditorState.create(emptyDocumentWithoutTitleContent));
         return (
-            <ContentEditor aria-label="Test" state={state} onChange={useCallback(() => {}, [])} />
+            <ContentEditor
+                aria-label="Test"
+                state={state}
+                onChange={useCallback(() => {}, [])}
+                onNavigate={cantNavigate}
+            />
         );
     }
 

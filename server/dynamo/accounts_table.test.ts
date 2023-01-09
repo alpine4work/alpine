@@ -7,22 +7,18 @@ import {
     regenerateOneTimePasswordSignIn,
 } from "~/server/dynamo/accounts_table";
 import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
-import {createTestProcessContext} from "~/server/dynamo/test/create_test_process_context";
+import {createTestContext} from "~/server/dynamo/test/create_test_context";
 import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address";
 import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {Id, generateId} from "~/shared/id/id";
 
-jest.setTimeout(10 * 1000);
-
-const getContext = createTestProcessContext();
+const context = createTestContext();
 const AccountsTable = getAccountsTableForTest();
 
 async function createTestAccount({
     isEmailAddressVerified = false,
 }: {isEmailAddressVerified?: boolean} = {}) {
-    const context = getContext();
-
     const accountId = generateId();
     const emailAddress = await validateEmailAddress(
         context,
@@ -54,8 +50,6 @@ async function createTestAccount({
 }
 
 async function getAccountEmailAddressItemForExpect(account: {id: Id; emailAddress: EmailAddress}) {
-    const context = getContext();
-
     const accountEmailAddressItem = await AccountsTable.getItem(context, {
         partitionType: "AccountEmailAddress",
         sortRangeType: "Attributes",
@@ -74,8 +68,6 @@ async function getAccountEmailAddressItemForExpect(account: {id: Id; emailAddres
 }
 
 async function rewindOneTimePasswordSignInStateTime(emailAddress: EmailAddress, hours: number) {
-    const context = getContext();
-
     const accountEmailAddressItem = await AccountsTable.getItem(context, {
         partitionType: "AccountEmailAddress",
         sortRangeType: "Attributes",
@@ -117,7 +109,6 @@ const sessionInfo = {
 };
 
 test("generates a one time password login hash", async () => {
-    const context = getContext();
     const account = await createTestAccount();
 
     expect(await getAccountEmailAddressItemForExpect(account)).toEqual({
@@ -126,7 +117,10 @@ test("generates a one time password login hash", async () => {
     });
 
     const oneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await regenerateOneTimePasswordSignIn(context.request(), account.emailAddress);
+        await regenerateOneTimePasswordSignIn(
+            context.unauthenticatedRequest(),
+            account.emailAddress,
+        );
     });
 
     expect(await getAccountEmailAddressItemForExpect(account)).toEqual({
@@ -136,11 +130,13 @@ test("generates a one time password login hash", async () => {
 });
 
 test("regenerates the one time password login hash even if there was one already", async () => {
-    const context = getContext();
     const account = await createTestAccount();
 
     const oneTimePasswordEmails1 = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await regenerateOneTimePasswordSignIn(context.request(), account.emailAddress);
+        await regenerateOneTimePasswordSignIn(
+            context.unauthenticatedRequest(),
+            account.emailAddress,
+        );
     });
 
     expect(await getAccountEmailAddressItemForExpect(account)).toEqual({
@@ -149,7 +145,10 @@ test("regenerates the one time password login hash even if there was one already
     });
 
     const oneTimePasswordEmails2 = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await regenerateOneTimePasswordSignIn(context.request(), account.emailAddress);
+        await regenerateOneTimePasswordSignIn(
+            context.unauthenticatedRequest(),
+            account.emailAddress,
+        );
     });
 
     expect(await getAccountEmailAddressItemForExpect(account)).toEqual({
@@ -159,7 +158,6 @@ test("regenerates the one time password login hash even if there was one already
 });
 
 test("attempted login fails when account has no password", async () => {
-    const context = getContext();
     const account = await createTestAccount();
 
     await expect(
@@ -168,10 +166,9 @@ test("attempted login fails when account has no password", async () => {
 });
 
 test("attempted login with wrong password fails when account has password", async () => {
-    const context = getContext();
     const account = await createTestAccount();
 
-    await regenerateOneTimePasswordSignIn(context.request(), account.emailAddress);
+    await regenerateOneTimePasswordSignIn(context.unauthenticatedRequest(), account.emailAddress);
 
     await expect(
         attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXXX", sessionInfo),
@@ -179,11 +176,13 @@ test("attempted login with wrong password fails when account has password", asyn
 });
 
 test("attempted login with correct password succeeds", async () => {
-    const context = getContext();
     const account = await createTestAccount();
 
     const oneTimePasswordLoginEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await regenerateOneTimePasswordSignIn(context.request(), account.emailAddress);
+        await regenerateOneTimePasswordSignIn(
+            context.unauthenticatedRequest(),
+            account.emailAddress,
+        );
     });
 
     expect(oneTimePasswordLoginEmails.length).toEqual(1);
@@ -193,11 +192,13 @@ test("attempted login with correct password succeeds", async () => {
 });
 
 test("attempted correct password expires after a short window of time", async () => {
-    const context = getContext();
     const account = await createTestAccount();
 
     const oneTimePasswordLoginEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await regenerateOneTimePasswordSignIn(context.request(), account.emailAddress);
+        await regenerateOneTimePasswordSignIn(
+            context.unauthenticatedRequest(),
+            account.emailAddress,
+        );
     });
 
     expect(oneTimePasswordLoginEmails.length).toEqual(1);
@@ -211,17 +212,19 @@ test("attempted correct password expires after a short window of time", async ()
 });
 
 test("attempted login with old correct password fails", async () => {
-    const context = getContext();
     const account = await createTestAccount();
 
     const oneTimePasswordLoginEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await regenerateOneTimePasswordSignIn(context.request(), account.emailAddress);
+        await regenerateOneTimePasswordSignIn(
+            context.unauthenticatedRequest(),
+            account.emailAddress,
+        );
     });
 
     expect(oneTimePasswordLoginEmails.length).toEqual(1);
     const oneTimePassword = oneTimePasswordLoginEmails[0]!.oneTimePassword;
 
-    await regenerateOneTimePasswordSignIn(context.request(), account.emailAddress);
+    await regenerateOneTimePasswordSignIn(context.unauthenticatedRequest(), account.emailAddress);
 
     await expect(
         attemptOneTimePasswordSignIn(context, account.emailAddress, oneTimePassword, sessionInfo),
@@ -229,10 +232,9 @@ test("attempted login with old correct password fails", async () => {
 });
 
 test("multiple incorrect password logins will lock the account", async () => {
-    const context = getContext();
     const account = await createTestAccount();
 
-    await regenerateOneTimePasswordSignIn(context.request(), account.emailAddress);
+    await regenerateOneTimePasswordSignIn(context.unauthenticatedRequest(), account.emailAddress);
 
     await expect(
         attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX1", sessionInfo),
@@ -260,11 +262,13 @@ test("multiple incorrect password logins will lock the account", async () => {
 });
 
 test("multiple incorrect password logins will lock the account and even a correct password won’t work", async () => {
-    const context = getContext();
     const account = await createTestAccount();
 
     const oneTimePasswordLoginEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await regenerateOneTimePasswordSignIn(context.request(), account.emailAddress);
+        await regenerateOneTimePasswordSignIn(
+            context.unauthenticatedRequest(),
+            account.emailAddress,
+        );
     });
 
     expect(oneTimePasswordLoginEmails.length).toEqual(1);
@@ -300,11 +304,13 @@ test("multiple incorrect password logins will lock the account and even a correc
 });
 
 test("correct password can not be used to login twice", async () => {
-    const context = getContext();
     const account = await createTestAccount();
 
     const oneTimePasswordLoginEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await regenerateOneTimePasswordSignIn(context.request(), account.emailAddress);
+        await regenerateOneTimePasswordSignIn(
+            context.unauthenticatedRequest(),
+            account.emailAddress,
+        );
     });
 
     expect(oneTimePasswordLoginEmails.length).toEqual(1);
@@ -318,10 +324,9 @@ test("correct password can not be used to login twice", async () => {
 });
 
 test("null last failed login attempt time continues to keep the account locked", async () => {
-    const context = getContext();
     const account = await createTestAccount();
 
-    await regenerateOneTimePasswordSignIn(context.request(), account.emailAddress);
+    await regenerateOneTimePasswordSignIn(context.unauthenticatedRequest(), account.emailAddress);
 
     await expect(
         attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX1", sessionInfo),
@@ -379,10 +384,9 @@ test("null last failed login attempt time continues to keep the account locked",
 });
 
 test("last failed login attempt time more than 24 hours in the past will allow more attempts to unlock the account", async () => {
-    const context = getContext();
     const account = await createTestAccount();
 
-    await regenerateOneTimePasswordSignIn(context.request(), account.emailAddress);
+    await regenerateOneTimePasswordSignIn(context.unauthenticatedRequest(), account.emailAddress);
 
     await expect(
         attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX1", sessionInfo),
@@ -414,7 +418,7 @@ test("last failed login attempt time more than 24 hours in the past will allow m
         attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX7", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Missing one time password"));
 
-    await regenerateOneTimePasswordSignIn(context.request(), account.emailAddress);
+    await regenerateOneTimePasswordSignIn(context.unauthenticatedRequest(), account.emailAddress);
 
     await expect(
         attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX8", sessionInfo),
@@ -426,11 +430,13 @@ test("last failed login attempt time more than 24 hours in the past will allow m
 });
 
 test("last failed login attempt time more than 24 hours in the past will not allow unlocking the account with the old generated password", async () => {
-    const context = getContext();
     const account = await createTestAccount();
 
     const oneTimePasswordLoginEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await regenerateOneTimePasswordSignIn(context.request(), account.emailAddress);
+        await regenerateOneTimePasswordSignIn(
+            context.unauthenticatedRequest(),
+            account.emailAddress,
+        );
     });
 
     expect(oneTimePasswordLoginEmails.length).toEqual(1);
@@ -470,7 +476,7 @@ test("last failed login attempt time more than 24 hours in the past will not all
         attemptOneTimePasswordSignIn(context, account.emailAddress, oneTimePassword, sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Missing one time password"));
 
-    await regenerateOneTimePasswordSignIn(context.request(), account.emailAddress);
+    await regenerateOneTimePasswordSignIn(context.unauthenticatedRequest(), account.emailAddress);
 
     await expect(
         attemptOneTimePasswordSignIn(context, account.emailAddress, oneTimePassword, sessionInfo),
@@ -478,10 +484,9 @@ test("last failed login attempt time more than 24 hours in the past will not all
 });
 
 test("last failed login attempt time more than 24 hours in the past will allow unlocking the account with a new generated password", async () => {
-    const context = getContext();
     const account = await createTestAccount();
 
-    await regenerateOneTimePasswordSignIn(context.request(), account.emailAddress);
+    await regenerateOneTimePasswordSignIn(context.unauthenticatedRequest(), account.emailAddress);
 
     await expect(
         attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX1", sessionInfo),
@@ -510,7 +515,10 @@ test("last failed login attempt time more than 24 hours in the past will allow u
     await rewindOneTimePasswordSignInStateTime(account.emailAddress, 25);
 
     const oneTimePasswordLoginEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await regenerateOneTimePasswordSignIn(context.request(), account.emailAddress);
+        await regenerateOneTimePasswordSignIn(
+            context.unauthenticatedRequest(),
+            account.emailAddress,
+        );
     });
 
     expect(oneTimePasswordLoginEmails.length).toEqual(1);
@@ -520,10 +528,9 @@ test("last failed login attempt time more than 24 hours in the past will allow u
 });
 
 test("last failed login attempt time less than 24 hours in the past will keep the account locked", async () => {
-    const context = getContext();
     const account = await createTestAccount();
 
-    await regenerateOneTimePasswordSignIn(context.request(), account.emailAddress);
+    await regenerateOneTimePasswordSignIn(context.unauthenticatedRequest(), account.emailAddress);
 
     await expect(
         attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX1", sessionInfo),
@@ -557,7 +564,7 @@ test("last failed login attempt time less than 24 hours in the past will keep th
 
     const oneTimePasswordLoginEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
         await expect(
-            regenerateOneTimePasswordSignIn(context.request(), account.emailAddress),
+            regenerateOneTimePasswordSignIn(context.unauthenticatedRequest(), account.emailAddress),
         ).rejects.toThrow(new PermissionDeniedError("Account email address is locked"));
     });
 
@@ -565,10 +572,9 @@ test("last failed login attempt time less than 24 hours in the past will keep th
 });
 
 test("regenerating one time password does not unlock an account", async () => {
-    const context = getContext();
     const account = await createTestAccount();
 
-    await regenerateOneTimePasswordSignIn(context.request(), account.emailAddress);
+    await regenerateOneTimePasswordSignIn(context.unauthenticatedRequest(), account.emailAddress);
 
     await expect(
         attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX1", sessionInfo),
@@ -596,7 +602,7 @@ test("regenerating one time password does not unlock an account", async () => {
 
     const oneTimePasswordLoginEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
         await expect(
-            regenerateOneTimePasswordSignIn(context.request(), account.emailAddress),
+            regenerateOneTimePasswordSignIn(context.unauthenticatedRequest(), account.emailAddress),
         ).rejects.toThrow(new PermissionDeniedError("Account email address is locked"));
     });
 
@@ -604,10 +610,9 @@ test("regenerating one time password does not unlock an account", async () => {
 });
 
 test("regenerating one time password does not reset the login attempt counter", async () => {
-    const context = getContext();
     const account = await createTestAccount();
 
-    await regenerateOneTimePasswordSignIn(context.request(), account.emailAddress);
+    await regenerateOneTimePasswordSignIn(context.unauthenticatedRequest(), account.emailAddress);
 
     await expect(
         attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX1", sessionInfo),
@@ -621,7 +626,7 @@ test("regenerating one time password does not reset the login attempt counter", 
         attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX3", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
-    await regenerateOneTimePasswordSignIn(context.request(), account.emailAddress);
+    await regenerateOneTimePasswordSignIn(context.unauthenticatedRequest(), account.emailAddress);
 
     await expect(
         attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX4", sessionInfo),
@@ -637,11 +642,13 @@ test("regenerating one time password does not reset the login attempt counter", 
 });
 
 test("can not concurrently brute force login attempts", async () => {
-    const context = getContext();
     const account = await createTestAccount();
 
     const oneTimePasswordLoginEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await regenerateOneTimePasswordSignIn(context.request(), account.emailAddress);
+        await regenerateOneTimePasswordSignIn(
+            context.unauthenticatedRequest(),
+            account.emailAddress,
+        );
     });
 
     expect(oneTimePasswordLoginEmails.length).toEqual(1);
@@ -698,10 +705,9 @@ test("can not concurrently brute force login attempts", async () => {
 });
 
 test("attempted login with incorrect password does not verify account email address", async () => {
-    const context = getContext();
     const account = await createTestAccount();
 
-    await regenerateOneTimePasswordSignIn(context.request(), account.emailAddress);
+    await regenerateOneTimePasswordSignIn(context.unauthenticatedRequest(), account.emailAddress);
 
     expect(await getAccountEmailAddressItemForExpect(account)).toEqual({
         isVerified: false,
@@ -719,11 +725,13 @@ test("attempted login with incorrect password does not verify account email addr
 });
 
 test("login with correct password verifies account email address", async () => {
-    const context = getContext();
     const account = await createTestAccount();
 
     const oneTimePasswordLoginEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await regenerateOneTimePasswordSignIn(context.request(), account.emailAddress);
+        await regenerateOneTimePasswordSignIn(
+            context.unauthenticatedRequest(),
+            account.emailAddress,
+        );
     });
 
     expect(oneTimePasswordLoginEmails.length).toEqual(1);
@@ -743,10 +751,9 @@ test("login with correct password verifies account email address", async () => {
 });
 
 test("multiple incorrect password logins will lock the account and not verify email address", async () => {
-    const context = getContext();
     const account = await createTestAccount();
 
-    await regenerateOneTimePasswordSignIn(context.request(), account.emailAddress);
+    await regenerateOneTimePasswordSignIn(context.unauthenticatedRequest(), account.emailAddress);
 
     await expect(
         attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX1", sessionInfo),
@@ -779,11 +786,13 @@ test("multiple incorrect password logins will lock the account and not verify em
 });
 
 test("login with correct password does not verify account email address if email address already verified", async () => {
-    const context = getContext();
     const account = await createTestAccount({isEmailAddressVerified: true});
 
     const oneTimePasswordLoginEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await regenerateOneTimePasswordSignIn(context.request(), account.emailAddress);
+        await regenerateOneTimePasswordSignIn(
+            context.unauthenticatedRequest(),
+            account.emailAddress,
+        );
     });
 
     expect(oneTimePasswordLoginEmails.length).toEqual(1);

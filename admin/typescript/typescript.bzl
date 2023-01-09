@@ -250,7 +250,7 @@ def _ts_typings_impl(ctx):
 
     for src in ctx.attr.srcs:
         if JsInfo in src:
-            typings.append(src[JsInfo].declarations)
+            typings.append(src[JsInfo].transitive_declarations)
 
     return DefaultInfo(files = depset(transitive = typings))
 

@@ -5,8 +5,7 @@ import path from "path";
 import {runfilesPath} from "~/admin/helpers/runfiles_path";
 import {waitForProcessExit} from "~/admin/helpers/wait_for_process_exit";
 import {waitForProcessSpawn} from "~/admin/helpers/wait_for_process_spawn";
-import {InternalError} from "~/shared/error/error";
-import {wait} from "~/shared/helpers/async/wait";
+import {DeadlineExceededError} from "~/shared/error/error";
 import {Lazy} from "~/shared/helpers/control/lazy";
 
 const javaPathPromise = new Lazy(async () => {
@@ -23,6 +22,8 @@ const dynamoLocalJarPath = path.join(
     runfilesPath,
     "cyberworlds/external/dynamo_local/DynamoDBLocal.jar",
 );
+
+const originalSetTimeout = setTimeout;
 
 /**
  * Start running a [local DynamoDB][1] process with the database persisted to
@@ -60,19 +61,27 @@ export async function startDynamoLocal({
     await waitForProcessSpawn(subprocess);
 
     // Wait for the DynamoDB local server to start.
-    let remainingAttempts = 10;
+    let attemptNumber = 0;
     while (true) {
+        attemptNumber++;
+
         if (await isPortReachable(port, {host: "localhost"})) break;
 
-        remainingAttempts--;
-        if (remainingAttempts === 0) {
-            subprocess.kill();
-            throw new InternalError(
+        // If DynamoDB hasn't started, try checking again with exponential backoff.
+        const delayMs = 10 * 2 ** (attemptNumber - 1);
+
+        if (delayMs > 1000 * 10)
+            throw new DeadlineExceededError(
                 `Timed out waiting for local DynamoDB to start listening on port ${port}`,
             );
-        }
 
-        await wait(100);
+        // See: https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter
+        const delayMsWithJitter = Math.floor(Math.random() * delayMs);
+
+        // We can't use `wait()` or `setTimeout()` since Jest will override
+        // `setTimeout()` when `jest.useFakeTimers()` is on. But we want to wait the
+        // timeout anyway.
+        await new Promise(resolve => originalSetTimeout(resolve, delayMsWithJitter));
     }
 
     return {

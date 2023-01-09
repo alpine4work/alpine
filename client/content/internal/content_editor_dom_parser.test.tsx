@@ -4,12 +4,22 @@ import React, {useState} from "react";
 import {ContentEditor, getEditorViewForTest} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {emptyDocumentWithoutTitleContent} from "~/shared/documents/document_content_schema";
+import {UnimplementedError} from "~/shared/error/error";
 
 function TestContentEditor() {
     const [state, setState] = useState(() =>
         ContentEditorState.create(emptyDocumentWithoutTitleContent),
     );
-    return <ContentEditor aria-label="Test" state={state} onChange={setState} />;
+    return (
+        <ContentEditor
+            aria-label="Test"
+            state={state}
+            onChange={setState}
+            onNavigate={() => {
+                throw new UnimplementedError("Can not navigate in test");
+            }}
+        />
+    );
 }
 
 // Get the textbox `HTMLElement`.

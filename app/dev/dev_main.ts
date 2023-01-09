@@ -11,7 +11,6 @@ import path from "path";
 import createServeStaticMiddleware from "serve-static";
 import {Headers} from "undici";
 import WebSocket from "ws";
-import {prepareLocalstack} from "~/admin/aws/prepare_localstack";
 import {devEnvPaths} from "~/admin/helpers/dev_env_paths";
 import {parseDotenv} from "~/admin/helpers/parse_dotenv";
 import {runfilesPath} from "~/admin/helpers/runfiles_path";
@@ -68,18 +67,6 @@ const serveStaticMiddleware = createServeStaticMiddleware(
     path.join(runfilesPath, "cyberworlds/app/public"),
     {cacheControl: false},
 );
-
-/* ========================================================================== *\
- *                                LocalStack                                  *
-\* ========================================================================== */
-
-// TODO(calebmer): LocalStack???
-//
-// prepareLocalstack().catch(error => {
-//     // eslint-disable-next-line no-console
-//     console.error(error);
-//     process.exit(1);
-// });
 
 /* ========================================================================== *\
  *                                  ibazel                                    *

@@ -1,6 +1,3 @@
-// TODO(calebmer): Fix this test!
-// @ts-nocheck
-
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep, Step} from "prosemirror-transform";
 import {DocumentCollaborationStepCache} from "~/server/documents/document_collaboration_step_cache";
@@ -9,6 +6,9 @@ import {
     getDocumentContentStepsTestCounter,
     updateDocumentContent,
 } from "~/server/dynamo/documents_table";
+import {createTestContext} from "~/server/dynamo/test/create_test_context";
+import {createTestSession} from "~/server/dynamo/test/create_test_session";
+import {createTestSpace} from "~/server/dynamo/test/create_test_space";
 import {
     emptyDocumentContent,
     DocumentContentProsemirrorSchema as schema,
@@ -16,7 +16,9 @@ import {
 import {FailedPreconditionError} from "~/shared/error/error";
 import {generateId} from "~/shared/id/id";
 
-const context = new TestProcessContext();
+const context = createTestContext();
+const space = createTestSpace(context);
+const session = createTestSession(context, space);
 
 function textSlice(text: string) {
     if (text.length === 0) return Slice.empty;
@@ -30,12 +32,13 @@ function massageSteps(steps: Array<{step: Step}>) {
 test("fails when the end version is greater than the last end version to be passed in", async () => {
     const id = generateId();
 
-    await createDocument({
+    await createDocument(context.request(session), {
         id,
+        spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(context, {
+    await updateDocumentContent(context.request(session), {
         id,
         version: 0,
         steps: [
@@ -58,7 +61,7 @@ test("fails when the end version is greater than the last end version to be pass
     const stepCache = new DocumentCollaborationStepCache(id, 10);
 
     await expect(async () => {
-        await stepCache.getSteps(7, 11);
+        await stepCache.getSteps(context.request(session), 7, 11);
     }).rejects.toEqual(
         new FailedPreconditionError("End version is greater than the last version in the document"),
     );
@@ -67,12 +70,13 @@ test("fails when the end version is greater than the last end version to be pass
 test("gets the correct steps", async () => {
     const id = generateId();
 
-    await createDocument({
+    await createDocument(context.request(session), {
         id,
+        spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(context, {
+    await updateDocumentContent(context.request(session), {
         id,
         version: 0,
         steps: [
@@ -94,7 +98,7 @@ test("gets the correct steps", async () => {
 
     const stepCache = new DocumentCollaborationStepCache(id, 10);
 
-    expect(massageSteps(await stepCache.getSteps(7, 10))).toEqual(
+    expect(massageSteps(await stepCache.getSteps(context.request(session), 7, 10))).toEqual(
         [
             new ReplaceStep(10, 10, textSlice("h")),
             new ReplaceStep(11, 11, textSlice("i")),
@@ -102,7 +106,7 @@ test("gets the correct steps", async () => {
         ].map(step => step.toJSON()),
     );
 
-    expect(massageSteps(await stepCache.getSteps(5, 10))).toEqual(
+    expect(massageSteps(await stepCache.getSteps(context.request(session), 5, 10))).toEqual(
         [
             new ReplaceStep(8, 8, textSlice("f")),
             new ReplaceStep(9, 9, textSlice("g")),
@@ -112,7 +116,7 @@ test("gets the correct steps", async () => {
         ].map(step => step.toJSON()),
     );
 
-    expect(massageSteps(await stepCache.getSteps(2, 5))).toEqual(
+    expect(massageSteps(await stepCache.getSteps(context.request(session), 2, 5))).toEqual(
         [
             new ReplaceStep(5, 5, textSlice("c")),
             new ReplaceStep(6, 6, textSlice("d")),
@@ -120,7 +124,7 @@ test("gets the correct steps", async () => {
         ].map(step => step.toJSON()),
     );
 
-    expect(massageSteps(await stepCache.getSteps(4, 8))).toEqual(
+    expect(massageSteps(await stepCache.getSteps(context.request(session), 4, 8))).toEqual(
         [
             new ReplaceStep(7, 7, textSlice("e")),
             new ReplaceStep(8, 8, textSlice("f")),
@@ -133,12 +137,13 @@ test("gets the correct steps", async () => {
 test("gets the correct steps in the fewest database reads", async () => {
     const id = generateId();
 
-    await createDocument({
+    await createDocument(context.request(session), {
         id,
+        spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(context, {
+    await updateDocumentContent(context.request(session), {
         id,
         version: 0,
         steps: [
@@ -186,7 +191,7 @@ test("gets the correct steps in the fewest database reads", async () => {
     expect(recording2.getCount()).toEqual(0);
     expect(recording3.getCount()).toEqual(0);
 
-    expect(massageSteps(await stepCache.getSteps(7, 10))).toEqual(
+    expect(massageSteps(await stepCache.getSteps(context.request(session), 7, 10))).toEqual(
         [
             new ReplaceStep(10, 10, textSlice("h")),
             new ReplaceStep(11, 11, textSlice("i")),
@@ -198,7 +203,7 @@ test("gets the correct steps in the fewest database reads", async () => {
     expect(recording2.getCount()).toEqual(0);
     expect(recording3.getCount()).toEqual(0);
 
-    expect(massageSteps(await stepCache.getSteps(5, 10))).toEqual(
+    expect(massageSteps(await stepCache.getSteps(context.request(session), 5, 10))).toEqual(
         [
             new ReplaceStep(8, 8, textSlice("f")),
             new ReplaceStep(9, 9, textSlice("g")),
@@ -212,7 +217,7 @@ test("gets the correct steps in the fewest database reads", async () => {
     expect(recording2.getCount()).toEqual(1);
     expect(recording3.getCount()).toEqual(0);
 
-    expect(massageSteps(await stepCache.getSteps(2, 5))).toEqual(
+    expect(massageSteps(await stepCache.getSteps(context.request(session), 2, 5))).toEqual(
         [
             new ReplaceStep(5, 5, textSlice("c")),
             new ReplaceStep(6, 6, textSlice("d")),
@@ -224,7 +229,7 @@ test("gets the correct steps in the fewest database reads", async () => {
     expect(recording2.getCount()).toEqual(1);
     expect(recording3.getCount()).toEqual(1);
 
-    expect(massageSteps(await stepCache.getSteps(4, 8))).toEqual(
+    expect(massageSteps(await stepCache.getSteps(context.request(session), 4, 8))).toEqual(
         [
             new ReplaceStep(7, 7, textSlice("e")),
             new ReplaceStep(8, 8, textSlice("f")),
@@ -241,12 +246,13 @@ test("gets the correct steps in the fewest database reads", async () => {
 test("gets the correct steps in the fewest database reads even when reading in parallel", async () => {
     const id = generateId();
 
-    await createDocument({
+    await createDocument(context.request(session), {
         id,
+        spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(context, {
+    await updateDocumentContent(context.request(session), {
         id,
         version: 0,
         steps: [
@@ -296,11 +302,11 @@ test("gets the correct steps in the fewest database reads even when reading in p
 
     expect(
         await Promise.all([
-            stepCache.getSteps(7, 10).then(massageSteps),
-            stepCache.getSteps(5, 10).then(massageSteps),
-            stepCache.getSteps(5, 8).then(massageSteps),
-            stepCache.getSteps(2, 5).then(massageSteps),
-            stepCache.getSteps(4, 8).then(massageSteps),
+            stepCache.getSteps(context.request(session), 7, 10).then(massageSteps),
+            stepCache.getSteps(context.request(session), 5, 10).then(massageSteps),
+            stepCache.getSteps(context.request(session), 5, 8).then(massageSteps),
+            stepCache.getSteps(context.request(session), 2, 5).then(massageSteps),
+            stepCache.getSteps(context.request(session), 4, 8).then(massageSteps),
         ]),
     ).toEqual([
         [

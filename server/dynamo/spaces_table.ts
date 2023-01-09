@@ -67,6 +67,15 @@ const SpacesTable = DynamoTableSchema.new({
     },
 });
 
+/**
+ * We are not allowed to export our DynamoDB tables so instead export a
+ * function that can only be used in Jest tests.
+ */
+export function getSpacesTableForTest() {
+    assert(typeof jest !== "undefined");
+    return SpacesTable;
+}
+
 export async function seedTestSpaces(context: DynamoContext) {
     assert(process.env.NODE_ENV !== "production");
     const {defaultSpaceId, adminAccountId} = getDynamoSeedConstants();

@@ -18,7 +18,7 @@ export function createAwsContextModulesFromEnv(env: {
     const awsClient = createAwsClientFromEnv(env);
 
     return {
-        dynamo: new DynamoContextModule(
+        dynamo: DynamoContextModule.new(
             awsClient,
             awsClient.accessKeyId !== "localstack"
                 ? "https://dynamodb.us-east-1.amazonaws.com"

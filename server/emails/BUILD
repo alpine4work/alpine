@@ -14,6 +14,7 @@ ts_project(
         "//:node_modules/change-case",
         "//:node_modules/email-validator",
         "//:node_modules/html-entities",
+        "//:node_modules/html-minifier",
         "//:node_modules/mjml-react",
         "//:node_modules/react",
         "//server/helpers",

@@ -8,6 +8,7 @@ import {
     DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
 } from "~/shared/documents/document_content_schema";
+import {UnimplementedError} from "~/shared/error/error";
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
 
@@ -105,6 +106,10 @@ const inlineTestCases: Array<{
     },
 ];
 
+function cantNavigate() {
+    throw new UnimplementedError("Can not navigate in test");
+}
+
 for (const blockTestCase of blockTestCases) {
     test(`${blockTestCase.name} empty`, () => {
         const content = schema.node("doc", {}, [blockTestCase.build([])]);
@@ -114,6 +119,7 @@ for (const blockTestCase of blockTestCases) {
                     aria-label="Test"
                     state={ContentEditorState.create(content)}
                     onChange={() => {}}
+                    onNavigate={cantNavigate}
                 />
             </AppInitialRenderContextProvider>,
         );
@@ -140,6 +146,7 @@ for (const blockTestCase of blockTestCases) {
                 aria-label="Test"
                 state={ContentEditorState.create(content)}
                 onChange={() => {}}
+                onNavigate={cantNavigate}
             />,
         );
 
@@ -167,6 +174,7 @@ for (const blockTestCase of blockTestCases) {
                     aria-label="Test"
                     state={ContentEditorState.create(content)}
                     onChange={() => {}}
+                    onNavigate={cantNavigate}
                 />,
             );
 
@@ -193,6 +201,7 @@ for (const inlineTestCase of inlineTestCases) {
                 aria-label="Test"
                 state={ContentEditorState.create(content)}
                 onChange={() => {}}
+                onNavigate={cantNavigate}
             />,
         );
 
@@ -223,7 +232,12 @@ function expectClipboardRoundtripToWork() {
         );
         return (
             <AppInitialRenderContextProvider>
-                <ContentEditor aria-label="Test" state={state} onChange={setState} />
+                <ContentEditor
+                    aria-label="Test"
+                    state={state}
+                    onChange={setState}
+                    onNavigate={cantNavigate}
+                />
             </AppInitialRenderContextProvider>
         );
     }
@@ -259,6 +273,7 @@ test("heading cannot have a level lower than 1", () => {
                 schema.node("doc", {}, [schema.node("heading", {level: 0}, [schema.text("Test")])]),
             )}
             onChange={() => {}}
+            onNavigate={cantNavigate}
         />,
     );
 
@@ -273,6 +288,7 @@ test("heading cannot have a level lower than 1", () => {
                 ]),
             )}
             onChange={() => {}}
+            onNavigate={cantNavigate}
         />,
     );
 
@@ -287,6 +303,7 @@ test("heading cannot have a level greater than 3", () => {
                 schema.node("doc", {}, [schema.node("heading", {level: 4}, [schema.text("Test")])]),
             )}
             onChange={() => {}}
+            onNavigate={cantNavigate}
         />,
     );
 
@@ -301,6 +318,7 @@ test("heading cannot have a level greater than 3", () => {
                 ]),
             )}
             onChange={() => {}}
+            onNavigate={cantNavigate}
         />,
     );
 
@@ -317,6 +335,7 @@ test("heading cannot be the wrong type", () => {
                 ]),
             )}
             onChange={() => {}}
+            onNavigate={cantNavigate}
         />,
     );
 
@@ -331,6 +350,7 @@ test("heading cannot be the wrong type", () => {
                 ]),
             )}
             onChange={() => {}}
+            onNavigate={cantNavigate}
         />,
     );
 
@@ -345,6 +365,7 @@ test("heading cannot be the wrong type", () => {
                 ]),
             )}
             onChange={() => {}}
+            onNavigate={cantNavigate}
         />,
     );
 
@@ -361,6 +382,7 @@ test("heading is converted into an integer", () => {
                 ]),
             )}
             onChange={() => {}}
+            onNavigate={cantNavigate}
         />,
     );
 
@@ -384,6 +406,7 @@ test("link with a non-HTTP scheme is blocked", () => {
                 ]),
             )}
             onChange={() => {}}
+            onNavigate={cantNavigate}
         />,
     );
 
@@ -404,6 +427,7 @@ test("link with a non-HTTP scheme is blocked", () => {
                 ]),
             )}
             onChange={() => {}}
+            onNavigate={cantNavigate}
         />,
     );
 
@@ -420,6 +444,7 @@ test("link with a non-HTTP scheme is blocked", () => {
                 ]),
             )}
             onChange={() => {}}
+            onNavigate={cantNavigate}
         />,
     );
 
@@ -449,6 +474,7 @@ test("bullet list with multiple items", () => {
             aria-label="Test"
             state={ContentEditorState.create(content)}
             onChange={() => {}}
+            onNavigate={cantNavigate}
         />,
     );
 
@@ -468,6 +494,7 @@ test("ordered list with multiple items", () => {
             aria-label="Test"
             state={ContentEditorState.create(content)}
             onChange={() => {}}
+            onNavigate={cantNavigate}
         />,
     );
 
@@ -499,6 +526,7 @@ test("check list with multiple items", () => {
             aria-label="Test"
             state={ContentEditorState.create(content)}
             onChange={() => {}}
+            onNavigate={cantNavigate}
         />,
     );
 
@@ -535,6 +563,7 @@ test("bullet list with sub-list", () => {
             aria-label="Test"
             state={ContentEditorState.create(content)}
             onChange={() => {}}
+            onNavigate={cantNavigate}
         />,
     );
 
@@ -571,6 +600,7 @@ test("ordered list with sub-list", () => {
             aria-label="Test"
             state={ContentEditorState.create(content)}
             onChange={() => {}}
+            onNavigate={cantNavigate}
         />,
     );
 
@@ -607,6 +637,7 @@ test("check list with sub-list", () => {
             aria-label="Test"
             state={ContentEditorState.create(content)}
             onChange={() => {}}
+            onNavigate={cantNavigate}
         />,
     );
 
@@ -643,6 +674,7 @@ test("bullet list with sub-list of another type", () => {
             aria-label="Test"
             state={ContentEditorState.create(content)}
             onChange={() => {}}
+            onNavigate={cantNavigate}
         />,
     );
 
@@ -679,6 +711,7 @@ test("ordered list with sub-list of another type", () => {
             aria-label="Test"
             state={ContentEditorState.create(content)}
             onChange={() => {}}
+            onNavigate={cantNavigate}
         />,
     );
 
@@ -715,6 +748,7 @@ test("check list with sub-list of another type", () => {
             aria-label="Test"
             state={ContentEditorState.create(content)}
             onChange={() => {}}
+            onNavigate={cantNavigate}
         />,
     );
 
@@ -736,6 +770,7 @@ test("can put hard breaks inside paragraphs", () => {
             aria-label="Test"
             state={ContentEditorState.create(content)}
             onChange={() => {}}
+            onNavigate={cantNavigate}
         />,
     );
 
@@ -759,6 +794,7 @@ test("can put hard breaks inside list items", () => {
             aria-label="Test"
             state={ContentEditorState.create(content)}
             onChange={() => {}}
+            onNavigate={cantNavigate}
         />,
     );
 
@@ -779,6 +815,7 @@ test("can put multiple paragraphs inside list items", () => {
             aria-label="Test"
             state={ContentEditorState.create(content)}
             onChange={() => {}}
+            onNavigate={cantNavigate}
         />,
     );
 

@@ -3,9 +3,9 @@ import {createRequestHandler, handleAsset} from "@remix-run/cloudflare-workers";
 import * as build from "@remix-run/dev/server-build";
 import {SignJWT} from "jose";
 import {createAwsContextModulesFromEnv} from "~/server/aws/create_aws_context_modules_from_env";
+import {Session} from "~/server/dynamo/accounts_table";
 import {UnauthenticatedAuthContextModule} from "~/server/dynamo/context/auth_context_module";
 import {unauthenticatedSessionError} from "~/server/dynamo/context/helpers/unauthenticated_session_error";
-import {Session} from "~/server/dynamo/accounts_table";
 import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base";
 import {

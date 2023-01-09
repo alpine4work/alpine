@@ -7,6 +7,7 @@ exports[`bold 1`] = `
   class="ProseMirror content_editor__uq0u081 content_schema__1yd2tb30 content_editor__uq0u083"
   contenteditable="true"
   role="textbox"
+  spellcheck="false"
   translate="no"
 >
   <p
@@ -138,6 +139,7 @@ exports[`bullet list plain 1`] = `
   class="ProseMirror content_editor__uq0u081 content_schema__1yd2tb30 content_editor__uq0u083"
   contenteditable="true"
   role="textbox"
+  spellcheck="false"
   translate="no"
 >
   <div
@@ -188,6 +190,7 @@ exports[`bullet list with multiple items 1`] = `
   class="ProseMirror content_editor__uq0u081 content_schema__1yd2tb30 content_editor__uq0u083"
   contenteditable="true"
   role="textbox"
+  spellcheck="false"
   translate="no"
 >
   <div
@@ -252,6 +255,7 @@ exports[`bullet list with sub-list 1`] = `
   class="ProseMirror content_editor__uq0u081 content_schema__1yd2tb30 content_editor__uq0u083"
   contenteditable="true"
   role="textbox"
+  spellcheck="false"
   translate="no"
 >
   <div
@@ -304,6 +308,7 @@ exports[`bullet list with sub-list of another type 1`] = `
   class="ProseMirror content_editor__uq0u081 content_schema__1yd2tb30 content_editor__uq0u083"
   contenteditable="true"
   role="textbox"
+  spellcheck="false"
   translate="no"
 >
   <div
@@ -420,6 +425,7 @@ exports[`can put hard breaks inside list items 1`] = `
   class="ProseMirror content_editor__uq0u081 content_schema__1yd2tb30 content_editor__uq0u083"
   contenteditable="true"
   role="textbox"
+  spellcheck="false"
   translate="no"
 >
   <div
@@ -458,6 +464,7 @@ exports[`can put hard breaks inside paragraphs 1`] = `
   class="ProseMirror content_editor__uq0u081 content_schema__1yd2tb30 content_editor__uq0u083"
   contenteditable="true"
   role="textbox"
+  spellcheck="false"
   translate="no"
 >
   <p
@@ -487,6 +494,7 @@ exports[`can put multiple paragraphs inside list items 1`] = `
   class="ProseMirror content_editor__uq0u081 content_schema__1yd2tb30 content_editor__uq0u083"
   contenteditable="true"
   role="textbox"
+  spellcheck="false"
   translate="no"
 >
   <div
@@ -655,6 +663,7 @@ exports[`check list (checked) plain 1`] = `
   class="ProseMirror content_editor__uq0u081 content_schema__1yd2tb30 content_editor__uq0u083"
   contenteditable="true"
   role="textbox"
+  spellcheck="false"
   translate="no"
 >
   <div
@@ -867,6 +876,7 @@ exports[`check list (unchecked) plain 1`] = `
   class="ProseMirror content_editor__uq0u081 content_schema__1yd2tb30 content_editor__uq0u083"
   contenteditable="true"
   role="textbox"
+  spellcheck="false"
   translate="no"
 >
   <div
@@ -957,6 +967,7 @@ exports[`check list with multiple items 1`] = `
   class="ProseMirror content_editor__uq0u081 content_schema__1yd2tb30 content_editor__uq0u083"
   contenteditable="true"
   role="textbox"
+  spellcheck="false"
   translate="no"
 >
   <div
@@ -1131,6 +1142,7 @@ exports[`check list with sub-list 1`] = `
   class="ProseMirror content_editor__uq0u081 content_schema__1yd2tb30 content_editor__uq0u083"
   contenteditable="true"
   role="textbox"
+  spellcheck="false"
   translate="no"
 >
   <div
@@ -1311,6 +1323,7 @@ exports[`check list with sub-list of another type 1`] = `
   class="ProseMirror content_editor__uq0u081 content_schema__1yd2tb30 content_editor__uq0u083"
   contenteditable="true"
   role="textbox"
+  spellcheck="false"
   translate="no"
 >
   <div
@@ -1483,6 +1496,7 @@ exports[`code 1`] = `
   class="ProseMirror content_editor__uq0u081 content_schema__1yd2tb30 content_editor__uq0u083"
   contenteditable="true"
   role="textbox"
+  spellcheck="false"
   translate="no"
 >
   <p
@@ -1514,6 +1528,7 @@ exports[`code plain 1`] = `
   class="ProseMirror content_editor__uq0u081 content_schema__1yd2tb30 content_editor__uq0u083"
   contenteditable="true"
   role="textbox"
+  spellcheck="false"
   translate="no"
 >
   <pre>
@@ -1553,6 +1568,7 @@ exports[`divider empty 1`] = `
   class="ProseMirror content_editor__uq0u081 content_schema__1yd2tb30 content_editor__uq0u083"
   contenteditable="true"
   role="textbox"
+  spellcheck="false"
   translate="no"
 >
   <hr
@@ -1647,6 +1663,7 @@ exports[`heading 1 plain 1`] = `
   class="ProseMirror content_editor__uq0u081 content_schema__1yd2tb30 content_editor__uq0u083"
   contenteditable="true"
   role="textbox"
+  spellcheck="false"
   translate="no"
 >
   <h2
@@ -1756,6 +1773,7 @@ exports[`heading 2 plain 1`] = `
   class="ProseMirror content_editor__uq0u081 content_schema__1yd2tb30 content_editor__uq0u083"
   contenteditable="true"
   role="textbox"
+  spellcheck="false"
   translate="no"
 >
   <h3
@@ -1865,6 +1883,7 @@ exports[`heading 3 plain 1`] = `
   class="ProseMirror content_editor__uq0u081 content_schema__1yd2tb30 content_editor__uq0u083"
   contenteditable="true"
   role="textbox"
+  spellcheck="false"
   translate="no"
 >
   <h4
@@ -1902,6 +1921,7 @@ exports[`highlight 1`] = `
   class="ProseMirror content_editor__uq0u081 content_schema__1yd2tb30 content_editor__uq0u083"
   contenteditable="true"
   role="textbox"
+  spellcheck="false"
   translate="no"
 >
   <p
@@ -1940,6 +1960,7 @@ exports[`italic 1`] = `
   class="ProseMirror content_editor__uq0u081 content_schema__1yd2tb30 content_editor__uq0u083"
   contenteditable="true"
   role="textbox"
+  spellcheck="false"
   translate="no"
 >
   <p
@@ -1975,6 +1996,7 @@ exports[`link (XSS vulnerability) 1`] = `
   class="ProseMirror content_editor__uq0u081 content_schema__1yd2tb30 content_editor__uq0u083"
   contenteditable="true"
   role="textbox"
+  spellcheck="false"
   translate="no"
 >
   <p
@@ -2001,6 +2023,7 @@ exports[`link 1`] = `
   class="ProseMirror content_editor__uq0u081 content_schema__1yd2tb30 content_editor__uq0u083"
   contenteditable="true"
   role="textbox"
+  spellcheck="false"
   translate="no"
 >
   <p
@@ -2139,6 +2162,7 @@ exports[`ordered list plain 1`] = `
   class="ProseMirror content_editor__uq0u081 content_schema__1yd2tb30 content_editor__uq0u083"
   contenteditable="true"
   role="textbox"
+  spellcheck="false"
   translate="no"
 >
   <div
@@ -2191,6 +2215,7 @@ exports[`ordered list with multiple items 1`] = `
   class="ProseMirror content_editor__uq0u081 content_schema__1yd2tb30 content_editor__uq0u083"
   contenteditable="true"
   role="textbox"
+  spellcheck="false"
   translate="no"
 >
   <div
@@ -2261,6 +2286,7 @@ exports[`ordered list with sub-list 1`] = `
   class="ProseMirror content_editor__uq0u081 content_schema__1yd2tb30 content_editor__uq0u083"
   contenteditable="true"
   role="textbox"
+  spellcheck="false"
   translate="no"
 >
   <div
@@ -2321,6 +2347,7 @@ exports[`ordered list with sub-list of another type 1`] = `
   class="ProseMirror content_editor__uq0u081 content_schema__1yd2tb30 content_editor__uq0u083"
   contenteditable="true"
   role="textbox"
+  spellcheck="false"
   translate="no"
 >
   <div
@@ -2615,6 +2642,7 @@ exports[`paragraph plain 1`] = `
   class="ProseMirror content_editor__uq0u081 content_schema__1yd2tb30 content_editor__uq0u083"
   contenteditable="true"
   role="textbox"
+  spellcheck="false"
   translate="no"
 >
   <p
@@ -2736,6 +2764,7 @@ exports[`quote plain 1`] = `
   class="ProseMirror content_editor__uq0u081 content_schema__1yd2tb30 content_editor__uq0u083"
   contenteditable="true"
   role="textbox"
+  spellcheck="false"
   translate="no"
 >
   <blockquote
@@ -2781,6 +2810,7 @@ exports[`strike 1`] = `
   class="ProseMirror content_editor__uq0u081 content_schema__1yd2tb30 content_editor__uq0u083"
   contenteditable="true"
   role="textbox"
+  spellcheck="false"
   translate="no"
 >
   <p
