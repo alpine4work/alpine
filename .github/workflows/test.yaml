@@ -1,0 +1,19 @@
+name: Test
+on: push
+
+jobs:
+    test:
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v1
+
+            - name: Mount bazel cache
+              uses: actions/cache@v1
+              with:
+                  path: "/home/runner/.cache/bazel"
+                  key: bazel
+
+            - name: Test
+              run: |
+                  "${GITHUB_WORKSPACE}/admin/bin/bazel" test //...
