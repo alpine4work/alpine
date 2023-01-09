@@ -347,6 +347,26 @@ export async function denyAlphaAccessRequest(context: RequestContext, emailAddre
     );
 }
 
+/**
+ * Get all the email addresses for alpha access requests we approved. Only
+ * accounts with internal access may call this function.
+ */
+export async function* getAllApprovedAlphaAccessRequestEmailAddresses(
+    context: RequestContext,
+): AsyncIterableIterator<EmailAddress> {
+    await authorizeAccountHasInternalAccess(context);
+
+    for await (const request of AlphaAccessTable.queryEntirePartition(context, {
+        partitionKey: {
+            partitionType: "AlphaAccessRequests",
+        },
+    })) {
+        if (request.decision?.type === "Approved") {
+            yield request.emailAddress;
+        }
+    }
+}
+
 export async function getAlphaConfiguration(context: DynamoContext): Promise<AlphaConfiguration> {
     const configuration = await AlphaAccessTable.getItem(context, {
         partitionType: "AlphaConfiguration",

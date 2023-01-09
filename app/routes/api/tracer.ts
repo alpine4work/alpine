@@ -10,6 +10,8 @@ import {TracerEvent} from "~/shared/tracer/tracer_event";
 
 export async function action({request, context, span}: LoaderArgs) {
     try {
+        if (request.method !== "POST") throw new InvalidArgumentError("Must use POST HTTP method");
+
         const events: SchemaSerializedValue = await request.json();
         if (!isReadonlyArray(events)) throw new InvalidArgumentError("Expected an array of events");
 

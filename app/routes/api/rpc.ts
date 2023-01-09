@@ -11,8 +11,7 @@ import {SchemaType} from "~/shared/schema/schema";
 
 export async function action({request, context, span}: LoaderArgs) {
     try {
-        if (request.method !== "POST")
-            throw new InvalidArgumentError("Must use POST HTTP method when executing RPCs");
+        if (request.method !== "POST") throw new InvalidArgumentError("Must use POST HTTP method");
 
         const input = RpcHttpInputSchema.deserialize(await request.json());
 
