@@ -6,7 +6,7 @@ const {vanillaExtractPlugin} = require("@vanilla-extract/esbuild-plugin");
 // This is a little hacky.
 // https://bazel.build/docs/user-manual#compilation-mode
 const compilationModeMatch = process.env.BAZEL_BINDIR.match(
-    /(?:^|\/)bazel-out\/[a-z0-9]+_[a-z0-9]+-(fastbuild|dbg|opt)/,
+    /(?:^|\/)bazel-out\/[a-z0-9]+(?:_[a-z0-9]+)?-(fastbuild|dbg|opt)/,
 );
 if (!compilationModeMatch)
     throw new Error(
