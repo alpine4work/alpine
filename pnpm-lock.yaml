@@ -26,7 +26,7 @@ patchedDependencies:
     hash: lhhf4zowvg4ngxldsy5aala7hu
     path: admin/patches/browserify-zlib@0.1.4.patch
   '@vanilla-extract/integration@5.0.1':
-    hash: ok2sribgugkvcqq57ho2d6btxm
+    hash: 47jehzj4xj72gvnvadwkoykrme
     path: admin/patches/@vanilla-extract__integration@5.0.1.patch
   '@vanilla-extract/sprinkles@1.5.0':
     hash: njeywewejjkyja35mwody6s2pu
@@ -241,7 +241,7 @@ dependencies:
   '@vanilla-extract/css': 1.9.1
   '@vanilla-extract/dynamic': 2.0.2
   '@vanilla-extract/esbuild-plugin': 2.1.0
-  '@vanilla-extract/integration': 5.0.1_ok2sribgugkvcqq57ho2d6btxm
+  '@vanilla-extract/integration': 5.0.1_47jehzj4xj72gvnvadwkoykrme
   '@vanilla-extract/sprinkles': 1.5.0_njeywewejjkyja35mwody6s2pu_@vanilla-extract+css@1.9.1
   aws-cdk: 2.43.1
   aws-cdk-lib: 2.42.0_constructs@10.1.143
@@ -5856,10 +5856,10 @@ packages:
   /@vanilla-extract/esbuild-plugin/2.1.0:
     resolution: {integrity: sha512-7d3nunHX9OziC5uPNdsQnKWntsTvUmJcEvEgwXEz4jroksDLWGbFghkWlWYzf2SlYxlh32wW1U38HkyDYuRkng==}
     dependencies:
-      '@vanilla-extract/integration': 5.0.1_ok2sribgugkvcqq57ho2d6btxm
+      '@vanilla-extract/integration': 5.0.1_47jehzj4xj72gvnvadwkoykrme
     dev: false
 
-  /@vanilla-extract/integration/5.0.1_ok2sribgugkvcqq57ho2d6btxm:
+  /@vanilla-extract/integration/5.0.1_47jehzj4xj72gvnvadwkoykrme:
     resolution: {integrity: sha512-HRV/HvC/lihb9wT3x5s7pf5qLjqxSd9nBePJ10juOuMB5cl2ZClEcts076m9BuRKM3wRK2h7KuwkNsaUtjujxQ==}
     dependencies:
       '@vanilla-extract/css': 1.9.1
