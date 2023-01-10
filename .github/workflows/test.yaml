@@ -12,7 +12,7 @@ jobs:
               id: date
               shell: bash
               run: |
-                  echo "date=$(/bin/date -u "+%Y-%m-%d")" >> $GITHUB_STATE
+                  echo "date=$(/bin/date -u "+%Y-%m-%d")" >> $GITHUB_OUTPUT
 
             - name: Cache Bazel output
               id: bazel-cache
