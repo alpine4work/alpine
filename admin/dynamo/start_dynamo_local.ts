@@ -70,7 +70,7 @@ export async function startDynamoLocal({
         // If DynamoDB hasn't started, try checking again with exponential backoff.
         const delayMs = 10 * 2 ** (attemptNumber - 1);
 
-        if (delayMs > 1000 * 10)
+        if (delayMs > 1000 * 20)
             throw new DeadlineExceededError(
                 `Timed out waiting for local DynamoDB to start listening on port ${port}`,
             );

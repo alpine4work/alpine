@@ -46,7 +46,10 @@ export type TestContext = ProcessContext & {
 export function createTestContext(): TestContext {
     // Increase Jest timeout for tests using a test context since these tests
     // need to interact with the database which may be slow.
-    jest.setTimeout(1000 * 30);
+    //
+    // NOTE(calebmer): I wish the `beforeAll()` calling `startDynamoLocal()` could
+    // have a longer timeout than individual tests.
+    jest.setTimeout(1000 * 60);
 
     const tracer = TracerRoot.new({
         serviceName: "Test",
