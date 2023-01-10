@@ -19,4 +19,4 @@ jobs:
 
             - name: Test
               run: |
-                  "${GITHUB_WORKSPACE}/admin/bin/bazel" test //...
+                  "${GITHUB_WORKSPACE}/admin/bin/bazel" test //... --local_ram_resources=HOST_RAM --local_cpu_resources=HOST_CPUS
