@@ -19,6 +19,8 @@ esbuild(
     name = "styles_bundle_file",
     srcs = [
         "//:tsconfig_files",
+        "//:node_modules/@vanilla-extract/css",
+        "//:node_modules/@vanilla-extract/sprinkles",
     ] + glob(
         [
             "**/*.ts",
