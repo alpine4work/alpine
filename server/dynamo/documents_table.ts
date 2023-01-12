@@ -1,7 +1,6 @@
 import {Mapping, Step} from "prosemirror-transform";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {RequestContext} from "~/server/dynamo/context/request_context";
-import {DynamoConditionExpression} from "~/server/dynamo/internal/dynamo_condition";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
@@ -250,27 +249,16 @@ export async function createDocument(
     await DynamoTableSchema.executeTransaction(
         context,
         [
-            DocumentsTable.transactionPutItem(
-                {
-                    partitionType: "Document",
-                    sortRangeType: "Attributes",
-                    createdTime: new Date(),
-                    spaceId,
-                    documentId: id,
-                    version: 0,
-                    titleWithoutFallback: getDocumentContentTitleWithoutFallback(content),
-                },
-                {
-                    condition: {
-                        // Make sure a document with this id does not already exist by checking that a
-                        // required property does not exist.
-                        //
-                        // If a document does exist, we don't want to put it in a broken state.
-                        version: DynamoConditionExpression.exists().not(),
-                    },
-                },
-            ),
-            DocumentsTable.transactionPutItem({
+            DocumentsTable.transactionCreateItem({
+                partitionType: "Document",
+                sortRangeType: "Attributes",
+                createdTime: new Date(),
+                spaceId,
+                documentId: id,
+                version: 0,
+                titleWithoutFallback: getDocumentContentTitleWithoutFallback(content),
+            }),
+            DocumentsTable.transactionCreateOrReplaceItem({
                 partitionType: "Document",
                 documentId: id,
                 sortRangeType: "Snapshot",
@@ -1023,7 +1011,7 @@ export async function updateDocumentContent(
 
         if (steps.length > 0) {
             await DynamoTableSchema.executeTransaction(context, [
-                DocumentsTable.transactionPutItem(
+                DocumentsTable.transactionReplaceItem(
                     {
                         partitionType: "Document",
                         sortRangeType: "Attributes",
@@ -1040,7 +1028,7 @@ export async function updateDocumentContent(
                         },
                     },
                 ),
-                DocumentsTable.transactionPutItem({
+                DocumentsTable.transactionCreateOrReplaceItem({
                     partitionType: "Document",
                     documentId: id,
                     sortRangeType: "StepTransactionsAfterSnapshot",
@@ -1318,7 +1306,7 @@ async function updateDocumentSnapshotAfterUpdatingContent(
         try {
             // First, update the snapshot. We can't start moving steps until we know the
             // snapshot has successfully updated.
-            await DocumentsTable.putItem(
+            await DocumentsTable.replaceItem(
                 context,
                 {
                     partitionType: "Document",
@@ -1364,7 +1352,7 @@ async function updateDocumentSnapshotAfterUpdatingContent(
         // in parallel like this.
         await runAllPromises(
             stepTransactions.map(async stepTransaction => {
-                await DocumentsTable.putItem(context, {
+                await DocumentsTable.createOrReplaceItem(context, {
                     ...stepTransaction,
                     sortRangeType: "StepTransactionsBeforeSnapshot",
                 });
@@ -1373,7 +1361,7 @@ async function updateDocumentSnapshotAfterUpdatingContent(
 
                 // It's important that we wait for our put in the
                 // `StepTransactionsBeforeSnapshot` to successfully complete before we delete.
-                await DocumentsTable.deleteItem(context, stepTransaction);
+                await DocumentsTable.deleteItemIfExists(context, stepTransaction);
             }),
         );
     });

@@ -3,6 +3,7 @@ import {assert} from "~/shared/helpers/control/assert";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier";
+import {quote} from "~/shared/helpers/string/quote";
 import {NonUndefined} from "~/shared/helpers/types/non_undefined";
 import {
     ObjectSchema,
@@ -31,6 +32,11 @@ export type DynamoConditionObject<Item extends {[key: string]: any}> = {
 /**
  * An abstract, type-safe, representation of a [DynamoDB condition
  * expression][1].
+ *
+ * Conditions assume the underlying item exists. If the underlying item does
+ * not exist then the condition may not work as expected. We try to add an
+ * `attribute_exists(partitionKey) and ...` before any compiled condition to
+ * make sure the item exists.
  *
  * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.ConditionExpressions.html
  */
@@ -154,7 +160,7 @@ export abstract class DynamoConditionExpression<Value> {
      * the attribute value is null. In JavaScript, a property that doesn't exist is
      * represented by `undefined`.
      */
-    public static exists<Value>(): DynamoConditionExpression<Value> {
+    public static exists<Value extends undefined>(): DynamoConditionExpression<Value> {
         return new DynamoConditionAttributeExistsExpression();
     }
 
@@ -180,6 +186,27 @@ export abstract class DynamoConditionExpression<Value> {
      */
     public not(): DynamoConditionExpression<Value> {
         return new DynamoConditionNotExpression(this);
+    }
+
+    /**
+     * Unsafely create a condition expression directly from a string if you
+     * don't want to deal with the type-safe intermediate layer.
+     *
+     * Only use this as a last resort when the condition you want is not
+     * expressible in the type system.
+     *
+     * May optionally provide a `precedence` to avoid unnecessary parentheses.
+     *
+     * You can break the meaning of an expression pretty spectacularly by misusing
+     * this combinator. For instance adding extra parentheses where they are not
+     * supposed to go. The name is prefixed with `_unsafe` to discourage use for
+     * this reason.
+     */
+    public static _unsafeRaw(
+        string: string,
+        precedence: DynamoConditionExpressionPrecedence = DynamoConditionExpressionPrecedence.Top,
+    ): DynamoConditionExpression<unknown> {
+        return new DynamoConditionUnsafeRawExpression(precedence, string);
     }
 
     /**
@@ -212,6 +239,10 @@ export enum DynamoConditionExpressionPrecedence {
     Not = 5,
     And = 6,
     Or = 7,
+    // The highest level of precedence which doesn't correspond to any actual
+    // expressions. Used when you want to force parentheses around an expression in
+    // all cases.
+    Top = 8,
 }
 
 type DynamoConditionExpressionCompilationDefault =
@@ -380,7 +411,7 @@ class DynamoConditionAttributeExpression<
         const propertySchema = schema.propertySchemaByKey.get(this._key);
         if (!propertySchema)
             throw new InternalError(
-                "Property not found. Is this a partition key or sort range key property? We don't currently support conditions on those properties",
+                quote`Property ${this._key} not found. Is this a partition key or sort range key property? We don't currently support conditions on those properties`,
             );
 
         const serializedKey = propertySchema.serializedKey ?? this._key;
@@ -690,4 +721,22 @@ function wrapIfPrecedenceHigherThan(
 ): string {
     if (compilationResult.precedence > precedence) return `(${compilationResult.string})`;
     return compilationResult.string;
+}
+
+class DynamoConditionUnsafeRawExpression extends DynamoConditionExpression<unknown> {
+    private readonly _precedence: DynamoConditionExpressionPrecedence;
+    private readonly _string: string;
+
+    constructor(precedence: DynamoConditionExpressionPrecedence, string: string) {
+        super();
+        this._precedence = precedence;
+        this._string = string;
+    }
+
+    public compile() {
+        return {
+            precedence: this._precedence,
+            string: this._string,
+        };
+    }
 }

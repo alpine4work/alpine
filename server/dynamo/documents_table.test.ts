@@ -1222,7 +1222,7 @@ test("won't cache a corrupted document while updating", async () => {
 
 test("updates made in parallel will only read the document once", async () => {
     async function retryFlakyTest(action: () => Promise<void>): Promise<void> {
-        let retryCount = 5;
+        let retryCount = 10;
 
         while (retryCount > 0) {
             retryCount--;

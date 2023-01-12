@@ -786,6 +786,32 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
         tracer: TracerBase,
         batch: DynamoClientBatch<null, SchemaSerializedObjectValue | null>,
     ) {
+        // If we are only reading exactly one item in our batch then we will send a
+        // `GetItem` command instead of a `BatchGetItem` command. That way our traces
+        // are a little easier to read.
+        if (batch.tableBatches.size === 1) {
+            const [tableName, tableBatch] = [...batch.tableBatches.entries()][0]!;
+            if (tableBatch.keyBatches.size === 1) {
+                const {key, promiseResolvers} = [...tableBatch.keyBatches.values()][0]!;
+
+                const output = await this._client.GetItem(tracer, {
+                    TableName: tableName,
+                    ConsistentRead: this._consistency === "Strong",
+                    Key: intoDynamoAttributeValueObject(key),
+                });
+
+                const item = output.Item ? fromDynamoAttributeValueObject(output.Item) : null;
+                for (const promiseResolver of promiseResolvers) promiseResolver.resolve(item);
+
+                return {
+                    unprocessedBatch: {
+                        itemCount: 0,
+                        tableBatches: new Map(),
+                    },
+                };
+            }
+        }
+
         const output = await this._client.BatchGetItem(tracer, {
             RequestItems: Object.fromEntries(
                 Array.from(batch.tableBatches, ([tableName, tableBatch]) => {
@@ -947,6 +973,44 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
         tracer: TracerBase,
         batch: DynamoClientBatch<DynamoClientWriteItemBatchAction, void>,
     ) {
+        // If we are only writing exactly one item in our batch then we will send a
+        // `PutItem` or `DeleteItem` command instead of a `BatchWriteItem` command.
+        // That way our traces are a little easier to read.
+        if (batch.tableBatches.size === 1) {
+            const [tableName, tableBatch] = [...batch.tableBatches.entries()][0]!;
+            if (tableBatch.keyBatches.size === 1) {
+                const {key, input, promiseResolvers} = [...tableBatch.keyBatches.values()][0]!;
+
+                switch (input.action) {
+                    case "Put": {
+                        await this._client.PutItem(tracer, {
+                            TableName: tableName,
+                            Item: intoDynamoAttributeValueObject(input.item),
+                        });
+                        break;
+                    }
+                    case "Delete": {
+                        await this._client.DeleteItem(tracer, {
+                            TableName: tableName,
+                            Key: intoDynamoAttributeValueObject(key),
+                        });
+                        break;
+                    }
+                    default:
+                        throw exhaustive(input);
+                }
+
+                for (const promiseResolver of promiseResolvers) promiseResolver.resolve();
+
+                return {
+                    unprocessedBatch: {
+                        itemCount: 0,
+                        tableBatches: new Map(),
+                    },
+                };
+            }
+        }
+
         const output = await this._client.BatchWriteItem(tracer, {
             RequestItems: Object.fromEntries(
                 Array.from(batch.tableBatches, ([tableName, tableBatch]) => {

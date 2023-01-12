@@ -1,8 +1,8 @@
 import {SessionItem, getAccountsTableForTest} from "~/server/dynamo/accounts_table";
+import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {getSpacesTableForTest} from "~/server/dynamo/spaces_table";
 import {TestContext} from "~/server/dynamo/test/create_test_context";
 import {TestSpace} from "~/server/dynamo/test/create_test_space";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {Id, generateId} from "~/shared/id/id";
 
 export type TestSession = {
@@ -37,16 +37,16 @@ export function createTestSession(context: TestContext, space: TestSpace): TestS
     };
 
     beforeAll(async () => {
-        await runAllPromises([
-            AccountsTable.putItem(context, {
+        await DynamoTableSchema.executeTransaction(context, [
+            AccountsTable.transactionCreateItem({
                 partitionType: "Account",
                 sortRangeType: "Attributes",
                 accountId,
                 name: "Test",
                 createdTime,
             }),
-            AccountsTable.putItem(context, sessionItem),
-            SpacesTable.putItem(context, {
+            AccountsTable.transactionCreateItem(sessionItem),
+            SpacesTable.transactionCreateItem({
                 partitionType: "Space",
                 sortRangeType: "Account",
                 spaceId: space.id,

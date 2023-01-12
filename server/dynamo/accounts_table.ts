@@ -6,7 +6,6 @@ import {
 } from "~/server/dynamo/context/request_context";
 import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
-import {DynamoConditionExpression} from "~/server/dynamo/internal/dynamo_condition";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
@@ -41,7 +40,6 @@ const AccountsTable = DynamoTableSchema.new({
                         /**
                          * When was this account created?
                          */
-                        // TODO(calebmer): Should this be a part of the `DynamoTableSchema` framework?
                         createdTime: Schema.date,
 
                         /**
@@ -70,12 +68,6 @@ const AccountsTable = DynamoTableSchema.new({
                 Attributes: {
                     sortKeyAttributes: {},
                     attributes: Schema.object({
-                        /**
-                         * A version number to make sure we don't clobber another write while updating.
-                         */
-                        // TODO(calebmer): We should have this feature in `DynamoTableSchema` itself
-                        lockVersion: Schema.integer,
-
                         /**
                          * The account associated with the email address.
                          *
@@ -212,22 +204,14 @@ export async function seedTestAccounts(context: DynamoContext) {
     const {adminAccountId} = getDynamoSeedConstants();
 
     try {
-        await AccountsTable.putItem(
-            context,
-            {
-                partitionType: "Account",
-                sortRangeType: "Attributes",
-                accountId: adminAccountId,
-                name: "Test Admin",
-                createdTime: new Date(),
-                hasInternalAccess: true,
-            },
-            {
-                condition: {
-                    name: DynamoConditionExpression.exists().not(),
-                },
-            },
-        );
+        await AccountsTable.createItem(context, {
+            partitionType: "Account",
+            sortRangeType: "Attributes",
+            accountId: adminAccountId,
+            name: "Test Admin",
+            createdTime: new Date(),
+            hasInternalAccess: true,
+        });
     } catch (error) {
         // If this item already exists, great! This put is a noop.
         if (isDynamoConditionCheckError(error)) return;
@@ -236,22 +220,13 @@ export async function seedTestAccounts(context: DynamoContext) {
     }
 
     try {
-        await AccountsTable.putItem(
-            context,
-            {
-                partitionType: "AccountEmailAddress",
-                sortRangeType: "Attributes",
-                emailAddress: await validateEmailAddress(context, "admin@test.cyberworlds.dev"),
-                lockVersion: 0,
-                accountId: adminAccountId,
-                isVerified: true,
-            },
-            {
-                condition: {
-                    accountId: DynamoConditionExpression.exists().not(),
-                },
-            },
-        );
+        await AccountsTable.createItem(context, {
+            partitionType: "AccountEmailAddress",
+            sortRangeType: "Attributes",
+            emailAddress: await validateEmailAddress(context, "admin@test.cyberworlds.dev"),
+            accountId: adminAccountId,
+            isVerified: true,
+        });
     } catch (error) {
         // If this item already exists, great! This put is a noop.
         if (isDynamoConditionCheckError(error)) return;
@@ -267,16 +242,11 @@ export async function seedTestAccounts(context: DynamoContext) {
 export function checkAccountEmailAddressDoesNotExistTransactionEntry(
     emailAddress: EmailAddress,
 ): DynamoTransactionEntry {
-    return AccountsTable.transactionConditionCheck(
-        {
-            partitionType: "AccountEmailAddress",
-            sortRangeType: "Attributes",
-            emailAddress,
-        },
-        {
-            accountId: DynamoConditionExpression.exists().not(),
-        },
-    );
+    return AccountsTable.transactionDoesNotExistConditionCheck({
+        partitionType: "AccountEmailAddress",
+        sortRangeType: "Attributes",
+        emailAddress,
+    });
 }
 
 /**
@@ -295,37 +265,20 @@ export function createAccountForAlphaTransactionEntries({
     emailAddress: EmailAddress;
 }): Array<DynamoTransactionEntry> {
     return [
-        AccountsTable.transactionPutItem(
-            {
-                partitionType: "Account",
-                sortRangeType: "Attributes",
-                accountId: id,
-                name,
-                createdTime: new Date(),
-            },
-            {
-                condition: {
-                    // The account should not exist yet.
-                    name: DynamoConditionExpression.exists().not(),
-                },
-            },
-        ),
-        AccountsTable.transactionPutItem(
-            {
-                partitionType: "AccountEmailAddress",
-                sortRangeType: "Attributes",
-                emailAddress,
-                lockVersion: 0,
-                accountId: id,
-                isVerified: false,
-            },
-            {
-                condition: {
-                    // The email address should not be associated with an account yet.
-                    accountId: DynamoConditionExpression.exists().not(),
-                },
-            },
-        ),
+        AccountsTable.transactionCreateItem({
+            partitionType: "Account",
+            sortRangeType: "Attributes",
+            accountId: id,
+            name,
+            createdTime: new Date(),
+        }),
+        AccountsTable.transactionCreateItem({
+            partitionType: "AccountEmailAddress",
+            sortRangeType: "Attributes",
+            emailAddress,
+            accountId: id,
+            isVerified: false,
+        }),
     ];
 }
 
@@ -333,32 +286,32 @@ export function createAccountForAlphaTransactionEntries({
  * Generates a new one time password for signing into an account with the
  * provided email address. Sends the password to the account's email address.
  */
-export function regenerateOneTimePasswordSignIn(
+export async function regenerateOneTimePasswordSignIn(
     context: UnauthenticatedRequestContext,
     emailAddress: EmailAddress,
 ): Promise<void> {
-    return retryDynamoConditionCheckErrors(async () => {
-        const accountEmailAddressItem = await AccountsTable.getItem(context, {
+    const generatedTime = new Date();
+    const password = generateOneTimePassword();
+
+    await AccountsTable.updateItem(
+        context,
+        {
             partitionType: "AccountEmailAddress",
             sortRangeType: "Attributes",
             emailAddress,
-        });
-        if (!accountEmailAddressItem) throw accountEmailAddressNotFoundError(emailAddress);
+        },
+        accountEmailAddressItem => {
+            if (!accountEmailAddressItem) throw accountEmailAddressNotFoundError(emailAddress);
 
-        const hoursUntilUnlocked =
-            getHoursUntilRegenerateOneTimePasswordUnlocked(accountEmailAddressItem);
+            const hoursUntilUnlocked =
+                getHoursUntilRegenerateOneTimePasswordUnlocked(accountEmailAddressItem);
 
-        // If the account is locked, you cannot regenerate a password.
-        if (hoursUntilUnlocked > 0) throw accountEmailAddressSignInLockedError(hoursUntilUnlocked);
+            // If the account is locked, you cannot regenerate a password.
+            if (hoursUntilUnlocked > 0)
+                throw accountEmailAddressSignInLockedError(hoursUntilUnlocked);
 
-        const generatedTime = new Date();
-        const password = generateOneTimePassword();
-
-        await AccountsTable.putItem(
-            context,
-            {
+            return {
                 ...accountEmailAddressItem,
-                lockVersion: accountEmailAddressItem.lockVersion + 1,
                 oneTimePasswordSignInState: {
                     generatedTime,
                     password,
@@ -376,36 +329,31 @@ export function regenerateOneTimePasswordSignIn(
                             : 0,
                     lastFailedAttemptTime: null,
                 },
-            },
-            {
-                condition: {
-                    lockVersion: accountEmailAddressItem.lockVersion,
-                },
-            },
-        );
+            };
+        },
+    );
 
-        // We allow tests to capture one time password emails. Make sure this only
-        // happens in test environments since we don't want developers to have access
-        // to one time password.
-        if (oneTimePasswordSignInEmailsForTest !== null) {
-            assert(typeof jest !== "undefined");
-            oneTimePasswordSignInEmailsForTest.push({emailAddress, oneTimePassword: password});
-        }
+    // We allow tests to capture one time password emails. Make sure this only
+    // happens in test environments since we don't want developers to have access
+    // to one time password.
+    if (oneTimePasswordSignInEmailsForTest !== null) {
+        assert(typeof jest !== "undefined");
+        oneTimePasswordSignInEmailsForTest.push({emailAddress, oneTimePassword: password});
+    }
 
-        if (process.env.NODE_ENV === "development") {
-            // eslint-disable-next-line no-console
-            console.log(quote`✉️  The one time password for ${emailAddress} is ${password}`);
-        }
+    if (process.env.NODE_ENV === "development") {
+        // eslint-disable-next-line no-console
+        console.log(quote`✉️  The one time password for ${emailAddress} is ${password}`);
+    }
 
-        await context.email.send({
-            fromEmailAddress: FromEmailAddress.SignIn,
-            toEmailAddress: emailAddress,
-            templateName: "SignIn",
-            templateProps: {
-                code: password,
-                emailAddress,
-            },
-        });
+    await context.email.send({
+        fromEmailAddress: FromEmailAddress.SignIn,
+        toEmailAddress: emailAddress,
+        templateName: "SignIn",
+        templateProps: {
+            code: password,
+            emailAddress,
+        },
     });
 }
 
@@ -530,25 +478,15 @@ export function attemptOneTimePasswordSignIn(
             accountEmailAddressItem.oneTimePasswordSignInState.password === oneTimePassword;
 
         if (!isCorrectOneTimePassword) {
-            await AccountsTable.putItem(
-                context,
-                {
-                    ...accountEmailAddressItem,
-                    lockVersion: accountEmailAddressItem.lockVersion + 1,
-                    oneTimePasswordSignInState: {
-                        ...accountEmailAddressItem.oneTimePasswordSignInState,
-                        failedAttemptCount:
-                            accountEmailAddressItem.oneTimePasswordSignInState.failedAttemptCount +
-                            1,
-                        lastFailedAttemptTime: new Date(),
-                    },
+            await AccountsTable.directlyUpdateItem(context, {
+                ...accountEmailAddressItem,
+                oneTimePasswordSignInState: {
+                    ...accountEmailAddressItem.oneTimePasswordSignInState,
+                    failedAttemptCount:
+                        accountEmailAddressItem.oneTimePasswordSignInState.failedAttemptCount + 1,
+                    lastFailedAttemptTime: new Date(),
                 },
-                {
-                    condition: {
-                        lockVersion: accountEmailAddressItem.lockVersion,
-                    },
-                },
-            );
+            });
 
             const remainingAttemptCount =
                 maxFailedOneTimePasswordAttemptCount -
@@ -564,22 +502,14 @@ export function attemptOneTimePasswordSignIn(
             const sessionId = generateId();
 
             await DynamoTableSchema.executeTransaction(context, [
-                AccountsTable.transactionPutItem(
-                    {
-                        ...accountEmailAddressItem,
-                        lockVersion: accountEmailAddressItem.lockVersion + 1,
-                        // Verify this email address.
-                        isVerified: true,
-                        // Remove our one-time password sign in state.
-                        oneTimePasswordSignInState: undefined,
-                    },
-                    {
-                        condition: {
-                            lockVersion: accountEmailAddressItem.lockVersion,
-                        },
-                    },
-                ),
-                AccountsTable.transactionPutItem({
+                AccountsTable.transactionDirectlyUpdateItem({
+                    ...accountEmailAddressItem,
+                    // Verify this email address.
+                    isVerified: true,
+                    // Remove our one-time password sign in state.
+                    oneTimePasswordSignInState: undefined,
+                }),
+                AccountsTable.transactionCreateOrReplaceItem({
                     partitionType: "Session",
                     sortRangeType: "Attributes",
                     sessionId,
@@ -637,11 +567,15 @@ function getHoursUntilRegenerateOneTimePasswordUnlocked({
 
 function accountEmailAddressNotFoundError(emailAddress: string) {
     return new NotFoundError("Account email address not found", {
-        displayMessage: errorDisplayMessage`An account for “${emailAddress}” does not exist. Try again with a different email or ${errorDisplayMessage.link(
-            "request access",
-            "/",
-        )}.`,
+        displayMessage: accountEmailAddressNotFoundErrorDisplayMessage(emailAddress),
     });
+}
+
+function accountEmailAddressNotFoundErrorDisplayMessage(emailAddress: string) {
+    return errorDisplayMessage`An account for “${emailAddress}” does not exist. Try again with a different email or ${errorDisplayMessage.link(
+        "request access",
+        "/",
+    )}.`;
 }
 
 function missingOneTimePasswordError() {

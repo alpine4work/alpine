@@ -240,11 +240,21 @@ test("compiles in expressions", () => {
 });
 
 test("compiles exists expressions", () => {
-    expect(compile({a: DynamoConditionExpression.exists()})).toEqual({
+    expect(
+        compile({
+            // @ts-expect-error: Attribute is required
+            a: DynamoConditionExpression.exists(),
+        }),
+    ).toEqual({
         string: "attribute_exists(a)",
         variables: {},
     });
-    expect(compile({b: DynamoConditionExpression.exists()})).toEqual({
+    expect(
+        compile({
+            // @ts-expect-error: Attribute is required
+            b: DynamoConditionExpression.exists(),
+        }),
+    ).toEqual({
         string: "attribute_exists(b)",
         variables: {},
     });
@@ -264,7 +274,12 @@ test("compiles exists expressions", () => {
         string: "not attribute_exists(d)",
         variables: {},
     });
-    expect(compile({e: DynamoConditionExpression.exists()})).toEqual({
+    expect(
+        compile({
+            // @ts-expect-error: Attribute is required
+            e: DynamoConditionExpression.exists(),
+        }),
+    ).toEqual({
         string: "attribute_exists(e)",
         variables: {},
     });
@@ -361,5 +376,36 @@ test("compiles with object nesting", () => {
     expect(compile({a: 42, o: DynamoConditionExpression.object({f: 42})})).toEqual({
         string: "a = :v1 and o.x = :v1",
         variables: {":v1": 42},
+    });
+});
+
+test("compiles raw expressions with parentheses by default", () => {
+    expect(compile(DynamoConditionExpression._unsafeRaw("test"))).toEqual({
+        string: "test",
+        variables: {},
+    });
+    expect(compile({a: DynamoConditionExpression._unsafeRaw("test")})).toEqual({
+        string: "test",
+        variables: {},
+    });
+    expect(
+        compile(
+            DynamoConditionExpression._unsafeRaw("test").or(
+                DynamoConditionExpression.object({a: DynamoConditionExpression.eq(1)}),
+            ),
+        ),
+    ).toEqual({
+        string: "(test) or a = :v1",
+        variables: {":v1": 1},
+    });
+    expect(
+        compile(
+            DynamoConditionExpression._unsafeRaw("test").and(
+                DynamoConditionExpression.object({a: DynamoConditionExpression.eq(1)}),
+            ),
+        ),
+    ).toEqual({
+        string: "(test) and a = :v1",
+        variables: {":v1": 1},
     });
 });

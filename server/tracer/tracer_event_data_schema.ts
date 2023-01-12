@@ -131,6 +131,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
             ]),
         ),
         conditionExpression: Schema.string,
+        batchSize: Schema.integer,
         query: {
             keyConditionExpression: Schema.string,
             indexName: IdentifierStringSchema,

@@ -5,12 +5,14 @@ import {
     DynamoCondition,
     DynamoConditionExpression,
     DynamoConditionExpressionCompilationContext,
+    DynamoConditionExpressionPrecedence,
 } from "~/server/dynamo/internal/dynamo_condition";
 import {
     DynamoKeyAttribute,
     dynamoKeySeparator,
 } from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {getDynamoClient} from "~/server/dynamo/internal/get_dynamo_client";
+import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry_dynamo_condition_check_errors";
 import {DynamoTableSchemaTypes} from "~/server/dynamo/internal/types/dynamo_table_schema_types";
 import {checkSchemaBackwardsCompatibility} from "~/server/schema/check_schema_backwards_compatibility";
 import {DataLossError, InvalidArgumentError} from "~/shared/error/error";
@@ -20,9 +22,11 @@ import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iter
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
 import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order_key";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings";
+import {isIdentifier} from "~/shared/helpers/string/is_identifier";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection";
 import {
     ObjectSchema,
+    Schema,
     SchemaDeserializationError,
     SchemaSerializedValue,
 } from "~/shared/schema/schema";
@@ -73,6 +77,11 @@ export type DynamoTableItemType<
         readonly sortRangeType: SortRangeType;
     }
 >;
+
+const DynamoTableItemSharedAttributesSchema: ObjectSchema<DynamoTableSchemaTypes.ItemSharedAttributes> =
+    Schema.object({
+        updateLockVersion: Schema.integer.min(1).optional(),
+    });
 
 /**
  * Abstraction over DynamoDB tables for defining the type of data that resides
@@ -140,6 +149,88 @@ export class DynamoTableSchema<
     }
 
     private constructor(config: DynamoTableSchemaTypes.ConfigBase) {
+        // Validate that attribute names are identifiers that do not start with
+        // underscores and that attribute names are unique. We do not allow identifiers
+        // to start with underscores so we can reserve underscore names for framework
+        // properties.
+        //
+        // Also extends the attribute schema to include internal attributes. So when we
+        // serialize/deserialize with the schema we pick up those private attributes.
+        config = {
+            ...config,
+            partitions: mapObjectValues(
+                config.partitions,
+                (partitionConfig): DynamoTableSchemaTypes.Partition.ConfigBase => {
+                    const partitionAttributeNames = new Set<string>([
+                        "partitionType",
+                        "sortRangeType",
+                    ]);
+
+                    for (const attributeName of Object.keys(
+                        partitionConfig.partitionKeyAttributes,
+                    )) {
+                        assert(
+                            isIdentifier(attributeName) && !attributeName.startsWith("_"),
+                            "Attribute name must be an identifier that does not start with an underscore",
+                        );
+
+                        assert(
+                            !partitionAttributeNames.has(attributeName),
+                            "Attribute names must be unique within an item",
+                        );
+                        partitionAttributeNames.add(attributeName);
+                    }
+
+                    return {
+                        ...partitionConfig,
+                        sortRanges: mapObjectValues(
+                            partitionConfig.sortRanges,
+                            (sortRangeConfig): DynamoTableSchemaTypes.SortRange.ConfigBase => {
+                                const sortRangeAttributeNames = new Set(partitionAttributeNames);
+
+                                for (const attributeName of Object.keys(
+                                    sortRangeConfig.sortKeyAttributes,
+                                )) {
+                                    assert(
+                                        isIdentifier(attributeName) &&
+                                            !attributeName.startsWith("_"),
+                                        "Attribute name must be an identifier that does not start with an underscore",
+                                    );
+
+                                    assert(
+                                        !sortRangeAttributeNames.has(attributeName),
+                                        "Attribute names must be unique within an item",
+                                    );
+                                    sortRangeAttributeNames.add(attributeName);
+                                }
+
+                                for (const attributeName of sortRangeConfig.attributes.propertySchemaByKey.keys()) {
+                                    assert(
+                                        isIdentifier(attributeName) &&
+                                            !attributeName.startsWith("_"),
+                                        "Attribute name must be an identifier that does not start with an underscore",
+                                    );
+
+                                    assert(
+                                        !sortRangeAttributeNames.has(attributeName),
+                                        "Attribute names must be unique within an item",
+                                    );
+                                    sortRangeAttributeNames.add(attributeName);
+                                }
+
+                                return {
+                                    ...sortRangeConfig,
+                                    attributes: sortRangeConfig.attributes.merge(
+                                        DynamoTableItemSharedAttributesSchema,
+                                    ),
+                                };
+                            },
+                        ),
+                    };
+                },
+            ),
+        };
+
         this._config = config;
 
         const {description} = getAndCheckDynamoTableSchemaDescriptions(this._config);
@@ -391,8 +482,234 @@ export class DynamoTableSchema<
     }
 
     /**
+     * Create an item in the database. If an item with the same key already exists
+     * then we will throw a condition check error.
+     *
+     * Under the hood uses the [`PutItem`][1] command with a condition.
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
+     */
+    public async createItem<Item extends Types["Item"]>(
+        context: DynamoContext,
+        item: Item,
+    ): Promise<void> {
+        await this._putItem(context, item, {
+            condition: DynamoConditionExpression._unsafeRaw(
+                "attribute_not_exists(partitionKey)",
+                DynamoConditionExpressionPrecedence.Function,
+            ),
+        });
+    }
+
+    /**
+     * Replace an item that already exists in the database. If an item with the
+     * same key does not already exist then we will throw a condition check
+     * error.
+     *
+     * WARNING: Carefully consider concurrent writers when using this method. If
+     * two users are writing to the same item at the same time this method will
+     * clobber one of the user's updates. You may want to merge the updates
+     * instead. You may also clobber locks added by `updateItem()`.
+     *
+     * You may use the optional `condition` to implement [optimistic locking][1].
+     * The `updateItem()` method performs optimistic locking out of the box.
+     *
+     * Under the hood uses the [`PutItem`][2] command with a condition.
+     *
+     * [1]: https://en.wikipedia.org/wiki/Optimistic_concurrency_control
+     * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
+     */
+    public async replaceItem<Item extends Types["Item"]>(
+        context: DynamoContext,
+        item: Item,
+        {
+            condition,
+        }: {
+            condition?: DynamoCondition<Item>;
+        } = {},
+    ): Promise<void> {
+        const itemExistsCondition = DynamoConditionExpression._unsafeRaw(
+            "attribute_exists(partitionKey)",
+            DynamoConditionExpressionPrecedence.Function,
+        );
+
+        await this._putItem(context, item, {
+            condition: condition
+                ? itemExistsCondition.and(DynamoConditionExpression.from(condition))
+                : itemExistsCondition,
+        });
+    }
+
+    /**
+     * Creates an item in the database if one with the same key does not already
+     * exist. If an item with the same key does exist then we will replace that
+     * item.
+     *
+     * WARNING: Carefully consider concurrent writers when using this method. If
+     * two users are writing to the same item at the same time this method will
+     * clobber one of the user's updates. You may want to merge the updates
+     * instead. You may also clobber locks added by `updateItem()`.
+     *
+     * This is the most resource efficient update method! Since it does not require
+     * a [read capacity unit (RCU) only a write capacity unit (WCU)][1].
+     *
+     * Under the hood this directly executes the [`PutItem`][2] command. When
+     * called many times in parallel then we will batch the writes together into a
+     * [`BatchWriteItem`][3] command.
+     *
+     * We don't allow a `condition` on this method since a condition on an item
+     * that does not exist doesn't make sense.
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadWriteCapacityMode.html
+     * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
+     * [3]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
+     */
+    public async createOrReplaceItem<Item extends Types["Item"]>(
+        context: DynamoContext,
+        item: Item,
+    ): Promise<void> {
+        await this._putItem(context, item);
+    }
+
+    /**
+     * Updates an existing item in the database atomically. You provide the key for
+     * the item you want to update and a function that updates the existing item to
+     * a new item.
+     *
+     * If there are multiple concurrent writers we may re-run the update function
+     * multiple times. To cancel an update you may return the exact item object you
+     * were provided.
+     *
+     * This is implemented with [optimistic locking][1]. First we read the item
+     * with a [`GetItem`][2] command. If the item does not exist then we throw an
+     * error. Then we call our update function and pass the new item into a
+     * conditional [`PutItem`][3] command. If a concurrent writer made an update
+     * _after_ our read but _before_ our write then the `PutItem` command will fail
+     * and we will try again with `retryDynamoConditionCheckErrors()`.
+     *
+     * [1]: https://en.wikipedia.org/wiki/Optimistic_concurrency_control
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html
+     * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
+     */
+    public async updateItem<Key extends Types["Key"]>(
+        context: DynamoContext,
+        key: Key,
+        update: (
+            item: MergeObjectIntersection<Types["Item"] & Key> | null,
+        ) => MergeObjectIntersection<Types["Item"] & Key>,
+    ): Promise<void> {
+        await context.tracer.withSpan("DynamoTableSchema.updateItem", async (context, span) => {
+            span.addData({dynamodb: {tableName: this.getName()}});
+
+            await retryDynamoConditionCheckErrors(async () => {
+                const item = await this.getItem(context, key);
+
+                // The update function is synchronous to discourage more complex coordination
+                // in the middle of an update. For example trying to perform an update across
+                // items or tables that really should be part of a transaction.
+                //
+                // The update function is also synchronous to avoid it executing a write that
+                // throws a condition check error that throws off our
+                // `retryDynamoConditionCheckErrors()` function.
+                //
+                // However, it is not a hard requirement that these things do not happen. If
+                // the need arises this function could plausibly be async.
+                const newItem = update(item);
+
+                // Update was short-circuited.
+                if (item === newItem) return;
+
+                if (!item) {
+                    await this.createItem(context, {
+                        ...newItem,
+                        // Make sure to override the lock version if it was set. An undefined lock
+                        // version is the same as a lock version of 0. Except we can't set to 0 because
+                        // our conditional update looks for a lock version that does not exist.
+                        updateLockVersion: undefined,
+                    });
+                } else {
+                    await this.replaceItem(
+                        context,
+                        {
+                            ...newItem,
+                            // Increment the lock version in this new item.
+                            //
+                            // The `update()` function should not change the `updateLockVersion` property
+                            // itself. If it does (e.g. creates a new item without the property instead of
+                            // spreading the old object) then we override the change.
+                            updateLockVersion:
+                                typeof item.updateLockVersion === "number"
+                                    ? item.updateLockVersion + 1
+                                    : 1,
+                        },
+                        {
+                            condition: {
+                                // Verify that the lock version was not changed by a concurrent writer.
+                                updateLockVersion:
+                                    typeof item.updateLockVersion === "number"
+                                        ? DynamoConditionExpression.eq(item.updateLockVersion)
+                                        : DynamoConditionExpression.exists().not(),
+                            },
+                        },
+                    );
+                }
+            });
+        });
+    }
+
+    /**
+     * Updates an item in the database.
+     *
+     * The item you provided should be a spread copy (`{...item}`) an item you just
+     * read with updated properties. That way private properties enforcing
+     * [optimistic locking][1] will be propagated.
+     *
+     * This method updates items in a way that's safe in the presence of concurrent
+     * writers. If a concurrent writer makes an update after the last time you read
+     * the item then this update will fail with a condition check error.
+     *
+     * To use this method properly you should probably wrap in a
+     * `retryDynamoConditionCheckErrors()` call and you should call `getItem()`
+     * inside that retry block so you get a new version of the item after a retry.
+     * The `updateItem()` method handles this for you so generally prefer using
+     * that method but sometimes you may need to create your own
+     * `retryDynamoConditionCheckErrors()` loop. (Maybe you are executing a
+     * transaction?)
+     *
+     * [1]: https://en.wikipedia.org/wiki/Optimistic_concurrency_control
+     */
+    public async directlyUpdateItem<Item extends Types["Item"]>(
+        context: DynamoContext,
+        item: Item,
+    ): Promise<void> {
+        await this._putItem(
+            context,
+            {
+                ...item,
+                // Increment the lock version in this new item.
+                updateLockVersion:
+                    typeof item.updateLockVersion === "number" ? item.updateLockVersion + 1 : 1,
+            },
+            {
+                condition: {
+                    // Verify that the lock version was not changed by a concurrent writer.
+                    updateLockVersion:
+                        typeof item.updateLockVersion === "number"
+                            ? DynamoConditionExpression.eq(item.updateLockVersion)
+                            : DynamoConditionExpression.exists().not(),
+                },
+            },
+        );
+    }
+
+    /**
      * Puts an item into the database. If an item with the same key already exists
      * then we will replace that item.
+     *
+     * Private since it's easy to shoot yourself in the foot with this method.
+     * Given it has upsert semantics and does not consider concurrent writers.
+     * Instead use one of `createItem()`, `updateItem()`, `replaceItem()`, or
+     * `createOrReplaceItem()` which have clearer semantics.
      *
      * If you provide a condition then the condition must evaluate to true for the
      * write to succeed. Otherwise an error is thrown. Use this to implement
@@ -406,7 +723,7 @@ export class DynamoTableSchema<
      * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
      * [3]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
      */
-    public async putItem<Item extends Types["Item"]>(
+    private async _putItem<Item extends Types["Item"]>(
         context: DynamoContext,
         item: Item,
         {
@@ -450,6 +767,59 @@ export class DynamoTableSchema<
     }
 
     /**
+     * Deletes an item from the database. If the item doesn't exist, we throw a
+     * condition check error.
+     *
+     * Corresponds to the [`DeleteItem`][1] command with a condition.
+     *
+     * If you don't need a condition, generally you should prefer to use
+     * `deleteItemIfExists()` because it is more efficient.
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DeleteItem.html
+     */
+    public async deleteItem<Key extends Types["Key"]>(
+        context: DynamoContext,
+        key: Key,
+        {
+            condition,
+        }: {
+            condition?: DynamoCondition<Types["Item"] & Key>;
+        } = {},
+    ): Promise<void> {
+        const itemExistsCondition = DynamoConditionExpression._unsafeRaw(
+            "attribute_exists(partitionKey)",
+            DynamoConditionExpressionPrecedence.Function,
+        );
+
+        await this._deleteItem(context, key, {
+            condition: condition
+                ? itemExistsCondition.and(DynamoConditionExpression.from(condition))
+                : itemExistsCondition,
+        });
+    }
+
+    /**
+     * Deletes an item from the database. If the item doesn't exist, this is a noop.
+     *
+     * Corresponds to the [`DeleteItem`][1] command. If you call this function many
+     * times in parallel (without a condition) then we will batch the writes
+     * together into a [`BatchWriteItem`][2] command.
+     *
+     * This method is more efficient than `deleteItem()` because it does not need a
+     * [read capacity unit (RCU), it only needs a write capacity unit (WCU)][3].
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DeleteItem.html
+     * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
+     * [3]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadWriteCapacityMode.html
+     */
+    public async deleteItemIfExists<Key extends Types["Key"]>(
+        context: DynamoContext,
+        key: Key,
+    ): Promise<void> {
+        await this._deleteItem(context, key);
+    }
+
+    /**
      * Deletes an item from the database. If the item doesn't exist, this is
      * a noop.
      *
@@ -465,7 +835,7 @@ export class DynamoTableSchema<
      * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DeleteItem.html
      * [3]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
      */
-    public deleteItem<Key extends Types["Key"]>(
+    private _deleteItem<Key extends Types["Key"]>(
         context: DynamoContext,
         key: Key,
         {
@@ -523,13 +893,114 @@ export class DynamoTableSchema<
     }
 
     /**
+     * Transaction entry for creating an item in the database. Same semantics as
+     * `createItem()` but can be part of a transaction that atomically succeeds
+     * or fails.
+     *
+     * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
+     */
+    public transactionCreateItem<Item extends Types["Item"]>(item: Item): DynamoTransactionEntry {
+        return this._transactionPutItem(item, {
+            condition: DynamoConditionExpression._unsafeRaw(
+                "attribute_not_exists(partitionKey)",
+                DynamoConditionExpressionPrecedence.Function,
+            ),
+        });
+    }
+
+    /**
+     * Transaction entry for replacing an item in the database. Same semantics as
+     * `replaceItem()` but can be part of a transaction that atomically succeeds
+     * or fails.
+     *
+     * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
+     */
+    public transactionReplaceItem<Item extends Types["Item"]>(
+        item: Item,
+        {
+            condition,
+        }: {
+            condition?: DynamoCondition<Item>;
+        } = {},
+    ): DynamoTransactionEntry {
+        const itemExistsCondition = DynamoConditionExpression._unsafeRaw(
+            "attribute_exists(partitionKey)",
+            DynamoConditionExpressionPrecedence.Function,
+        );
+
+        return this._transactionPutItem(item, {
+            condition: condition
+                ? itemExistsCondition.and(DynamoConditionExpression.from(condition))
+                : itemExistsCondition,
+        });
+    }
+
+    /**
+     * Transaction entry for creating an item in the database. Same semantics as
+     * `createOrReplaceItem()` but can be part of a transaction that atomically
+     * succeeds or fails.
+     *
+     * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
+     */
+    public transactionCreateOrReplaceItem<Item extends Types["Item"]>(
+        item: Item,
+    ): DynamoTransactionEntry {
+        return this._transactionPutItem(item);
+    }
+
+    /**
+     * Transaction entry for updating an existing item in the database. Similar
+     * semantics to `updateItem()`. This method lets you perform updates within a
+     * transaction alongside updates to other items and tables. Uses the same
+     * [optimistic locking][1] mechanism as `updateItem()` so any calls to
+     * `updateItem()` and any `transactionDirectlyUpdateItem()` should be performed
+     * in sequence.
+     *
+     * Unlike `updateItem()`, you must wrap your transaction in
+     * `retryDynamoConditionCheckErrors()` on your own! You must also make sure
+     * that you read the item you are updating within that function so it may be
+     * re-read when we retry.
+     *
+     * This method corresponds to `directlyUpdateItem()`.
+     *
+     * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
+     */
+    public transactionDirectlyUpdateItem<Item extends Types["Item"]>(
+        item: Item,
+    ): DynamoTransactionEntry {
+        return this._transactionPutItem(
+            {
+                ...item,
+                // Increment the lock version in this new item.
+                updateLockVersion:
+                    typeof item.updateLockVersion === "number" ? item.updateLockVersion + 1 : 1,
+            },
+            {
+                condition: {
+                    // Verify that the lock version was not changed by a concurrent writer.
+                    updateLockVersion:
+                        typeof item.updateLockVersion === "number"
+                            ? DynamoConditionExpression.eq(item.updateLockVersion)
+                            : DynamoConditionExpression.exists().not(),
+                },
+            },
+        );
+    }
+
+    /**
      * Creates a transaction entry to put an item into the database. Same semantics
      * as `putItem()` but you can perform multiple writes in a single transaction
      * so they all succeed or fail together.
      *
+     * Private since it's easy to shoot yourself in the foot with this method.
+     * Given it has upsert semantics and does not consider concurrent writers.
+     * Instead use one of `transactionCreateItem()`,
+     * `transactionDirectlyUpdateItem()`, `transactionReplaceItem()`, or
+     * `transactionCreateOrReplaceItem()` which have clearer semantics.
+     *
      * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      */
-    public transactionPutItem<Item extends Types["Item"]>(
+    private _transactionPutItem<Item extends Types["Item"]>(
         item: Item,
         {
             condition,
@@ -570,13 +1041,53 @@ export class DynamoTableSchema<
     }
 
     /**
+     * Transaction entry for deleting an item in the database. Same semantics as
+     * `deleteItem()` but can be part of a transaction that atomically succeeds
+     * or fails.
+     *
+     * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
+     */
+    public transactionDeleteItem<Key extends Types["Key"]>(
+        key: Key,
+        {
+            condition,
+        }: {
+            condition?: DynamoCondition<Types["Item"] & Key>;
+        } = {},
+    ) {
+        const itemExistsCondition = DynamoConditionExpression._unsafeRaw(
+            "attribute_exists(partitionKey)",
+            DynamoConditionExpressionPrecedence.Function,
+        );
+
+        return this._transactionDeleteItem(key, {
+            condition: condition
+                ? itemExistsCondition.and(DynamoConditionExpression.from(condition))
+                : itemExistsCondition,
+        });
+    }
+
+    /**
+     * Transaction entry for deleting an item in the database. Same semantics as
+     * `deleteItemIfExists()` but can be part of a transaction that atomically
+     * succeeds or fails.
+     *
+     * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
+     */
+    public transactionDeleteItemIfExists<Key extends Types["Key"]>(
+        key: Key,
+    ): DynamoTransactionEntry {
+        return this._transactionDeleteItem(key);
+    }
+
+    /**
      * Creates a transaction entry to delete an item from the database. Same
      * semantics as `deleteItem()` but you can perform multiple writes in a single
      * transaction so they all succeed or fail together.
      *
      * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      */
-    public transactionDeleteItem<Key extends Types["Key"]>(
+    private _transactionDeleteItem<Key extends Types["Key"]>(
         key: Key,
         {
             condition,
@@ -614,9 +1125,10 @@ export class DynamoTableSchema<
     }
 
     /**
-     * Creates a transaction entry that checks that a condition evaluates to true
-     * for the provided key. If the condition fails then the entire transaction
-     * which contains this condition check fails.
+     * Creates a transaction entry that checks that an item exists and optionally
+     * that an additional condition evaluates to true for the provided key. If the
+     * condition fails then the entire transaction which contains this condition
+     * check fails.
      *
      * See the [`TransactWriteItems`][1] command for more information about the
      * condition check.
@@ -627,12 +1139,51 @@ export class DynamoTableSchema<
      */
     public transactionConditionCheck<Key extends Types["Key"]>(
         key: Key,
-        condition: DynamoCondition<Types["Item"] & Key>,
+        condition?: DynamoCondition<Types["Item"] & Key>,
     ): DynamoTransactionEntry {
         const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
 
+        const itemExistsCondition = DynamoConditionExpression._unsafeRaw(
+            "attribute_exists(partitionKey)",
+            DynamoConditionExpressionPrecedence.Function,
+        );
+
+        const conditionExpression = condition
+            ? itemExistsCondition.and(DynamoConditionExpression.from(condition))
+            : itemExistsCondition;
+
         const conditionCompilationContext = DynamoConditionExpressionCompilationContext.new();
-        const conditionExpression = DynamoConditionExpression.from(condition);
+        const {string: conditionExpressionString} = conditionExpression.compile(
+            attributesSchema,
+            conditionCompilationContext,
+        );
+
+        return DynamoClient.transactionConditionCheck({
+            tableName: this._config.name,
+            key: {partitionKey, sortKey},
+            conditionExpression: conditionExpressionString,
+            expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
+            expressionAttributeNames: new Map(conditionCompilationContext.iterateAttributeNames()),
+        });
+    }
+
+    /**
+     * Creates a transaction entry that checks whether an item with the provided
+     * key does not exist.
+     *
+     * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
+     */
+    public transactionDoesNotExistConditionCheck<Key extends Types["Key"]>(
+        key: Key,
+    ): DynamoTransactionEntry {
+        const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
+
+        const conditionExpression = DynamoConditionExpression._unsafeRaw(
+            "attribute_not_exists(partitionKey)",
+            DynamoConditionExpressionPrecedence.Function,
+        );
+
+        const conditionCompilationContext = DynamoConditionExpressionCompilationContext.new();
         const {string: conditionExpressionString} = conditionExpression.compile(
             attributesSchema,
             conditionCompilationContext,

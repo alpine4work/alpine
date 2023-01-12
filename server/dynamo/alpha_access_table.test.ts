@@ -17,18 +17,17 @@ async function createTestAccount() {
     );
 
     await DynamoTableSchema.executeTransaction(context, [
-        AccountsTable.transactionPutItem({
+        AccountsTable.transactionCreateItem({
             partitionType: "Account",
             sortRangeType: "Attributes",
             accountId,
             name: "Test",
             createdTime: new Date(),
         }),
-        AccountsTable.transactionPutItem({
+        AccountsTable.transactionCreateItem({
             partitionType: "AccountEmailAddress",
             sortRangeType: "Attributes",
             emailAddress,
-            lockVersion: 0,
             accountId,
             isVerified: false,
         }),
@@ -58,7 +57,7 @@ test("can not request alpha access twice", async () => {
     }).rejects.toThrowError(FailedPreconditionError);
 });
 
-test('can not request alpha twice with "+" extension email trick', async () => {
+test('can request alpha twice with "+" extension email trick', async () => {
     const id = generateId();
 
     await requestAlphaAccess(context.unauthenticatedRequest(), {

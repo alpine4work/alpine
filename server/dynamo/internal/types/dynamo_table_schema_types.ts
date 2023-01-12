@@ -172,9 +172,28 @@ export namespace DynamoTableSchemaTypes {
             {
                 readonly partitionType: Type;
             } & KeyAttributes.Type<Config["partitions"][Type]["partitionKeyAttributes"]> &
-                Partition.ItemType<Config["partitions"][Type]>
+                Partition.ItemType<Config["partitions"][Type]> &
+                ItemSharedAttributes
         >;
     }[keyof Config["partitions"]];
+
+    /**
+     * Internal properties shared across all items.
+     */
+    export type ItemSharedAttributes = {
+        /**
+         * A version number we use for implementing [optimistic locking][1] in the
+         * `DynamoTableSchema.update()` function. If this property is not set it means
+         * we have not yet called `DynamoTableSchema.update()` on this item.
+         *
+         * If the property does not exist, it is the same as if the value is 0. We
+         * don't allow explicitly setting to 0, though, so that to test for version
+         * 0 we only test for whether the property exists or not.
+         *
+         * [1]: https://en.wikipedia.org/wiki/Optimistic_concurrency_control
+         */
+        readonly updateLockVersion?: number;
+    };
 
     /**
      * A map we use for determining the return type of the `query()` function.

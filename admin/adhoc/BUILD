@@ -5,6 +5,7 @@ ts_project(
     name = "adhoc_lib",
     deps = [
         "//:node_modules/@types/node",
+        "//server/dynamo",
         "//shared/error",
         "//shared/helpers",
         "//shared/schema",

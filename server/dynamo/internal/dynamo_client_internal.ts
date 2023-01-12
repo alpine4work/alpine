@@ -120,10 +120,12 @@ export class DynamoClientInternal {
 
             const tableNames = [];
             let anyConsistentRead = false;
+            let batchSize = 0;
 
             for (const [tableName, requestItem] of Object.entries(input.RequestItems ?? {})) {
                 tableNames.push(tableName);
                 anyConsistentRead ||= requestItem.ConsistentRead ?? false;
+                batchSize += requestItem.Keys?.length ?? 0;
             }
 
             span.addData({
@@ -131,6 +133,7 @@ export class DynamoClientInternal {
                     action: "BatchGetItem",
                     tableName: tableNames.sort().join("+"),
                     consistentRead: anyConsistentRead,
+                    batchSize,
                 },
             });
 
@@ -234,12 +237,19 @@ export class DynamoClientInternal {
             // We need to set `ReturnConsumedCapacity` for tracing.
             assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "TOTAL");
 
-            const tableNames = Object.keys(input.RequestItems ?? {});
+            const tableNames = [];
+            let batchSize = 0;
+
+            for (const [tableName, writeRequests] of Object.entries(input.RequestItems ?? {})) {
+                tableNames.push(tableName);
+                batchSize += writeRequests.length;
+            }
 
             span.addData({
                 dynamodb: {
                     action: "BatchWriteItem",
                     tableName: tableNames.sort().join("+"),
+                    batchSize,
                 },
             });
 

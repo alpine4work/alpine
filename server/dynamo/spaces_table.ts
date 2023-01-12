@@ -2,7 +2,6 @@ import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {RequestContext} from "~/server/dynamo/context/request_context";
 import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
-import {DynamoConditionExpression} from "~/server/dynamo/internal/dynamo_condition";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
@@ -81,21 +80,13 @@ export async function seedTestSpaces(context: DynamoContext) {
     const {defaultSpaceId, adminAccountId} = getDynamoSeedConstants();
 
     try {
-        await SpacesTable.putItem(
-            context,
-            {
-                partitionType: "Space",
-                sortRangeType: "Attributes",
-                spaceId: defaultSpaceId,
-                name: "Test",
-                createdTime: new Date(),
-            },
-            {
-                condition: {
-                    name: DynamoConditionExpression.exists().not(),
-                },
-            },
-        );
+        await SpacesTable.createItem(context, {
+            partitionType: "Space",
+            sortRangeType: "Attributes",
+            spaceId: defaultSpaceId,
+            name: "Test",
+            createdTime: new Date(),
+        });
     } catch (error) {
         // If this item already exists, great! This put is a noop.
         if (isDynamoConditionCheckError(error)) return;
@@ -104,21 +95,13 @@ export async function seedTestSpaces(context: DynamoContext) {
     }
 
     try {
-        await SpacesTable.putItem(
-            context,
-            {
-                partitionType: "Space",
-                sortRangeType: "Account",
-                spaceId: defaultSpaceId,
-                accountId: adminAccountId,
-                joinedTime: new Date(),
-            },
-            {
-                condition: {
-                    joinedTime: DynamoConditionExpression.exists().not(),
-                },
-            },
-        );
+        await SpacesTable.createItem(context, {
+            partitionType: "Space",
+            sortRangeType: "Account",
+            spaceId: defaultSpaceId,
+            accountId: adminAccountId,
+            joinedTime: new Date(),
+        });
     } catch (error) {
         // If this item already exists, great! This put is a noop.
         if (isDynamoConditionCheckError(error)) return;
@@ -142,17 +125,12 @@ export function createSpaceAccountForAlphaTransactionEntries({
 }): Array<DynamoTransactionEntry> {
     return [
         // Fail the transaction if the space does not exist.
-        SpacesTable.transactionConditionCheck(
-            {
-                partitionType: "Space",
-                sortRangeType: "Attributes",
-                spaceId,
-            },
-            {
-                name: DynamoConditionExpression.exists(),
-            },
-        ),
-        SpacesTable.transactionPutItem({
+        SpacesTable.transactionConditionCheck({
+            partitionType: "Space",
+            sortRangeType: "Attributes",
+            spaceId,
+        }),
+        SpacesTable.transactionCreateItem({
             partitionType: "Space",
             sortRangeType: "Account",
             spaceId,

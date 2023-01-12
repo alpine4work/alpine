@@ -26,18 +26,17 @@ async function createTestAccount({
     );
 
     await DynamoTableSchema.executeTransaction(context, [
-        AccountsTable.transactionPutItem({
+        AccountsTable.transactionCreateItem({
             partitionType: "Account",
             sortRangeType: "Attributes",
             accountId,
             name: "Test",
             createdTime: new Date(),
         }),
-        AccountsTable.transactionPutItem({
+        AccountsTable.transactionCreateItem({
             partitionType: "AccountEmailAddress",
             sortRangeType: "Attributes",
             emailAddress,
-            lockVersion: 0,
             accountId,
             isVerified: isEmailAddressVerified,
         }),
@@ -67,38 +66,53 @@ async function getAccountEmailAddressItemForExpect(account: {id: Id; emailAddres
     };
 }
 
-async function rewindOneTimePasswordSignInStateTime(emailAddress: EmailAddress, hours: number) {
+async function getAccountEmailAddressItemUpdateLockVersionForExpect(account: {
+    id: Id;
+    emailAddress: EmailAddress;
+}) {
     const accountEmailAddressItem = await AccountsTable.getItem(context, {
         partitionType: "AccountEmailAddress",
         sortRangeType: "Attributes",
-        emailAddress,
+        emailAddress: account.emailAddress,
     });
-    assert(accountEmailAddressItem?.oneTimePasswordSignInState);
 
-    await AccountsTable.putItem(
+    expect(accountEmailAddressItem).not.toEqual(null);
+    assert(accountEmailAddressItem);
+
+    expect(accountEmailAddressItem.accountId).toEqual(account.id);
+
+    return accountEmailAddressItem.updateLockVersion;
+}
+
+async function rewindOneTimePasswordSignInStateTime(emailAddress: EmailAddress, hours: number) {
+    await AccountsTable.updateItem(
         context,
         {
-            ...accountEmailAddressItem,
-            lockVersion: accountEmailAddressItem.lockVersion + 1,
-            oneTimePasswordSignInState: {
-                ...accountEmailAddressItem.oneTimePasswordSignInState,
-                generatedTime: subHours(
-                    accountEmailAddressItem.oneTimePasswordSignInState.generatedTime,
-                    hours,
-                ),
-                lastFailedAttemptTime: accountEmailAddressItem.oneTimePasswordSignInState
-                    .lastFailedAttemptTime
-                    ? subHours(
-                          accountEmailAddressItem.oneTimePasswordSignInState.lastFailedAttemptTime,
-                          hours,
-                      )
-                    : null,
-            },
+            partitionType: "AccountEmailAddress",
+            sortRangeType: "Attributes",
+            emailAddress,
         },
-        {
-            condition: {
-                lockVersion: accountEmailAddressItem.lockVersion,
-            },
+        accountEmailAddressItem => {
+            assert(accountEmailAddressItem?.oneTimePasswordSignInState);
+
+            return {
+                ...accountEmailAddressItem,
+                oneTimePasswordSignInState: {
+                    ...accountEmailAddressItem.oneTimePasswordSignInState,
+                    generatedTime: subHours(
+                        accountEmailAddressItem.oneTimePasswordSignInState.generatedTime,
+                        hours,
+                    ),
+                    lastFailedAttemptTime: accountEmailAddressItem.oneTimePasswordSignInState
+                        .lastFailedAttemptTime
+                        ? subHours(
+                              accountEmailAddressItem.oneTimePasswordSignInState
+                                  .lastFailedAttemptTime,
+                              hours,
+                          )
+                        : null,
+                },
+            };
         },
     );
 }
@@ -127,6 +141,24 @@ test("generates a one time password login hash", async () => {
         isVerified: false,
         oneTimePassword: oneTimePasswordEmails[0]?.oneTimePassword,
     });
+});
+
+test("regenerating one time password updates the lock version", async () => {
+    const account = await createTestAccount();
+
+    expect(await getAccountEmailAddressItemUpdateLockVersionForExpect(account)).toEqual(undefined);
+
+    await regenerateOneTimePasswordSignIn(context.unauthenticatedRequest(), account.emailAddress);
+
+    expect(await getAccountEmailAddressItemUpdateLockVersionForExpect(account)).toEqual(1);
+
+    await regenerateOneTimePasswordSignIn(context.unauthenticatedRequest(), account.emailAddress);
+
+    expect(await getAccountEmailAddressItemUpdateLockVersionForExpect(account)).toEqual(2);
+
+    await regenerateOneTimePasswordSignIn(context.unauthenticatedRequest(), account.emailAddress);
+
+    expect(await getAccountEmailAddressItemUpdateLockVersionForExpect(account)).toEqual(3);
 });
 
 test("regenerates the one time password login hash even if there was one already", async () => {
@@ -189,6 +221,40 @@ test("attempted login with correct password succeeds", async () => {
     const oneTimePassword = oneTimePasswordLoginEmails[0]!.oneTimePassword;
 
     await attemptOneTimePasswordSignIn(context, account.emailAddress, oneTimePassword, sessionInfo);
+});
+
+test("attempted login (success and failure) increments the update lock version", async () => {
+    const account = await createTestAccount();
+
+    expect(await getAccountEmailAddressItemUpdateLockVersionForExpect(account)).toEqual(undefined);
+
+    await expect(
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXXX", sessionInfo),
+    ).rejects.toThrow(new FailedPreconditionError("Missing one time password"));
+
+    expect(await getAccountEmailAddressItemUpdateLockVersionForExpect(account)).toEqual(undefined);
+
+    const oneTimePasswordLoginEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
+        await regenerateOneTimePasswordSignIn(
+            context.unauthenticatedRequest(),
+            account.emailAddress,
+        );
+    });
+
+    expect(oneTimePasswordLoginEmails.length).toEqual(1);
+    const oneTimePassword = oneTimePasswordLoginEmails[0]!.oneTimePassword;
+
+    expect(await getAccountEmailAddressItemUpdateLockVersionForExpect(account)).toEqual(1);
+
+    await expect(
+        attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXXX", sessionInfo),
+    ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
+
+    expect(await getAccountEmailAddressItemUpdateLockVersionForExpect(account)).toEqual(2);
+
+    await attemptOneTimePasswordSignIn(context, account.emailAddress, oneTimePassword, sessionInfo);
+
+    expect(await getAccountEmailAddressItemUpdateLockVersionForExpect(account)).toEqual(3);
 });
 
 test("attempted correct password expires after a short window of time", async () => {
@@ -352,31 +418,25 @@ test("null last failed login attempt time continues to keep the account locked",
         attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX6", sessionInfo),
     ).rejects.toThrow(new PermissionDeniedError("Account email address is locked"));
 
-    {
-        const accountEmailAddressItem = await AccountsTable.getItem(context, {
+    await AccountsTable.updateItem(
+        context,
+        {
             partitionType: "AccountEmailAddress",
             sortRangeType: "Attributes",
             emailAddress: account.emailAddress,
-        });
-        assert(accountEmailAddressItem?.oneTimePasswordSignInState);
+        },
+        accountEmailAddressItem => {
+            assert(accountEmailAddressItem?.oneTimePasswordSignInState);
 
-        await AccountsTable.putItem(
-            context,
-            {
+            return {
                 ...accountEmailAddressItem,
-                lockVersion: accountEmailAddressItem.lockVersion + 1,
                 oneTimePasswordSignInState: {
                     ...accountEmailAddressItem.oneTimePasswordSignInState,
                     lastFailedAttemptTime: null,
                 },
-            },
-            {
-                condition: {
-                    lockVersion: accountEmailAddressItem.lockVersion,
-                },
-            },
-        );
-    }
+            };
+        },
+    );
 
     await expect(
         attemptOneTimePasswordSignIn(context, account.emailAddress, "XXXXX7", sessionInfo),

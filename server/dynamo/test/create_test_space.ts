@@ -17,7 +17,7 @@ export function createTestSpace(context: TestContext): TestSpace {
     const spaceId = generateId();
 
     beforeAll(async () => {
-        await SpacesTable.putItem(context, {
+        await SpacesTable.createItem(context, {
             partitionType: "Space",
             sortRangeType: "Attributes",
             spaceId,

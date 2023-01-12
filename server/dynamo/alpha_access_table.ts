@@ -10,7 +10,6 @@ import {
     UnauthenticatedRequestContext,
 } from "~/server/dynamo/context/request_context";
 import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
-import {DynamoConditionExpression} from "~/server/dynamo/internal/dynamo_condition";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
@@ -70,7 +69,6 @@ const AlphaAccessTable = DynamoTableSchema.new({
                     },
                     attributes: Schema.object({
                         createdTime: Schema.date,
-                        lockVersion: Schema.integer,
 
                         /**
                          * The name of the person asking for access.
@@ -99,20 +97,24 @@ export async function seedTestAlphaConfiguration(context: DynamoContext) {
     assert(process.env.NODE_ENV !== "production");
     const {defaultSpaceId} = getDynamoSeedConstants();
 
-    const configuration = await AlphaAccessTable.getItem(context, {
-        partitionType: "AlphaConfiguration",
-        sortRangeType: "Configuration",
-    });
-
-    // If we haven't configured a default space, then configure out seeded space.
-    if (!configuration?.defaultSpaceId) {
-        await AlphaAccessTable.putItem(context, {
+    await AlphaAccessTable.updateItem(
+        context,
+        {
             partitionType: "AlphaConfiguration",
             sortRangeType: "Configuration",
-            ...configuration,
-            defaultSpaceId,
-        });
-    }
+        },
+        configuration => {
+            // If we have configured a default space, then don't update.
+            if (configuration?.defaultSpaceId) return configuration;
+
+            return {
+                partitionType: "AlphaConfiguration",
+                sortRangeType: "Configuration",
+                ...configuration,
+                defaultSpaceId,
+            };
+        },
+    );
 }
 
 /**
@@ -139,21 +141,15 @@ export async function requestAlphaAccess(
             // The account could have been created manually.
             checkAccountEmailAddressDoesNotExistTransactionEntry(emailAddress),
 
-            AlphaAccessTable.transactionPutItem(
-                {
-                    partitionType: "AlphaAccessRequests",
-                    sortRangeType: "Request",
-                    createdTime: new Date(),
-                    lockVersion: 0,
-                    name,
-                    emailAddress,
-                    message,
-                    decision: null,
-                },
-                {
-                    condition: {name: DynamoConditionExpression.exists().not()},
-                },
-            ),
+            AlphaAccessTable.transactionCreateItem({
+                partitionType: "AlphaAccessRequests",
+                sortRangeType: "Request",
+                createdTime: new Date(),
+                name,
+                emailAddress,
+                message,
+                decision: null,
+            }),
         ]);
     } catch (error) {
         if (!isDynamoConditionCheckError(error)) throw error;
@@ -275,22 +271,14 @@ export async function approveAlphaAccessRequest(
     const accountId = generateId();
 
     await DynamoTableSchema.executeTransaction(context, [
-        AlphaAccessTable.transactionPutItem(
-            {
-                ...requestItem,
-                lockVersion: requestItem.lockVersion + 1,
-                decision: {
-                    type: "Approved",
-                    approvedByAccountId: context.auth.getAccountId(),
-                    accountId,
-                },
+        AlphaAccessTable.transactionDirectlyUpdateItem({
+            ...requestItem,
+            decision: {
+                type: "Approved",
+                approvedByAccountId: context.auth.getAccountId(),
+                accountId,
             },
-            {
-                condition: {
-                    lockVersion: DynamoConditionExpression.eq(requestItem.lockVersion),
-                },
-            },
-        ),
+        }),
         ...createAccountForAlphaTransactionEntries({
             id: accountId,
             name: requestItem.name,
@@ -329,22 +317,13 @@ export async function denyAlphaAccessRequest(context: RequestContext, emailAddre
     if (requestItem.decision)
         throw new FailedPreconditionError("A decision has already been made for this request");
 
-    await AlphaAccessTable.putItem(
-        context,
-        {
-            ...requestItem,
-            lockVersion: requestItem.lockVersion + 1,
-            decision: {
-                type: "Denied",
-                deniedByAccountId: context.auth.getAccountId(),
-            },
+    await AlphaAccessTable.directlyUpdateItem(context, {
+        ...requestItem,
+        decision: {
+            type: "Denied",
+            deniedByAccountId: context.auth.getAccountId(),
         },
-        {
-            condition: {
-                lockVersion: DynamoConditionExpression.eq(requestItem.lockVersion),
-            },
-        },
-    );
+    });
 }
 
 /**
@@ -381,7 +360,7 @@ export async function saveAlphaConfiguration(
 ) {
     await authorizeAccountHasInternalAccess(context);
 
-    await AlphaAccessTable.putItem(context, {
+    await AlphaAccessTable.createOrReplaceItem(context, {
         partitionType: "AlphaConfiguration",
         sortRangeType: "Configuration",
         ...configuration,

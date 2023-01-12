@@ -1,11 +1,12 @@
 import {base64ToBytes, bytesToBase64} from "byte-base64";
 import {formatISO, isValid as isValidDate, parseISO} from "date-fns";
-import {InvalidArgumentError} from "~/shared/error/error";
+import {InternalError, InvalidArgumentError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier";
+import {quote} from "~/shared/helpers/string/quote";
 import {Optionalize} from "~/shared/helpers/types/optionalize";
 import {Id, isId} from "~/shared/id/id";
 import {
@@ -243,25 +244,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      *
      * [1]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/isSafeInteger
      */
-    public static integer = new Schema<number>({
-        description: {type: "Integer"},
-        serialize: value => {
-            if (!Number.isSafeInteger(value)) throw new InvalidArgumentError("Expected integer");
-
-            return value;
-        },
-        deserialize: value => {
-            if (typeof value !== "number") throw new SchemaDeserializationError("Expected number");
-
-            if (!Number.isSafeInteger(value))
-                throw new SchemaDeserializationError("Expected integer");
-
-            return value;
-        },
-        validate: value => {
-            if (!Number.isSafeInteger(value)) throw new InvalidArgumentError("Expected integer");
-        },
-    });
+    public static integer: IntegerSchema;
 
     /**
      * Accept any string value.
@@ -678,22 +661,56 @@ export class ObjectSchema<Value> extends Schema<Value> {
         target?: {[key: string]: SchemaSerializedValue},
     ) => Value;
 
-    private constructor({
-        propertySchemaByKey,
-        description,
-        serializeInto,
-        deserializeInto,
-        validate,
-    }: {
-        propertySchemaByKey: ReadonlyMap<string, ObjectPropertySchema<unknown, unknown>>;
-        description: SchemaSerializedValueDescription;
-        serializeInto: (value: Value, target: {[key: string]: SchemaSerializedValue}) => void;
-        deserializeInto: (
-            serializedValue: SchemaSerializedValue,
+    private constructor(
+        propertySchemaByKey: ReadonlyMap<string, ObjectPropertySchema<unknown, unknown>>,
+    ) {
+        const description: SchemaSerializedValueDescription = {
+            type: "Object",
+            propertySchemaByKey: Object.fromEntries(
+                Array.from(propertySchemaByKey, ([key, schema]) => [
+                    schema.serializedKey ?? key,
+                    schema.description,
+                ]),
+            ),
+        };
+
+        const serializeInto = (value: Value, target: {[key: string]: SchemaSerializedValue}) => {
+            for (const [key, schema] of propertySchemaByKey) {
+                const serializedKey = schema.serializedKey ?? key;
+                schema.serializeProperty(target, serializedKey, (value as any)[key]);
+            }
+        };
+
+        const deserializeInto = (
+            value: SchemaSerializedValue,
             target?: {[key: string]: SchemaSerializedValue},
-        ) => Value;
-        validate: ((value: Value) => void) | null;
-    }) {
+        ) => {
+            if (typeof value !== "object" || value === null)
+                throw new SchemaDeserializationError("Expected an object");
+
+            const newValue: any = target ?? {};
+
+            for (const [key, schema] of propertySchemaByKey) {
+                const serializedKey = schema.serializedKey ?? key;
+
+                const keyValue = schema.deserializeProperty(
+                    value as any as SchemaSerializedObjectValue,
+                    serializedKey,
+                );
+
+                newValue[key] = keyValue;
+            }
+
+            return newValue;
+        };
+
+        const validatePropertyByKey = new Map<string, (value: unknown) => void>(
+            filterMapIterable(propertySchemaByKey, ([key, propertySchema]) => {
+                if (propertySchema.validateProperty === null) return null;
+                return [key, propertySchema.validateProperty];
+            }),
+        );
+
         super({
             description,
             serialize: value => {
@@ -702,7 +719,14 @@ export class ObjectSchema<Value> extends Schema<Value> {
                 return newValue;
             },
             deserialize: deserializeInto,
-            validate,
+            validate:
+                validatePropertyByKey.size > 0
+                    ? value => {
+                          for (const [key, validateProperty] of validatePropertyByKey) {
+                              validateProperty((value as any)[key]);
+                          }
+                      }
+                    : null,
         });
         this.propertySchemaByKey = propertySchemaByKey;
         this.serializeInto = serializeInto;
@@ -722,58 +746,29 @@ export class ObjectSchema<Value> extends Schema<Value> {
             }),
         );
 
-        const validatePropertyByKey = new Map<string, (value: unknown) => void>(
-            filterMapIterable(propertySchemaByKey, ([key, propertySchema]) => {
-                if (propertySchema.validateProperty === null) return null;
-                return [key, propertySchema.validateProperty];
-            }),
-        );
+        return new ObjectSchema<ObjectSchemaConfigType<Config>>(propertySchemaByKey);
+    }
 
-        return new ObjectSchema<ObjectSchemaConfigType<Config>>({
-            propertySchemaByKey,
-            description: {
-                type: "Object",
-                propertySchemaByKey: Object.fromEntries(
-                    Array.from(propertySchemaByKey, ([key, schema]) => [
-                        schema.serializedKey ?? key,
-                        schema.description,
-                    ]),
-                ),
-            },
-            serializeInto: (value, target) => {
-                for (const [key, schema] of propertySchemaByKey) {
-                    const serializedKey = schema.serializedKey ?? key;
-                    schema.serializeProperty(target, serializedKey, (value as any)[key]);
-                }
-            },
-            deserializeInto: (value, target) => {
-                if (typeof value !== "object" || value === null)
-                    throw new SchemaDeserializationError("Expected an object");
+    /**
+     * Takes two object schemas and creates a new object schema with both of their
+     * properties. Keys in both schemas must be unique. Will throw an error if both
+     * schemas contain the same key.
+     */
+    public merge<OtherValue>(
+        otherSchema: ObjectSchema<OtherValue>,
+    ): ObjectSchema<Value & OtherValue> {
+        const propertySchemaByKey = new Map(this.propertySchemaByKey);
 
-                const newValue: any = target ?? {};
+        for (const [key, propertySchema] of otherSchema.propertySchemaByKey) {
+            if (propertySchemaByKey.has(key))
+                throw new InternalError(
+                    quote`Can not merge object schemas which both contain key ${key}`,
+                );
 
-                for (const [key, schema] of propertySchemaByKey) {
-                    const serializedKey = schema.serializedKey ?? key;
+            propertySchemaByKey.set(key, propertySchema);
+        }
 
-                    const keyValue = schema.deserializeProperty(
-                        value as any as SchemaSerializedObjectValue,
-                        serializedKey,
-                    );
-
-                    newValue[key] = keyValue;
-                }
-
-                return newValue;
-            },
-            validate:
-                validatePropertyByKey.size > 0
-                    ? value => {
-                          for (const [key, validateProperty] of validatePropertyByKey) {
-                              validateProperty((value as any)[key]);
-                          }
-                      }
-                    : null,
-        });
+        return new ObjectSchema(propertySchemaByKey);
     }
 
     /**
@@ -1445,6 +1440,128 @@ class StringSchema extends Schema<string> {
 
 // Avoid circular dependency between `Schema` and `StringSchema`.
 Schema.string = StringSchema.string;
+
+class IntegerSchema extends Schema<number> {
+    public static override integer = new IntegerSchema({
+        description: {type: "Integer"},
+        serialize: value => {
+            if (!Number.isSafeInteger(value)) throw new InvalidArgumentError("Expected integer");
+
+            return value;
+        },
+        deserialize: value => {
+            if (typeof value !== "number") throw new SchemaDeserializationError("Expected number");
+
+            if (!Number.isSafeInteger(value))
+                throw new SchemaDeserializationError("Expected integer");
+
+            return value;
+        },
+        validate: value => {
+            if (!Number.isSafeInteger(value)) throw new InvalidArgumentError("Expected integer");
+        },
+    });
+
+    private _transformNumber({
+        serialize,
+        deserialize,
+        validate: newValidate,
+    }: {
+        serialize: (value: number) => number;
+        deserialize: (value: number) => number;
+        validate: ((value: number) => void) | null;
+    }): IntegerSchema {
+        const {validate: oldValidate} = this;
+
+        return new IntegerSchema({
+            description: this.description,
+            serialize: newValue => {
+                const value = serialize(newValue);
+                return this.serialize(value);
+            },
+            deserialize: unknownValue => {
+                const value = this.deserialize(unknownValue);
+                return deserialize(value);
+            },
+            validate:
+                newValidate || oldValidate
+                    ? value => {
+                          oldValidate?.(value);
+                          newValidate?.(value);
+                      }
+                    : null,
+        });
+    }
+
+    /**
+     * Verifies that an integer is greater than or equal to the provided value.
+     */
+    // TODO(calebmer): Backwards compatibility validation?
+    public min(number: number): IntegerSchema {
+        assert(Number.isSafeInteger(number));
+
+        return this._transformNumber({
+            serialize: value => {
+                if (value < number)
+                    throw new InvalidArgumentError(
+                        `Expected integer to be greater than or equal to ${number}`,
+                    );
+
+                return value;
+            },
+            deserialize: value => {
+                if (value < number)
+                    throw new SchemaDeserializationError(
+                        `Expected integer to be greater than or equal to ${number}`,
+                    );
+
+                return value;
+            },
+            validate: value => {
+                if (value < number)
+                    throw new InvalidArgumentError(
+                        `Expected integer to be greater than or equal to ${number}`,
+                    );
+            },
+        });
+    }
+
+    /**
+     * Verifies that an integer is less than or equal to the provided value.
+     */
+    // TODO(calebmer): Backwards compatibility validation?
+    public max(number: number): IntegerSchema {
+        assert(Number.isSafeInteger(number));
+
+        return this._transformNumber({
+            serialize: value => {
+                if (value > number)
+                    throw new InvalidArgumentError(
+                        `Expected integer to be less than or equal to ${number}`,
+                    );
+
+                return value;
+            },
+            deserialize: value => {
+                if (value > number)
+                    throw new SchemaDeserializationError(
+                        `Expected integer to be less than or equal to ${number}`,
+                    );
+
+                return value;
+            },
+            validate: value => {
+                if (value > number)
+                    throw new InvalidArgumentError(
+                        `Expected integer to be less than or equal to ${number}`,
+                    );
+            },
+        });
+    }
+}
+
+// Avoid circular dependency between `Schema` and `IntegerSchema`.
+Schema.integer = IntegerSchema.integer;
 
 /**
  * An error thrown while deserializing a schema.

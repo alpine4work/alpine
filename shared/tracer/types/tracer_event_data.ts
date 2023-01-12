@@ -348,6 +348,12 @@ export type TracerEventData = {
          */
         readonly conditionExpression?: string;
 
+        /**
+         * If this is a batch action (`BatchGetItem` or `BatchWriteItem`) then how many
+         * items are in the batch?
+         */
+        readonly batchSize?: number;
+
         /** Information regarding a DynamoDB query. */
         readonly query?: {
             /**

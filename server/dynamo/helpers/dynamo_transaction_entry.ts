@@ -14,7 +14,7 @@ export class DynamoTransactionEntry {
 
     /**
      * Should not call this outside of `DynamoClient`! Use functions like
-     * `DynamoClient.transactionPutItem()` instead. We require you to pass in a
+     * `DynamoClient.transactionCreateItem()` instead. We require you to pass in a
      * `DynamoClient` to make sure you at least have access to a `DynamoClient`
      * which is in an internal directory.
      */
