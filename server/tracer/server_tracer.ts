@@ -14,14 +14,27 @@ export function createServerTracer({
     env: {DEV_SERVER_PORT?: string; HONEYCOMB_API_KEY?: string};
     waitUntil: (promise: Promise<unknown>) => void;
 }): TracerRoot {
+    let lastTime: number | null = null;
+
     const tracer = TracerRoot.new({
         serviceName,
         jsHost: "CloudflareWorker",
         untrusted: false,
         // In Cloudflare Workers, `Date.now()` only moves forward on I/O as a part of
         // their security model. This means timers won't be perfectly accurate.
+        //
+        // Also, time only increases within a given async request. (Rough
+        // implementation: Each request sets a timer via Node.js `AsyncLocalStorage`.)
+        // We want time to increase monotonically across all concurrently running
+        // requests for correct analysis.
+        //
         // https://developers.cloudflare.com/workers/learning/security-model
-        getTime: () => Date.now(),
+        getTime: () => {
+            const nextTime = Date.now();
+            const time = lastTime !== null ? Math.max(lastTime, nextTime) : nextTime;
+            lastTime = time;
+            return time;
+        },
         sendEvent: event => {
             honeycombClient?.sendEvent(event);
 
