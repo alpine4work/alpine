@@ -19,8 +19,8 @@ export class DocumentModel
     extends Model(
         Schema.object({
             id: Schema.id,
-            createdTime: Schema.date,
             spaceId: Schema.id,
+            createdTime: Schema.date,
             version: Schema.integer,
             content: DocumentContentSchema,
         }),

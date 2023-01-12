@@ -21,7 +21,12 @@ import {
     DocumentContentProsemirrorSchema as schema,
 } from "~/shared/documents/document_content_schema";
 import {DocumentModel} from "~/shared/documents/document_model";
-import {DataLossError, FailedPreconditionError, NotFoundError} from "~/shared/error/error";
+import {
+    DataLossError,
+    FailedPreconditionError,
+    NotFoundError,
+    PermissionDeniedError,
+} from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
 import {generateId} from "~/shared/id/id";
@@ -31,6 +36,8 @@ jest.useFakeTimers();
 const context = createTestContext();
 const space = createTestSpace(context);
 const session = createTestSession(context, space);
+const otherSpace = createTestSpace(context);
+const otherSession = createTestSession(context, otherSpace);
 
 function textSlice(text: string) {
     if (text.length === 0) return Slice.empty;
@@ -2399,4 +2406,160 @@ test("can read steps in a couple multi-step transactions", async () => {
             }),
         ),
     ).toEqual([new ReplaceStep(5, 5, textSlice("c"))].map(step => step.toJSON()));
+});
+
+test.only("can not create a document in a different space", async () => {
+    const documentId = generateId();
+
+    const content = schema.node("doc", {}, [
+        schema.node("title", {}, [schema.text("Foo bar")]),
+        schema.node("paragraph", {}, [schema.text("Hello, world!")]),
+    ]);
+    assert(isDocumentContent(content));
+
+    await expect(
+        createDocument(context.request(otherSession), {
+            id: documentId,
+            spaceId: space.id,
+            content,
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+});
+
+test("can not read a created document in a different space", async () => {
+    const documentId = generateId();
+
+    const content = schema.node("doc", {}, [
+        schema.node("title", {}, [schema.text("Foo bar")]),
+        schema.node("paragraph", {}, [schema.text("Hello, world!")]),
+    ]);
+    assert(isDocumentContent(content));
+
+    await createDocument(context.request(otherSession), {
+        id: documentId,
+        spaceId: otherSpace.id,
+        content,
+    });
+
+    await expect(getDocument(context.request(session), documentId)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+    await expect(getDocumentPreview(context.request(session), documentId)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+});
+
+test("can not update a document in a different space", async () => {
+    const documentId = generateId();
+
+    await createDocument(context.request(otherSession), {
+        id: documentId,
+        spaceId: otherSpace.id,
+        content: emptyDocumentContent,
+    });
+
+    await expect(
+        updateDocumentContent(context.request(session), {
+            id: documentId,
+            version: 0,
+            steps: [new ReplaceStep(3, 3, textSlice("a"))],
+            clientId: generateId(),
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    expect(massageDocument(await getDocument(context.request(otherSession), documentId))).toEqual({
+        version: 0,
+        content: schema
+            .node("doc", {}, [schema.node("title", {}, []), schema.node("paragraph", {}, [])])
+            .toJSON(),
+    });
+});
+
+test("can not update a cached document in a different space", async () => {
+    const documentId = generateId();
+
+    await createDocument(context.request(otherSession), {
+        id: documentId,
+        spaceId: otherSpace.id,
+        content: emptyDocumentContent,
+    });
+
+    await updateDocumentContent(context.request(otherSession), {
+        id: documentId,
+        version: 0,
+        steps: [new ReplaceStep(3, 3, textSlice("a"))],
+        clientId: generateId(),
+    });
+
+    expect(massageDocument(await getDocument(context.request(otherSession), documentId))).toEqual({
+        version: 1,
+        content: schema
+            .node("doc", {}, [
+                schema.node("title", {}, []),
+                schema.node("paragraph", {}, [schema.text("a")]),
+            ])
+            .toJSON(),
+    });
+
+    await expect(
+        updateDocumentContent(context.request(session), {
+            id: documentId,
+            version: 1,
+            steps: [new ReplaceStep(4, 4, textSlice("b"))],
+            clientId: generateId(),
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    expect(massageDocument(await getDocument(context.request(otherSession), documentId))).toEqual({
+        version: 1,
+        content: schema
+            .node("doc", {}, [
+                schema.node("title", {}, []),
+                schema.node("paragraph", {}, [schema.text("a")]),
+            ])
+            .toJSON(),
+    });
+});
+
+test("can update a cached document after rejecting an update in a different space", async () => {
+    const documentId = generateId();
+
+    await createDocument(context.request(otherSession), {
+        id: documentId,
+        spaceId: otherSpace.id,
+        content: emptyDocumentContent,
+    });
+
+    await expect(
+        updateDocumentContent(context.request(session), {
+            id: documentId,
+            version: 0,
+            steps: [new ReplaceStep(3, 3, textSlice("a"))],
+            clientId: generateId(),
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    expect(massageDocument(await getDocument(context.request(otherSession), documentId))).toEqual({
+        version: 0,
+        content: schema
+            .node("doc", {}, [schema.node("title", {}, []), schema.node("paragraph", {}, [])])
+            .toJSON(),
+    });
+
+    await updateDocumentContent(context.request(otherSession), {
+        id: documentId,
+        version: 0,
+        steps: [new ReplaceStep(3, 3, textSlice("a"))],
+        clientId: generateId(),
+    });
+
+    expect(massageDocument(await getDocument(context.request(otherSession), documentId))).toEqual({
+        version: 1,
+        content: schema
+            .node("doc", {}, [
+                schema.node("title", {}, []),
+                schema.node("paragraph", {}, [schema.text("a")]),
+            ])
+            .toJSON(),
+    });
 });

@@ -203,36 +203,22 @@ export async function seedTestAccounts(context: DynamoContext) {
     assert(process.env.NODE_ENV !== "production");
     const {adminAccountId, adminEmailAddress} = getDynamoSeedConstants();
 
-    try {
-        await AccountsTable.createItem(context, {
-            partitionType: "Account",
-            sortRangeType: "Attributes",
-            accountId: adminAccountId,
-            name: "Test Admin",
-            createdTime: new Date(),
-            hasInternalAccess: true,
-        });
-    } catch (error) {
-        // If this item already exists, great! This put is a noop.
-        if (isDynamoConditionCheckError(error)) return;
+    await AccountsTable.createItemIfNoneExists(context, {
+        partitionType: "Account",
+        sortRangeType: "Attributes",
+        accountId: adminAccountId,
+        name: "Test Admin",
+        createdTime: new Date(),
+        hasInternalAccess: true,
+    });
 
-        throw error;
-    }
-
-    try {
-        await AccountsTable.createItem(context, {
-            partitionType: "AccountEmailAddress",
-            sortRangeType: "Attributes",
-            emailAddress: adminEmailAddress,
-            accountId: adminAccountId,
-            isVerified: true,
-        });
-    } catch (error) {
-        // If this item already exists, great! This put is a noop.
-        if (isDynamoConditionCheckError(error)) return;
-
-        throw error;
-    }
+    await AccountsTable.createItemIfNoneExists(context, {
+        partitionType: "AccountEmailAddress",
+        sortRangeType: "Attributes",
+        emailAddress: adminEmailAddress,
+        accountId: adminAccountId,
+        isVerified: true,
+    });
 }
 
 /**

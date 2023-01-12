@@ -79,35 +79,21 @@ export async function seedTestSpaces(context: DynamoContext) {
     assert(process.env.NODE_ENV !== "production");
     const {defaultSpaceId, adminAccountId} = getDynamoSeedConstants();
 
-    try {
-        await SpacesTable.createItem(context, {
-            partitionType: "Space",
-            sortRangeType: "Attributes",
-            spaceId: defaultSpaceId,
-            name: "Test",
-            createdTime: new Date(),
-        });
-    } catch (error) {
-        // If this item already exists, great! This put is a noop.
-        if (isDynamoConditionCheckError(error)) return;
+    await SpacesTable.createItemIfNoneExists(context, {
+        partitionType: "Space",
+        sortRangeType: "Attributes",
+        spaceId: defaultSpaceId,
+        name: "Test",
+        createdTime: new Date(),
+    });
 
-        throw error;
-    }
-
-    try {
-        await SpacesTable.createItem(context, {
-            partitionType: "Space",
-            sortRangeType: "Account",
-            spaceId: defaultSpaceId,
-            accountId: adminAccountId,
-            joinedTime: new Date(),
-        });
-    } catch (error) {
-        // If this item already exists, great! This put is a noop.
-        if (isDynamoConditionCheckError(error)) return;
-
-        throw error;
-    }
+    await SpacesTable.createItemIfNoneExists(context, {
+        partitionType: "Space",
+        sortRangeType: "Account",
+        spaceId: defaultSpaceId,
+        accountId: adminAccountId,
+        joinedTime: new Date(),
+    });
 }
 
 /**

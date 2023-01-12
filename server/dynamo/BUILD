@@ -26,6 +26,7 @@ ts_project(
         "//server/helpers",
         "//server/schema",
         "//shared/alpha",
+        "//shared/channels",
         "//shared/context",
         "//shared/documents",
         "//shared/error",

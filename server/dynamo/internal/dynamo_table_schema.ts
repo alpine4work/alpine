@@ -13,6 +13,7 @@ import {
     dynamoKeySeparator,
 } from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {getDynamoClient} from "~/server/dynamo/internal/get_dynamo_client";
+import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
 import {isDynamoResourceNotFoundError} from "~/server/dynamo/internal/is_dynamo_resource_not_found_error";
 import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry_dynamo_condition_check_errors";
 import {DynamoTableSchemaTypes} from "~/server/dynamo/internal/types/dynamo_table_schema_types";
@@ -570,6 +571,29 @@ export class DynamoTableSchema<
                 DynamoConditionExpressionPrecedence.Function,
             ),
         });
+    }
+
+    /**
+     * Create an item in the database but only if an item with the same key does
+     * not already exist. If an item with the same key does exist then this will
+     * not do anything.
+     *
+     * Under the hood uses the [`PutItem`][1] command with a condition.
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
+     */
+    public async createItemIfNoneExists<Item extends Types["Item"]>(
+        context: DynamoContext,
+        item: Item,
+    ): Promise<void> {
+        try {
+            await this.createItem(context, item);
+        } catch (error) {
+            // If this item already exists, great! This is a noop.
+            if (isDynamoConditionCheckError(error)) return;
+
+            throw error;
+        }
     }
 
     /**

@@ -1,5 +1,6 @@
 import {seedTestAccounts} from "~/server/dynamo/accounts_table";
 import {seedTestAlphaConfiguration} from "~/server/dynamo/alpha_access_table";
+import {seedTestChannels} from "~/server/dynamo/channels_table";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {seedTestSpaces} from "~/server/dynamo/spaces_table";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
@@ -11,12 +12,14 @@ import {assert} from "~/shared/helpers/control/assert";
  * This seed function is idempotent. You may run it however many times you want
  * and it will keep working.
  */
-export async function seedDynamo(context: DynamoContext) {
+export function seedDynamo(context: DynamoContext): Promise<void> {
     assert(process.env.NODE_ENV !== "production");
-
-    await runAllPromises([
-        seedTestAlphaConfiguration(context),
-        seedTestAccounts(context),
-        seedTestSpaces(context),
-    ]);
+    return context.tracer.withSpan("Seed DynamoDB test data", async context => {
+        await runAllPromises([
+            seedTestAlphaConfiguration(context),
+            seedTestAccounts(context),
+            seedTestSpaces(context),
+            seedTestChannels(context),
+        ]);
+    });
 }

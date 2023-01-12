@@ -46,6 +46,7 @@ ts_project(
         "//server/rpc",
         "//server/tracer",
         "//shared/alpha",
+        "//shared/channels",
         "//shared/context",
         "//shared/design",
         "//shared/documents",

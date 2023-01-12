@@ -289,6 +289,9 @@ export type TracerEventData = {
 
         /** Information about the document the event was fired while looking at. */
         readonly documentId?: Id;
+
+        /** Information about the channel the event was fired while looking at. */
+        readonly channelId?: Id;
     };
 
     /**

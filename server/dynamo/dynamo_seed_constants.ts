@@ -11,6 +11,7 @@ const seedConstants = {
     adminAccountId: assertId("27g6s1h4ygh1zqzw5h23gqtn88"),
     adminEmailAddress: "admin@test.cyberworlds.dev" as EmailAddress,
     defaultSpaceId: assertId("ywcffewdn377x442nkxd5x41r0"),
+    testChannelId: assertId("qk8jepk9epmb48b3fbaykw4vk0"),
 };
 
 /**

@@ -955,6 +955,10 @@ export async function updateDocumentContent(
         if (!internalDocument)
             throw new NotFoundError("Can not update document that doesn't exist");
 
+        // Double check that we can update the document. Another user with access may
+        // have cached the document.
+        await authorizeAccountHasSpaceAccess(context, internalDocument.spaceId);
+
         const {newContent, steps, invertedSteps, conflictingSteps} =
             await getUpdateDocumentContentResult({
                 currentVersion: internalDocument.version,

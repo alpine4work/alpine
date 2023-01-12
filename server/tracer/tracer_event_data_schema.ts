@@ -116,6 +116,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         accountId: Schema.id,
         spaceId: Schema.id,
         documentId: Schema.id,
+        channelId: Schema.id,
     },
     dynamodb: {
         action: IdentifierStringSchema,
