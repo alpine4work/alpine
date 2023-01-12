@@ -1,12 +1,15 @@
-import {Memo, useCallback, useMemo, useState} from "react";
-import {useEffectWithoutStrictModeUnmountSimulation} from "~/client/helpers/lifecycle/use_effect_without_strict_mode_unmount_simulation";
+import {Memo, useCallback, useEffect, useMemo, useState} from "react";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {WebSocketClient} from "~/client/helpers/web_socket_client";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
 import {UnionSchema} from "~/shared/schema/schema";
 
 /**
  * React hook for connecting to a WebSocket using our `WebSocketClient`
  * abstraction.
+ *
+ * Automatically disconnects the WebSocket when the user hides the web page so
+ * we don't continue to send ping/pong events.
  */
 export function useWebSocket<
     MessageFromClient extends {type: string},
@@ -27,6 +30,7 @@ export function useWebSocket<
     );
 
     const [shouldConnect, setShouldConnect] = useState(true);
+    const [isDocumentVisible, setIsDocumentVisible] = useState(true);
     const [isConnected, setIsConnected] = useState(false);
     const actuallyHandleMessage = useEvent(handleMessage);
 
@@ -39,16 +43,14 @@ export function useWebSocket<
     // losing internet. We do not throw these errors.
     if (errorState.hasError) throw errorState.error;
 
-    // Chrome logs a warning when we close a WebSocket we just opened (which
-    // happens with React strict mode effect unmount simulation). So disable
-    // unmount simulation for this hook.
-    //
-    // We believe the hook is well written to handle unmounts. The Chrome log is
-    // only a warning.
-    useEffectWithoutStrictModeUnmountSimulation(() => {
+    // Connect our WebSocket only when the hook tells us to connect and the
+    // document is visible.
+    const actuallyShouldConnect = shouldConnect && isDocumentVisible;
+
+    useEffect(() => {
         setIsConnected(false);
 
-        if (!shouldConnect) return;
+        if (!actuallyShouldConnect) return;
 
         const unsubscribeFromConnect = client.subscribeToConnect(() => {
             setIsConnected(true);
@@ -72,7 +74,35 @@ export function useWebSocket<
 
             client.disconnect();
         };
-    }, [actuallyHandleMessage, client, shouldConnect]);
+    }, [actuallyHandleMessage, actuallyShouldConnect, client]);
+
+    // Watch whether the document is visible. We immediately update our state when
+    // the document is made visible but we wait 5s before updating our state when
+    // the document is hidden. In case the user temporarily looked at another
+    // screen and then returned.
+    useEffect(() => {
+        setIsDocumentVisible(document.visibilityState === "visible");
+
+        let delayedUpdateTimeout: Timeout | null = null;
+
+        const handleVisibilityChange = () => {
+            delayedUpdateTimeout?.clear();
+            delayedUpdateTimeout = null;
+
+            if (document.visibilityState === "visible") {
+                setIsDocumentVisible(true);
+            } else {
+                delayedUpdateTimeout = createTimeout(() => {
+                    setIsDocumentVisible(false);
+                }, 1000 * 5);
+            }
+        };
+
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+        return () => {
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+        };
+    }, []);
 
     const sendMessage = useCallback(
         (message: MessageFromClient) => client.sendMessage(message),
