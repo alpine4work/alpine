@@ -68,6 +68,7 @@ export class WebSocketClient<
      * If the socket unexpectedly disconnects then we will automatically reconnect.
      */
     connect() {
+        assert(!this._shouldConnect);
         this._shouldConnect = true;
         this._setupConnection();
     }
@@ -76,8 +77,14 @@ export class WebSocketClient<
      * Disconnects from the WebSocket.
      */
     disconnect() {
+        assert(this._shouldConnect);
         this._shouldConnect = false;
-        this._state.socket?.close();
+        const socket = this._state.socket;
+        this._state = {type: "disconnected"};
+        if (socket) {
+            socket.close();
+            this._disconnectEvent.emit(null);
+        }
     }
 
     /**
@@ -157,6 +164,12 @@ export class WebSocketClient<
         };
 
         const checkConnectionInterval = createInterval(() => {
+            // Ignore events after we detach this WebSocket.
+            if (this._state.socket !== socket) {
+                checkConnectionInterval.clear();
+                return;
+            }
+
             assert(this._state.type === "connecting" || this._state.type === "connected");
             assert(this._state.socket === socket);
 
@@ -166,8 +179,10 @@ export class WebSocketClient<
         }, expirationTimeoutMs / 2);
 
         socket.addEventListener("open", () => {
+            // Ignore events after we detach this WebSocket.
+            if (this._state.socket !== socket) return;
+
             assert(this._state.type === "connecting");
-            assert(this._state.socket === socket);
 
             this._lastMessageReceived = Date.now();
             this._unsuccessfulReconnects = 0;
@@ -185,11 +200,10 @@ export class WebSocketClient<
         });
 
         socket.addEventListener("close", event => {
-            assert(this._state.type === "connecting" || this._state.type === "connected");
-            assert(this._state.socket === socket);
+            // Ignore events after we detach this WebSocket.
+            if (this._state.socket !== socket) return;
 
-            const wasClosedBeforeConnected =
-                this._state.type === "connecting" && !this._shouldConnect;
+            assert(this._state.type === "connecting" || this._state.type === "connected");
 
             const isGracefullyWaitingForReconnect =
                 this._shouldConnect && this._unsuccessfulReconnects < reconnectAttemptsBeforeError;
@@ -200,7 +214,6 @@ export class WebSocketClient<
             // https://websockets.spec.whatwg.org/#dom-websocket-onerror
             const error =
                 (event.code !== 1000 || !event.wasClean) &&
-                !wasClosedBeforeConnected &&
                 // Try to reconnect for a short period before showing an error.
                 !isGracefullyWaitingForReconnect
                     ? new UnknownError(
@@ -234,6 +247,9 @@ export class WebSocketClient<
         });
 
         socket.addEventListener("message", event => {
+            // Ignore events after we detach this WebSocket.
+            if (this._state.socket !== socket) return;
+
             this._lastMessageReceived = Date.now();
             this._unsuccessfulReconnects = 0;
 
