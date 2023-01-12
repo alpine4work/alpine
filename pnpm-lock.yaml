@@ -114,7 +114,6 @@ specifiers:
   '@vanilla-extract/sprinkles': ^1.5.0
   aws-cdk: 2.43.1
   aws-cdk-lib: 2.42.0
-  aws-cdk-local: ^2.15.0
   aws4fetch: ^1.0.17
   axe-core: 4.4.3
   bcrypt: ^5.1.0
@@ -245,7 +244,6 @@ dependencies:
   '@vanilla-extract/sprinkles': 1.5.0_njeywewejjkyja35mwody6s2pu_@vanilla-extract+css@1.9.1
   aws-cdk: 2.43.1
   aws-cdk-lib: 2.42.0_constructs@10.1.143
-  aws-cdk-local: 2.15.0
   aws4fetch: 1.0.17
   axe-core: 4.4.3
   bcrypt: 5.1.0
@@ -6204,13 +6202,6 @@ packages:
       - punycode
       - semver
       - yaml
-
-  /aws-cdk-local/2.15.0:
-    resolution: {integrity: sha512-Wsexx+2yohaEuvC25DcU/MD1wbj9XjHfYfBI67PE2wNo+NZFeZ4T66rvKhYXLDBMKF6kGhTRzjXis6GPwUZvtg==}
-    hasBin: true
-    dependencies:
-      diff: 5.1.0
-    dev: false
 
   /aws-cdk/2.43.1:
     resolution: {integrity: sha512-Y+Pomc+LdQ14h+CvFZg+FeqcLpV8MJcoFhqcoOtGi0xC8CkdGAWH+MfIWcqePk7OVOMIzDJP2eBdd9te2CrjcQ==}

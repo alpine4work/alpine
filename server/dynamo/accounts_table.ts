@@ -201,7 +201,7 @@ export type SessionItem = DynamoTableItemType<typeof AccountsTable, "Session", "
 
 export async function seedTestAccounts(context: DynamoContext) {
     assert(process.env.NODE_ENV !== "production");
-    const {adminAccountId} = getDynamoSeedConstants();
+    const {adminAccountId, adminEmailAddress} = getDynamoSeedConstants();
 
     try {
         await AccountsTable.createItem(context, {
@@ -223,7 +223,7 @@ export async function seedTestAccounts(context: DynamoContext) {
         await AccountsTable.createItem(context, {
             partitionType: "AccountEmailAddress",
             sortRangeType: "Attributes",
-            emailAddress: await validateEmailAddress(context, "admin@test.cyberworlds.dev"),
+            emailAddress: adminEmailAddress,
             accountId: adminAccountId,
             isVerified: true,
         });

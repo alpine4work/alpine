@@ -11,6 +11,7 @@ import path from "path";
 import createServeStaticMiddleware from "serve-static";
 import {Headers} from "undici";
 import WebSocket from "ws";
+import {startDynamoLocal} from "~/admin/dynamo/local/start_dynamo_local";
 import {devEnvPaths} from "~/admin/helpers/dev_env_paths";
 import {parseDotenv} from "~/admin/helpers/parse_dotenv";
 import {runfilesPath} from "~/admin/helpers/runfiles_path";
@@ -23,9 +24,7 @@ const env = parseDotenv();
 
 const port = parseInt(assertExists(env.APP_PORT), 10);
 const devServerPort = parseInt(assertExists(env.DEV_SERVER_PORT), 10);
-
-const tracerLogDirectoryPath = path.join(devEnvPaths.log, "tracer");
-fs.ensureDirSync(tracerLogDirectoryPath);
+const dynamoLocalPort = parseInt(assertExists(env.DYNAMO_LOCAL_PORT), 10);
 
 /* ========================================================================== *\
  *                                Miniflare                                   *
@@ -66,6 +65,26 @@ function reloadMiniflare() {
 const serveStaticMiddleware = createServeStaticMiddleware(
     path.join(runfilesPath, "cyberworlds/app/public"),
     {cacheControl: false},
+);
+
+/* ========================================================================== *\
+ *                                 DynamoDB                                   *
+\* ========================================================================== */
+
+const dynamoDataDirectoryPath = path.join(devEnvPaths.data, "dynamo");
+
+const dynamoLocalPromiseResolver = createPromiseResolver();
+
+startDynamoLocal({
+    dataPath: dynamoDataDirectoryPath,
+    port: dynamoLocalPort,
+}).then(
+    () => dynamoLocalPromiseResolver.resolve(),
+    error => {
+        // eslint-disable-next-line no-console
+        console.error(error);
+        dynamoLocalPromiseResolver.resolve();
+    },
 );
 
 /* ========================================================================== *\
@@ -221,6 +240,10 @@ server.on("upgrade", (req, socket, head) => {
     function run() {
         // If we have some promises, then wait for them to resolve recursively before
         // our request can run.
+        if (!dynamoLocalPromiseResolver.isSettled()) {
+            dynamoLocalPromiseResolver.promise.finally(run);
+            return;
+        }
         if (!bazelBuildPromiseResolver.isSettled()) {
             bazelBuildPromiseResolver.promise.finally(run);
             return;
@@ -284,6 +307,9 @@ server.on("upgrade", (req, socket, head) => {
 /* ========================================================================== *\
  *                                Dev Server                                  *
 \* ========================================================================== */
+
+const tracerLogDirectoryPath = path.join(devEnvPaths.log, "tracer");
+fs.ensureDirSync(tracerLogDirectoryPath);
 
 const devServer = express();
 

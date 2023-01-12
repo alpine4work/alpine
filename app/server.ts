@@ -7,6 +7,7 @@ import {Session} from "~/server/dynamo/accounts_table";
 import {UnauthenticatedAuthContextModule} from "~/server/dynamo/context/auth_context_module";
 import {unauthenticatedSessionError} from "~/server/dynamo/context/helpers/unauthenticated_session_error";
 import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
+import {seedDynamo} from "~/server/dynamo/seed_dynamo";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base";
 import {
     LoaderContext,
@@ -28,6 +29,7 @@ import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagat
 type AppWorkerEnv = {
     DocumentCollaborationDurableObjectNamespace: DurableObjectNamespace;
     DEV_SERVER_PORT?: string;
+    DYNAMO_LOCAL_PORT?: string;
     SESSION_COOKIE_SECRET?: string;
     AWS_SECRET_ACCESS_KEY?: string;
     AWS_ACCESS_KEY_ID?: string;
@@ -87,6 +89,8 @@ const staticContentManifestPromise =
     process.env.NODE_ENV === "production"
         ? import("__STATIC_CONTENT_MANIFEST").then(manifestJson => JSON.parse(manifestJson.default))
         : null;
+
+let hasSeededDynamo = false;
 
 async function handleFetch(
     request: Request,
@@ -251,6 +255,13 @@ async function handleFetch(
                     }),
                 },
                 async context => {
+                    // The first time our server process runs in development, seed DynamoDB with
+                    // some initial data. The seed function should be idempotent.
+                    if (process.env.NODE_ENV !== "production" && !hasSeededDynamo) {
+                        hasSeededDynamo = true;
+                        context.process.waitUntil(seedDynamo(context));
+                    }
+
                     event[contextSymbol] = context;
                     const response = await handleRequest(event);
                     return response;

@@ -13,10 +13,6 @@ $ ./admin/bin/dev
 We use [Bazel](https://bazel.build) which installs all the tools you need. Including
 [Node.js](https://nodejs.org/en) and package managers like [pnpm](https://pnpm.io).
 
-**Exception:** You need to install [LocalStack](https://docs.localstack.cloud/get-started/) (and
-also Docker and Python which LocalStack depends on) yourself. We are investigating a way to use AWS
-directly in development instead of LocalStack.
-
 ## Recommend setup
 
 We recommend the following setup steps as well:

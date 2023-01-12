@@ -1,12 +1,8 @@
-// IMPORTANT: We are only importing `@aws-sdk` for types. Use
-// the `aws4fetch` module for executing any AWS commands.
-import type * as types from "@aws-sdk/client-dynamodb";
 import {AwsClient} from "aws4fetch";
 import fs from "fs-extra";
 import getPort from "get-port";
 import path from "path";
-import {executeAdminDynamoCommand} from "~/admin/dynamo/execute_admin_dynamo_command";
-import {startDynamoLocal} from "~/admin/dynamo/start_dynamo_local";
+import {startDynamoLocal} from "~/admin/dynamo/local/start_dynamo_local";
 import {Session} from "~/server/dynamo/accounts_table";
 import {
     AuthenticatedAuthContextModule,
@@ -18,7 +14,6 @@ import {
     UnauthenticatedRequestContext,
 } from "~/server/dynamo/context/request_context";
 import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
-import {getAllDynamoTableSchemas} from "~/server/dynamo/get_all_dynamo_table_schemas";
 import {TestSession} from "~/server/dynamo/test/create_test_session";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module";
 import {Context} from "~/shared/context/context";
@@ -102,42 +97,6 @@ export function createTestContext(): TestContext {
             accessKeyId: "local",
             secretAccessKey: "local",
         });
-
-        // Create all the tables we'll need in the DynamoDB database. We should
-        // consider lazily creating tables as we need them for performance.
-        for (const tableSchema of getAllDynamoTableSchemas()) {
-            const tableName = tableSchema.getName();
-
-            await executeAdminDynamoCommand<types.CreateTableInput>(
-                awsClient,
-                `http://localhost:${port}`,
-                "CreateTable",
-                {
-                    TableName: tableName,
-                    AttributeDefinitions: [
-                        {
-                            AttributeName: "partitionKey",
-                            AttributeType: "S",
-                        },
-                        {
-                            AttributeName: "sortKey",
-                            AttributeType: "S",
-                        },
-                    ],
-                    KeySchema: [
-                        {
-                            AttributeName: "partitionKey",
-                            KeyType: "HASH",
-                        },
-                        {
-                            AttributeName: "sortKey",
-                            KeyType: "RANGE",
-                        },
-                    ],
-                    BillingMode: "PAY_PER_REQUEST",
-                },
-            );
-        }
 
         dynamoContextModule.initialize(awsClient, `http://localhost:${port}`);
     });

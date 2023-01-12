@@ -13,13 +13,14 @@ import {
     dynamoKeySeparator,
 } from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {getDynamoClient} from "~/server/dynamo/internal/get_dynamo_client";
+import {isDynamoResourceNotFoundError} from "~/server/dynamo/internal/is_dynamo_resource_not_found_error";
 import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry_dynamo_condition_check_errors";
 import {DynamoTableSchemaTypes} from "~/server/dynamo/internal/types/dynamo_table_schema_types";
 import {checkSchemaBackwardsCompatibility} from "~/server/schema/check_schema_backwards_compatibility";
 import {DataLossError, InternalError, InvalidArgumentError} from "~/shared/error/error";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
-import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
 import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order_key";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings";
@@ -227,6 +228,92 @@ export class DynamoTableSchema<
         return this._config.name;
     }
 
+    private _ensureTablePromise: Promise<void> | null = null;
+
+    private async _getClient(
+        context: DynamoContext,
+        checkWriteCompatibility: boolean,
+    ): Promise<DynamoClient> {
+        // If our schema is write incompatible with the old schema then throw an error.
+        // Do not allow writing to this table until the generated schema has been
+        // updated.
+        if (checkWriteCompatibility && this._writeCompatibilityError !== null)
+            throw this._writeCompatibilityError;
+
+        const client = getDynamoClient(context);
+
+        // In development environments if we are running against a local DynamoDB then
+        // ensure our table exists in the database.
+        //
+        // Store the ensure table promise so that if we are executing commands in
+        // parallel, we only try to create the table once.
+        if (process.env.NODE_ENV !== "production") {
+            const internalClient = client.getInternalClient();
+            if (internalClient.isLocal()) {
+                if (!this._ensureTablePromise)
+                    this._ensureTablePromise = this._ensureTable(context);
+                await this._ensureTablePromise;
+            }
+        }
+
+        return client;
+    }
+
+    /**
+     * Ensures that our table exists in DynamoDB.
+     */
+    private async _ensureTable(context: DynamoContext): Promise<void> {
+        const client = getDynamoClient(context);
+        const internalClient = client.getInternalClient();
+        const tableName = this.getName();
+
+        // Only allow creating tables in this way in local DynamoDB databases. In
+        // production we should use the AWS CDK.
+        assert(internalClient.isLocal());
+
+        let doesTableExist;
+        try {
+            await internalClient.DescribeTable(context.tracer.getTracer(), {
+                TableName: tableName,
+            });
+            doesTableExist = true;
+        } catch (error) {
+            if (isDynamoResourceNotFoundError(error)) {
+                doesTableExist = false;
+            } else {
+                throw error;
+            }
+        }
+
+        // If our table already exists, we don't have to create it.
+        if (doesTableExist) return;
+
+        await internalClient.CreateTable(context.tracer.getTracer(), {
+            TableName: tableName,
+            AttributeDefinitions: [
+                {
+                    AttributeName: "partitionKey",
+                    AttributeType: "S",
+                },
+                {
+                    AttributeName: "sortKey",
+                    AttributeType: "S",
+                },
+            ],
+            KeySchema: [
+                {
+                    AttributeName: "partitionKey",
+                    KeyType: "HASH",
+                },
+                {
+                    AttributeName: "sortKey",
+                    KeyType: "RANGE",
+                },
+            ],
+            BillingMode: "PAY_PER_REQUEST",
+        });
+    }
+
     private _serializePartitionKey(key: Types["PartitionKey"]): string {
         const partitionConfig = this._config.partitions[key.partitionType];
         const partitionDescription = this.description.partitionByType[key.partitionType];
@@ -359,9 +446,10 @@ export class DynamoTableSchema<
             consistency?: DynamoReadConsistency;
         } = {},
     ): Promise<MergeObjectIntersection<Types["Item"] & Key> | null> {
+        const client = await this._getClient(context, false);
         const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
 
-        const serializedItem = await getDynamoClient(context).getItem(context.tracer.getTracer(), {
+        const serializedItem = await client.getItem(context.tracer.getTracer(), {
             tableName: this._config.name,
             key: {partitionKey, sortKey},
             consistency,
@@ -410,6 +498,7 @@ export class DynamoTableSchema<
             consistency?: DynamoReadConsistency;
         },
     ): Promise<MergeObjectIntersection<Key & Pick<Types["Item"] & Key, Attributes>> | null> {
+        const client = await this._getClient(context, false);
         const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
 
         assert(
@@ -426,7 +515,7 @@ export class DynamoTableSchema<
             projectionExpressionEntries.push(serializedKey);
         }
 
-        const serializedItem = await getDynamoClient(context).getItem(context.tracer.getTracer(), {
+        const serializedItem = await client.getItem(context.tracer.getTracer(), {
             tableName: this._config.name,
             key: {partitionKey, sortKey},
             consistency,
@@ -714,18 +803,14 @@ export class DynamoTableSchema<
             condition?: DynamoCondition<Item>;
         } = {},
     ): Promise<void> {
-        // If our schema is write incompatible with the old schema then throw an error.
-        // Do not allow writing to this table until the generated schema has been
-        // updated.
-        if (this._writeCompatibilityError !== null) throw this._writeCompatibilityError;
-
+        const client = await this._getClient(context, true);
         const {partitionKey, sortKey, attributesSchema} = this._serializeKey(item as Types["Key"]);
 
         const serializedItem: {[key: string]: SchemaSerializedValue} = {partitionKey, sortKey};
         attributesSchema.serializeInto(item, serializedItem);
 
         if (condition === undefined) {
-            return getDynamoClient(context).putItem(context.tracer.getTracer(), {
+            return client.putItem(context.tracer.getTracer(), {
                 tableName: this._config.name,
                 key: {partitionKey, sortKey},
                 item: serializedItem,
@@ -738,7 +823,7 @@ export class DynamoTableSchema<
                 conditionCompilationContext,
             );
 
-            return getDynamoClient(context).putItem(context.tracer.getTracer(), {
+            return client.putItem(context.tracer.getTracer(), {
                 tableName: this._config.name,
                 key: {partitionKey, sortKey},
                 item: serializedItem,
@@ -820,7 +905,7 @@ export class DynamoTableSchema<
      * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DeleteItem.html
      * [3]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
      */
-    private _deleteItem<Key extends Types["Key"]>(
+    private async _deleteItem<Key extends Types["Key"]>(
         context: DynamoContext,
         key: Key,
         {
@@ -829,15 +914,11 @@ export class DynamoTableSchema<
             condition?: DynamoCondition<Types["Item"] & Key>;
         } = {},
     ): Promise<void> {
-        // If our schema is write incompatible with the old schema then throw an error.
-        // Do not allow writing to this table until the generated schema has been
-        // updated.
-        if (this._writeCompatibilityError !== null) throw this._writeCompatibilityError;
-
+        const client = await this._getClient(context, true);
         const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
 
         if (condition === undefined) {
-            return getDynamoClient(context).deleteItem(context.tracer.getTracer(), {
+            return client.deleteItem(context.tracer.getTracer(), {
                 tableName: this._config.name,
                 key: {partitionKey, sortKey},
             });
@@ -849,7 +930,7 @@ export class DynamoTableSchema<
                 conditionCompilationContext,
             );
 
-            return getDynamoClient(context).deleteItem(context.tracer.getTracer(), {
+            return client.deleteItem(context.tracer.getTracer(), {
                 tableName: this._config.name,
                 key: {partitionKey, sortKey},
                 conditionExpression: conditionExpressionString,
@@ -873,11 +954,29 @@ export class DynamoTableSchema<
         entries: ReadonlyArray<DynamoTransactionEntry>,
         options?: {clientRequestToken?: string},
     ): Promise<void> {
-        await getDynamoClient(context).executeTransaction(
-            context.tracer.getTracer(),
-            entries,
-            options,
+        const client = getDynamoClient(context);
+
+        // Make sure we run `_getClient()` for all tables in the transaction. This will
+        // make sure we create the table in development and will make sure we check
+        // write backwards compatibility.
+        await runAllPromises(
+            entries.map(entry => {
+                const transactItem = entry._getTransactItemForClient(DynamoClient);
+                const tableName =
+                    transactItem.ConditionCheck?.TableName ??
+                    transactItem.Put?.TableName ??
+                    transactItem.Delete?.TableName ??
+                    transactItem.Update?.TableName;
+                assert(tableName, "Could not find transact item table name");
+
+                const tableSchema = allConstructedDynamoTableSchemas.get(tableName);
+                assert(tableSchema, "Could not find table schema for transact item table");
+
+                return tableSchema._getClient(context, true);
+            }),
         );
+
+        await client.executeTransaction(context.tracer.getTracer(), entries, options);
     }
 
     /**
@@ -1205,7 +1304,7 @@ export class DynamoTableSchema<
      *
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Query.html
      */
-    public query<
+    public async *query<
         PartitionKey extends Types["PartitionKey"],
         StartKey extends Types["Key"] & PartitionKey,
         EndKey extends Types["Key"] & PartitionKey,
@@ -1232,6 +1331,7 @@ export class DynamoTableSchema<
                 }
         >
     > {
+        const client = await this._getClient(context, false);
         const {partitionKey: startPartitionKey, sortKey: startSortKey} =
             this._serializeKey(startKey);
         const {partitionKey: endPartitionKey, sortKey: endSortKey} = this._serializeKey(endKey);
@@ -1241,7 +1341,7 @@ export class DynamoTableSchema<
                 "The partition key of our start key and end key should be the same",
             );
 
-        const iterator = getDynamoClient(context).query(context.tracer.getTracer(), {
+        const iterator = client.query(context.tracer.getTracer(), {
             tableName: this._config.name,
             partitionKey: {
                 name: "partitionKey",
@@ -1257,7 +1357,7 @@ export class DynamoTableSchema<
             descending,
         });
 
-        return mapAsyncIterableIterator(iterator, serializedItem => {
+        for await (const serializedItem of iterator) {
             assert(typeof serializedItem.partitionKey === "string");
             assert(typeof serializedItem.sortKey === "string");
 
@@ -1278,8 +1378,8 @@ export class DynamoTableSchema<
                 throw error;
             }
 
-            return item;
-        });
+            yield item;
+        }
     }
 
     /**
@@ -1292,7 +1392,7 @@ export class DynamoTableSchema<
      *
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Query.html
      */
-    public queryEntirePartition<PartitionKey extends Types["PartitionKey"]>(
+    public async *queryEntirePartition<PartitionKey extends Types["PartitionKey"]>(
         context: DynamoContext,
         {
             partitionKey,
@@ -1306,9 +1406,10 @@ export class DynamoTableSchema<
             consistency?: DynamoReadConsistency;
         },
     ): AsyncIterableIterator<MergeObjectIntersection<Types["Item"] & PartitionKey>> {
+        const client = await this._getClient(context, false);
         const serializedPartitionKey = this._serializePartitionKey(partitionKey);
 
-        const iterator = getDynamoClient(context).query(context.tracer.getTracer(), {
+        const iterator = client.query(context.tracer.getTracer(), {
             tableName: this._config.name,
             partitionKey: {
                 name: "partitionKey",
@@ -1319,7 +1420,7 @@ export class DynamoTableSchema<
             descending,
         });
 
-        return mapAsyncIterableIterator(iterator, serializedItem => {
+        for await (const serializedItem of iterator) {
             assert(typeof serializedItem.partitionKey === "string");
             assert(typeof serializedItem.sortKey === "string");
 
@@ -1340,8 +1441,8 @@ export class DynamoTableSchema<
                 throw error;
             }
 
-            return item;
-        });
+            yield item;
+        }
     }
 }
 

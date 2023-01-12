@@ -9,7 +9,7 @@ import {DeadlineExceededError} from "~/shared/error/error";
 import {Lazy} from "~/shared/helpers/control/lazy";
 
 const javaPathPromise = new Lazy(async () => {
-    const javaPathPath = path.join(runfilesPath, "cyberworlds/admin/dynamo/java_path.txt");
+    const javaPathPath = path.join(runfilesPath, "cyberworlds/admin/dynamo/local/java_path.txt");
     const javaPath = (await fs.readFile(javaPathPath, "utf8")).trim();
     return path.join(runfilesPath, "cyberworlds", javaPath);
 });

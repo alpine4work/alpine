@@ -64,6 +64,13 @@ export class DynamoClient {
     }
 
     /**
+     * Expose the internal client if we need to do any low-level operations.
+     */
+    public getInternalClient() {
+        return this._client;
+    }
+
+    /**
      * Get a single item from DynamoDB. Corresponds to the [`GetItem`][1] command.
      *
      * For `getItem()` calls made in a short window of time, we will batch them

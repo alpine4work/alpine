@@ -48,6 +48,7 @@ import {TracerSpan} from "~/shared/tracer/tracer_span";
 
 type DurableObjectEnv = {
     DEV_SERVER_PORT?: string;
+    DYNAMO_LOCAL_PORT?: string;
     SESSION_COOKIE_SECRET?: string;
     AWS_ACCESS_KEY_ID?: string;
     AWS_SECRET_ACCESS_KEY?: string;

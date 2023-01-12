@@ -27,6 +27,13 @@ export class DynamoClientInternal {
         this._url = url;
     }
 
+    /**
+     * Is running against a local DynamoDB?
+     */
+    public isLocal(): boolean {
+        return this._client.accessKeyId === "local";
+    }
+
     private async _execute<Input = never, Output = unknown>(
         span: TracerSpan,
         command: string,
@@ -399,6 +406,60 @@ export class DynamoClientInternal {
                     },
                 },
             });
+
+            return output;
+        });
+    }
+
+    /**
+     * DynamoDB [`CreateTable`][1] action.
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_CreateTable.html
+     */
+    public CreateTable(
+        tracer: TracerBase,
+        input: types.CreateTableInput,
+    ): Promise<types.CreateTableOutput> {
+        return tracer.withSpan("DynamoDB CreateTable", async span => {
+            span.addData({
+                dynamodb: {
+                    action: "CreateTable",
+                    tableName: input.TableName ?? "",
+                },
+            });
+
+            const output = await this._execute<types.CreateTableInput, types.CreateTableOutput>(
+                span,
+                "CreateTable",
+                input,
+            );
+
+            return output;
+        });
+    }
+
+    /**
+     * DynamoDB [`DescribeTable`][1] action.
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DescribeTable.html
+     */
+    public DescribeTable(
+        tracer: TracerBase,
+        input: types.DescribeTableInput,
+    ): Promise<types.DescribeTableOutput> {
+        return tracer.withSpan("DynamoDB DescribeTable", async span => {
+            span.addData({
+                dynamodb: {
+                    action: "DescribeTable",
+                    tableName: input.TableName ?? "",
+                },
+            });
+
+            const output = await this._execute<types.DescribeTableInput, types.DescribeTableOutput>(
+                span,
+                "DescribeTable",
+                input,
+            );
 
             return output;
         });
