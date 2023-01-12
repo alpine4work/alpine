@@ -7,6 +7,7 @@ import {
     DynamoConditionExpressionCompilationContext,
     DynamoConditionExpressionPrecedence,
 } from "~/server/dynamo/internal/dynamo_condition";
+import {dynamoGeneratedSchemaDescription} from "~/server/dynamo/internal/dynamo_generated_schema_description";
 import {
     DynamoKeyAttribute,
     dynamoKeySeparator,
@@ -15,7 +16,7 @@ import {getDynamoClient} from "~/server/dynamo/internal/get_dynamo_client";
 import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry_dynamo_condition_check_errors";
 import {DynamoTableSchemaTypes} from "~/server/dynamo/internal/types/dynamo_table_schema_types";
 import {checkSchemaBackwardsCompatibility} from "~/server/schema/check_schema_backwards_compatibility";
-import {DataLossError, InvalidArgumentError} from "~/shared/error/error";
+import {DataLossError, InternalError, InvalidArgumentError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
 import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator";
@@ -30,28 +31,6 @@ import {
     SchemaDeserializationError,
     SchemaSerializedValue,
 } from "~/shared/schema/schema";
-
-/**
- * When schema evolution is enabled, the schema in code may be different from
- * the last schema used to write to the database.
- *
- * We will validate that the schema in code is backwards compatible with the
- * last schema used to write to the database. Then we will record the schema in
- * code as the schema to which data in the database should adhere.
- */
-// TODO(calebmer): Backwards compatibility checking in a way that works with
-// Cloudflare workers.
-// const isSchemaEvolutionEnabled =
-//     (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test")&& !isCi;
-const isSchemaEvolutionEnabled =
-    process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test";
-
-// TODO(calebmer): Backwards compatibility checking in a way that works with
-// Cloudflare workers.
-// const dynamoGeneratedDirectoryPath = path.join(
-//     workspacePath,
-//     "server/dynamo/internal/generated",
-// );
 
 export type DynamoTableSchemaGetTypes<Schema extends DynamoTableSchema<any>> =
     Schema extends DynamoTableSchema<infer Types> ? Types : never;
@@ -131,16 +110,17 @@ export class DynamoTableSchema<
      * - Fully serializable to JSON. So does not contain `Schema` objects but
      *   rather contains a `SchemaSerializedValueDescription`.
      */
-    private readonly _description: DynamoTableSchemaTypes.Description;
+    public readonly description: DynamoTableSchemaTypes.Description;
 
     /**
-     * Have we serialized our description to disk yet? We wait for the first write
-     * against our database to do this.
+     * If our new schema is write incompatible with the old schema then this will
+     * be an error. We will throw the error every time you try to write to the
+     * table.
      *
-     * Reads are safe since on schema construction we assert that our current
-     * description is backwards compatible with the description saved to disk.
+     * Once you run the command to update our generated schema this
+     * compatibility error should go away.
      */
-    private _hasCommitDescription = false;
+    private readonly _writeCompatibilityError: Error | null;
 
     public static new<Config extends DynamoTableSchemaTypes.ConfigBase>(
         config: Config,
@@ -233,9 +213,11 @@ export class DynamoTableSchema<
 
         this._config = config;
 
-        const {description} = getAndCheckDynamoTableSchemaDescriptions(this._config);
-
-        this._description = description;
+        const {description, writeCompatibilityError} = getAndCheckDynamoTableSchemaDescriptions(
+            this._config,
+        );
+        this.description = description;
+        this._writeCompatibilityError = writeCompatibilityError;
 
         assert(!allConstructedDynamoTableSchemas.has(this._config.name));
         allConstructedDynamoTableSchemas.set(this._config.name, this);
@@ -247,7 +229,7 @@ export class DynamoTableSchema<
 
     private _serializePartitionKey(key: Types["PartitionKey"]): string {
         const partitionConfig = this._config.partitions[key.partitionType];
-        const partitionDescription = this._description.partitionByType[key.partitionType];
+        const partitionDescription = this.description.partitionByType[key.partitionType];
         assert(partitionConfig && partitionDescription, "Invalid partition");
 
         const partitionKeyEntries = [key.partitionType];
@@ -266,7 +248,7 @@ export class DynamoTableSchema<
         attributesSchema: DynamoTableSchemaTypes.SortRange.ConfigBase["attributes"];
     } {
         const partitionConfig = this._config.partitions[key.partitionType];
-        const partitionDescription = this._description.partitionByType[key.partitionType];
+        const partitionDescription = this.description.partitionByType[key.partitionType];
         assert(partitionConfig && partitionDescription, "Invalid partition");
         const sortRangeConfig = partitionConfig.sortRanges[key.sortRangeType];
         const sortRangeDescription = partitionDescription.sortRangeByType[key.sortRangeType];
@@ -319,7 +301,7 @@ export class DynamoTableSchema<
         assert(sortRangeType, "Invalid sort key");
 
         const partitionConfig = this._config.partitions[partitionType];
-        const partitionDescription = this._description.partitionByType[partitionType];
+        const partitionDescription = this.description.partitionByType[partitionType];
         assert(partitionConfig && partitionDescription, "Invalid partition key");
         const sortRangeConfig = partitionConfig.sortRanges[sortRangeType];
         const sortRangeDescription = partitionDescription.sortRangeByType[sortRangeType];
@@ -732,7 +714,10 @@ export class DynamoTableSchema<
             condition?: DynamoCondition<Item>;
         } = {},
     ): Promise<void> {
-        this._commitDescriptionOnFirstWrite();
+        // If our schema is write incompatible with the old schema then throw an error.
+        // Do not allow writing to this table until the generated schema has been
+        // updated.
+        if (this._writeCompatibilityError !== null) throw this._writeCompatibilityError;
 
         const {partitionKey, sortKey, attributesSchema} = this._serializeKey(item as Types["Key"]);
 
@@ -844,7 +829,10 @@ export class DynamoTableSchema<
             condition?: DynamoCondition<Types["Item"] & Key>;
         } = {},
     ): Promise<void> {
-        this._commitDescriptionOnFirstWrite();
+        // If our schema is write incompatible with the old schema then throw an error.
+        // Do not allow writing to this table until the generated schema has been
+        // updated.
+        if (this._writeCompatibilityError !== null) throw this._writeCompatibilityError;
 
         const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
 
@@ -1008,7 +996,10 @@ export class DynamoTableSchema<
             condition?: DynamoCondition<Item>;
         } = {},
     ): DynamoTransactionEntry {
-        this._commitDescriptionOnFirstWrite();
+        // If our schema is write incompatible with the old schema then throw an error.
+        // Do not allow writing to this table until the generated schema has been
+        // updated.
+        if (this._writeCompatibilityError !== null) throw this._writeCompatibilityError;
 
         const {partitionKey, sortKey, attributesSchema} = this._serializeKey(item as Types["Key"]);
 
@@ -1095,7 +1086,10 @@ export class DynamoTableSchema<
             condition?: DynamoCondition<Types["Item"] & Key>;
         } = {},
     ): DynamoTransactionEntry {
-        this._commitDescriptionOnFirstWrite();
+        // If our schema is write incompatible with the old schema then throw an error.
+        // Do not allow writing to this table until the generated schema has been
+        // updated.
+        if (this._writeCompatibilityError !== null) throw this._writeCompatibilityError;
 
         const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
 
@@ -1349,27 +1343,6 @@ export class DynamoTableSchema<
             return item;
         });
     }
-
-    /**
-     * Before we start writing data to DynamoDB, we should commit our new
-     * description. In case newly written data uses the new schema.
-     *
-     * We wait until the first write to commit our description so if the user is
-     * iterating on code in their editor we don't lock their new schema in until
-     * they start writing data.
-     *
-     * Synchronous because we want to call this in our transaction functions as
-     * well which return an object synchronously.
-     */
-    private _commitDescriptionOnFirstWrite() {
-        if (!isSchemaEvolutionEnabled) return;
-        if (this._hasCommitDescription) return;
-
-        // TODO(calebmer): Backwards compatibility checking in a way that works with
-        // Cloudflare workers.
-        // fs.writeFileSync(this._descriptionPath, JSON.stringify(this._description, null, 4));
-        this._hasCommitDescription = true;
-    }
 }
 
 const allConstructedDynamoTableSchemas = new Map<
@@ -1418,20 +1391,9 @@ export function getAllConstructedDynamoTableSchemas(): Array<
 function getAndCheckDynamoTableSchemaDescriptions(config: DynamoTableSchemaTypes.ConfigBase): {
     lastDescription: DynamoTableSchemaTypes.Description | null;
     description: DynamoTableSchemaTypes.Description;
+    writeCompatibilityError: Error | null;
 } {
-    // TODO(calebmer): Backwards compatibility checking in a way that works with
-    // Cloudflare workers.
-    // const descriptionPath = path.join(
-    //     dynamoGeneratedDirectoryPath,
-    //     `dynamo-${paramCase(config.name)}-table-schema.json`,
-    // );
-
-    // TODO(calebmer): Backwards compatibility checking in a way that works with
-    // Cloudflare workers.
-    // const lastDescription: DynamoTableSchemaTypes.Description | null = fs.existsSync(descriptionPath)
-    //     ? JSON.parse(fs.readFileSync(descriptionPath, "utf8"))
-    //     : null;
-    const lastDescription = null as DynamoTableSchemaTypes.Description | null;
+    const lastDescription = dynamoGeneratedSchemaDescription.tableByName[config.name] ?? null;
 
     const description: DynamoTableSchemaTypes.Description = {
         name: config.name,
@@ -1529,24 +1491,32 @@ function getAndCheckDynamoTableSchemaDescriptions(config: DynamoTableSchemaTypes
     // If we have a description saved, then verify our new description is backwards
     // compatible with the old description. We will save our new description the
     // first time an item is written to this table.
+    let writeCompatibilityError: Error | null = null;
     if (lastDescription !== null) {
-        checkDynamoTableSchemaDescriptionBackwardsCompatibility(lastDescription, description);
-
-        // We only allow schema evolution in development and test environments. If we
-        // are running in production then our schema's description in code must exactly
-        // match the generated schema description. We can check exact equality by
-        // running our backwards compatibility check in the other direction.
-        if (!isSchemaEvolutionEnabled) {
-            checkDynamoTableSchemaDescriptionBackwardsCompatibility(description, lastDescription);
+        try {
+            checkDynamoTableSchemaDescriptionBackwardsCompatibility(lastDescription, description);
+        } catch (error) {
+            throw InternalError.from(error, "Can not read from table with new schema");
         }
+
+        try {
+            checkDynamoTableSchemaDescriptionBackwardsCompatibility(description, lastDescription);
+        } catch (error) {
+            writeCompatibilityError = InternalError.from(
+                error,
+                "Can not write to table with new schema until you run `bazel run //server/dynamo:write_schema`",
+            );
+        }
+    } else {
+        writeCompatibilityError = new InternalError(
+            "Can not write to table with new schema until you run `bazel run //server/dynamo:write_schema`",
+        );
     }
 
     return {
-        // TODO(calebmer): Backwards compatibility checking in a way that works with
-        // Cloudflare workers.
-        // descriptionPath,
         lastDescription,
         description,
+        writeCompatibilityError,
     };
 }
 

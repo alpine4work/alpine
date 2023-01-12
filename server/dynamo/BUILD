@@ -1,3 +1,4 @@
+load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
 load("@aspect_rules_js//js:defs.bzl", "js_library")
 load("//admin/typescript:typescript.bzl", "ts_project")
 
@@ -63,4 +64,11 @@ genrule(
 js_library(
     name = "all_dynamo_tables",
     srcs = [":all_dynamo_tables_file"],
+)
+
+write_source_files(
+    name = "write_schema",
+    files = {
+        "internal/dynamo_generated_schema_description.ts": "//admin/dynamo:dynamo_schema_description",
+    },
 )

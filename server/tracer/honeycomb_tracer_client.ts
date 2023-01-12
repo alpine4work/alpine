@@ -103,12 +103,7 @@ export class HoneycombTracerClient {
                     } catch (error) {
                         this._tracer.logUncaughtException(
                             "Failed to send event batch to Honeycomb",
-                            new DataLossError(
-                                `Failed to send event batch to Honeycomb${
-                                    error instanceof Error ? `: ${error.message}` : ""
-                                }`,
-                                {cause: error},
-                            ),
+                            DataLossError.from(error, "Failed to send event batch to Honeycomb"),
                         );
                     }
                 })(),
