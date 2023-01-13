@@ -58,6 +58,9 @@ patchedDependencies:
   '@miniflare/runner-vm@2.11.0':
     hash: 4sqfyt26snkgfwger7zzuolyhm
     path: admin/patches/@miniflare__runner-vm@2.11.0.patch
+  undici@5.9.1:
+    hash: e3y3tvct4hs5bqde7ikf7j7zoy
+    path: admin/patches/undici@5.9.1.patch
 
 specifiers:
   '@aws-sdk/client-dynamodb': ^3.201.0
@@ -188,7 +191,7 @@ specifiers:
   tree-kill: ^1.2.2
   typescript: 4.8.2
   uglify-js: 3.17.4
-  undici: ^5.12.0
+  undici: 5.9.1
   wrangler: ^2.4.4
   ws: ^8.10.0
   yargs: ^17.6.2
@@ -322,7 +325,7 @@ dependencies:
   tree-kill: 1.2.2
   typescript: 4.8.2
   uglify-js: 3.17.4_bqi7bgi4a6wcjt6ky5jy76rsrm
-  undici: 5.12.0
+  undici: 5.9.1_e3y3tvct4hs5bqde7ikf7j7zoy
   wrangler: 2.4.4_4uscheeliswsj24qo4bgc7mb6m
   ws: 8.10.0
   yargs: 17.6.2
@@ -3497,7 +3500,7 @@ packages:
       '@miniflare/core': 2.10.0
       '@miniflare/shared': 2.10.0
       http-cache-semantics: 4.1.0
-      undici: 5.9.1
+      undici: 5.9.1_e3y3tvct4hs5bqde7ikf7j7zoy
     dev: false
 
   /@miniflare/cache/2.11.0:
@@ -3507,7 +3510,7 @@ packages:
       '@miniflare/core': 2.11.0
       '@miniflare/shared': 2.11.0
       http-cache-semantics: 4.1.0
-      undici: 5.9.1
+      undici: 5.9.1_e3y3tvct4hs5bqde7ikf7j7zoy
     dev: false
 
   /@miniflare/cli-parser/2.10.0:
@@ -3538,7 +3541,7 @@ packages:
       dotenv: 10.0.0
       kleur: 4.1.5
       set-cookie-parser: 2.5.1
-      undici: 5.9.1
+      undici: 5.9.1_e3y3tvct4hs5bqde7ikf7j7zoy
       urlpattern-polyfill: 4.0.3
     dev: false
 
@@ -3554,7 +3557,7 @@ packages:
       dotenv: 10.0.0
       kleur: 4.1.5
       set-cookie-parser: 2.5.1
-      undici: 5.9.1
+      undici: 5.9.1_e3y3tvct4hs5bqde7ikf7j7zoy
       urlpattern-polyfill: 4.0.3
     dev: false
 
@@ -3581,7 +3584,7 @@ packages:
       '@miniflare/core': 2.10.0
       '@miniflare/shared': 2.10.0
       '@miniflare/storage-memory': 2.10.0
-      undici: 5.9.1
+      undici: 5.9.1_e3y3tvct4hs5bqde7ikf7j7zoy
     dev: false
 
   /@miniflare/durable-objects/2.11.0:
@@ -3591,7 +3594,7 @@ packages:
       '@miniflare/core': 2.11.0
       '@miniflare/shared': 2.11.0
       '@miniflare/storage-memory': 2.11.0
-      undici: 5.9.1
+      undici: 5.9.1_e3y3tvct4hs5bqde7ikf7j7zoy
     dev: false
 
   /@miniflare/html-rewriter/2.10.0:
@@ -3601,7 +3604,7 @@ packages:
       '@miniflare/core': 2.10.0
       '@miniflare/shared': 2.10.0
       html-rewriter-wasm: 0.4.1
-      undici: 5.9.1
+      undici: 5.9.1_e3y3tvct4hs5bqde7ikf7j7zoy
     dev: false
 
   /@miniflare/html-rewriter/2.11.0:
@@ -3611,7 +3614,7 @@ packages:
       '@miniflare/core': 2.11.0
       '@miniflare/shared': 2.11.0
       html-rewriter-wasm: 0.4.1
-      undici: 5.9.1
+      undici: 5.9.1_e3y3tvct4hs5bqde7ikf7j7zoy
     dev: false
 
   /@miniflare/http-server/2.10.0:
@@ -3623,7 +3626,7 @@ packages:
       '@miniflare/web-sockets': 2.10.0
       kleur: 4.1.5
       selfsigned: 2.1.1
-      undici: 5.9.1
+      undici: 5.9.1_e3y3tvct4hs5bqde7ikf7j7zoy
       ws: 8.10.0
       youch: 2.2.2
     transitivePeerDependencies:
@@ -3640,7 +3643,7 @@ packages:
       '@miniflare/web-sockets': 2.11.0
       kleur: 4.1.5
       selfsigned: 2.1.1
-      undici: 5.9.1
+      undici: 5.9.1_e3y3tvct4hs5bqde7ikf7j7zoy
       ws: 8.10.0
       youch: 2.2.2
     transitivePeerDependencies:
@@ -3682,7 +3685,7 @@ packages:
     engines: {node: '>=16.13'}
     dependencies:
       '@miniflare/shared': 2.10.0
-      undici: 5.9.1
+      undici: 5.9.1_e3y3tvct4hs5bqde7ikf7j7zoy
     dev: false
 
   /@miniflare/r2/2.11.0:
@@ -3690,7 +3693,7 @@ packages:
     engines: {node: '>=16.13'}
     dependencies:
       '@miniflare/shared': 2.11.0
-      undici: 5.9.1
+      undici: 5.9.1_e3y3tvct4hs5bqde7ikf7j7zoy
     dev: false
 
   /@miniflare/runner-vm/2.10.0:
@@ -3814,7 +3817,7 @@ packages:
     dependencies:
       '@miniflare/core': 2.10.0
       '@miniflare/shared': 2.10.0
-      undici: 5.9.1
+      undici: 5.9.1_e3y3tvct4hs5bqde7ikf7j7zoy
       ws: 8.10.0
     transitivePeerDependencies:
       - bufferutil
@@ -3827,7 +3830,7 @@ packages:
     dependencies:
       '@miniflare/core': 2.11.0
       '@miniflare/shared': 2.11.0
-      undici: 5.9.1
+      undici: 5.9.1_e3y3tvct4hs5bqde7ikf7j7zoy
       ws: 8.10.0
     transitivePeerDependencies:
       - bufferutil
@@ -11270,7 +11273,7 @@ packages:
       kleur: 4.1.5
       semiver: 1.1.0
       source-map-support: 0.5.21
-      undici: 5.9.1
+      undici: 5.9.1_e3y3tvct4hs5bqde7ikf7j7zoy
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
@@ -11312,7 +11315,7 @@ packages:
       kleur: 4.1.5
       semiver: 1.1.0
       source-map-support: 0.5.21
-      undici: 5.9.1
+      undici: 5.9.1_e3y3tvct4hs5bqde7ikf7j7zoy
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
@@ -14009,17 +14012,11 @@ packages:
       which-boxed-primitive: 1.0.2
     dev: false
 
-  /undici/5.12.0:
-    resolution: {integrity: sha512-zMLamCG62PGjd9HHMpo05bSLvvwWOZgGeiWlN/vlqu3+lRo3elxktVGEyLMX+IO7c2eflLjcW74AlkhEZm15mg==}
-    engines: {node: '>=12.18'}
-    dependencies:
-      busboy: 1.6.0
-    dev: false
-
-  /undici/5.9.1:
+  /undici/5.9.1_e3y3tvct4hs5bqde7ikf7j7zoy:
     resolution: {integrity: sha512-6fB3a+SNnWEm4CJbgo0/CWR8RGcOCQP68SF4X0mxtYTq2VNN8T88NYrWVBAeSX+zb7bny2dx2iYhP3XHi00omg==}
     engines: {node: '>=12.18'}
     dev: false
+    patched: true
 
   /unicode-canonical-property-names-ecmascript/2.0.0:
     resolution: {integrity: sha512-yY5PpDlfVIU5+y/BSCxAJRBIS1Zc2dDG3Ujq+sR0U+JjUevW2JhocOF+soROYDSaAezOzOKuyyixhD6mBknSmQ==}
