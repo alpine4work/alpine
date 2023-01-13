@@ -228,6 +228,9 @@ export const checkListItemCheckboxContainerClassName = style({
 // a nice animation or something when checked. I'm a little skeptical a circle
 // is the right design. Checkboxes are typically squares. See:
 // http://danieldelaney.net/checkboxes/
+//
+// TODO(calebmer): We also need a disabled style for this checkbox when the
+// checkbox is read-only.
 export const checkListItemCheckboxClassName = style({
     borderRadius: "100%",
     width: checkListItemCheckboxDesktopSize,

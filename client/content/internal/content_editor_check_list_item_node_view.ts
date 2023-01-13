@@ -1,6 +1,6 @@
-import {Check} from "phosphor-react";
 import {DOMSerializer, Node} from "prosemirror-model";
 import {EditorView, NodeView} from "prosemirror-view";
+import {contentCheckListItemIconSvg} from "~/shared/content/content_check_list_item_icon_svg";
 import {contentSchemaStyles} from "~/shared/styles/styles";
 
 const {
@@ -24,7 +24,7 @@ export function createContentEditorCheckListItemNodeView(
     const checkboxDom = document.createElement("div");
     checkboxContainerDom.appendChild(checkboxDom);
     checkboxDom.className = checkListItemCheckboxClassName;
-    checkboxDom.innerHTML = checkIconSvg;
+    checkboxDom.innerHTML = contentCheckListItemIconSvg;
 
     const contentDom = document.createElement("div");
     dom.appendChild(contentDom);
@@ -77,15 +77,3 @@ export function createContentEditorCheckListItemNodeView(
         },
     };
 }
-
-// Hardcode Phosphor check icon SVG since we don't want to mount a React root
-// for every checkbox.
-//
-// We import the component anyway, though, so that if we're every refactoring
-// our icon usage we can find this hardcoded string.
-//
-// eslint-disable-next-line @typescript-eslint/no-unused-expressions
-Check;
-
-const checkIconSvg =
-    '<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 256 256"><rect width="256" height="256" fill="none"></rect><polyline points="216 72 104 184 48 128" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></polyline></svg>';

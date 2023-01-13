@@ -289,6 +289,9 @@ function ContentEditor<Content extends Node>(
             domParser: ContentEditorDomParser.fromSchema(schema),
             clipboardSerializer: ContentEditorDomClipboardSerializer.fromSchema(schema),
 
+            // IMPORTANT: If you have a custom view in `nodeViews` here you should also
+            // have a matching custom renderer in `nodeRenderers` in
+            // `renderContentToHtml()`.
             nodeViews: {
                 orderedListItem: createContentEditorOrderedListItemNodeView,
                 checkListItem: createContentEditorCheckListItemNodeView,

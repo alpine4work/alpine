@@ -7,6 +7,7 @@ ts_project(
     deps = [
         "//:node_modules/@vanilla-extract/dynamic",
         "//:node_modules/classnames",
+        "//:node_modules/phosphor-react",
         "//:node_modules/prosemirror-model",
         "//shared/design",
         "//shared/helpers",

@@ -1,4 +1,5 @@
 import {HoneycombTracerClient} from "~/server/tracer/honeycomb_tracer_client";
+import {InternalError} from "~/shared/error/error";
 import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root";
 
 /**
@@ -51,6 +52,12 @@ export function createServerTracer({
                             time: event.time,
                             data: event.getFlatData(),
                         }),
+                    }).catch(error => {
+                        // If there is an error, log it but don't crash the process.
+                        // eslint-disable-next-line no-console
+                        console.error(
+                            InternalError.from(error, "Failed to send dev server events"),
+                        );
                     }),
                 );
             }
