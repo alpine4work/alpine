@@ -1,6 +1,5 @@
 import {useId} from "react";
-import {DocumentBlobFactory, useDocumentBlobSettings} from "~/client/blob_factory/document_blobs";
-import {DocumentContentEditor} from "~/client/documents/document_content_editor";
+import {DocumentContentView} from "~/client/documents/document_content_view";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {getDocument} from "~/server/dynamo/documents_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
@@ -28,16 +27,14 @@ export async function loader({params, context}: LoaderArgs) {
     return jsonWithSchema(schema, {document}, {propagateEventData});
 }
 
-export default function DocumentRoute() {
+export default function DocumentViewRoute() {
     const id = useId().replace(/:/g, "_");
     const {document} = useLoaderDataWithSchema(schema);
 
-    const blobFactorySettings = useDocumentBlobSettings({defaultSeed: document.id});
-
+    // TODO(calebmer): Get this to work good...
     return (
         <main id={id} className={sprinkles({height: "full"})}>
-            <DocumentBlobFactory settings={blobFactorySettings} containerId={id} />
-            <DocumentContentEditor document={document} />
+            <DocumentContentView document={document} />
         </main>
     );
 }

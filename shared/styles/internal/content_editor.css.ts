@@ -12,9 +12,6 @@ import {inputPlaceholderColor} from "~/shared/styles/internal/input_placeholder_
 
 export const containerClassName = style({
     height: "100%",
-    // Create a new z-index stacking context.
-    position: "relative",
-    zIndex: 0,
 });
 
 export const emptyTitleClassName = style({});

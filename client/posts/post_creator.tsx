@@ -39,7 +39,7 @@ export function PostCreator() {
                     state={state}
                     onChange={setState}
                     onNavigate={useNavigate()}
-                    placeholder="Write a new post here…"
+                    placeholder="Share your ideas…"
                     className={sprinkles({paddingTop: "4", paddingBottom: "4"})}
                 />
                 <Box paddingX="4" paddingBottom="4">

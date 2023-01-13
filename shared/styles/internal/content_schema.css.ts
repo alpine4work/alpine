@@ -29,11 +29,23 @@ const paragraphMargin = spacing["3"];
 const headerTopMargin = spacing["6"];
 
 export const docClassName = style({
-    position: "relative",
     minHeight: "100%",
     color: colorSchemeVars["grey-100"],
     userSelect: "auto",
     cursor: "text",
+    // Create a new z-index stacking context.
+    position: "relative",
+    zIndex: 0,
+    // Apply the same [CSS styles on the `ProseMirror` class][1] to all content.
+    // That way when we render content in read-only mode it appears the same as if
+    // we rendered it in an editor.
+    //
+    // [1]: https://github.com/ProseMirror/prosemirror-view/blob/67a87c2e63fdc085233162df7e9eada643afd070/style/prosemirror.css#L6-L11
+    wordWrap: "break-word",
+    whiteSpace: ["pre-wrap", "break-spaces"],
+    WebkitFontVariantLigatures: "none",
+    fontVariantLigatures: "none",
+    fontFeatureSettings: '"liga" 0',
 });
 
 const blockWidth = spacing["192"];

@@ -35,6 +35,7 @@ ts_project(
         "//shared/documents",
         "//shared/helpers",
         "//shared/id",
+        "//shared/prosemirror",
         "//shared/styles",
     ],
 )
