@@ -1,7 +1,7 @@
 import classNames from "classnames";
 import {Node} from "prosemirror-model";
 import {useMemo} from "react";
-import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
+import {renderContentFragmentToHtml} from "~/shared/content/render_content_to_html";
 import {contentSchemaStyles} from "~/shared/styles/styles";
 
 const {docClassName} = contentSchemaStyles;
@@ -11,7 +11,7 @@ const {docClassName} = contentSchemaStyles;
  * you want to disable editing of content and only allow reading the content.
  */
 export function ContentView({content, className}: {content: Node; className?: string}) {
-    const html = useMemo(() => serializeProsemirrorFragmentToHtml(content.content), [content]);
+    const html = useMemo(() => renderContentFragmentToHtml(content), [content]);
 
     return (
         <div

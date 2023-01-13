@@ -39,7 +39,11 @@ import {
     DocumentCollaborationMessageFromServerSchema,
     DocumentCollaborationPresenceState,
 } from "~/shared/documents/document_collaboration_schema";
-import {DocumentContent, isDocumentContent} from "~/shared/documents/document_content_schema";
+import {
+    DocumentContent,
+    DocumentContentProsemirrorSchema,
+    isDocumentContent,
+} from "~/shared/documents/document_content_schema";
 import {DocumentModel} from "~/shared/documents/document_model";
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
@@ -823,7 +827,13 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
 
     useDevConsoleTool(
         "DocumentContentEditor",
-        useCallback(() => ({toggleShouldConnect}), [toggleShouldConnect]),
+        useCallback(
+            () => ({
+                prosemirrorSchema: DocumentContentProsemirrorSchema,
+                toggleShouldConnect,
+            }),
+            [toggleShouldConnect],
+        ),
     );
 
     return {

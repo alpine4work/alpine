@@ -2,6 +2,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "content",
+    test_deps = ["//shared/documents"],
     visibility = ["//visibility:public"],
     deps = [
         "//:node_modules/@vanilla-extract/dynamic",
