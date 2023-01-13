@@ -131,5 +131,26 @@ export function renderContentFragmentToHtml(topNode: Node) {
                 return {html, contentHtml};
             },
         },
+
+        // IMPORTANT: If you have a custom renderer in `markRenderers` here you should
+        // also have a matching custom view in `markViews` in `<ContentEditor>`.
+        markRenderers: {
+            // The link view in `<ContentEditor>` does not change the visual presentation
+            // of links. Instead it does two things:
+            //
+            // 1. Opens the page in the current tab on click if it is a link within the
+            //    current space. Otherwise opens in a new tab.
+            // 2. Opens a link editor on hover.
+            //
+            // 1 is implemented by `<ContentView>` and 2 we don't need since you don't need
+            // to edit a link when reading.
+            link: (mark, inline) => {
+                const {html, contentHtml} = renderProsemirrorDomOutputSpec(
+                    mark.type.spec.toDOM!(mark, inline),
+                );
+                assert(html instanceof ElementHtmlGenerator);
+                return {html, contentHtml};
+            },
+        },
     });
 }

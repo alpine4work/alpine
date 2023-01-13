@@ -297,6 +297,9 @@ function ContentEditor<Content extends Node>(
                 checkListItem: createContentEditorCheckListItemNodeView,
             },
 
+            // IMPORTANT: If you have a custom view in `markViews` here you should also
+            // have a matching custom renderer in `markRenderers` in
+            // `renderContentToHtml()`.
             markViews: {
                 link: createContentEditorMarkNodeViewConstructor({
                     onPointerEnterAfterDelay: ({mark, range}) => {

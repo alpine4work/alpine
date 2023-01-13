@@ -1,8 +1,10 @@
 import {DOMSerializer, Mark} from "prosemirror-model";
 import {MarkViewConstructor} from "prosemirror-view";
 import {To} from "react-router-dom";
+import {handleContentLinkClick} from "~/client/content/internal/handle_content_link_click";
 import {presentExtraContextAfterDelayMs} from "~/client/design/timing_constants";
-import {isMac} from "~/client/helpers/is_mac";
+import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event";
+import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
 
@@ -56,58 +58,7 @@ export function createContentEditorMarkNodeViewConstructor({
             // Only process pointer up events that started on our element.
             if (!wasPointerDownAndOver) return;
 
-            const isOpenLinkInSeparateTabEvent = isOpenLinkInSeparateTabPointerEvent(event);
-
-            // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
-            // modifier. Unless the click was meant to open the link in a separate tab. We
-            // need to implement that manually here given the text is editable.
-            if (
-                (event.button !== 0 || isModifiedPointerEvent(event)) &&
-                !isOpenLinkInSeparateTabEvent
-            ) {
-                return;
-            }
-
-            // Don't select the editable text. Instead we want to open the URL.
-            event.preventDefault();
-
-            const oldUrl = new URL(window.location.href);
-
-            let newUrl: URL | null;
-            try {
-                newUrl = new URL(dom.href);
-            } catch {
-                newUrl = null;
-            }
-
-            // For URLs in the same space, open the link in the current tab instead of a
-            // new tab. Unless this click was a cmd-click on MacOS or other shortcut for
-            // opening links in a new tab.
-            if (!isOpenLinkInSeparateTabEvent && newUrl && oldUrl.host === newUrl.host) {
-                const spaceIdRegExp = /^\/s\/([a-zA-Z0-9]{26})(?:\/|$)/;
-                const oldUrlSpaceIdMatch = oldUrl.pathname.match(spaceIdRegExp);
-                const newUrlSpaceIdMatch = newUrl.pathname.match(spaceIdRegExp);
-                if (
-                    oldUrlSpaceIdMatch &&
-                    newUrlSpaceIdMatch &&
-                    oldUrlSpaceIdMatch[1] === newUrlSpaceIdMatch[1]
-                ) {
-                    onNavigate({
-                        pathname: newUrl.pathname,
-                        search: newUrl.search,
-                        hash: newUrl.hash,
-                    });
-                    return;
-                }
-            }
-
-            window.open(
-                dom.href,
-                "_blank",
-                // Important security measure. See:
-                // https://mathiasbynens.github.io/rel-noopener
-                "noopener noreferrer",
-            );
+            handleContentLinkClick(event, onNavigate);
         });
 
         let pointerEnterDelayTimeout: Timeout | null = null;
@@ -184,12 +135,4 @@ export function createContentEditorMarkNodeViewConstructor({
             contentDOM: contentDom,
         };
     };
-}
-
-function isModifiedPointerEvent(event: PointerEvent) {
-    return event.metaKey || event.altKey || event.ctrlKey || event.shiftKey;
-}
-
-function isOpenLinkInSeparateTabPointerEvent(event: PointerEvent) {
-    return event.button === 1 || (isMac ? event.metaKey : event.ctrlKey);
 }
