@@ -335,15 +335,15 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
-                                    "name": {
-                                        "valueSchema": {
-                                            "type": "String"
-                                        },
-                                        "optional": false
-                                    },
                                     "createdTime": {
                                         "valueSchema": {
                                             "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "name": {
+                                        "valueSchema": {
+                                            "type": "String"
                                         },
                                         "optional": false
                                     },

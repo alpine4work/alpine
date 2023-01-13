@@ -36,8 +36,7 @@ export default function DocumentRoute() {
 
     return (
         <main id={id} className={sprinkles({height: "full"})}>
-            {/* TODO(calebmer): Put this back:
-                <DocumentBlobFactory settings={blobFactorySettings} containerId={id} /> */}
+            <DocumentBlobFactory settings={blobFactorySettings} containerId={id} />
             <DocumentContentEditor document={document} />
         </main>
     );

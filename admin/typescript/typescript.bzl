@@ -86,6 +86,11 @@ EOF
             ),
         )
 
+        _ts_typings(
+            name = "{}_test_deps_typings".format(name),
+            srcs = test_deps,
+        )
+
         typescript_bin.tsc_test(
             name = "{}_tests_typecheck_test".format(name),
             args = ["--project", "$(location :{}_tests_typecheck_tsconfig)".format(name)],
@@ -97,6 +102,7 @@ EOF
                 ":{}_tests_typecheck_tsconfig".format(name),
                 ":{}_typecheck".format(name),
                 ":{}_deps_typings".format(name),
+                ":{}_test_deps_typings".format(name),
             ],
         )
 

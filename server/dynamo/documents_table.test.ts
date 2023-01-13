@@ -2408,7 +2408,7 @@ test("can read steps in a couple multi-step transactions", async () => {
     ).toEqual([new ReplaceStep(5, 5, textSlice("c"))].map(step => step.toJSON()));
 });
 
-test.only("can not create a document in a different space", async () => {
+test("can not create a document in a different space", async () => {
     const documentId = generateId();
 
     const content = schema.node("doc", {}, [

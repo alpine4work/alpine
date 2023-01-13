@@ -11,6 +11,7 @@ ts_project(
         "//:node_modules/prosemirror-model",
         "//shared/design",
         "//shared/helpers",
+        "//shared/prosemirror",
         "//shared/styles",
     ],
 )
