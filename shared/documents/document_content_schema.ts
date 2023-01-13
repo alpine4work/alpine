@@ -9,6 +9,7 @@ import {
     createProsemirrorSchemaSpec,
     toDebugStringWithIndent,
 } from "~/shared/content/content_schema";
+import {contentStructuralProsemirrorNodeSpecs} from "~/shared/content/content_schema_extra";
 import {HighlightColor, isHighlightColor} from "~/shared/design/highlight_color";
 import {assert} from "~/shared/helpers/control/assert";
 import {Schema, SchemaDeserializationError} from "~/shared/schema/schema";
@@ -16,10 +17,6 @@ import {contentSchemaStyles} from "~/shared/styles/styles";
 
 const {
     checkListItemCheckedClassName,
-    dividerClassName,
-    headingLevel1ClassName,
-    headingLevel2ClassName,
-    headingLevel3ClassName,
     highlightClassNameByColor,
     listItemClassName,
     listItemIndentationVar,
@@ -29,58 +26,16 @@ const {
 const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
     nodes: {
         ...contentBaseProsemirrorSchemaSpec.nodes,
-
-        /*
-         * Crucial for adding structure to the document. Can be extended in the
-         * future with an outline feature.
-         *
-         * Can only be levels 1, 2, and 3.
-         *
-         * The element used for a heading is its level plus 1. For example, a
-         * heading with level 1 will use an `<h2>` instead of an `<h1>`. This is
-         * because our support for titles usually lives outside content (e.g.
-         * tasks). This also prevents users from confusing screen readers by
-         * creating a bunch of level 1 headings.
-         */
-        heading: {
-            group: "block",
-            content: "inline*",
-            attrs: {
-                level: {default: 1},
-            },
-            toDOM: node => {
-                const unknownLevel: unknown = node.attrs.level;
-                const level =
-                    typeof unknownLevel === "number"
-                        ? Math.max(Math.min(3, Math.floor(unknownLevel)), 1)
-                        : 1;
-                return [
-                    `h${level + 1}`,
-                    {
-                        class:
-                            level === 3
-                                ? headingLevel3ClassName
-                                : level === 2
-                                ? headingLevel2ClassName
-                                : headingLevel1ClassName,
-                    },
-                    0,
-                ];
-            },
-            parseDOM: [
-                {tag: "h1", priority: 50, attrs: {level: 1}},
-                {tag: "h2", priority: 50, attrs: {level: 1}},
-                {tag: "h3", priority: 50, attrs: {level: 2}},
-                {tag: "h4", priority: 50, attrs: {level: 3}},
-                {tag: "h5", priority: 50, attrs: {level: 3}},
-                {tag: "h6", priority: 50, attrs: {level: 3}},
-            ],
-        },
+        ...contentStructuralProsemirrorNodeSpecs,
 
         /**
          * List some things in either a complete or incomplete state. Modern
          * document editors typically have this as it gives you a lightweight
          * ability to represent some state of some things.
+         *
+         * Check lists are only available in documents since check lists are inherently
+         * collaborative. They don't make as much sense in a post or comment where you
+         * can't update the checked status.
          */
         checkListItem: {
             group: "block listItem",
@@ -90,6 +45,8 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
                 checked: {default: false},
             },
             defining: true,
+            // TODO(calebmer): Test that copying a check list from a document and pasting
+            // it into a post styles the list as an unordered list.
             toDOM: node => {
                 const indent = clampListItemIndentation(node.attrs.indent);
                 return [
@@ -133,17 +90,6 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
                 })(),
             ],
             toDebugString: toDebugStringWithIndent,
-        },
-
-        /**
-         * Also known as a horizontal rule. Another way to organize documents
-         * alongside headers. Allows the writer to specify an unnamed break in
-         * content.
-         */
-        divider: {
-            group: "block",
-            toDOM: () => ["hr", {class: dividerClassName}],
-            parseDOM: [{tag: "hr"}],
         },
     },
     marks: {

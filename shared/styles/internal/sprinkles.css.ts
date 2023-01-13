@@ -62,6 +62,7 @@ const properties = defineProperties({
             none: "0rem",
             small: "0.125rem",
             base: "0.25rem",
+            medium: "0.375rem",
             full: "9999px",
         },
         boxShadow: elevationVars,

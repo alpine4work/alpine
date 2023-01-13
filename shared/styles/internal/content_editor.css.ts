@@ -12,6 +12,9 @@ import {inputPlaceholderColor} from "~/shared/styles/internal/input_placeholder_
 
 export const containerClassName = style({
     height: "100%",
+    // Create a new z-index stacking context.
+    position: "relative",
+    zIndex: 0,
 });
 
 export const emptyTitleClassName = style({});
@@ -30,6 +33,8 @@ globalStyle(`${emptyTitleClassName} > ${titleClassName}[data-placeholder]::befor
     // @ts-expect-error
     textFillColor: "initial",
     WebkitTextFillColor: "initial",
+    // Make sure placeholder is rendered underneath cursor.
+    zIndex: -10,
 });
 
 export const emptyBodyClassName = style({});
@@ -44,6 +49,8 @@ globalStyle(`${emptyBodyClassName} > ${paragraphClassName}[data-placeholder]::be
     pointerEvents: "none",
     color: inputPlaceholderColor,
     position: "absolute",
+    // Make sure placeholder is rendered underneath cursor.
+    zIndex: -10,
 });
 
 export const hideSelectionWhileUnfocusedClassName = style({

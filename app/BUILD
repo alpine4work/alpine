@@ -35,6 +35,7 @@ ts_project(
         "//client/documents",
         "//client/error",
         "//client/helpers",
+        "//client/posts",
         "//client/remix",
         "//client/rpc",
         "//client/tracer",
