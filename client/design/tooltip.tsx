@@ -570,7 +570,8 @@ function Tooltip(
                             color="grey-100"
                             backgroundColor={{light: "grey-0", dark: "grey-5"}}
                             borderRadius="small"
-                            boxShadow="elevation-10-light"
+                            border={{light: "grey-10"}}
+                            boxShadow="elevation-20"
                             className={
                                 state.isFadingOut
                                     ? overlayAnimateFadeOutClassName

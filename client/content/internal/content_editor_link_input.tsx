@@ -70,8 +70,9 @@ export function ContentEditorLinkInput({
             // Maybe the width should grow with the URL length for a bit? Until a
             // max width?
             width={url.length > 40 ? "96" : "64"}
-            borderRadius="base"
             backgroundColor={{light: "grey-0", dark: "grey-5"}}
+            borderRadius="small"
+            border={{light: "grey-10"}}
             boxShadow="elevation-20"
             position="relative"
             onKeyDown={event => {

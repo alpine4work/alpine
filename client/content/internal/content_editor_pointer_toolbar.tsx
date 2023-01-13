@@ -272,8 +272,9 @@ function ContentEditorPointerToolbarOverlay({
                         display="flex"
                         paddingLeft="1"
                         paddingRight="0.5"
-                        borderRadius="base"
                         backgroundColor={{light: "grey-0", dark: "grey-5"}}
+                        borderRadius="small"
+                        border={{light: "grey-10"}}
                         boxShadow="elevation-20"
                         className={
                             animation === "FadingIn"

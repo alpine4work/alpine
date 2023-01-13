@@ -67,6 +67,13 @@ export default function DesignPlaygroundRoute() {
                         borderRadius="base"
                         boxShadow="elevation-50"
                     />
+                    <Box
+                        backgroundColor={{light: "grey-0", dark: "grey-10"}}
+                        width="32"
+                        height="32"
+                        borderRadius="base"
+                        boxShadow="elevation-60"
+                    />
                 </Box>
             </Box>
         </main>
