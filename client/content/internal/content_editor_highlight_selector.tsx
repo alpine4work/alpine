@@ -91,7 +91,7 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
             display="flex"
             paddingX="1"
             backgroundColor={{light: "grey-0", dark: "grey-5"}}
-            borderRadius="small"
+            borderRadius="sm"
             border={{light: "grey-10"}}
             boxShadow="elevation-20"
             role="toolbar"
@@ -280,7 +280,7 @@ function ContentEditorHighlightSelectorButton({
                                 alignItems="center"
                                 width="4"
                                 height="4"
-                                borderRadius="small"
+                                borderRadius="sm"
                                 color="grey-100"
                                 backgroundColor={
                                     highlightColor

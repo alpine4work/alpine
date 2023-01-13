@@ -14,10 +14,10 @@ const defaultErrorDisplayMessage = errorDisplayMessage`An unexpected error occur
 
 export function ErrorDisplayMessageRenderer({
     error,
-    size = "small",
+    size = "xs",
 }: {
     error: unknown;
-    size?: "small" | "body";
+    size?: "xs" | "md";
 }) {
     const context = useAppContext();
     const displayMessage = error instanceof ErrorBase ? error.displayMessage : null;
@@ -38,7 +38,7 @@ export function ErrorDisplayMessageRenderer({
     }
 
     return (
-        <Box color="grey-80" fontStyle="primary" fontSize={size}>
+        <Box color="grey-80" fontStyle="normal" fontSize={size}>
             {(displayMessage ?? defaultErrorDisplayMessage).map((displayMessageSegment, index) => {
                 switch (displayMessageSegment.type) {
                     case "Text":
@@ -73,7 +73,7 @@ export function ErrorDisplayMessageRenderer({
                 <Box
                     paddingTop="2"
                     color="grey-40"
-                    fontSize={{small: "tiny" as const, body: "small" as const}[size]}
+                    fontSize={{xs: "2xs" as const, md: "sm" as const}[size]}
                     style={{
                         // HACK(calebmer): This text uses an inaccessible color. We are ok with this
                         // since the content is meant for developers, not for end users. In fact, end

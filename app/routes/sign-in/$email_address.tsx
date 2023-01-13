@@ -164,8 +164,8 @@ export default function SignInEmailCodePage() {
                 >
                     <h1
                         className={sprinkles({
-                            fontStyle: "primaryBold",
-                            fontSize: "heading4",
+                            fontStyle: "bold",
+                            fontSize: "display-sm",
                         })}
                     >
                         Sign in
@@ -175,7 +175,7 @@ export default function SignInEmailCodePage() {
                         We sent a sign in code to{" "}
                         <span
                             className={sprinkles({
-                                fontStyle: "primaryBold",
+                                fontStyle: "bold",
                                 color: "grey-100",
                             })}
                         >
@@ -208,11 +208,11 @@ export default function SignInEmailCodePage() {
                                 width: "full",
                                 paddingY: "1",
                                 backgroundColor: "transparent",
-                                fontSize: "heading4",
+                                fontSize: "display-sm",
                             })}
                             style={{
                                 lineHeight: 1.5,
-                                letterSpacing: "1.24rem",
+                                letterSpacing: "1.15rem",
                                 paddingLeft: "0.49rem",
                                 transform: "translateY(0.03rem)",
                                 fontVariantNumeric: "tabular-nums",

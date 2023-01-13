@@ -91,8 +91,8 @@ export default function SignInPage() {
                 >
                     <h1
                         className={sprinkles({
-                            fontStyle: "primaryBold",
-                            fontSize: "heading4",
+                            fontStyle: "bold",
+                            fontSize: "display-sm",
                         })}
                     >
                         Sign in

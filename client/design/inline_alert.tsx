@@ -65,7 +65,7 @@ export function InlineAlert({
         >
             <Box position="absolute" top="1.5" right="1.5">
                 <IconButton
-                    size="small"
+                    size="sm"
                     description="Dismiss alert"
                     onPress={onDismiss}
                     withoutTooltip={true}
@@ -84,7 +84,7 @@ export function InlineAlert({
                 >
                     <IconComponent weight="fill" size={spacing["4"]} />
                 </Box>
-                <Box flexGrow="1" fontSize="body" fontStyle="primaryMedium">
+                <Box flexGrow="1" fontSize="md" fontStyle="semi-bold">
                     {title}
                 </Box>
             </Box>

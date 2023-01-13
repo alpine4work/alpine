@@ -47,9 +47,7 @@ export function RequestedAlphaAccessEmailTemplate({
                     <MjmlColumn>
                         <MjmlText>
                             New alpha access request from{" "}
-                            <strong style={{fontWeight: fontStyles.primaryBold.fontWeight}}>
-                                {name}
-                            </strong>{" "}
+                            <strong style={{fontWeight: fontStyles.bold.fontWeight}}>{name}</strong>{" "}
                             ({emailAddress}).
                         </MjmlText>
                         {message.length === 0 ? (
@@ -86,15 +84,15 @@ export function RequestedAlphaAccessEmailTemplate({
 function MjmlText({
     children,
     color = "grey-100",
-    fontSize: size = "body",
-    fontStyle: style = "primary",
+    fontSize: size = "md",
+    fontStyle: style = "normal",
     margin = true,
     letterSpacingOverride,
 }: {
     children?: ReactNode;
     color?: Color;
     fontSize?: keyof typeof fontSizes;
-    fontStyle?: keyof typeof fontStyles & `primary${string}`;
+    fontStyle?: "normal" | "semi-bold" | "bold";
     margin?: boolean;
     letterSpacingOverride?: string;
 }) {

@@ -61,16 +61,16 @@ globalStyle(`${hideSelectionWhileUnfocusedClassName} *::-moz-selection`, {
 
 /**
  * An approximation of the actual height of an inline element with font
- * `font.primary` when using Chrome on MacOS.
+ * `font.normal` when using Chrome on MacOS.
  *
  * Frustratingly, the [CSS spec allows user agents to pick a height][1] based
  * on the font.
  *
  * We got this approximation by zooming the browser way in and measuring the
- * height of an inline element with font `font.primary`. It was 24.2px when our
+ * height of an inline element with font `font.normal`. It was 24.2px when our
  * font size was 20px. When zoomed out it was 24.5px when the font size was
  * 20px and 19.5px when the font size was 16px. The browser is rounding so the
- * closest approximation is that the height of a `font.primary` inline element
+ * closest approximation is that the height of a `font.normal` inline element
  * is ~121% of the font size (24.2 / 20).
  *
  * We may need to branch this value depending on the browser.
@@ -91,24 +91,24 @@ const inlineElementActualHeight = `${24 / 20}em`;
  * on Chrome for MacOS. Hopefully it works elsewhere?
  */
 export const inlineElementPaddingToLineHeightClassName = style({
-    paddingTop: `calc((${fontSizes.body.lineHeight} - ${inlineElementActualHeight}) / 2)`,
-    paddingBottom: `calc((${fontSizes.body.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+    paddingTop: `calc((${fontSizes.md.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+    paddingBottom: `calc((${fontSizes.md.lineHeight} - ${inlineElementActualHeight}) / 2)`,
     selectors: {
         [`${titleClassName} &`]: {
-            paddingTop: `calc((${fontSizes.heading2.lineHeight} - ${inlineElementActualHeight}) / 2)`,
-            paddingBottom: `calc((${fontSizes.heading2.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+            paddingTop: `calc((${fontSizes["display-md"].lineHeight} - ${inlineElementActualHeight}) / 2)`,
+            paddingBottom: `calc((${fontSizes["display-md"].lineHeight} - ${inlineElementActualHeight}) / 2)`,
         },
         [`${headingLevel1ClassName} &`]: {
-            paddingTop: `calc((${fontSizes.heading3.lineHeight} - ${inlineElementActualHeight}) / 2)`,
-            paddingBottom: `calc((${fontSizes.heading3.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+            paddingTop: `calc((${fontSizes["display-sm"].lineHeight} - ${inlineElementActualHeight}) / 2)`,
+            paddingBottom: `calc((${fontSizes["display-sm"].lineHeight} - ${inlineElementActualHeight}) / 2)`,
         },
         [`${headingLevel2ClassName} &`]: {
-            paddingTop: `calc((${fontSizes.heading4.lineHeight} - ${inlineElementActualHeight}) / 2)`,
-            paddingBottom: `calc((${fontSizes.heading4.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+            paddingTop: `calc((${fontSizes.xl.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+            paddingBottom: `calc((${fontSizes.xl.lineHeight} - ${inlineElementActualHeight}) / 2)`,
         },
         [`${headingLevel3ClassName} &`]: {
-            paddingTop: `calc((${fontSizes.heading5.lineHeight} - ${inlineElementActualHeight}) / 2)`,
-            paddingBottom: `calc((${fontSizes.heading5.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+            paddingTop: `calc((${fontSizes.lg.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+            paddingBottom: `calc((${fontSizes.lg.lineHeight} - ${inlineElementActualHeight}) / 2)`,
         },
     },
 });

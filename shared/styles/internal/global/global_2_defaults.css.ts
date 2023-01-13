@@ -14,17 +14,17 @@ import {inputPlaceholderColor} from "~/shared/styles/internal/input_placeholder_
 
 // Since we use the `fontSize.base` line height as our default, let's
 // make sure the font size is 1rem.
-assert(fontSizes.body.fontSize === "1rem");
+assert(fontSizes.md.fontSize === "1rem");
 
 globalStyle(":root", {
     backgroundColor: colorSchemeVars["grey-0"],
     color: colorSchemeVars["grey-100"],
-    ...fontStyles.primary,
+    ...fontStyles.normal,
 
     // Change the size of 1rem based on whether we're on desktop or mobile.
     fontSize: remPxByPlatform.desktop,
-    lineHeight: fontSizes.body.lineHeight,
-    letterSpacing: fontSizes.body.letterSpacing,
+    lineHeight: fontSizes.md.lineHeight,
+    letterSpacing: fontSizes.md.letterSpacing,
 
     "@media": {
         [mobilePlatformMediaQuery]: {
@@ -39,9 +39,9 @@ globalStyle(":root", {
 });
 
 globalStyle("body", {
-    // Actually use `sm` as the default size. We want our default font to be
+    // Actually use `xs` as the default size. We want our default font to be
     // ideal for system text not user content.
-    ...fontSizes.small,
+    ...fontSizes.xs,
 });
 
 globalStyle("html, body, #__next", {

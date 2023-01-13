@@ -12,7 +12,7 @@ import {sprinkles} from "~/shared/styles/styles";
 const IconButtonForwardRef = forwardRef(IconButton);
 export {IconButtonForwardRef as IconButton};
 
-type IconButtonSize = "base" | "small";
+type IconButtonSize = "base" | "sm";
 
 /**
  * A button represented by a single icon.
@@ -57,7 +57,7 @@ function IconButton(
                 iconSize: "5",
                 tooltipOffset: "2",
             },
-            small: {
+            sm: {
                 buttonSize: "4",
                 buttonPadding: "0.5",
                 iconSize: "3",

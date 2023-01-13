@@ -7,8 +7,9 @@
  */
 
 import {fontFace, style} from "@vanilla-extract/css";
-import {spacing} from "~/shared/design/spacing";
 
+// TODO(calebmer): Now that I've bought Untitled UI, give their premium font
+// recommendations a look to see if we can do better than Inter.
 const interFontFace = fontFace({
     src: "url(/fonts/inter.woff2) format('woff2')",
     fontStyle: "normal",
@@ -56,13 +57,16 @@ const firaCodeFontFamily = `${firaCodeFontFace}, ${firaCodeFallbackFontFace}`;
  * they're free to add.
  */
 export const fontStyles = {
-    primary: {
+    normal: {
         fontFamily: interFontFamily,
         fontWeight: 400,
         fontStyle: "normal",
         fontFeatureSettings: '"calt" off',
     },
-    primaryMedium: {
+    // Usually `font-weight: 500` maps to the name "Medium" but since we want to
+    // make it clear the style is bold we name it "Semi Bold" so bold is in the
+    // name.
+    "semi-bold": {
         fontFamily: interFontFamily,
         fontWeight: 500,
         fontStyle: "normal",
@@ -70,7 +74,7 @@ export const fontStyles = {
     },
     // Usually `font-weight: 600` maps to the name "Semi Bold" but since it is the
     // most common heavy weight in our product we call it simply "Bold".
-    primaryBold: {
+    bold: {
         fontFamily: interFontFamily,
         fontWeight: 600,
         fontStyle: "normal",
@@ -78,7 +82,7 @@ export const fontStyles = {
     },
     // Usually `font-weight: 700` maps to the name "Bold" but since it is less
     // common in our product than `font-weight: 600` we call it "Extra Bold".
-    primaryExtraBold: {
+    "extra-bold": {
         fontFamily: interFontFamily,
         fontWeight: 700,
         fontStyle: "normal",
@@ -90,7 +94,7 @@ export const fontStyles = {
         fontStyle: "normal",
         fontFeatureSettings: '"calt" off',
     },
-    codeBold: {
+    "code-bold": {
         fontFamily: firaCodeFontFamily,
         fontWeight: 700,
         fontStyle: "normal",
@@ -110,65 +114,64 @@ export const fontStyles = {
  * [1]: https://rsms.me/inter/dynmetrics
  */
 export const fontSizes = {
-    tiny: {
+    "2xs": {
         fontSize: "0.625rem",
-        // TODO(calebmer): Haven't really tested for what line height looks good here.
-        // Picking a value on the spacing scale.
-        lineHeight: spacing["3"],
+        lineHeight: "1rem",
         letterSpacing: "0.01em",
     },
-    small: {
+    xs: {
         fontSize: "0.75rem",
-        // This line-height is optimized for alignment with spacing scale vs what
-        // optically looks good in long blocks of text. Since `small` is the default
-        // size for UI text.
-        lineHeight: spacing["4"],
+        lineHeight: "1.125rem",
         letterSpacing: "0em",
     },
-    body: {
+    sm: {
+        fontSize: "0.875rem",
+        lineHeight: "1.25rem",
+        letterSpacing: "-0.006em",
+    },
+    md: {
         fontSize: "1rem",
-        // Same as a 1.5em line-height. Conveniently also looks good!
-        lineHeight: spacing["6"],
+        lineHeight: "1.5rem",
         letterSpacing: "-0.011em",
     },
-    heading5: {
+    lg: {
+        fontSize: "1.125rem",
+        lineHeight: "1.75rem",
+        letterSpacing: "-0.014em",
+    },
+    xl: {
         fontSize: "1.25rem",
-        lineHeight: `${1.4 * 1.25}rem`,
+        lineHeight: "1.875rem",
         letterSpacing: "-0.017em",
     },
-    heading4: {
-        fontSize: "1.75rem",
-        lineHeight: `${1.3 * 1.75}rem`,
+    "display-xs": {
+        fontSize: "1.5rem",
+        lineHeight: "2rem",
+        letterSpacing: "-0.019em",
+    },
+    "display-sm": {
+        fontSize: "1.875rem",
+        lineHeight: "2.375rem",
         letterSpacing: "-0.021em",
     },
-    heading3: {
+    "display-md": {
         fontSize: "2.25rem",
-        lineHeight: `${1.25 * 2.25}rem`,
+        lineHeight: "2.75rem",
         letterSpacing: "-0.022em",
     },
-    heading2: {
+    "display-lg": {
         fontSize: "3rem",
-        lineHeight: `${1.2 * 3}rem`,
+        lineHeight: "3.75rem",
         letterSpacing: "-0.022em",
     },
-    heading1: {
-        fontSize: "4.25rem",
-        lineHeight: `${1.2 * 4.25}rem`,
+    "display-xl": {
+        fontSize: "3.75rem",
+        lineHeight: "4.5rem",
         letterSpacing: "-0.022em",
     },
-    hero3: {
-        fontSize: "5.625rem",
-        lineHeight: `${1.2 * 5.625}rem`,
-        letterSpacing: "-0.022em",
-    },
-    hero2: {
-        fontSize: "7.5rem",
-        lineHeight: `${1.2 * 7.5}rem`,
-        letterSpacing: "-0.022em",
-    },
-    hero1: {
-        fontSize: "10rem",
-        lineHeight: `${1.2 * 10}rem`,
+    "display-2xl": {
+        fontSize: "4.5rem",
+        lineHeight: "5.625rem",
         letterSpacing: "-0.022em",
     },
 } as const;

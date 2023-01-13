@@ -14,7 +14,7 @@ export function PostCreator() {
         <Box>
             <Box
                 backgroundColor={{light: "grey-0", dark: "grey-5"}}
-                borderRadius="medium"
+                borderRadius="md"
                 boxShadow="elevation-5"
             >
                 <Box paddingTop="4" paddingX="4" display="flex">
@@ -26,7 +26,7 @@ export function PostCreator() {
                         borderRadius="full"
                     />
                     <Box flexGrow="1" paddingLeft="3" paddingRight="4" overflow="hidden">
-                        <Box fontStyle="primaryMedium" className={truncateClassName}>
+                        <Box fontStyle="semi-bold" className={truncateClassName}>
                             Caleb Meredith
                         </Box>
                         <Box color="grey-50" className={truncateClassName}>

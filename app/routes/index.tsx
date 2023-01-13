@@ -131,14 +131,14 @@ export default function HomePage() {
             >
                 <h1
                     className={sprinkles({
-                        fontStyle: "primaryBold",
-                        fontSize: "heading3",
+                        fontStyle: "bold",
+                        fontSize: "display-md",
                     })}
                 >
                     Want to see what we’re working on?
                 </h1>
                 <Spacer space="4" />
-                <Box fontSize="body" color="grey-80">
+                <Box fontSize="md" color="grey-80">
                     Cyberworlds is the code name for a new workplace collaboration suite we’re
                     building. While we have a long way to go, we’re giving some people access to the
                     product so they can follow along.
@@ -150,7 +150,7 @@ export default function HomePage() {
                         if (actionData) setDismissedActionData(actionData);
                     }}
                 >
-                    <Box fontSize="heading5" fontStyle="primaryBold">
+                    <Box fontSize="xl" fontStyle="bold">
                         Request access
                     </Box>
                     <Spacer space="4" />

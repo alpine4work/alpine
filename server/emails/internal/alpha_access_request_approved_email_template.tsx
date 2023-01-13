@@ -119,15 +119,15 @@ export function AlphaAccessRequestApprovedEmailTemplate() {
 function MjmlText({
     children,
     color = "grey-100",
-    fontSize: size = "body",
-    fontStyle: style = "primary",
+    fontSize: size = "md",
+    fontStyle: style = "normal",
     margin = true,
     letterSpacingOverride,
 }: {
     children?: ReactNode;
     color?: Color;
     fontSize?: keyof typeof fontSizes;
-    fontStyle?: keyof typeof fontStyles & `primary${string}`;
+    fontStyle?: "normal" | "semi-bold" | "bold";
     margin?: boolean;
     letterSpacingOverride?: string;
 }) {

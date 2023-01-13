@@ -70,8 +70,8 @@ export function SignInEmailTemplate({
                     <MjmlColumn>
                         <MjmlText>You requested a sign in code. Your code is:</MjmlText>
                         <MjmlText
-                            fontSize="heading3"
-                            fontStyle="primaryBold"
+                            fontSize="display-xs"
+                            fontStyle="bold"
                             letterSpacingOverride="0.03em"
                         >
                             {code}
@@ -95,7 +95,7 @@ export function SignInEmailTemplate({
                 </MjmlSection>
                 <MjmlSection>
                     <MjmlColumn>
-                        <MjmlText color="grey-60" fontSize="small">
+                        <MjmlText color="grey-60" fontSize="xs">
                             If you aren't trying to sign in to{" "}
                             <a
                                 // TODO(calebmer): Should use localhost in development?
@@ -118,15 +118,15 @@ export function SignInEmailTemplate({
 function MjmlText({
     children,
     color = "grey-100",
-    fontSize: size = "body",
-    fontStyle: style = "primary",
+    fontSize: size = "md",
+    fontStyle: style = "normal",
     margin = true,
     letterSpacingOverride,
 }: {
     children?: ReactNode;
     color?: Color;
     fontSize?: keyof typeof fontSizes;
-    fontStyle?: keyof typeof fontStyles & `primary${string}`;
+    fontStyle?: "normal" | "semi-bold" | "bold";
     margin?: boolean;
     letterSpacingOverride?: string;
 }) {

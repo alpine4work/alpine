@@ -26,7 +26,7 @@ import {fontSizes, fontStyles} from "~/shared/styles/internal/fonts.css";
 //   underline disappears.
 
 const paragraphMargin = spacing["3"];
-const headerTopMargin = spacing["6"];
+const headerTopMargin = spacing["8"];
 
 export const docClassName = style({
     minHeight: "100%",
@@ -64,8 +64,8 @@ export const mobileTitlePaddingTop = spacing["12"];
 
 export const titleClassName = style({
     ...blockStyles,
-    ...fontStyles.primaryBold,
-    ...fontSizes.heading2,
+    ...fontStyles.bold,
+    ...fontSizes["display-md"],
     paddingTop: desktopTitlePaddingTop,
     marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
@@ -79,8 +79,8 @@ export const titleClassName = style({
 
 export const paragraphClassName = style({
     ...blockStyles,
-    ...fontStyles.primary,
-    ...fontSizes.body,
+    ...fontStyles.normal,
+    ...fontSizes.md,
     marginTop: paragraphMargin,
     marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
@@ -89,8 +89,8 @@ export const paragraphClassName = style({
 
 export const headingLevel1ClassName = style({
     ...blockStyles,
-    ...fontStyles.primaryBold,
-    ...fontSizes.heading3,
+    ...fontStyles.bold,
+    ...fontSizes["display-sm"],
     marginTop: headerTopMargin,
     marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
@@ -99,8 +99,8 @@ export const headingLevel1ClassName = style({
 
 export const headingLevel2ClassName = style({
     ...blockStyles,
-    ...fontStyles.primaryBold,
-    ...fontSizes.heading4,
+    ...fontStyles.bold,
+    ...fontSizes.xl,
     marginTop: headerTopMargin,
     marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
@@ -109,8 +109,8 @@ export const headingLevel2ClassName = style({
 
 export const headingLevel3ClassName = style({
     ...blockStyles,
-    ...fontStyles.primaryBold,
-    ...fontSizes.heading5,
+    ...fontStyles.bold,
+    ...fontSizes.lg,
     marginTop: headerTopMargin,
     marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
@@ -181,7 +181,7 @@ export const orderedListItemClassName = style({
             left: `calc(${blockPaddingX} + (${listItemIndentationVar} * ${listItemIndentation}) + ${spacing["6"]})`,
             textAlign: "right",
             transform: "translateX(-100%)",
-            ...fontSizes.body,
+            ...fontSizes.md,
             fontVariantNumeric: "tabular-nums",
         },
     },
@@ -298,13 +298,13 @@ export const codeClassName = style({
 });
 
 export const boldClassName = style({
-    ...fontStyles.primaryExtraBold,
+    ...fontStyles["extra-bold"],
     // Inherit font feature settings from parent instead of turning them off. In a
     // link they should be off. Outside of a link they should be on.
     fontFeatureSettings: "inherit",
     selectors: {
         [`${codeClassName} &`]: {
-            ...fontStyles.codeBold,
+            ...fontStyles["code-bold"],
         },
     },
 });

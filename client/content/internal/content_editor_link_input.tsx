@@ -71,7 +71,7 @@ export function ContentEditorLinkInput({
             // max width?
             width={url.length > 40 ? "96" : "64"}
             backgroundColor={{light: "grey-0", dark: "grey-5"}}
-            borderRadius="small"
+            borderRadius="sm"
             border={{light: "grey-10"}}
             boxShadow="elevation-20"
             position="relative"
@@ -100,7 +100,7 @@ export function ContentEditorLinkInput({
                     height: "full",
                     paddingLeft: "8",
                     paddingRight: "1",
-                    fontSize: "small",
+                    fontSize: "xs",
                     color: "grey-100",
                     backgroundColor: "transparent",
                 })}
