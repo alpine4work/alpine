@@ -10,6 +10,7 @@ import {
     forwardRef,
     useEffect,
     useImperativeHandle,
+    useLayoutEffect,
     useRef,
     useState,
 } from "react";
@@ -19,6 +20,7 @@ import {
     getContentEditorFloaterState,
     setContentEditorFloaterState,
 } from "~/client/content/content_editor_state";
+import {ContentView} from "~/client/content/content_view";
 import {createContentEditorCheckListItemNodeView} from "~/client/content/internal/content_editor_check_list_item_node_view";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer";
 import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser";
@@ -33,21 +35,20 @@ import {trimSpacesFromRange} from "~/client/content/internal/content_editor_pros
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools";
 import {FocusRingPortal} from "~/client/design/focus_ring";
 import {isMac} from "~/client/helpers/is_mac";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
+import {documentFallbackTitle} from "~/shared/content/document_fallback_title";
+import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty";
 import {ThemeColor} from "~/shared/design/theme_colors";
-import {documentFallbackTitle} from "~/shared/documents/document_model";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol";
 import {generateId} from "~/shared/id/id";
 import {colorSchemeVars, contentEditorStyles, contentSchemaStyles} from "~/shared/styles/styles";
 
-const {docClassName} = contentSchemaStyles;
+const {docClassName, emptyBodyClassName, emptyTitleClassName} = contentSchemaStyles;
 
 const {
     containerClassName,
-    emptyBodyClassName,
-    emptyTitleClassName,
     hideSelectionWhileUnfocusedClassName,
     inlineElementPaddingToLineHeightClassName,
     shiftKeyOrAltKeyDownClassName,
@@ -80,7 +81,7 @@ export type ContentEditorRef = {
     blur(): void;
 };
 
-const ContentEditorForwardRef = forwardRef(ContentEditor) as <Content extends Node>(
+const ContentEditorForwardRef = forwardRef(ContentEditorWrapper) as <Content extends Node>(
     props: PropsWithoutRef<ContentEditorProps<Content>> & RefAttributes<ContentEditorRef>,
 ) => ReactElement;
 export {ContentEditorForwardRef as ContentEditor};
@@ -192,6 +193,33 @@ export type ContentEditorPhantomSelection = {
     readonly isTextSelection: boolean;
 };
 
+// When server-side rendering (initial app render), we render as a
+// `<ContentView>` then once React hydrates on the client we switch out the
+// non-editable `<ContentView>` for an editable `<ContentEditor>` component.
+function ContentEditorWrapper<Content extends Node>(
+    props: ContentEditorProps<Content>,
+    ref: Ref<ContentEditorRef>,
+) {
+    const isInitialAppRender = useIsInitialAppRender();
+
+    if (isInitialAppRender) {
+        return (
+            <div className={classNames(containerClassName, props.containerClassName)}>
+                <ContentView
+                    content={props.state.getContent()}
+                    onNavigate={props.onNavigate}
+                    placeholder={props.placeholder}
+                    className={props.className}
+                    aria-label={props["aria-label"]}
+                    aria-labelledby={props["aria-labelledby"]}
+                />
+            </div>
+        );
+    } else {
+        return <ContentEditor {...props} editorRef={ref} />;
+    }
+}
+
 /**
  * A rich text collaborative editor powered by [ProseMirror][1].
  *
@@ -202,10 +230,10 @@ export type ContentEditorPhantomSelection = {
  * [1]: https://prosemirror.net
  */
 function ContentEditor<Content extends Node>(
-    props: ContentEditorProps<Content>,
-    ref: Ref<ContentEditorRef>,
+    props: ContentEditorProps<Content> & {editorRef: Ref<ContentEditorRef>},
 ) {
     const {
+        editorRef,
         state,
         placeholder,
         className,
@@ -222,14 +250,14 @@ function ContentEditor<Content extends Node>(
     // component (ProseMirror's `EditorView`) so we need to be able to
     // imperatively access props.
     //
-    // Importantly, we set this in a `useLayoutEffectWithoutServerSideWarning` instead of render! If we
+    // Importantly, we set this in a `useLayoutEffect` instead of render! If we
     // set in render and concurrent React cancels/rebases/retries the render then
     // there may be bugs.
     //
     // Please avoid using `propsRef` unless you can thoroughly reason through why
     // it's safe!
     const propsRef = useRef(props);
-    useLayoutEffectWithoutServerSideWarning(() => {
+    useLayoutEffect(() => {
         propsRef.current = props;
     });
 
@@ -237,7 +265,7 @@ function ContentEditor<Content extends Node>(
     const viewRef = useRef<EditorView | null>(null);
 
     useImperativeHandle(
-        ref,
+        editorRef,
         () => ({
             focus: () => {
                 (viewRef.current?.dom as HTMLDivElement).focus();
@@ -266,7 +294,7 @@ function ContentEditor<Content extends Node>(
     //
     // Layout effect because the visual layout of this component depends on the
     // editor view being initialized.
-    useLayoutEffectWithoutServerSideWarning(() => {
+    useLayoutEffect(() => {
         assert(elementRef.current);
 
         const initialState = unwrap(propsRef.current.state);
@@ -433,7 +461,7 @@ function ContentEditor<Content extends Node>(
     //
     // Layout effect because the visual layout depends on the editor state prop
     // which we need to set imperatively.
-    useLayoutEffectWithoutServerSideWarning(() => {
+    useLayoutEffect(() => {
         // We don't do anything with `lastOptimisticTransactionTime` in this effect,
         // but we want the effect to re-run whenever it changes. We optimistically
         // update our `EditorView` state as an optimization. When React finishes
@@ -457,7 +485,7 @@ function ContentEditor<Content extends Node>(
         ReadonlySet<(decorationSet: DecorationSet, state: EditorState) => DecorationSet>
     >(() => new Set());
 
-    useLayoutEffectWithoutServerSideWarning(() => {
+    useLayoutEffect(() => {
         assert(viewRef.current);
         const view = viewRef.current;
 
@@ -476,7 +504,7 @@ function ContentEditor<Content extends Node>(
 
     // Apply `className`s from our `className` prop. Take care to make sure class
     // names added by ProseMirror or other effects continue to be applied.
-    useLayoutEffectWithoutServerSideWarning(() => {
+    useLayoutEffect(() => {
         assert(viewRef.current);
         const viewElement = viewRef.current.dom;
 
@@ -545,7 +573,7 @@ function ContentEditor<Content extends Node>(
     }, []);
 
     // Keep various attributes on the editor element up to date.
-    useLayoutEffectWithoutServerSideWarning(() => {
+    useLayoutEffect(() => {
         assert(viewRef.current);
         const viewElement = viewRef.current.dom;
 
@@ -572,7 +600,7 @@ function ContentEditor<Content extends Node>(
 
     // Set `aria-placeholder` on the editor for accessibility and then
     // `data-placeholder` on nodes which need to render placeholders.
-    useLayoutEffectWithoutServerSideWarning(() => {
+    useLayoutEffect(() => {
         assert(viewRef.current);
         const viewElement = viewRef.current.dom;
 
@@ -644,7 +672,7 @@ function ContentEditor<Content extends Node>(
     // This is important for the link and highlight floater which gives the user's
     // keyboard focus to another element that's still targeting the content editor.
     // So the user needs to see what content their link/highlight will apply to.
-    useLayoutEffectWithoutServerSideWarning(() => {
+    useLayoutEffect(() => {
         assert(viewRef.current);
         const view = viewRef.current;
         const viewElement = view.dom;
@@ -749,7 +777,7 @@ function ContentEditor<Content extends Node>(
     // standard React components since inserting an element into the DOM between
     // some characters breaks kerning. Which causes some jitter when user quickly
     // moves their phantom cursor around.
-    useLayoutEffectWithoutServerSideWarning(() => {
+    useLayoutEffect(() => {
         if (!phantomSelections || phantomSelections.length === 0) return;
 
         const decorations: Array<(state: EditorState) => Array<Decoration>> = [];
@@ -898,28 +926,6 @@ function handleLinkPaste(view: EditorView, event: ClipboardEvent): boolean {
     const range = trimSpacesFromRange(state.doc, state.selection);
     view.dispatch(state.tr.addMark(range.from, range.to, state.schema.mark("link", {url})));
     return true;
-}
-
-function isContentTitleEmpty(node: Node): boolean {
-    assert(node.type.name === "doc");
-    if (!node.type.schema.nodes.title) return true;
-    const firstChildNode = node.child(0);
-    return firstChildNode.type.name === "title" && firstChildNode.content.size === 0;
-}
-
-function isContentBodyEmpty(node: Node): boolean {
-    assert(node.type.name === "doc");
-
-    let bodyChildNode;
-    if (!node.type.schema.nodes.title) {
-        if (node.childCount !== 1) return false;
-        bodyChildNode = node.child(0);
-    } else {
-        if (node.childCount !== 2) return false;
-        bodyChildNode = node.child(1);
-    }
-
-    return bodyChildNode.type.name === "paragraph" && bodyChildNode.content.size === 0;
 }
 
 /**

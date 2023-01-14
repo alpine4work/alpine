@@ -7,13 +7,15 @@ import {quote} from "~/shared/helpers/string/quote";
 
 export type ProsemirrorHtmlSerializationOptions = {
     nodeRenderers?: {
-        [nodeName: string]: (
-            node: Node,
-            pos: number,
-        ) => {
-            html: HtmlGenerator;
-            contentHtml?: ElementHtmlGenerator;
-        };
+        [nodeName: string]:
+            | ((
+                  node: Node,
+                  pos: number,
+              ) => {
+                  html: HtmlGenerator;
+                  contentHtml?: ElementHtmlGenerator;
+              })
+            | undefined;
     };
     markRenderers?: {
         [markName: string]: (

@@ -4,50 +4,12 @@ import {
     headingLevel2ClassName,
     headingLevel3ClassName,
     linkClassName,
-    paragraphClassName,
     titleClassName,
 } from "~/shared/styles/internal/content_schema.css";
 import {fontSizes} from "~/shared/styles/internal/fonts.css";
-import {inputPlaceholderColor} from "~/shared/styles/internal/input_placeholder_color.css";
 
 export const containerClassName = style({
     height: "100%",
-});
-
-export const emptyTitleClassName = style({});
-
-globalStyle(`${emptyTitleClassName} > ${titleClassName}[data-placeholder]::before`, {
-    // The `/ ""` is screen reader alt text. So screen readers don't read the
-    // placeholder content.
-    //
-    // Not all browsers support that syntax, though (like Safari), so we provide a
-    // fallback without the `/ ""`.
-    content: ["attr(data-placeholder)", 'attr(data-placeholder) / ""'],
-    pointerEvents: "none",
-    color: inputPlaceholderColor,
-    position: "absolute",
-    // Reset the `text-fill-color` set by blobs so that we can see the placeholder.
-    // @ts-expect-error
-    textFillColor: "initial",
-    WebkitTextFillColor: "initial",
-    // Make sure placeholder is rendered underneath cursor.
-    zIndex: -10,
-});
-
-export const emptyBodyClassName = style({});
-
-globalStyle(`${emptyBodyClassName} > ${paragraphClassName}[data-placeholder]::before`, {
-    // The `/ ""` is screen reader alt text. So screen readers don't read the
-    // placeholder content.
-    //
-    // Not all browsers support that syntax, though (like Safari), so we provide a
-    // fallback without the `/ ""`.
-    content: ["attr(data-placeholder)", 'attr(data-placeholder) / ""'],
-    pointerEvents: "none",
-    color: inputPlaceholderColor,
-    position: "absolute",
-    // Make sure placeholder is rendered underneath cursor.
-    zIndex: -10,
 });
 
 export const hideSelectionWhileUnfocusedClassName = style({

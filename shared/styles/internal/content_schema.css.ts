@@ -9,6 +9,7 @@ import {
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
 import {CssVarFunction, colorSchemeVars} from "~/shared/styles/internal/color_scheme.css";
 import {fontSizes, fontStyles} from "~/shared/styles/internal/fonts.css";
+import {inputPlaceholderColor} from "~/shared/styles/internal/input_placeholder_color.css";
 
 // TODO(calebmer): Running list of style tweaks to explore.
 //
@@ -67,12 +68,16 @@ export const titleClassName = style({
     ...fontStyles.bold,
     ...fontSizes["display-md"],
     paddingTop: desktopTitlePaddingTop,
+    // Make sure this node always takes up space even if it is empty. Important
+    // when we are rendering placeholders in `<ContentView>`.
+    minHeight: `calc(${fontSizes["display-md"].lineHeight} + ${desktopTitlePaddingTop})`,
     marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
     "@media": {
         [mobilePlatformMediaQuery]: {
             paddingTop: mobileTitlePaddingTop,
+            minHeight: `calc(${fontSizes["display-md"].lineHeight} + ${mobileTitlePaddingTop})`,
         },
     },
 });
@@ -81,6 +86,9 @@ export const paragraphClassName = style({
     ...blockStyles,
     ...fontStyles.normal,
     ...fontSizes.md,
+    // Make sure this node always takes up space even if it is empty. Important
+    // when we are rendering placeholders in `<ContentView>`.
+    minHeight: fontSizes.md.lineHeight,
     marginTop: paragraphMargin,
     marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
@@ -359,3 +367,39 @@ const lastChildSelectors = [
     `${docClassName} > ${listItemClassName}:last-child > ${checkListItemContentClassName} > *:last-child`,
 ];
 lastChildSelectors.forEach(selector => globalStyle(selector, {marginBottom: 0}));
+
+export const emptyTitleClassName = style({});
+
+globalStyle(`${emptyTitleClassName} > ${titleClassName}[data-placeholder]::before`, {
+    // The `/ ""` is screen reader alt text. So screen readers don't read the
+    // placeholder content.
+    //
+    // Not all browsers support that syntax, though (like Safari), so we provide a
+    // fallback without the `/ ""`.
+    content: ["attr(data-placeholder)", 'attr(data-placeholder) / ""'],
+    pointerEvents: "none",
+    color: inputPlaceholderColor,
+    position: "absolute",
+    // Reset the `text-fill-color` set by blobs so that we can see the placeholder.
+    // @ts-expect-error
+    textFillColor: "initial",
+    WebkitTextFillColor: "initial",
+    // Make sure placeholder is rendered underneath cursor.
+    zIndex: -10,
+});
+
+export const emptyBodyClassName = style({});
+
+globalStyle(`${emptyBodyClassName} > ${paragraphClassName}[data-placeholder]::before`, {
+    // The `/ ""` is screen reader alt text. So screen readers don't read the
+    // placeholder content.
+    //
+    // Not all browsers support that syntax, though (like Safari), so we provide a
+    // fallback without the `/ ""`.
+    content: ["attr(data-placeholder)", 'attr(data-placeholder) / ""'],
+    pointerEvents: "none",
+    color: inputPlaceholderColor,
+    position: "absolute",
+    // Make sure placeholder is rendered underneath cursor.
+    zIndex: -10,
+});

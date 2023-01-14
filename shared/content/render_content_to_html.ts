@@ -1,6 +1,8 @@
 import {Node} from "prosemirror-model";
 import {contentCheckListItemIconSvg} from "~/shared/content/content_check_list_item_icon_svg";
 import {clampListItemIndentation} from "~/shared/content/content_schema";
+import {documentFallbackTitle} from "~/shared/content/document_fallback_title";
+import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty";
 import {assert} from "~/shared/helpers/control/assert";
 import {
     ElementHtmlGenerator,
@@ -21,8 +23,8 @@ const {
  * custom node renderers as `<ContentEditor>` so you get the same HTML as you
  * saw in the editor.
  */
-export function renderContentToHtml(topNode: Node) {
-    const fragmentHtml = renderContentFragmentToHtml(topNode);
+export function renderContentToHtml(topNode: Node, options?: {placeholder?: string}) {
+    const fragmentHtml = renderContentFragmentToHtml(topNode, options);
     return `<div class="${docClassName}">${fragmentHtml}</div>`;
 }
 
@@ -35,7 +37,10 @@ export function renderContentToHtml(topNode: Node) {
  * content. Generally you want `renderContentToHtml()`. This is useful if you
  * want to add other attributes to the wrapping `<div>`.
  */
-export function renderContentFragmentToHtml(topNode: Node) {
+export function renderContentFragmentToHtml(
+    topNode: Node,
+    {placeholder}: {placeholder?: string} = {},
+) {
     assert(topNode.type.schema.topNodeType === topNode.type);
 
     const orderedListItemNumberByNode = new Map<Node, number>();
@@ -75,6 +80,9 @@ export function renderContentFragmentToHtml(topNode: Node) {
             orderedListItemNumberByNode.set(childNode, listItemNumber);
         });
     };
+
+    const isTitleEmpty = isContentTitleEmpty(topNode);
+    const isBodyEmpty = isContentBodyEmpty(topNode);
 
     return serializeProsemirrorFragmentToHtml(topNode.content, {
         startPos: 1,
@@ -130,6 +138,38 @@ export function renderContentFragmentToHtml(topNode: Node) {
 
                 return {html, contentHtml};
             },
+
+            // Add custom renderers which add the `data-placeholder` attribute when our
+            // content is empty.
+            title:
+                placeholder && isTitleEmpty
+                    ? node => {
+                          const {html, contentHtml} = renderProsemirrorDomOutputSpec(
+                              node.type.spec.toDOM!(node),
+                          );
+                          assert(html instanceof ElementHtmlGenerator);
+
+                          html.setAttribute("data-placeholder", documentFallbackTitle);
+                          // For accessibility, if the title is empty add the fallback title as an
+                          // `aria-label`. axe complains when we have an empty `<h1>`.
+                          html.setAttribute("aria-label", documentFallbackTitle);
+
+                          return {html, contentHtml};
+                      }
+                    : undefined,
+            paragraph:
+                placeholder && isBodyEmpty
+                    ? node => {
+                          const {html, contentHtml} = renderProsemirrorDomOutputSpec(
+                              node.type.spec.toDOM!(node),
+                          );
+                          assert(html instanceof ElementHtmlGenerator);
+
+                          html.setAttribute("data-placeholder", placeholder);
+
+                          return {html, contentHtml};
+                      }
+                    : undefined,
         },
 
         // IMPORTANT: If you have a custom renderer in `markRenderers` here you should

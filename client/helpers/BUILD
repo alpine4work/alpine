@@ -9,6 +9,7 @@ ts_project(
     deps = [
         "//:node_modules/@types/color",
         "//:node_modules/@types/dedent",
+        "//:node_modules/@types/jest",
         "//:node_modules/@types/react",
         "//:node_modules/color",
         "//:node_modules/dedent",

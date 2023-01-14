@@ -9,6 +9,9 @@ export function DocumentContentView({document}: {document: DocumentModel}) {
             content={document.content}
             onNavigate={useNavigate()}
             className={sprinkles({paddingBottom: "24"})}
+            // en dash (https://graphemica.com/2013)
+            // Represents no content
+            placeholder={"\u2013"}
         />
     );
 }

@@ -1,3 +1,4 @@
+import {documentFallbackTitle} from "~/shared/content/document_fallback_title";
 import {DocumentContent, DocumentContentSchema} from "~/shared/documents/document_content_schema";
 import {assert} from "~/shared/helpers/control/assert";
 import {Id} from "~/shared/id/id";
@@ -45,11 +46,6 @@ export function getDocumentContentTitleWithoutFallback(content: DocumentContent)
     assert(childNode.type.name === "title");
     return childNode.textContent.trim();
 }
-
-/**
- * The title to use for a document when the user hasn't provided a title yet.
- */
-export const documentFallbackTitle = "Untitled";
 
 /**
  * Get the title of a document.
