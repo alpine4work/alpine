@@ -99,7 +99,7 @@ export class SessionCookie {
     ) {}
 
     public static async [newMethod](storage: SessionStorage, request: Request) {
-        const cookieHeader = request.headers.get("Cookie");
+        const cookieHeader = request.headers.get("cookie");
         const session = await storage.getSession(cookieHeader);
 
         if (Object.keys(session.data).length !== 0) {
@@ -177,7 +177,7 @@ export class SessionCookie {
         for (const [key, value] of Object.entries(data)) this._session.set(key, value);
 
         const setCookieHeader = await storage.commitSession(this._session);
-        response.headers.set("Set-Cookie", setCookieHeader);
+        response.headers.set("set-cookie", setCookieHeader);
 
         // Can not update the session cookie after it has committed.
         this._hasCommitted = true;

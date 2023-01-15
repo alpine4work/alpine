@@ -1,13 +1,13 @@
 import {useNavigate} from "react-router-dom";
 import {ContentView} from "~/client/content/content_view";
 import {Box} from "~/client/design/box";
+import {PrettyAbsoluteDate} from "~/client/helpers/date/pretty_absolute_date";
 import {PostModel} from "~/shared/posts/post_model";
 import {truncateClassName} from "~/shared/styles/styles";
 
 // TODO(calebmer):
 //
 // - Change grey color scale to make elevation designs easier
-// - Pretty rendering for time (relative rendering with tooltip)
 // - Comment input
 // - Load account information (global account cache??? context module
 //   where data is included in handoff? maybe we don't bother normalizing
@@ -36,7 +36,7 @@ export function PostView({post}: {post: PostModel}) {
                         Caleb Meredith
                     </Box>
                     <Box fontSize="xs" color="grey-50" className={truncateClassName}>
-                        {post.createdTime.toISOString()}
+                        <PrettyAbsoluteDate date={post.createdTime} />
                     </Box>
                 </Box>
             </Box>

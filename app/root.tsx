@@ -10,6 +10,7 @@ import {
     useCatch,
 } from "@remix-run/react";
 import {RemixEntryContext} from "@remix-run/react/dist/esm/components";
+import {parse as parseCookieHeader} from "cookie";
 import {IconContext} from "phosphor-react";
 import prosemirrorStylesHref from "prosemirror-view/style/prosemirror.css";
 import {useContext, useEffect, useMemo} from "react";
@@ -22,6 +23,7 @@ import {
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {TooltipCoordinationContextProvider} from "~/client/design/tooltip";
 import {ErrorBodyRenderer} from "~/client/error/error_body_renderer";
+import {DateContextProvider} from "~/client/helpers/date/date_context";
 import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useStableValue} from "~/client/helpers/use_stable_value";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
@@ -31,11 +33,12 @@ import {NotFoundError, UnknownError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {ErrorSchema} from "~/shared/error/error_schema";
 import {assert} from "~/shared/helpers/control/assert";
+import {TimeZone, defaultTimeZone, isTimeZone} from "~/shared/helpers/date/time_zone";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";
 import {quote} from "~/shared/helpers/string/quote";
 import {propagatedEventDataKey} from "~/shared/remix/json_with_schema_shared";
-import {Schema, SchemaType} from "~/shared/schema/schema";
+import {Schema, SchemaDeserializationError, SchemaType} from "~/shared/schema/schema";
 import {sprinkles} from "~/shared/styles/styles";
 import sharedStylesHref from "~/shared/styles/styles.css";
 import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data";
@@ -67,11 +70,28 @@ export function links(): Array<LinkDescriptor> {
 export const unstable_shouldReload = () => false;
 
 const LoaderSchema = Schema.object({
+    timeZone: Schema.string.transform<TimeZone>({
+        serialize: value => value,
+        deserialize: value => {
+            if (!isTimeZone(value))
+                throw new SchemaDeserializationError(
+                    "Expected string to be a valid time zone identifier",
+                );
+            return value;
+        },
+    }),
     devServerPort: Schema.integer.optional(),
 });
 
-export function loader({context}: LoaderArgs) {
+export function loader({request, context}: LoaderArgs) {
+    const cookieHeader = request.headers.get("cookie");
+    const timeZoneCookie = cookieHeader ? parseCookieHeader(cookieHeader)["time-zone"] : null;
+
+    const timeZone =
+        timeZoneCookie && isTimeZone(timeZoneCookie) ? timeZoneCookie : defaultTimeZone;
+
     return jsonWithSchema(LoaderSchema, {
+        timeZone,
         devServerPort: context.loader.devServerPort ?? undefined,
     });
 }
@@ -152,13 +172,15 @@ export default function Root({error}: {error?: unknown}) {
     const wrappedChildren = (
         <IconContext.Provider value={{color: "currentColor", size: spacing["5"]}}>
             <AppContextProvider value={context}>
-                <AppInitialRenderContextProvider>
-                    <OverlayScopeContextProvider>
-                        <TooltipCoordinationContextProvider>
-                            {children}
-                        </TooltipCoordinationContextProvider>
-                    </OverlayScopeContextProvider>
-                </AppInitialRenderContextProvider>
+                <DateContextProvider initialTimeZone={loaderData?.timeZone ?? defaultTimeZone}>
+                    <AppInitialRenderContextProvider>
+                        <OverlayScopeContextProvider>
+                            <TooltipCoordinationContextProvider>
+                                {children}
+                            </TooltipCoordinationContextProvider>
+                        </OverlayScopeContextProvider>
+                    </AppInitialRenderContextProvider>
+                </DateContextProvider>
             </AppContextProvider>
         </IconContext.Provider>
     );
