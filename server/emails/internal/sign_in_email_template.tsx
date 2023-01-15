@@ -117,7 +117,7 @@ export function SignInEmailTemplate({
 
 function MjmlText({
     children,
-    color = "grey-100",
+    color = "grey-dark",
     fontSize: size = "md",
     fontStyle: style = "normal",
     margin = true,

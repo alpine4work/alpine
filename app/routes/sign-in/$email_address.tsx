@@ -146,7 +146,7 @@ export default function SignInEmailCodePage() {
     }, []);
 
     return (
-        <Box display="flex" justifyContent="center">
+        <Box display="flex" justifyContent="center" backgroundColor="grey-0" height="full">
             <main
                 className={sprinkles({
                     width: "full",
@@ -176,7 +176,7 @@ export default function SignInEmailCodePage() {
                         <span
                             className={sprinkles({
                                 fontStyle: "bold",
-                                color: "grey-100",
+                                color: "grey-text",
                             })}
                         >
                             {emailAddress}
@@ -194,7 +194,7 @@ export default function SignInEmailCodePage() {
                             <Spacer space="4" />
                         </>
                     )}
-                    <Box position="relative">
+                    <Box position="relative" zIndex="0">
                         <input
                             ref={inputRef}
                             name="oneTimePassword"

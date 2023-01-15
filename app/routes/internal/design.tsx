@@ -1,6 +1,7 @@
 import {Box} from "~/client/design/box";
 import {ColorSchemeToggleButton} from "~/client/design/color_scheme_toggle_button";
 import {DesignPlaygroundTooltipPage} from "~/client/design/playground/design_playground_tooltip_page";
+import {sprinkles} from "~/shared/styles/styles";
 
 export function meta() {
     return {
@@ -10,7 +11,7 @@ export function meta() {
 
 export default function DesignPlaygroundRoute() {
     return (
-        <main>
+        <main className={sprinkles({backgroundColor: "grey-0"})}>
             <Box padding="4">
                 <ColorSchemeToggleButton />
                 <h1>Design Playground</h1>
@@ -24,51 +25,52 @@ export default function DesignPlaygroundRoute() {
                     justifyContent="center"
                     gap="12"
                     borderRadius="base"
+                    backgroundColor="grey-wash"
                 >
                     <Box
-                        backgroundColor={{light: "grey-0", dark: "grey-10"}}
+                        backgroundColor="grey-0"
                         width="32"
                         height="32"
                         borderRadius="base"
                         boxShadow="elevation-5"
                     />
                     <Box
-                        backgroundColor={{light: "grey-0", dark: "grey-10"}}
+                        backgroundColor="grey-0"
                         width="32"
                         height="32"
                         borderRadius="base"
                         boxShadow="elevation-10"
                     />
                     <Box
-                        backgroundColor={{light: "grey-0", dark: "grey-10"}}
+                        backgroundColor="grey-0"
                         width="32"
                         height="32"
                         borderRadius="base"
                         boxShadow="elevation-20"
                     />
                     <Box
-                        backgroundColor={{light: "grey-0", dark: "grey-10"}}
+                        backgroundColor="grey-0"
                         width="32"
                         height="32"
                         borderRadius="base"
                         boxShadow="elevation-30"
                     />
                     <Box
-                        backgroundColor={{light: "grey-0", dark: "grey-10"}}
+                        backgroundColor="grey-0"
                         width="32"
                         height="32"
                         borderRadius="base"
                         boxShadow="elevation-40"
                     />
                     <Box
-                        backgroundColor={{light: "grey-0", dark: "grey-10"}}
+                        backgroundColor="grey-0"
                         width="32"
                         height="32"
                         borderRadius="base"
                         boxShadow="elevation-50"
                     />
                     <Box
-                        backgroundColor={{light: "grey-0", dark: "grey-10"}}
+                        backgroundColor="grey-0"
                         width="32"
                         height="32"
                         borderRadius="base"

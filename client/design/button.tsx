@@ -151,7 +151,7 @@ function Button(
         },
         quiet: {
             backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
-            color: "grey-100",
+            color: "grey-text",
         },
     };
 
@@ -206,7 +206,7 @@ function Button(
                         className={sprinkles({
                             position: "absolute",
                             inset: "0",
-                            backgroundColor: "grey-100-const",
+                            backgroundColor: "grey-dark",
                             pointerEvents: "none",
                         })}
                         style={{opacity: 0.2}}

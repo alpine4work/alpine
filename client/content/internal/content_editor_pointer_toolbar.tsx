@@ -272,9 +272,9 @@ function ContentEditorPointerToolbarOverlay({
                         display="flex"
                         paddingLeft="1"
                         paddingRight="0.5"
-                        backgroundColor={{light: "grey-0", dark: "grey-5"}}
+                        color="grey-0-const"
+                        backgroundColor="grey-80-const"
                         borderRadius="sm"
-                        border={{light: "grey-10"}}
                         boxShadow="elevation-20"
                         className={
                             animation === "FadingIn"
@@ -581,7 +581,7 @@ function ContentEditorPointerToolbarButton({
             content={
                 <Box paddingY="0.5">
                     {description}
-                    <Box color="grey-60">{keyboardShortcut}</Box>
+                    <Box color="grey-20-const">{keyboardShortcut}</Box>
                 </Box>
             }
             onStateChange={onTooltipStateChange}
@@ -607,18 +607,18 @@ function ContentEditorPointerToolbarButton({
                     // right over our toolbar the tooltips immediately disappear/reappear because
                     // there is no gap in between the hovered elements.
                     paddingRight={dividerRight ? "1" : "0.5"}
-                    borderRight={dividerRight ? {light: "grey-10", dark: "grey-20"} : undefined}
+                    borderRight={dividerRight ? "grey-70-const" : undefined}
                     paddingLeft={dividerLeft ? "1" : undefined}
                 >
                     <Box
                         padding="1"
                         borderRadius="base"
-                        color={isPressed || isActive ? "grey-100" : "grey-80"}
+                        color={isPressed || isActive ? "grey-0-const" : "grey-20-const"}
                         backgroundColor={
                             isPressed || isActive
-                                ? {light: "grey-10", dark: "grey-20"}
+                                ? "grey-60-const"
                                 : isHovered
-                                ? {light: "grey-5", dark: "grey-10"}
+                                ? "grey-70-const"
                                 : undefined
                         }
                     >

@@ -90,9 +90,9 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
         <Box
             display="flex"
             paddingX="1"
-            backgroundColor={{light: "grey-0", dark: "grey-5"}}
+            color="grey-0-const"
+            backgroundColor="grey-80-const"
             borderRadius="sm"
-            border={{light: "grey-10"}}
             boxShadow="elevation-20"
             role="toolbar"
             aria-label="Highlight color selector"
@@ -255,7 +255,7 @@ function ContentEditorHighlightSelectorButton({
                     // right over our toolbar the tooltips immediately disappear/reappear because
                     // there is no gap in between the hovered elements.
                     paddingRight={dividerRight ? "1" : "0"}
-                    borderRight={dividerRight ? {light: "grey-10", dark: "grey-20"} : undefined}
+                    borderRight={dividerRight ? "grey-70-const" : undefined}
                     paddingLeft={dividerLeft ? "1" : "0"}
                 >
                     <FocusRing offset="0">
@@ -266,9 +266,9 @@ function ContentEditorHighlightSelectorButton({
                             borderRadius="base"
                             backgroundColor={
                                 isPressed || isActive
-                                    ? {light: "grey-10", dark: "grey-20"}
+                                    ? "grey-60-const"
                                     : isHovered
-                                    ? {light: "grey-5", dark: "grey-10"}
+                                    ? "grey-70-const"
                                     : undefined
                             }
                             tabIndex={isFocusable ? (wasLastFocused ? 0 : -1) : undefined}
@@ -281,7 +281,7 @@ function ContentEditorHighlightSelectorButton({
                                 width="4"
                                 height="4"
                                 borderRadius="sm"
-                                color="grey-100"
+                                color={highlightColor ? "grey-text" : "grey-0-const"}
                                 backgroundColor={
                                     highlightColor
                                         ? colorByHighlightColor[highlightColor]

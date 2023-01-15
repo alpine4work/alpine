@@ -43,6 +43,7 @@ export default function ChannelRoute() {
                 backgroundColor: {light: "grey-5", dark: "grey-0"},
                 padding: "4",
             })}
+            style={{backgroundColor: "black"}}
         >
             <PostView post={post} />
         </main>

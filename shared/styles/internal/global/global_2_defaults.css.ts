@@ -17,8 +17,8 @@ import {inputPlaceholderColor} from "~/shared/styles/internal/input_placeholder_
 assert(fontSizes.md.fontSize === "1rem");
 
 globalStyle(":root", {
-    backgroundColor: colorSchemeVars["grey-0"],
-    color: colorSchemeVars["grey-100"],
+    backgroundColor: colorSchemeVars["grey-wash"],
+    color: colorSchemeVars["grey-text"],
     ...fontStyles.normal,
 
     // Change the size of 1rem based on whether we're on desktop or mobile.

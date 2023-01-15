@@ -141,7 +141,7 @@ export function DocumentBlobFactory({
         null,
     );
 
-    const backgroundColor = colorScheme === "light" ? "grey-0" : "grey-100";
+    const backgroundColor = colorScheme === "light" ? "grey-0" : "grey-dark";
 
     const baseThemeColorName = settings.baseThemeColor;
     const baseThemeColor = getInterpolatedThemeColor(

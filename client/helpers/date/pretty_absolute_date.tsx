@@ -40,7 +40,7 @@ export function PrettyAbsoluteDate({date}: {date: Date}) {
     }, [date, timeZone]);
 
     return (
-        <Tooltip content={fullDate} placement="bottom" offset="1.5">
+        <Tooltip content={fullDate} placement="bottom">
             <span>{prettyDate}</span>
         </Tooltip>
     );

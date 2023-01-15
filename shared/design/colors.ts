@@ -24,7 +24,19 @@ export const colors = {
     "grey-70": "#515255",
     "grey-80": "#3c3c3f",
     "grey-90": "#27272a",
-    "grey-100": "#121214",
+
+    // Our darkest grey is not a part of the grey color spectrum. In order to
+    // render the product in dark mode, we invert the color spectrum so
+    // `grey-0` becomes `grey-90`. We don't want our darkest grey to participate
+    // in the dark mode color spectrum inversion. A white background in light mode
+    // (`grey-0`) should map to our second darkest grey in dark mode (`grey-90`).
+    // That way we can render our darkest grey color behind `grey-90` to create a
+    // feeling of depth in dark mode.
+    //
+    // We also use our darkest grey as the color of text in light mode while we use
+    // `grey-0` as our text color in dark mode. This requires special handling
+    // because `grey-0` does not map to this color.
+    "grey-dark": "#121214",
 
     "red-5": "#fcf1e8",
     "red-10": "#ffd4c2",

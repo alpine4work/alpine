@@ -113,7 +113,15 @@ export default function HomePage() {
     }, [actionData?.ok, transition.state]);
 
     return (
-        <Box display="flex" justifyContent="center" id={id}>
+        <Box
+            display="flex"
+            justifyContent="center"
+            id={id}
+            backgroundColor={{light: "grey-0", dark: "grey-dark"}}
+            // Create a new z-index stacking context
+            position="relative"
+            zIndex="0"
+        >
             <DocumentBlobFactory
                 settings={useMemo(
                     () => ({...blobSettings, textFillEnabled: false, baseThemeColor: themeColor}),

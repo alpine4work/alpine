@@ -31,7 +31,7 @@ const headerTopMargin = spacing["8"];
 
 export const docClassName = style({
     minHeight: "100%",
-    color: colorSchemeVars["grey-100"],
+    color: colorSchemeVars["grey-text"],
     userSelect: "text",
     // Create a new z-index stacking context.
     position: "relative",

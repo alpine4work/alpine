@@ -19,7 +19,7 @@ export function PostView({post}: {post: PostModel}) {
             maxWidth="160"
             width="full"
             alignSelf="flex-start"
-            backgroundColor={{light: "grey-0", dark: "grey-5"}}
+            backgroundColor="grey-0"
             borderRadius="md"
             boxShadow="elevation-5"
         >

@@ -1,3 +1,4 @@
+import classNames from "classnames";
 import {Link as LinkIcon, X} from "phosphor-react";
 import {Mark} from "prosemirror-model";
 import {EditorView} from "prosemirror-view";
@@ -8,7 +9,10 @@ import {FocusRing} from "~/client/design/focus_ring";
 import {Tooltip} from "~/client/design/tooltip";
 import {spacing} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
-import {sprinkles} from "~/shared/styles/styles";
+import {
+    darkColorSchemeInputPlaceholderColorConstClassName,
+    sprinkles,
+} from "~/shared/styles/styles";
 
 export function ContentEditorLinkInput({
     viewRef,
@@ -70,9 +74,9 @@ export function ContentEditorLinkInput({
             // Maybe the width should grow with the URL length for a bit? Until a
             // max width?
             width={url.length > 40 ? "96" : "64"}
-            backgroundColor={{light: "grey-0", dark: "grey-5"}}
+            color="grey-0-const"
+            backgroundColor="grey-80-const"
             borderRadius="sm"
-            border={{light: "grey-10"}}
             boxShadow="elevation-20"
             position="relative"
             onKeyDown={event => {
@@ -87,7 +91,7 @@ export function ContentEditorLinkInput({
                 className={sprinkles({
                     pointerEvents: "none",
                     position: "absolute",
-                    color: "grey-80",
+                    color: "grey-20-const",
                     left: "2",
                     top: "2",
                 })}
@@ -95,15 +99,18 @@ export function ContentEditorLinkInput({
             <input
                 ref={inputRef}
                 type="text"
-                className={sprinkles({
-                    flex: "1",
-                    height: "full",
-                    paddingLeft: "8",
-                    paddingRight: "1",
-                    fontSize: "xs",
-                    color: "grey-100",
-                    backgroundColor: "transparent",
-                })}
+                className={classNames(
+                    darkColorSchemeInputPlaceholderColorConstClassName,
+                    sprinkles({
+                        flex: "1",
+                        height: "full",
+                        paddingLeft: "8",
+                        paddingRight: "1",
+                        fontSize: "xs",
+                        color: "grey-0-const",
+                        backgroundColor: "transparent",
+                    }),
+                )}
                 placeholder="https://example.com"
                 disabled={isDisabled}
                 value={url}
@@ -162,11 +169,11 @@ function ContentEditorLinkInputClearButton({
                             width: "5",
                             height: "5",
                             borderRadius: "base",
-                            color: isPressed ? "grey-100" : "grey-80",
+                            color: isPressed ? "grey-0-const" : "grey-20-const",
                             backgroundColor: isPressed
-                                ? {light: "grey-10", dark: "grey-20"}
+                                ? "grey-60-const"
                                 : isHovered
-                                ? {light: "grey-5", dark: "grey-10"}
+                                ? "grey-70-const"
                                 : undefined,
                         })}
                     >
@@ -192,7 +199,7 @@ function ContentEditorLinkInputSaveButton({
 
     return (
         <Box {...hoverProps} paddingY="1.5">
-            <Box paddingLeft="1" borderLeft={{light: "grey-10", dark: "grey-20"}} marginLeft="1">
+            <Box paddingLeft="1" borderLeft="grey-70-const" marginLeft="1">
                 <FocusRing offset="0">
                     <button
                         {...buttonProps}
@@ -204,11 +211,11 @@ function ContentEditorLinkInputSaveButton({
                             paddingX: "1.5",
                             height: "5",
                             borderRadius: "base",
-                            color: isPressed ? "grey-100" : "grey-80",
+                            color: isPressed ? "grey-0-const" : "grey-20-const",
                             backgroundColor: isPressed
-                                ? {light: "grey-10", dark: "grey-20"}
+                                ? "grey-60-const"
                                 : isHovered
-                                ? {light: "grey-5", dark: "grey-10"}
+                                ? "grey-70-const"
                                 : undefined,
                         })}
                     >

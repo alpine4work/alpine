@@ -46,7 +46,9 @@ for (const [nameAndShade, color] of Object.entries(colors)) {
     const [name, shadeString] = nameAndShade.split("-", 2);
     assert(name && shadeString);
     const shade = parseInt(shadeString, 10);
-    assert(!isNaN(shade));
+
+    // Ignore colors which do not have a shade number.
+    if (isNaN(shade)) continue;
 
     getOrSetDefaultMapValue(colorByShadeByName, name, () => new Map()).set(shade, color);
 }
@@ -69,11 +71,17 @@ for (const [name, colorByShade] of colorByShadeByName) {
     invertedColorByShadeByName.set(name, invertedColorByShade);
 }
 
-const invertedColors = Object.fromEntries<string>(
+const colorsWithShade = Object.fromEntries<string>(
+    Array.from(colorByShadeByName, ([name, colorByShade]) =>
+        Array.from(colorByShade, ([shade, color]) => [`${name}-${shade}`, color] as const),
+    ).flat(),
+) as {readonly [C in Color & `${string}-${number}`]: `#${string}`};
+
+const invertedColorsWithShade = Object.fromEntries<string>(
     Array.from(invertedColorByShadeByName, ([name, invertedColorByShade]) =>
         Array.from(invertedColorByShade, ([shade, color]) => [`${name}-${shade}`, color] as const),
     ).flat(),
-) as {readonly [C in Color]: `#${string}`};
+) as {readonly [C in Color & `${string}-${number}`]: `#${string}`};
 
 const selectionColors = Object.fromEntries(
     [...themeColors, "grey" as const].map(themeColor => {
@@ -112,15 +120,15 @@ export type CssVarFunction = `var(--${string})` | `var(--${string}, ${string | n
  * the context.
  */
 const baseColorSchemeVars: {
-    [K in keyof typeof colors | keyof typeof selectionColors]: CssVarFunction;
+    [K in keyof typeof colorsWithShade | keyof typeof selectionColors]: CssVarFunction;
 } = createGlobalTheme(":root", {
-    ...colors,
+    ...colorsWithShade,
     ...selectionColors,
 });
 
 globalStyle(darkColorSchemeSelector, {
     vars: assignVars(baseColorSchemeVars, {
-        ...invertedColors,
+        ...invertedColorsWithShade,
         ...invertedSelectionColors,
     }),
 });
@@ -133,8 +141,11 @@ globalStyle(darkColorSchemeSelector, {
  * prefer the variable colors.
  */
 const constantColors = Object.fromEntries(
-    Object.entries(colors).map(([colorName, colorHexCode]) => [`${colorName}-const`, colorHexCode]),
-) as {[C in Color as `${C}-const`]: string};
+    Object.entries(colorsWithShade).map(([colorName, colorHexCode]) => [
+        `${colorName}-const`,
+        colorHexCode,
+    ]),
+) as {[C in keyof typeof colorsWithShade as `${C}-const`]: string};
 
 function createTheme(color: ThemeColor) {
     return {
@@ -169,10 +180,39 @@ function createTheme(color: ThemeColor) {
 const themeColorSchemeVars: {[K in keyof ReturnType<typeof createTheme>]: CssVarFunction} =
     createGlobalTheme(":root", createTheme(defaultThemeColor));
 
+/**
+ * Special shades of grey that do not follow the inverted grey color spectrum.
+ */
+const specialGreyColorVars = createGlobalTheme(":root", {
+    /**
+     * The color of text. `grey-dark` in light mode and `grey-0` in dark mode.
+     */
+    "grey-text": colors["grey-dark"],
+
+    /**
+     * The background color behind any panels which gives the product a sense of
+     * depth. In light mode, this is a darker shade of grey than our white panels.
+     * In dark mode, this is a darker shade of grey than our `grey-90` panels.
+     */
+    "grey-wash": colors["grey-5"],
+});
+
+globalStyle(darkColorSchemeSelector, {
+    vars: assignVars(specialGreyColorVars, {
+        "grey-text": colors["grey-0"],
+        "grey-wash": colors["grey-dark"],
+    }),
+});
+
 export const colorSchemeVars = {
+    // Spread `colors` first. `baseColorSchemeVars` will override most of our
+    // colors but any non-shade colors (e.g. `grey-dark`) will be included as a
+    // constant here.
+    ...colors,
     ...baseColorSchemeVars,
     ...constantColors,
     ...themeColorSchemeVars,
+    ...specialGreyColorVars,
 };
 
 /**
