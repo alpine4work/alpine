@@ -6,7 +6,7 @@ import {Context} from "~/shared/context/context";
 import {ContextModuleBase} from "~/shared/context/context_module_base";
 import {TracerContextModule} from "~/shared/context/tracer_context_module";
 import {Replace} from "~/shared/helpers/types/replace";
-import {Id} from "~/shared/id/id";
+import {AccountId, SessionId} from "~/shared/id/types/id_types";
 
 /**
  * Context module for determining whether a user is authenticated against our
@@ -101,7 +101,7 @@ export class AuthenticatedAuthContextModule extends UnauthenticatedAuthContextMo
     /**
      * Get the ID of the session we authenticated with.
      */
-    public getSessionId(): Id {
+    public getSessionId(): SessionId {
         return this._session.id;
     }
 
@@ -109,7 +109,7 @@ export class AuthenticatedAuthContextModule extends UnauthenticatedAuthContextMo
      * What is the ID of the account connected to our service? Returns the same ID
      * as `getAccount()` but without loading the account from the database.
      */
-    public getAccountId(): Id {
+    public getAccountId(): AccountId {
         return this._session.accountId;
     }
 

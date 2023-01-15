@@ -1,9 +1,10 @@
 import {getSpacesTableForTest} from "~/server/dynamo/spaces_table";
 import {TestContext} from "~/server/dynamo/test/create_test_context";
-import {Id, generateId} from "~/shared/id/id";
+import {generateId} from "~/shared/id/id";
+import {SpaceId} from "~/shared/id/types/id_types";
 
 export type TestSpace = {
-    readonly id: Id;
+    readonly id: SpaceId;
 };
 
 /**
@@ -14,7 +15,7 @@ export type TestSpace = {
  */
 export function createTestSpace(context: TestContext): TestSpace {
     const SpacesTable = getSpacesTableForTest();
-    const spaceId = generateId();
+    const spaceId = generateId<SpaceId>();
 
     beforeAll(async () => {
         await SpacesTable.createItem(context, {

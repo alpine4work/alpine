@@ -3,11 +3,12 @@ import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {getSpacesTableForTest} from "~/server/dynamo/spaces_table";
 import {TestContext} from "~/server/dynamo/test/create_test_context";
 import {TestSpace} from "~/server/dynamo/test/create_test_space";
-import {Id, generateId} from "~/shared/id/id";
+import {generateId} from "~/shared/id/id";
+import {AccountId, SessionId} from "~/shared/id/types/id_types";
 
 export type TestSession = {
-    readonly id: Id;
-    readonly accountId: Id;
+    readonly id: SessionId;
+    readonly accountId: AccountId;
     readonly item: SessionItem;
 };
 
@@ -21,8 +22,8 @@ export type TestSession = {
 export function createTestSession(context: TestContext, space: TestSpace): TestSession {
     const AccountsTable = getAccountsTableForTest();
     const SpacesTable = getSpacesTableForTest();
-    const sessionId = generateId();
-    const accountId = generateId();
+    const sessionId = generateId<SessionId>();
+    const accountId = generateId<AccountId>();
 
     const createdTime = new Date();
 

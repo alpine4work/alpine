@@ -1,5 +1,10 @@
 import {DocumentContentStepSchema} from "~/shared/documents/document_content_schema";
 import {ErrorSchema} from "~/shared/error/error_schema";
+import {
+    ContentEditorClientId,
+    DocumentCollaborationMessageId,
+    WebSocketConnectionId,
+} from "~/shared/id/types/id_types";
 import {ProsemirrorSelectionSchema} from "~/shared/prosemirror/prosemirror_selection_schema";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 
@@ -25,10 +30,10 @@ export const DocumentCollaborationMessageFromClientSchema = Schema.union({
         type: Schema.value("UpdateContent"),
         version: Schema.integer,
         steps: Schema.array(DocumentContentStepSchema),
-        clientId: Schema.id,
+        clientId: Schema.id<ContentEditorClientId>(),
         // NOTE(calebmer): I wonder if message id should be a part of the
         // `WebSocketServer` abstraction?
-        messageId: Schema.id,
+        messageId: Schema.id<DocumentCollaborationMessageId>(),
         /**
          * Atomically update our presence state in the same action as we update
          * our content.
@@ -62,12 +67,12 @@ export const DocumentCollaborationMessageFromServerSchema = Schema.union({
         steps: Schema.array(
             Schema.object({
                 step: DocumentContentStepSchema,
-                clientId: Schema.id,
+                clientId: Schema.id<ContentEditorClientId>(),
             }),
         ),
         presenceStates: Schema.array(
             Schema.object({
-                connectionId: Schema.id,
+                connectionId: Schema.id<WebSocketConnectionId>(),
                 state: DocumentCollaborationPresenceStateSchema,
             }),
         ),
@@ -84,14 +89,14 @@ export const DocumentCollaborationMessageFromServerSchema = Schema.union({
         type: Schema.value("UpdateContentBeforePersistence"),
         newVersion: Schema.integer,
         steps: Schema.array(DocumentContentStepSchema),
-        clientId: Schema.id,
-        acknowledgeMessageId: Schema.id,
+        clientId: Schema.id<ContentEditorClientId>(),
+        acknowledgeMessageId: Schema.id<DocumentCollaborationMessageId>(),
         /**
          * Atomically update this other presence state in the same action as we update
          * content.
          */
         updateOtherPresenceState: Schema.object({
-            connectionId: Schema.id,
+            connectionId: Schema.id<WebSocketConnectionId>(),
             state: DocumentCollaborationPresenceStateSchema.nullable(),
         }),
     }),
@@ -105,7 +110,7 @@ export const DocumentCollaborationMessageFromServerSchema = Schema.union({
     }),
     UpdateOtherPresenceState: Schema.object({
         type: Schema.value("UpdateOtherPresenceState"),
-        connectionId: Schema.id,
+        connectionId: Schema.id<WebSocketConnectionId>(),
         state: DocumentCollaborationPresenceStateSchema.nullable(),
     }),
     Error: Schema.object({

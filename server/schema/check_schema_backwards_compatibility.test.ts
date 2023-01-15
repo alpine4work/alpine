@@ -726,14 +726,14 @@ test("any schema may convert into unknown", () => {
 test("id may convert into string", () => {
     testCase({
         isBackwardsCompatible: true,
-        lastSchema: Schema.id,
-        nextSchema: Schema.id,
+        lastSchema: Schema.id(),
+        nextSchema: Schema.id(),
         sampleValues: [generateId()],
     });
 
     testCase({
         isBackwardsCompatible: true,
-        lastSchema: Schema.id,
+        lastSchema: Schema.id(),
         nextSchema: Schema.string,
         sampleValues: [generateId()],
     });
@@ -741,7 +741,7 @@ test("id may convert into string", () => {
     testCase({
         isBackwardsCompatible: false,
         lastSchema: Schema.string,
-        nextSchema: Schema.id,
+        nextSchema: Schema.id(),
         sampleValues: ["", "foo"],
     });
 });

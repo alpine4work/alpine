@@ -7,6 +7,7 @@ import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
 import {DocumentModel} from "~/shared/documents/document_model";
 import {NotFoundError} from "~/shared/error/error";
+import {DocumentId} from "~/shared/id/types/id_types";
 import {Schema} from "~/shared/schema/schema";
 import {sprinkles} from "~/shared/styles/styles";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
@@ -16,7 +17,7 @@ const schema = Schema.object({
 });
 
 export async function loader({params, context}: LoaderArgs) {
-    const documentId = Schema.id.deserialize(params.document_id ?? null);
+    const documentId = Schema.id<DocumentId>().deserialize(params.document_id ?? null);
 
     const document = await getDocument(await context.auth.authenticate(), documentId);
     if (!document) throw new NotFoundError("Document not found");

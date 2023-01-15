@@ -46,16 +46,16 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         clientTimeOffsetMs: Schema.integer,
     },
     trace: {
-        traceId: Schema.id,
-        spanId: Schema.id,
-        parentId: Schema.id,
+        traceId: Schema.id(),
+        spanId: Schema.id(),
+        parentId: Schema.id(),
         link: {
-            spanId: Schema.id,
-            traceId: Schema.id,
+            spanId: Schema.id(),
+            traceId: Schema.id(),
         },
     },
     js: {
-        realmId: Schema.id,
+        realmId: Schema.id(),
         host: Schema.enum(["Web", "Node", "CloudflareWorker"]),
         nodeEnv: IdentifierStringSchema,
     },
@@ -113,10 +113,10 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         displayMessage: Schema.string,
     },
     context: {
-        accountId: Schema.id,
-        spaceId: Schema.id,
-        documentId: Schema.id,
-        channelId: Schema.id,
+        accountId: Schema.id(),
+        spaceId: Schema.id(),
+        documentId: Schema.id(),
+        channelId: Schema.id(),
     },
     dynamodb: {
         action: IdentifierStringSchema,
@@ -158,7 +158,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         },
     },
     webSocket: {
-        connectionId: Schema.id,
+        connectionId: Schema.id(),
         messageType: IdentifierStringSchema,
     },
 };

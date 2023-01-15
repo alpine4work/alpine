@@ -16,7 +16,8 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {quote} from "~/shared/helpers/string/quote";
-import {Id, generateId} from "~/shared/id/id";
+import {generateId} from "~/shared/id/id";
+import {AccountId, SessionId} from "~/shared/id/types/id_types";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
 import {Schema} from "~/shared/schema/schema";
 
@@ -25,7 +26,7 @@ const AccountsTable = DynamoTableSchema.new({
     partitions: {
         Account: {
             partitionKeyAttributes: {
-                accountId: DynamoKeyAttributeSchema.id,
+                accountId: DynamoKeyAttributeSchema.id<AccountId>(),
             },
             sortRanges: {
                 Attributes: {
@@ -73,7 +74,7 @@ const AccountsTable = DynamoTableSchema.new({
                          * We expect the account referenced by this session to always exist.
                          * When deleting an account, we should delete these items first.
                          */
-                        accountId: Schema.id,
+                        accountId: Schema.id<AccountId>(),
 
                         /**
                          * Have we successfully delivered an email to this address and has someone
@@ -146,7 +147,7 @@ const AccountsTable = DynamoTableSchema.new({
          */
         Session: {
             partitionKeyAttributes: {
-                sessionId: DynamoKeyAttributeSchema.id,
+                sessionId: DynamoKeyAttributeSchema.id<SessionId>(),
             },
             sortRanges: {
                 Attributes: {
@@ -158,7 +159,7 @@ const AccountsTable = DynamoTableSchema.new({
                          * We expect the account referenced by this session to always exist.
                          * When deleting an account, we should delete these items first.
                          */
-                        accountId: Schema.id,
+                        accountId: Schema.id<AccountId>(),
 
                         /**
                          * When was this session created?
@@ -245,7 +246,7 @@ export function createAccountForAlphaTransactionEntries({
     name,
     emailAddress,
 }: {
-    id: Id;
+    id: AccountId;
     name: string;
     emailAddress: EmailAddress;
 }): Array<DynamoTransactionEntry> {
@@ -427,7 +428,7 @@ export function attemptOneTimePasswordSignIn(
         userAgent: string | null;
     },
 ): Promise<{
-    sessionId: Id;
+    sessionId: SessionId;
 }> {
     return retryDynamoConditionCheckErrors(async () => {
         const accountEmailAddressItem = await AccountsTable.getItem(context, {
@@ -484,7 +485,7 @@ export function attemptOneTimePasswordSignIn(
                 )} again.`,
             });
         } else {
-            const sessionId = generateId();
+            const sessionId = generateId<SessionId>();
 
             await DynamoTableSchema.executeTransaction(context, [
                 AccountsTable.transactionDirectlyUpdateItem({
@@ -589,24 +590,24 @@ function accountEmailAddressSignInLockedError(hoursUntilUnlocked: number) {
  * account" or bot acting against our systems.
  */
 export type Account = {
-    readonly id: Id;
+    readonly id: AccountId;
     readonly name: string;
     readonly createdTime: Date;
     readonly hasInternalAccess?: boolean;
 };
 
 export class Session {
-    public readonly id: Id;
+    public readonly id: SessionId;
     public readonly createdTime: Date;
-    public readonly accountId: Id;
+    public readonly accountId: AccountId;
 
-    private constructor(sessionId: Id, sessionItem: SessionItem) {
+    private constructor(sessionId: SessionId, sessionItem: SessionItem) {
         this.id = sessionId;
         this.createdTime = sessionItem.createdTime;
         this.accountId = sessionItem.accountId;
     }
 
-    public static async get(context: DynamoContext, sessionId: Id): Promise<Session | null> {
+    public static async get(context: DynamoContext, sessionId: SessionId): Promise<Session | null> {
         const sessionItem = await AccountsTable.getItem(context, {
             partitionType: "Session",
             sortRangeType: "Attributes",
@@ -620,7 +621,7 @@ export class Session {
      * Allow creating a session class directly from ID and database item object
      * in tests. Can only run in Jest tests.
      */
-    public static test(sessionId: Id, sessionItem: SessionItem) {
+    public static test(sessionId: SessionId, sessionItem: SessionItem) {
         assert(typeof jest !== "undefined");
         return new Session(sessionId, sessionItem);
     }

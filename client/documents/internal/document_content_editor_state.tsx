@@ -51,7 +51,12 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {Lazy} from "~/shared/helpers/control/lazy";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
-import {Id, generateId} from "~/shared/id/id";
+import {generateId} from "~/shared/id/id";
+import {
+    ContentEditorClientId,
+    DocumentCollaborationMessageId,
+    WebSocketConnectionId,
+} from "~/shared/id/types/id_types";
 import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema";
 
 export type DocumentContentEditorState = {
@@ -84,9 +89,9 @@ export type DocumentContentEditorState = {
      */
     readonly pendingSendableSteps: {
         readonly steps: ReadonlyArray<Step>;
-        readonly clientId: Id;
+        readonly clientId: ContentEditorClientId;
         readonly version: number;
-        readonly messageId: Id;
+        readonly messageId: DocumentCollaborationMessageId;
         readonly shouldSendToServerRef: MutableRefObject<boolean>;
     } | null;
 
@@ -112,13 +117,16 @@ export type DocumentContentEditorState = {
      * An `ImmutableMap` since we update pretty frequently so we want fast
      * immutable map update performance.
      */
-    readonly otherPresenceStateByConnectionId: ImmutableMap<Id, DocumentCollaborationPresenceState>;
+    readonly otherPresenceStateByConnectionId: ImmutableMap<
+        WebSocketConnectionId,
+        DocumentCollaborationPresenceState
+    >;
 };
 
 export function getInitialDocumentContentEditorState(
     initialDocument: DocumentModel,
 ): DocumentContentEditorState {
-    const editorState = ContentEditorState.createCollab({
+    const editorState = ContentEditorState.createCollaborative({
         version: initialDocument.version,
         content: initialDocument.content,
     });
@@ -151,8 +159,8 @@ type EditDocumentContentEditorAction = {
 type ReceiveStepsDocumentContentEditorAction = {
     readonly type: "ReceiveSteps";
     readonly newVersion: number;
-    readonly steps: ReadonlyArray<{readonly step: Step; readonly clientId: Id}>;
-    readonly acknowledgeMessageId: Id | null;
+    readonly steps: ReadonlyArray<{readonly step: Step; readonly clientId: ContentEditorClientId}>;
+    readonly acknowledgeMessageId: DocumentCollaborationMessageId | null;
 };
 
 type AugmentRememberedStepsDocumentContentEditorAction = {
@@ -163,12 +171,15 @@ type AugmentRememberedStepsDocumentContentEditorAction = {
 
 type SetAllOtherPresenceStatesDocumentContentEditorAction = {
     readonly type: "SetAllOtherPresenceStates";
-    readonly stateByConnectionId: ImmutableMap<Id, DocumentCollaborationPresenceState>;
+    readonly stateByConnectionId: ImmutableMap<
+        WebSocketConnectionId,
+        DocumentCollaborationPresenceState
+    >;
 };
 
 type UpdateOtherPresenceStateDocumentContentEditorAction = {
     readonly type: "UpdateOtherPresenceState";
-    readonly connectionId: Id;
+    readonly connectionId: WebSocketConnectionId;
     readonly state: DocumentCollaborationPresenceState | null;
 };
 
@@ -324,7 +335,7 @@ function actuallyReduceDocumentContentEditorState(
             if (steps.length === 0) return oldState;
 
             let editorState = oldState.editorState;
-            let stepTransaction: Array<{step: Step; clientId: Id}> = [];
+            let stepTransaction: Array<{step: Step; clientId: ContentEditorClientId}> = [];
 
             // `prosemirror-collab` needs steps from our `clientId` to be at the beginning
             // of the `receiveSteps()` call. So call `receiveSteps()` whenever the
@@ -701,7 +712,7 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
     // have 100 cursors but only 1 is moving you only need to recompute that 1.
     const presenceStates = useMemo(() => {
         let presenceStates: Array<{
-            connectionId: Id;
+            connectionId: WebSocketConnectionId;
             selection: Selection;
         }> = [];
 

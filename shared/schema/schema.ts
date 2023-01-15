@@ -253,8 +253,14 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
 
     /**
      * Accept any `Id` value.
+     *
+     * A function so that you may pass in a nominal ID type.
      */
-    public static id = new Schema<Id>({
+    public static id<Value extends Id>(): Schema<Value> {
+        return this._id as any;
+    }
+
+    private static _id = new Schema<Id>({
         description: {type: "Id"},
         serialize: value => value,
         deserialize: value => {

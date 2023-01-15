@@ -1,7 +1,7 @@
 import {documentFallbackTitle} from "~/shared/content/document_fallback_title";
 import {DocumentContent, DocumentContentSchema} from "~/shared/documents/document_content_schema";
 import {assert} from "~/shared/helpers/control/assert";
-import {Id} from "~/shared/id/id";
+import {DocumentId, SpaceId} from "~/shared/id/types/id_types";
 import {Model} from "~/shared/schema/model";
 import {Schema} from "~/shared/schema/schema";
 
@@ -19,8 +19,8 @@ import {Schema} from "~/shared/schema/schema";
 export class DocumentModel
     extends Model(
         Schema.object({
-            id: Schema.id,
-            spaceId: Schema.id,
+            id: Schema.id<DocumentId>(),
+            spaceId: Schema.id<SpaceId>(),
             createdTime: Schema.date,
             version: Schema.integer,
             content: DocumentContentSchema,
@@ -74,7 +74,7 @@ export function addFallbackToDocumentTitle(title: string): string {
  * accept either underlying model.
  */
 export interface DocumentPreviewInterface {
-    readonly id: Id;
+    readonly id: DocumentId;
     getTitle(): string;
     getTitleWithoutFallback(): string;
 }
@@ -88,9 +88,9 @@ export interface DocumentPreviewInterface {
 export class DocumentPreviewModel
     extends Model(
         Schema.object({
-            id: Schema.id,
+            id: Schema.id<DocumentId>(),
             createdTime: Schema.date,
-            spaceId: Schema.id,
+            spaceId: Schema.id<SpaceId>(),
             version: Schema.integer,
             titleWithoutFallback: Schema.string,
         }),

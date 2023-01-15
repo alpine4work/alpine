@@ -17,7 +17,8 @@ import {trimSpacesFromRange} from "~/client/content/internal/content_editor_pros
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {Id, generateId, isId} from "~/shared/id/id";
+import {generateId, isId} from "~/shared/id/id";
+import {ContentEditorClientId} from "~/shared/id/types/id_types";
 
 function buildPlugins(schema: ContentProsemirrorSchema) {
     return [
@@ -56,7 +57,7 @@ export class ContentEditorState<Content extends Node> {
     /**
      * Creates a new collaborative state for our content editor.
      */
-    public static createCollab<Content extends Node>({
+    public static createCollaborative<Content extends Node>({
         version,
         content,
     }: {
@@ -96,7 +97,7 @@ export class ContentEditorState<Content extends Node> {
             }),
         );
 
-        assert(state.isCollab());
+        assert(state.isCollaborative());
         return state;
     }
 
@@ -133,14 +134,14 @@ export class ContentEditorState<Content extends Node> {
     /**
      * Is this content editor state collaborative?
      */
-    public isCollab(): boolean {
+    public isCollaborative(): boolean {
         return isCollabPlugin(this._state.plugins[this._state.plugins.length - 1]!);
     }
 
     /**
      * Gets the ID we generated for this client when it was created.
      */
-    public getClientId(): Id {
+    public getClientId(): ContentEditorClientId {
         const collabPlugin = this._state.plugins[this._state.plugins.length - 1]!;
         assert(isCollabPlugin(collabPlugin));
         return collabPlugin.spec.config.clientID;
@@ -153,7 +154,7 @@ export class ContentEditorState<Content extends Node> {
      * (Can check with `isCollab()`.)
      */
     public getVersion(): number {
-        assert(this.isCollab());
+        assert(this.isCollaborative());
         return getVersion(this._state);
     }
 
@@ -164,7 +165,7 @@ export class ContentEditorState<Content extends Node> {
      * (Can check with `isCollab()`.)
      */
     public hasSendableSteps(): boolean {
-        assert(this.isCollab());
+        assert(this.isCollaborative());
         assert(collabPluginKey);
         return collabPluginKey.getState(this._state).unconfirmed.length > 0;
     }
@@ -180,9 +181,9 @@ export class ContentEditorState<Content extends Node> {
         version: number;
         steps: ReadonlyArray<Step>;
         origins: ReadonlyArray<Transaction>;
-        clientId: Id;
+        clientId: ContentEditorClientId;
     } | null {
-        assert(this.isCollab());
+        assert(this.isCollaborative());
 
         const result = sendableSteps(this._state);
         if (!result) return null;
@@ -193,7 +194,7 @@ export class ContentEditorState<Content extends Node> {
             version: result.version,
             steps: result.steps,
             origins: result.origins,
-            clientId: result.clientID,
+            clientId: result.clientID as ContentEditorClientId,
         };
     }
 
@@ -203,8 +204,10 @@ export class ContentEditorState<Content extends Node> {
      * May only call this method if the content editor state is collaborative.
      * (Can check with `isCollab()`.)
      */
-    public receiveSteps(steps: Iterable<{step: Step; clientId: Id}>): ContentEditorState<Content> {
-        assert(this.isCollab());
+    public receiveSteps(
+        steps: Iterable<{step: Step; clientId: ContentEditorClientId}>,
+    ): ContentEditorState<Content> {
+        assert(this.isCollaborative());
 
         const stepsWithoutClientId = [];
         const clientIds = [];
@@ -231,7 +234,7 @@ export class ContentEditorState<Content extends Node> {
      * This is the content as the server currently sees it.
      */
     public getContentWithoutSendableSteps(): Content {
-        assert(this.isCollab());
+        assert(this.isCollaborative());
 
         if (!this._contentWithoutSendableSteps) {
             assert(collabPluginKey);

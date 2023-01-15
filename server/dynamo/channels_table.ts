@@ -6,7 +6,8 @@ import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/d
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
 import {ChannelModel} from "~/shared/channels/channel_model";
 import {assert} from "~/shared/helpers/control/assert";
-import {Id, generateId} from "~/shared/id/id";
+import {generateId} from "~/shared/id/id";
+import {ChannelId, SpaceId} from "~/shared/id/types/id_types";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
 import {Schema} from "~/shared/schema/schema";
 
@@ -15,13 +16,13 @@ const ChannelsTable = DynamoTableSchema.new({
     partitions: {
         Channel: {
             partitionKeyAttributes: {
-                channelId: DynamoKeyAttributeSchema.id,
+                channelId: DynamoKeyAttributeSchema.id<ChannelId>(),
             },
             sortRanges: {
                 Attributes: {
                     sortKeyAttributes: {},
                     attributes: Schema.object({
-                        spaceId: Schema.id,
+                        spaceId: Schema.id<SpaceId>(),
 
                         /** When was this channel created? */
                         createdTime: Schema.date,
@@ -56,7 +57,7 @@ export async function seedTestChannels(context: DynamoContext) {
  */
 export async function createChannel(
     context: RequestContext,
-    {spaceId, name}: {spaceId: Id; name: string},
+    {spaceId, name}: {spaceId: SpaceId; name: string},
 ): Promise<ChannelModel> {
     await authorizeSpaceAccess(context, spaceId);
 
@@ -78,7 +79,10 @@ export async function createChannel(
  * doesn't exist and throws an error if the channel exists but you don't have
  * access to the channel.
  */
-export async function getChannel(context: RequestContext, id: Id): Promise<ChannelModel | null> {
+export async function getChannel(
+    context: RequestContext,
+    id: ChannelId,
+): Promise<ChannelModel | null> {
     const channelItem = await ChannelsTable.getItem(context, {
         partitionType: "Channel",
         sortRangeType: "Attributes",

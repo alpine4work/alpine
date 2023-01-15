@@ -23,6 +23,7 @@ import {ProcessContextModule} from "~/shared/context/process_context_module";
 import {TracerContextModule} from "~/shared/context/tracer_context_module";
 import {InternalError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {DocumentId} from "~/shared/id/types/id_types";
 import {Schema} from "~/shared/schema/schema";
 import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header";
 
@@ -182,7 +183,7 @@ async function handleFetch(
             const path = url.pathname.slice("/durable-objects/".length).split("/");
             switch (path[0]) {
                 case "documents": {
-                    const documentId = Schema.id.deserialize(path[1] ?? null);
+                    const documentId = Schema.id<DocumentId>().deserialize(path[1] ?? null);
 
                     const durableObjectId =
                         env.DocumentCollaborationDurableObjectNamespace.idFromName(documentId);

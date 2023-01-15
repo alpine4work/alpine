@@ -9,7 +9,8 @@ import {Interval, createInterval} from "~/shared/helpers/async/interval";
 import {assert} from "~/shared/helpers/control/assert";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {expirationTimeoutMs} from "~/shared/helpers/web_socket_shared";
-import {Id, generateId} from "~/shared/id/id";
+import {generateId} from "~/shared/id/id";
+import {SessionId, WebSocketConnectionId} from "~/shared/id/types/id_types";
 import {UnionSchema} from "~/shared/schema/schema";
 import {TracerSpan} from "~/shared/tracer/tracer_span";
 
@@ -38,14 +39,14 @@ export class WebSocketServer<
     private readonly _messageFromServerSchema: UnionSchema<MessageFromServer>;
     private readonly _createConnection: (connection: {
         request: Request;
-        connectionId: Id;
+        connectionId: WebSocketConnectionId;
         sendMessage: (context: ProcessContext, message: MessageFromServer) => void;
         sendMessageToOthers: (context: ProcessContext, message: MessageFromServer) => void;
         iterateOtherConnections: () => Iterable<Connection>;
     }) => Connection;
 
     private readonly _connections = new Map<
-        Id,
+        WebSocketConnectionId,
         WebSocketServerConnectionWrapper<MessageFromClient, Connection>
     >();
     private _expirationInterval: Interval | null = null;
@@ -56,7 +57,7 @@ export class WebSocketServer<
         messageFromServerSchema: UnionSchema<MessageFromServer>,
         createConnection: (connection: {
             request: Request;
-            connectionId: Id;
+            connectionId: WebSocketConnectionId;
             sendMessage: (context: ProcessContext, message: MessageFromServer) => void;
             sendMessageToOthers: (context: ProcessContext, message: MessageFromServer) => void;
             iterateOtherConnections: () => Iterable<Connection>;
@@ -126,7 +127,7 @@ export class WebSocketServer<
             context: {accountId: requestContext.auth.getAccountId()},
         });
 
-        const connectionId = generateId();
+        const connectionId = generateId<WebSocketConnectionId>();
 
         const actualConnection = this._createConnection({
             request,
@@ -304,12 +305,12 @@ class WebSocketServerConnectionWrapper<
     MessageFromClient extends {type: string},
     Connection extends WebSocketServerConnectionBase<MessageFromClient>,
 > {
-    public readonly id: Id;
+    public readonly id: WebSocketConnectionId;
     private readonly _processContext: ProcessContext;
     private readonly _socket: WebSocket;
     private readonly _messageFromClientSchema: UnionSchema<MessageFromClient>;
     public readonly connection: Connection;
-    private readonly _sessionId: Id;
+    private readonly _sessionId: SessionId;
     private _lastMessageTimeMs: number = Date.now();
 
     constructor({
@@ -320,12 +321,12 @@ class WebSocketServerConnectionWrapper<
         connection,
         sessionId,
     }: {
-        id: Id;
+        id: WebSocketConnectionId;
         processContext: ProcessContext;
         socket: WebSocket;
         messageFromClientSchema: UnionSchema<MessageFromClient>;
         connection: Connection;
-        sessionId: Id;
+        sessionId: SessionId;
     }) {
         this.id = id;
         this._processContext = processContext;

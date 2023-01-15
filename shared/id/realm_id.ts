@@ -1,6 +1,7 @@
-import {Id, generateId} from "~/shared/id/id";
+import {generateId} from "~/shared/id/id";
+import {RealmId} from "~/shared/id/types/id_types";
 
-let realmId: Id | undefined;
+let realmId: RealmId | undefined;
 
 /**
  * A [realm][1] is an instance of the JavaScript platform. A window in the browser, web
@@ -11,7 +12,7 @@ let realmId: Id | undefined;
  *
  * [1]: https://stackoverflow.com/questions/49832187/how-to-understand-js-realms
  */
-export function getRealmId(): Id {
-    realmId ??= generateId();
+export function getRealmId(): RealmId {
+    realmId ??= generateId<RealmId>();
     return realmId;
 }

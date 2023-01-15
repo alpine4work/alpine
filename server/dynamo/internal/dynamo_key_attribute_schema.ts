@@ -154,7 +154,11 @@ export class DynamoKeyAttributeSchema<Value> {
     /**
      * IDs are fully random and have no useful order.
      */
-    public static id = new DynamoKeyAttributeSchema<Id>({
+    public static id<Value extends Id>(): DynamoKeyAttributeSchema<Value> {
+        return this._id as any;
+    }
+
+    private static _id = new DynamoKeyAttributeSchema<Id>({
         description: {type: "Id"},
         serialize: value => value,
         deserialize: keyAttribute => {

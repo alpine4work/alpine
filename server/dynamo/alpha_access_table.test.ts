@@ -5,12 +5,13 @@ import {createTestContext} from "~/server/dynamo/test/create_test_context";
 import {validateEmailAddress} from "~/server/emails/email_address";
 import {FailedPreconditionError} from "~/shared/error/error";
 import {generateId} from "~/shared/id/id";
+import {AccountId} from "~/shared/id/types/id_types";
 
 const context = createTestContext();
 const AccountsTable = getAccountsTableForTest();
 
 async function createTestAccount() {
-    const accountId = generateId();
+    const accountId = generateId<AccountId>();
     const emailAddress = await validateEmailAddress(
         context,
         `test@${accountId}.test.cyberworlds.dev`,

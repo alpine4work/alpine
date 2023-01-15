@@ -3,7 +3,8 @@ import {RequestContext} from "~/server/dynamo/context/request_context";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {NotFoundError} from "~/shared/error/error";
-import {Id, generateId} from "~/shared/id/id";
+import {generateId} from "~/shared/id/id";
+import {AccountId, ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types";
 import {PostContent, PostContentSchema} from "~/shared/posts/post_content_schema";
 import {PostModel} from "~/shared/posts/post_model";
 import {Schema} from "~/shared/schema/schema";
@@ -13,13 +14,13 @@ const PostsTable = DynamoTableSchema.new({
     partitions: {
         Post: {
             partitionKeyAttributes: {
-                postId: DynamoKeyAttributeSchema.id,
+                postId: DynamoKeyAttributeSchema.id<PostId>(),
             },
             sortRanges: {
                 Attributes: {
                     sortKeyAttributes: {},
                     attributes: Schema.object({
-                        spaceId: Schema.id,
+                        spaceId: Schema.id<SpaceId>(),
 
                         /**
                          * What channel was this posted in?
@@ -28,13 +29,13 @@ const PostsTable = DynamoTableSchema.new({
                          * item in case we ever have posts that are not a part of a channel. Posts that
                          * aren't a part of a channel should still be part of a space.
                          */
-                        channelId: Schema.id,
+                        channelId: Schema.id<ChannelId>(),
 
                         /** When was this post created? */
                         createdTime: Schema.date,
 
                         /** Which account created this post? */
-                        authorAccountId: Schema.id,
+                        authorId: Schema.id<AccountId>(),
 
                         /** The contents of this post. */
                         content: PostContentSchema,
@@ -52,7 +53,7 @@ type PostAttributesItem = DynamoTableItemType<typeof PostsTable, "Post", "Attrib
  */
 export async function createPost(
     context: RequestContext,
-    {channelId, content}: {channelId: Id; content: PostContent},
+    {channelId, content}: {channelId: ChannelId; content: PostContent},
 ) {
     const channel = await getChannel(context, channelId);
     if (!channel) throw new NotFoundError("Channel does not exist");
@@ -64,7 +65,7 @@ export async function createPost(
         spaceId: channel.spaceId,
         channelId: channel.id,
         createdTime: new Date(),
-        authorAccountId: context.auth.getAccountId(),
+        authorId: context.auth.getAccountId(),
         content,
     };
 
@@ -75,7 +76,7 @@ export async function createPost(
 /**
  * Gets the post with the provided ID.
  */
-export async function getPost(context: RequestContext, id: Id): Promise<PostModel | null> {
+export async function getPost(context: RequestContext, id: PostId): Promise<PostModel | null> {
     const postItem = await PostsTable.getItem(context, {
         partitionType: "Post",
         sortRangeType: "Attributes",
@@ -96,7 +97,7 @@ function createPostModelFromItem(postItem: PostAttributesItem): PostModel {
         spaceId: postItem.spaceId,
         channelId: postItem.channelId,
         createdTime: postItem.createdTime,
-        authorAccountId: postItem.authorAccountId,
+        authorId: postItem.authorId,
         content: postItem.content,
     });
 }

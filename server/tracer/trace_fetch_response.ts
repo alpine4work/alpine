@@ -3,6 +3,7 @@ import {InvalidArgumentError} from "~/shared/error/error";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object";
 import {isId} from "~/shared/id/id";
+import {TraceId, TraceSpanId} from "~/shared/id/types/id_types";
 import {SchemaSerializedValue} from "~/shared/schema/schema";
 import {tracerEventHttpHeaderNames} from "~/shared/tracer/helpers/tracer_event_http_header_names";
 import {tracerPropagationContextHeaderName} from "~/shared/tracer/tracer_propagation_context_header";
@@ -163,8 +164,8 @@ function startSpanFromTracerPropagationContextHeader(
         validateTracerEventFlatDataForPropagation(propagationContext.data);
 
         return tracer.startSpanFromPropagationContext(name, {
-            traceId: propagationContext.traceId,
-            parentId: propagationContext.parentId,
+            traceId: propagationContext.traceId as TraceId,
+            parentId: propagationContext.parentId as TraceSpanId,
             data: propagationContext.data,
         });
     } catch (error) {

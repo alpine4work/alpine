@@ -29,6 +29,7 @@ import {
 } from "~/shared/documents/document_content_schema";
 import {assert} from "~/shared/helpers/control/assert";
 import {generateId} from "~/shared/id/id";
+import {DocumentId} from "~/shared/id/types/id_types";
 
 const context = createTestContext();
 const space = createTestSpace(context);
@@ -52,7 +53,7 @@ afterEach(() => {
 test(
     "snapshot updates after many steps committed individually",
     async () => {
-        const documentId = generateId();
+        const documentId = generateId<DocumentId>();
 
         await createDocument(context.request(session), {
             id: documentId,
@@ -172,7 +173,7 @@ test(
 test(
     "snapshot updates after many steps committed at once",
     async () => {
-        const documentId = generateId();
+        const documentId = generateId<DocumentId>();
 
         await createDocument(context.request(session), {
             id: documentId,
@@ -251,7 +252,7 @@ test(
 test(
     "can read document while in the middle of updating a snapshot",
     async () => {
-        const documentId = generateId();
+        const documentId = generateId<DocumentId>();
 
         await createDocument(context.request(session), {
             id: documentId,
@@ -327,7 +328,7 @@ test(
 test(
     "can update document at a version before the document snapshot",
     async () => {
-        const documentId = generateId();
+        const documentId = generateId<DocumentId>();
 
         await createDocument(context.request(session), {
             id: documentId,

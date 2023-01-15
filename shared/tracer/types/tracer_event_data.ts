@@ -1,4 +1,13 @@
-import type {Id} from "~/shared/id/id";
+import {
+    AccountId,
+    ChannelId,
+    DocumentId,
+    RealmId,
+    SpaceId,
+    TraceId,
+    TraceSpanId,
+    WebSocketConnectionId,
+} from "~/shared/id/types/id_types";
 import type {TracerEventHttpHeaderName} from "~/shared/tracer/helpers/tracer_event_http_header_names";
 
 /**
@@ -69,20 +78,20 @@ export type TracerEventFullData = TracerEventData & {
      */
     readonly trace?: {
         /** The ID of the trace this span belongs to. */
-        readonly traceId?: Id;
+        readonly traceId?: TraceId;
 
         /** The unique ID for each span. */
-        readonly spanId?: Id;
+        readonly spanId?: TraceSpanId;
 
         /** The ID of this span's parent span. */
-        readonly parentId?: Id;
+        readonly parentId?: TraceSpanId;
 
         readonly link?: {
             /** The span ID you wish to link to. */
-            readonly spanId?: Id;
+            readonly spanId?: TraceSpanId;
 
             /** The trace ID you wish to link to. */
-            readonly traceId?: Id;
+            readonly traceId?: TraceId;
         };
     };
 
@@ -99,7 +108,7 @@ export type TracerEventFullData = TracerEventData & {
          *
          * Useful for figuring out the efficacy of an in-memory cache for instance.
          */
-        readonly realmId?: Id;
+        readonly realmId?: RealmId;
 
         /** What is the host running our JavaScript code? */
         readonly host?: TracerEventJsHost;
@@ -282,16 +291,16 @@ export type TracerEventData = {
      */
     readonly context?: {
         /** Information about the account who caused this event. */
-        readonly accountId?: Id;
+        readonly accountId?: AccountId;
 
         /** Information about the space the event was fired while looking at. */
-        readonly spaceId?: Id;
+        readonly spaceId?: SpaceId;
 
         /** Information about the document the event was fired while looking at. */
-        readonly documentId?: Id;
+        readonly documentId?: DocumentId;
 
         /** Information about the channel the event was fired while looking at. */
-        readonly channelId?: Id;
+        readonly channelId?: ChannelId;
     };
 
     /**
@@ -432,7 +441,7 @@ export type TracerEventData = {
 
     readonly webSocket?: {
         /** The ID of the connection our event is about. */
-        readonly connectionId?: Id;
+        readonly connectionId?: WebSocketConnectionId;
 
         /**
          * What is the type of the message we're processing?

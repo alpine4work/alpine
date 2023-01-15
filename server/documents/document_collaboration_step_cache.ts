@@ -3,14 +3,14 @@ import {RequestContext} from "~/server/dynamo/context/request_context";
 import {getDocumentContentSteps} from "~/server/dynamo/documents_table";
 import {FailedPreconditionError, InternalError, InvalidArgumentError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
-import {Id} from "~/shared/id/id";
+import {ContentEditorClientId, DocumentId} from "~/shared/id/types/id_types";
 
 /**
  * Stores steps in an in-memory cache and loads old steps into that cache as we
  * request them.
  */
 export class DocumentCollaborationStepCache {
-    private _id: Id;
+    private _id: DocumentId;
     private _startVersion: number;
     private _endVersion: number;
     private _stepByVersion: Map<
@@ -18,7 +18,7 @@ export class DocumentCollaborationStepCache {
         {
             step: Step;
             invertedStep: Step;
-            clientId: Id;
+            clientId: ContentEditorClientId;
         }
     >;
 
@@ -27,7 +27,7 @@ export class DocumentCollaborationStepCache {
         promise: Promise<void>;
     } | null = null;
 
-    constructor(id: Id, version: number) {
+    constructor(id: DocumentId, version: number) {
         this._id = id;
         this._startVersion = version;
         this._endVersion = version;
@@ -39,7 +39,11 @@ export class DocumentCollaborationStepCache {
      *
      * Does not validate whether the step is valid for this document!
      */
-    public dangerouslyAddStepToEnd(step: {step: Step; invertedStep: Step; clientId: Id}) {
+    public dangerouslyAddStepToEnd(step: {
+        step: Step;
+        invertedStep: Step;
+        clientId: ContentEditorClientId;
+    }) {
         this._stepByVersion.set(this._endVersion, step);
         this._endVersion += 1;
     }
@@ -59,7 +63,7 @@ export class DocumentCollaborationStepCache {
         Array<{
             step: Step;
             invertedStep: Step;
-            clientId: Id;
+            clientId: ContentEditorClientId;
         }>
     > {
         if (startVersion < 0) throw new InvalidArgumentError("Start version is less than zero");
@@ -75,7 +79,7 @@ export class DocumentCollaborationStepCache {
         const steps: Array<{
             step: Step;
             invertedStep: Step;
-            clientId: Id;
+            clientId: ContentEditorClientId;
         }> = [];
 
         // If we are trying to get steps not in our store, then first we need to load

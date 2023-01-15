@@ -40,7 +40,14 @@ import {AsyncSequentialQueue} from "~/shared/helpers/async/async_sequential_queu
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
-import {Id} from "~/shared/id/id";
+import {
+    ContentEditorClientId,
+    DocumentCollaborationMessageId,
+    DocumentId,
+    SessionId,
+    SpaceId,
+    WebSocketConnectionId,
+} from "~/shared/id/types/id_types";
 import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema";
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema";
 import {TracerRoot} from "~/shared/tracer/tracer_root";
@@ -138,7 +145,7 @@ class DocumentCollaborationDurableObjectWrapper {
                 async _requestContext => {
                     const requestContext: RequestContext =
                         await _requestContext.auth.authenticate();
-                    const id = Schema.id.deserialize(
+                    const id = Schema.id<DocumentId>().deserialize(
                         request.headers.get("cyberworlds-document-id"),
                     );
 
@@ -164,12 +171,14 @@ class DocumentCollaborationDurableObjectWrapper {
         });
     }
 
-    private async _verifyAuthenticationToken(token: string): Promise<{sessionId: Id}> {
+    private async _verifyAuthenticationToken(token: string): Promise<{sessionId: SessionId}> {
         const {payload} = await jwtVerify(
             token,
             new TextEncoder().encode(this._sessionCookieSecret),
         );
-        const sessionId = Schema.id.deserialize(payload.sessionId as SchemaSerializedValue);
+        const sessionId = Schema.id<SessionId>().deserialize(
+            payload.sessionId as SchemaSerializedValue,
+        );
 
         return {sessionId};
     }
@@ -179,8 +188,8 @@ export {DocumentCollaborationDurableObjectWrapper as DocumentCollaborationDurabl
 
 class DocumentCollaborationDurableObject {
     private readonly _context: ProcessContext;
-    public readonly spaceId: Id;
-    public readonly id: Id;
+    public readonly spaceId: SpaceId;
+    public readonly id: DocumentId;
     private readonly _contentManager: DocumentCollaborationContentManager;
     private readonly _destroyCallback: () => void;
 
@@ -198,7 +207,7 @@ class DocumentCollaborationDurableObject {
     }: {
         processContext: ProcessContext;
         requestContext: RequestContext;
-        id: Id;
+        id: DocumentId;
         destroy: () => void;
     }): Promise<DocumentCollaborationDurableObject> {
         const document = await getDocument(requestContext, id);
@@ -223,8 +232,8 @@ class DocumentCollaborationDurableObject {
         destroy,
     }: {
         context: ProcessContext;
-        spaceId: Id;
-        id: Id;
+        spaceId: SpaceId;
+        id: DocumentId;
         initialVersion: number;
         initialContent: DocumentContent;
         destroy: () => void;
@@ -283,7 +292,7 @@ class DocumentCollaborationDurableObject {
  * safe way.
  */
 class DocumentCollaborationContentManager {
-    private readonly _id: Id;
+    public readonly id: DocumentId;
     private _version: number;
     private _content: DocumentContent;
     public readonly stepCache: DocumentCollaborationStepCache;
@@ -296,7 +305,7 @@ class DocumentCollaborationContentManager {
 
     private _persistenceState: {
         next: {
-            readonly clientId: Id;
+            readonly clientId: ContentEditorClientId;
             readonly steps: Array<Step>;
         } | null;
         promise: Promise<void>;
@@ -309,7 +318,7 @@ class DocumentCollaborationContentManager {
         sendMessageToAll,
         destroyDurableObject,
     }: {
-        id: Id;
+        id: DocumentId;
         initialVersion: number;
         initialContent: DocumentContent;
         sendMessageToAll: (
@@ -318,7 +327,7 @@ class DocumentCollaborationContentManager {
         ) => void;
         destroyDurableObject: (context: ProcessContext) => void;
     }) {
-        this._id = id;
+        this.id = id;
         this._version = initialVersion;
         this._content = initialContent;
         this.stepCache = new DocumentCollaborationStepCache(id, this._version);
@@ -378,12 +387,12 @@ class DocumentCollaborationContentManager {
      */
     public update(
         context: RequestContext,
-        connectionId: Id,
+        connectionId: WebSocketConnectionId,
         update: {
             version: number;
             steps: ReadonlyArray<Step>;
-            clientId: Id;
-            messageId: Id;
+            clientId: ContentEditorClientId;
+            messageId: DocumentCollaborationMessageId;
             updateOurPresenceState: {state: DocumentCollaborationPresenceState | null};
         },
     ): Promise<{
@@ -499,7 +508,7 @@ class DocumentCollaborationContentManager {
                                     const {conflictingSteps} = await updateDocumentContent(
                                         context,
                                         {
-                                            id: this._id,
+                                            id: this.id,
                                             version: oldVersion,
                                             steps: nextSteps,
                                             clientId: update.clientId,
@@ -551,7 +560,7 @@ class DocumentCollaborationContentManager {
 }
 
 class DocumentCollaborationDurableObjectConnection {
-    public readonly connectionId: Id;
+    public readonly connectionId: WebSocketConnectionId;
 
     private readonly _contentManager: DocumentCollaborationContentManager;
     private readonly _sendMessage: (
@@ -576,7 +585,7 @@ class DocumentCollaborationDurableObjectConnection {
         iterateOtherConnections,
         destroyDurableObject,
     }: {
-        connectionId: Id;
+        connectionId: WebSocketConnectionId;
         contentManager: DocumentCollaborationContentManager;
         sendMessage: (
             context: ProcessContext,
@@ -629,7 +638,7 @@ class DocumentCollaborationDurableObjectConnection {
                             // one in our durable object then we want to destroy the entire durable object.
                             const documentPreview = await getDocumentPreview(
                                 context,
-                                this.connectionId,
+                                this._contentManager.id,
                             );
                             if (!documentPreview) {
                                 this._sendFatalErrorMessageAndDestroyDurableObject(

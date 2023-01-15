@@ -11,7 +11,8 @@ import {createTestContext} from "~/server/dynamo/test/create_test_context";
 import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address";
 import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
-import {Id, generateId} from "~/shared/id/id";
+import {generateId} from "~/shared/id/id";
+import {AccountId} from "~/shared/id/types/id_types";
 
 const context = createTestContext();
 const AccountsTable = getAccountsTableForTest();
@@ -19,7 +20,7 @@ const AccountsTable = getAccountsTableForTest();
 async function createTestAccount({
     isEmailAddressVerified = false,
 }: {isEmailAddressVerified?: boolean} = {}) {
-    const accountId = generateId();
+    const accountId = generateId<AccountId>();
     const emailAddress = await validateEmailAddress(
         context,
         `test@${accountId}.test.cyberworlds.dev`,
@@ -48,7 +49,10 @@ async function createTestAccount({
     };
 }
 
-async function getAccountEmailAddressItemForExpect(account: {id: Id; emailAddress: EmailAddress}) {
+async function getAccountEmailAddressItemForExpect(account: {
+    id: AccountId;
+    emailAddress: EmailAddress;
+}) {
     const accountEmailAddressItem = await AccountsTable.getItem(context, {
         partitionType: "AccountEmailAddress",
         sortRangeType: "Attributes",
@@ -67,7 +71,7 @@ async function getAccountEmailAddressItemForExpect(account: {id: Id; emailAddres
 }
 
 async function getAccountEmailAddressItemUpdateLockVersionForExpect(account: {
-    id: Id;
+    id: AccountId;
     emailAddress: EmailAddress;
 }) {
     const accountEmailAddressItem = await AccountsTable.getItem(context, {

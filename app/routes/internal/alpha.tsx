@@ -13,9 +13,8 @@ import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
 import {AlphaAccessRequestModel} from "~/shared/alpha/alpha_access_request_model";
 import {AlphaConfigurationSchema} from "~/shared/alpha/alpha_configuration_schema";
-import {InvalidArgumentError} from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
-import {Id, isId} from "~/shared/id/id";
+import {SpaceId} from "~/shared/id/types/id_types";
 import {
     approveAlphaAccessRequest,
     denyAlphaAccessRequest,
@@ -108,13 +107,10 @@ export default function AlphaManagementPage() {
                         <Button
                             variant="accent"
                             onPress={async () => {
-                                let validatedAddAccountsToSpaceId: Id | undefined;
+                                let validatedAddAccountsToSpaceId: SpaceId | undefined;
                                 if (defaultSpaceId.length > 0) {
-                                    if (!isId(defaultSpaceId))
-                                        throw new InvalidArgumentError(
-                                            'Expected "defaultSpaceId" to be an ID',
-                                        );
-                                    validatedAddAccountsToSpaceId = defaultSpaceId;
+                                    validatedAddAccountsToSpaceId =
+                                        Schema.id<SpaceId>().deserialize(defaultSpaceId);
                                 }
 
                                 await saveAlphaConfiguration(context, {

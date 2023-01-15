@@ -31,6 +31,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable";
 import {filterMapAsyncIterableIterator} from "~/shared/helpers/iterable/filter_map_async_iterable_iterator";
 import {generateId} from "~/shared/id/id";
+import {AccountId} from "~/shared/id/types/id_types";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
 import {Schema} from "~/shared/schema/schema";
 
@@ -268,7 +269,7 @@ export async function approveAlphaAccessRequest(
     if (requestItem.decision)
         throw new FailedPreconditionError("A decision has already been made for this request");
 
-    const accountId = generateId();
+    const accountId = generateId<AccountId>();
 
     await DynamoTableSchema.executeTransaction(context, [
         AlphaAccessTable.transactionDirectlyUpdateItem({

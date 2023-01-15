@@ -21,7 +21,7 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {Id} from "~/shared/id/id";
+import {WebSocketConnectionId} from "~/shared/id/types/id_types";
 import {overlayFadeOutAnimationDurationMs} from "~/shared/styles/styles";
 
 export type ContentEditorPointerToolbarFloaterState = {
@@ -46,7 +46,7 @@ export type ContentEditorKeyboardLinkFloaterState = {
 
 export type ContentEditorPointerLinkFloaterState = {
     readonly type: "PointerLink";
-    readonly key: Id;
+    readonly key: WebSocketConnectionId;
     readonly mark: Mark;
     readonly range: {
         readonly from: number;

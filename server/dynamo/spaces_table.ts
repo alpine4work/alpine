@@ -8,7 +8,7 @@ import {PermissionDeniedError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {assert} from "~/shared/helpers/control/assert";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
-import {Id} from "~/shared/id/id";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
 import {Schema} from "~/shared/schema/schema";
 
@@ -35,7 +35,7 @@ const SpacesTable = DynamoTableSchema.new({
          */
         Space: {
             partitionKeyAttributes: {
-                spaceId: DynamoKeyAttributeSchema.id,
+                spaceId: DynamoKeyAttributeSchema.id<SpaceId>(),
             },
             sortRanges: {
                 Attributes: {
@@ -51,7 +51,7 @@ const SpacesTable = DynamoTableSchema.new({
                  */
                 Account: {
                     sortKeyAttributes: {
-                        accountId: DynamoKeyAttributeSchema.id,
+                        accountId: DynamoKeyAttributeSchema.id<AccountId>(),
                     },
                     attributes: Schema.object({
                         /**
@@ -105,8 +105,8 @@ export function createSpaceAccountForAlphaTransactionEntries({
     spaceId,
     accountId,
 }: {
-    spaceId: Id;
-    accountId: Id;
+    spaceId: SpaceId;
+    accountId: AccountId;
 }): Array<DynamoTransactionEntry> {
     return [
         // Fail the transaction if the space does not exist.
@@ -131,7 +131,7 @@ export function createSpaceAccountForAlphaTransactionEntries({
 // this with something that lasts the entire request.
 const authorizationPromiseBySpaceIdByContext = new WeakMap<
     RequestContext,
-    Map<Id, Promise<void>>
+    Map<SpaceId, Promise<void>>
 >();
 
 /**
@@ -140,7 +140,7 @@ const authorizationPromiseBySpaceIdByContext = new WeakMap<
  *
  * We cache the result of this function on a per-request basis.
  */
-export function authorizeSpaceAccess(context: RequestContext, spaceId: Id): Promise<void> {
+export function authorizeSpaceAccess(context: RequestContext, spaceId: SpaceId): Promise<void> {
     const authorizationPromiseBySpaceId = getOrSetDefaultMapValue(
         authorizationPromiseBySpaceIdByContext,
         context,

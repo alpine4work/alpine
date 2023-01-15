@@ -572,7 +572,7 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
-                                    "authorAccountId": {
+                                    "authorId": {
                                         "valueSchema": {
                                             "type": "Id"
                                         },

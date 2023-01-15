@@ -34,7 +34,7 @@ import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {clamp} from "~/shared/helpers/number/clamp";
-import {Id} from "~/shared/id/id";
+import {ContentEditorClientId, DocumentId, SpaceId} from "~/shared/id/types/id_types";
 import {Schema} from "~/shared/schema/schema";
 
 const DocumentsTable = DynamoTableSchema.new({
@@ -42,7 +42,7 @@ const DocumentsTable = DynamoTableSchema.new({
     partitions: {
         Document: {
             partitionKeyAttributes: {
-                documentId: DynamoKeyAttributeSchema.id,
+                documentId: DynamoKeyAttributeSchema.id<DocumentId>(),
             },
             sortRanges: {
                 /**
@@ -57,7 +57,7 @@ const DocumentsTable = DynamoTableSchema.new({
                         createdTime: Schema.date,
                         // TODO(calebmer): Could I make this a feature of `DynamoTableSchema` and force
                         // us to always authorize space access when reading/writing this data?
-                        spaceId: Schema.id,
+                        spaceId: Schema.id<SpaceId>(),
 
                         /**
                          * The current version of the document.
@@ -126,13 +126,13 @@ const DocumentsTable = DynamoTableSchema.new({
                         invertedSteps: Schema.array(DocumentContentStepSchema),
 
                         /**
-                         * An `Id` identifying the client who applied this step.
+                         * A `ContentEditorClientId` identifying the client who applied this step.
                          *
                          * We generate a new client id every time the content editor is rendered. This
                          * means a user may have many client ids. They can be editing from two browser
                          * tabs at once or even two editors on-screen at the same time.
                          */
-                        clientId: Schema.id,
+                        clientId: Schema.id<ContentEditorClientId>(),
                     }),
                 },
 
@@ -194,13 +194,13 @@ const DocumentsTable = DynamoTableSchema.new({
                         invertedSteps: Schema.array(DocumentContentStepSchema),
 
                         /**
-                         * An `Id` identifying the client who applied this step.
+                         * A `ContentEditorClientId` identifying the client who applied this step.
                          *
                          * We generate a new client id every time the content editor is rendered. This
                          * means a user may have many client ids. They can be editing from two browser
                          * tabs at once or even two editors on-screen at the same time.
                          */
-                        clientId: Schema.id,
+                        clientId: Schema.id<ContentEditorClientId>(),
                     }),
                 },
             },
@@ -242,7 +242,7 @@ type DocumentSnapshotItem = DynamoTableItemType<typeof DocumentsTable, "Document
  */
 export async function createDocument(
     context: RequestContext,
-    {id, spaceId, content}: {id: Id; spaceId: Id; content: DocumentContent},
+    {id, spaceId, content}: {id: DocumentId; spaceId: SpaceId; content: DocumentContent},
 ) {
     await authorizeSpaceAccess(context, spaceId);
 
@@ -275,7 +275,10 @@ export async function createDocument(
 /**
  * Get the full document with the provided id.
  */
-export async function getDocument(context: RequestContext, id: Id): Promise<DocumentModel | null> {
+export async function getDocument(
+    context: RequestContext,
+    id: DocumentId,
+): Promise<DocumentModel | null> {
     const internalDocument = await getInternalDocument(context, id);
     return internalDocument?.model ?? null;
 }
@@ -287,7 +290,7 @@ export async function getDocument(context: RequestContext, id: Id): Promise<Docu
  */
 export async function getDocumentPreview(
     context: RequestContext,
-    id: Id,
+    id: DocumentId,
 ): Promise<DocumentPreviewModel | null> {
     const attributes = await DocumentsTable.getItem(context, {
         partitionType: "Document",
@@ -325,7 +328,7 @@ export const getInternalDocumentTestCounter = new TestCounter();
  */
 async function getInternalDocument(
     context: RequestContext,
-    id: Id,
+    id: DocumentId,
 ): Promise<InternalDocument | null> {
     getInternalDocumentTestCounter.incrementForTest(id);
 
@@ -469,10 +472,10 @@ export class DocumentContentCacheForUpdate {
 
     public async getAndCacheDocument(
         context: RequestContext,
-        id: Id,
+        id: DocumentId,
     ): Promise<{
         readonly createdTime: Date;
-        readonly spaceId: Id;
+        readonly spaceId: SpaceId;
         readonly version: number;
         readonly content: DocumentContent;
 
@@ -485,7 +488,7 @@ export class DocumentContentCacheForUpdate {
         readonly stepsAfterInitialSnapshot: PushOnlyArraySlice<{
             readonly step: Step;
             readonly invertedStep: Step;
-            readonly clientId: Id;
+            readonly clientId: ContentEditorClientId;
         }>;
 
         /**
@@ -497,7 +500,7 @@ export class DocumentContentCacheForUpdate {
             newContent: DocumentContent;
             newSteps: ReadonlyArray<Step>;
             newInvertedSteps: ReadonlyArray<Step>;
-            clientId: Id;
+            clientId: ContentEditorClientId;
         }): Promise<void>;
     } | null> {
         let wasEntryCached = true;
@@ -664,7 +667,7 @@ export class DocumentContentCacheForUpdate {
 
 type DocumentContentCacheForUpdateEntry = {
     readonly createdTime: Date;
-    readonly spaceId: Id;
+    readonly spaceId: SpaceId;
     readonly version: number;
     readonly content: DocumentContent;
     /**
@@ -682,7 +685,7 @@ type DocumentContentCacheForUpdateEntry = {
     readonly stepsAfterInitialSnapshot: PushOnlyArray<{
         readonly step: Step;
         readonly invertedStep: Step;
-        readonly clientId: Id;
+        readonly clientId: ContentEditorClientId;
     }>;
 };
 
@@ -694,7 +697,7 @@ type DocumentContentCacheForUpdateEntry = {
  */
 class DocumentContentCacheForUpdateEntries {
     private readonly _entryByDocumentId = new Map<
-        Id,
+        DocumentId,
         {
             evictionTimeout: Timeout;
             evict: () => void;
@@ -720,7 +723,7 @@ class DocumentContentCacheForUpdateEntries {
      * using the provided function.
      */
     public getOrSetEntry(
-        id: Id,
+        id: DocumentId,
         getData: () => Promise<DocumentContentCacheForUpdateEntry | null>,
     ): Promise<DocumentContentCacheForUpdateEntry | null> {
         const entry = this._entryByDocumentId.get(id);
@@ -735,7 +738,7 @@ class DocumentContentCacheForUpdateEntries {
      * from the cache.
      */
     public setEntry(
-        id: Id,
+        id: DocumentId,
         getEntry: () => Promise<DocumentContentCacheForUpdateEntry | null>,
     ): Promise<DocumentContentCacheForUpdateEntry | null> {
         // Evict the last entry before setting the new entry.
@@ -778,7 +781,7 @@ class DocumentContentCacheForUpdateEntries {
     /**
      * Evict the entry for the provided id. noop if the entry doesn't exist.
      */
-    public evictEntry(id: Id) {
+    public evictEntry(id: DocumentId) {
         this._entryByDocumentId.get(id)?.evict();
     }
 }
@@ -851,8 +854,8 @@ class PushOnlyArraySlice<Item> implements Iterable<Item> {
 const globalDocumentContentCacheForUpdate = new DocumentContentCacheForUpdate();
 
 export const updateDocumentContentBeforeExecuteTransactionTestCheckpoint = new TestCheckpoint<{
-    id: Id;
-    clientId: Id;
+    id: DocumentId;
+    clientId: ContentEditorClientId;
 }>();
 
 declare module "prosemirror-transform" {
@@ -899,10 +902,10 @@ export async function updateDocumentContent(
         clientId,
         cacheOverrideForTest,
     }: {
-        id: Id;
+        id: DocumentId;
         version: number;
         steps: ReadonlyArray<Step>;
-        clientId: Id;
+        clientId: ContentEditorClientId;
         // NOTE(calebmer): Do we really need the cache anymore now that we're using
         // Durable Objects for updating documents? For now, probably yes? Each Durable
         // Object should only have one document cached in memory and the document being
@@ -939,7 +942,7 @@ export async function updateDocumentContent(
      * Since these steps come from other clients making collaborative edits
      * `clientId` is included.
      */
-    conflictingSteps: ReadonlyArray<{step: Step; clientId: Id}>;
+    conflictingSteps: ReadonlyArray<{step: Step; clientId: ContentEditorClientId}>;
 }> {
     const result = await retryDynamoConditionCheckErrors(async () => {
         if (!Number.isSafeInteger(clientVersion) || clientVersion < 0)
@@ -1116,12 +1119,16 @@ export async function getUpdateDocumentContentResult({
     getSteps: (
         startVersion: number,
         endVersion: number,
-    ) => Promise<Array<{step: Step; invertedStep: Step; clientId: Id}>>;
+    ) => Promise<Array<{step: Step; invertedStep: Step; clientId: ContentEditorClientId}>>;
 }): Promise<{
     newContent: DocumentContent;
     steps: ReadonlyArray<Step>;
     invertedSteps: ReadonlyArray<Step>;
-    conflictingSteps: ReadonlyArray<{step: Step; invertedStep: Step; clientId: Id}>;
+    conflictingSteps: ReadonlyArray<{
+        step: Step;
+        invertedStep: Step;
+        clientId: ContentEditorClientId;
+    }>;
     clientContent: DocumentContent;
     mapping: Mapping;
 }> {
@@ -1135,7 +1142,11 @@ export async function getUpdateDocumentContentResult({
     let content = currentContent;
     let steps: ReadonlyArray<Step>;
     let invertedSteps: Array<Step>;
-    let conflictingSteps: ReadonlyArray<{step: Step; invertedStep: Step; clientId: Id}>;
+    let conflictingSteps: ReadonlyArray<{
+        step: Step;
+        invertedStep: Step;
+        clientId: ContentEditorClientId;
+    }>;
     let clientContent: DocumentContent;
 
     const mapping = new Mapping();
@@ -1274,7 +1285,8 @@ export async function getUpdateDocumentContentResult({
  */
 const updateDocumentSnapshotAfterStepCount = 100;
 
-export const updateDocumentSnapshotBeforeDeletingStepsTestCheckpoint = new TestCheckpoint<Id>();
+export const updateDocumentSnapshotBeforeDeletingStepsTestCheckpoint =
+    new TestCheckpoint<DocumentId>();
 
 async function updateDocumentSnapshotAfterUpdatingContent(
     context: DynamoContext,
@@ -1283,7 +1295,7 @@ async function updateDocumentSnapshotAfterUpdatingContent(
         newVersion,
         newContent,
     }: {
-        id: Id;
+        id: DocumentId;
         newVersion: number;
         newContent: DocumentContent;
     },
@@ -1372,7 +1384,7 @@ async function updateDocumentSnapshotAfterUpdatingContent(
 }
 
 export const getDocumentContentStepsTestCounter = new TestCounter<{
-    id: Id;
+    id: DocumentId;
     startVersion: number;
     endVersion: number;
 }>();
@@ -1387,7 +1399,7 @@ export async function getDocumentContentSteps(
         startVersion,
         endVersion,
     }: {
-        id: Id;
+        id: DocumentId;
         startVersion: number;
         endVersion: number;
     },
@@ -1440,12 +1452,15 @@ async function getDocumentStepsBetweenValidatedVersionRange(
         startVersion,
         endVersion,
     }: {
-        id: Id;
+        id: DocumentId;
         startVersion: number;
         endVersion: number;
     },
-): Promise<Array<{step: Step; invertedStep: Step; clientId: Id}>> {
-    const stepByVersion = new Map<number, {step: Step; invertedStep: Step; clientId: Id}>();
+): Promise<Array<{step: Step; invertedStep: Step; clientId: ContentEditorClientId}>> {
+    const stepByVersion = new Map<
+        number,
+        {step: Step; invertedStep: Step; clientId: ContentEditorClientId}
+    >();
 
     for await (const stepTransaction of getDocumentStepTransactionsBetweenValidatedVersionRange(
         context,
@@ -1503,7 +1518,7 @@ async function* getDocumentStepTransactionsBetweenValidatedVersionRange(
         startVersion,
         endVersion,
     }: {
-        id: Id;
+        id: DocumentId;
         startVersion: number;
         endVersion: number;
     },
@@ -1652,7 +1667,7 @@ async function* getDocumentStepTransactionsBetweenValidatedVersionRange(
 // contain our version.
 async function getDocumentStepTransactionContainingValidatedVersion(
     context: DynamoContext,
-    id: Id,
+    id: DocumentId,
     version: number,
 ): Promise<DocumentStepTransactionItem> {
     assert(Number.isSafeInteger(version));

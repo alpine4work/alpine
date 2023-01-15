@@ -4,7 +4,8 @@ import {
     createCookieSessionStorage,
 } from "@remix-run/cloudflare";
 import {assert} from "~/shared/helpers/control/assert";
-import {Id, generateId} from "~/shared/id/id";
+import {generateId} from "~/shared/id/id";
+import {BrowserId, SessionId} from "~/shared/id/types/id_types";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 
 /**
@@ -17,8 +18,8 @@ import {Schema, SchemaType} from "~/shared/schema/schema";
 export type SessionCookieData = SchemaType<typeof SessionCookieDataSchema>;
 
 const SessionCookieDataSchema = Schema.object({
-    browserId: Schema.id,
-    sessionId: Schema.id.nullable(),
+    browserId: Schema.id<BrowserId>(),
+    sessionId: Schema.id<SessionId>().nullable(),
 });
 
 function getDefaultSessionCookieData(): SessionCookieData {
@@ -123,7 +124,7 @@ export class SessionCookie {
      * session! If you didn't appropriately authenticate the account then an
      * attacker will have access to that account.
      */
-    public dangerouslySetSessionId(sessionId: Id) {
+    public dangerouslySetSessionId(sessionId: SessionId) {
         this._dangerouslyUpdate(data => ({
             ...data,
             sessionId,

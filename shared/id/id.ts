@@ -53,7 +53,7 @@ export function isId(string: string): string is Id {
  * Generate a new random id using a cryptographically secure source of
  * randomness.
  */
-export function generateId(): Id {
+export function generateId<Value extends Id>(): Value {
     const bytes = new Uint8Array(16);
     crypto.getRandomValues(bytes);
 
@@ -75,5 +75,5 @@ export function generateId(): Id {
         id += alphabet[(value << (5 - bits)) & 31];
     }
 
-    return id as Id;
+    return id as Value;
 }

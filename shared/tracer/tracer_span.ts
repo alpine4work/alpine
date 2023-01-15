@@ -1,6 +1,7 @@
 import {assert} from "~/shared/helpers/control/assert";
 import {LinkedList, NonEmptyLinkedList} from "~/shared/helpers/immutable/linked_list";
-import {Id, generateId} from "~/shared/id/id";
+import {generateId} from "~/shared/id/id";
+import {TraceId, TraceSpanId} from "~/shared/id/types/id_types";
 import {
     TracerEventFlatData,
     buildTracerEventFlatData,
@@ -12,8 +13,8 @@ import {TracerRoot} from "~/shared/tracer/tracer_root";
 import {TracerEventData, TracerEventFullData} from "~/shared/tracer/types/tracer_event_data";
 
 export type TracerSpanPropagationContext = {
-    traceId: Id;
-    parentId: Id;
+    traceId: TraceId;
+    parentId: TraceSpanId;
     data: TracerEventFlatData;
 };
 
@@ -29,12 +30,12 @@ export class TracerSpan extends TracerBase {
     /**
      * The ID of the trace this span is in.
      */
-    public readonly traceId: Id;
+    public readonly traceId: TraceId;
 
     /**
      * This span's ID.
      */
-    public readonly spanId: Id;
+    public readonly spanId: TraceSpanId;
 
     /**
      * The time at which the span started.
@@ -72,8 +73,8 @@ export class TracerSpan extends TracerBase {
         private readonly _tracer: TracerRoot,
         public readonly name: string,
         parentSpan: {
-            traceId: Id;
-            parentId: Id;
+            traceId: TraceId;
+            parentId: TraceSpanId;
             propagatedEventData?: LinkedList<TracerEventData>;
             propagatedEventFlatData?: TracerEventFlatData | null;
         } | null,
@@ -110,8 +111,8 @@ export class TracerSpan extends TracerBase {
         tracer: TracerRoot,
         name: string,
         parentSpan: {
-            traceId: Id;
-            parentId: Id;
+            traceId: TraceId;
+            parentId: TraceSpanId;
             propagatedEventData?: LinkedList<TracerEventData>;
             propagatedEventFlatData?: TracerEventFlatData | null;
         } | null,
