@@ -28,7 +28,7 @@ export function PostView({post}: {post: PostModel}) {
                     flexShrink="0"
                     width="10"
                     height="10"
-                    backgroundColor="grey-30-const"
+                    backgroundColor="grey-40-const"
                     borderRadius="full"
                 />
                 <Box flexGrow="1" paddingLeft="3" paddingRight="4" overflow="hidden">

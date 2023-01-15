@@ -1,4 +1,3 @@
-import {Box} from "~/client/design/box";
 import {PostView} from "~/client/posts/post_view";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {getPost} from "~/server/dynamo/posts_table";
@@ -40,10 +39,8 @@ export default function ChannelRoute() {
                 height: "full",
                 display: "flex",
                 justifyContent: "center",
-                backgroundColor: {light: "grey-5", dark: "grey-0"},
                 padding: "4",
             })}
-            style={{backgroundColor: "black"}}
         >
             <PostView post={post} />
         </main>

@@ -14,16 +14,16 @@ export type Color = keyof typeof colors;
  */
 export const colors = {
     "grey-0": "#fbfbfc",
-    "grey-5": "#edeef2",
-    "grey-10": "#d6d7db",
-    "grey-20": "#bfc0c4",
-    "grey-30": "#a9aaae",
-    "grey-40": "#929397",
-    "grey-50": "#7b7c80",
-    "grey-60": "#66676a",
-    "grey-70": "#515255",
-    "grey-80": "#3c3c3f",
-    "grey-90": "#27272a",
+    "grey-5": "#ededf2",
+    "grey-10": "#d7d7db",
+    "grey-20": "#bcbcc4",
+    "grey-30": "#a6a6ab",
+    "grey-40": "#87878c",
+    "grey-50": "#6d6d73",
+    "grey-60": "#57575c",
+    "grey-70": "#44444a",
+    "grey-80": "#323236",
+    "grey-90": "#212124",
 
     // Our darkest grey is not a part of the grey color spectrum. In order to
     // render the product in dark mode, we invert the color spectrum so
@@ -36,7 +36,7 @@ export const colors = {
     // We also use our darkest grey as the color of text in light mode while we use
     // `grey-0` as our text color in dark mode. This requires special handling
     // because `grey-0` does not map to this color.
-    "grey-dark": "#121214",
+    "grey-dark": "#0b0b0d",
 
     "red-5": "#fcf1e8",
     "red-10": "#ffd4c2",
