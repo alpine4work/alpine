@@ -658,9 +658,8 @@ export class Session {
  * Authorizes the account for this request has internal access. Throws a
  * `PermissionDeniedError` if not.
  */
-export async function authorizeAccountHasInternalAccess(context: RequestContext) {
-    const authenticatedContext = await context.auth.authenticate();
-    const account = await authenticatedContext.auth.getAccount();
+export async function authorizeInternalAccess(context: RequestContext) {
+    const account = await context.auth.getAccount();
 
     if (!account.hasInternalAccess)
         throw new PermissionDeniedError("Account does not have internal access", {

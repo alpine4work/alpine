@@ -1,5 +1,5 @@
 import {Outlet, ShouldReloadFunction} from "@remix-run/react";
-import {authorizeAccountHasSpaceAccess} from "~/server/dynamo/spaces_table";
+import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
 import {Schema} from "~/shared/schema/schema";
@@ -14,7 +14,7 @@ export const unstable_shouldReload: ShouldReloadFunction = ({url, prevUrl}) =>
 export async function loader({context, params}: LoaderArgs) {
     const spaceId = Schema.id.deserialize(params.space_id ?? null);
     const authenticatedContext = await context.auth.authenticate();
-    await authorizeAccountHasSpaceAccess(authenticatedContext, spaceId);
+    await authorizeSpaceAccess(authenticatedContext, spaceId);
 
     const propagateEventData: TracerEventData = {
         context: {

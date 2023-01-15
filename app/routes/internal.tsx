@@ -1,6 +1,6 @@
 import {json} from "@remix-run/cloudflare";
 import {Outlet} from "@remix-run/react";
-import {authorizeAccountHasInternalAccess} from "~/server/dynamo/accounts_table";
+import {authorizeInternalAccess} from "~/server/dynamo/accounts_table";
 import {LoaderArgs} from "~/server/remix/loader_context";
 
 // The loader only performs authorization. We don't need to reload on
@@ -8,7 +8,7 @@ import {LoaderArgs} from "~/server/remix/loader_context";
 export const unstable_shouldReload = () => false;
 
 export async function loader({context}: LoaderArgs) {
-    await authorizeAccountHasInternalAccess(await context.auth.authenticate());
+    await authorizeInternalAccess(await context.auth.authenticate());
     return json({});
 }
 

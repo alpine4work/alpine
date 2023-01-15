@@ -5,7 +5,7 @@ import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attr
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
 import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry_dynamo_condition_check_errors";
-import {authorizeAccountHasSpaceAccess} from "~/server/dynamo/spaces_table";
+import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint";
 import {TestCounter} from "~/server/helpers/test/test_counter";
 import {
@@ -244,7 +244,7 @@ export async function createDocument(
     context: RequestContext,
     {id, spaceId, content}: {id: Id; spaceId: Id; content: DocumentContent},
 ) {
-    await authorizeAccountHasSpaceAccess(context, spaceId);
+    await authorizeSpaceAccess(context, spaceId);
 
     await DynamoTableSchema.executeTransaction(
         context,
@@ -297,7 +297,7 @@ export async function getDocumentPreview(
 
     if (!attributes) return null;
 
-    await authorizeAccountHasSpaceAccess(context, attributes.spaceId);
+    await authorizeSpaceAccess(context, attributes.spaceId);
 
     return new DocumentPreviewModel({
         id,
@@ -368,7 +368,7 @@ async function getInternalDocument(
         return null;
     }
 
-    await authorizeAccountHasSpaceAccess(context, attributes.spaceId);
+    await authorizeSpaceAccess(context, attributes.spaceId);
 
     if (!maybeSnapshot)
         throw new DataLossError("Document with attributes should also have a snapshot");
@@ -957,7 +957,7 @@ export async function updateDocumentContent(
 
         // Double check that we can update the document. Another user with access may
         // have cached the document.
-        await authorizeAccountHasSpaceAccess(context, internalDocument.spaceId);
+        await authorizeSpaceAccess(context, internalDocument.spaceId);
 
         const {newContent, steps, invertedSteps, conflictingSteps} =
             await getUpdateDocumentContentResult({
@@ -1400,7 +1400,7 @@ export async function getDocumentContentSteps(
 
     if (!document) throw new NotFoundError("Document does not exist");
 
-    await authorizeAccountHasSpaceAccess(context, document.spaceId);
+    await authorizeSpaceAccess(context, document.spaceId);
 
     if (startVersion < 0) throw new InvalidArgumentError("Start version is less than zero");
     if (startVersion > endVersion)

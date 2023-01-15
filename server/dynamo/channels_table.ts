@@ -3,7 +3,7 @@ import {RequestContext} from "~/server/dynamo/context/request_context";
 import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
-import {authorizeAccountHasSpaceAccess} from "~/server/dynamo/spaces_table";
+import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
 import {ChannelModel} from "~/shared/channels/channel_model";
 import {assert} from "~/shared/helpers/control/assert";
 import {Id, generateId} from "~/shared/id/id";
@@ -58,7 +58,7 @@ export async function createChannel(
     context: RequestContext,
     {spaceId, name}: {spaceId: Id; name: string},
 ): Promise<ChannelModel> {
-    await authorizeAccountHasSpaceAccess(context, spaceId);
+    await authorizeSpaceAccess(context, spaceId);
 
     const channelItem: ChannelAttributesItem = {
         partitionType: "Channel",
@@ -74,7 +74,9 @@ export async function createChannel(
 }
 
 /**
- * Gets the channel object with the provided ID.
+ * Gets the channel object with the provided ID. Returns null if the channel
+ * doesn't exist and throws an error if the channel exists but you don't have
+ * access to the channel.
  */
 export async function getChannel(context: RequestContext, id: Id): Promise<ChannelModel | null> {
     const channelItem = await ChannelsTable.getItem(context, {
@@ -84,7 +86,7 @@ export async function getChannel(context: RequestContext, id: Id): Promise<Chann
     });
     if (!channelItem) return null;
 
-    await authorizeAccountHasSpaceAccess(context, channelItem.spaceId);
+    await authorizeSpaceAccess(context, channelItem.spaceId);
     return createChannelModelFromItem(channelItem);
 }
 

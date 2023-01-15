@@ -4,8 +4,10 @@ import {ContentEditor} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
+import {isContentEmpty} from "~/shared/content/is_content_empty";
+import {parseRemLengthNumber} from "~/shared/design/spacing";
 import {emptyPostContent} from "~/shared/posts/post_content_schema";
-import {sprinkles, truncateClassName} from "~/shared/styles/styles";
+import {fontSizes, sprinkles, truncateClassName} from "~/shared/styles/styles";
 
 export function PostCreator() {
     const [state, setState] = useState(() => ContentEditorState.create(emptyPostContent));
@@ -17,19 +19,21 @@ export function PostCreator() {
                 borderRadius="md"
                 boxShadow="elevation-5"
             >
-                <Box paddingTop="4" paddingX="4" display="flex">
+                <Box paddingTop="6" paddingX="6" display="flex">
                     <Box
                         flexShrink="0"
-                        width="8"
-                        height="8"
                         backgroundColor="grey-30-const"
                         borderRadius="full"
+                        style={{
+                            width: `${parseRemLengthNumber(fontSizes.sm.lineHeight) * 2}rem`,
+                            height: `${parseRemLengthNumber(fontSizes.sm.lineHeight) * 2}rem`,
+                        }}
                     />
                     <Box flexGrow="1" paddingLeft="3" paddingRight="4" overflow="hidden">
-                        <Box fontStyle="semi-bold" className={truncateClassName}>
+                        <Box fontSize="sm" fontStyle="semi-bold" className={truncateClassName}>
                             Caleb Meredith
                         </Box>
-                        <Box color="grey-50" className={truncateClassName}>
+                        <Box fontSize="sm" color="grey-50" className={truncateClassName}>
                             New post
                         </Box>
                     </Box>
@@ -40,12 +44,12 @@ export function PostCreator() {
                     onChange={setState}
                     onNavigate={useNavigate()}
                     placeholder="Share your ideas…"
-                    className={sprinkles({paddingTop: "4", paddingBottom: "4"})}
+                    className={sprinkles({paddingX: "2", paddingY: "6"})}
                 />
-                <Box paddingX="4" paddingBottom="4">
+                <Box paddingX="6" paddingBottom="4">
                     <Box borderTop={{light: "grey-5", dark: "grey-10"}} />
                     <Box paddingTop="4" display="flex" justifyContent="flex-end">
-                        <Button variant="accent" isDisabled={true}>
+                        <Button variant="accent" isDisabled={isContentEmpty(state.getContent())}>
                             Create
                         </Button>
                     </Box>

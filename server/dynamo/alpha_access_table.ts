@@ -1,6 +1,6 @@
 import {compareAsc as compareDatesAsc} from "date-fns";
 import {
-    authorizeAccountHasInternalAccess,
+    authorizeInternalAccess,
     checkAccountEmailAddressDoesNotExistTransactionEntry,
     createAccountForAlphaTransactionEntries,
 } from "~/server/dynamo/accounts_table";
@@ -214,7 +214,7 @@ export async function requestAlphaAccess(
  * whether to accept or reject them.
  */
 export async function getUndecidedAlphaAccessRequests(context: RequestContext) {
-    await authorizeAccountHasInternalAccess(context);
+    await authorizeInternalAccess(context);
 
     const requests = await arrayFromAsyncIterable(
         filterMapAsyncIterableIterator(
@@ -252,7 +252,7 @@ export async function approveAlphaAccessRequest(
     context: RequestContext,
     emailAddress: EmailAddress,
 ) {
-    await authorizeAccountHasInternalAccess(context);
+    await authorizeInternalAccess(context);
 
     const {defaultSpaceId} = await getAlphaConfiguration(context);
     if (!defaultSpaceId)
@@ -305,7 +305,7 @@ export async function approveAlphaAccessRequest(
  * Denies a request for alpha access.
  */
 export async function denyAlphaAccessRequest(context: RequestContext, emailAddress: EmailAddress) {
-    await authorizeAccountHasInternalAccess(context);
+    await authorizeInternalAccess(context);
 
     const requestItem = await AlphaAccessTable.getItem(context, {
         partitionType: "AlphaAccessRequests",
@@ -333,7 +333,7 @@ export async function denyAlphaAccessRequest(context: RequestContext, emailAddre
 export async function* getAllApprovedAlphaAccessRequestEmailAddresses(
     context: RequestContext,
 ): AsyncIterableIterator<EmailAddress> {
-    await authorizeAccountHasInternalAccess(context);
+    await authorizeInternalAccess(context);
 
     for await (const request of AlphaAccessTable.queryEntirePartition(context, {
         partitionKey: {
@@ -358,7 +358,7 @@ export async function saveAlphaConfiguration(
     context: RequestContext,
     configuration: AlphaConfiguration,
 ) {
-    await authorizeAccountHasInternalAccess(context);
+    await authorizeInternalAccess(context);
 
     await AlphaAccessTable.createOrReplaceItem(context, {
         partitionType: "AlphaConfiguration",

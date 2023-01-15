@@ -140,10 +140,7 @@ const authorizationPromiseBySpaceIdByContext = new WeakMap<
  *
  * We cache the result of this function on a per-request basis.
  */
-export function authorizeAccountHasSpaceAccess(
-    context: RequestContext,
-    spaceId: Id,
-): Promise<void> {
+export function authorizeSpaceAccess(context: RequestContext, spaceId: Id): Promise<void> {
     const authorizationPromiseBySpaceId = getOrSetDefaultMapValue(
         authorizationPromiseBySpaceIdByContext,
         context,
