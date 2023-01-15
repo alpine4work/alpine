@@ -54,7 +54,7 @@ type PostAttributesItem = DynamoTableItemType<typeof PostsTable, "Post", "Attrib
 export async function createPost(
     context: RequestContext,
     {channelId, content}: {channelId: ChannelId; content: PostContent},
-) {
+): Promise<PostModel> {
     const channel = await getChannel(context, channelId);
     if (!channel) throw new NotFoundError("Channel does not exist");
 

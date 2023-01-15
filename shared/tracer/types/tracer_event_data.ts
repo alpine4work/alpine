@@ -2,6 +2,7 @@ import {
     AccountId,
     ChannelId,
     DocumentId,
+    PostId,
     RealmId,
     SpaceId,
     TraceId,
@@ -301,6 +302,9 @@ export type TracerEventData = {
 
         /** Information about the channel the event was fired while looking at. */
         readonly channelId?: ChannelId;
+
+        /** Information about the post the event was fired while looking at. */
+        readonly postId?: PostId;
     };
 
     /**

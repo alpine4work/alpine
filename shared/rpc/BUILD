@@ -11,6 +11,7 @@ ts_project(
         "//shared/documents",
         "//shared/error",
         "//shared/helpers",
+        "//shared/posts",
         "//shared/schema",
     ],
 )
