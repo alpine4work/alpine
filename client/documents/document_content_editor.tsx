@@ -26,7 +26,7 @@ function DocumentContentEditorStateful({initialDocument}: {initialDocument: Docu
             onNavigate={useNavigate()}
             aria-label="Document content"
             placeholder="Share your ideas…"
-            className={sprinkles({paddingBottom: "24", backgroundColor: "grey-0"})}
+            className={sprinkles({paddingBottom: "24", paddingX: "2", backgroundColor: "grey-0"})}
             phantomSelections={phantomSelections}
         />
     );

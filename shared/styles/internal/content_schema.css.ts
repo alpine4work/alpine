@@ -26,7 +26,7 @@ import {inputPlaceholderColor} from "~/shared/styles/internal/input_placeholder_
 // - When there is a spellcheck squiggle on a link with an underline, the
 //   underline disappears.
 
-const paragraphMargin = spacing["3"];
+const paragraphMargin = spacing["2"];
 const headerTopMargin = spacing["8"];
 
 export const docClassName = style({
@@ -49,7 +49,7 @@ export const docClassName = style({
 });
 
 const blockWidth = spacing["192"];
-const blockPaddingX = spacing["4"];
+const blockPaddingX = spacing["2"];
 
 const blockStyles = {
     width: "100%",
@@ -130,12 +130,21 @@ const quoteBlockBorderWidth = "0.1875rem";
 
 export const quoteBlockClassName = style({
     ...blockStyles,
-    paddingLeft: `${
-        parseRemLengthNumber(quoteBlockIndentation) - parseRemLengthNumber(quoteBlockBorderWidth)
-    }rem`,
-    borderLeftWidth: quoteBlockBorderWidth,
-    borderColor: colorSchemeVars["grey-10"],
+    position: "relative",
+    paddingLeft: quoteBlockIndentation,
     color: colorSchemeVars["grey-60"],
+    selectors: {
+        "&::before": {
+            content: '""',
+            position: "absolute",
+            top: "0",
+            bottom: "0",
+            left: blockPaddingX,
+            width: quoteBlockBorderWidth,
+            backgroundColor: colorSchemeVars["grey-10"],
+            pointerEvents: "none",
+        },
+    },
 });
 
 // NOTE(calebmer): Ordered lists and bullet lists use the same style for all

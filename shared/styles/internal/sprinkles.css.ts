@@ -63,6 +63,7 @@ const properties = defineProperties({
             sm: "0.125rem",
             base: "0.25rem",
             md: "0.375rem",
+            bubble: "1.25rem",
             full: "9999px",
         },
         boxShadow: elevationVars,

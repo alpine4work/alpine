@@ -415,6 +415,7 @@ function ContentEditorPointerToolbarButtons({
                 <TextStrikethrough />
             </ContentEditorPointerToolbarButton>
             <ContentEditorPointerToolbarLinkButton
+                dividerRight={!state.schema.marks.highlight}
                 state={state}
                 viewRef={viewRef}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
@@ -426,6 +427,7 @@ function ContentEditorPointerToolbarButtons({
             />
             {state.schema.marks.highlight && (
                 <ContentEditorPointerToolbarHighlightButton
+                    dividerRight
                     viewRef={viewRef}
                     sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                     isToolbarFadingOut={isFadingOut}
@@ -452,6 +454,7 @@ function ContentEditorPointerToolbarButtons({
                 <ListBullets />
             </ContentEditorPointerToolbarButton>
             <ContentEditorPointerToolbarButton
+                dividerRight={!state.schema.nodes.checkListItem && !!state.schema.nodes.heading}
                 description="Numbered list"
                 keyboardShortcut="1. Hello"
                 viewRef={viewRef}
@@ -471,7 +474,7 @@ function ContentEditorPointerToolbarButtons({
             </ContentEditorPointerToolbarButton>
             {state.schema.nodes.checkListItem && (
                 <ContentEditorPointerToolbarButton
-                    dividerRight
+                    dividerRight={!!state.schema.nodes.heading}
                     description="Check list"
                     keyboardShortcut="[ ] Hello"
                     viewRef={viewRef}
@@ -646,6 +649,8 @@ function ContentEditorPointerToolbarLinkButton({
     isLinkInputOpen,
     onLinkInputOpen,
     onLinkInputClose,
+    dividerLeft,
+    dividerRight,
 }: {
     state: EditorState;
     viewRef: RefObject<EditorView | null>;
@@ -655,6 +660,8 @@ function ContentEditorPointerToolbarLinkButton({
     isLinkInputOpen: boolean;
     onLinkInputOpen: () => void;
     onLinkInputClose: () => void;
+    dividerLeft?: boolean;
+    dividerRight?: boolean;
 }) {
     const wasJustClosedByOverlayRef = useRef(false);
 
@@ -707,6 +714,8 @@ function ContentEditorPointerToolbarLinkButton({
         >
             <Box>
                 <ContentEditorPointerToolbarButton
+                    dividerLeft={dividerLeft}
+                    dividerRight={dividerRight}
                     description="Link"
                     keyboardShortcut={isMac ? "⌘+K" : "Ctrl+K"}
                     isActive={isLinkInputOpen || !!activeLinkMark}
@@ -747,11 +756,15 @@ function ContentEditorPointerToolbarHighlightButton({
     sharedTooltipLifecycleRef,
     isToolbarFadingOut,
     activeHighlightMark,
+    dividerRight,
+    dividerLeft,
 }: {
     viewRef: RefObject<EditorView | null>;
     sharedTooltipLifecycleRef: (tooltipRef: TooltipRef) => () => void;
     isToolbarFadingOut: boolean;
     activeHighlightMark: Mark | null;
+    dividerRight?: boolean;
+    dividerLeft?: boolean;
 }) {
     const [_isOpen, setIsOpen] = useState(false);
     const isOpen = _isOpen && !isToolbarFadingOut;
@@ -791,7 +804,8 @@ function ContentEditorPointerToolbarHighlightButton({
         >
             <Box>
                 <ContentEditorPointerToolbarButton
-                    dividerRight
+                    dividerRight={dividerRight}
+                    dividerLeft={dividerLeft}
                     description="Highlight"
                     keyboardShortcut={isMac ? "⌘+Shift+H" : "Ctrl+Shift+H"}
                     isActive={isOpen || !!activeHighlightMark}

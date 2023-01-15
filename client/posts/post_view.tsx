@@ -1,9 +1,13 @@
+import {useState} from "react";
 import {useNavigate} from "react-router-dom";
+import {ContentEditor} from "~/client/content/content_editor";
+import {ContentEditorState} from "~/client/content/content_editor_state";
 import {ContentView} from "~/client/content/content_view";
 import {Box} from "~/client/design/box";
 import {PrettyAbsoluteDate} from "~/client/helpers/date/pretty_absolute_date";
+import {emptyPostCommentContent} from "~/shared/posts/post_comment_content_schema";
 import {PostModel} from "~/shared/posts/post_model";
-import {truncateClassName} from "~/shared/styles/styles";
+import {sprinkles, truncateClassName} from "~/shared/styles/styles";
 
 // TODO(calebmer):
 //
@@ -40,8 +44,43 @@ export function PostView({post}: {post: PostModel}) {
                     </Box>
                 </Box>
             </Box>
-            <Box paddingX="1" paddingTop="5" paddingBottom="5">
+            <Box paddingX="3" paddingY="5">
                 <ContentView content={post.content} onNavigate={useNavigate()} />
+            </Box>
+            <Box marginX="5" borderBottom="grey-5" />
+            <Box paddingX="5" paddingY="3">
+                <PostCommentInput />
+            </Box>
+        </Box>
+    );
+}
+
+function PostCommentInput() {
+    const [state, setState] = useState(ContentEditorState.create(emptyPostCommentContent));
+
+    return (
+        <Box display="flex">
+            <Box marginY="1">
+                <Box
+                    flexShrink="0"
+                    width="8"
+                    height="8"
+                    backgroundColor="grey-40-const"
+                    borderRadius="full"
+                />
+            </Box>
+            <Box flexGrow="1" marginLeft="2" backgroundColor="grey-5" borderRadius="bubble">
+                <ContentEditor
+                    state={state}
+                    onChange={setState}
+                    onNavigate={useNavigate()}
+                    aria-label="Comment"
+                    placeholder="Write a comment…"
+                    className={sprinkles({paddingY: "2", paddingX: "1.5"})}
+                    onEnter={() => {
+                        console.log("YO");
+                    }}
+                />
             </Box>
         </Box>
     );
