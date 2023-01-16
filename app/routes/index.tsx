@@ -18,6 +18,7 @@ import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
 import {themeColors} from "~/shared/design/theme_colors";
 import {InvalidArgumentError} from "~/shared/error/error";
+import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {ErrorSchema} from "~/shared/error/error_schema";
 import {isSystemError} from "~/shared/error/is_system_error_code";
 import {randomArrayItem} from "~/shared/helpers/array/random_array_item";
@@ -66,6 +67,16 @@ export async function action({request, context}: LoaderArgs) {
             throw new InvalidArgumentError('Expected property "emailAddress" in form data');
         if (typeof message !== "string")
             throw new InvalidArgumentError('Expected property "message" in form data');
+
+        // NOTE(calebmer, 2022-01-16): I get automated spam bot submissions to this
+        // form every couple hours from a bot with the name "CryptoBob". There are more
+        // sophisticated spam bot prevention techniques (like captcha challenges) but
+        // since we're only seeing one spam bot for now named "CryptoBob", target
+        // CryptoBob specifically.
+        if (/crypto/i.test(name) || /crypto/i.test(message))
+            throw new InvalidArgumentError("Crypto spam not allowed", {
+                displayMessage: errorDisplayMessage`Can not request access if your name or message includes the word “crypto”. We have this restriction to prevent automated spam bots from submitting the form. Remove the word “crypto” from your name or message and try again.`,
+            });
 
         await requestAlphaAccess(context, {
             name,
