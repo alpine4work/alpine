@@ -183,17 +183,20 @@ const themeColorSchemeVars: {[K in keyof ReturnType<typeof createTheme>]: CssVar
 /**
  * Special shades of grey that do not follow the inverted grey color spectrum.
  */
-const specialGreyColorVars = createGlobalTheme(":root", {
+const specialGreyColorVars: {
     /**
      * The color of text. `grey-dark` in light mode and `grey-0` in dark mode.
      */
-    "grey-text": colors["grey-dark"],
+    "grey-text": CssVarFunction;
 
     /**
      * The background color behind any panels which gives the product a sense of
      * depth. In light mode, this is a darker shade of grey than our white panels.
      * In dark mode, this is a darker shade of grey than our `grey-90` panels.
      */
+    "grey-wash": CssVarFunction;
+} = createGlobalTheme(":root", {
+    "grey-text": colors["grey-dark"],
     "grey-wash": colors["grey-5"],
 });
 
