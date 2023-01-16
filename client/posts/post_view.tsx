@@ -4,7 +4,7 @@ import {ContentEditor} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {ContentView} from "~/client/content/content_view";
 import {Box} from "~/client/design/box";
-import {PrettyAbsoluteDate} from "~/client/helpers/date/pretty_absolute_date";
+import {PrettyAbsoluteDate} from "~/client/design/pretty_absolute_date";
 import {emptyPostCommentContent} from "~/shared/posts/post_comment_content_schema";
 import {PostModel} from "~/shared/posts/post_model";
 import {sprinkles, truncateClassName} from "~/shared/styles/styles";
@@ -78,7 +78,7 @@ function PostCommentInput() {
                     placeholder="Write a comment…"
                     className={sprinkles({paddingY: "2", paddingX: "1.5"})}
                     onEnter={() => {
-                        console.log("YO");
+                        // TODO(calebmer): Implement!
                     }}
                 />
             </Box>

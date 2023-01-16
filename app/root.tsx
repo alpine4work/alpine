@@ -23,7 +23,7 @@ import {
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {TooltipCoordinationContextProvider} from "~/client/design/tooltip";
 import {ErrorBodyRenderer} from "~/client/error/error_body_renderer";
-import {DateContextProvider} from "~/client/helpers/date/date_context";
+import {DateContextProvider} from "~/client/helpers/date_context";
 import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useStableValue} from "~/client/helpers/use_stable_value";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
