@@ -25,6 +25,7 @@ import {inputPlaceholderColor} from "~/shared/styles/internal/input_placeholder_
 //   At least on mobile
 // - When there is a spellcheck squiggle on a link with an underline, the
 //   underline disappears.
+// - Strikethrough on h1 feels too thin relative to text
 
 const paragraphMargin = spacing["2"];
 const headerTopMargin = spacing["8"];

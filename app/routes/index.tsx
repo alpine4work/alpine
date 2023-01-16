@@ -78,6 +78,13 @@ export async function action({request, context}: LoaderArgs) {
                 displayMessage: errorDisplayMessage`Can not request access if your name or message includes the word “crypto”. We have this restriction to prevent automated spam bots from submitting the form. Remove the word “crypto” from your name or message and try again.`,
             });
 
+        // NOTE(calebmer, 2022-01-16): Oh CryptoBob you rascal. Now the form is being
+        // submit with "CrytoBob". More defense.
+        if (/cryto/i.test(name) || /cryto/i.test(message))
+            throw new InvalidArgumentError("Crypto spam not allowed", {
+                displayMessage: errorDisplayMessage`Can not request access if your name or message includes the word “cryto”. We have this restriction to prevent automated spam bots from submitting the form. Remove the word “cryto” from your name or message and try again.`,
+            });
+
         await requestAlphaAccess(context, {
             name,
             emailAddress: await validateEmailAddress(context, emailAddress),
