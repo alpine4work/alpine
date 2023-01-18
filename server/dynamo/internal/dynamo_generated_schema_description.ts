@@ -592,7 +592,7 @@ export const dynamoGeneratedSchemaDescription: {
                                     }
                                 }
                             }
-                        },
+                        }
                     }
                 }
             }
