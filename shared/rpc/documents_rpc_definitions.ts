@@ -1,7 +1,7 @@
 import {
     DocumentContentSchema,
     DocumentContentStepSchema,
-} from "~/shared/documents/document_content_schema";
+} from "~/shared/content/document_content_schema";
 import {ContentEditorClientId, DocumentId, SpaceId} from "~/shared/id/types/id_types";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc";
 import {Schema} from "~/shared/schema/schema";

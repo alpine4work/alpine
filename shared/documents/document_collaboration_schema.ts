@@ -1,4 +1,4 @@
-import {DocumentContentStepSchema} from "~/shared/documents/document_content_schema";
+import {DocumentContentStepSchema} from "~/shared/content/document_content_schema";
 import {ErrorSchema} from "~/shared/error/error_schema";
 import {
     ContentEditorClientId,

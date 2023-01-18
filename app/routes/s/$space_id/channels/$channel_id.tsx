@@ -5,9 +5,9 @@ import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schem
 import {getChannel} from "~/server/dynamo/channels_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
-import {ChannelModel} from "~/shared/channels/channel_model";
 import {NotFoundError} from "~/shared/error/error";
 import {ChannelId} from "~/shared/id/types/id_types";
+import {ChannelModel} from "~/shared/models/channel_model";
 import {Schema} from "~/shared/schema/schema";
 import {sprinkles} from "~/shared/styles/styles";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";

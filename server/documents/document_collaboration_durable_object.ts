@@ -18,6 +18,7 @@ import {
 import {createServerTracer} from "~/server/tracer/server_tracer";
 import {traceFetchResponse} from "~/server/tracer/trace_fetch_response";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server";
+import {DocumentContent, isDocumentContent} from "~/shared/content/document_content_schema";
 import {CacheContextModule} from "~/shared/context/cache_context_module";
 import {Context} from "~/shared/context/context";
 import {ProcessContextModule} from "~/shared/context/process_context_module";
@@ -29,7 +30,6 @@ import {
     DocumentCollaborationMessageFromServerSchema,
     DocumentCollaborationPresenceState,
 } from "~/shared/documents/document_collaboration_schema";
-import {DocumentContent, isDocumentContent} from "~/shared/documents/document_content_schema";
 import {
     FailedPreconditionError,
     InternalError,

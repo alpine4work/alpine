@@ -1,6 +1,6 @@
 import {AccountId} from "~/shared/id/types/id_types";
+import {Model} from "~/shared/models/model";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
-import {Model} from "~/shared/schema/model";
 import {Schema} from "~/shared/schema/schema";
 
 export const AlphaAccessRequestDecisionSchema = Schema.union({

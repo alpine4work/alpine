@@ -1,6 +1,6 @@
 import {useNavigate} from "react-router-dom";
 import {ContentView} from "~/client/content/content_view";
-import {DocumentModel} from "~/shared/documents/document_model";
+import {DocumentModel} from "~/shared/models/document_model";
 import {sprinkles} from "~/shared/styles/styles";
 
 export function DocumentContentView({document}: {document: DocumentModel}) {

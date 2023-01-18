@@ -6,9 +6,9 @@ import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
 import {isContentEmpty} from "~/shared/content/is_content_empty";
+import {emptyPostContent} from "~/shared/content/post_content_schema";
 import {parseRemLengthNumber} from "~/shared/design/spacing";
 import {ChannelId} from "~/shared/id/types/id_types";
-import {emptyPostContent} from "~/shared/posts/post_content_schema";
 import {createPost} from "~/shared/rpc/posts_rpc_definitions";
 import {fontSizes, sprinkles, truncateClassName} from "~/shared/styles/styles";
 

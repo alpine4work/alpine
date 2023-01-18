@@ -1,4 +1,4 @@
-import {AlphaConfigurationSchema} from "~/shared/alpha/alpha_configuration_schema";
+import {AlphaConfigurationSchema} from "~/shared/models/alpha_configuration_schema";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
 

@@ -1,8 +1,8 @@
+import {DocumentContent, DocumentContentSchema} from "~/shared/content/document_content_schema";
 import {documentFallbackTitle} from "~/shared/content/document_fallback_title";
-import {DocumentContent, DocumentContentSchema} from "~/shared/documents/document_content_schema";
 import {assert} from "~/shared/helpers/control/assert";
 import {DocumentId, SpaceId} from "~/shared/id/types/id_types";
-import {Model} from "~/shared/schema/model";
+import {Model} from "~/shared/models/model";
 import {Schema} from "~/shared/schema/schema";
 
 /**

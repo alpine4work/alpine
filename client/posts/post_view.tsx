@@ -5,8 +5,8 @@ import {ContentEditorState} from "~/client/content/content_editor_state";
 import {ContentView} from "~/client/content/content_view";
 import {Box} from "~/client/design/box";
 import {PrettyAbsoluteDate} from "~/client/design/pretty_absolute_date";
-import {emptyPostContent} from "~/shared/posts/post_content_schema";
-import {PostModel} from "~/shared/posts/post_model";
+import {emptyPostContent} from "~/shared/content/post_content_schema";
+import {PostModel} from "~/shared/models/post_model";
 import {sprinkles, truncateClassName} from "~/shared/styles/styles";
 
 export const initialPostRootCommentLimit = 20;

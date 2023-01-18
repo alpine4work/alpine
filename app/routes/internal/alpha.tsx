@@ -11,10 +11,10 @@ import {
 } from "~/server/dynamo/alpha_access_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
-import {AlphaAccessRequestModel} from "~/shared/alpha/alpha_access_request_model";
-import {AlphaConfigurationSchema} from "~/shared/alpha/alpha_configuration_schema";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {SpaceId} from "~/shared/id/types/id_types";
+import {AlphaAccessRequestModel} from "~/shared/models/alpha_access_request_model";
+import {AlphaConfigurationSchema} from "~/shared/models/alpha_configuration_schema";
 import {
     approveAlphaAccessRequest,
     denyAlphaAccessRequest,

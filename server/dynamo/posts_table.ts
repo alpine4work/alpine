@@ -3,11 +3,11 @@ import {authorizeChannelAccess, getChannel} from "~/server/dynamo/channels_table
 import {RequestContext} from "~/server/dynamo/context/request_context";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
+import {PostContent, PostContentSchema} from "~/shared/content/post_content_schema";
 import {NotFoundError} from "~/shared/error/error";
 import {generateId} from "~/shared/id/id";
 import {AccountId, ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types";
-import {PostContent, PostContentSchema} from "~/shared/posts/post_content_schema";
-import {PostModel} from "~/shared/posts/post_model";
+import {PostModel} from "~/shared/models/post_model";
 import {Schema} from "~/shared/schema/schema";
 
 const PostsTable = DynamoTableSchema.new({

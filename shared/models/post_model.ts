@@ -1,7 +1,7 @@
-import {AccountModel} from "~/shared/accounts/account_model";
+import {PostContentSchema} from "~/shared/content/post_content_schema";
 import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types";
-import {PostContentSchema} from "~/shared/posts/post_content_schema";
-import {Model} from "~/shared/schema/model";
+import {AccountModel} from "~/shared/models/account_model";
+import {Model} from "~/shared/models/model";
 import {Schema} from "~/shared/schema/schema";
 
 /**

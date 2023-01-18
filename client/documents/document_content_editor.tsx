@@ -1,7 +1,7 @@
 import {useNavigate} from "react-router-dom";
 import {ContentEditor} from "~/client/content/content_editor";
 import {useDocumentContentEditorState} from "~/client/documents/internal/document_content_editor_state";
-import {DocumentModel} from "~/shared/documents/document_model";
+import {DocumentModel} from "~/shared/models/document_model";
 import {sprinkles} from "~/shared/styles/styles";
 
 export function DocumentContentEditor({document}: {document: DocumentModel}) {

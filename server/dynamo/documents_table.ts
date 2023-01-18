@@ -13,12 +13,7 @@ import {
     DocumentContentSchema,
     DocumentContentStepSchema,
     isDocumentContent,
-} from "~/shared/documents/document_content_schema";
-import {
-    DocumentModel,
-    DocumentPreviewModel,
-    getDocumentContentTitleWithoutFallback,
-} from "~/shared/documents/document_model";
+} from "~/shared/content/document_content_schema";
 import {
     DataLossError,
     FailedPreconditionError,
@@ -35,6 +30,11 @@ import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {clamp} from "~/shared/helpers/number/clamp";
 import {ContentEditorClientId, DocumentId, SpaceId} from "~/shared/id/types/id_types";
+import {
+    DocumentModel,
+    DocumentPreviewModel,
+    getDocumentContentTitleWithoutFallback,
+} from "~/shared/models/document_model";
 import {Schema} from "~/shared/schema/schema";
 
 const DocumentsTable = DynamoTableSchema.new({

@@ -12,7 +12,7 @@ import {createTestSpace} from "~/server/dynamo/test/create_test_space";
 import {
     emptyDocumentContent,
     DocumentContentProsemirrorSchema as schema,
-} from "~/shared/documents/document_content_schema";
+} from "~/shared/content/document_content_schema";
 import {FailedPreconditionError} from "~/shared/error/error";
 import {generateId} from "~/shared/id/id";
 import {DocumentId} from "~/shared/id/types/id_types";

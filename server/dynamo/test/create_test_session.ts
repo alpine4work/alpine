@@ -3,9 +3,9 @@ import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {getSpacesTableForTest} from "~/server/dynamo/spaces_table";
 import {TestContext} from "~/server/dynamo/test/create_test_context";
 import {TestSpace} from "~/server/dynamo/test/create_test_space";
-import {AccountModel} from "~/shared/accounts/account_model";
 import {generateId} from "~/shared/id/id";
 import {AccountId, SessionId} from "~/shared/id/types/id_types";
+import {AccountModel} from "~/shared/models/account_model";
 
 export type TestSession = {
     readonly id: SessionId;

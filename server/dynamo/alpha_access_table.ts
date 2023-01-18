@@ -16,14 +16,6 @@ import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_co
 import {createSpaceAccountForAlphaTransactionEntries} from "~/server/dynamo/spaces_table";
 import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address";
 import {FromEmailAddress} from "~/server/emails/from_email_address";
-import {
-    AlphaAccessRequestDecisionSchema,
-    AlphaAccessRequestModel,
-} from "~/shared/alpha/alpha_access_request_model";
-import {
-    AlphaConfiguration,
-    AlphaConfigurationSchema,
-} from "~/shared/alpha/alpha_configuration_schema";
 import {FailedPreconditionError, InternalError, NotFoundError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {assert} from "~/shared/helpers/control/assert";
@@ -32,6 +24,14 @@ import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async
 import {filterMapAsyncIterableIterator} from "~/shared/helpers/iterable/filter_map_async_iterable_iterator";
 import {generateId} from "~/shared/id/id";
 import {AccountId} from "~/shared/id/types/id_types";
+import {
+    AlphaAccessRequestDecisionSchema,
+    AlphaAccessRequestModel,
+} from "~/shared/models/alpha_access_request_model";
+import {
+    AlphaConfiguration,
+    AlphaConfigurationSchema,
+} from "~/shared/models/alpha_configuration_schema";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
 import {Schema} from "~/shared/schema/schema";
 

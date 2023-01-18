@@ -1,5 +1,5 @@
+import {DocumentWithoutTitleContentProsemirrorSchema as schema} from "~/shared/content/document_content_schema";
 import {renderContentToHtml} from "~/shared/content/render_content_to_html";
-import {DocumentWithoutTitleContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema";
 
 test("will properly number list items", () => {
     expect(

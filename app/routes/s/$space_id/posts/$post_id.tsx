@@ -5,7 +5,7 @@ import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
 import {NotFoundError} from "~/shared/error/error";
 import {PostId} from "~/shared/id/types/id_types";
-import {PostModel} from "~/shared/posts/post_model";
+import {PostModel} from "~/shared/models/post_model";
 import {Schema} from "~/shared/schema/schema";
 import {sprinkles} from "~/shared/styles/styles";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";

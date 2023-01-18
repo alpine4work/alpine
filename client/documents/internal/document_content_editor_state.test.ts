@@ -7,10 +7,10 @@ import {
 import {
     assertDocumentContent,
     DocumentContentProsemirrorSchema as schema,
-} from "~/shared/documents/document_content_schema";
-import {DocumentModel} from "~/shared/documents/document_model";
+} from "~/shared/content/document_content_schema";
 import {generateId} from "~/shared/id/id";
 import {ContentEditorClientId, DocumentCollaborationMessageId} from "~/shared/id/types/id_types";
+import {DocumentModel} from "~/shared/models/document_model";
 
 function textSlice(text: string) {
     if (text.length === 0) return Slice.empty;

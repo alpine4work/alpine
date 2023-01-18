@@ -33,18 +33,17 @@ import {ContentEditorPhantomSelection} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {useDevConsoleTool} from "~/client/dev/dev_console";
 import {useWebSocket} from "~/client/helpers/use_web_socket";
+import {
+    DocumentContent,
+    DocumentContentProsemirrorSchema,
+    isDocumentContent,
+} from "~/shared/content/document_content_schema";
 import {defaultThemeColor, themeColors} from "~/shared/design/theme_colors";
 import {
     DocumentCollaborationMessageFromClientSchema,
     DocumentCollaborationMessageFromServerSchema,
     DocumentCollaborationPresenceState,
 } from "~/shared/documents/document_collaboration_schema";
-import {
-    DocumentContent,
-    DocumentContentProsemirrorSchema,
-    isDocumentContent,
-} from "~/shared/documents/document_content_schema";
-import {DocumentModel} from "~/shared/documents/document_model";
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
@@ -57,6 +56,7 @@ import {
     DocumentCollaborationMessageId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types";
+import {DocumentModel} from "~/shared/models/document_model";
 import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema";
 
 export type DocumentContentEditorState = {

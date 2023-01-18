@@ -12,7 +12,7 @@ ts_project(
         "//client/content",
         "//client/context",
         "//client/design",
-        "//shared/posts",
+        "//shared/models",
         "//shared/rpc",
     ],
 )

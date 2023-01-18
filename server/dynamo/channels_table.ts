@@ -4,11 +4,11 @@ import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
-import {ChannelModel} from "~/shared/channels/channel_model";
 import {NotFoundError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {generateId} from "~/shared/id/id";
 import {ChannelId, SpaceId} from "~/shared/id/types/id_types";
+import {ChannelModel} from "~/shared/models/channel_model";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
 import {Schema} from "~/shared/schema/schema";
 

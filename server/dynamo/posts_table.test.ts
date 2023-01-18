@@ -3,12 +3,12 @@ import {createPost, getPost} from "~/server/dynamo/posts_table";
 import {createTestContext} from "~/server/dynamo/test/create_test_context";
 import {createTestSession} from "~/server/dynamo/test/create_test_session";
 import {createTestSpace} from "~/server/dynamo/test/create_test_space";
-import {PermissionDeniedError} from "~/shared/error/error";
-import {generateId} from "~/shared/id/id";
 import {
     assertPostContent,
     PostContentProsemirrorSchema as schema,
-} from "~/shared/posts/post_content_schema";
+} from "~/shared/content/post_content_schema";
+import {PermissionDeniedError} from "~/shared/error/error";
+import {generateId} from "~/shared/id/id";
 
 const context = createTestContext();
 const space = createTestSpace(context);

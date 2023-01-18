@@ -19,8 +19,7 @@ import {
     emptyDocumentContent,
     isDocumentContent,
     DocumentContentProsemirrorSchema as schema,
-} from "~/shared/documents/document_content_schema";
-import {DocumentModel} from "~/shared/documents/document_model";
+} from "~/shared/content/document_content_schema";
 import {
     DataLossError,
     FailedPreconditionError,
@@ -31,6 +30,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
 import {generateId} from "~/shared/id/id";
 import {ContentEditorClientId, DocumentId} from "~/shared/id/types/id_types";
+import {DocumentModel} from "~/shared/models/document_model";
 
 jest.useFakeTimers();
 

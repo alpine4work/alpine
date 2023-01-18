@@ -11,7 +11,7 @@ import {ContentEditorState} from "~/client/content/content_editor_state";
 import {
     DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
-} from "~/shared/documents/document_content_schema";
+} from "~/shared/content/document_content_schema";
 import {UnimplementedError} from "~/shared/error/error";
 
 function cantNavigate() {

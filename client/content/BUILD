@@ -4,7 +4,6 @@ ts_project(
     name = "content",
     test_deps = [
         "//:node_modules/@testing-library/react",
-        "//shared/documents",
     ],
     visibility = [
         "//admin/eslint:__pkg__",

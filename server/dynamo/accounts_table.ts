@@ -12,7 +12,6 @@ import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry_dy
 import {authorizeSpaceAccess, isAccountMemberOfSpace} from "~/server/dynamo/spaces_table";
 import {EmailAddress} from "~/server/emails/email_address";
 import {FromEmailAddress} from "~/server/emails/from_email_address";
-import {AccountModel} from "~/shared/accounts/account_model";
 import {ContextCache} from "~/shared/context/cache_context_module";
 import {FailedPreconditionError, NotFoundError, PermissionDeniedError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
@@ -22,6 +21,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {quote} from "~/shared/helpers/string/quote";
 import {generateId} from "~/shared/id/id";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types";
+import {AccountModel} from "~/shared/models/account_model";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
 import {Schema} from "~/shared/schema/schema";
 

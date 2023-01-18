@@ -2,12 +2,12 @@ import {Session} from "~/server/dynamo/accounts_table";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {unauthenticatedSessionError} from "~/server/dynamo/context/helpers/unauthenticated_session_error";
 import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
-import {AccountModel} from "~/shared/accounts/account_model";
 import {Context} from "~/shared/context/context";
 import {ContextModuleBase} from "~/shared/context/context_module_base";
 import {TracerContextModule} from "~/shared/context/tracer_context_module";
 import {Replace} from "~/shared/helpers/types/replace";
 import {AccountId, SessionId} from "~/shared/id/types/id_types";
+import {AccountModel} from "~/shared/models/account_model";
 
 /**
  * Context module for determining whether a user is authenticated against our

@@ -1,4 +1,4 @@
-import {DocumentContentSchema} from "~/shared/documents/document_content_schema";
+import {DocumentContentSchema} from "~/shared/content/document_content_schema";
 
 export function dummyDocumentContent() {
     return DocumentContentSchema.deserialize({
