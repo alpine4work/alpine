@@ -597,6 +597,41 @@ export const dynamoGeneratedSchemaDescription: {
                 }
             }
         },
+        "SimpleChat": {
+            "name": "SimpleChat",
+            "partitionByType": {
+                "SimpleChat": {
+                    "partitionKeyAttributeByKey": {
+                        "simpleChatId": {
+                            "type": "Id"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "Attributes": {
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {},
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "spaceId": {
+                                        "valueSchema": {
+                                            "type": "Id"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "Spaces": {
             "name": "Spaces",
             "partitionByType": {

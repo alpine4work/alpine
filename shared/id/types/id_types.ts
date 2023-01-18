@@ -28,3 +28,7 @@ export type PostId = NominalIdType<"Post">;
 export type WebSocketConnectionId = NominalIdType<"WebSocketConnection">;
 export type ContentEditorClientId = NominalIdType<"ContentEditorClient">;
 export type DocumentCollaborationMessageId = NominalIdType<"DocumentCollaborationMessage">;
+
+// TODO(calebmer): This is temporary for me to test the new messaging
+// functionality. It will be deleted once I am happy with messaging.
+export type SimpleChatId = NominalIdType<"SimpleChat">;
