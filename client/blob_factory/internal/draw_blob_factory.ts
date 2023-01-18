@@ -31,8 +31,23 @@ export type BlobFactory = {
 
 export type BlobFactoryBlobs = ReadonlyArray<BlobFactoryBlob>;
 
-const blobFactory = new Lazy(() => {
+const blobFactory = new Lazy<
+    | {
+          isGlSupported: false;
+          draw: null;
+      }
+    | {
+          isGlSupported: true;
+          draw: (
+              sizeValue: Vector2,
+              scale: number,
+              settings: BlobFactorySettings,
+              blobs: BlobFactoryBlobs,
+          ) => HTMLCanvasElement;
+      }
+>(() => {
     const canvas = document.createElement("canvas");
+    if (!canvas.getContext("webgl2")) return {isGlSupported: false, draw: null};
     const displayGl = new Gl(canvas);
     const fragShader = displayGl.createShader(GlShaderType.Fragment, blobFactoryShaderFragSource);
     const vertShader = displayGl.createShader(GlShaderType.Vertex, blobFactoryShaderVertSource);
@@ -60,56 +75,59 @@ const blobFactory = new Lazy(() => {
     texture.configureForData();
     program.uniformTexture2d("u_blobs", texture);
 
-    return (
-        sizeValue: Vector2,
-        scale: number,
-        settings: BlobFactorySettings,
-        blobs: BlobFactoryBlobs,
-    ): HTMLCanvasElement => {
-        canvas.width = sizeValue.x * scale;
-        canvas.height = sizeValue.y * scale;
+    return {
+        isGlSupported: true,
+        draw: (
+            sizeValue: Vector2,
+            scale: number,
+            settings: BlobFactorySettings,
+            blobs: BlobFactoryBlobs,
+        ): HTMLCanvasElement => {
+            canvas.width = sizeValue.x * scale;
+            canvas.height = sizeValue.y * scale;
 
-        size.value = sizeValue;
-        displayGl.setDefaultViewport();
-        const positions = [
-            0,
-            0,
-            sizeValue.x,
-            sizeValue.y,
-            0,
-            sizeValue.y,
-            0,
-            0,
-            sizeValue.x,
-            0,
-            sizeValue.x,
-            sizeValue.y,
-        ];
-        positionsVao.bufferData(new Float32Array(positions), GlBufferUsage.StaticDraw);
+            size.value = sizeValue;
+            displayGl.setDefaultViewport();
+            const positions = [
+                0,
+                0,
+                sizeValue.x,
+                sizeValue.y,
+                0,
+                sizeValue.y,
+                0,
+                0,
+                sizeValue.x,
+                0,
+                sizeValue.x,
+                sizeValue.y,
+            ];
+            positionsVao.bufferData(new Float32Array(positions), GlBufferUsage.StaticDraw);
 
-        smoothness.value = settings.smoothness;
-        blurSize.value = settings.blurSize;
-        blurSpread.value = settings.blurSpread;
-        mode.value = blobFactoryModeFromSettings(settings);
-        hueBias.value = settings.hueBias;
-        backgroundColor.value = new Color(colors[settings.backgroundColor]);
+            smoothness.value = settings.smoothness;
+            blurSize.value = settings.blurSize;
+            blurSpread.value = settings.blurSpread;
+            mode.value = blobFactoryModeFromSettings(settings);
+            hueBias.value = settings.hueBias;
+            backgroundColor.value = new Color(colors[settings.backgroundColor]);
 
-        displayGl.clear();
+            displayGl.clear();
 
-        const {colorLevelInside, colorLevelOutside} = settings;
-        texture.update({
-            width: blobs.length * (BlobFactoryBlob.size / 4),
-            height: 1,
-            data: new Float32Array(
-                blobs.flatMap(blob => blob.toArray(colorLevelInside, colorLevelOutside)),
-            ),
-        });
+            const {colorLevelInside, colorLevelOutside} = settings;
+            texture.update({
+                width: blobs.length * (BlobFactoryBlob.size / 4),
+                height: 1,
+                data: new Float32Array(
+                    blobs.flatMap(blob => blob.toArray(colorLevelInside, colorLevelOutside)),
+                ),
+            });
 
-        program.use();
-        positionsVao.bindVao();
-        displayGl.gl.drawArrays(WebGL2RenderingContext.TRIANGLES, 0, 6);
+            program.use();
+            positionsVao.bindVao();
+            displayGl.gl.drawArrays(WebGL2RenderingContext.TRIANGLES, 0, 6);
 
-        return canvas;
+            return canvas;
+        },
     };
 });
 
@@ -119,9 +137,10 @@ export function drawBlobFactoryToCanvas(
     settings: BlobFactorySettings,
     blobs: BlobFactoryBlobs,
 ) {
-    const draw = blobFactory.get();
+    const drawResult = blobFactory.get();
+    if (!drawResult.isGlSupported) return;
     const size = new Vector2(canvas.width, canvas.height).div(scale);
-    const result = draw(size, scale, settings, blobs);
+    const result = drawResult.draw(size, scale, settings, blobs);
     const ctx = canvas.getContext("2d")!;
     ctx.drawImage(result, 0, 0, canvas.width, canvas.height);
 }
@@ -132,8 +151,12 @@ export async function drawBlobFactoryToBlob(
     settings: BlobFactorySettings,
     blobs: BlobFactoryBlobs,
 ): Promise<string> {
-    const draw = blobFactory.get();
-    const canvas = draw(size, scale, settings, blobs);
+    const drawResult = blobFactory.get();
+
+    // TODO(calebmer): Do we need more graceful degradation than throwing an error?
+    if (!drawResult.isGlSupported) throw new InternalError("Browser does not support webgl2");
+
+    const canvas = drawResult.draw(size, scale, settings, blobs);
     return await new Promise<string>((resolve, reject) => {
         canvas.toBlob(blob => {
             if (!blob) {
