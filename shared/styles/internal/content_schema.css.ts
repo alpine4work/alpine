@@ -26,6 +26,8 @@ import {inputPlaceholderColor} from "~/shared/styles/internal/input_placeholder_
 // - When there is a spellcheck squiggle on a link with an underline, the
 //   underline disappears.
 // - Strikethrough on h1 feels too thin relative to text
+// - On mobile, does hitting enter to create a new line capitalize? With
+//   auto-capitalization on and off.
 
 const paragraphMargin = spacing["2"];
 const headerTopMargin = spacing["8"];

@@ -3,14 +3,18 @@ import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {getSpacesTableForTest} from "~/server/dynamo/spaces_table";
 import {TestContext} from "~/server/dynamo/test/create_test_context";
 import {TestSpace} from "~/server/dynamo/test/create_test_space";
+import {AccountModel} from "~/shared/accounts/account_model";
 import {generateId} from "~/shared/id/id";
 import {AccountId, SessionId} from "~/shared/id/types/id_types";
 
 export type TestSession = {
     readonly id: SessionId;
     readonly accountId: AccountId;
+    readonly account: AccountModel;
     readonly item: SessionItem;
 };
+
+let accountNameCounter = 1;
 
 /**
  * Creates a test account and session for the account for use in tests. The
@@ -26,6 +30,15 @@ export function createTestSession(context: TestContext, space: TestSpace): TestS
     const accountId = generateId<AccountId>();
 
     const createdTime = new Date();
+
+    const account = new AccountModel({
+        id: accountId,
+        name: `Test ${accountNameCounter++}`,
+        createdTime,
+        // The `getAccount()` function includes the `hasInternalAccess` property but
+        // sets it to undefined.
+        hasInternalAccess: undefined,
+    });
 
     const sessionItem: SessionItem = {
         partitionType: "Session",
@@ -43,7 +56,7 @@ export function createTestSession(context: TestContext, space: TestSpace): TestS
                 partitionType: "Account",
                 sortRangeType: "Attributes",
                 accountId,
-                name: "Test",
+                name: account.name,
                 createdTime,
             }),
             AccountsTable.transactionCreateItem(sessionItem),
@@ -60,6 +73,7 @@ export function createTestSession(context: TestContext, space: TestSpace): TestS
     return {
         id: sessionId,
         accountId,
+        account,
         item: sessionItem,
     };
 }

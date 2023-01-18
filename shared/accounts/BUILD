@@ -1,13 +1,11 @@
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
-    name = "posts",
+    name = "accounts",
     visibility = ["//visibility:public"],
     deps = [
-        "//:node_modules/prosemirror-model",
-        "//shared/accounts",
-        "//shared/content",
         "//shared/helpers",
+        "//shared/id",
         "//shared/schema",
     ],
 )

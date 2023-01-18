@@ -15,7 +15,9 @@ export type SchemaSerializedValueDescription =
     | SchemaSerializedArrayValueDescription
     | SchemaSerializedObjectValueDescription
     | SchemaSerializedUnionValueDescription
-    | SchemaSerializedResultValueDescription;
+    | SchemaSerializedResultValueDescription
+    | SchemaSerializedSetValueDescription
+    | SchemaSerializedMapValueDescription;
 
 export type SchemaSerializedScalarValueDescription =
     | {readonly type: "Unknown"}
@@ -61,4 +63,15 @@ export type SchemaSerializedResultValueDescription = {
     readonly type: "Result";
     readonly okSchema: SchemaSerializedValueDescription;
     readonly errorSchema: SchemaSerializedValueDescription;
+};
+
+export type SchemaSerializedSetValueDescription = {
+    readonly type: "Set";
+    readonly valueSchema: SchemaSerializedValueDescription;
+};
+
+export type SchemaSerializedMapValueDescription = {
+    readonly type: "Map";
+    readonly keySchema: SchemaSerializedValueDescription;
+    readonly valueSchema: SchemaSerializedValueDescription;
 };

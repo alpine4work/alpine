@@ -1,0 +1,62 @@
+/**
+ * Map every value in the async iterable in parallel and return the result as
+ * an array. The mapper functions can be asynchronous themselves.
+ *
+ * This function only completes when we've seen every item from the iterable
+ * and all the mapper functions have resolved.
+ */
+export async function parallelMapAsyncIterableToArray<Value, NewValue>(
+    iterable: AsyncIterable<Value>,
+    map: (value: Value) => Promise<NewValue>,
+): Promise<Array<NewValue>> {
+    let hasError = false;
+    let firstError;
+
+    const array: Array<any> = [];
+    const promises = new Set<Promise<unknown>>();
+
+    for await (const item of iterable) {
+        // If we have an error, throw it before waiting for the async iterable to
+        // finish.
+        if (hasError) throw firstError;
+
+        const index = array.length;
+
+        // Allocate space in the array for the item when it resolves.
+        array.push(null);
+
+        // Call our mapper function and note the promise. We need to wait for the
+        // promise to resolve before returning.
+        const promise = map(item);
+        promises.add(promise);
+
+        // When the promise resolves, add the new value to the array. If the promise
+        // rejected then make sure to record the error if it's our first error.
+        promise.then(
+            newValue => {
+                promises.delete(promise);
+                array[index] = newValue;
+            },
+            // eslint-disable-next-line no-loop-func
+            error => {
+                promises.delete(promise);
+
+                if (!hasError) {
+                    hasError = true;
+                    firstError = error;
+                } else {
+                    // TODO(calebmer): Report other errors somewhere?
+                }
+            },
+        );
+    }
+
+    // Check if we have an error before and after waiting for all remaining
+    // promises to settle. A promise may reject while we are waiting on our
+    // promises to settle.
+    if (hasError) throw firstError;
+    await Promise.allSettled(promises);
+    if (hasError) throw firstError;
+
+    return array;
+}

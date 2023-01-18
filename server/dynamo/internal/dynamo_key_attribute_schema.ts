@@ -140,7 +140,8 @@ export type DynamoKeyAttributeSchemaDescription =
     | {readonly type: "OrderKey"}
     | {readonly type: "LabelString"}
     | {readonly type: "EmailAddress"}
-    | {readonly type: "Reverse"; readonly schema: DynamoKeyAttributeSchemaDescription};
+    | {readonly type: "Reverse"; readonly schema: DynamoKeyAttributeSchemaDescription}
+    | {readonly type: "Nullable"; readonly schema: DynamoKeyAttributeSchemaDescription};
 
 /**
  * An attribute of a DynamoDB key.
@@ -285,8 +286,6 @@ export class DynamoKeyAttributeSchema<Value> {
         this.deserialize = deserialize;
     }
 
-    private _reverseSchema: DynamoKeyAttributeSchema<Value> | null = null;
-
     /**
      * Order our values in reverse.
      *
@@ -294,21 +293,40 @@ export class DynamoKeyAttributeSchema<Value> {
      * byte order from the input string.
      */
     public reverse(): DynamoKeyAttributeSchema<Value> {
-        if (!this._reverseSchema) {
-            this._reverseSchema = new DynamoKeyAttributeSchema<Value>({
-                description: {type: "Reverse", schema: this.description},
-                serialize: value => {
-                    const keyAttribute = this.serialize(value);
-                    return serializeReversedDynamoKeyAttribute(keyAttribute);
-                },
-                deserialize: reversedKeyAttribute => {
-                    const keyAttribute =
-                        deserializeReversedDynamoKeyAttribute(reversedKeyAttribute);
-                    return this.deserialize(keyAttribute);
-                },
-            });
-        }
-        return this._reverseSchema;
+        return new DynamoKeyAttributeSchema<Value>({
+            description: {type: "Reverse", schema: this.description},
+            serialize: value => {
+                const keyAttribute = this.serialize(value);
+                return serializeReversedDynamoKeyAttribute(keyAttribute);
+            },
+            deserialize: reversedKeyAttribute => {
+                const keyAttribute = deserializeReversedDynamoKeyAttribute(reversedKeyAttribute);
+                return this.deserialize(keyAttribute);
+            },
+        });
+    }
+
+    /**
+     * Allow the key value to be null.
+     *
+     * If null then the value serializes to `0`. Otherwise we append `1-` to the
+     * serialized value. This means that null values always come first.
+     */
+    public nullable(): DynamoKeyAttributeSchema<Value | null> {
+        return new DynamoKeyAttributeSchema<Value | null>({
+            description: {type: "Nullable", schema: this.description},
+            serialize: value => {
+                if (value === null) return "0" as DynamoKeyAttribute;
+                const keyAttribute = this.serialize(value);
+                return `1-${keyAttribute}` as DynamoKeyAttribute;
+            },
+            deserialize: nullableKeyAttribute => {
+                if (nullableKeyAttribute === "0") return null;
+                assert(nullableKeyAttribute.startsWith("1-"));
+                const keyAttribute = nullableKeyAttribute.slice(2) as DynamoKeyAttribute;
+                return this.deserialize(keyAttribute);
+            },
+        });
     }
 }
 

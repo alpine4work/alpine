@@ -1,4 +1,3 @@
-import formatISO from "date-fns/formatISO";
 import isValid from "date-fns/isValid";
 import parseISO from "date-fns/parseISO";
 import {assert} from "~/shared/helpers/control/assert";
@@ -27,7 +26,10 @@ export function isDateString(string: string): string is DateString {
  */
 export function serializeDateString(date: Date): DateString {
     assert(isValid(date));
-    return formatISO(date) as DateString;
+
+    // `formatISO()` from `date-fns` truncates milliseconds by default. Use the native
+    // `toISOString()` method for printing dates.
+    return date.toISOString() as DateString;
 }
 
 /**

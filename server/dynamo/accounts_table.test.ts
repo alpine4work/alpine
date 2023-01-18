@@ -3,11 +3,14 @@ import {
     attemptOneTimePasswordSignIn,
     captureOneTimePasswordSignInEmailsForTest,
     generateOneTimePassword,
+    getAccount,
     getAccountsTableForTest,
     regenerateOneTimePasswordSignIn,
 } from "~/server/dynamo/accounts_table";
 import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {createTestContext} from "~/server/dynamo/test/create_test_context";
+import {createTestSession} from "~/server/dynamo/test/create_test_session";
+import {createTestSpace} from "~/server/dynamo/test/create_test_space";
 import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address";
 import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
@@ -15,6 +18,15 @@ import {generateId} from "~/shared/id/id";
 import {AccountId} from "~/shared/id/types/id_types";
 
 const context = createTestContext();
+const space1 = createTestSpace(context);
+const space2 = createTestSpace(context);
+const space1Session1 = createTestSession(context, space1);
+const space1Session2 = createTestSession(context, space1);
+const space1Session3 = createTestSession(context, space1);
+const space2Session1 = createTestSession(context, space2);
+const space2Session2 = createTestSession(context, space2);
+const space2Session3 = createTestSession(context, space2);
+
 const AccountsTable = getAccountsTableForTest();
 
 async function createTestAccount({
@@ -879,4 +891,73 @@ test("generates one time passwords that are six characters long", () => {
     for (let i = 0; i < 1_000; i++) {
         expect(generateOneTimePassword().length).toEqual(6);
     }
+});
+
+test("can get accounts in the same space as us", async () => {
+    expect(
+        (await getAccount(context.request(space1Session1), space1.id, space1Session1.accountId))
+            ?.name,
+    ).toEqual(space1Session1.account.name);
+
+    expect(
+        (await getAccount(context.request(space1Session1), space1.id, space1Session2.accountId))
+            ?.name,
+    ).toEqual(space1Session2.account.name);
+
+    expect(
+        (await getAccount(context.request(space1Session1), space1.id, space1Session3.accountId))
+            ?.name,
+    ).toEqual(space1Session3.account.name);
+});
+
+test("can not get accounts that don't exist", async () => {
+    expect(await getAccount(context.request(space1Session1), space1.id, generateId())).toEqual(
+        null,
+    );
+});
+
+test("can not get accounts in a different space than us", async () => {
+    expect(
+        await getAccount(context.request(space1Session1), space1.id, space2Session1.accountId),
+    ).toEqual(null);
+
+    expect(
+        await getAccount(context.request(space1Session1), space1.id, space2Session2.accountId),
+    ).toEqual(null);
+
+    expect(
+        await getAccount(context.request(space1Session1), space1.id, space2Session3.accountId),
+    ).toEqual(null);
+});
+
+test("can not get accounts through a space we don't have access to", async () => {
+    await expect(() =>
+        getAccount(context.request(space1Session1), space2.id, generateId()),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(() =>
+        getAccount(context.request(space1Session1), space2.id, space2Session1.accountId),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(() =>
+        getAccount(context.request(space1Session1), space2.id, space2Session2.accountId),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(() =>
+        getAccount(context.request(space1Session1), space2.id, space2Session3.accountId),
+    ).rejects.toThrow(PermissionDeniedError);
+});
+
+test("can not get accounts through a space we don't have access to even if we have access to the accounts through a different space", async () => {
+    await expect(() =>
+        getAccount(context.request(space1Session1), space2.id, space1Session1.accountId),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(() =>
+        getAccount(context.request(space1Session1), space2.id, space1Session2.accountId),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(() =>
+        getAccount(context.request(space1Session1), space2.id, space1Session3.accountId),
+    ).rejects.toThrow(PermissionDeniedError);
 });

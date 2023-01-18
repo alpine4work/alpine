@@ -5,6 +5,7 @@ import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attr
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
 import {ChannelModel} from "~/shared/channels/channel_model";
+import {NotFoundError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {generateId} from "~/shared/id/id";
 import {ChannelId, SpaceId} from "~/shared/id/types/id_types";
@@ -36,7 +37,7 @@ const ChannelsTable = DynamoTableSchema.new({
     },
 });
 
-type ChannelAttributesItem = DynamoTableItemType<typeof ChannelsTable, "Channel", "Attributes">;
+type ChannelItem = DynamoTableItemType<typeof ChannelsTable, "Channel", "Attributes">;
 
 export async function seedTestChannels(context: DynamoContext) {
     assert(process.env.NODE_ENV !== "production");
@@ -61,7 +62,7 @@ export async function createChannel(
 ): Promise<ChannelModel> {
     await authorizeSpaceAccess(context, spaceId);
 
-    const channelItem: ChannelAttributesItem = {
+    const channelItem: ChannelItem = {
         partitionType: "Channel",
         sortRangeType: "Attributes",
         channelId: generateId(),
@@ -74,6 +75,18 @@ export async function createChannel(
     return createChannelModelFromItem(channelItem);
 }
 
+async function getChannelItem(context: RequestContext, id: ChannelId): Promise<ChannelItem | null> {
+    const channelItem = await ChannelsTable.getItem(context, {
+        partitionType: "Channel",
+        sortRangeType: "Attributes",
+        channelId: id,
+    });
+    if (!channelItem) return null;
+
+    await authorizeSpaceAccess(context, channelItem.spaceId);
+    return channelItem;
+}
+
 /**
  * Gets the channel object with the provided ID. Returns null if the channel
  * doesn't exist and throws an error if the channel exists but you don't have
@@ -83,22 +96,28 @@ export async function getChannel(
     context: RequestContext,
     id: ChannelId,
 ): Promise<ChannelModel | null> {
-    const channelItem = await ChannelsTable.getItem(context, {
-        partitionType: "Channel",
-        sortRangeType: "Attributes",
-        channelId: id,
-    });
+    const channelItem = await getChannelItem(context, id);
     if (!channelItem) return null;
-
-    await authorizeSpaceAccess(context, channelItem.spaceId);
     return createChannelModelFromItem(channelItem);
 }
 
-function createChannelModelFromItem(channelItem: ChannelAttributesItem): ChannelModel {
+function createChannelModelFromItem(channelItem: ChannelItem): ChannelModel {
     return new ChannelModel({
         id: channelItem.channelId,
         spaceId: channelItem.spaceId,
         createdTime: channelItem.createdTime,
         name: channelItem.name,
     });
+}
+
+/**
+ * Authorize that the current user has access to a channel. Implicitly also authorizes
+ * that the current user has access to the space the channel is in.
+ */
+export async function authorizeChannelAccess(
+    context: RequestContext,
+    id: ChannelId,
+): Promise<void> {
+    const channelItem = await getChannelItem(context, id);
+    if (!channelItem) throw new NotFoundError("Channel not found");
 }

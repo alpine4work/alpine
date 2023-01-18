@@ -1,5 +1,10 @@
+import {AttributeValue} from "@aws-sdk/client-dynamodb";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
+import {
+    intoDynamoAttributeValue,
+    intoDynamoAttributeValueObject,
+} from "~/server/dynamo/internal/dynamo_attribute_value";
 import {DynamoClient, DynamoReadConsistency} from "~/server/dynamo/internal/dynamo_client";
 import {
     DynamoCondition,
@@ -26,6 +31,7 @@ import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
 import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order_key";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier";
+import {quote} from "~/shared/helpers/string/quote";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection";
 import {
     ObjectSchema,
@@ -483,11 +489,7 @@ export class DynamoTableSchema<
      */
     public async getPartialItem<
         Key extends Types["Key"],
-        // Here, `keyof (Types["Item"] & Key)` ends up giving us the type
-        // `keyof Types["Item"]` which isn't what we want. We only want the keys of the
-        // item for the provided `Key`. However, we've found a different implementation
-        // of `keyof` that works for us. See `KeyofImplementedWithConditionalType`.
-        Attributes extends string & KeyofImplementedWithConditionalType<Types["Item"] & Key>,
+        Attributes extends DistributiveKeyOf<Types["Item"]> & string,
     >(
         context: DynamoContext,
         key: Key,
@@ -502,17 +504,13 @@ export class DynamoTableSchema<
         const client = await this._getClient(context, false);
         const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
 
-        assert(
-            attributesSchema instanceof ObjectSchema,
-            "Expected a schema created by `Schema.object()`",
-        );
-
         const projectionExpressionEntries = [];
-        for (const propertyKey of attributes) {
-            const propertySchema = attributesSchema.propertySchemaByKey.get(propertyKey);
-            assert(propertySchema, "Property not found");
+        for (const attribute of attributes) {
+            const propertySchema = attributesSchema.propertySchemaByKey.get(attribute);
+            if (!propertySchema)
+                throw new InternalError(quote`Attribute ${attribute} not found in item schema`);
 
-            const serializedKey = propertySchema.serializedKey ?? propertyKey;
+            const serializedKey = propertySchema.serializedKey ?? attribute;
             projectionExpressionEntries.push(serializedKey);
         }
 
@@ -1316,6 +1314,74 @@ export class DynamoTableSchema<
     }
 
     /**
+     * Update a single attribute on the item with the specified key. Is serialized
+     * with all other updates of this item with `updateLockVersion`.
+     *
+     * You are expected to load the current `updateLockVersion` and pass it into
+     * this function. Probably with `getPartialItem()`. If you pass in an incorrect
+     * `updateLockVersion` there will be a condition check error. Probably what you
+     * want to do is to run a `retryDynamoConditionCheckErrors()` loop that loads
+     * the old version of the property and the `updateLockVersion`. Then apply an
+     * update and create this transaction entry. Or you can use
+     * `updateItemAttribute()` which handles the retry loop for you.
+     */
+    // NOTE(calebmer): Eventually this should have a suite of attribute update
+    // methods. For instance, a `updateItemAttribute()` function that has a
+    // retry loop similar to our `updateItem()` function I think would be a
+    // good idea for one-off attribute updates.
+    public transactionDirectlyUpdateItemAttribute<
+        Key extends Types["Key"],
+        Attribute extends DistributiveKeyOf<Types["Item"]> & string,
+    >(
+        key: Key,
+        attribute: Attribute,
+        attributeValue: (Types["Item"] & Key)[Attribute],
+        {updateLockVersion}: {updateLockVersion: number | undefined},
+    ): DynamoTransactionEntry {
+        const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
+
+        const propertySchema = attributesSchema.propertySchemaByKey.get(attribute);
+        if (!propertySchema)
+            throw new InternalError(quote`Attribute ${attribute} not found in item schema`);
+
+        const serializedKey = propertySchema.serializedKey ?? attribute;
+        const serializedObject: {[key: string]: SchemaSerializedValue} = {};
+        propertySchema.serializeProperty(serializedObject, serializedKey, attributeValue);
+        const serializedValue = serializedObject[serializedKey];
+
+        const expressionAttributeValues: {[key: string]: AttributeValue} = {};
+
+        if (typeof updateLockVersion === "number") {
+            expressionAttributeValues[":oldUpdateLockVersion"] =
+                intoDynamoAttributeValue(updateLockVersion);
+        }
+
+        expressionAttributeValues[":newUpdateLockVersion"] = intoDynamoAttributeValue(
+            (updateLockVersion ?? 0) + 1,
+        );
+
+        if (serializedValue !== undefined) {
+            expressionAttributeValues[":value"] = intoDynamoAttributeValue(serializedValue);
+        }
+
+        return DynamoTransactionEntry._newFromClient(DynamoClient, {
+            Update: {
+                TableName: this._config.name,
+                Key: intoDynamoAttributeValueObject({partitionKey, sortKey}),
+                UpdateExpression:
+                    serializedValue === undefined
+                        ? `REMOVE ${serializedKey} SET updateLockVersion = :newUpdateLockVersion`
+                        : `SET ${serializedKey} = :value, updateLockVersion = :newUpdateLockVersion`,
+                ConditionExpression:
+                    typeof updateLockVersion === "number"
+                        ? "updateLockVersion = :oldUpdateLockVersion"
+                        : "attribute_not_exists(updateLockVersion)",
+                ExpressionAttributeValues: expressionAttributeValues,
+            },
+        });
+    }
+
+    /**
      * Queries a range of a partition in the table. Queries are how you get many
      * items from the database at once. Queries require you to carefully structure
      * your table ahead of time so that items that need to be read together are
@@ -1726,7 +1792,9 @@ function checkDynamoTableSortRangeSchemaDescriptionBackwardsCompatibility(
 }
 
 /**
- * An alternative implementation of `keyof T` that seems to work in
- * `getPartialItem()` whereas `keyof` doesn't.
+ * `keyof T` but it distributes across a union. So
+ * `DistributiveKeyOf<A | B | C>` becomes
+ * `(keyof A) | (keyof B) | (keyof C)` as opposed to `keyof (A | B | C)` which
+ * is the equivalent of `(keyof A) & (keyof B) & (keyof C)`.
  */
-type KeyofImplementedWithConditionalType<T> = T extends {[K in infer U]: any} ? U : never;
+type DistributiveKeyOf<T> = T extends unknown ? keyof T : never;

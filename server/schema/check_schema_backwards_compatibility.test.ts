@@ -881,3 +881,114 @@ test("result entries are separately backwards compatible with each other", () =>
         sampleValues: [{ok: true, foo: null}],
     });
 });
+
+test("set schema is backwards compatible if its items are backwards compatible", () => {
+    testCase({
+        isBackwardsCompatible: true,
+        lastSchema: Schema.set(Schema.integer),
+        nextSchema: Schema.set(Schema.integer.nullable()),
+        sampleValues: [new Set([]), new Set([1]), new Set([1, 2, 3])],
+    });
+
+    testCase({
+        isBackwardsCompatible: false,
+        lastSchema: Schema.set(Schema.integer.nullable()),
+        nextSchema: Schema.set(Schema.integer),
+        sampleValues: [new Set([null]), new Set([null, null, null])],
+    });
+
+    testCase({
+        isBackwardsCompatible: false,
+        lastSchema: Schema.set(Schema.integer),
+        nextSchema: Schema.set(Schema.string),
+        sampleValues: [new Set([1]), new Set([1, 2, 3])],
+    });
+});
+
+test("map schema is backwards compatible if its entries are backwards compatible", () => {
+    testCase({
+        isBackwardsCompatible: true,
+        lastSchema: Schema.map(Schema.integer, Schema.integer),
+        nextSchema: Schema.map(Schema.integer.nullable(), Schema.integer),
+        sampleValues: [
+            new Map<number, number>([]),
+            new Map([[1, 1]]),
+            new Map([
+                [1, 3],
+                [2, 2],
+                [3, 1],
+            ]),
+        ],
+    });
+
+    testCase({
+        isBackwardsCompatible: true,
+        lastSchema: Schema.map(Schema.integer, Schema.integer),
+        nextSchema: Schema.map(Schema.integer, Schema.integer.nullable()),
+        sampleValues: [
+            new Map<number, number>([]),
+            new Map([[1, 1]]),
+            new Map([
+                [1, 3],
+                [2, 2],
+                [3, 1],
+            ]),
+        ],
+    });
+
+    testCase({
+        isBackwardsCompatible: false,
+        lastSchema: Schema.map(Schema.integer.nullable(), Schema.integer),
+        nextSchema: Schema.map(Schema.integer, Schema.integer),
+        sampleValues: [
+            new Map([[null, 1]]),
+            new Map([
+                [null, 1],
+                [null, 2],
+                [null, 3],
+            ]),
+        ],
+    });
+
+    testCase({
+        isBackwardsCompatible: false,
+        lastSchema: Schema.map(Schema.integer, Schema.integer.nullable()),
+        nextSchema: Schema.map(Schema.integer, Schema.integer),
+        sampleValues: [
+            new Map([[1, null]]),
+            new Map([
+                [1, null],
+                [2, null],
+                [3, null],
+            ]),
+        ],
+    });
+
+    testCase({
+        isBackwardsCompatible: false,
+        lastSchema: Schema.map(Schema.integer, Schema.integer),
+        nextSchema: Schema.map(Schema.string, Schema.integer),
+        sampleValues: [
+            new Map([[1, 1]]),
+            new Map([
+                [1, 3],
+                [2, 2],
+                [3, 1],
+            ]),
+        ],
+    });
+
+    testCase({
+        isBackwardsCompatible: false,
+        lastSchema: Schema.map(Schema.integer, Schema.integer),
+        nextSchema: Schema.map(Schema.integer, Schema.string),
+        sampleValues: [
+            new Map([[1, 1]]),
+            new Map([
+                [1, 3],
+                [2, 2],
+                [3, 1],
+            ]),
+        ],
+    });
+});

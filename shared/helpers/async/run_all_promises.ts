@@ -1,8 +1,6 @@
 import {ErrorBase} from "~/shared/error/error";
 import {isSystemError} from "~/shared/error/is_system_error_code";
 
-type AwaitedThunk<T> = T extends () => infer U ? Awaited<U> : Awaited<T>;
-
 /**
  * Runs multiple promises in parallel. Should generally be used instead of
  * `Promise.all()`.
@@ -21,15 +19,13 @@ type AwaitedThunk<T> = T extends () => infer U ? Awaited<U> : Awaited<T>;
  */
 // TODO(calebmer): Lint rule banning `Promise.all()` and recommending this
 // utility.
-export async function runAllPromises<
-    Promises extends ReadonlyArray<Promise<unknown> | (() => Promise<unknown>)>,
->(promises: Promises): Promise<{-readonly [K in keyof Promises]: AwaitedThunk<Promises[K]>}> {
-    const results = await Promise.allSettled(
-        promises.map(promise => (typeof promise === "function" ? promise() : promise)),
-    );
+export async function runAllPromises<Promises extends ReadonlyArray<Promise<unknown>>>(
+    promises: Promises,
+): Promise<{-readonly [K in keyof Promises]: Awaited<Promises[K]>}> {
+    const results = await Promise.allSettled(promises);
 
     let hasRejection = false;
-    let internalError: ErrorBase | null = null;
+    let systemError: ErrorBase | null = null;
     let firstRejectionReason;
     const values = [];
 
@@ -39,10 +35,8 @@ export async function runAllPromises<
             if (!hasRejection) firstRejectionReason = result.reason;
             hasRejection = true;
 
-            // Maybe we should rank errors by severity instead of a binary "is internal
-            // server error or user error" ranking.
             if (isSystemError(result.reason)) {
-                internalError = result.reason;
+                systemError = result.reason;
                 break;
             }
 
@@ -52,8 +46,20 @@ export async function runAllPromises<
         if (!hasRejection) values.push(result.value);
     }
 
-    if (internalError) throw internalError;
+    // If we had a system error, prioritize throwing that. Otherwise throw the
+    // first error we saw.
+    if (systemError) throw systemError;
     if (hasRejection) throw firstRejectionReason;
 
     return values as any;
+}
+
+/**
+ * Runs multiple promises in parallel. Same as `runAllPromises()` but you can
+ * write the promise as a thunk and we will call the thunk as a function.
+ */
+export function runAllPromiseThunks<PromiseThunks extends ReadonlyArray<() => Promise<unknown>>>(
+    ...promiseThunks: PromiseThunks
+): Promise<{-readonly [K in keyof PromiseThunks]: Awaited<ReturnType<PromiseThunks[K]>>}> {
+    return runAllPromises(promiseThunks.map(thunk => thunk())) as any;
 }

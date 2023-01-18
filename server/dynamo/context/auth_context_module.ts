@@ -1,7 +1,8 @@
-import {Account, Session} from "~/server/dynamo/accounts_table";
+import {Session} from "~/server/dynamo/accounts_table";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {unauthenticatedSessionError} from "~/server/dynamo/context/helpers/unauthenticated_session_error";
 import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
+import {AccountModel} from "~/shared/accounts/account_model";
 import {Context} from "~/shared/context/context";
 import {ContextModuleBase} from "~/shared/context/context_module_base";
 import {TracerContextModule} from "~/shared/context/tracer_context_module";
@@ -116,7 +117,7 @@ export class AuthenticatedAuthContextModule extends UnauthenticatedAuthContextMo
     /**
      * Returns the account connected to our service.
      */
-    public getAccount(): Promise<Account> {
+    public getAccount(): Promise<AccountModel> {
         return this._session.getAccount(this._context);
     }
 }

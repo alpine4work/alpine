@@ -18,6 +18,7 @@ import {SessionCookieStorage} from "~/server/remix/session_cookie";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module";
 import {createServerTracer} from "~/server/tracer/server_tracer";
 import {traceFetchResponse} from "~/server/tracer/trace_fetch_response";
+import {CacheContextModule} from "~/shared/context/cache_context_module";
 import {Context} from "~/shared/context/context";
 import {ProcessContextModule} from "~/shared/context/process_context_module";
 import {TracerContextModule} from "~/shared/context/tracer_context_module";
@@ -237,6 +238,7 @@ async function handleFetch(
                             ? parseInt(env.DEV_SERVER_PORT, 10)
                             : null,
                     }),
+                    cache: new CacheContextModule(),
 
                     auth: new UnauthenticatedAuthContextModule(async context => {
                         const sessionCookie = await sessionCookiePromise;

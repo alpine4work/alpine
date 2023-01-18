@@ -1,5 +1,6 @@
 import {base64ToBytes, bytesToBase64} from "byte-base64";
-import {formatISO, isValid as isValidDate, parseISO} from "date-fns";
+import isValidDate from "date-fns/isValid";
+import parseISO from "date-fns/parseISO";
 import {InternalError, InvalidArgumentError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
@@ -310,7 +311,10 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
         description: {type: "Date"},
         serialize: value => {
             assert(isValidDate(value));
-            return formatISO(value);
+
+            // `formatISO()` from `date-fns` truncates milliseconds by default. Use the native
+            // `toISOString()` method for printing dates.
+            return value.toISOString();
         },
         deserialize: value => {
             if (typeof value !== "string")
@@ -419,36 +423,9 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
 
     /**
      * Accept an array where every item matches the schema.
-     *
-     * Mutates the array in-place when parsing if the item schema changes values.
      */
-    public static array<Value>(itemSchema: Schema<Value>): Schema<ReadonlyArray<Value>> {
-        const {validate} = itemSchema;
-
-        return new Schema({
-            description: {
-                type: "Array",
-                itemSchema: itemSchema.description,
-            },
-            serialize: value => value.map(item => itemSchema.serialize(item)),
-            deserialize: value => {
-                if (!Array.isArray(value))
-                    throw new SchemaDeserializationError("Expected an array");
-
-                return value.map((item, index) => {
-                    return withSchemaDeserializationStackFrame({type: "ArrayIndex", index}, () => {
-                        return itemSchema.deserialize(item);
-                    });
-                });
-            },
-            validate: validate
-                ? value => {
-                      for (const item of value) {
-                          validate(item);
-                      }
-                  }
-                : null,
-        });
+    public static array<Value>(itemSchema: Schema<Value>): ArraySchema<Value> {
+        return ArraySchema._new(itemSchema);
     }
 
     /**
@@ -562,6 +539,46 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     }
 
     /**
+     * A unique set of values.
+     *
+     * Maintains the order items were inserted into the set during
+     * serialization/deserialization just like the JavaScript `Set` class does.
+     *
+     * Keep in mind this uses JavaScript `Set` rules for value equality. It does
+     * not test structural equality! So objects are only considered equal by the
+     * set if they are referentially equal. This means you may end up with the
+     * serialized set `[{p: 1}, {p: 1}]`. Those two objects are structurally equal
+     * but if they had the same reference when you built the `Set` they will stay
+     * that way.
+     */
+    public static set<Value>(itemSchema: Schema<Value>): SetSchema<Value> {
+        return SetSchema._new(itemSchema);
+    }
+
+    /**
+     * A map of values. Each key may only be represented in the map once.
+     *
+     * Maintains the order entries were inserted into the map during
+     * serialization/deserialization just like the JavaScript `Map` class does.
+     *
+     * To maintain order (and to allow arbitrary key values) we serialize to an
+     * array of tuples instead of an object. So `[[1, "a"], [2, "b"], [3, "c"]]`.
+     *
+     * Keep in mind this uses JavaScript `Map` key rules for key equality. It does
+     * not test structural equality! So objects are only considered equal by the
+     * map if they are referentially equal. This means you may end up with the
+     * serialized map `[[{p: 1}, "a"], [{p: 1}, "b"]]`. Those two objects are
+     * structurally equal but if they had the same reference when you built the
+     * `Map` they will stay that way.
+     */
+    public static map<Key, Value>(
+        keySchema: Schema<Key>,
+        valueSchema: Schema<Value>,
+    ): MapSchema<Key, Value> {
+        return MapSchema._new(keySchema, valueSchema);
+    }
+
+    /**
      * Transform a schema's value at runtime into a different format.
      *
      * If you want to serialize a value in a format supported by our `Schema` but
@@ -615,6 +632,140 @@ export class JsonStringifiableUint8Array extends Uint8Array {
 
     public toJSON(): string {
         return bytesToBase64(this);
+    }
+}
+
+/**
+ * Schema for an array value.
+ *
+ * You should only create this with `Schema.array()`.
+ */
+export class ArraySchema<Value> extends Schema<ReadonlyArray<Value>> {
+    /**
+     * Prefer `Schema.array()` which directly calls this method.
+     */
+    public static _new<Value>(itemSchema: Schema<Value>): ArraySchema<Value> {
+        const {validate} = itemSchema;
+
+        return new ArraySchema({
+            description: {
+                type: "Array",
+                itemSchema: itemSchema.description,
+            },
+            serialize: value => value.map(item => itemSchema.serialize(item)),
+            deserialize: value => {
+                if (!Array.isArray(value))
+                    throw new SchemaDeserializationError("Expected an array");
+
+                return value.map((item, index) => {
+                    return withSchemaDeserializationStackFrame({type: "ArrayIndex", index}, () => {
+                        return itemSchema.deserialize(item);
+                    });
+                });
+            },
+            validate: validate
+                ? value => {
+                      for (const item of value) {
+                          validate(item);
+                      }
+                  }
+                : null,
+        });
+    }
+
+    private _transformArray({
+        serialize,
+        deserialize,
+        validate: newValidate,
+    }: {
+        serialize: (value: ReadonlyArray<Value>) => ReadonlyArray<Value>;
+        deserialize: (value: ReadonlyArray<Value>) => ReadonlyArray<Value>;
+        validate: ((value: ReadonlyArray<Value>) => void) | null;
+    }): ArraySchema<Value> {
+        const {validate: oldValidate} = this;
+
+        return new ArraySchema({
+            description: this.description,
+            serialize: newValue => {
+                const value = serialize(newValue);
+                return this.serialize(value);
+            },
+            deserialize: unknownValue => {
+                const value = this.deserialize(unknownValue);
+                return deserialize(value);
+            },
+            validate:
+                newValidate || oldValidate
+                    ? value => {
+                          oldValidate?.(value);
+                          newValidate?.(value);
+                      }
+                    : null,
+        });
+    }
+
+    /**
+     * Verifies that the length of the array is greater than or equal to the
+     * provided length.
+     */
+    // TODO(calebmer): Backwards compatibility validation?
+    public minLength(length: number): ArraySchema<Value> {
+        return this._transformArray({
+            serialize: value => {
+                if (value.length < length)
+                    throw new InvalidArgumentError(
+                        `Expected array to have a length greater than or equal to ${length}`,
+                    );
+
+                return value;
+            },
+            deserialize: value => {
+                if (value.length < length)
+                    throw new SchemaDeserializationError(
+                        `Expected array to have a length greater than or equal to ${length}`,
+                    );
+
+                return value;
+            },
+            validate: value => {
+                if (value.length < length)
+                    throw new InvalidArgumentError(
+                        `Expected array to have a length greater than or equal to ${length}`,
+                    );
+            },
+        });
+    }
+
+    /**
+     * Verifies that the length of the string is less than or equal to the
+     * provided length.
+     */
+    // TODO(calebmer): Backwards compatibility validation?
+    public maxLength(length: number): ArraySchema<Value> {
+        return this._transformArray({
+            serialize: value => {
+                if (value.length > length)
+                    throw new InvalidArgumentError(
+                        `Expected array to have a length less than or equal to ${length}`,
+                    );
+
+                return value;
+            },
+            deserialize: value => {
+                if (value.length > length)
+                    throw new SchemaDeserializationError(
+                        `Expected array to have a length less than or equal to ${length}`,
+                    );
+
+                return value;
+            },
+            validate: value => {
+                if (value.length > length)
+                    throw new InvalidArgumentError(
+                        `Expected array to have a length less than or equal to ${length}`,
+                    );
+            },
+        });
     }
 }
 
@@ -1568,6 +1719,289 @@ class IntegerSchema extends Schema<number> {
 
 // Avoid circular dependency between `Schema` and `IntegerSchema`.
 Schema.integer = IntegerSchema.integer;
+
+/**
+ * Schema for a set value.
+ *
+ * You should only create this with `Schema.set()`.
+ */
+export class SetSchema<Value> extends Schema<ReadonlySet<Value>> {
+    /**
+     * Prefer `Schema.set()` which directly calls this method.
+     */
+    public static _new<Value>(itemSchema: Schema<Value>): SetSchema<Value> {
+        const {validate} = itemSchema;
+
+        return new SetSchema<Value>({
+            description: {
+                type: "Set",
+                valueSchema: itemSchema.description,
+            },
+            serialize: value => {
+                return Array.from(value, item => itemSchema.serialize(item));
+            },
+            deserialize: value => {
+                if (!Array.isArray(value))
+                    throw new SchemaDeserializationError("Expected an array");
+
+                return new Set(value.map(item => itemSchema.deserialize(item)));
+            },
+            validate: validate
+                ? value => {
+                      for (const item of value) {
+                          validate(item);
+                      }
+                  }
+                : null,
+        });
+    }
+
+    private _transformSet({
+        serialize,
+        deserialize,
+        validate: newValidate,
+    }: {
+        serialize: (value: ReadonlySet<Value>) => ReadonlySet<Value>;
+        deserialize: (value: ReadonlySet<Value>) => ReadonlySet<Value>;
+        validate: ((value: ReadonlySet<Value>) => void) | null;
+    }): SetSchema<Value> {
+        const {validate: oldValidate} = this;
+
+        return new SetSchema({
+            description: this.description,
+            serialize: newValue => {
+                const value = serialize(newValue);
+                return this.serialize(value);
+            },
+            deserialize: unknownValue => {
+                const value = this.deserialize(unknownValue);
+                return deserialize(value);
+            },
+            validate:
+                newValidate || oldValidate
+                    ? value => {
+                          oldValidate?.(value);
+                          newValidate?.(value);
+                      }
+                    : null,
+        });
+    }
+
+    /**
+     * Verifies that the size of the set is greater than or equal to the
+     * provided size.
+     */
+    // TODO(calebmer): Backwards compatibility validation?
+    public minSize(size: number): SetSchema<Value> {
+        return this._transformSet({
+            serialize: value => {
+                if (value.size < size)
+                    throw new InvalidArgumentError(
+                        `Expected set to have a size greater than or equal to ${size}`,
+                    );
+
+                return value;
+            },
+            deserialize: value => {
+                if (value.size < size)
+                    throw new SchemaDeserializationError(
+                        `Expected set to have a size greater than or equal to ${size}`,
+                    );
+
+                return value;
+            },
+            validate: value => {
+                if (value.size < size)
+                    throw new InvalidArgumentError(
+                        `Expected set to have a size greater than or equal to ${size}`,
+                    );
+            },
+        });
+    }
+
+    /**
+     * Verifies that the size of the set is less than or equal to the
+     * provided size.
+     */
+    // TODO(calebmer): Backwards compatibility validation?
+    public maxSize(size: number): SetSchema<Value> {
+        return this._transformSet({
+            serialize: value => {
+                if (value.size > size)
+                    throw new InvalidArgumentError(
+                        `Expected set to have a size less than or equal to ${size}`,
+                    );
+
+                return value;
+            },
+            deserialize: value => {
+                if (value.size > size)
+                    throw new SchemaDeserializationError(
+                        `Expected set to have a size less than or equal to ${size}`,
+                    );
+
+                return value;
+            },
+            validate: value => {
+                if (value.size > size)
+                    throw new InvalidArgumentError(
+                        `Expected set to have a size less than or equal to ${size}`,
+                    );
+            },
+        });
+    }
+}
+
+/**
+ * Schema for a map value.
+ *
+ * You should only create this with `Schema.map()`.
+ */
+export class MapSchema<Key, Value> extends Schema<ReadonlyMap<Key, Value>> {
+    /**
+     * Prefer `Schema.map()` which directly calls this method.
+     */
+    public static _new<Key, Value>(
+        keySchema: Schema<Key>,
+        valueSchema: Schema<Value>,
+    ): MapSchema<Key, Value> {
+        const {validate: validateKey} = keySchema;
+        const {validate: validateValue} = valueSchema;
+
+        return new MapSchema<Key, Value>({
+            description: {
+                type: "Map",
+                keySchema: keySchema.description,
+                valueSchema: valueSchema.description,
+            },
+            serialize: value => {
+                return Array.from(value, ([key, keyValue]) => [
+                    keySchema.serialize(key),
+                    valueSchema.serialize(keyValue),
+                ]);
+            },
+            deserialize: value => {
+                if (!Array.isArray(value))
+                    throw new SchemaDeserializationError("Expected an array");
+
+                return new Map(
+                    value.map((item): [Key, Value] => {
+                        if (!Array.isArray(item) || item.length !== 2)
+                            throw new SchemaDeserializationError(
+                                "Expected an array with two items",
+                            );
+
+                        return [keySchema.deserialize(item[0]), valueSchema.deserialize(item[1])];
+                    }),
+                );
+            },
+            validate:
+                validateKey || validateValue
+                    ? value => {
+                          for (const [key, keyValue] of value) {
+                              validateKey?.(key);
+                              validateValue?.(keyValue);
+                          }
+                      }
+                    : null,
+        });
+    }
+
+    private _transformMap({
+        serialize,
+        deserialize,
+        validate: newValidate,
+    }: {
+        serialize: (value: ReadonlyMap<Key, Value>) => ReadonlyMap<Key, Value>;
+        deserialize: (value: ReadonlyMap<Key, Value>) => ReadonlyMap<Key, Value>;
+        validate: ((value: ReadonlyMap<Key, Value>) => void) | null;
+    }): MapSchema<Key, Value> {
+        const {validate: oldValidate} = this;
+
+        return new MapSchema({
+            description: this.description,
+            serialize: newValue => {
+                const value = serialize(newValue);
+                return this.serialize(value);
+            },
+            deserialize: unknownValue => {
+                const value = this.deserialize(unknownValue);
+                return deserialize(value);
+            },
+            validate:
+                newValidate || oldValidate
+                    ? value => {
+                          oldValidate?.(value);
+                          newValidate?.(value);
+                      }
+                    : null,
+        });
+    }
+
+    /**
+     * Verifies that the size of the map is greater than or equal to the
+     * provided size.
+     */
+    // TODO(calebmer): Backwards compatibility validation?
+    public minSize(size: number): MapSchema<Key, Value> {
+        return this._transformMap({
+            serialize: value => {
+                if (value.size < size)
+                    throw new InvalidArgumentError(
+                        `Expected map to have a size greater than or equal to ${size}`,
+                    );
+
+                return value;
+            },
+            deserialize: value => {
+                if (value.size < size)
+                    throw new SchemaDeserializationError(
+                        `Expected map to have a size greater than or equal to ${size}`,
+                    );
+
+                return value;
+            },
+            validate: value => {
+                if (value.size < size)
+                    throw new InvalidArgumentError(
+                        `Expected map to have a size greater than or equal to ${size}`,
+                    );
+            },
+        });
+    }
+
+    /**
+     * Verifies that the size of the map is less than or equal to the
+     * provided size.
+     */
+    // TODO(calebmer): Backwards compatibility validation?
+    public maxSize(size: number): MapSchema<Key, Value> {
+        return this._transformMap({
+            serialize: value => {
+                if (value.size > size)
+                    throw new InvalidArgumentError(
+                        `Expected map to have a size less than or equal to ${size}`,
+                    );
+
+                return value;
+            },
+            deserialize: value => {
+                if (value.size > size)
+                    throw new SchemaDeserializationError(
+                        `Expected map to have a size less than or equal to ${size}`,
+                    );
+
+                return value;
+            },
+            validate: value => {
+                if (value.size > size)
+                    throw new InvalidArgumentError(
+                        `Expected map to have a size less than or equal to ${size}`,
+                    );
+            },
+        });
+    }
+}
 
 /**
  * An error thrown while deserializing a schema.

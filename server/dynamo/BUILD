@@ -25,6 +25,7 @@ ts_project(
         "//server/emails",
         "//server/helpers",
         "//server/schema",
+        "//shared/accounts",
         "//shared/alpha",
         "//shared/channels",
         "//shared/context",

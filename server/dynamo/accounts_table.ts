@@ -9,15 +9,19 @@ import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry_dynamo_condition_check_errors";
+import {authorizeSpaceAccess, isAccountMemberOfSpace} from "~/server/dynamo/spaces_table";
 import {EmailAddress} from "~/server/emails/email_address";
 import {FromEmailAddress} from "~/server/emails/from_email_address";
+import {AccountModel} from "~/shared/accounts/account_model";
+import {ContextCache} from "~/shared/context/cache_context_module";
 import {FailedPreconditionError, NotFoundError, PermissionDeniedError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
+import {runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {quote} from "~/shared/helpers/string/quote";
 import {generateId} from "~/shared/id/id";
-import {AccountId, SessionId} from "~/shared/id/types/id_types";
+import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
 import {Schema} from "~/shared/schema/schema";
 
@@ -196,6 +200,8 @@ type AccountEmailAddressItem = DynamoTableItemType<
     "AccountEmailAddress",
     "Attributes"
 >;
+
+type AccountItem = DynamoTableItemType<typeof AccountsTable, "Account", "Attributes">;
 
 export type SessionItem = DynamoTableItemType<typeof AccountsTable, "Session", "Attributes">;
 
@@ -582,20 +588,6 @@ function accountEmailAddressSignInLockedError(hoursUntilUnlocked: number) {
     });
 }
 
-/**
- * An account identifies an actor in our system.
- *
- * Usually an account corresponds to a person who signed up with the real name
- * and work email address but an account could also represent a "service
- * account" or bot acting against our systems.
- */
-export type Account = {
-    readonly id: AccountId;
-    readonly name: string;
-    readonly createdTime: Date;
-    readonly hasInternalAccess?: boolean;
-};
-
 export class Session {
     public readonly id: SessionId;
     public readonly createdTime: Date;
@@ -626,9 +618,9 @@ export class Session {
         return new Session(sessionId, sessionItem);
     }
 
-    private _accountPromise: Promise<Account> | null = null;
+    private _accountPromise: Promise<AccountModel> | null = null;
 
-    public getAccount(context: DynamoContext): Promise<Account> {
+    public getAccount(context: DynamoContext): Promise<AccountModel> {
         if (this._accountPromise === null) {
             this._accountPromise = (async () => {
                 const accountItem = assertExists(
@@ -642,17 +634,21 @@ export class Session {
                     "Expected account referenced by session to exist",
                 );
 
-                return {
-                    id: this.accountId,
-                    name: accountItem.name,
-                    createdTime: accountItem.createdTime,
-                    hasInternalAccess: accountItem.hasInternalAccess,
-                };
+                return new AccountModel(createAccountModelFromItem(accountItem));
             })();
         }
 
         return this._accountPromise;
     }
+}
+
+function createAccountModelFromItem(accountItem: AccountItem) {
+    return new AccountModel({
+        id: accountItem.accountId,
+        name: accountItem.name,
+        createdTime: accountItem.createdTime,
+        hasInternalAccess: accountItem.hasInternalAccess,
+    });
 }
 
 /**
@@ -666,4 +662,62 @@ export async function authorizeInternalAccess(context: RequestContext) {
         throw new PermissionDeniedError("Account does not have internal access", {
             displayMessage: errorDisplayMessage`Only members of our team may access internal tools.`,
         });
+}
+
+const AccountContextCache = new ContextCache<`${SpaceId}:${AccountId}`, AccountModel | null>();
+
+/**
+ * Get an account through a provided space. We can only authorize whether you
+ * have access to read an account by checking that both you and the account you
+ * are trying to read are members of the same space.
+ *
+ * If the account does not exist, we return null. If the account does exist but
+ * is not a member of the provided space then we also return null.
+ */
+export function getAccount(
+    context: RequestContext,
+    spaceId: SpaceId,
+    accountId: AccountId,
+): Promise<AccountModel | null> {
+    return AccountContextCache.get(context, `${spaceId}:${accountId}`, async () => {
+        // Make sure we have access to the space being requested.
+        await authorizeSpaceAccess(context, spaceId);
+
+        // If we are requesting the authenticated account then return the account model
+        // from our context which may already be cached.
+        if (context.auth.getAccountId() === accountId) return context.auth.getAccount();
+
+        const [account, isMemberOfSpace] = await runAllPromiseThunks(
+            async () => {
+                const accountItem = await AccountsTable.getItem(context, {
+                    partitionType: "Account",
+                    sortRangeType: "Attributes",
+                    accountId,
+                });
+                if (!accountItem) return null;
+
+                return createAccountModelFromItem(accountItem);
+            },
+            () => isAccountMemberOfSpace(context, spaceId, accountId),
+        );
+
+        // If the account exists but is not a member of the space provided to this
+        // function then you are not allowed to read the account.
+        if (!isMemberOfSpace) return null;
+
+        return account;
+    });
+}
+
+/**
+ * Throw an error if the account can not be found.
+ */
+export async function getAccountOrThrow(
+    context: RequestContext,
+    spaceId: SpaceId,
+    accountId: AccountId,
+): Promise<AccountModel> {
+    const account = await getAccount(context, spaceId, accountId);
+    if (!account) throw new NotFoundError("Can not find account in space");
+    return account;
 }

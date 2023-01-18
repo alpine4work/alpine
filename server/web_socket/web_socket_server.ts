@@ -2,6 +2,7 @@ import {Session} from "~/server/dynamo/accounts_table";
 import {AuthenticatedAuthContextModule} from "~/server/dynamo/context/auth_context_module";
 import {ProcessContext} from "~/server/dynamo/context/process_context";
 import {RequestContext} from "~/server/dynamo/context/request_context";
+import {CacheContextModule} from "~/shared/context/cache_context_module";
 import {TracerContextModule} from "~/shared/context/tracer_context_module";
 import {FailedPreconditionError, InvalidArgumentError, NotFoundError} from "~/shared/error/error";
 import {isSystemError} from "~/shared/error/is_system_error_code";
@@ -401,6 +402,7 @@ class WebSocketServerConnectionWrapper<
 
                             await context.with(
                                 {
+                                    cache: new CacheContextModule(),
                                     auth: new AuthenticatedAuthContextModule(session),
                                 },
                                 async (context: RequestContext) => {

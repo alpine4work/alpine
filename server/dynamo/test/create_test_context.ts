@@ -16,6 +16,7 @@ import {
 import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
 import {TestSession} from "~/server/dynamo/test/create_test_session";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module";
+import {CacheContextModule} from "~/shared/context/cache_context_module";
 import {Context} from "~/shared/context/context";
 import {ProcessContextModule} from "~/shared/context/process_context_module";
 import {TracerContextModule} from "~/shared/context/tracer_context_module";
@@ -68,12 +69,14 @@ export function createTestContext(): TestContext {
 
     const createUnauthenticatedRequestContext = (): UnauthenticatedRequestContext => {
         return context.clone({
+            cache: new CacheContextModule(),
             auth: new UnauthenticatedAuthContextModule(async () => null),
         });
     };
 
     const createRequestContext = (session: TestSession): RequestContext => {
         return context.clone({
+            cache: new CacheContextModule(),
             auth: new AuthenticatedAuthContextModule(Session.test(session.id, session.item)),
         });
     };

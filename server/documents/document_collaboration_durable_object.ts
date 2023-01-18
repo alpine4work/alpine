@@ -18,6 +18,7 @@ import {
 import {createServerTracer} from "~/server/tracer/server_tracer";
 import {traceFetchResponse} from "~/server/tracer/trace_fetch_response";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server";
+import {CacheContextModule} from "~/shared/context/cache_context_module";
 import {Context} from "~/shared/context/context";
 import {ProcessContextModule} from "~/shared/context/process_context_module";
 import {TracerContextModule} from "~/shared/context/tracer_context_module";
@@ -115,6 +116,7 @@ class DocumentCollaborationDurableObjectWrapper {
                     // Replace the tracer context module with one that uses our span for
                     // this request.
                     tracer: new TracerContextModule(span),
+                    cache: new CacheContextModule(),
 
                     auth: new UnauthenticatedAuthContextModule(async context => {
                         const authorizationHeader = request.headers.get("authorization");

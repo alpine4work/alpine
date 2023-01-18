@@ -4,10 +4,10 @@ import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
+import {ContextCache} from "~/shared/context/cache_context_module";
 import {PermissionDeniedError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {assert} from "~/shared/helpers/control/assert";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
 import {Schema} from "~/shared/schema/schema";
@@ -125,14 +125,25 @@ export function createSpaceAccountForAlphaTransactionEntries({
     ];
 }
 
-// Cache of space authorizations performed against a context.
-//
-// TODO(calebmer): This cache will break with nested context objects! Replace
-// this with something that lasts the entire request.
-const authorizationPromiseBySpaceIdByContext = new WeakMap<
-    RequestContext,
-    Map<SpaceId, Promise<void>>
->();
+/**
+ * Is the `accountId` a member of the provided `spaceId`?
+ */
+export async function isAccountMemberOfSpace(
+    context: RequestContext,
+    spaceId: SpaceId,
+    accountId: AccountId,
+): Promise<boolean> {
+    const spaceAccountItem = await SpacesTable.getItem(context, {
+        partitionType: "Space",
+        sortRangeType: "Account",
+        spaceId,
+        accountId,
+    });
+
+    return !!spaceAccountItem;
+}
+
+const SpaceAuthorizationContextCache = new ContextCache<SpaceId, void>();
 
 /**
  * Authorize that the authenticated account has access to the provided
@@ -141,27 +152,15 @@ const authorizationPromiseBySpaceIdByContext = new WeakMap<
  * We cache the result of this function on a per-request basis.
  */
 export function authorizeSpaceAccess(context: RequestContext, spaceId: SpaceId): Promise<void> {
-    const authorizationPromiseBySpaceId = getOrSetDefaultMapValue(
-        authorizationPromiseBySpaceIdByContext,
-        context,
-        () => new Map(),
-    );
-
-    return getOrSetDefaultMapValue(authorizationPromiseBySpaceId, spaceId, async () => {
+    return SpaceAuthorizationContextCache.get(context, spaceId, async () => {
         const accountId = context.auth.getAccountId();
 
-        const spaceAccountItem = await SpacesTable.getItem(context, {
-            partitionType: "Space",
-            sortRangeType: "Account",
-            spaceId,
-            accountId,
-        });
-
-        if (!spaceAccountItem)
+        if (!(await isAccountMemberOfSpace(context, spaceId, accountId))) {
             throw new PermissionDeniedError("Account does not have access to space", {
                 // TODO(calebmer): Add link to page that lists all spaces an account has access
                 // to in the help part of this error message.
                 displayMessage: errorDisplayMessage`You are not a member of this space.`,
             });
+        }
     });
 }

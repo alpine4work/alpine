@@ -191,6 +191,27 @@ export function checkSchemaBackwardsCompatibility(
 
             return;
         }
+        case "Set": {
+            if (lastSchema.type !== "Set") {
+                throw new SchemaBackwardsIncompatibleError(
+                    `\`${lastSchema.type}\` type is incompatible with \`${nextSchema.type}\` type`,
+                );
+            }
+
+            checkSchemaBackwardsCompatibility(lastSchema.valueSchema, nextSchema.valueSchema);
+            break;
+        }
+        case "Map": {
+            if (lastSchema.type !== "Map") {
+                throw new SchemaBackwardsIncompatibleError(
+                    `\`${lastSchema.type}\` type is incompatible with \`${nextSchema.type}\` type`,
+                );
+            }
+
+            checkSchemaBackwardsCompatibility(lastSchema.keySchema, nextSchema.keySchema);
+            checkSchemaBackwardsCompatibility(lastSchema.valueSchema, nextSchema.valueSchema);
+            break;
+        }
         default:
             throw exhaustive(nextSchema);
     }
