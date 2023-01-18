@@ -3,13 +3,10 @@ import {useNavigate} from "react-router-dom";
 import {ContentEditor} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {ContentView} from "~/client/content/content_view";
-import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
 import {PrettyAbsoluteDate} from "~/client/design/pretty_absolute_date";
-import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
-import {emptyPostCommentContent} from "~/shared/posts/post_comment_content_schema";
+import {emptyPostContent} from "~/shared/posts/post_content_schema";
 import {PostModel} from "~/shared/posts/post_model";
-import {createPostRootComment} from "~/shared/rpc/posts_rpc_definitions";
 import {sprinkles, truncateClassName} from "~/shared/styles/styles";
 
 export const initialPostRootCommentLimit = 20;
@@ -53,8 +50,7 @@ export function PostView({post}: {post: PostModel}) {
 }
 
 function PostCommentInput({post}: {post: PostModel}) {
-    const context = useAppContext();
-    const [state, setState] = useState(ContentEditorState.create(emptyPostCommentContent));
+    const [state, setState] = useState(ContentEditorState.create(emptyPostContent));
 
     return (
         <Box display="flex">
@@ -77,17 +73,6 @@ function PostCommentInput({post}: {post: PostModel}) {
                     className={sprinkles({paddingY: "2", paddingX: "1.5"})}
                     onEnter={() => {
                         // TODO(calebmer): Implement
-                        // runPromiseWithoutAwaiting(async () => {
-                        //     try {
-                        //         await createPostRootComment(context, {
-                        //             postId: post.id,
-                        //             content: state.getContent(),
-                        //         });
-                        //     } catch (error) {
-                        //         // TODO(calebmer): Somehow do error handling? Show a message saying the comment
-                        //         // couldn't be created???
-                        //     }
-                        // });
                     }}
                 />
             </Box>

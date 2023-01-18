@@ -1,6 +1,6 @@
 import {PostView} from "~/client/posts/post_view";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
-import {getPost, getPostWithRootComments} from "~/server/dynamo/posts_table";
+import {getPost} from "~/server/dynamo/posts_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
 import {NotFoundError} from "~/shared/error/error";
@@ -17,7 +17,7 @@ const schema = Schema.object({
 export async function loader({params, context}: LoaderArgs) {
     const postId = Schema.id<PostId>().deserialize(params.post_id ?? null);
 
-    const post = await getPostWithRootComments(await context.auth.authenticate(), postId);
+    const post = await getPost(await context.auth.authenticate(), postId);
     if (!post) throw new NotFoundError("Channel not found");
 
     const propagateEventData: TracerEventData = {
