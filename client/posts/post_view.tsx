@@ -3,19 +3,16 @@ import {useNavigate} from "react-router-dom";
 import {ContentEditor} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {ContentView} from "~/client/content/content_view";
+import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
 import {PrettyAbsoluteDate} from "~/client/design/pretty_absolute_date";
+import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 import {emptyPostCommentContent} from "~/shared/posts/post_comment_content_schema";
 import {PostModel} from "~/shared/posts/post_model";
+import {createPostRootComment} from "~/shared/rpc/posts_rpc_definitions";
 import {sprinkles, truncateClassName} from "~/shared/styles/styles";
 
-// TODO(calebmer):
-//
-// - Change grey color scale to make elevation designs easier
-// - Comment input
-// - Load account information (global account cache??? context module
-//   where data is included in handoff? maybe we don't bother normalizing
-//   for now?)
+export const initialPostRootCommentLimit = 20;
 
 export function PostView({post}: {post: PostModel}) {
     return (
@@ -37,7 +34,7 @@ export function PostView({post}: {post: PostModel}) {
                 />
                 <Box flexGrow="1" paddingLeft="3" paddingRight="4" overflow="hidden">
                     <Box fontSize="sm" fontStyle="semi-bold" className={truncateClassName}>
-                        Caleb Meredith
+                        {post.author.name}
                     </Box>
                     <Box fontSize="xs" color="grey-50" className={truncateClassName}>
                         <PrettyAbsoluteDate date={post.createdTime} />
@@ -49,13 +46,14 @@ export function PostView({post}: {post: PostModel}) {
             </Box>
             <Box marginX="5" borderBottom="grey-5" />
             <Box paddingX="5" paddingY="3">
-                <PostCommentInput />
+                <PostCommentInput post={post} />
             </Box>
         </Box>
     );
 }
 
-function PostCommentInput() {
+function PostCommentInput({post}: {post: PostModel}) {
+    const context = useAppContext();
     const [state, setState] = useState(ContentEditorState.create(emptyPostCommentContent));
 
     return (
@@ -78,7 +76,18 @@ function PostCommentInput() {
                     placeholder="Write a comment…"
                     className={sprinkles({paddingY: "2", paddingX: "1.5"})}
                     onEnter={() => {
-                        // TODO(calebmer): Implement!
+                        // TODO(calebmer): Implement
+                        // runPromiseWithoutAwaiting(async () => {
+                        //     try {
+                        //         await createPostRootComment(context, {
+                        //             postId: post.id,
+                        //             content: state.getContent(),
+                        //         });
+                        //     } catch (error) {
+                        //         // TODO(calebmer): Somehow do error handling? Show a message saying the comment
+                        //         // couldn't be created???
+                        //     }
+                        // });
                     }}
                 />
             </Box>

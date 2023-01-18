@@ -178,6 +178,7 @@ export async function createPost(
 ): Promise<{
     id: PostId;
     spaceId: SpaceId;
+    createdTime: Date;
 }> {
     const channel = await getChannel(context, channelId);
     if (!channel) throw new NotFoundError("Channel does not exist");
@@ -199,6 +200,7 @@ export async function createPost(
     return {
         id: postItem.postId,
         spaceId: channel.spaceId,
+        createdTime: postItem.createdTime,
     };
 }
 
@@ -270,7 +272,7 @@ export async function authorizePostAccess(
 /**
  * Create a new root comment on the post.
  */
-export function createPostRootComment(
+export async function createPostRootComment(
     context: RequestContext,
     {
         postId,
@@ -279,14 +281,19 @@ export function createPostRootComment(
         postId: PostId;
         content: PostCommentContent;
     },
-) {
-    return createPostRootOrReplyComment(context, {postId, content});
+): Promise<{
+    rootCommentNumber: number;
+    createdTime: Date;
+}> {
+    const result = await createPostRootOrReplyComment(context, {postId, content});
+    assert(result.type === "RootComment");
+    return result;
 }
 
 /**
  * Create a new comment replying to a root comment.
  */
-export function createPostReplyComment(
+export async function createPostReplyComment(
     context: RequestContext,
     {
         postId,
@@ -297,13 +304,30 @@ export function createPostReplyComment(
         rootCommentNumber: number;
         content: PostCommentContent;
     },
-) {
-    return createPostRootOrReplyComment(context, {
+): Promise<{
+    replyCommentNumber: number;
+    createdTime: Date;
+}> {
+    const result = await createPostRootOrReplyComment(context, {
         postId,
         content,
         replyToRootCommentNumber: rootCommentNumber,
     });
+    assert(result.type === "ReplyComment");
+    return result;
 }
+
+type CreatePostRootOrReplyCommentResult =
+    | {
+          type: "RootComment";
+          rootCommentNumber: number;
+          createdTime: Date;
+      }
+    | {
+          type: "ReplyComment";
+          replyCommentNumber: number;
+          createdTime: Date;
+      };
 
 function createPostRootOrReplyComment(
     context: RequestContext,
@@ -321,7 +345,7 @@ function createPostRootOrReplyComment(
          */
         replyToRootCommentNumber?: number;
     },
-): Promise<void> {
+): Promise<CreatePostRootOrReplyCommentResult> {
     return retryDynamoConditionCheckErrors(async () => {
         const [postItem, replyToRootCommentItem] = await runAllPromiseThunks(
             async () => {
@@ -367,41 +391,52 @@ function createPostRootOrReplyComment(
         );
 
         const transactionEntries: Array<DynamoTransactionEntry> = [];
-        const createdTime = new Date();
+        let result: CreatePostRootOrReplyCommentResult;
 
         if (!replyToRootCommentItem) {
-            transactionEntries.push(
-                PostsTable.transactionCreateItem({
-                    partitionType: "Post",
-                    sortRangeType: "RootComments",
-                    postId,
-                    // Consume the next number. We need to make sure to increment
-                    // `sequenceNumber` on `postItem`. See the transaction entries below.
-                    rootCommentNumber: postItem.commentsSummary.sequenceNumber + 1,
-                    createdTime,
-                    isDeletedButHasReplies: false,
-                    authorId: context.auth.getAccountId(),
-                    content,
-                    replyCommentsSummary: emptyPostCommentsSummary,
-                }),
-            );
+            const rootCommentItem: PostRootCommentItem = {
+                partitionType: "Post",
+                sortRangeType: "RootComments",
+                postId,
+                // Consume the next number. We need to make sure to increment
+                // `sequenceNumber` on `postItem`. See the transaction entries below.
+                rootCommentNumber: postItem.commentsSummary.sequenceNumber + 1,
+                createdTime: new Date(),
+                isDeletedButHasReplies: false,
+                authorId: context.auth.getAccountId(),
+                content,
+                replyCommentsSummary: emptyPostCommentsSummary,
+            };
+
+            transactionEntries.push(PostsTable.transactionCreateItem(rootCommentItem));
+
+            result = {
+                type: "RootComment",
+                rootCommentNumber: rootCommentItem.rootCommentNumber,
+                createdTime: rootCommentItem.createdTime,
+            };
         } else {
-            transactionEntries.push(
-                PostsTable.transactionCreateItem({
-                    partitionType: "Post",
-                    sortRangeType: "ReplyComments",
-                    postId,
-                    rootCommentNumber: replyToRootCommentItem.rootCommentNumber,
-                    // Consume the next number. We need to make sure to increment
-                    // `sequenceNumber` on `replyToRootCommentItem`. See the transaction entries
-                    // below.
-                    replyCommentNumber:
-                        replyToRootCommentItem.replyCommentsSummary.sequenceNumber + 1,
-                    createdTime,
-                    authorId: context.auth.getAccountId(),
-                    content,
-                }),
-            );
+            const replyCommentItem: PostReplyCommentItem = {
+                partitionType: "Post",
+                sortRangeType: "ReplyComments",
+                postId,
+                rootCommentNumber: replyToRootCommentItem.rootCommentNumber,
+                // Consume the next number. We need to make sure to increment
+                // `sequenceNumber` on `replyToRootCommentItem`. See the transaction entries
+                // below.
+                replyCommentNumber: replyToRootCommentItem.replyCommentsSummary.sequenceNumber + 1,
+                createdTime: new Date(),
+                authorId: context.auth.getAccountId(),
+                content,
+            };
+
+            transactionEntries.push(PostsTable.transactionCreateItem(replyCommentItem));
+
+            result = {
+                type: "ReplyComment",
+                replyCommentNumber: replyCommentItem.replyCommentNumber,
+                createdTime: replyCommentItem.createdTime,
+            };
         }
 
         transactionEntries.push(
@@ -447,6 +482,8 @@ function createPostRootOrReplyComment(
         }
 
         await DynamoTableSchema.executeTransaction(context, transactionEntries);
+
+        return result;
     });
 }
 
