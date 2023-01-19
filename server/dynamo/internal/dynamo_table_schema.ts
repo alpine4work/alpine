@@ -1,5 +1,10 @@
+import {AttributeValue} from "@aws-sdk/client-dynamodb";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
+import {
+    intoDynamoAttributeValue,
+    intoDynamoAttributeValueObject,
+} from "~/server/dynamo/internal/dynamo_attribute_value";
 import {DynamoClient, DynamoReadConsistency} from "~/server/dynamo/internal/dynamo_client";
 import {
     DynamoCondition,
@@ -1305,6 +1310,74 @@ export class DynamoTableSchema<
             conditionExpression: conditionExpressionString,
             expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
             expressionAttributeNames: new Map(conditionCompilationContext.iterateAttributeNames()),
+        });
+    }
+
+    /**
+     * Update a single attribute on the item with the specified key. Is serialized
+     * with all other updates of this item with `updateLockVersion`.
+     *
+     * You are expected to load the current `updateLockVersion` and pass it into
+     * this function. Probably with `getPartialItem()`. If you pass in an incorrect
+     * `updateLockVersion` there will be a condition check error. Probably what you
+     * want to do is to run a `retryDynamoConditionCheckErrors()` loop that loads
+     * the old version of the property and the `updateLockVersion`. Then apply an
+     * update and create this transaction entry. Or you can use
+     * `updateItemAttribute()` which handles the retry loop for you.
+     */
+    // NOTE(calebmer): Eventually this should have a suite of attribute update
+    // methods. For instance, a `updateItemAttribute()` function that has a
+    // retry loop similar to our `updateItem()` function I think would be a
+    // good idea for one-off attribute updates.
+    public transactionDirectlyUpdateItemAttribute<
+        Key extends Types["Key"],
+        Attribute extends DistributiveKeyOf<Types["Item"]> & string,
+    >(
+        key: Key,
+        attribute: Attribute,
+        attributeValue: (Types["Item"] & Key)[Attribute],
+        {updateLockVersion}: {updateLockVersion: number | undefined},
+    ): DynamoTransactionEntry {
+        const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
+
+        const propertySchema = attributesSchema.propertySchemaByKey.get(attribute);
+        if (!propertySchema)
+            throw new InternalError(quote`Attribute ${attribute} not found in item schema`);
+
+        const serializedKey = propertySchema.serializedKey ?? attribute;
+        const serializedObject: {[key: string]: SchemaSerializedValue} = {};
+        propertySchema.serializeProperty(serializedObject, serializedKey, attributeValue);
+        const serializedValue = serializedObject[serializedKey];
+
+        const expressionAttributeValues: {[key: string]: AttributeValue} = {};
+
+        if (typeof updateLockVersion === "number") {
+            expressionAttributeValues[":oldUpdateLockVersion"] =
+                intoDynamoAttributeValue(updateLockVersion);
+        }
+
+        expressionAttributeValues[":newUpdateLockVersion"] = intoDynamoAttributeValue(
+            (updateLockVersion ?? 0) + 1,
+        );
+
+        if (serializedValue !== undefined) {
+            expressionAttributeValues[":value"] = intoDynamoAttributeValue(serializedValue);
+        }
+
+        return DynamoTransactionEntry._newFromClient(DynamoClient, {
+            Update: {
+                TableName: this._config.name,
+                Key: intoDynamoAttributeValueObject({partitionKey, sortKey}),
+                UpdateExpression:
+                    serializedValue === undefined
+                        ? `REMOVE ${serializedKey} SET updateLockVersion = :newUpdateLockVersion`
+                        : `SET ${serializedKey} = :value, updateLockVersion = :newUpdateLockVersion`,
+                ConditionExpression:
+                    typeof updateLockVersion === "number"
+                        ? "updateLockVersion = :oldUpdateLockVersion"
+                        : "attribute_not_exists(updateLockVersion)",
+                ExpressionAttributeValues: expressionAttributeValues,
+            },
         });
     }
 
