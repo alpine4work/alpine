@@ -440,8 +440,8 @@ export async function getPostCommentsFromStart(
         afterCommentId: number | null;
     },
 ): Promise<{
-    comments: Array<PostCommentModel>;
     hasMoreCommentsAfter: boolean;
+    comments: Array<PostCommentModel>;
 }> {
     // Start querying before authorization so our query runs in parallel
     // with authorization.
@@ -498,8 +498,8 @@ export async function getPostCommentsFromEnd(
         beforeCommentId: number | null;
     },
 ): Promise<{
-    comments: Array<PostCommentModel>;
     hasMoreCommentsBefore: boolean;
+    comments: Array<PostCommentModel>;
 }> {
     // Base case: If we are loading before the first comment ID we know there are
     // no comments.
