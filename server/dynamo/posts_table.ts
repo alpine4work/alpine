@@ -416,7 +416,7 @@ export function deletePostComment(
                 {partitionType: "Post", sortRangeType: "Attributes", postId},
                 "commentsSummary",
                 {
-                    nextCommentId: postItem.commentsSummary.nextCommentId + 1,
+                    nextCommentId: postItem.commentsSummary.nextCommentId,
                     commentCountByAuthorId: newCommentCountByAuthorId,
                 },
                 {updateLockVersion: postItem.updateLockVersion},
