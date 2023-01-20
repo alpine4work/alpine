@@ -8,7 +8,7 @@ import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry_dy
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
 import {MessageContent, MessageContentSchema} from "~/shared/content/message_content_schema";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error";
-import {runAllPromises, runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises";
+import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array";
 import {AccountId, SimpleChatId, SpaceId} from "~/shared/id/types/id_types";
@@ -129,7 +129,7 @@ export async function createSimpleChatMessage(
                         attributes: ["spaceId", "messagesSummary", "updateLockVersion"],
                     },
                 );
-                if (!simpleChatItem) throw new NotFoundError("Post not found");
+                if (!simpleChatItem) throw new NotFoundError("Simple chat not found");
                 await authorizeSpaceAccess(context, simpleChatItem.spaceId);
 
                 return simpleChatItem;
@@ -137,7 +137,7 @@ export async function createSimpleChatMessage(
             async () => {
                 if (typeof parentMessageId !== "number") return;
 
-                const parentCommentItem = await SimpleChatTable.getPartialItem(
+                const parentMessageItem = await SimpleChatTable.getPartialItem(
                     context,
                     {
                         partitionType: "SimpleChat",
@@ -149,7 +149,8 @@ export async function createSimpleChatMessage(
                         attributes: [],
                     },
                 );
-                if (!parentCommentItem) throw new NotFoundError("Post parent comment not found");
+                if (!parentMessageItem)
+                    throw new NotFoundError("Simple chat parent message not found");
             },
         );
 
@@ -246,7 +247,7 @@ export function updateSimpleChatMessageContent(
         if (!item) throw new NotFoundError("Simple chat message not found");
 
         if (item.authorId !== context.auth.getAccountId())
-            throw new PermissionDeniedError("Can only update post messages you authored");
+            throw new PermissionDeniedError("Can only update simple chat messages you authored");
 
         const contentUpdatedTime = new Date();
         await SimpleChatTable.directlyUpdateItem(context, {...item, content, contentUpdatedTime});
@@ -274,13 +275,13 @@ export function deleteSimpleChatMessage(
             }),
         ]);
 
-        if (!simpleChatItem) throw new NotFoundError("Post not found");
-        if (!messageItem) throw new NotFoundError("Post comment not found");
+        if (!simpleChatItem) throw new NotFoundError("Simple chat not found");
+        if (!messageItem) throw new NotFoundError("Simple chat message not found");
 
         await authorizeSpaceAccess(context, simpleChatItem.spaceId);
 
         if (messageItem.authorId !== context.auth.getAccountId())
-            throw new PermissionDeniedError("Can only delete post messages you authored");
+            throw new PermissionDeniedError("Can only delete simple chat messages you authored");
 
         await DynamoTableSchema.executeTransaction(context, [
             SimpleChatTable.transactionDeleteItem(messageItem),
@@ -338,7 +339,7 @@ export async function getSimpleChatMessagesFromStart(
     const queriedMessages = await parallelMapAsyncIterableToArray(
         queryIterable,
         async (item, index) => {
-            // For items outside our limit, don't create a post comment model. We will
+            // For items outside our limit, don't create a message model. We will
             // throw these away.
             if (index >= limit) return null;
 
@@ -368,7 +369,7 @@ export async function getSimpleChatMessagesFromEnd(
     hasMoreMessagesBefore: boolean;
     messages: Array<SimpleChatMessageModel>;
 }> {
-    // Base case: If we are loading before the first comment ID we know there are
+    // Base case: If we are loading before the first message ID we know there are
     // no messages.
     if (beforeMessageId === 1) {
         return {messages: [], hasMoreMessagesBefore: false};
@@ -401,10 +402,10 @@ export async function getSimpleChatMessagesFromEnd(
     const simpleChat = await getSimpleChat(context, simpleChatId);
     if (!simpleChat) throw new NotFoundError("Simple chat not found");
 
-    const queriedComments = await parallelMapAsyncIterableToArray(
+    const queriedMessages = await parallelMapAsyncIterableToArray(
         queryIterable,
         async (item, index) => {
-            // For items outside our limit, don't create a post comment model. We will
+            // For items outside our limit, don't create a message model. We will
             // throw these away.
             if (index >= limit) return null;
 
@@ -413,8 +414,8 @@ export async function getSimpleChatMessagesFromEnd(
     );
 
     // Drop any queried messages outside of our limit.
-    const messages = queriedComments.slice(0, limit).reverse() as Array<SimpleChatMessageModel>;
-    const hasMoreMessagesBefore = queriedComments.length > limit;
+    const messages = queriedMessages.slice(0, limit).reverse() as Array<SimpleChatMessageModel>;
+    const hasMoreMessagesBefore = queriedMessages.length > limit;
 
     return {messages, hasMoreMessagesBefore};
 }
