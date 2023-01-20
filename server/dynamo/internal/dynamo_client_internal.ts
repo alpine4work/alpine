@@ -412,6 +412,48 @@ export class DynamoClientInternal {
     }
 
     /**
+     * DynamoDB [`Scan`][1] action.
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Scan.html
+     */
+    public Scan(tracer: TracerBase, input: types.ScanInput): Promise<types.ScanOutput> {
+        return tracer.withSpan("DynamoDB Scan", async span => {
+            // We need to set `ReturnConsumedCapacity` for tracing.
+            assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "TOTAL");
+
+            span.addData({
+                dynamodb: {
+                    action: "Scan",
+                    tableName: input.TableName ?? "",
+                    consistentRead: input.ConsistentRead ?? false,
+                    scan: {
+                        indexName: input.IndexName,
+                        limit: input.Limit,
+                        hasExclusiveStartKey:
+                            input.ExclusiveStartKey !== undefined ? true : undefined,
+                    },
+                },
+            });
+
+            const output = await this._execute<types.ScanInput, types.ScanOutput>(span, "Scan", {
+                ...input,
+                ReturnConsumedCapacity: "TOTAL",
+            });
+
+            span.addData({
+                dynamodb: {
+                    consumedCapacity: getConsumedCapacityTracerEventData(output.ConsumedCapacity),
+                    scan: {
+                        scannedCount: output.ScannedCount ?? 0,
+                    },
+                },
+            });
+
+            return output;
+        });
+    }
+
+    /**
      * DynamoDB [`CreateTable`][1] action.
      *
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_CreateTable.html

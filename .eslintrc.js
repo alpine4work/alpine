@@ -242,7 +242,7 @@ module.exports = {
             },
         },
         {
-            files: ["**/*.test.*"],
+            files: ["**/*.test.*", "**/test/**"],
             extends: [
                 "plugin:jest/recommended",
                 "plugin:jest-dom/recommended",
@@ -266,6 +266,17 @@ module.exports = {
                 // A test doesn't need an `expect()` assertion to fail.
                 "jest/expect-expect": "off",
                 "jest/no-conditional-expect": "off",
+
+                // Files in `/test/` folders can and should export things.
+                "jest/no-export": "off",
+            },
+        },
+        {
+            files: ["**/*.test.*"],
+            extends: [],
+            rules: {
+                // You should not export anything from test files.
+                "jest/no-export": "error",
             },
         },
         {

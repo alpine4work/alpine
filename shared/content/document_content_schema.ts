@@ -170,7 +170,7 @@ export const DocumentWithoutTitleContentSchema =
             }
 
             if (!isDocumentWithoutTitleContent(content))
-                throw new SchemaDeserializationError('Invalid document content"');
+                throw new SchemaDeserializationError("Invalid document content");
 
             return content;
         },
@@ -266,7 +266,7 @@ export const DocumentContentSchema = Schema.unknown.transform<DocumentContent>({
         }
 
         if (!isDocumentContent(content))
-            throw new SchemaDeserializationError('Invalid document content"');
+            throw new SchemaDeserializationError("Invalid document content");
 
         return content;
     },

@@ -404,6 +404,28 @@ export type TracerEventData = {
             readonly scannedCount?: number;
         };
 
+        /** Information regarding a DynamoDB scan. */
+        readonly scan?: {
+            /** The index name to use when querying a table. */
+            readonly indexName?: string;
+
+            /** What is the maximum number of items to return from this query? */
+            readonly limit?: number;
+
+            /**
+             * Is there an exclusive start key on this query? True if we are reading the
+             * next page in a query.
+             */
+            readonly hasExclusiveStartKey?: boolean;
+
+            /**
+             * The number of items scanned when evaluating this query. May be larger than
+             * the number of items returned by the query if the query had a filter
+             * expression.
+             */
+            readonly scannedCount?: number;
+        };
+
         /** Information regarding a DynamoDB write transaction. */
         readonly transactWrite?: {
             /**

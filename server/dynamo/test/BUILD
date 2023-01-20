@@ -12,8 +12,10 @@ ts_project(
         "//admin/dynamo/local",
         "//admin/helpers",
         "//server/dynamo",
+        "//shared/content",
         "//shared/context",
         "//shared/helpers",
+        "//shared/models",
         "//shared/tracer",
     ],
 )

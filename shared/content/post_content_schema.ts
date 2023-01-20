@@ -40,7 +40,7 @@ export const PostContentSchema = Schema.unknown.transform<PostContent>({
             throw new SchemaDeserializationError("Invalid post content");
         }
 
-        if (!isPostContent(content)) throw new SchemaDeserializationError('Invalid post content"');
+        if (!isPostContent(content)) throw new SchemaDeserializationError("Invalid post content");
 
         return content;
     },

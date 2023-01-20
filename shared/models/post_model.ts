@@ -1,6 +1,8 @@
+import {MessageContentSchema} from "~/shared/content/message_content_schema";
 import {PostContentSchema} from "~/shared/content/post_content_schema";
 import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
+import {MessageInterface} from "~/shared/models/message_interface";
 import {Model} from "~/shared/models/model";
 import {Schema} from "~/shared/schema/schema";
 
@@ -20,5 +22,33 @@ export class PostModel extends Model(
         createdTime: Schema.date,
         author: AccountModel.schema(),
         content: PostContentSchema,
+        /**
+         * The total number of comments on the post.
+         */
+        commentCount: Schema.integer,
     }),
 ) {}
+
+/**
+ * A comment on a post.
+ *
+ * The `postId` for the comment should be known based on context.
+ */
+export class PostCommentModel
+    extends Model(
+        Schema.object({
+            id: Schema.integer,
+            author: AccountModel.schema(),
+            createdTime: Schema.date,
+            parentCommentId: Schema.integer.nullable(),
+            content: MessageContentSchema,
+            contentUpdatedTime: Schema.date.nullable(),
+        }),
+    )
+    implements MessageInterface
+{
+    // An alias for `parentCommentId` to comply with `MessageInterface`.
+    public get parentMessageId() {
+        return this.parentCommentId;
+    }
+}

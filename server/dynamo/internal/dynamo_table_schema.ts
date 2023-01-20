@@ -1534,6 +1534,57 @@ export class DynamoTableSchema<
             yield item;
         }
     }
+
+    /**
+     * Scans every item in the table. Since tables can get very large this function
+     * is expensive! Generally you should avoid it.
+     *
+     * Corresponds to the [`Scan`][1] command.
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Scan.html
+     */
+    public async *expensiveScan<PartitionKey extends Types["PartitionKey"]>(
+        context: DynamoContext,
+        {
+            limit,
+            consistency = context.dynamo.defaultReadConsistency,
+        }: {
+            limit?: number;
+            consistency?: DynamoReadConsistency;
+        } = {},
+    ): AsyncIterableIterator<MergeObjectIntersection<Types["Item"] & PartitionKey>> {
+        const client = await this._getClient(context, false);
+
+        const iterator = client.expensiveScan(context.tracer.getTracer(), {
+            tableName: this._config.name,
+            consistency,
+            limit,
+        });
+
+        for await (const serializedItem of iterator) {
+            assert(typeof serializedItem.partitionKey === "string");
+            assert(typeof serializedItem.sortKey === "string");
+
+            const {key, attributesSchema} = this._deserializeKey(
+                serializedItem.partitionKey,
+                serializedItem.sortKey,
+            );
+
+            const item: any = key;
+            try {
+                attributesSchema.deserializeInto(serializedItem, item);
+            } catch (error) {
+                // Reclassify deserialization errors from data stored in the database as data
+                // loss errors. It means we have corrupt data stored in the database!
+                if (error instanceof SchemaDeserializationError) {
+                    throw new DataLossError(error.message, {cause: error});
+                }
+                throw error;
+            }
+
+            yield item;
+        }
+    }
 }
 
 const allConstructedDynamoTableSchemas = new Map<

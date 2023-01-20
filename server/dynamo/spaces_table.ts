@@ -8,6 +8,7 @@ import {ContextCache} from "~/shared/context/cache_context_module";
 import {PermissionDeniedError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {assert} from "~/shared/helpers/control/assert";
+import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
 import {Schema} from "~/shared/schema/schema";

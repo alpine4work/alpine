@@ -472,6 +472,57 @@ export class DynamoClient {
             if (limit !== undefined && totalScannedCount >= limit) break;
         } while (lastEvaluatedKey !== undefined);
     }
+
+    /**
+     * Performs a [`Scan`][1] operation against DynamoDB. A scan allows you to see
+     * every item in the table. Since tables can get quite large this method can be
+     * quite expensive to execute!
+     *
+     * DynamoDB only returns 1 MB of data at a time and you're expected to
+     * [paginate to fetch the rest of the data][2]. This function abstracts that
+     * away. By returning a JavaScript async iterator, the consumer may break the
+     * iterator at any time and it will stop pagination.
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Scan.html
+     * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Query.Pagination.html
+     */
+    async *expensiveScan(
+        tracer: TracerBase,
+        {
+            tableName,
+            consistency = "Eventual",
+            limit,
+        }: {
+            tableName: string;
+            consistency?: DynamoReadConsistency;
+            limit?: number;
+        },
+    ): AsyncIterableIterator<SchemaSerializedObjectValue> {
+        let totalScannedCount = 0;
+        let lastEvaluatedKey: {[key: string]: types.AttributeValue} | undefined;
+
+        do {
+            const output = await this._client.Scan(tracer, {
+                TableName: tableName,
+                ConsistentRead: consistency === "Strong",
+                // If we have a limit of 100 and we scanned 40 rows in our previous queries,
+                // then our new limit is 60 since we don't want to exceed our initial limit.
+                Limit: limit !== undefined ? limit - totalScannedCount : undefined,
+                ExclusiveStartKey: lastEvaluatedKey,
+            });
+
+            totalScannedCount += output.ScannedCount ?? 0;
+            lastEvaluatedKey = output.LastEvaluatedKey;
+
+            for (const item of output.Items ?? []) {
+                yield fromDynamoAttributeValueObject(item);
+            }
+
+            // If we have exceeded the limit then don't query again. Even if there is
+            // a `lastEvaluatedKey`.
+            if (limit !== undefined && totalScannedCount >= limit) break;
+        } while (lastEvaluatedKey !== undefined);
+    }
 }
 
 type DynamoClientBatch<Input, Output> = {

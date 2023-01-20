@@ -7,7 +7,7 @@
  */
 export async function parallelMapAsyncIterableToArray<Value, NewValue>(
     iterable: AsyncIterable<Value>,
-    map: (value: Value) => Promise<NewValue>,
+    map: (value: Value, index: number) => Promise<NewValue>,
 ): Promise<Array<NewValue>> {
     let hasError = false;
     let firstError;
@@ -27,7 +27,7 @@ export async function parallelMapAsyncIterableToArray<Value, NewValue>(
 
         // Call our mapper function and note the promise. We need to wait for the
         // promise to resolve before returning.
-        const promise = map(item);
+        const promise = map(item, index);
         promises.add(promise);
 
         // When the promise resolves, add the new value to the array. If the promise
