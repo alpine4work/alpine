@@ -23,3 +23,10 @@ export function isTimeZone(string: string): string is TimeZone {
         return false;
     }
 }
+
+/**
+ * Get the current time zone for our JavaScript realm.
+ */
+export function getCurrentTimeZone(): TimeZone {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone as TimeZone;
+}

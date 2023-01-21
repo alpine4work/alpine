@@ -90,10 +90,17 @@ export class ImmutableMap<Key extends string | number, Value> implements Readonl
      * the new value. The old map is unchanged.
      *
      * Completes in O(log(n)) time.
+     *
+     * If the new value is equal to the old value then we will return the immutable
+     * map as-is as an optimization.
      */
     public set(key: Key, value: Value): ImmutableMap<Key, Value> {
         const node = this._tree.find(key);
         if (node.valid) {
+            // Optimization: If the new value is equal to the old value, return the
+            // existing immutable map without updating.
+            if (Object.is(node.value, value)) return this;
+
             return new ImmutableMap(node.update(value));
         } else {
             return new ImmutableMap(this._tree.insert(key, value));

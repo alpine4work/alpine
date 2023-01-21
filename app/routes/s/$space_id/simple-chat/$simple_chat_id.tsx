@@ -5,6 +5,7 @@ import {ContentEditorState} from "~/client/content/content_editor_state";
 import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
+import {VirtualizedScrollView} from "~/client/virtualized/virtualized_scroll_view";
 import {getSimpleChat} from "~/server/dynamo/simple_chat_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
@@ -12,6 +13,7 @@ import {isContentEmpty} from "~/shared/content/is_content_empty";
 import {emptyMessageContent} from "~/shared/content/message_content_schema";
 import {NotFoundError} from "~/shared/error/error";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
+import {StableRandom} from "~/shared/helpers/number/stable_random";
 import {SimpleChatId} from "~/shared/id/types/id_types";
 import {createSimpleChatMessage} from "~/shared/rpc/simple_chat_rpc_definitions";
 import {Schema} from "~/shared/schema/schema";
@@ -30,7 +32,9 @@ export async function loader({params, context}: LoaderArgs) {
     return jsonWithSchema(schema, {simpleChatId});
 }
 
-export default function ChannelRoute() {
+const stableRandom = new StableRandom("test");
+
+export default function SimpleChatRoute() {
     const context = useAppContext();
     const {simpleChatId} = useLoaderDataWithSchema(schema);
     const [state, setState] = useState(ContentEditorState.create(emptyMessageContent));
@@ -38,8 +42,33 @@ export default function ChannelRoute() {
 
     return (
         <main className={sprinkles({height: "full", display: "flex", flexDirection: "column"})}>
-            <Box flexGrow="1"></Box>
-            <Box flexShrink="0" backgroundColor="grey-0" borderTop="grey-5">
+            <Box flexGrow="1" overflowY="hidden">
+                <VirtualizedScrollView
+                    itemCount={10_000}
+                    getItem={index => ({
+                        minHeight: 30,
+                        key: index,
+                        node: (
+                            <Box
+                                display="flex"
+                                alignItems="center"
+                                paddingX="4"
+                                backgroundColor={index % 2 ? "grey-0" : "grey-wash"}
+                                style={{height: stableRandom.randomInteger("test", index, 30, 100)}}
+                            >
+                                {index}
+                            </Box>
+                        ),
+                    })}
+                    pinTo="bottom"
+                />
+            </Box>
+            <Box
+                flexShrink="0"
+                backgroundColor="grey-0"
+                borderTop="grey-5"
+                boxShadow="elevation-30"
+            >
                 <ContentEditor
                     state={state}
                     onChange={state => {

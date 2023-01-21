@@ -77,7 +77,7 @@ export function addResizeListenerForElement(
 
     resizeListeners.add(listener);
 
-    if (resizeListeners.size === 1) resizeObserver.observe(element);
+    if (resizeListeners.size === 1) resizeObserver.observe(element, {box: "border-box"});
 
     const lastEntry = lastResizeObserverEntryByElement.get(element);
     if (lastEntry) {

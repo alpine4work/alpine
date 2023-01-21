@@ -1,6 +1,6 @@
 import {useMemo} from "react";
 import {Tooltip} from "~/client/design/tooltip";
-import {useDateContext} from "~/client/helpers/date_context";
+import {useClientInfo} from "~/client/helpers/client_info_context";
 
 /**
  * Render a date in a human readable form.
@@ -9,7 +9,7 @@ import {useDateContext} from "~/client/helpers/date_context";
  * a relative style like "5 days ago".
  */
 export function PrettyAbsoluteDate({date}: {date: Date}) {
-    const {timeZone} = useDateContext();
+    const {timeZone} = useClientInfo();
 
     const prettyDate = useMemo(() => {
         const formatter = new Intl.DateTimeFormat("en-US", {

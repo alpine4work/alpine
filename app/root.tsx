@@ -23,7 +23,11 @@ import {
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {TooltipCoordinationContextProvider} from "~/client/design/tooltip";
 import {ErrorBodyRenderer} from "~/client/error/error_body_renderer";
-import {DateContextProvider} from "~/client/helpers/date_context";
+import {
+    ClientInfoContextProvider,
+    ClientInfoSchema,
+    defaultClientInfo,
+} from "~/client/helpers/client_info_context";
 import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useStableValue} from "~/client/helpers/use_stable_value";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
@@ -33,12 +37,11 @@ import {NotFoundError, UnknownError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {ErrorSchema} from "~/shared/error/error_schema";
 import {assert} from "~/shared/helpers/control/assert";
-import {TimeZone, defaultTimeZone, isTimeZone} from "~/shared/helpers/date/time_zone";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";
 import {quote} from "~/shared/helpers/string/quote";
 import {propagatedEventDataKey} from "~/shared/remix/json_with_schema_shared";
-import {Schema, SchemaDeserializationError, SchemaType} from "~/shared/schema/schema";
+import {Schema, SchemaType} from "~/shared/schema/schema";
 import {sprinkles} from "~/shared/styles/styles";
 import sharedStylesHref from "~/shared/styles/styles.css";
 import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data";
@@ -70,28 +73,28 @@ export function links(): Array<LinkDescriptor> {
 export const unstable_shouldReload = () => false;
 
 const LoaderSchema = Schema.object({
-    timeZone: Schema.string.transform<TimeZone>({
-        serialize: value => value,
-        deserialize: value => {
-            if (!isTimeZone(value))
-                throw new SchemaDeserializationError(
-                    "Expected string to be a valid time zone identifier",
-                );
-            return value;
-        },
-    }),
+    clientInfo: ClientInfoSchema,
     devServerPort: Schema.integer.optional(),
 });
 
 export function loader({request, context}: LoaderArgs) {
     const cookieHeader = request.headers.get("cookie");
-    const timeZoneCookie = cookieHeader ? parseCookieHeader(cookieHeader)["time-zone"] : null;
+    const clientInfoCookieString = cookieHeader
+        ? parseCookieHeader(cookieHeader)["client-info"]
+        : null;
 
-    const timeZone =
-        timeZoneCookie && isTimeZone(timeZoneCookie) ? timeZoneCookie : defaultTimeZone;
+    let clientInfo = defaultClientInfo;
+    if (clientInfoCookieString) {
+        try {
+            clientInfo = ClientInfoSchema.deserialize(JSON.parse(clientInfoCookieString));
+        } catch {
+            // Ignore any errors when parsing the client info cookie.
+            // TODO(calebmer): We should report it in an event though?
+        }
+    }
 
     return jsonWithSchema(LoaderSchema, {
-        timeZone,
+        clientInfo,
         devServerPort: context.loader.devServerPort ?? undefined,
     });
 }
@@ -172,7 +175,9 @@ export default function Root({error}: {error?: unknown}) {
     const wrappedChildren = (
         <IconContext.Provider value={{color: "currentColor", size: spacing["5"]}}>
             <AppContextProvider value={context}>
-                <DateContextProvider initialTimeZone={loaderData?.timeZone ?? defaultTimeZone}>
+                <ClientInfoContextProvider
+                    initialClientInfo={loaderData?.clientInfo ?? defaultClientInfo}
+                >
                     <AppInitialRenderContextProvider>
                         <OverlayScopeContextProvider>
                             <TooltipCoordinationContextProvider>
@@ -180,7 +185,7 @@ export default function Root({error}: {error?: unknown}) {
                             </TooltipCoordinationContextProvider>
                         </OverlayScopeContextProvider>
                     </AppInitialRenderContextProvider>
-                </DateContextProvider>
+                </ClientInfoContextProvider>
             </AppContextProvider>
         </IconContext.Provider>
     );

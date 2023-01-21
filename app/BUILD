@@ -41,6 +41,7 @@ ts_project(
         "//client/remix",
         "//client/rpc",
         "//client/tracer",
+        "//client/virtualized",
         "//server/aws",
         "//server/documents",
         "//server/dynamo",
