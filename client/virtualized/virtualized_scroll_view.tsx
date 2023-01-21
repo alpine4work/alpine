@@ -9,6 +9,7 @@ import {
     removeResizeListenerForElement,
 } from "~/client/helpers/use_resize_observer";
 import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_after_next_browser_paint";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
@@ -16,13 +17,13 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {safe} from "~/shared/helpers/string/safe_string";
 import {sprinkles} from "~/shared/styles/styles";
 
-type VirtualizedScrollViewItem = {
+export type VirtualizedScrollViewItem = {
     readonly minHeight: number;
     readonly key: Key;
     readonly node: ReactNode;
 };
 
-type VirtualizedScrollViewRenderedRange = {
+export type VirtualizedScrollViewRenderedRange = {
     readonly itemCount: number;
     readonly startIndex: number;
     readonly endIndex: number;
@@ -297,8 +298,14 @@ export function VirtualizedScrollView({
     }
 
     const isHandlingScrollRef = useRef(false);
+    const jumpScrollDebounceTimeoutRef = useRef<Timeout | null>(null);
 
     const handleScroll = () => {
+        // Jump scrolls are handled on a debounce. Whenever the scroll state changes
+        // cancel a scheduled jump scroll.
+        jumpScrollDebounceTimeoutRef.current?.clear();
+        jumpScrollDebounceTimeoutRef.current = null;
+
         if (isHandlingScrollRef.current) return;
         isHandlingScrollRef.current = true;
 
@@ -354,6 +361,64 @@ export function VirtualizedScrollView({
         // updating it.
         if (isRenderedRangeCoveringVirtualizedWindow) return;
 
+        let newStartIndex: number;
+        let newEndIndex: number;
+        let newBufferedLeadingHeight: number;
+        let newBufferedTrailingHeight: number;
+
+        const updateRenderedRange = () => {
+            const correctBufferHeightItemLimit = 10;
+
+            let minBufferedLeadingHeight = 0;
+            for (
+                let index = 0;
+                index < Math.min(newStartIndex, correctBufferHeightItemLimit);
+                index++
+            ) {
+                const item = getItem(index);
+                const itemHeight = itemHeightByKey.get(item.key) ?? item.minHeight;
+                minBufferedLeadingHeight += itemHeight;
+            }
+
+            let minBufferedTrailingHeight = 0;
+            for (
+                let index = renderedRange.itemCount - 1;
+                index >
+                Math.max(newEndIndex, renderedRange.itemCount - 1 - correctBufferHeightItemLimit);
+                index--
+            ) {
+                const item = getItem(index);
+                const itemHeight = itemHeightByKey.get(item.key) ?? item.minHeight;
+                minBufferedTrailingHeight += itemHeight;
+            }
+
+            setRenderedRange({
+                itemCount: renderedRange.itemCount,
+                startIndex: newStartIndex,
+                endIndex: newEndIndex,
+                bufferedLeadingHeight:
+                    // Safety mechanism: If we reach the start of the list, make sure leading height
+                    // is zero. It should approach zero naturally but just in case.
+                    newStartIndex === 0
+                        ? 0
+                        : // Safety mechanism: Make sure we always have at least 10 items worth of
+                          // leading height. We use statistical mechanisms to compute buffered height
+                          // and it's possible those mechanisms will under count at times. 10 items of
+                          // height is cheap to compute.
+                          Math.max(minBufferedLeadingHeight, newBufferedLeadingHeight),
+                bufferedTrailingHeight:
+                    // Safety mechanism: If we reach the end of the list, make sure trailing height
+                    // is zero. It should approach zero naturally but just in case.
+                    newEndIndex === renderedRange.itemCount - 1
+                        ? 0
+                        : // Safety mechanism: Make sure we always have at least 10 items worth of
+                          // trailing height. We use statistical mechanisms to compute buffered height
+                          // and it's possible those mechanisms will under count at times. 10 items of
+                          // height is cheap to compute.
+                          Math.max(minBufferedTrailingHeight, newBufferedTrailingHeight),
+            });
+        };
+
         // If our rendered range intersects our virtualized window then we move our
         // rendered range to adjacent items.
         //
@@ -365,7 +430,7 @@ export function VirtualizedScrollView({
             let bufferedLeadingHeightDifference = 0;
             let bufferedTrailingHeightDifference = 0;
 
-            let newStartIndex = renderedRange.startIndex;
+            newStartIndex = renderedRange.startIndex;
             let newStartIndexTop = renderedRangeTop;
 
             // Finds the last possible item in our list that covers the top of the
@@ -404,7 +469,7 @@ export function VirtualizedScrollView({
                 }
             }
 
-            let newEndIndex = renderedRange.endIndex;
+            newEndIndex = renderedRange.endIndex;
             let newEndIndexBottom = renderedRangeBottom;
 
             // Finds the first possible item in our list that covers the bottom of the
@@ -443,38 +508,151 @@ export function VirtualizedScrollView({
                 }
             }
 
-            setRenderedRange({
-                itemCount: renderedRange.itemCount,
-                startIndex: newStartIndex,
-                endIndex: newEndIndex,
-                bufferedLeadingHeight:
-                    // Safety mechanism: If we reach the start of the list, make sure leading height
-                    // is zero. It should approach zero naturally but just in case.
-                    newStartIndex === 0
-                        ? 0
-                        : // Safety mechanism: Make sure we always have at least one item's worth of
-                          // leading height. If there are 100 items and we only have one item's worth of
-                          // height the experience will get kinda janky but we should at least know to
-                          // keep virtualizing in items.
-                          Math.max(
-                              getItem(0).minHeight,
-                              renderedRange.bufferedLeadingHeight + bufferedLeadingHeightDifference,
-                          ),
-                bufferedTrailingHeight:
-                    // Safety mechanism: If we reach the end of the list, make sure trailing height
-                    // is zero. It should approach zero naturally but just in case.
-                    newEndIndex === renderedRange.itemCount - 1
-                        ? 0
-                        : // Safety mechanism: Make sure we always have at least one item's worth of
-                          // trailing height. If there are 100 items and we only have one item's worth of
-                          // height the experience will get kinda janky but we should at least know to
-                          // keep virtualizing in items.
-                          Math.max(
-                              getItem(renderedRange.itemCount - 1).minHeight,
-                              renderedRange.bufferedTrailingHeight +
-                                  bufferedTrailingHeightDifference,
-                          ),
-            });
+            newBufferedLeadingHeight =
+                renderedRange.bufferedLeadingHeight + bufferedLeadingHeightDifference;
+            newBufferedTrailingHeight =
+                renderedRange.bufferedTrailingHeight + bufferedTrailingHeightDifference;
+            updateRenderedRange();
+        }
+        // If our rendered range doesn't intersect the virtualized window, we guess a
+        // new range of indexes to render based on what percentage we are through the
+        // buffered area. It's expensive to compute the actual item at a given scroll
+        // position because we'd need to iterate through all items before that one.
+        else {
+            // Jump scrolls are expensive (they change a lot of the screen) so put it
+            // behind a debounce. If we can't scroll as fast as the mouse while the user is
+            // scrubbing there will be some desync between the user's mouse and scrollbar
+            // which feels janky.
+            jumpScrollDebounceTimeoutRef.current = createTimeout(() => {
+                const oldContentHeight =
+                    renderedRangeHeight +
+                    renderedRange.bufferedLeadingHeight +
+                    renderedRange.bufferedTrailingHeight;
+
+                const virtualizedWindowMiddle =
+                    virtualizedWindowTop + (virtualizedWindowBottom - virtualizedWindowTop) / 2;
+
+                const isVirtualizedWindowMiddleInBufferedLeadingHeight =
+                    virtualizedWindowMiddle < renderedRangeTop;
+                const isVirtualizedWindowMiddleInBufferedTrailingHeight =
+                    renderedRangeBottom < virtualizedWindowMiddle;
+
+                // The virtualized window does not intersect the rendered range so likewise the
+                // virtualized window middle should be outside of the rendered range.
+                assert(
+                    isVirtualizedWindowMiddleInBufferedLeadingHeight ||
+                        isVirtualizedWindowMiddleInBufferedTrailingHeight,
+                );
+
+                // Guess the index corresponding with the middle of the virtualized window in
+                // the buffered height. This is a statistical guess given it's expensive to
+                // compute the exact index at this position because we'd have to iterate
+                // through all items.
+                //
+                // We will iterate backwards and forwards from this `scanIndex` to find the new
+                // rendered range.
+                let scanIndex: number;
+                let scanIndexTop: number;
+                let scanIndexBottom: number;
+                if (isVirtualizedWindowMiddleInBufferedLeadingHeight) {
+                    // Special case: If the virtualized window starts near the top of the list then
+                    // scan from the start.
+                    if (virtualizedWindowTop < clientHeight) {
+                        scanIndex = 0;
+
+                        const scanItem = getItem(scanIndex);
+                        const scanItemHeight =
+                            itemHeightByKey.get(scanItem.key) ?? scanItem.minHeight;
+
+                        scanIndexTop = 0;
+                        scanIndexBottom = scanItemHeight;
+                    } else {
+                        scanIndex = Math.floor(
+                            renderedRange.startIndex *
+                                (virtualizedWindowMiddle / renderedRange.bufferedLeadingHeight),
+                        );
+
+                        const scanItem = getItem(scanIndex);
+                        const scanItemHeight =
+                            itemHeightByKey.get(scanItem.key) ?? scanItem.minHeight;
+
+                        scanIndexTop = virtualizedWindowMiddle - scanItemHeight;
+                        scanIndexBottom = virtualizedWindowMiddle;
+                    }
+                } else {
+                    assert(isVirtualizedWindowMiddleInBufferedTrailingHeight);
+
+                    // Special case: If the virtualized window ends near the bottom of the list then
+                    // scan from the end.
+                    if (virtualizedWindowBottom > scrollHeight - clientHeight) {
+                        scanIndex = renderedRange.itemCount - 1;
+
+                        const scanItem = getItem(scanIndex);
+                        const scanItemHeight =
+                            itemHeightByKey.get(scanItem.key) ?? scanItem.minHeight;
+
+                        scanIndexTop = oldContentHeight - scanItemHeight;
+                        scanIndexBottom = oldContentHeight;
+                    } else {
+                        scanIndex = Math.floor(
+                            renderedRange.endIndex +
+                                (renderedRange.itemCount - 1 - renderedRange.endIndex) *
+                                    ((virtualizedWindowMiddle - renderedRangeBottom) /
+                                        renderedRange.bufferedTrailingHeight),
+                        );
+
+                        const scanItem = getItem(scanIndex);
+                        const scanItemHeight =
+                            itemHeightByKey.get(scanItem.key) ?? scanItem.minHeight;
+
+                        scanIndexTop = virtualizedWindowMiddle - scanItemHeight;
+                        scanIndexBottom = virtualizedWindowMiddle;
+                    }
+                }
+
+                newStartIndex = scanIndex;
+                let newStartIndexTop = scanIndexTop;
+
+                // Move the start index back until we cover the virtualized window top.
+                while (newStartIndex > 0 && newStartIndexTop > virtualizedWindowTop) {
+                    const item = getItem(newStartIndex - 1);
+                    const itemHeight = itemHeightByKey.get(item.key) ?? item.minHeight;
+                    newStartIndex -= 1;
+                    newStartIndexTop -= itemHeight;
+                }
+
+                newEndIndex = scanIndex;
+                let newEndIndexBottom = scanIndexBottom;
+
+                // Move the end index forward until we cover the virtualized window bottom.
+                while (newEndIndex < itemCount - 1 && newEndIndexBottom < virtualizedWindowBottom) {
+                    const item = getItem(newEndIndex + 1);
+                    const itemHeight = itemHeightByKey.get(item.key) ?? item.minHeight;
+                    newEndIndex += 1;
+                    newEndIndexBottom += itemHeight;
+                }
+
+                const newRenderedRangeHeight = newEndIndexBottom - newStartIndexTop;
+                const newContentHeight =
+                    oldContentHeight + (newRenderedRangeHeight - renderedRangeHeight);
+
+                // Remove the new rendered range height from the buffered height area we are
+                // rendering our new range in. Add the old rendered range height to the other
+                // buffered height area.
+                if (isVirtualizedWindowMiddleInBufferedLeadingHeight) {
+                    newBufferedLeadingHeight = virtualizedWindowTop;
+                    newBufferedTrailingHeight =
+                        newContentHeight - newRenderedRangeHeight - newBufferedLeadingHeight;
+                } else {
+                    assert(isVirtualizedWindowMiddleInBufferedTrailingHeight);
+
+                    newBufferedTrailingHeight = newContentHeight - virtualizedWindowBottom;
+                    newBufferedLeadingHeight =
+                        newContentHeight - newRenderedRangeHeight - newBufferedTrailingHeight;
+                }
+
+                updateRenderedRange();
+            }, perceivedAsInstantLimitMs);
         }
     };
 
