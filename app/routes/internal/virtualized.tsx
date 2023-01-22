@@ -1,3 +1,4 @@
+import {useCallback} from "react";
 import {Box} from "~/client/design/box";
 import {useUrlSearchParamState} from "~/client/helpers/use_url_search_param_state";
 import {VirtualizedScrollView} from "~/client/virtualized/virtualized_scroll_view";
@@ -58,21 +59,26 @@ export default function VirtualizedScrollViewDesignPlaygroundPage() {
             <Box flexGrow="1" position="relative" zIndex="0" overflowY="hidden">
                 <VirtualizedScrollView
                     itemCount={itemCount}
-                    getItem={index => ({
-                        minHeight: 30,
-                        key: index,
-                        node: (
-                            <Box
-                                display="flex"
-                                alignItems="center"
-                                paddingX="4"
-                                backgroundColor={index % 2 ? "grey-0" : "grey-wash"}
-                                style={{height: stableRandom.randomInteger("test", index, 30, 100)}}
-                            >
-                                {index}
-                            </Box>
-                        ),
-                    })}
+                    renderItem={useCallback(
+                        index => ({
+                            minHeight: 30,
+                            key: index,
+                            node: (
+                                <Box
+                                    display="flex"
+                                    alignItems="center"
+                                    paddingX="4"
+                                    backgroundColor={index % 2 ? "grey-0" : "grey-wash"}
+                                    style={{
+                                        height: stableRandom.randomInteger("test", index, 30, 100),
+                                    }}
+                                >
+                                    {index}
+                                </Box>
+                            ),
+                        }),
+                        [],
+                    )}
                     pinTo={pinTo === "top" ? "top" : "bottom"}
                 />
             </Box>

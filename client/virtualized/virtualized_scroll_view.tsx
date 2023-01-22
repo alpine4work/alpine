@@ -1,4 +1,4 @@
-import {Key, ReactNode, RefObject, useMemo, useRef, useState} from "react";
+import {Key, Memo, ReactNode, RefObject, useMemo, useRef, useState} from "react";
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants";
 import {useClientInfo} from "~/client/helpers/client_info_context";
 import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render";
@@ -33,16 +33,34 @@ export type VirtualizedScrollViewRenderedRange = {
 
 export function VirtualizedScrollView({
     itemCount,
-    getItem: _getItem,
+    renderItem: _renderItem,
     pinTo = "top",
 }: {
+    /**
+     * The total number of virtualized items. You do not need all the items loaded
+     * in memory but you should be able to render something whenever `getItem` is
+     * called.
+     */
     itemCount: number;
-    getItem: (index: number) => VirtualizedScrollViewItem;
+
+    /**
+     * Render one of the items in our scroll view.
+     *
+     * The virtualized scroll view will only render a subset of all the items at
+     * any time. This function may never be called for some items. Just because
+     * this function is called does not mean the item is rendered! The component
+     * may be trying to learn more about the shape of the list.
+     *
+     * We recommend memoizing this function (with `useCallback()`).
+     */
+    renderItem: Memo<(index: number) => VirtualizedScrollViewItem>;
 
     /**
      * When the size of our scroll view's content changes, should we pin the
      * scroll window to the top of the scroll view or the bottom of the scroll
      * view?
+     *
+     * If set to `bottom` we will also scroll the view to the bottom when it loads.
      *
      * The browser default is to pin the window to the top of the scroll view.
      * That means the number of pixels from the scroll view top to the scroll
@@ -68,8 +86,8 @@ export function VirtualizedScrollView({
         const itemByIndex = new Map<number, VirtualizedScrollViewItem>();
 
         return (index: number): VirtualizedScrollViewItem =>
-            getOrSetDefaultMapValue(itemByIndex, index, _getItem);
-    }, [_getItem]);
+            getOrSetDefaultMapValue(itemByIndex, index, _renderItem);
+    }, [_renderItem]);
 
     const [possiblyOutOfBoundsRenderedRange, setRenderedRange] = useState(
         // This function determines our initial rendered range. It also needs to run

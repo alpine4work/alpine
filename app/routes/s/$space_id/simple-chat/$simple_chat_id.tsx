@@ -1,4 +1,4 @@
-import {useState} from "react";
+import {useCallback, useState} from "react";
 import {useNavigate} from "react-router-dom";
 import {ContentEditor} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
@@ -45,21 +45,26 @@ export default function SimpleChatRoute() {
             <Box flexGrow="1" overflowY="hidden">
                 <VirtualizedScrollView
                     itemCount={10_000}
-                    getItem={index => ({
-                        minHeight: 30,
-                        key: index,
-                        node: (
-                            <Box
-                                display="flex"
-                                alignItems="center"
-                                paddingX="4"
-                                backgroundColor={index % 2 ? "grey-0" : "grey-wash"}
-                                style={{height: stableRandom.randomInteger("test", index, 30, 100)}}
-                            >
-                                {index}
-                            </Box>
-                        ),
-                    })}
+                    renderItem={useCallback(
+                        index => ({
+                            minHeight: 30,
+                            key: index,
+                            node: (
+                                <Box
+                                    display="flex"
+                                    alignItems="center"
+                                    paddingX="4"
+                                    backgroundColor={index % 2 ? "grey-0" : "grey-wash"}
+                                    style={{
+                                        height: stableRandom.randomInteger("test", index, 30, 100),
+                                    }}
+                                >
+                                    {index}
+                                </Box>
+                            ),
+                        }),
+                        [],
+                    )}
                     pinTo="bottom"
                 />
             </Box>
