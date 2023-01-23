@@ -142,6 +142,12 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
             hasExclusiveStartKey: Schema.boolean,
             scannedCount: Schema.integer,
         },
+        scan: {
+            indexName: IdentifierStringSchema,
+            limit: Schema.integer,
+            hasExclusiveStartKey: Schema.boolean,
+            scannedCount: Schema.integer,
+        },
         transactWrite: {
             items: Schema.string,
             clientRequestToken: Schema.string,

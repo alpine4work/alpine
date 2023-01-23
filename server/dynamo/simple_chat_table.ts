@@ -83,7 +83,14 @@ export async function seedTestSimpleChats(context: DynamoContext) {
     });
 }
 
-export async function getSimpleChat(context: RequestContext, id: SimpleChatId) {
+export async function getSimpleChat(
+    context: RequestContext,
+    id: SimpleChatId,
+): Promise<{
+    simpleChatId: SimpleChatId;
+    spaceId: SpaceId;
+    messageCount: number;
+} | null> {
     const simpleChatItem = await SimpleChatTable.getItem(context, {
         partitionType: "SimpleChat",
         sortRangeType: "Attributes",
