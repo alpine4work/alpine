@@ -4,11 +4,12 @@ import {Spacing, convertRemLengthToPx, spacing as spacingMap} from "~/shared/des
 /**
  * Get the number of pixels in our `Spacing` value.
  *
- * Returns null when the hook runs on the server since the server does not know
- * the browser window size.
+ * When server-side rendering we will use the screen width in our client info
+ * cookie. If that screen width is inconsistent with the actual browser the
+ * user may see a flash after server-side rendering so be careful. If the
+ * screen width is unknown, we assume a desktop platform.
  */
-export function useSpacingPx(spacing: Spacing): number | null {
+export function useSpacingPx(spacing: Spacing): number {
     const remPx = useRemPx();
-    if (remPx === null) return null;
     return convertRemLengthToPx(spacingMap[spacing], remPx);
 }

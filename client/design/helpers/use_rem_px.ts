@@ -1,21 +1,33 @@
 import {useEffect, useState} from "react";
+import {useClientInfo} from "~/client/helpers/client_info_context";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
-import {mobilePlatformMediaQuery, remPxByPlatform} from "~/shared/design/spacing";
+import {
+    mobileMaxScreenWidthPx,
+    mobilePlatformMediaQuery,
+    remPxByPlatform,
+} from "~/shared/design/spacing";
 
 /**
  * Get the number of pixels in 1rem.
  *
- * Returns null when the hook runs on the server since the server does not know
- * the browser window size.
+ * When server-side rendering we will use the screen width in our client info
+ * cookie. If that screen width is inconsistent with the actual browser the
+ * user may see a flash after server-side rendering so be careful. If the
+ * screen width is unknown, we assume a desktop platform.
  */
-// TODO(calebmer): Put media queries we care about into browser cookies so we
-// can server render using those values?
-export function useRemPx(): number | null {
+export function useRemPx(): number {
+    const {screenWidth} = useClientInfo();
     const isInitialAppRender = useIsInitialAppRender();
 
-    const [remPx, setRemPx] = useState(() =>
-        isInitialAppRender ? null : getRemPxWithoutListening(),
-    );
+    const [remPx, setRemPx] = useState(() => {
+        if (isInitialAppRender) {
+            return screenWidth <= mobileMaxScreenWidthPx
+                ? remPxByPlatform.mobile
+                : remPxByPlatform.desktop;
+        } else {
+            return getRemPxWithoutListening();
+        }
+    });
 
     useEffect(() => {
         const mediaQueryList = window.matchMedia(mobilePlatformMediaQuery);

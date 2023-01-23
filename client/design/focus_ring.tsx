@@ -18,7 +18,6 @@ import {useSpacingPx} from "~/client/design/helpers/use_spacing_px";
 import {Overlay} from "~/client/design/overlay";
 import {Spacing} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
 
 const FocusRingForwardRef = forwardRef(FocusRing);
 export {FocusRingForwardRef as FocusRing};
@@ -218,9 +217,7 @@ function FocusRingBox({
 
     // Overlay must be focused to render so we know we're on the client and
     // `window` should exist.
-    let ringOffsetPx = assertExists(
-        useSpacingPx(offset !== "border" && offset !== "inset" ? offset : "0"),
-    );
+    let ringOffsetPx = useSpacingPx(offset !== "border" && offset !== "inset" ? offset : "0");
 
     // If we are using a border ring offset, we want the focus ring to render on
     // top of the element's 1px border.

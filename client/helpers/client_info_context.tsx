@@ -11,6 +11,8 @@ import {
 import {Schema, SchemaDeserializationError, SchemaType} from "~/shared/schema/schema";
 
 export const ClientInfoSchema = Schema.object({
+    screenWidth: Schema.integer,
+    screenHeight: Schema.integer,
     timeZone: Schema.string.transform<TimeZone>({
         serialize: timeZone => timeZone,
         deserialize: timeZone => {
@@ -20,7 +22,6 @@ export const ClientInfoSchema = Schema.object({
             return timeZone;
         },
     }),
-    screenHeight: Schema.integer,
 });
 
 type ClientInfo = SchemaType<typeof ClientInfoSchema>;
@@ -31,10 +32,14 @@ type ClientInfo = SchemaType<typeof ClientInfoSchema>;
  */
 export const defaultClientInfo: ClientInfo = {
     /**
-     * We use the New York time zone when we haven't gotten the client's actual
-     * time zone since that's where our company is based.
+     * The default screen width we use when server-side rendering when we don't
+     * know what the user's actual screen width is. 1920px is the width of the
+     * [largest common screen resolution][1] so that should cover the majority of
+     * devices.
+     *
+     * [1]: https://www.browserstack.com/guide/ideal-screen-sizes-for-responsive-design
      */
-    timeZone: defaultTimeZone,
+    screenWidth: 1920,
     /**
      * The default screen height we use when server-side rendering when we don't
      * know what the user's actual screen height is. 1080px is the height of the
@@ -44,12 +49,18 @@ export const defaultClientInfo: ClientInfo = {
      * [1]: https://www.browserstack.com/guide/ideal-screen-sizes-for-responsive-design
      */
     screenHeight: 1080,
+    /**
+     * We use the New York time zone when we haven't gotten the client's actual
+     * time zone since that's where our company is based.
+     */
+    timeZone: defaultTimeZone,
 };
 
 function getClientInfo(): ClientInfo {
     return {
-        timeZone: getCurrentTimeZone(),
+        screenWidth: window.screen.width,
         screenHeight: window.screen.height,
+        timeZone: getCurrentTimeZone(),
     };
 }
 

@@ -10,7 +10,12 @@ export const remPxByPlatform = {
     mobile: 20,
 } as const;
 
-export const mobilePlatformMediaQuery = "screen and (max-width: 768px)";
+/**
+ * The maximum screen width for our mobile platform in pixels.
+ */
+export const mobileMaxScreenWidthPx = 768;
+
+export const mobilePlatformMediaQuery = `screen and (max-width: ${mobileMaxScreenWidthPx}px)`;
 
 export type Spacing = keyof typeof spacing;
 
