@@ -1,7 +1,7 @@
 import {Key, Memo, ReactNode, RefObject, useMemo, useRef, useState} from "react";
 import {useRemPx} from "~/client/design/helpers/use_rem_px";
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants";
-import {useClientInfo} from "~/client/helpers/client_info_context";
+import {ClientInfo, useClientInfo} from "~/client/helpers/client_info_context";
 import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
@@ -10,7 +10,7 @@ import {
     addResizeListenerForElement,
     removeResizeListenerForElement,
 } from "~/client/helpers/use_resize_observer";
-import {RemLength, convertRemLengthToPx} from "~/shared/design/spacing";
+import {RemLength, convertRemLengthToPx, getRemPxFromScreenWidth} from "~/shared/design/spacing";
 import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_after_next_browser_paint";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
@@ -19,6 +19,32 @@ import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
 import {safe} from "~/shared/helpers/string/safe_string";
 import {sprinkles} from "~/shared/styles/styles";
+
+/**
+ * How many screens of content to fill on the first virtualized scroll
+ * view render?
+ */
+const initialVirtualizedScrollViewRenderFillScreenCount = 2;
+
+/**
+ * How many items will the virtualized scroll view initially render assuming
+ * every item has the same minimum height?
+ */
+export function getInitialVirtualizedScrollViewRenderedItemCount(
+    clientInfo: ClientInfo,
+    minItemHeight: number | RemLength,
+) {
+    const remPx = getRemPxFromScreenWidth(clientInfo.screenWidth);
+    const minItemHeightPx =
+        typeof minItemHeight === "string"
+            ? convertRemLengthToPx(minItemHeight, remPx)
+            : minItemHeight;
+
+    return Math.ceil(
+        (clientInfo.screenHeight * initialVirtualizedScrollViewRenderFillScreenCount) /
+            minItemHeightPx,
+    );
+}
 
 /**
  * An item rendered by the scroll view.
@@ -226,7 +252,8 @@ export function VirtualizedScrollView({
             // We initially render enough items to fill the user's screen twice (so they
             // have space to scroll). Some of the screen is probably covered so this is
             // more than necessary but we'll never show blank content.
-            const maxInitialRenderedHeight = screenHeight * 2;
+            const maxInitialRenderedHeight =
+                screenHeight * initialVirtualizedScrollViewRenderFillScreenCount;
             let renderedItemCount = 0;
             let initialRenderedHeight = 0;
 
@@ -863,10 +890,18 @@ export function VirtualizedScrollView({
                     height: "full",
                     overflowX: "hidden",
                     overflowY: "scroll",
+                    backgroundColor: "grey-0",
                 })}
                 onScroll={() => updateRenderedRange("scroll")}
             >
-                <div ref={contentRef} style={{height: contentHeight}}>
+                <div style={{height: contentHeight}} />
+                <div
+                    ref={contentRef}
+                    // NOTE(calebmer): We render our virtualized list in an absolutely positioned
+                    // container because we find it helps avoid some jankiness on initial load with
+                    // `pinTo="bottom"`. It is unclear to me why this is the fix.
+                    style={{position: "absolute", left: 0, right: 0, top: 0, height: contentHeight}}
+                >
                     {shouldRenderWithRelativePositioning &&
                         renderedRange &&
                         renderedRange.bufferedLeadingHeight > 0 && (

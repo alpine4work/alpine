@@ -45,7 +45,7 @@ testMessageImplementation<SimpleChatId>(context, {
         if (!simpleChat) return null;
 
         return {
-            key: simpleChat.simpleChatId,
+            key: simpleChat.id,
             spaceId: simpleChat.spaceId,
             messageCount: simpleChat.messageCount,
         };

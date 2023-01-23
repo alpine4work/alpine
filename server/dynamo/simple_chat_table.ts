@@ -12,7 +12,7 @@ import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_al
 import {assert} from "~/shared/helpers/control/assert";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array";
 import {AccountId, SimpleChatId, SpaceId} from "~/shared/id/types/id_types";
-import {SimpleChatMessageModel} from "~/shared/models/simple_chat_model";
+import {SimpleChatMessageModel, SimpleChatModel} from "~/shared/models/simple_chat_model";
 import {Schema} from "~/shared/schema/schema";
 
 // TODO(calebmer): This is temporary for me to test the new messaging
@@ -86,11 +86,7 @@ export async function seedTestSimpleChats(context: DynamoContext) {
 export async function getSimpleChat(
     context: RequestContext,
     id: SimpleChatId,
-): Promise<{
-    simpleChatId: SimpleChatId;
-    spaceId: SpaceId;
-    messageCount: number;
-} | null> {
+): Promise<SimpleChatModel | null> {
     const simpleChatItem = await SimpleChatTable.getItem(context, {
         partitionType: "SimpleChat",
         sortRangeType: "Attributes",
@@ -100,11 +96,11 @@ export async function getSimpleChat(
 
     await authorizeSpaceAccess(context, simpleChatItem.spaceId);
 
-    return {
-        simpleChatId: simpleChatItem.simpleChatId,
+    return new SimpleChatModel({
+        id: simpleChatItem.simpleChatId,
         spaceId: simpleChatItem.spaceId,
         messageCount: simpleChatItem.messagesSummary.messageCount,
-    };
+    });
 }
 
 export async function createSimpleChatMessage(

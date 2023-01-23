@@ -13,8 +13,19 @@ export const remPxByPlatform = {
 /**
  * The maximum screen width for our mobile platform in pixels.
  */
-export const mobileMaxScreenWidthPx = 768;
+const mobileMaxScreenWidthPx = 768;
 
+/**
+ * Get the size of 1rem for the screen width.
+ */
+export function getRemPxFromScreenWidth(screenWidth: number) {
+    return screenWidth <= mobileMaxScreenWidthPx ? remPxByPlatform.mobile : remPxByPlatform.desktop;
+}
+
+/**
+ * CSS media query which when true tells us to use the mobile rem size instead
+ * of desktop rem size from `remPxByPlatform`.
+ */
 export const mobilePlatformMediaQuery = `screen and (max-width: ${mobileMaxScreenWidthPx}px)`;
 
 export type Spacing = keyof typeof spacing;

@@ -37,6 +37,7 @@ ts_project(
         "//client/documents",
         "//client/error",
         "//client/helpers",
+        "//client/messaging",
         "//client/posts",
         "//client/remix",
         "//client/rpc",

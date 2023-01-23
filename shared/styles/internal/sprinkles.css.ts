@@ -20,6 +20,15 @@ import {
 } from "~/shared/styles/internal/color_scheme.css";
 import {fontSizes, fontStyles} from "~/shared/styles/internal/fonts.css";
 
+const borderRadiuses = {
+    none: "0rem",
+    sm: "0.125rem",
+    base: "0.25rem",
+    md: "0.375rem",
+    xl: "0.75rem",
+    full: "9999px",
+} as const;
+
 const properties = defineProperties({
     properties: {
         overflow: {auto: "auto", hidden: "hidden", visible: "visible", scroll: "scroll"},
@@ -58,14 +67,11 @@ const properties = defineProperties({
         },
         pointerEvents: {auto: "auto", none: "none"},
         userSelect: {auto: "auto", none: "none", text: "text", all: "all"},
-        borderRadius: {
-            none: "0rem",
-            sm: "0.125rem",
-            base: "0.25rem",
-            md: "0.375rem",
-            bubble: "1.25rem",
-            full: "9999px",
-        },
+        borderRadius: borderRadiuses,
+        borderTopLeftRadius: borderRadiuses,
+        borderTopRightRadius: borderRadiuses,
+        borderBottomLeftRadius: borderRadiuses,
+        borderBottomRightRadius: borderRadiuses,
         boxShadow: elevationVars,
         textAlign: {left: "left", center: "center", right: "right", justify: "justify"},
         fontSize: fontSizes,

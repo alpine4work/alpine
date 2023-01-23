@@ -1,7 +1,9 @@
 import {AppLoadContext} from "@remix-run/cloudflare";
 import {createRequestHandler, handleAsset} from "@remix-run/cloudflare-workers";
 import * as build from "@remix-run/dev/server-build";
+import {parse as parseCookieHeader} from "cookie";
 import {SignJWT} from "jose";
+import {ClientInfoSchema, defaultClientInfo} from "~/client/helpers/client_info_context";
 import {createAwsContextModulesFromEnv} from "~/server/aws/create_aws_context_modules_from_env";
 import {Session} from "~/server/dynamo/accounts_table";
 import {UnauthenticatedAuthContextModule} from "~/server/dynamo/context/auth_context_module";
@@ -224,6 +226,21 @@ async function handleFetch(
         }
 
         return resources.sessionCookieStorage.with(request, sessionCookiePromise => {
+            const cookieHeader = request.headers.get("cookie");
+            const clientInfoCookieString = cookieHeader
+                ? parseCookieHeader(cookieHeader)["client-info"]
+                : null;
+
+            let clientInfo = defaultClientInfo;
+            if (clientInfoCookieString) {
+                try {
+                    clientInfo = ClientInfoSchema.deserialize(JSON.parse(clientInfoCookieString));
+                } catch {
+                    // Ignore any errors when parsing the client info cookie.
+                    // TODO(calebmer): We should report it in an event though?
+                }
+            }
+
             return Context.with<LoaderContextModules, Response>(
                 {
                     ...resources.awsContextModules,
@@ -234,6 +251,7 @@ async function handleFetch(
                     rpc: new LocalRpcContextModule(),
                     loader: new LoaderContextModule({
                         sessionCookiePromise,
+                        clientInfo,
                         devServerPort: env.DEV_SERVER_PORT
                             ? parseInt(env.DEV_SERVER_PORT, 10)
                             : null,

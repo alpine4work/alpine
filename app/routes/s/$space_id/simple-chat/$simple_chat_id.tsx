@@ -4,23 +4,31 @@ import {ContentEditor} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
+import {MessageView, messageViewMinHeight} from "~/client/messaging/message_view";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
-import {VirtualizedScrollView} from "~/client/virtualized/virtualized_scroll_view";
-import {getSimpleChat} from "~/server/dynamo/simple_chat_table";
+import {
+    VirtualizedScrollView,
+    getInitialVirtualizedScrollViewRenderedItemCount,
+} from "~/client/virtualized/virtualized_scroll_view";
+import {getSimpleChat, getSimpleChatMessagesFromEnd} from "~/server/dynamo/simple_chat_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
 import {isContentEmpty} from "~/shared/content/is_content_empty";
 import {emptyMessageContent} from "~/shared/content/message_content_schema";
 import {NotFoundError} from "~/shared/error/error";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
-import {StableRandom} from "~/shared/helpers/number/stable_random";
 import {SimpleChatId} from "~/shared/id/types/id_types";
+import {SimpleChatMessageModel, SimpleChatModel} from "~/shared/models/simple_chat_model";
 import {createSimpleChatMessage} from "~/shared/rpc/simple_chat_rpc_definitions";
 import {Schema} from "~/shared/schema/schema";
 import {sprinkles} from "~/shared/styles/styles";
 
 const schema = Schema.object({
-    simpleChatId: Schema.id<SimpleChatId>(),
+    simpleChat: SimpleChatModel.schema(),
+    simpleChatMessagesResult: Schema.object({
+        hasMoreMessagesBefore: Schema.boolean,
+        messages: Schema.array(SimpleChatMessageModel.schema()),
+    }),
 });
 
 export async function loader({params, context}: LoaderArgs) {
@@ -29,14 +37,24 @@ export async function loader({params, context}: LoaderArgs) {
     const simpleChat = await getSimpleChat(await context.auth.authenticate(), simpleChatId);
     if (!simpleChat) throw new NotFoundError("Simple chat not found");
 
-    return jsonWithSchema(schema, {simpleChatId});
-}
+    const simpleChatMessagesResult = await getSimpleChatMessagesFromEnd(
+        await context.auth.authenticate(),
+        {
+            simpleChatId: simpleChat.id,
+            limit: getInitialVirtualizedScrollViewRenderedItemCount(
+                context.loader.clientInfo,
+                messageViewMinHeight,
+            ),
+            beforeMessageId: null,
+        },
+    );
 
-const stableRandom = new StableRandom("test");
+    return jsonWithSchema(schema, {simpleChat, simpleChatMessagesResult});
+}
 
 export default function SimpleChatRoute() {
     const context = useAppContext();
-    const {simpleChatId} = useLoaderDataWithSchema(schema);
+    const {simpleChat, simpleChatMessagesResult} = useLoaderDataWithSchema(schema);
     const [state, setState] = useState(ContentEditorState.create(emptyMessageContent));
     const [isSaving, setIsSaving] = useState(false);
 
@@ -44,28 +62,58 @@ export default function SimpleChatRoute() {
         <main className={sprinkles({height: "full", display: "flex", flexDirection: "column"})}>
             <Box flexGrow="1" overflowY="hidden">
                 <VirtualizedScrollView
-                    itemCount={10_000}
-                    renderItem={useCallback(
-                        index => ({
-                            minHeight: 30,
-                            key: index,
-                            node: (
-                                <Box
-                                    display="flex"
-                                    alignItems="center"
-                                    paddingX="4"
-                                    backgroundColor={index % 2 ? "grey-0" : "grey-wash"}
-                                    style={{
-                                        height: stableRandom.randomInteger("test", index, 30, 100),
-                                    }}
-                                >
-                                    {index}
-                                </Box>
-                            ),
-                        }),
-                        [],
-                    )}
                     pinTo="bottom"
+                    itemCount={simpleChat.messageCount}
+                    renderItem={useCallback(
+                        index => {
+                            const adjustedIndex =
+                                index -
+                                (simpleChat.messageCount -
+                                    simpleChatMessagesResult.messages.length);
+
+                            const message =
+                                0 <= adjustedIndex &&
+                                adjustedIndex < simpleChatMessagesResult.messages.length
+                                    ? simpleChatMessagesResult.messages[adjustedIndex]!
+                                    : null;
+
+                            return {
+                                minHeight: messageViewMinHeight,
+                                key: message?.id ?? index,
+                                item: message ? (
+                                    <MessageView
+                                        message={message}
+                                        lastMessage={
+                                            adjustedIndex > 0
+                                                ? simpleChatMessagesResult.messages[
+                                                      adjustedIndex - 1
+                                                  ]!
+                                                : null
+                                        }
+                                        nextMessage={
+                                            adjustedIndex <
+                                            simpleChatMessagesResult.messages.length - 1
+                                                ? simpleChatMessagesResult.messages[
+                                                      adjustedIndex + 1
+                                                  ]!
+                                                : null
+                                        }
+                                    />
+                                ) : (
+                                    <Box
+                                        display="flex"
+                                        alignItems="center"
+                                        paddingX="4"
+                                        backgroundColor={index % 2 ? "grey-0" : "grey-wash"}
+                                        style={{height: messageViewMinHeight}}
+                                    >
+                                        {index}
+                                    </Box>
+                                ),
+                            };
+                        },
+                        [simpleChat.messageCount, simpleChatMessagesResult.messages],
+                    )}
                 />
             </Box>
             <Box
@@ -73,6 +121,7 @@ export default function SimpleChatRoute() {
                 backgroundColor="grey-0"
                 borderTop="grey-5"
                 boxShadow="elevation-30"
+                height="16"
             >
                 <ContentEditor
                     state={state}
@@ -92,7 +141,7 @@ export default function SimpleChatRoute() {
                             setIsSaving(true);
                             try {
                                 await createSimpleChatMessage(context, {
-                                    simpleChatId,
+                                    simpleChatId: simpleChat.id,
                                     parentMessageId: null,
                                     content: state.getContent(),
                                 });

@@ -24,7 +24,12 @@ export const ClientInfoSchema = Schema.object({
     }),
 });
 
-type ClientInfo = SchemaType<typeof ClientInfoSchema>;
+/**
+ * Self-reported information about the client available on the server via a cookie.
+ * If client info changes the server doesn't know about it until the next HTTP
+ * request.
+ */
+export type ClientInfo = SchemaType<typeof ClientInfoSchema>;
 
 /**
  * Default client info to use in tests or in server-side rendering before we

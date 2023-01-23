@@ -1,3 +1,4 @@
+import {ClientInfo} from "~/client/helpers/client_info_context";
 import type {UnauthenticatedRequestContextModules} from "~/server/dynamo/context/request_context";
 import {SessionCookie} from "~/server/remix/session_cookie";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module";
@@ -28,17 +29,21 @@ export interface LoaderArgs {
  */
 export class LoaderContextModule extends ContextModuleBase {
     private readonly _sessionCookiePromise: Promise<SessionCookie>;
+    public readonly clientInfo: ClientInfo;
     public readonly devServerPort: number | null;
 
     constructor({
         sessionCookiePromise,
+        clientInfo,
         devServerPort,
     }: {
         sessionCookiePromise: Promise<SessionCookie>;
+        clientInfo: ClientInfo;
         devServerPort: number | null;
     }) {
         super();
         this._sessionCookiePromise = sessionCookiePromise;
+        this.clientInfo = clientInfo;
         this.devServerPort = devServerPort;
     }
 

@@ -63,7 +63,7 @@ function PostCommentInput({post}: {post: PostModel}) {
                     borderRadius="full"
                 />
             </Box>
-            <Box flexGrow="1" marginLeft="2" backgroundColor="grey-5" borderRadius="bubble">
+            <Box flexGrow="1" marginLeft="2" backgroundColor="grey-5" borderRadius="xl">
                 <ContentEditor
                     state={state}
                     onChange={setState}

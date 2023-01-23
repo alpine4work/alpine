@@ -10,7 +10,6 @@ import {
     useCatch,
 } from "@remix-run/react";
 import {RemixEntryContext} from "@remix-run/react/dist/esm/components";
-import {parse as parseCookieHeader} from "cookie";
 import {IconContext} from "phosphor-react";
 import prosemirrorStylesHref from "prosemirror-view/style/prosemirror.css";
 import {useContext, useEffect, useMemo} from "react";
@@ -77,24 +76,9 @@ const LoaderSchema = Schema.object({
     devServerPort: Schema.integer.optional(),
 });
 
-export function loader({request, context}: LoaderArgs) {
-    const cookieHeader = request.headers.get("cookie");
-    const clientInfoCookieString = cookieHeader
-        ? parseCookieHeader(cookieHeader)["client-info"]
-        : null;
-
-    let clientInfo = defaultClientInfo;
-    if (clientInfoCookieString) {
-        try {
-            clientInfo = ClientInfoSchema.deserialize(JSON.parse(clientInfoCookieString));
-        } catch {
-            // Ignore any errors when parsing the client info cookie.
-            // TODO(calebmer): We should report it in an event though?
-        }
-    }
-
+export function loader({context}: LoaderArgs) {
     return jsonWithSchema(LoaderSchema, {
-        clientInfo,
+        clientInfo: context.loader.clientInfo,
         devServerPort: context.loader.devServerPort ?? undefined,
     });
 }

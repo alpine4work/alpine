@@ -2,7 +2,7 @@ import {useEffect, useState} from "react";
 import {useClientInfo} from "~/client/helpers/client_info_context";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {
-    mobileMaxScreenWidthPx,
+    getRemPxFromScreenWidth,
     mobilePlatformMediaQuery,
     remPxByPlatform,
 } from "~/shared/design/spacing";
@@ -21,9 +21,7 @@ export function useRemPx(): number {
 
     const [remPx, setRemPx] = useState(() => {
         if (isInitialAppRender) {
-            return screenWidth <= mobileMaxScreenWidthPx
-                ? remPxByPlatform.mobile
-                : remPxByPlatform.desktop;
+            return getRemPxFromScreenWidth(screenWidth);
         } else {
             return getRemPxWithoutListening();
         }
