@@ -18,7 +18,9 @@ we need a framework. What I (Caleb Meredith) want in a CSS framework:
 4.  **Styles are inline with HTML elements.** This is a stylistic preference. Naming things is a
     hard problem. Naming all your elements is a pointless exercise and creates an unnecessary level
     of indirection between the thing and how the thing behaves. Ideally the syntax for styles are
-    React component props like [jsxstyle][2] and not `className` shenanigans.
+    React component props like [jsxstyle][2] and not
+    `className={classNames("some long string", {"other long string": nonStandardCondition})}`
+    shenanigans.
 
 [1]: https://styled-components.com/
 [2]: https://www.npmjs.com/package/jsxstyle
