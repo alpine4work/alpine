@@ -22,6 +22,7 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {ErrorSchema} from "~/shared/error/error_schema";
 import {isSystemError} from "~/shared/error/is_system_error_code";
 import {randomArrayItem} from "~/shared/helpers/array/random_array_item";
+import {urlRegExp} from "~/shared/helpers/string/url_reg_exp";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles";
 
@@ -83,6 +84,15 @@ export async function action({request, context}: LoaderArgs) {
         if (/cryto/i.test(name) || /cryto/i.test(message))
             throw new InvalidArgumentError("Crypto spam not allowed", {
                 displayMessage: errorDisplayMessage`Can not request access if your name or message includes the word “cryto”. We have this restriction to prevent automated spam bots from submitting the form. Remove the word “cryto” from your name or message and try again.`,
+            });
+
+        // NOTE(calebmer, 2022-01-24): CryptoBob is now just "Bob". While I do not
+        // currently know any Bobs I may someday. Now disallow URLs in the message
+        // since CryptoBob is trying to get me to click on a link.
+        const messageUrlMatch = message.match(urlRegExp);
+        if (messageUrlMatch)
+            throw new InvalidArgumentError("URLs not allowed in message", {
+                displayMessage: errorDisplayMessage`Can not request access if your message includes a URL. We have this restriction to prevent automated spam bots from submitting the form. Remove “${messageUrlMatch[0]!}” from your message and try again.`,
             });
 
         await requestAlphaAccess(context, {
