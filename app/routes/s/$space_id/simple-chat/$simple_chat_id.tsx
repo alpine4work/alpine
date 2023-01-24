@@ -1,16 +1,11 @@
-import {useCallback, useState} from "react";
+import {useState} from "react";
 import {useNavigate} from "react-router-dom";
 import {ContentEditor} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
-import {MessageShimmer} from "~/client/messaging/message_shimmer";
-import {MessageView, messageViewMinHeight} from "~/client/messaging/message_view";
+import {MessagingView, getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
-import {
-    VirtualizedScrollView,
-    getInitialVirtualizedScrollViewRenderedItemCount,
-} from "~/client/virtualized/virtualized_scroll_view";
 import {getSimpleChat, getSimpleChatMessagesFromEnd} from "~/server/dynamo/simple_chat_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
@@ -42,10 +37,7 @@ export async function loader({params, context}: LoaderArgs) {
         await context.auth.authenticate(),
         {
             simpleChatId: simpleChat.id,
-            limit: getInitialVirtualizedScrollViewRenderedItemCount(
-                context.loader.clientInfo,
-                messageViewMinHeight,
-            ),
+            limit: getInitialLoadMessageCount(context.loader.clientInfo),
             beforeMessageId: null,
         },
     );
@@ -62,44 +54,10 @@ export default function SimpleChatRoute() {
     return (
         <main className={sprinkles({height: "full", display: "flex", flexDirection: "column"})}>
             <Box flexGrow="1" overflowY="hidden">
-                <VirtualizedScrollView
-                    pinTo="bottom"
-                    itemCount={simpleChat.messageCount}
-                    renderItem={useCallback(
-                        index => {
-                            const adjustedIndex =
-                                index -
-                                (simpleChat.messageCount -
-                                    simpleChatMessagesResult.messages.length);
-
-                            const message =
-                                simpleChatMessagesResult.messages[adjustedIndex] ?? null;
-                            const lastMessage =
-                                simpleChatMessagesResult.messages[adjustedIndex - 1] ?? null;
-                            const nextMessage =
-                                simpleChatMessagesResult.messages[adjustedIndex + 1] ?? null;
-
-                            return {
-                                minHeight: messageViewMinHeight,
-                                key: message?.id ?? index,
-                                item: message ? (
-                                    <MessageView
-                                        message={message}
-                                        lastMessage={lastMessage}
-                                        nextMessage={nextMessage}
-                                    />
-                                ) : (
-                                    <MessageShimmer
-                                        randomSeed={simpleChat.id}
-                                        index={index}
-                                        lastMessage={lastMessage}
-                                        nextMessage={nextMessage}
-                                    />
-                                ),
-                            };
-                        },
-                        [simpleChat.id, simpleChat.messageCount, simpleChatMessagesResult.messages],
-                    )}
+                <MessagingView
+                    initialMessageCount={simpleChat.messageCount}
+                    messages={simpleChatMessagesResult.messages}
+                    shimmerRandomSeed={simpleChat.id}
                 />
             </Box>
             <Box
