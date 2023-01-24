@@ -84,8 +84,8 @@ so you can think of this as our noun naming convention.
 ```
 
 -   `namespace`: A namespace for a related group of types. By using a namespace with a related group
-    of types you make the type globall unique, make sure the type names sort together, and generally
-    communicate what part of the system a name is a part of.
+    of types you make the type globally unique, make sure the type names sort together, and
+    generally communicate what part of the system a name is a part of.
 -   `subClass` and `superClass`: `subClass` is a kind of `superClass`. For a class declaration this
     naming convention may look like `class {subClass}{superClass} extends {superClass}`. Even if
     your type is not a class, sometimes you will have an inheritance relationship between types. For

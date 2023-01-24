@@ -32,7 +32,7 @@ export function MessageView({
             mergeMessageMinuteLimit;
 
     return (
-        <Box display="flex" paddingBottom={!shouldMergeWithNextMessage ? "3" : "0.5"} paddingX="3">
+        <Box display="flex" paddingX="3" paddingBottom={!shouldMergeWithNextMessage ? "3" : "0.5"}>
             <Box flexShrink="0" width="10" display="flex" alignItems="flex-end">
                 {!shouldMergeWithNextMessage && <AccountAvatar account={message.author} />}
             </Box>

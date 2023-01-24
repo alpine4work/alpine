@@ -4,6 +4,7 @@ import {ContentEditor} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
+import {MessageShimmer} from "~/client/messaging/message_shimmer";
 import {MessageView, messageViewMinHeight} from "~/client/messaging/message_view";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {
@@ -72,10 +73,11 @@ export default function SimpleChatRoute() {
                                     simpleChatMessagesResult.messages.length);
 
                             const message =
-                                0 <= adjustedIndex &&
-                                adjustedIndex < simpleChatMessagesResult.messages.length
-                                    ? simpleChatMessagesResult.messages[adjustedIndex]!
-                                    : null;
+                                simpleChatMessagesResult.messages[adjustedIndex] ?? null;
+                            const lastMessage =
+                                simpleChatMessagesResult.messages[adjustedIndex - 1] ?? null;
+                            const nextMessage =
+                                simpleChatMessagesResult.messages[adjustedIndex + 1] ?? null;
 
                             return {
                                 minHeight: messageViewMinHeight,
@@ -83,36 +85,20 @@ export default function SimpleChatRoute() {
                                 item: message ? (
                                     <MessageView
                                         message={message}
-                                        lastMessage={
-                                            adjustedIndex > 0
-                                                ? simpleChatMessagesResult.messages[
-                                                      adjustedIndex - 1
-                                                  ]!
-                                                : null
-                                        }
-                                        nextMessage={
-                                            adjustedIndex <
-                                            simpleChatMessagesResult.messages.length - 1
-                                                ? simpleChatMessagesResult.messages[
-                                                      adjustedIndex + 1
-                                                  ]!
-                                                : null
-                                        }
+                                        lastMessage={lastMessage}
+                                        nextMessage={nextMessage}
                                     />
                                 ) : (
-                                    <Box
-                                        display="flex"
-                                        alignItems="center"
-                                        paddingX="4"
-                                        backgroundColor={index % 2 ? "grey-0" : "grey-wash"}
-                                        style={{height: messageViewMinHeight}}
-                                    >
-                                        {index}
-                                    </Box>
+                                    <MessageShimmer
+                                        randomSeed={simpleChat.id}
+                                        index={index}
+                                        lastMessage={lastMessage}
+                                        nextMessage={nextMessage}
+                                    />
                                 ),
                             };
                         },
-                        [simpleChat.messageCount, simpleChatMessagesResult.messages],
+                        [simpleChat.id, simpleChat.messageCount, simpleChatMessagesResult.messages],
                     )}
                 />
             </Box>
