@@ -1,0 +1,18 @@
+diff --git a/lib/fetch/index.js b/lib/fetch/index.js
+index a95d11b93fd757eff4e118ee5b980a22eed70825..191a40da769ae12a112509e72417c0187ba53259 100644
+--- a/lib/fetch/index.js
++++ b/lib/fetch/index.js
+@@ -195,6 +195,13 @@ async function fetch (input, init = {}) {
+     // 3. If response is a network error, then reject p with a TypeError
+     // and terminate these substeps.
+     if (response.type === 'error') {
++      // TODO(calebmer): I keep getting `fetch failed` errors which crash
++      // Miniflare and I don't know where they're coming from. Temporarily
++      // adding this logging until I can fix them. Remove this patch once
++      // the Miniflare crashes in dev are fixed.
++      if (process.env.NODE_ENV !== 'production') {
++        console.log(`fetch failed: ${requestObject.method} ${requestObject.url}`);
++      }
+       p.reject(
+         Object.assign(new TypeError('fetch failed'), { cause: response.error })
+       )
