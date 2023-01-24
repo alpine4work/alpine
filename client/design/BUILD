@@ -18,6 +18,7 @@ ts_project(
         "//:node_modules/react-aria",
         "//:node_modules/react-dom",
         "//client/helpers",
+        "//client/remix",
         "//shared/design",
         "//shared/helpers",
         "//shared/styles",

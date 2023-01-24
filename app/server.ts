@@ -3,7 +3,7 @@ import {createRequestHandler, handleAsset} from "@remix-run/cloudflare-workers";
 import * as build from "@remix-run/dev/server-build";
 import {parse as parseCookieHeader} from "cookie";
 import {SignJWT} from "jose";
-import {ClientInfoSchema, defaultClientInfo} from "~/client/helpers/client_info_context";
+import {defaultClientInfo} from "~/client/remix/client_info_context";
 import {createAwsContextModulesFromEnv} from "~/server/aws/create_aws_context_modules_from_env";
 import {Session} from "~/server/dynamo/accounts_table";
 import {UnauthenticatedAuthContextModule} from "~/server/dynamo/context/auth_context_module";
@@ -27,6 +27,7 @@ import {TracerContextModule} from "~/shared/context/tracer_context_module";
 import {InternalError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {DocumentId} from "~/shared/id/types/id_types";
+import {ClientInfoSchema} from "~/shared/remix/client_info";
 import {Schema} from "~/shared/schema/schema";
 import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header";
 

@@ -1,5 +1,4 @@
 import {useCallback} from "react";
-import {ClientInfo} from "~/client/helpers/client_info_context";
 import {MessageShimmer} from "~/client/messaging/message_shimmer";
 import {MessageView, messageViewMinHeight} from "~/client/messaging/message_view";
 import {
@@ -7,6 +6,7 @@ import {
     getInitialVirtualizedScrollViewRenderedItemCount,
 } from "~/client/virtualized/virtualized_scroll_view";
 import {MessageInterface} from "~/shared/models/message_interface";
+import {ClientInfo} from "~/shared/remix/client_info";
 
 /**
  * Get the initial number of messages to load.

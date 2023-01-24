@@ -2,34 +2,8 @@ import Cookies from "js-cookie";
 import {ReactNode, createContext, useContext, useEffect, useState} from "react";
 import {InternalError} from "~/shared/error/error";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
-import {
-    TimeZone,
-    defaultTimeZone,
-    getCurrentTimeZone,
-    isTimeZone,
-} from "~/shared/helpers/date/time_zone";
-import {Schema, SchemaDeserializationError, SchemaType} from "~/shared/schema/schema";
-
-export const ClientInfoSchema = Schema.object({
-    screenWidth: Schema.integer,
-    screenHeight: Schema.integer,
-    timeZone: Schema.string.transform<TimeZone>({
-        serialize: timeZone => timeZone,
-        deserialize: timeZone => {
-            if (!isTimeZone(timeZone))
-                throw new SchemaDeserializationError("Expected string to be a valid time zone");
-
-            return timeZone;
-        },
-    }),
-});
-
-/**
- * Self-reported information about the client available on the server via a cookie.
- * If client info changes the server doesn't know about it until the next HTTP
- * request.
- */
-export type ClientInfo = SchemaType<typeof ClientInfoSchema>;
+import {defaultTimeZone, getCurrentTimeZone} from "~/shared/helpers/date/time_zone";
+import {ClientInfo} from "~/shared/remix/client_info";
 
 /**
  * Default client info to use in tests or in server-side rendering before we

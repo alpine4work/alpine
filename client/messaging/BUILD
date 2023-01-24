@@ -11,7 +11,10 @@ ts_project(
         "//:node_modules/@types/react",
         "//:node_modules/react",
         "//client/accounts",
+        "//client/content",
+        "//client/virtualized",
         "//shared/helpers",
         "//shared/models",
+        "//shared/remix",
     ],
 )

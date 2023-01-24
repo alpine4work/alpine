@@ -22,13 +22,9 @@ import {
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {TooltipCoordinationContextProvider} from "~/client/design/tooltip";
 import {ErrorBodyRenderer} from "~/client/error/error_body_renderer";
-import {
-    ClientInfoContextProvider,
-    ClientInfoSchema,
-    defaultClientInfo,
-} from "~/client/helpers/client_info_context";
 import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useStableValue} from "~/client/helpers/use_stable_value";
+import {ClientInfoContextProvider, defaultClientInfo} from "~/client/remix/client_info_context";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
 import {spacing} from "~/shared/design/spacing";
@@ -39,6 +35,7 @@ import {assert} from "~/shared/helpers/control/assert";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";
 import {quote} from "~/shared/helpers/string/quote";
+import {ClientInfoSchema} from "~/shared/remix/client_info";
 import {propagatedEventDataKey} from "~/shared/remix/json_with_schema_shared";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 import {sprinkles} from "~/shared/styles/styles";

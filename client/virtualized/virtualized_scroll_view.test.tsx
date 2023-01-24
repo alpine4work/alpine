@@ -1,4 +1,5 @@
 import {adjustVirtualizedScrollViewRenderedRange} from "~/client/virtualized/virtualized_scroll_view";
+import {remPxByPlatform} from "~/shared/design/spacing";
 
 test("adjusting rendered range assigns removed item height proportionally", () => {
     expect(
@@ -9,8 +10,10 @@ test("adjusting rendered range assigns removed item height proportionally", () =
                 endIndex: 80,
                 bufferedLeadingHeight: 3000,
                 bufferedTrailingHeight: 1000,
+                remPx: remPxByPlatform.desktop,
             },
             115,
+            remPxByPlatform.desktop,
         ),
     ).toEqual({
         itemCount: 115,
@@ -30,8 +33,10 @@ test("adjusting rendered range assigns added item height proportionally", () => 
                 endIndex: 80,
                 bufferedLeadingHeight: 3000,
                 bufferedTrailingHeight: 1000,
+                remPx: remPxByPlatform.desktop,
             },
             125,
+            remPxByPlatform.desktop,
         ),
     ).toEqual({
         itemCount: 125,
@@ -51,8 +56,10 @@ test("adjusting rendered range removes item height when truncating correctly", (
                 endIndex: 80,
                 bufferedLeadingHeight: 3000,
                 bufferedTrailingHeight: 1000,
+                remPx: remPxByPlatform.desktop,
             },
             70,
+            remPxByPlatform.desktop,
         ),
     ).toEqual({
         itemCount: 70,

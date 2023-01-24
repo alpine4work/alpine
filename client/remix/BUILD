@@ -8,7 +8,10 @@ ts_project(
     ],
     deps = [
         "//:node_modules/@remix-run/react",
+        "//:node_modules/@types/jest",
+        "//:node_modules/@types/js-cookie",
         "//:node_modules/@types/react",
+        "//:node_modules/js-cookie",
         "//:node_modules/react",
         "//shared/helpers",
         "//shared/remix",

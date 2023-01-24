@@ -11,6 +11,8 @@ ts_project(
         "//:node_modules/react",
         "//client/design",
         "//client/helpers",
+        "//client/remix",
+        "//shared/remix",
         "//shared/styles",
     ],
 )

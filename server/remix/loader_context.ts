@@ -1,10 +1,10 @@
-import {ClientInfo} from "~/client/helpers/client_info_context";
 import type {UnauthenticatedRequestContextModules} from "~/server/dynamo/context/request_context";
 import {SessionCookie} from "~/server/remix/session_cookie";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module";
 import type {Context} from "~/shared/context/context";
 import {ContextModuleBase} from "~/shared/context/context_module_base";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection";
+import {ClientInfo} from "~/shared/remix/client_info";
 import {TracerSpan} from "~/shared/tracer/tracer_span";
 
 export type LoaderContext = Context<LoaderContextModules>;

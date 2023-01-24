@@ -1,6 +1,6 @@
 import {useMemo} from "react";
 import {Tooltip} from "~/client/design/tooltip";
-import {useClientInfo} from "~/client/helpers/client_info_context";
+import {useClientInfo} from "~/client/remix/client_info_context";
 
 /**
  * Render a date in a human readable form.

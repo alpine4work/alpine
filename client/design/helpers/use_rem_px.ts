@@ -1,6 +1,6 @@
 import {useEffect, useState} from "react";
-import {useClientInfo} from "~/client/helpers/client_info_context";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
+import {useClientInfo} from "~/client/remix/client_info_context";
 import {
     getRemPxFromScreenWidth,
     mobilePlatformMediaQuery,
