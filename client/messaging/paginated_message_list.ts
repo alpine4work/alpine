@@ -1,24 +1,102 @@
 import {assert} from "~/shared/helpers/control/assert";
 
 /**
+ * The smallest possible message ID.
+ */
+export const minMessageId = 1;
+
+/**
+ * The largest possible message ID.
+ */
+export const maxMessageId = Number.MAX_SAFE_INTEGER - 1;
+
+/**
  * Immutable object for keeping track of a partially loaded list of messages.
  * You may have segments of loaded messages at the beginning of the list, the
  * end of the list, or randomly throughout the list.
+ *
+ * Takes advantage of the fact that message IDs are dense to predict how big
+ * the gap is between message ranges.
  */
 export class PaginatedMessageList<Message extends {readonly id: number}> {
     private readonly _segments: ReadonlyArray<PaginatedMessageListSegment<Message>>;
 
     private constructor(segments: ReadonlyArray<PaginatedMessageListSegment<Message>>) {
+        // Validate that our segments are well-formed:
+        //
+        // 1. Messages should be in ascending order by ID
+        // 2. Segments should be in ascending order by message ID
+        // 3. You can not have adjacent loaded segments and you can not have adjacent
+        //    unloaded segments
+        // 4. A loaded or unloaded segment must have at least one message
+        let lastMessageId: number | null = null;
+        for (let segmentIndex = 0; segmentIndex < segments.length; segmentIndex++) {
+            const segment = segments[segmentIndex]!;
+            const lastSegment = segmentIndex > 0 ? segments[segmentIndex - 1]! : null;
+
+            if (!segment.isLoaded) {
+                assert(
+                    segment.estimatedMessageCount > 0,
+                    "Unloaded segment has an estimated message count of zero",
+                );
+                assert(
+                    !lastSegment || lastSegment.isLoaded,
+                    "Can not have adjacent unloaded segments",
+                );
+            } else {
+                assert(segment.messages.length > 0, "Loaded segment has no messages");
+                assert(
+                    !lastSegment || !lastSegment.isLoaded,
+                    "Can not have adjacent loaded segments",
+                );
+
+                // In development, we iterate over every message in the segment to make sure
+                // IDs are in ascending order. Since this is expensive at O(messages), in
+                // production we only validate the first and last message ID.
+                if (process.env.NODE_ENV !== "production") {
+                    for (const message of segment.messages) {
+                        assert(
+                            lastMessageId === null || lastMessageId < message.id,
+                            "Messages must be in ascending order by `id`",
+                        );
+                        lastMessageId = message.id;
+                    }
+                } else {
+                    const startMessageId = segment.messages[0]!.id;
+                    const endMessageId = segment.messages[segment.messages.length - 1]!.id;
+
+                    assert(
+                        lastMessageId === null || lastMessageId < startMessageId,
+                        "Messages must be in ascending order by `id`",
+                    );
+                    assert(
+                        startMessageId <= endMessageId,
+                        "Messages must be in ascending order by `id`",
+                    );
+                    lastMessageId = endMessageId;
+                }
+            }
+        }
+
         this._segments = segments;
     }
 
-    private static _empty = new PaginatedMessageList([]);
-
     /**
-     * An empty list.
+     * Create a new empty list.
      */
-    public static empty<Message extends {readonly id: number}>(): PaginatedMessageList<Message> {
-        return this._empty as any;
+    public static new<Message extends {readonly id: number}>(
+        estimatedMessageCount: number,
+    ): PaginatedMessageList<Message> {
+        return new PaginatedMessageList(
+            estimatedMessageCount > 0 ? [{isLoaded: false, estimatedMessageCount}] : [],
+        );
+    }
+
+    public static newForTest<Message extends {readonly id: number}>(
+        segments: ReadonlyArray<PaginatedMessageListSegment<Message>>,
+    ) {
+        assert(typeof jest !== "undefined");
+        return new PaginatedMessageList(segments);
     }
 
     public getSegmentsForTest() {
@@ -27,398 +105,502 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
     }
 
     /**
-     * Load messages in when paginating from the start of the list.
+     * Load messages into the paginated list. Filling in more of the partially
+     * loaded list or replacing a range of messages that already exists.
      */
-    public loadFromStart({
+    public loadMessages({
         afterMessageId,
-        hasMoreMessagesAfter,
+        beforeMessageId,
+        mayHaveMoreMessagesBefore,
+        mayHaveMoreMessagesAfter,
         messages,
     }: {
-        afterMessageId: number | null;
-        hasMoreMessagesAfter: boolean;
+        /**
+         * All loaded messages IDs come after this ID. Must be less than the first
+         * message ID.
+         *
+         * We assume the provided `messages` list is all the messages between this and
+         * `beforeMessageId` IDs. If you are loading messages that had a limit applied,
+         * you should set this to +1 the ID of the message at the limit.
+         */
+        afterMessageId: number;
+        /**
+         * All loaded messages IDs come before this ID. Must be greater than the last
+         * message ID.
+         *
+         * We assume the provided `messages` list is all the messages between this and
+         * `afterMessageId` IDs. If you are loading messages that had a limit applied,
+         * you should set this to +1 the ID of the message at the limit.
+         */
+        beforeMessageId: number;
+        /**
+         * May there be more messages before the ones we loaded? If true there may be
+         * messages but also maybe not. If false then there are definitely no more
+         * messages before these.
+         */
+        mayHaveMoreMessagesBefore: boolean;
+        /**
+         * May there be more messages after the ones we loaded? If true there may be
+         * messages but also maybe not. If false then there are definitely no more
+         * messages after these.
+         */
+        mayHaveMoreMessagesAfter: boolean;
+        /**
+         * The message data to load.
+         */
         messages: ReadonlyArray<Message>;
-    }): PaginatedMessageList<Message> {
-        // Special handling when we are loading zero messages. We will not create any
-        // new segments but may update our knowledge about segment bounds.
-        if (messages.length === 0) {
-            if (afterMessageId === null) return this;
+    }) {
+        // Validate the messages we are loading.
+        let lastMessageId = afterMessageId;
+        for (let index = 0; index < messages.length; index++) {
+            const message = messages[index]!;
+            assert(
+                lastMessageId < message.id,
+                index === 0
+                    ? "`afterMessageId` must be before the first message `id`"
+                    : "Newly loaded messages must be in ascending order by `id`",
+            );
+            assert(
+                minMessageId <= message.id && message.id <= maxMessageId,
+                "Message `id` is out of bounds",
+            );
+            lastMessageId = message.id;
+        }
+        assert(
+            lastMessageId < beforeMessageId,
+            messages.length > 0
+                ? "`beforeMessageId` must be after the last message `id`"
+                : "`beforeMessageId` must be after `lastMessageId`",
+        );
 
-            const newSegments = [...this._segments];
+        // There are two ways this function may update update the list:
+        //
+        // 1. `mergeWithExistingLoadedSegments()`: If the messages we are loading
+        //    overlap at all with existing messages in the list then we will merge our
+        //    newly loaded messages with existing loaded messages. We may merge
+        //    with just one segment or we may be merging multiple segments
+        //    together.
+        //
+        // 2. `insertNewLoadedSegment()`: If our messages don't overlap with any
+        //    existing messages then we insert a new loaded segment somewhere in the
+        //    list. Splitting an unloaded segment in two.
 
-            for (let segmentIndex = 0; segmentIndex < newSegments.length; segmentIndex++) {
-                const segment = newSegments[segmentIndex]!;
-                assert(segment.messages.length > 0);
-                const segmentStartMessageId = segment.messages[0]!.id;
-                const segmentEndMessageId = segment.messages[segment.messages.length - 1]!.id;
-                assert(segmentStartMessageId <= segmentEndMessageId);
+        const mergeWithExistingLoadedSegments = (
+            startIndex: number,
+            endIndex: number,
+            lastUnloadedSegment: PaginatedMessageListUnloadedSegment | null,
+            loadedSegments: Array<PaginatedMessageListLoadedSegment<Message>>,
+            nextUnloadedSegment: PaginatedMessageListUnloadedSegment | null,
+        ) => {
+            assert(loadedSegments.length > 0);
+            const firstLoadedSegment = loadedSegments[0]!;
+            const lastLoadedSegment = loadedSegments[loadedSegments.length - 1]!;
+            const loadedSegmentsStartMessageId = firstLoadedSegment.messages[0]!.id;
+            const loadedSegmentsEndMessageId =
+                lastLoadedSegment.messages[lastLoadedSegment.messages.length - 1]!.id;
 
-                // Every segment from here on will have greater message IDs than
-                // `afterMessageId` so end iteration.
-                if (afterMessageId < segmentStartMessageId) break;
+            const segmentMessages = [];
 
-                // If we loaded after this segment and got no messages then we definitely know
-                // what the value of `hasMoreMessagesAfter` is.
-                if (afterMessageId === segmentEndMessageId) {
-                    newSegments[segmentIndex] = {
-                        ...segment,
-                        mayHaveMoreMessagesAfter: hasMoreMessagesAfter,
-                    };
-                    break;
+            // Count of newly loaded messages that fall outside of our existing
+            // loaded segments.
+            let newMessageCountBeforeLoadedSegments = 0;
+            let newMessageCountAfterLoadedSegments = 0;
+
+            const newMessageIds = new Set<number>();
+
+            // This message should be called once at the position we want to insert our
+            // messages into `segmentMessages`.
+            let hasInsertedNewMessages = false;
+            const insertNewMessages = () => {
+                assert(!hasInsertedNewMessages);
+                hasInsertedNewMessages = true;
+
+                for (const message of messages) {
+                    newMessageIds.add(message.id);
+
+                    if (message.id < loadedSegmentsStartMessageId)
+                        newMessageCountBeforeLoadedSegments++;
+                    if (loadedSegmentsEndMessageId < message.id)
+                        newMessageCountAfterLoadedSegments++;
+
+                    segmentMessages.push(message);
                 }
+            };
+
+            for (let segmentIndex = 0; segmentIndex < loadedSegments.length; segmentIndex++) {
+                const segment = loadedSegments[segmentIndex]!;
+                for (const message of segment.messages) {
+                    // Insert new messages before the first existing message that could be after our
+                    // new messages.
+                    if (afterMessageId < message.id && !hasInsertedNewMessages) {
+                        insertNewMessages();
+                    }
+
+                    // If this message is outside our newly loaded message range (`afterMessageId`
+                    // to `beforeMessageId`) then add it to the new merged segment's messages.
+                    if (
+                        (mayHaveMoreMessagesBefore && message.id <= afterMessageId) ||
+                        (mayHaveMoreMessagesAfter && beforeMessageId <= message.id)
+                    ) {
+                        segmentMessages.push(message);
+                    }
+                }
+            }
+
+            if (!hasInsertedNewMessages) {
+                insertNewMessages();
+            }
+
+            const newSegments: Array<PaginatedMessageListSegment<Message>> = [];
+
+            if (mayHaveMoreMessagesBefore) {
+                // Copy the existing segments before this one...
+                for (const segment of this._segments.slice(0, startIndex))
+                    newSegments.push(segment);
+
+                // If we have new messages before the existing segment then subtract that new
+                // message count from the previous estimated count. We must always estimate at
+                // least 1 message since there may be more messages before, we don't know.
+                if (newMessageCountBeforeLoadedSegments > 0) {
+                    newSegments.push({
+                        isLoaded: false,
+                        estimatedMessageCount: Math.max(
+                            1,
+                            (lastUnloadedSegment?.estimatedMessageCount ?? 0) -
+                                newMessageCountBeforeLoadedSegments,
+                        ),
+                    });
+                } else {
+                    if (lastUnloadedSegment) newSegments.push(lastUnloadedSegment);
+                }
+            }
+
+            // Add the new, merged, segment.
+            newSegments.push({
+                isLoaded: true,
+                messages: segmentMessages,
+            });
+
+            if (mayHaveMoreMessagesAfter) {
+                // If we have new messages after the existing segment then subtract that new
+                // message count from the next estimated count. We must always estimate at
+                // least 1 message since there may be more messages after, we don't know.
+                if (newMessageCountAfterLoadedSegments > 0) {
+                    newSegments.push({
+                        isLoaded: false,
+                        estimatedMessageCount: Math.max(
+                            1,
+                            (nextUnloadedSegment?.estimatedMessageCount ?? 0) -
+                                newMessageCountAfterLoadedSegments,
+                        ),
+                    });
+                } else {
+                    if (nextUnloadedSegment) newSegments.push(nextUnloadedSegment);
+                }
+
+                // Copy the existing segments after this one...
+                for (const segment of this._segments.slice(endIndex + 1)) newSegments.push(segment);
             }
 
             return new PaginatedMessageList(newSegments);
-        }
+        };
 
-        // If no `afterMessageId` was provided then we are loading from the start of
-        // the list. The minimum message ID is 1.
-        const mayHaveMoreMessagesBefore = afterMessageId !== null;
-        afterMessageId ??= 0;
+        const insertNewLoadedSegment = (
+            startIndex: number,
+            endIndex: number,
+            lastLoadedSegment: PaginatedMessageListLoadedSegment<Message> | null,
+            unloadedSegment: PaginatedMessageListUnloadedSegment | null,
+            nextLoadedSegment: PaginatedMessageListLoadedSegment<Message> | null,
+        ) => {
+            // Get the start and end of our unloaded segment. If there is no end we assume
+            // the end is the start `id` plus the estimated message count. This leverages
+            // the fact that message list `id`s are mostly dense. However deleted messages
+            // might mean this is an underestimation of the unloaded segment's end.
+            const unloadedSegmentStartMessageId = lastLoadedSegment
+                ? lastLoadedSegment.messages[lastLoadedSegment.messages.length - 1]!.id
+                : minMessageId - 1;
+            const unloadedSegmentEndMessageId = nextLoadedSegment
+                ? nextLoadedSegment.messages[0]!.id
+                : unloadedSegment
+                ? Math.max(
+                      unloadedSegmentStartMessageId + unloadedSegment.estimatedMessageCount,
+                      beforeMessageId + 1,
+                  )
+                : maxMessageId + 1;
 
-        // Validate that our messages are in ascending ID order and that there are no
-        // duplicates.
-        for (let i = 0; i < messages.length; i++) {
-            const message = messages[i]!;
-            const lastMessageId = i > 0 ? messages[i - 1]!.id : afterMessageId;
-            assert(lastMessageId < message.id);
-        }
+            assert(unloadedSegmentStartMessageId <= afterMessageId);
+            assert(beforeMessageId <= unloadedSegmentEndMessageId);
 
-        const endMessageId = messages[messages.length - 1]!.id;
-        const newSegments = [...this._segments];
-        let updatedSegmentIndex: number | null = null;
+            // We split the unloaded segment into two and insert a loaded segment in the
+            // middle. Each of the split unloaded segments must have a message count of at
+            // least 1 since we don't know if there are messages between the new segment
+            // and adjacent loaded segments.
+            //
+            // We take the existing estimated message count and subtract our message
+            // length. We allocate the remaining estimated message count proportionally to
+            // message `id` magnitude. This takes advantage of the fact that message `id`s
+            // are mostly dense. A message with `id` 12 and a message with `id` 32 will
+            // most of the time have 20 messages in between them unless a message was
+            // deleted which is uncommon.
 
-        for (let segmentIndex = 0; segmentIndex < newSegments.length; segmentIndex++) {
-            const segment = newSegments[segmentIndex]!;
-            assert(segment.messages.length > 0);
-            const segmentStartMessageId = segment.messages[0]!.id;
-            const segmentEndMessageId = segment.messages[segment.messages.length - 1]!.id;
-            assert(segmentStartMessageId <= segmentEndMessageId);
+            const estimatedMessageCount = unloadedSegment?.estimatedMessageCount ?? 0;
+            const remainingEstimatedMessageCount = Math.max(
+                0,
+                estimatedMessageCount - messages.length,
+            );
 
-            // If we did not overlap with any previous segments and will never overlap with
-            // future segments, then we need to insert a new segment with our messages at
-            // this point.
-            if (endMessageId < segmentStartMessageId) {
-                newSegments.splice(segmentIndex, 0, {
-                    messages,
-                    mayHaveMoreMessagesBefore,
-                    mayHaveMoreMessagesAfter: hasMoreMessagesAfter,
+            const messageIdFraction1 =
+                (afterMessageId - unloadedSegmentStartMessageId) /
+                (unloadedSegmentEndMessageId - unloadedSegmentStartMessageId);
+            const messageIdFraction2 =
+                (unloadedSegmentEndMessageId - beforeMessageId) /
+                (unloadedSegmentEndMessageId - unloadedSegmentStartMessageId);
+
+            const estimatedBeforeMessageCount = Math.max(
+                1,
+                Math.round(
+                    (messageIdFraction1 / (messageIdFraction1 + messageIdFraction2)) *
+                        remainingEstimatedMessageCount,
+                ),
+            );
+            const estimatedAfterMessageCount = Math.max(
+                1,
+                Math.round(
+                    (messageIdFraction2 / (messageIdFraction1 + messageIdFraction2)) *
+                        remainingEstimatedMessageCount,
+                ),
+            );
+            const newSegments: Array<PaginatedMessageListSegment<Message>> = [];
+
+            if (mayHaveMoreMessagesBefore) {
+                // Copy the existing segments before this one...
+                for (const segment of this._segments.slice(0, startIndex))
+                    newSegments.push(segment);
+
+                if (lastLoadedSegment) newSegments.push(lastLoadedSegment);
+
+                // Add the first half of the split unloaded segment.
+                newSegments.push({
+                    isLoaded: false,
+                    estimatedMessageCount: estimatedBeforeMessageCount,
                 });
-                updatedSegmentIndex = segmentIndex;
-
-                // If there are no more messages after this one, then delete all segments that
-                // come after this one.
-                if (!hasMoreMessagesAfter) {
-                    newSegments.splice(segmentIndex + 1, newSegments.length - (segmentIndex + 1));
-                }
-                break;
             }
 
-            // If our loaded data overlaps with an existing segment then we want to merge
-            // our new data into that segment. Either growing the segment or replacing
-            // messages which already exist.
+            // Add the newly inserted loaded segment.
+            newSegments.push({
+                isLoaded: true,
+                messages,
+            });
+
+            if (mayHaveMoreMessagesAfter) {
+                // Add the second half of the split unloaded segment.
+                newSegments.push({
+                    isLoaded: false,
+                    estimatedMessageCount: estimatedAfterMessageCount,
+                });
+
+                if (nextLoadedSegment) newSegments.push(nextLoadedSegment);
+
+                // Copy the existing segments after this one...
+                for (const segment of this._segments.slice(endIndex + 1)) newSegments.push(segment);
+            }
+
+            return new PaginatedMessageList(newSegments);
+        };
+
+        for (let segmentIndex = 0; segmentIndex < this._segments.length; segmentIndex++) {
+            const segment = this._segments[segmentIndex]!;
+            if (!segment.isLoaded) continue;
+            const segmentStartMessageId = segment.messages[0]!.id;
+            const segmentEndMessageId = segment.messages[segment.messages.length - 1]!.id;
+
+            // If we are at this point it means our newly loaded messages did not overlap
+            // with any previous segment. If this condition is true then that means our
+            // newly loaded messages also will not overlap with any future segment. That
+            // means we should insert a new segment here.
+            //
+            // Figure out what our adjacent segments are and insert...
+            if (beforeMessageId < segmentStartMessageId) {
+                if (segmentIndex >= 2) {
+                    const lastLoadedSegment = this._segments[segmentIndex - 2]!;
+                    assert(lastLoadedSegment.isLoaded);
+
+                    const lastUnloadedSegment = this._segments[segmentIndex - 1]!;
+                    assert(!lastUnloadedSegment.isLoaded);
+
+                    return insertNewLoadedSegment(
+                        segmentIndex - 2,
+                        segmentIndex,
+                        lastLoadedSegment,
+                        lastUnloadedSegment,
+                        segment,
+                    );
+                } else if (segmentIndex === 1) {
+                    const lastUnloadedSegment = this._segments[segmentIndex - 1]!;
+                    assert(!lastUnloadedSegment.isLoaded);
+
+                    return insertNewLoadedSegment(
+                        segmentIndex - 1,
+                        segmentIndex,
+                        null,
+                        lastUnloadedSegment,
+                        segment,
+                    );
+                } else {
+                    assert(segmentIndex === 0);
+                    return insertNewLoadedSegment(segmentIndex, segmentIndex, null, null, segment);
+                }
+            }
+
+            // If our newly loaded messages overlap with this segment then find all
+            // contiguous loaded segments overlapping with our newly loaded messages and
+            // merge those segments together with our new messages.
             if (
                 areRangesOverlapping(
                     afterMessageId,
-                    endMessageId,
-                    segmentStartMessageId,
-                    segmentEndMessageId,
-                )
-            ) {
-                newSegments[segmentIndex] = {
-                    messages: replaceMessages(
-                        segment.messages,
-                        messages,
-                        afterMessageId + 1,
-                        hasMoreMessagesAfter
-                            ? endMessageId
-                            : // If there are no messages after this one, drop messages in the segment until
-                              // the end of the segment.
-                              Math.max(endMessageId, segmentEndMessageId),
-                    ),
-                    mayHaveMoreMessagesBefore:
-                        segmentStartMessageId < afterMessageId + 1
-                            ? segment.mayHaveMoreMessagesBefore
-                            : mayHaveMoreMessagesBefore,
-                    mayHaveMoreMessagesAfter:
-                        hasMoreMessagesAfter && segmentEndMessageId > endMessageId
-                            ? segment.mayHaveMoreMessagesAfter
-                            : hasMoreMessagesAfter,
-                };
-                updatedSegmentIndex = segmentIndex;
-
-                // If there are no more messages after this one, then delete all segments that
-                // come after this one.
-                if (!hasMoreMessagesAfter) {
-                    newSegments.splice(segmentIndex + 1, newSegments.length - (segmentIndex + 1));
-                }
-                break;
-            }
-        }
-
-        // If while looping over our segments we did not find a place to load our
-        // messages then we need to add a new segment at the end.
-        if (updatedSegmentIndex === null) {
-            newSegments.push({
-                messages,
-                mayHaveMoreMessagesBefore,
-                mayHaveMoreMessagesAfter: hasMoreMessagesAfter,
-            });
-        } else if (updatedSegmentIndex < newSegments.length - 1) {
-            const updatedSegment = newSegments[updatedSegmentIndex]!;
-            const afterUpdatedSegment = newSegments[updatedSegmentIndex + 1]!;
-
-            // If we updated our segment so that it's adjacent to the segment after it then
-            // merge the two segments together.
-            if (
-                updatedSegment.messages[updatedSegment.messages.length - 1]!.id + 1 ===
-                afterUpdatedSegment.messages[0]!.id
-            ) {
-                newSegments.splice(updatedSegmentIndex, 2, {
-                    messages: updatedSegment.messages.concat(afterUpdatedSegment.messages),
-                    mayHaveMoreMessagesBefore: updatedSegment.mayHaveMoreMessagesBefore,
-                    mayHaveMoreMessagesAfter: afterUpdatedSegment.mayHaveMoreMessagesAfter,
-                });
-            }
-        }
-
-        return new PaginatedMessageList(newSegments);
-    }
-
-    /**
-     * Load messages in when paginating from the end of the list.
-     */
-    public loadFromEnd({
-        beforeMessageId,
-        hasMoreMessagesBefore,
-        messages,
-    }: {
-        beforeMessageId: number | null;
-        hasMoreMessagesBefore: boolean;
-        messages: ReadonlyArray<Message>;
-    }) {
-        // Special handling when we are loading zero messages. We will not create any
-        // new segments but may update our knowledge about segment bounds.
-        if (messages.length === 0) {
-            if (beforeMessageId === null) return this;
-
-            const newSegments = [...this._segments];
-
-            for (let segmentIndex = 0; segmentIndex < newSegments.length; segmentIndex++) {
-                const segment = newSegments[segmentIndex]!;
-                assert(segment.messages.length > 0);
-                const segmentStartMessageId = segment.messages[0]!.id;
-                const segmentEndMessageId = segment.messages[segment.messages.length - 1]!.id;
-                assert(segmentStartMessageId <= segmentEndMessageId);
-
-                // If we loaded before this segment and got no messages then we definitely know
-                // what the value of `hasMoreMessagesBefore` is.
-                if (beforeMessageId === segmentStartMessageId) {
-                    newSegments[segmentIndex] = {
-                        ...segment,
-                        mayHaveMoreMessagesBefore: hasMoreMessagesBefore,
-                    };
-                    break;
-                }
-
-                // Every segment from here on will have greater message IDs than
-                // `beforeMessageId` so end iteration.
-                if (beforeMessageId < segmentEndMessageId) break;
-            }
-
-            return new PaginatedMessageList(newSegments);
-        }
-
-        // If no `beforeMessageId` was provided then we are loading from the start of
-        // the list. The maximum message ID is the JavaScript safe integer max.
-        const mayHaveMoreMessagesAfter = beforeMessageId !== null;
-        beforeMessageId ??= Number.MAX_SAFE_INTEGER;
-
-        // Validate that our messages are in ascending ID order and that there are no
-        // duplicates.
-        for (let i = 0; i < messages.length; i++) {
-            const message = messages[i]!;
-            const nextMessageId = i < messages.length - 1 ? messages[i + 1]!.id : beforeMessageId;
-            assert(message.id < nextMessageId);
-        }
-
-        const startMessageId = messages[0]!.id;
-        const newSegments = [...this._segments];
-        let updatedSegmentIndex: number | null = null;
-
-        for (let segmentIndex = 0; segmentIndex < newSegments.length; segmentIndex++) {
-            const segment = newSegments[segmentIndex]!;
-            assert(segment.messages.length > 0);
-            const segmentStartMessageId = segment.messages[0]!.id;
-            const segmentEndMessageId = segment.messages[segment.messages.length - 1]!.id;
-            assert(segmentStartMessageId <= segmentEndMessageId);
-
-            // If we did not overlap with any previous segments and will never overlap with
-            // future segments, then we need to insert a new segment with our messages at
-            // this point.
-            if (beforeMessageId < segmentStartMessageId) {
-                newSegments.splice(segmentIndex, 0, {
-                    messages,
-                    mayHaveMoreMessagesBefore: hasMoreMessagesBefore,
-                    mayHaveMoreMessagesAfter,
-                });
-                updatedSegmentIndex = segmentIndex;
-
-                // If there are no more messages before this one, then delete all segments that
-                // come before this one.
-                if (!hasMoreMessagesBefore) {
-                    newSegments.splice(0, segmentIndex);
-                    updatedSegmentIndex = 0;
-                }
-                break;
-            }
-
-            // If our loaded data overlaps with an existing segment then we want to merge
-            // our new data into that segment. Either growing the segment or replacing
-            // messages which already exist.
-            if (
-                areRangesOverlapping(
-                    startMessageId,
                     beforeMessageId,
                     segmentStartMessageId,
                     segmentEndMessageId,
                 )
             ) {
-                newSegments[segmentIndex] = {
-                    messages: replaceMessages(
-                        segment.messages,
-                        messages,
-                        hasMoreMessagesBefore
-                            ? startMessageId
-                            : // If there are no messages before this one, drop messages in the segment from
-                              // the start of the segment until the end of our new messages.
-                              Math.min(startMessageId, segmentStartMessageId),
-                        beforeMessageId - 1,
-                    ),
-                    mayHaveMoreMessagesBefore:
-                        hasMoreMessagesBefore && segmentStartMessageId < startMessageId
-                            ? segment.mayHaveMoreMessagesBefore
-                            : hasMoreMessagesBefore,
-                    mayHaveMoreMessagesAfter:
-                        segmentEndMessageId > beforeMessageId - 1
-                            ? segment.mayHaveMoreMessagesAfter
-                            : mayHaveMoreMessagesAfter,
-                };
-                updatedSegmentIndex = segmentIndex;
+                // Find our contiguous series of loaded segments that overlap with our newly
+                // loaded messages...
+                const loadedSegmentsToMerge = [segment];
+                let lastLoadedSegmentIndex = segmentIndex;
+                for (
+                    let otherSegmentIndex = segmentIndex + 1;
+                    otherSegmentIndex < this._segments.length;
+                    otherSegmentIndex++
+                ) {
+                    const segment = this._segments[otherSegmentIndex]!;
+                    if (!segment.isLoaded) continue;
+                    const segmentStartMessageId = segment.messages[0]!.id;
+                    const segmentEndMessageId = segment.messages[segment.messages.length - 1]!.id;
 
-                // If there are no more messages before this one, then delete all segments that
-                // come before this one.
-                if (!hasMoreMessagesBefore) {
-                    newSegments.splice(0, segmentIndex);
-                    updatedSegmentIndex = 0;
+                    if (
+                        areRangesOverlapping(
+                            afterMessageId,
+                            beforeMessageId,
+                            segmentStartMessageId,
+                            segmentEndMessageId,
+                        )
+                    ) {
+                        loadedSegmentsToMerge.push(segment);
+                        lastLoadedSegmentIndex = otherSegmentIndex;
+                    } else {
+                        break;
+                    }
                 }
-                break;
+
+                // Figure out what segments are adjacent to our segments to merge then merge...
+                if (segmentIndex > 0 && lastLoadedSegmentIndex < this._segments.length - 1) {
+                    const lastUnloadedSegment = this._segments[segmentIndex - 1]!;
+                    assert(!lastUnloadedSegment.isLoaded);
+
+                    const nextUnloadedSegment = this._segments[lastLoadedSegmentIndex + 1]!;
+                    assert(!nextUnloadedSegment.isLoaded);
+
+                    return mergeWithExistingLoadedSegments(
+                        segmentIndex - 1,
+                        lastLoadedSegmentIndex + 1,
+                        lastUnloadedSegment,
+                        loadedSegmentsToMerge,
+                        nextUnloadedSegment,
+                    );
+                } else if (segmentIndex > 0) {
+                    const lastUnloadedSegment = this._segments[segmentIndex - 1]!;
+                    assert(!lastUnloadedSegment.isLoaded);
+
+                    return mergeWithExistingLoadedSegments(
+                        segmentIndex - 1,
+                        lastLoadedSegmentIndex,
+                        lastUnloadedSegment,
+                        loadedSegmentsToMerge,
+                        null,
+                    );
+                } else if (lastLoadedSegmentIndex < this._segments.length - 1) {
+                    const nextUnloadedSegment = this._segments[lastLoadedSegmentIndex + 1]!;
+                    assert(!nextUnloadedSegment.isLoaded);
+
+                    return mergeWithExistingLoadedSegments(
+                        segmentIndex,
+                        lastLoadedSegmentIndex + 1,
+                        null,
+                        loadedSegmentsToMerge,
+                        nextUnloadedSegment,
+                    );
+                } else {
+                    return mergeWithExistingLoadedSegments(
+                        segmentIndex,
+                        lastLoadedSegmentIndex,
+                        null,
+                        loadedSegmentsToMerge,
+                        null,
+                    );
+                }
             }
         }
 
-        // If while looping over our segments we did not find a place to load our
-        // messages then we need to add a new segment at the end.
-        if (updatedSegmentIndex === null) {
-            newSegments.push({
-                messages,
-                mayHaveMoreMessagesBefore: hasMoreMessagesBefore,
-                mayHaveMoreMessagesAfter,
-            });
+        // If we are at this point it means our newly loaded messages did not overlap
+        // with any segments. So we should insert a new segment at the end.
+        //
+        // Figure out what our adjacent segments are and insert...
+        if (this._segments.length === 0) {
+            return insertNewLoadedSegment(0, 0, null, null, null);
+        } else {
+            const lastSegment = this._segments[this._segments.length - 1]!;
+            if (lastSegment.isLoaded) {
+                return insertNewLoadedSegment(
+                    this._segments.length - 1,
+                    this._segments.length - 1,
+                    lastSegment,
+                    null,
+                    null,
+                );
+            } else {
+                if (this._segments.length >= 2) {
+                    const lastLoadedSegment = this._segments[this._segments.length - 2]!;
+                    assert(lastLoadedSegment.isLoaded);
 
-            if (!hasMoreMessagesBefore) {
-                newSegments.splice(0, newSegments.length - 1);
-            }
-        } else if (updatedSegmentIndex > 0) {
-            const updatedSegment = newSegments[updatedSegmentIndex]!;
-            const beforeUpdatedSegment = newSegments[updatedSegmentIndex - 1]!;
-
-            // If we updated our segment so that it's adjacent to the segment before it then
-            // merge the two segments together.
-            if (
-                beforeUpdatedSegment.messages[beforeUpdatedSegment.messages.length - 1]!.id + 1 ===
-                updatedSegment.messages[0]!.id
-            ) {
-                newSegments.splice(updatedSegmentIndex - 1, 2, {
-                    messages: beforeUpdatedSegment.messages.concat(updatedSegment.messages),
-                    mayHaveMoreMessagesBefore: beforeUpdatedSegment.mayHaveMoreMessagesBefore,
-                    mayHaveMoreMessagesAfter: updatedSegment.mayHaveMoreMessagesAfter,
-                });
+                    return insertNewLoadedSegment(
+                        this._segments.length - 2,
+                        this._segments.length - 1,
+                        lastLoadedSegment,
+                        lastSegment,
+                        null,
+                    );
+                } else {
+                    return insertNewLoadedSegment(
+                        this._segments.length - 1,
+                        this._segments.length - 1,
+                        null,
+                        lastSegment,
+                        null,
+                    );
+                }
             }
         }
-
-        return new PaginatedMessageList(newSegments);
     }
 }
-
-export type PaginatedMessageListSegment<Message extends {readonly id: number}> = {
-    /**
-     * A non-empty array of messages.
-     */
-    readonly messages: ReadonlyArray<Message>;
-    /**
-     * May there be more unloaded messages between this segment and the previous
-     * segment?
-     *
-     * If `false` then the answer is definitely not. If `true` then the answer is
-     * maybe, we'll have to issue a load request to find out.
-     *
-     * If there is a previous segment, this should be `true`. Because if there were
-     * no messages between the segments then we should merge into one segment.
-     */
-    readonly mayHaveMoreMessagesBefore: boolean;
-    /**
-     * May there be more unloaded messages between this segment and the next
-     * segment?
-     *
-     * If `false` then the answer is definitely not. If `true` then the answer is
-     * maybe, we'll have to issue a load request to find out.
-     *
-     * If there is a next segment, this should be `true`. Because if there were
-     * no messages between the segments then we should merge into one segment.
-     */
-    readonly mayHaveMoreMessagesAfter: boolean;
-};
 
 /**
- * Replaces a range of messages in the first array with the second array.
- * Assumes both arrays are sorted by ID.
+ * A segment in a paginated list represents a continuous block of either loaded
+ * or unloaded messages. We should never have two adjacent unloaded segments or
+ * two adjacent loaded segments.
  */
-function replaceMessages<Message extends {readonly id: number}>(
-    oldMessages: ReadonlyArray<Message>,
-    newMessages: ReadonlyArray<Message>,
-    newStartMessageId: number,
-    newEndMessageId: number,
-): ReadonlyArray<Message> {
-    assert(newStartMessageId <= newEndMessageId);
+export type PaginatedMessageListSegment<Message extends {readonly id: number}> =
+    | PaginatedMessageListUnloadedSegment
+    | PaginatedMessageListLoadedSegment<Message>;
 
-    const messages: Array<Message> = [];
+type PaginatedMessageListUnloadedSegment = {
+    readonly isLoaded: false;
+    readonly estimatedMessageCount: number;
+};
 
-    let hasInsertedNewMessages = false;
-
-    for (let oldMessageIndex = 0; oldMessageIndex < oldMessages.length; oldMessageIndex++) {
-        const oldMessage = oldMessages[oldMessageIndex]!;
-
-        if (newStartMessageId <= oldMessage.id && !hasInsertedNewMessages) {
-            hasInsertedNewMessages = true;
-            for (const newMessage of newMessages) messages.push(newMessage);
-        }
-
-        // Keep all old messages that don't fall in the new message range. New messages
-        // with the same ID replace old messages. If the new message range is missing a
-        // message ID that means it was deleted.
-        if (!(newStartMessageId <= oldMessage.id && oldMessage.id <= newEndMessageId)) {
-            messages.push(oldMessage);
-        }
-    }
-
-    // If we did not find a spot to insert our new messages then insert them at
-    // the end.
-    if (!hasInsertedNewMessages) {
-        hasInsertedNewMessages = true;
-        for (const newMessage of newMessages) messages.push(newMessage);
-    }
-
-    return messages;
-}
+type PaginatedMessageListLoadedSegment<Message extends {readonly id: number}> = {
+    readonly isLoaded: true;
+    readonly messages: ReadonlyArray<Message>;
+};
 
 // https://stackoverflow.com/questions/3269434/whats-the-most-efficient-way-to-test-if-two-ranges-overlap
 function areRangesOverlapping(start1: number, end1: number, start2: number, end2: number) {
