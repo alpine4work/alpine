@@ -151,6 +151,10 @@ export type VirtualizedScrollViewRef = {
      * `onRenderedRangeChange`.
      */
     getRenderedRange(): {startIndex: number; endIndex: number} | null;
+    /**
+     * Scrolls to the item with the specified index in the scroll view.
+     */
+    scrollToItem(index: number): void;
 };
 
 const VirtualizedScrollViewForwardRef = forwardRef(VirtualizedScrollView);
@@ -404,6 +408,10 @@ function VirtualizedScrollView(
         () => ({
             getHeight: () => assertExists(scrollRef.current).clientHeight,
             getRenderedRange: () => renderedRangeRef.current,
+            scrollToItem: () => {
+                // TODO(calebmer): Implement this. I am feeling lazy and tired of math.
+                // Hopefully future Caleb will be capable of maths.
+            },
         }),
         [],
     );

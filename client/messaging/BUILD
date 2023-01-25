@@ -9,6 +9,7 @@ ts_project(
     deps = [
         "//:node_modules/@types/jest",
         "//:node_modules/@types/react",
+        "//:node_modules/binary-search",
         "//:node_modules/react",
         "//client/accounts",
         "//client/content",

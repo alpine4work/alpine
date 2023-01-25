@@ -1372,6 +1372,13 @@ const loadFromStartTestSuite: TestSuite = {
         });
     },
     getSegments: list => {
+        // Every time we call `getSegments()` also run a test on `getMessage()` and
+        // `getIndexByMessageId()` to make sure they behave correctly.
+        for (const {index, message} of list.iterateMessagesForTest()) {
+            expect(list.getMessage(index)).toEqual({isLoaded: true, message})
+            expect(list.getIndexByMessageId(message.id)).toEqual(index)
+        }
+
         const segments = list.getSegmentsForTest();
         return Array.from(
             filterMapIterable(segments, (segment, index) => {

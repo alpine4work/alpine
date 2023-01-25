@@ -1,3 +1,4 @@
+import binarySearch from "binary-search";
 import {OutOfRangeError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {Lazy} from "~/shared/helpers/control/lazy";
@@ -107,6 +108,27 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
         return this._segments;
     }
 
+    // It's expensive to iterate over every item so for now we only allow iteration
+    // in tests.
+    public *iterateMessagesForTest(): IterableIterator<{index: number; message: Message}> {
+        assert(typeof jest !== "undefined");
+
+        let messageCount = 0;
+        for (const segment of this._segments) {
+            if (segment.isLoaded) {
+                for (let index = 0; index < segment.messages.length; index++) {
+                    yield {
+                        index: messageCount + index,
+                        message: segment.messages[index]!,
+                    };
+                }
+                messageCount += segment.messages.length;
+            } else {
+                messageCount += segment.estimatedMessageCount;
+            }
+        }
+    }
+
     /**
      * Get the total estimated message count for this list.
      *
@@ -171,6 +193,41 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
     });
 
     /**
+     * Get the index for a given message ID in the list. If the message ID is not
+     * found in the list we return null.
+     */
+    public getIndexByMessageId(messageId: number): number | null {
+        let messageCount = 0;
+        for (const segment of this._segments) {
+            if (segment.isLoaded) {
+                const segmentStartMessageId = segment.messages[0]!.id;
+                const segmentEndMessageId = segment.messages[segment.messages.length - 1]!.id;
+
+                // If the message is within this segment then search through the messages of
+                // the segment to find the specific index.
+                if (segmentStartMessageId <= messageId && messageId <= segmentEndMessageId) {
+                    const index = binarySearch(
+                        segment.messages,
+                        messageId,
+                        (message, messageId) => message.id - messageId,
+                    );
+                    if (index < 0) return null;
+                    return messageCount + index;
+                }
+
+                // All future segments will not include the `messageId` so abort.
+                if (messageId < segmentStartMessageId) return null;
+
+                messageCount += segment.messages.length;
+            } else {
+                messageCount += segment.estimatedMessageCount;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Get the first loaded message after the provided index. If there is no loaded
      * message after the provided index we return null. Throws an error if the
      * index is out of bounds.
@@ -184,20 +241,25 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
      *
      * O(segments) time. This method is not cached.
      */
-    public getFirstLoadedMessageAfter(index: number): Message | null {
+    public getFirstLoadedMessageAfter(index: number): {index: number; message: Message} | null {
         if (index < 0 || index > this.getEstimatedMessageCount() - 1)
             throw new OutOfRangeError("Index out of bounds");
 
         // We want to find the message before, not the `index` message precisely.
         index += 1;
 
+        let messageCount = 0;
         for (const segment of this._segments) {
             if (segment.isLoaded) {
                 if (index < segment.messages.length) {
-                    return segment.messages[index]!;
+                    return {
+                        index: messageCount + index,
+                        message: segment.messages[index]!,
+                    };
                 } else {
                     index -= segment.messages.length;
                 }
+                messageCount += segment.messages.length;
             } else {
                 if (index < segment.estimatedMessageCount) {
                     // Return the first message in the next loaded segment.
@@ -205,6 +267,7 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
                 } else {
                     index -= segment.estimatedMessageCount;
                 }
+                messageCount += segment.estimatedMessageCount;
             }
         }
 
@@ -225,7 +288,7 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
      *
      * O(segments) time. This method is not cached.
      */
-    public getLastLoadedMessageBefore(index: number): Message | null {
+    public getLastLoadedMessageBefore(index: number): {index: number; message: Message} | null {
         if (index < 0 || index > this.getEstimatedMessageCount() - 1)
             throw new OutOfRangeError("Index out of bounds");
 
@@ -234,15 +297,23 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
         // We want to find the message before, not the `index` message precisely.
         index -= 1;
 
-        let lastMessage: Message | null = null;
+        let messageCount = 0;
+        let lastMessage: {index: number; message: Message} | null = null;
         for (const segment of this._segments) {
             if (segment.isLoaded) {
                 if (index < segment.messages.length) {
-                    return segment.messages[index]!;
+                    return {
+                        index: messageCount + index,
+                        message: segment.messages[index]!,
+                    };
                 } else {
                     index -= segment.messages.length;
-                    lastMessage = segment.messages[segment.messages.length - 1]!;
+                    lastMessage = {
+                        index: messageCount + segment.messages.length - 1,
+                        message: segment.messages[segment.messages.length - 1]!,
+                    };
                 }
+                messageCount += segment.messages.length;
             } else {
                 if (index < segment.estimatedMessageCount) {
                     // Return the last message in the previously loaded segment.
@@ -250,6 +321,7 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
                 } else {
                     index -= segment.estimatedMessageCount;
                 }
+                messageCount += segment.estimatedMessageCount;
             }
         }
 
