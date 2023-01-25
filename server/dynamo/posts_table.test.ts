@@ -149,21 +149,29 @@ testMessageImplementation<PostId>(context, {
     async deleteMessage(context, {roomKey: postId, messageId: commentId}) {
         return deletePostComment(context, {postId, commentId});
     },
-    async getMessagesFromStart(context, {roomKey: postId, limit, afterMessageId: afterCommentId}) {
+    async getMessagesFromStart(
+        context,
+        {roomKey: postId, limit, afterMessageId: afterCommentId, beforeMessageId: beforeCommentId},
+    ) {
         const {comments, hasMoreCommentsAfter} = await getPostCommentsFromStart(context, {
             postId,
             limit,
             afterCommentId,
+            beforeCommentId,
         });
         return {
             messages: comments,
             hasMoreMessagesAfter: hasMoreCommentsAfter,
         };
     },
-    async getMessagesFromEnd(context, {roomKey: postId, limit, beforeMessageId: beforeCommentId}) {
+    async getMessagesFromEnd(
+        context,
+        {roomKey: postId, limit, afterMessageId: afterCommentId, beforeMessageId: beforeCommentId},
+    ) {
         const {comments, hasMoreCommentsBefore} = await getPostCommentsFromEnd(context, {
             postId,
             limit,
+            afterCommentId,
             beforeCommentId,
         });
         return {

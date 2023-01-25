@@ -78,17 +78,25 @@ testMessageImplementation<SimpleChatId>(context, {
     async deleteMessage(context, {roomKey: simpleChatId, messageId}) {
         return deleteSimpleChatMessage(context, {simpleChatId, messageId});
     },
-    async getMessagesFromStart(context, {roomKey: simpleChatId, limit, afterMessageId}) {
+    async getMessagesFromStart(
+        context,
+        {roomKey: simpleChatId, limit, afterMessageId, beforeMessageId},
+    ) {
         return await getSimpleChatMessagesFromStart(context, {
             simpleChatId,
             limit,
             afterMessageId,
+            beforeMessageId,
         });
     },
-    async getMessagesFromEnd(context, {roomKey: simpleChatId, limit, beforeMessageId}) {
+    async getMessagesFromEnd(
+        context,
+        {roomKey: simpleChatId, limit, afterMessageId, beforeMessageId},
+    ) {
         return getSimpleChatMessagesFromEnd(context, {
             simpleChatId,
             limit,
+            afterMessageId,
             beforeMessageId,
         });
     },

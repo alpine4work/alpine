@@ -434,10 +434,12 @@ export async function getPostCommentsFromStart(
         postId,
         limit,
         afterCommentId,
+        beforeCommentId,
     }: {
         postId: PostId;
         limit: number;
         afterCommentId: number | null;
+        beforeCommentId: number | null;
     },
 ): Promise<{
     hasMoreCommentsAfter: boolean;
@@ -450,13 +452,14 @@ export async function getPostCommentsFromStart(
             partitionType: "Post",
             sortRangeType: "Comments",
             postId,
-            commentId: (afterCommentId ?? 0) + 1,
+            commentId: typeof afterCommentId === "number" ? afterCommentId + 1 : 1,
         },
         endKey: {
             partitionType: "Post",
             sortRangeType: "Comments",
             postId,
-            commentId: Number.MAX_SAFE_INTEGER,
+            commentId:
+                typeof beforeCommentId === "number" ? beforeCommentId - 1 : Number.MAX_SAFE_INTEGER,
         },
         // Add one to the limit so we can determine whether there are more
         // comments after.
@@ -491,10 +494,12 @@ export async function getPostCommentsFromEnd(
     {
         postId,
         limit,
+        afterCommentId,
         beforeCommentId,
     }: {
         postId: PostId;
         limit: number;
+        afterCommentId: number | null;
         beforeCommentId: number | null;
     },
 ): Promise<{
@@ -514,7 +519,7 @@ export async function getPostCommentsFromEnd(
             partitionType: "Post",
             sortRangeType: "Comments",
             postId,
-            commentId: 1,
+            commentId: typeof afterCommentId === "number" ? afterCommentId + 1 : 1,
         },
         endKey: {
             partitionType: "Post",

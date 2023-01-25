@@ -307,10 +307,12 @@ export async function getSimpleChatMessagesFromStart(
         simpleChatId,
         limit,
         afterMessageId,
+        beforeMessageId,
     }: {
         simpleChatId: SimpleChatId;
         limit: number;
         afterMessageId: number | null;
+        beforeMessageId: number | null;
     },
 ): Promise<{
     hasMoreMessagesAfter: boolean;
@@ -323,13 +325,14 @@ export async function getSimpleChatMessagesFromStart(
             partitionType: "SimpleChat",
             sortRangeType: "Messages",
             simpleChatId,
-            messageId: (afterMessageId ?? 0) + 1,
+            messageId: typeof afterMessageId === "number" ? afterMessageId + 1 : 1,
         },
         endKey: {
             partitionType: "SimpleChat",
             sortRangeType: "Messages",
             simpleChatId,
-            messageId: Number.MAX_SAFE_INTEGER,
+            messageId:
+                typeof beforeMessageId === "number" ? beforeMessageId - 1 : Number.MAX_SAFE_INTEGER,
         },
         // Add one to the limit so we can determine whether there are more
         // messages after.
@@ -362,10 +365,12 @@ export async function getSimpleChatMessagesFromEnd(
     {
         simpleChatId,
         limit,
+        afterMessageId,
         beforeMessageId,
     }: {
         simpleChatId: SimpleChatId;
         limit: number;
+        afterMessageId: number | null;
         beforeMessageId: number | null;
     },
 ): Promise<{
@@ -385,7 +390,7 @@ export async function getSimpleChatMessagesFromEnd(
             partitionType: "SimpleChat",
             sortRangeType: "Messages",
             simpleChatId,
-            messageId: 1,
+            messageId: typeof afterMessageId === "number" ? afterMessageId + 1 : 1,
         },
         endKey: {
             partitionType: "SimpleChat",

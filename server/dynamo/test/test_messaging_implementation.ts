@@ -7,7 +7,7 @@ import {
     assertMessageContent,
     MessageContentProsemirrorSchema as schema,
 } from "~/shared/content/message_content_schema";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error";
+import {InternalError, NotFoundError, PermissionDeniedError} from "~/shared/error/error";
 import {SpaceId} from "~/shared/id/types/id_types";
 import {MessageInterface} from "~/shared/models/message_interface";
 
@@ -125,6 +125,7 @@ export type MessagingImplementation<RoomKey> = {
             roomKey: RoomKey;
             limit: number;
             afterMessageId: number | null;
+            beforeMessageId: number | null;
         },
     ): Promise<{
         messages: Array<MessageInterface>;
@@ -140,6 +141,7 @@ export type MessagingImplementation<RoomKey> = {
         options: {
             roomKey: RoomKey;
             limit: number;
+            afterMessageId: number | null;
             beforeMessageId: number | null;
         },
     ): Promise<{
@@ -853,6 +855,7 @@ export function testMessageImplementation<RoomKey>(
                         roomKey: room.key,
                         limit: 100,
                         afterMessageId: null,
+                        beforeMessageId: null,
                     }),
                 ),
             ).toEqual({
@@ -910,6 +913,67 @@ export function testMessageImplementation<RoomKey>(
             });
         });
 
+        test("can not get messages from start when before cursor is greater than after cursor", async () => {
+            const room = await createRoom(context.request(session1), space.id);
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content1,
+            });
+
+            await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content2,
+            });
+
+            await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content3,
+            });
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content3,
+            });
+
+            await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content1,
+            });
+
+            await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content2,
+            });
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content4,
+            });
+
+            await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content4,
+            });
+
+            await expect(
+                getMessagesFromStart(context.request(session1), {
+                    roomKey: room.key,
+                    limit: 100,
+                    afterMessageId: 10,
+                    beforeMessageId: 5,
+                }),
+            ).rejects.toThrow(InternalError);
+        });
+
         test("can get empty messages", async () => {
             const room = await createRoom(context.request(session1), space.id);
 
@@ -919,6 +983,7 @@ export function testMessageImplementation<RoomKey>(
                         roomKey: room.key,
                         limit: 100,
                         afterMessageId: null,
+                        beforeMessageId: null,
                     }),
                 ),
             ).toEqual({
@@ -933,6 +998,7 @@ export function testMessageImplementation<RoomKey>(
                     roomKey: getMissingRoomKey(),
                     limit: 100,
                     afterMessageId: null,
+                    beforeMessageId: null,
                 }),
             ).rejects.toThrow(NotFoundError);
         });
@@ -945,6 +1011,7 @@ export function testMessageImplementation<RoomKey>(
                     roomKey: room.key,
                     limit: 100,
                     afterMessageId: null,
+                    beforeMessageId: null,
                 }),
             ).rejects.toThrow(new PermissionDeniedError("Account does not have access to space"));
         });
@@ -1006,6 +1073,7 @@ export function testMessageImplementation<RoomKey>(
                         roomKey: room.key,
                         limit: 3,
                         afterMessageId: null,
+                        beforeMessageId: null,
                     }),
                 ),
             ).toEqual({
@@ -1038,6 +1106,7 @@ export function testMessageImplementation<RoomKey>(
                         roomKey: room.key,
                         limit: 5,
                         afterMessageId: null,
+                        beforeMessageId: null,
                     }),
                 ),
             ).toEqual({
@@ -1082,6 +1151,7 @@ export function testMessageImplementation<RoomKey>(
                         roomKey: room.key,
                         limit: 7,
                         afterMessageId: null,
+                        beforeMessageId: null,
                     }),
                 ),
             ).toEqual({
@@ -1138,6 +1208,7 @@ export function testMessageImplementation<RoomKey>(
                         roomKey: room.key,
                         limit: 8,
                         afterMessageId: null,
+                        beforeMessageId: null,
                     }),
                 ),
             ).toEqual({
@@ -1195,7 +1266,7 @@ export function testMessageImplementation<RoomKey>(
             });
         });
 
-        test("can get messages from start with cursor", async () => {
+        test("can get messages from start with after cursor", async () => {
             const room = await createRoom(context.request(session1), space.id);
 
             await createMessage(context.request(session1), {
@@ -1252,6 +1323,7 @@ export function testMessageImplementation<RoomKey>(
                         roomKey: room.key,
                         limit: 100,
                         afterMessageId: message2.id,
+                        beforeMessageId: null,
                     }),
                 ),
             ).toEqual({
@@ -1302,6 +1374,7 @@ export function testMessageImplementation<RoomKey>(
                         roomKey: room.key,
                         limit: 100,
                         afterMessageId: message5.id,
+                        beforeMessageId: null,
                     }),
                 ),
             ).toEqual({
@@ -1334,6 +1407,7 @@ export function testMessageImplementation<RoomKey>(
                         roomKey: room.key,
                         limit: 100,
                         afterMessageId: message8.id,
+                        beforeMessageId: null,
                     }),
                 ),
             ).toEqual({
@@ -1342,7 +1416,176 @@ export function testMessageImplementation<RoomKey>(
             });
         });
 
-        test("can get messages from start with limit and cursor", async () => {
+        test("can get messages from start with before cursor", async () => {
+            const room = await createRoom(context.request(session1), space.id);
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content1,
+            });
+
+            const message2 = await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content2,
+            });
+
+            await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content3,
+            });
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content3,
+            });
+
+            const message5 = await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content1,
+            });
+
+            await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content2,
+            });
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content4,
+            });
+
+            const message8 = await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content4,
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromStart(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 100,
+                        afterMessageId: null,
+                        beforeMessageId: message2.id,
+                    }),
+                ),
+            ).toEqual({
+                messages: [
+                    {
+                        author: session1.account,
+                        parentMessageId: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                ],
+                hasMoreMessagesAfter: false,
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromStart(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 100,
+                        afterMessageId: null,
+                        beforeMessageId: message5.id,
+                    }),
+                ),
+            ).toEqual({
+                messages: [
+                    {
+                        author: session1.account,
+                        parentMessageId: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageId: null,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session3.account,
+                        parentMessageId: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session1.account,
+                        parentMessageId: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                ],
+                hasMoreMessagesAfter: false,
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromStart(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 100,
+                        afterMessageId: null,
+                        beforeMessageId: message8.id,
+                    }),
+                ),
+            ).toEqual({
+                messages: [
+                    {
+                        author: session1.account,
+                        parentMessageId: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageId: null,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session3.account,
+                        parentMessageId: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session1.account,
+                        parentMessageId: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageId: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session3.account,
+                        parentMessageId: null,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session1.account,
+                        parentMessageId: null,
+                        content: content4,
+                        hasContentUpdated: false,
+                    },
+                ],
+                hasMoreMessagesAfter: false,
+            });
+        });
+
+        test("can get messages from start with limit and after cursor", async () => {
             const room = await createRoom(context.request(session1), space.id);
 
             await createMessage(context.request(session1), {
@@ -1399,6 +1642,7 @@ export function testMessageImplementation<RoomKey>(
                         roomKey: room.key,
                         limit: 3,
                         afterMessageId: message2.id,
+                        beforeMessageId: null,
                     }),
                 ),
             ).toEqual({
@@ -1431,6 +1675,7 @@ export function testMessageImplementation<RoomKey>(
                         roomKey: room.key,
                         limit: 2,
                         afterMessageId: message5.id,
+                        beforeMessageId: null,
                     }),
                 ),
             ).toEqual({
@@ -1457,6 +1702,7 @@ export function testMessageImplementation<RoomKey>(
                         roomKey: room.key,
                         limit: 3,
                         afterMessageId: message5.id,
+                        beforeMessageId: null,
                     }),
                 ),
             ).toEqual({
@@ -1489,10 +1735,298 @@ export function testMessageImplementation<RoomKey>(
                         roomKey: room.key,
                         limit: 4,
                         afterMessageId: message8.id,
+                        beforeMessageId: null,
                     }),
                 ),
             ).toEqual({
                 messages: [],
+                hasMoreMessagesAfter: false,
+            });
+        });
+
+        test("can get messages from start with limit and before cursor", async () => {
+            const room = await createRoom(context.request(session1), space.id);
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content1,
+            });
+
+            await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content2,
+            });
+
+            await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content3,
+            });
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content3,
+            });
+
+            const message5 = await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content1,
+            });
+
+            await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content2,
+            });
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content4,
+            });
+
+            await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content4,
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromStart(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 3,
+                        afterMessageId: null,
+                        beforeMessageId: message5.id,
+                    }),
+                ),
+            ).toEqual({
+                messages: [
+                    {
+                        author: session1.account,
+                        parentMessageId: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageId: null,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session3.account,
+                        parentMessageId: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                ],
+                hasMoreMessagesAfter: true,
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromStart(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 5,
+                        afterMessageId: null,
+                        beforeMessageId: message5.id,
+                    }),
+                ),
+            ).toEqual({
+                messages: [
+                    {
+                        author: session1.account,
+                        parentMessageId: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageId: null,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session3.account,
+                        parentMessageId: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session1.account,
+                        parentMessageId: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                ],
+                hasMoreMessagesAfter: false,
+            });
+        });
+
+        test("can get messages from start with limit, before cursor, and after cursor", async () => {
+            const room = await createRoom(context.request(session1), space.id);
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content1,
+            });
+
+            const message2 = await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content2,
+            });
+
+            await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content3,
+            });
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content3,
+            });
+
+            await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content1,
+            });
+
+            await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content2,
+            });
+
+            const message7 = await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content4,
+            });
+
+            await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content4,
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromStart(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 3,
+                        afterMessageId: message2.id,
+                        beforeMessageId: message7.id,
+                    }),
+                ),
+            ).toEqual({
+                messages: [
+                    {
+                        author: session3.account,
+                        parentMessageId: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session1.account,
+                        parentMessageId: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageId: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                ],
+                hasMoreMessagesAfter: true,
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromStart(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 4,
+                        afterMessageId: message2.id,
+                        beforeMessageId: message7.id,
+                    }),
+                ),
+            ).toEqual({
+                messages: [
+                    {
+                        author: session3.account,
+                        parentMessageId: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session1.account,
+                        parentMessageId: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageId: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session3.account,
+                        parentMessageId: null,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                ],
+                hasMoreMessagesAfter: false,
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromStart(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 5,
+                        afterMessageId: message2.id,
+                        beforeMessageId: message7.id,
+                    }),
+                ),
+            ).toEqual({
+                messages: [
+                    {
+                        author: session3.account,
+                        parentMessageId: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session1.account,
+                        parentMessageId: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageId: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session3.account,
+                        parentMessageId: null,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                ],
                 hasMoreMessagesAfter: false,
             });
         });
@@ -1553,6 +2087,7 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromEnd(context.request(session1), {
                         roomKey: room.key,
                         limit: 100,
+                        afterMessageId: null,
                         beforeMessageId: null,
                     }),
                 ),
@@ -1611,6 +2146,67 @@ export function testMessageImplementation<RoomKey>(
             });
         });
 
+        test("can not get messages from end when before cursor is greater than after cursor", async () => {
+            const room = await createRoom(context.request(session1), space.id);
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content1,
+            });
+
+            await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content2,
+            });
+
+            await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content3,
+            });
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content3,
+            });
+
+            await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content1,
+            });
+
+            await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content2,
+            });
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content4,
+            });
+
+            await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content4,
+            });
+
+            await expect(
+                getMessagesFromEnd(context.request(session1), {
+                    roomKey: room.key,
+                    limit: 100,
+                    afterMessageId: 10,
+                    beforeMessageId: 5,
+                }),
+            ).rejects.toThrow(InternalError);
+        });
+
         test("can get empty messages from end", async () => {
             const room = await createRoom(context.request(session1), space.id);
 
@@ -1619,6 +2215,7 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromEnd(context.request(session1), {
                         roomKey: room.key,
                         limit: 100,
+                        afterMessageId: null,
                         beforeMessageId: null,
                     }),
                 ),
@@ -1633,6 +2230,7 @@ export function testMessageImplementation<RoomKey>(
                 getMessagesFromEnd(context.request(session1), {
                     roomKey: getMissingRoomKey(),
                     limit: 100,
+                    afterMessageId: null,
                     beforeMessageId: null,
                 }),
             ).rejects.toThrow(NotFoundError);
@@ -1645,6 +2243,7 @@ export function testMessageImplementation<RoomKey>(
                 getMessagesFromEnd(context.request(otherSession), {
                     roomKey: room.key,
                     limit: 100,
+                    afterMessageId: null,
                     beforeMessageId: null,
                 }),
             ).rejects.toThrow(new PermissionDeniedError("Account does not have access to space"));
@@ -1706,6 +2305,7 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromEnd(context.request(session1), {
                         roomKey: room.key,
                         limit: 3,
+                        afterMessageId: null,
                         beforeMessageId: null,
                     }),
                 ),
@@ -1738,6 +2338,7 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromEnd(context.request(session1), {
                         roomKey: room.key,
                         limit: 5,
+                        afterMessageId: null,
                         beforeMessageId: null,
                     }),
                 ),
@@ -1782,6 +2383,7 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromEnd(context.request(session1), {
                         roomKey: room.key,
                         limit: 7,
+                        afterMessageId: null,
                         beforeMessageId: null,
                     }),
                 ),
@@ -1838,6 +2440,7 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromEnd(context.request(session1), {
                         roomKey: room.key,
                         limit: 8,
+                        afterMessageId: null,
                         beforeMessageId: null,
                     }),
                 ),
@@ -1896,7 +2499,7 @@ export function testMessageImplementation<RoomKey>(
             });
         });
 
-        test("can get messages from end with cursor", async () => {
+        test("can get messages from end with before cursor", async () => {
             const room = await createRoom(context.request(session1), space.id);
 
             await createMessage(context.request(session1), {
@@ -1952,6 +2555,7 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromEnd(context.request(session1), {
                         roomKey: room.key,
                         limit: 100,
+                        afterMessageId: null,
                         beforeMessageId: message2.id,
                     }),
                 ),
@@ -1972,6 +2576,7 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromEnd(context.request(session1), {
                         roomKey: room.key,
                         limit: 100,
+                        afterMessageId: null,
                         beforeMessageId: message5.id,
                     }),
                 ),
@@ -2010,6 +2615,7 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromEnd(context.request(session1), {
                         roomKey: room.key,
                         limit: 100,
+                        afterMessageId: null,
                         beforeMessageId: message8.id,
                     }),
                 ),
@@ -2062,7 +2668,157 @@ export function testMessageImplementation<RoomKey>(
             });
         });
 
-        test("can get messages from before with limit and cursor", async () => {
+        test("can get messages from end with after cursor", async () => {
+            const room = await createRoom(context.request(session1), space.id);
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content1,
+            });
+
+            const message2 = await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content2,
+            });
+
+            await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content3,
+            });
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content3,
+            });
+
+            const message5 = await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content1,
+            });
+
+            await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content2,
+            });
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content4,
+            });
+
+            const message8 = await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content4,
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromEnd(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 100,
+                        afterMessageId: message2.id,
+                        beforeMessageId: null,
+                    }),
+                ),
+            ).toEqual({
+                messages: [
+                    {
+                        author: session3.account,
+                        parentMessageId: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session1.account,
+                        parentMessageId: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageId: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session3.account,
+                        parentMessageId: null,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session1.account,
+                        parentMessageId: null,
+                        content: content4,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageId: null,
+                        content: content4,
+                        hasContentUpdated: false,
+                    },
+                ],
+                hasMoreMessagesBefore: false,
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromEnd(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 100,
+                        afterMessageId: message5.id,
+                        beforeMessageId: null,
+                    }),
+                ),
+            ).toEqual({
+                messages: [
+                    {
+                        author: session3.account,
+                        parentMessageId: null,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session1.account,
+                        parentMessageId: null,
+                        content: content4,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageId: null,
+                        content: content4,
+                        hasContentUpdated: false,
+                    },
+                ],
+                hasMoreMessagesBefore: false,
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromEnd(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 100,
+                        afterMessageId: message8.id,
+                        beforeMessageId: null,
+                    }),
+                ),
+            ).toEqual({
+                messages: [],
+                hasMoreMessagesBefore: false,
+            });
+        });
+
+        test("can get messages from end with limit and before cursor", async () => {
             const room = await createRoom(context.request(session1), space.id);
 
             const message1 = await createMessage(context.request(session1), {
@@ -2118,6 +2874,7 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromEnd(context.request(session1), {
                         roomKey: room.key,
                         limit: 3,
+                        afterMessageId: null,
                         beforeMessageId: message6.id,
                     }),
                 ),
@@ -2150,6 +2907,7 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromEnd(context.request(session1), {
                         roomKey: room.key,
                         limit: 2,
+                        afterMessageId: null,
                         beforeMessageId: message4.id,
                     }),
                 ),
@@ -2176,6 +2934,7 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromEnd(context.request(session1), {
                         roomKey: room.key,
                         limit: 3,
+                        afterMessageId: null,
                         beforeMessageId: message4.id,
                     }),
                 ),
@@ -2208,11 +2967,287 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromEnd(context.request(session1), {
                         roomKey: room.key,
                         limit: 4,
+                        afterMessageId: null,
                         beforeMessageId: message1.id,
                     }),
                 ),
             ).toEqual({
                 messages: [],
+                hasMoreMessagesBefore: false,
+            });
+        });
+
+        test("can get messages from end with limit and after cursor", async () => {
+            const room = await createRoom(context.request(session1), space.id);
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content1,
+            });
+
+            await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content2,
+            });
+
+            await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content3,
+            });
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content3,
+            });
+
+            const message5 = await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content1,
+            });
+
+            await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content2,
+            });
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content4,
+            });
+
+            await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content4,
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromEnd(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 2,
+                        afterMessageId: message5.id,
+                        beforeMessageId: null,
+                    }),
+                ),
+            ).toEqual({
+                messages: [
+                    {
+                        author: session1.account,
+                        parentMessageId: null,
+                        content: content4,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageId: null,
+                        content: content4,
+                        hasContentUpdated: false,
+                    },
+                ],
+                hasMoreMessagesBefore: true,
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromEnd(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 4,
+                        afterMessageId: message5.id,
+                        beforeMessageId: null,
+                    }),
+                ),
+            ).toEqual({
+                messages: [
+                    {
+                        author: session3.account,
+                        parentMessageId: null,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session1.account,
+                        parentMessageId: null,
+                        content: content4,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageId: null,
+                        content: content4,
+                        hasContentUpdated: false,
+                    },
+                ],
+                hasMoreMessagesBefore: false,
+            });
+        });
+
+        test("can get messages from end with limit, before cursor, and after cursor", async () => {
+            const room = await createRoom(context.request(session1), space.id);
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content1,
+            });
+
+            const message2 = await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content2,
+            });
+
+            await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content3,
+            });
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content3,
+            });
+
+            await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content1,
+            });
+
+            await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content2,
+            });
+
+            const message7 = await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content4,
+            });
+
+            await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageId: null,
+                content: content4,
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromEnd(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 3,
+                        afterMessageId: message2.id,
+                        beforeMessageId: message7.id,
+                    }),
+                ),
+            ).toEqual({
+                messages: [
+                    {
+                        author: session1.account,
+                        parentMessageId: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageId: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session3.account,
+                        parentMessageId: null,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                ],
+                hasMoreMessagesBefore: true,
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromEnd(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 4,
+                        afterMessageId: message2.id,
+                        beforeMessageId: message7.id,
+                    }),
+                ),
+            ).toEqual({
+                messages: [
+                    {
+                        author: session3.account,
+                        parentMessageId: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session1.account,
+                        parentMessageId: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageId: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session3.account,
+                        parentMessageId: null,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                ],
+                hasMoreMessagesBefore: false,
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromEnd(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 5,
+                        afterMessageId: message2.id,
+                        beforeMessageId: message7.id,
+                    }),
+                ),
+            ).toEqual({
+                messages: [
+                    {
+                        author: session3.account,
+                        parentMessageId: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session1.account,
+                        parentMessageId: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageId: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session3.account,
+                        parentMessageId: null,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                ],
                 hasMoreMessagesBefore: false,
             });
         });
