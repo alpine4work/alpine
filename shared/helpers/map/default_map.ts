@@ -13,6 +13,10 @@ import {BlockInference} from "~/shared/helpers/types/block_inference";
  *
  * If you can't control how the map is constructed, use
  * `getOrSetDefaultMapValue()`.
+ *
+ * Similar to `LazyMap`. See the documentation on that class for how
+ * `DefaultMap` differs. In short, use `DefaultMap` unless you want a value you
+ * can treat as immutable. `LazyMap` has the interface of an immutable value.
  */
 export class DefaultMap<Key, Value> extends Map<Key, Value> {
     public readonly getDefault: (key: Key) => Value;

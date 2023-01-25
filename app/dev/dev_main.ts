@@ -240,6 +240,10 @@ server.on("upgrade", (req, socket, head) => {
     function run() {
         // If we have some promises, then wait for them to resolve recursively before
         // our request can run.
+        if (!devServerPromiseResolver.isSettled()) {
+            devServerPromiseResolver.promise.finally(run);
+            return;
+        }
         if (!dynamoLocalPromiseResolver.isSettled()) {
             dynamoLocalPromiseResolver.promise.finally(run);
             return;
@@ -338,9 +342,11 @@ devServer.post("/tracer", (req, res, next) => {
     );
 });
 
+const devServerPromiseResolver = createPromiseResolver();
+
 const actualDevServer = http.createServer();
 actualDevServer.on("request", devServer);
-actualDevServer.listen(devServerPort);
+actualDevServer.listen(devServerPort, () => devServerPromiseResolver.resolve());
 
 const devWebSocketServer = new WebSocket.Server({
     server: actualDevServer,

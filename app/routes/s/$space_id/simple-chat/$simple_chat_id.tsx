@@ -1,4 +1,4 @@
-import {useState} from "react";
+import {useMemo, useState} from "react";
 import {useNavigate} from "react-router-dom";
 import {ContentEditor} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
@@ -6,7 +6,7 @@ import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
 import {MessagingView, getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
-import {getSimpleChat, getSimpleChatMessagesFromEnd} from "~/server/dynamo/simple_chat_table";
+import {getSimpleChat} from "~/server/dynamo/simple_chat_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
 import {isContentEmpty} from "~/shared/content/is_content_empty";
@@ -15,7 +15,11 @@ import {NotFoundError} from "~/shared/error/error";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 import {SimpleChatId} from "~/shared/id/types/id_types";
 import {SimpleChatMessageModel, SimpleChatModel} from "~/shared/models/simple_chat_model";
-import {createSimpleChatMessage} from "~/shared/rpc/simple_chat_rpc_definitions";
+import {
+    createSimpleChatMessage,
+    getSimpleChatMessagesFromEnd,
+    getSimpleChatMessagesFromStart,
+} from "~/shared/rpc/simple_chat_rpc_definitions";
 import {Schema} from "~/shared/schema/schema";
 import {sprinkles} from "~/shared/styles/styles";
 
@@ -39,6 +43,7 @@ export async function loader({params, context}: LoaderArgs) {
             simpleChatId: simpleChat.id,
             limit: getInitialLoadMessageCount(context.loader.clientInfo),
             beforeMessageId: null,
+            afterMessageId: null,
         },
     );
 
@@ -55,9 +60,36 @@ export default function SimpleChatRoute() {
         <main className={sprinkles({height: "full", display: "flex", flexDirection: "column"})}>
             <Box flexGrow="1" overflowY="hidden">
                 <MessagingView
-                    initialMessageCount={simpleChat.messageCount}
-                    messages={simpleChatMessagesResult.messages}
+                    initialState={useMemo(
+                        () => ({
+                            from: "End",
+                            totalMessageCount: simpleChat.messageCount,
+                            hasMoreMessagesBefore: simpleChatMessagesResult.hasMoreMessagesBefore,
+                            messages: simpleChatMessagesResult.messages,
+                        }),
+                        [
+                            simpleChat.messageCount,
+                            simpleChatMessagesResult.hasMoreMessagesBefore,
+                            simpleChatMessagesResult.messages,
+                        ],
+                    )}
                     shimmerRandomSeed={simpleChat.id}
+                    onLoadFromStart={({limit, afterMessageId, beforeMessageId}) => {
+                        return getSimpleChatMessagesFromStart(context, {
+                            simpleChatId: simpleChat.id,
+                            limit,
+                            afterMessageId,
+                            beforeMessageId,
+                        });
+                    }}
+                    onLoadFromEnd={({limit, afterMessageId, beforeMessageId}) => {
+                        return getSimpleChatMessagesFromEnd(context, {
+                            simpleChatId: simpleChat.id,
+                            limit,
+                            afterMessageId,
+                            beforeMessageId,
+                        });
+                    }}
                 />
             </Box>
             <Box

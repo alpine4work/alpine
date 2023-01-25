@@ -1,4 +1,16 @@
-import {Key, Memo, ReactNode, RefObject, useMemo, useRef, useState} from "react";
+import {
+    Key,
+    Memo,
+    ReactNode,
+    Ref,
+    RefObject,
+    forwardRef,
+    useEffect,
+    useImperativeHandle,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {useRemPx} from "~/client/design/helpers/use_rem_px";
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants";
 import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render";
@@ -88,11 +100,11 @@ export type VirtualizedScrollViewRenderedRange = {
      */
     readonly itemCount: number;
     /**
-     * The index of the first item we are rendering.
+     * The index of the first item we are rendering. Inclusive of this index.
      */
     readonly startIndex: number;
     /**
-     * The index of the last item we are rendering.
+     * The index of the last item we are rendering. Inclusive of this index.
      */
     readonly endIndex: number;
     /**
@@ -128,6 +140,21 @@ export type VirtualizedScrollViewRenderedRange = {
      */
     readonly remPx: number;
 };
+
+export type VirtualizedScrollViewRef = {
+    /**
+     * Get the height of the scroll view.
+     */
+    getHeight(): number;
+    /**
+     * Return the current rendered range. This is the same value we pass into
+     * `onRenderedRangeChange`.
+     */
+    getRenderedRange(): {startIndex: number; endIndex: number} | null;
+};
+
+const VirtualizedScrollViewForwardRef = forwardRef(VirtualizedScrollView);
+export {VirtualizedScrollViewForwardRef as VirtualizedScrollView};
 
 /**
  * Component for rendering a large list of items. Web browsers start to slow
@@ -185,48 +212,59 @@ export type VirtualizedScrollViewRenderedRange = {
  * [2]: https://github.com/bvaughn/react-virtualized
  * [3]: https://necolas.github.io/react-native-web/docs/lists/
  */
-export function VirtualizedScrollView({
-    itemCount,
-    renderItem: _renderItem,
-    pinTo = "top",
-}: {
-    /**
-     * The total number of virtualized items. You do not need all the items loaded
-     * in memory but you should be able to render something (like a loading
-     * shimmer) whenever `getItem` is called.
-     */
-    itemCount: number;
+function VirtualizedScrollView(
+    {
+        itemCount,
+        renderItem: _renderItem,
+        onRenderedRangeChange: _onRenderedRangeChange,
+        pinTo = "top",
+    }: {
+        /**
+         * The total number of virtualized items. You do not need all the items loaded
+         * in memory but you should be able to render something (like a loading
+         * shimmer) whenever `getItem` is called.
+         */
+        itemCount: number;
 
-    /**
-     * Render one of the items in our scroll view.
-     *
-     * The virtualized scroll view will only render a subset of items at any time.
-     * This function may never be called for some items. Just because this function
-     * is called does not mean the item is rendered! The virtualized list may be
-     * trying to learn more about the shape of the list.
-     *
-     * We recommend memoizing this function with `useCallback()`.
-     */
-    renderItem: Memo<(index: number) => VirtualizedScrollViewItem>;
+        /**
+         * Render one of the items in our scroll view.
+         *
+         * The virtualized scroll view will only render a subset of items at any time.
+         * This function may never be called for some items. Just because this function
+         * is called does not mean the item is rendered! The virtualized list may be
+         * trying to learn more about the shape of the list.
+         *
+         * We recommend memoizing this function with `useCallback()`.
+         */
+        renderItem: Memo<(index: number) => VirtualizedScrollViewItem>;
 
-    /**
-     * When the size of our scroll view's content changes, should we pin the
-     * scroll window to the top of the scroll view or the bottom of the scroll
-     * view?
-     *
-     * If set to `bottom` we will also scroll the view to the bottom when it loads.
-     *
-     * The browser default is to pin the window to the top of the scroll view.
-     * That means the number of pixels from the scroll view top to the scroll
-     * window top is kept constant.
-     *
-     * However, for some interfaces (like a chat interface) where content is added
-     * to the bottom of the scroll view we instead want to pint the window to the
-     * bottom of the scroll view. So the number of pixels from the scroll view
-     * bottom to the scroll bottom is kept constant.
-     */
-    pinTo?: "top" | "bottom";
-}) {
+        /**
+         * Called on initial mount and again whenever the range of rendered items
+         * changes. If no items are rendered then this will be called with `null` for
+         * the range object. The range is inclusive of both the start and end index.
+         */
+        onRenderedRangeChange?: (range: {startIndex: number; endIndex: number} | null) => void;
+
+        /**
+         * When the size of our scroll view's content changes, should we pin the
+         * scroll window to the top of the scroll view or the bottom of the scroll
+         * view?
+         *
+         * If set to `bottom` we will also scroll the view to the bottom when it loads.
+         *
+         * The browser default is to pin the window to the top of the scroll view.
+         * That means the number of pixels from the scroll view top to the scroll
+         * window top is kept constant.
+         *
+         * However, for some interfaces (like a chat interface) where content is added
+         * to the bottom of the scroll view we instead want to pint the window to the
+         * bottom of the scroll view. So the number of pixels from the scroll view
+         * bottom to the scroll bottom is kept constant.
+         */
+        pinTo?: "top" | "bottom";
+    },
+    ref: Ref<VirtualizedScrollViewRef>,
+) {
     const {screenHeight} = useClientInfo();
     const remPx = useRemPx();
 
@@ -329,6 +367,47 @@ export function VirtualizedScrollView({
         remPx,
     );
 
+    // Effect to report the rendered range back to our callback.
+    const onRenderedRangeChange = useEvent(_onRenderedRangeChange);
+    const renderedRangeRef = useRef(
+        renderedRange
+            ? {startIndex: renderedRange.startIndex, endIndex: renderedRange.endIndex}
+            : null,
+    );
+    useEffect(() => {
+        // Make sure we only take effect dependencies on the start and end index. We
+        // don't care about other properties of the rendered range changing.
+        const startIndex = renderedRange?.startIndex;
+        const endIndex = renderedRange?.endIndex;
+
+        let range;
+        if (typeof startIndex !== "number") {
+            assert(typeof endIndex !== "number");
+            range = null;
+        } else {
+            assert(typeof endIndex === "number");
+            range =
+                // Reuse the ref object if it already exists and is the same thing. May help
+                // referential equality checking down the line.
+                renderedRangeRef.current?.startIndex === startIndex &&
+                renderedRangeRef.current.endIndex === endIndex
+                    ? renderedRangeRef.current
+                    : {startIndex, endIndex};
+        }
+
+        renderedRangeRef.current = range;
+        onRenderedRangeChange(range);
+    }, [onRenderedRangeChange, renderedRange?.endIndex, renderedRange?.startIndex]);
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            getHeight: () => assertExists(scrollRef.current).clientHeight,
+            getRenderedRange: () => renderedRangeRef.current,
+        }),
+        [],
+    );
+
     const [itemHeightByKey, setItemHeightByKey] = useState(ImmutableMap.empty<Key, number>());
 
     const getItemHeight = (item: VirtualizedScrollViewItem) => {
@@ -428,41 +507,18 @@ export function VirtualizedScrollView({
                         else {
                             elementRef?.cleanup();
 
-                            let isFirstResize = true;
+                            let lastHeight = element.offsetHeight;
+                            setItemHeightByKey(itemHeightByKey =>
+                                itemHeightByKey.set(item.key, lastHeight),
+                            );
 
                             const handleResize = (entry: ResizeObserverEntry) => {
-                                setItemHeightByKey(itemHeightByKey =>
-                                    itemHeightByKey.set(item.key, entry.contentRect.height),
-                                );
-
-                                if (isFirstResize) {
-                                    isFirstResize = false;
-                                    const scrollElement = assertExists(scrollRef.current);
-
-                                    // If we added an item above the scroll window fold then when we size the
-                                    // element for the first time we don't want to change, visually, our scroll
-                                    // position. Otherwise the virtualized list looks janky while the user scrolls
-                                    // up, since scrolling up pushes the content they're looking at down.
-                                    //
-                                    // So we update the scroll position with the difference of our element's
-                                    // measured height and the initial height we rendered the element with.
-                                    //
-                                    // To see the effect this code has: comment it out, get to the bottom of a long
-                                    // virtualized scroll view with either `pinTo="bottom"` or using the cmd-down
-                                    // keyboard shortcut, then scroll up a while.
-                                    //
-                                    // NOTE(calebmer): The `scheduleAfterNextBrowserPaint()` here makes no sense to
-                                    // me. Without it scrolling up feels super janky and I have no idea why. But
-                                    // with the callback things feels smooth as butter-which doesn't make sense??
-                                    // I'd expect the browser to do a paint with the wrong `scrollTop` then run the
-                                    // callback. `requestAnimationFrame()` also appears to work but subjectively
-                                    // `scheduleAfterNextBrowserPaint()` feels more smooth?
-                                    if (itemTop + itemHeight < scrollElement.scrollTop) {
-                                        scheduleAfterNextBrowserPaint(() => {
-                                            scrollElement.scrollTop +=
-                                                entry.contentRect.height - itemHeight;
-                                        });
-                                    }
+                                const height = entry.contentRect.height;
+                                if (height !== lastHeight) {
+                                    setItemHeightByKey(itemHeightByKey =>
+                                        itemHeightByKey.set(item.key, height),
+                                    );
+                                    lastHeight = height;
                                 }
                             };
 
@@ -867,7 +923,7 @@ export function VirtualizedScrollView({
     });
 
     // Update the rendered range when specific props and state change since they
-    //might affect what gets rendered.
+    // might affect what gets rendered.
     useLayoutEffectWithoutServerSideWarning(() => {
         // We don't use these variables but want to mark them as dependencies of the
         // effect so the effect reruns when they change.
@@ -1055,7 +1111,14 @@ function useScrollViewPinTo(
         let scrollBottom = getScrollBottom();
 
         const handleScroll = () => {
-            scrollBottom = getScrollBottom();
+            // Record the new scroll position after a browser paint. If the browser does a
+            // resize + scroll in the same frame then we want to ignore the scroll since
+            // the scroll is probably a result of browser internals responding to the
+            // resize. We want this code to control the scroll position after a resize, not
+            // the browser.
+            scheduleAfterNextBrowserPaint(() => {
+                scrollBottom = getScrollBottom();
+            });
         };
 
         let lastInteractionEventTimeMs: number;

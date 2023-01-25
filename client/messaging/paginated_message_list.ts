@@ -1,4 +1,7 @@
+import {OutOfRangeError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
+import {Lazy} from "~/shared/helpers/control/lazy";
+import {LazyMap} from "~/shared/helpers/control/lazy_map";
 
 /**
  * The smallest possible message ID.
@@ -102,6 +105,155 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
     public getSegmentsForTest() {
         assert(typeof jest !== "undefined");
         return this._segments;
+    }
+
+    /**
+     * Get the total estimated message count for this list.
+     *
+     * O(segments) the first time you call this function and then it is cached
+     * after that.
+     */
+    public getEstimatedMessageCount(): number {
+        return this._estimatedMessageCount.get();
+    }
+
+    private readonly _estimatedMessageCount = new Lazy(() => {
+        let estimatedMessageCount = 0;
+
+        for (const segment of this._segments) {
+            if (segment.isLoaded) {
+                estimatedMessageCount += segment.messages.length;
+            } else {
+                estimatedMessageCount += segment.estimatedMessageCount;
+            }
+        }
+
+        return estimatedMessageCount;
+    });
+
+    /**
+     * Get the message at the provided index. Returns null if the message is
+     * not loaded.
+     *
+     * Will throw an `OutOfRangeError` if index is less than 0 or greater than
+     * `getEstimatedMessageCount() - 1`.
+     *
+     * O(segments) the first time you call this function for an `index` and then
+     * the message at that index is cached after that.
+     */
+    public getMessage(index: number): {isLoaded: true; message: Message} | {isLoaded: false} {
+        return this._messageByIndex.get(index);
+    }
+
+    private readonly _messageByIndex = new LazyMap<
+        number,
+        {isLoaded: true; message: Message} | {isLoaded: false}
+    >(index => {
+        if (index < 0) throw new OutOfRangeError("Index out of bounds");
+
+        for (const segment of this._segments) {
+            if (segment.isLoaded) {
+                if (index < segment.messages.length) {
+                    return {isLoaded: true, message: segment.messages[index]!};
+                } else {
+                    index -= segment.messages.length;
+                }
+            } else {
+                if (index < segment.estimatedMessageCount) {
+                    return {isLoaded: false};
+                } else {
+                    index -= segment.estimatedMessageCount;
+                }
+            }
+        }
+
+        throw new OutOfRangeError("Index out of bounds");
+    });
+
+    /**
+     * Get the first loaded message after the provided index. If there is no loaded
+     * message after the provided index we return null. Throws an error if the
+     * index is out of bounds.
+     *
+     * - If the index is loaded and the next index is loaded then return the next
+     *   message.
+     * - If the index is loaded and the next index is unloaded then return the
+     *   first loaded message after the unloaded segment (or null if there is none).
+     * - If the index is unloaded then return the first loaded message after the
+     *   unloaded segment (or null if there is none).
+     *
+     * O(segments) time. This method is not cached.
+     */
+    public getFirstLoadedMessageAfter(index: number): Message | null {
+        if (index < 0 || index > this.getEstimatedMessageCount() - 1)
+            throw new OutOfRangeError("Index out of bounds");
+
+        // We want to find the message before, not the `index` message precisely.
+        index += 1;
+
+        for (const segment of this._segments) {
+            if (segment.isLoaded) {
+                if (index < segment.messages.length) {
+                    return segment.messages[index]!;
+                } else {
+                    index -= segment.messages.length;
+                }
+            } else {
+                if (index < segment.estimatedMessageCount) {
+                    // Return the first message in the next loaded segment.
+                    index = 0;
+                } else {
+                    index -= segment.estimatedMessageCount;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Get the last loaded message before the provided index. If there is no loaded
+     * message before the provided index we return null. Throws an error if the
+     * index is out of bounds.
+     *
+     * - If the index is loaded and the previous index is loaded then return the
+     *   previous message.
+     * - If the index is loaded and the previous index is unloaded then return the
+     *   last loaded message before the unloaded segment (or null if there is none).
+     * - If the index is unloaded then return the last loaded message before
+     *   the unloaded segment (or null if there is none).
+     *
+     * O(segments) time. This method is not cached.
+     */
+    public getLastLoadedMessageBefore(index: number): Message | null {
+        if (index < 0 || index > this.getEstimatedMessageCount() - 1)
+            throw new OutOfRangeError("Index out of bounds");
+
+        if (index === 0) return null;
+
+        // We want to find the message before, not the `index` message precisely.
+        index -= 1;
+
+        let lastMessage: Message | null = null;
+        for (const segment of this._segments) {
+            if (segment.isLoaded) {
+                if (index < segment.messages.length) {
+                    return segment.messages[index]!;
+                } else {
+                    index -= segment.messages.length;
+                    lastMessage = segment.messages[segment.messages.length - 1]!;
+                }
+            } else {
+                if (index < segment.estimatedMessageCount) {
+                    // Return the last message in the previously loaded segment.
+                    return lastMessage;
+                } else {
+                    index -= segment.estimatedMessageCount;
+                }
+            }
+        }
+
+        return null;
     }
 
     /**
