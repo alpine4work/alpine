@@ -21,6 +21,7 @@ test("adjusting rendered range assigns removed item height proportionally", () =
         endIndex: 80,
         bufferedLeadingHeight: 3000 - 150,
         bufferedTrailingHeight: 1000 - 50,
+        remPx: remPxByPlatform.desktop,
     });
 });
 
@@ -44,6 +45,7 @@ test("adjusting rendered range assigns added item height proportionally", () => 
         endIndex: 80,
         bufferedLeadingHeight: 3000 + 150,
         bufferedTrailingHeight: 1000 + 50,
+        remPx: remPxByPlatform.desktop,
     });
 });
 
@@ -67,5 +69,6 @@ test("adjusting rendered range removes item height when truncating correctly", (
         endIndex: 69,
         bufferedLeadingHeight: 2000,
         bufferedTrailingHeight: 0,
+        remPx: remPxByPlatform.desktop,
     });
 });
