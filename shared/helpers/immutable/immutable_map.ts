@@ -118,6 +118,24 @@ export class ImmutableMap<Key extends string | number, Value> implements Readonl
     }
 
     /**
+     * Return the first entry in the map or undefined if the map is empty.
+     */
+    public getFirstEntry(): [Key, Value] | undefined {
+        const iterator = this._tree.begin;
+        if (!iterator.valid) return undefined;
+        return [iterator.key!, iterator.value!];
+    }
+
+    /**
+     * Return the last entry in the map or undefined if the map is empty.
+     */
+    public getLastEntry(): [Key, Value] | undefined {
+        const iterator = this._tree.end;
+        if (!iterator.valid) return undefined;
+        return [iterator.key!, iterator.value!];
+    }
+
+    /**
      * Returns a new iterator of all the keys in the map.
      *
      * Iterates in key order, not insertion order.
@@ -152,6 +170,21 @@ export class ImmutableMap<Key extends string | number, Value> implements Readonl
      */
     public *entries(): IterableIterator<[Key, Value]> {
         const iterator = this._tree.begin;
+
+        while (iterator.valid) {
+            yield [iterator.key!, iterator.value!];
+            iterator.next();
+        }
+    }
+
+    /**
+     * Returns a new iterator of entries in the map after the provided key not
+     * included the key.
+     *
+     * Iterates in key order, not insertion order.
+     */
+    public *entriesAfter(afterKey: Key): IterableIterator<[Key, Value]> {
+        const iterator = this._tree.gt(afterKey);
 
         while (iterator.valid) {
             yield [iterator.key!, iterator.value!];

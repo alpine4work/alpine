@@ -8,10 +8,13 @@ ts_project(
     ],
     deps = [
         "//:node_modules/@types/react",
+        "//:node_modules/functional-red-black-tree",
         "//:node_modules/react",
         "//client/content",
         "//client/context",
         "//client/design",
+        "//client/messaging",
+        "//shared/helpers",
         "//shared/models",
         "//shared/rpc",
     ],
