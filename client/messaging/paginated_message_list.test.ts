@@ -1317,6 +1317,20 @@ test("when merging will decrease estimated message count only by new messages", 
     ]);
 });
 
+test("can load nothing into an empty list", () => {
+    expect(
+        PaginatedMessageList.newForTest([])
+            .loadMessages({
+                afterMessageId: 0,
+                beforeMessageId: Number.MAX_SAFE_INTEGER,
+                mayHaveMoreMessagesBefore: false,
+                mayHaveMoreMessagesAfter: false,
+                messages: [],
+            })
+            .getSegmentsForTest(),
+    ).toEqual([]);
+});
+
 // NOTE(calebmer, 2023-01-24): This test harness was written when
 // `PaginatedMessageList` had a different API. Keeping these tests because they
 // cover the file well but the test harness is a little weird because of

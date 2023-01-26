@@ -594,6 +594,7 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
                         remainingEstimatedMessageCount,
                 ),
             );
+
             const newSegments: Array<PaginatedMessageListSegment<Message>> = [];
 
             if (mayHaveMoreMessagesBefore) {
@@ -602,27 +603,42 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
                     newSegments.push(segment);
 
                 if (lastLoadedSegment) newSegments.push(lastLoadedSegment);
-
-                // Add the first half of the split unloaded segment.
-                newSegments.push({
-                    isLoaded: false,
-                    estimatedMessageCount: estimatedBeforeMessageCount,
-                });
             }
 
-            // Add the newly inserted loaded segment.
-            newSegments.push({
-                isLoaded: true,
-                messages,
-            });
+            if (messages.length > 0) {
+                if (mayHaveMoreMessagesBefore) {
+                    // Add the first half of the split unloaded segment.
+                    newSegments.push({
+                        isLoaded: false,
+                        estimatedMessageCount: estimatedBeforeMessageCount,
+                    });
+                }
 
-            if (mayHaveMoreMessagesAfter) {
-                // Add the second half of the split unloaded segment.
+                // Add the newly inserted loaded segment.
                 newSegments.push({
-                    isLoaded: false,
-                    estimatedMessageCount: estimatedAfterMessageCount,
+                    isLoaded: true,
+                    messages,
                 });
 
+                if (mayHaveMoreMessagesAfter) {
+                    // Add the second half of the split unloaded segment.
+                    newSegments.push({
+                        isLoaded: false,
+                        estimatedMessageCount: estimatedAfterMessageCount,
+                    });
+                }
+            } else {
+                if (mayHaveMoreMessagesBefore || mayHaveMoreMessagesAfter) {
+                    newSegments.push({
+                        isLoaded: false,
+                        estimatedMessageCount:
+                            (mayHaveMoreMessagesBefore ? estimatedBeforeMessageCount : 0) +
+                            (mayHaveMoreMessagesAfter ? estimatedAfterMessageCount : 0),
+                    });
+                }
+            }
+
+            if (mayHaveMoreMessagesAfter) {
                 if (nextLoadedSegment) newSegments.push(nextLoadedSegment);
 
                 // Copy the existing segments after this one...
