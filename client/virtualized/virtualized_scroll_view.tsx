@@ -955,7 +955,6 @@ function VirtualizedScrollView(
                     height: "full",
                     overflowX: "hidden",
                     overflowY: "scroll",
-                    backgroundColor: "grey-0",
                 })}
                 onScroll={() => updateRenderedRange("scroll")}
             >

@@ -1,5 +1,6 @@
 import {useCallback, useEffect, useRef, useState} from "react";
 import {useRemPx} from "~/client/design/helpers/use_rem_px";
+import {Spacer} from "~/client/design/spacer";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {MessageShimmer} from "~/client/messaging/message_shimmer";
 import {MessageView, messageViewMinHeight} from "~/client/messaging/message_view";
@@ -462,25 +463,35 @@ export function MessagingView<Message extends MessageInterface>({
                         ? nextMessageResult.message
                         : null;
 
+                    const item = messageResult.isLoaded ? (
+                        <MessageView
+                            message={messageResult.message}
+                            lastMessage={lastMessage}
+                            nextMessage={nextMessage}
+                        />
+                    ) : (
+                        <MessageShimmer
+                            randomSeed={shimmerRandomSeed}
+                            index={index}
+                            lastMessage={lastMessage}
+                            nextMessage={nextMessage}
+                        />
+                    );
+
                     return {
                         minHeight: messageViewMinHeight,
                         key: messageResult.isLoaded
                             ? `MessageView:${messageResult.message.id}`
                             : `MessageShimmer:${index}`,
-                        item: messageResult.isLoaded ? (
-                            <MessageView
-                                message={messageResult.message}
-                                lastMessage={lastMessage}
-                                nextMessage={nextMessage}
-                            />
-                        ) : (
-                            <MessageShimmer
-                                randomSeed={shimmerRandomSeed}
-                                index={index}
-                                lastMessage={lastMessage}
-                                nextMessage={nextMessage}
-                            />
-                        ),
+                        item:
+                            index === 0 ? (
+                                <>
+                                    <Spacer space="3" />
+                                    {item}
+                                </>
+                            ) : (
+                                item
+                            ),
                     };
                 },
                 [state.list, shimmerRandomSeed],
