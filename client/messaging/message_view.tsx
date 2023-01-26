@@ -9,6 +9,11 @@ import {truncateClassName} from "~/shared/styles/styles";
 
 export const messageViewMinHeight: RemLength = "2.625rem";
 
+/**
+ * The estimated height we use for virtualized message views.
+ */
+export const estimatedMessageViewHeight: RemLength = "4rem";
+
 const mergeMessageMinuteLimit = 5;
 
 export function MessageView({

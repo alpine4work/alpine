@@ -58,7 +58,7 @@ export default function SimpleChatRoute() {
 
     return (
         <main className={sprinkles({height: "full", display: "flex", flexDirection: "column"})}>
-            <Box flexGrow="1" overflowY="hidden">
+            <Box flexGrow="1" overflowY="hidden" backgroundColor="grey-0">
                 <MessagingView
                     initialState={useMemo(
                         () => ({

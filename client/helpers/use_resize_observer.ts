@@ -15,8 +15,10 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
  *
  * [1]: https://developer.mozilla.org/en-US/docs/Web/API/ResizeObserver
  */
-export function useResizeObserver<T extends Element>(ref: RefObject<T>): DOMRectReadOnly | null {
-    const [contentRect, setContentRect] = useState<DOMRectReadOnly | null>(null);
+export function useResizeObserver<T extends HTMLElement>(
+    ref: RefObject<T>,
+): {height: number; width: number} | null {
+    const [contentRect, setContentRect] = useState<{height: number; width: number} | null>(null);
 
     // Accept that when server-side rendering there will be a brief flash of
     // content where we don't have dimensions. If navigating entirely on the client
@@ -24,9 +26,27 @@ export function useResizeObserver<T extends Element>(ref: RefObject<T>): DOMRect
     useLayoutEffectWithoutServerSideWarning(() => {
         const element = assertExists(ref.current);
 
-        const listener = (entry: ResizeObserverEntry) => {
-            setContentRect(entry.contentRect);
+        const listener = (entry: {contentRect: {height: number; width: number}}) => {
+            const newContentRect = {
+                height: entry.contentRect.height,
+                width: entry.contentRect.width,
+            };
+            setContentRect(contentRect => {
+                return newContentRect.height !== contentRect?.height ||
+                    newContentRect.width !== contentRect.width
+                    ? newContentRect
+                    : contentRect;
+            });
         };
+
+        // Immediately populate the content rect with our element's dimensions
+        // on mount.
+        listener({
+            contentRect: {
+                height: element.offsetHeight,
+                width: element.offsetWidth,
+            },
+        });
 
         addResizeListenerForElement(element, listener);
         return () => {
