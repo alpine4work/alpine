@@ -200,6 +200,8 @@ const responsiveProperties = defineProperties({
     },
 });
 
+const colorSchemeVarsWithTransparent = {...colorSchemeVars, transparent: "transparent"};
+
 const colorProperties = defineProperties({
     conditions: {
         default: {},
@@ -215,24 +217,27 @@ const colorProperties = defineProperties({
     defaultCondition: "default",
     properties: {
         color: colorSchemeVars,
-        backgroundColor: {...colorSchemeVars, transparent: "transparent"},
+        backgroundColor: colorSchemeVarsWithTransparent,
 
         // Default to thin 1px borders over chunky borders.
-        border: mapObjectValues(colorSchemeVars, colorSchemeVar => `solid 1px ${colorSchemeVar}`),
+        border: mapObjectValues(
+            colorSchemeVarsWithTransparent,
+            colorSchemeVar => `solid 1px ${colorSchemeVar}`,
+        ),
         borderTop: mapObjectValues(
-            colorSchemeVars,
+            colorSchemeVarsWithTransparent,
             colorSchemeVar => `solid 1px ${colorSchemeVar}`,
         ),
         borderBottom: mapObjectValues(
-            colorSchemeVars,
+            colorSchemeVarsWithTransparent,
             colorSchemeVar => `solid 1px ${colorSchemeVar}`,
         ),
         borderLeft: mapObjectValues(
-            colorSchemeVars,
+            colorSchemeVarsWithTransparent,
             colorSchemeVar => `solid 1px ${colorSchemeVar}`,
         ),
         borderRight: mapObjectValues(
-            colorSchemeVars,
+            colorSchemeVarsWithTransparent,
             colorSchemeVar => `solid 1px ${colorSchemeVar}`,
         ),
         borderWidth: {base: 1, thick: 2},

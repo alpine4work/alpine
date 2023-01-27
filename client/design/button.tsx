@@ -25,7 +25,7 @@ function Button(
         /**
          * Label text for the button.
          */
-        children: string;
+        children: ReactNode;
 
         /**
          * When the user presses a button we fire this event. Use it to perform
@@ -47,6 +47,11 @@ function Button(
         icon?: ReactNode;
 
         /**
+         * Is the icon at the front or back of the button? Defaults to `start`.
+         */
+        iconPlacement?: "start" | "end";
+
+        /**
          * Are we waiting for some asynchronous action that was initiated by our button
          * to complete?
          *
@@ -66,6 +71,11 @@ function Button(
          * don't need a press event if true.
          */
         shouldSubmitForm?: boolean;
+
+        /**
+         * Control how much horizontal padding on this button. Default is `3`.
+         */
+        paddingX?: "2" | "3";
     },
     foreignRef: Ref<HTMLButtonElement>,
 ) {
@@ -73,11 +83,13 @@ function Button(
         children,
         variant = "quiet",
         icon,
+        iconPlacement = "start",
         isDisabled,
         isPending: isPendingFromProps,
         fullWidth = false,
         shouldSubmitForm = false,
         onPress,
+        paddingX = "3",
     } = props;
     const localRef = useRef<HTMLButtonElement>(null);
 
@@ -180,7 +192,7 @@ function Button(
                     height: "7",
                     minWidth: variant !== "quiet" ? "16" : undefined,
                     width: fullWidth ? "full" : undefined,
-                    paddingX: "3",
+                    paddingX,
                     fontSize: "xs",
                     borderRadius: "base",
                     // You may notice our button doesn't have a pointer cursor. See:
@@ -223,15 +235,16 @@ function Button(
                     />
                 )}
                 <span
-                    className={sprinkles({display: "flex", gap: "1"})}
+                    className={sprinkles({display: "flex", alignItems: "center", gap: "1"})}
                     style={{
                         // Keep the icon and label in the DOM so we keep the shape of the button but
                         // hide them so we can show a spinner.
                         opacity: shouldShowPendingSpinner ? 0 : undefined,
                     }}
                 >
-                    {iconChild}
+                    {iconPlacement === "start" && iconChild}
                     {labelChild}
+                    {iconPlacement === "end" && iconChild}
                 </span>
             </button>
         </FocusRing>

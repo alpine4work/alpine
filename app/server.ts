@@ -281,7 +281,19 @@ async function handleFetch(
                     // some initial data. The seed function should be idempotent.
                     if (process.env.NODE_ENV !== "production" && !hasSeededDynamo) {
                         hasSeededDynamo = true;
-                        context.process.waitUntil(seedDynamo(context));
+                        context.process.waitUntil(
+                            (async () => {
+                                try {
+                                    await seedDynamo(context);
+                                } catch (error) {
+                                    // If there is an error, log it but don't crash the process.
+                                    // eslint-disable-next-line no-console
+                                    console.error(
+                                        InternalError.from(error, "Failed to seed DynamoDB data"),
+                                    );
+                                }
+                            })(),
+                        );
                     }
 
                     event[contextSymbol] = context;

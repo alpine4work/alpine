@@ -1,6 +1,7 @@
 import {useCallback} from "react";
 import {Box} from "~/client/design/box";
 import {Spacer} from "~/client/design/spacer";
+import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {MessageShimmer} from "~/client/messaging/message_shimmer";
 import {MessageView, messageViewMinHeight} from "~/client/messaging/message_view";
 import {PaginatedPostList} from "~/client/posts/paginated_post_list";
@@ -10,8 +11,16 @@ import {VirtualizedScrollView} from "~/client/virtualized/virtualized_scroll_vie
 import {RemLength, Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 
-export function PostsView({list}: {list: PaginatedPostList}) {
+export function PostsView({
+    list,
+    onTogglePostComments: _onTogglePostComments,
+}: {
+    list: PaginatedPostList;
+    onTogglePostComments: (index: number) => void;
+}) {
     const padding: Spacing = "4";
+
+    const onTogglePostComments = useEvent(_onTogglePostComments);
 
     return (
         <VirtualizedScrollView
@@ -35,7 +44,11 @@ export function PostsView({list}: {list: PaginatedPostList}) {
                                         }
                                         boxShadow="elevation-5"
                                     >
-                                        <PostContentView post={item.post} />
+                                        <PostContentView
+                                            post={item.post}
+                                            arePostCommentsOpen={item.arePostCommentsOpen}
+                                            onTogglePostComments={() => onTogglePostComments(index)}
+                                        />
                                     </Box>
                                 </Box>
                             );
@@ -174,7 +187,7 @@ export function PostsView({list}: {list: PaginatedPostList}) {
                             throw exhaustive(item);
                     }
                 },
-                [list],
+                [list, onTogglePostComments],
             )}
         />
     );

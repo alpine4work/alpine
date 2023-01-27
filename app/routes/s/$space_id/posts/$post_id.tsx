@@ -1,4 +1,4 @@
-import {useMemo} from "react";
+import {useState} from "react";
 import {PaginatedPostList} from "~/client/posts/paginated_post_list";
 import {PostsView} from "~/client/posts/posts_view";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
@@ -35,13 +35,15 @@ export async function loader({params, context}: LoaderArgs) {
 export default function PostRoute() {
     const {post} = useLoaderDataWithSchema(schema);
 
+    const [list, setList] = useState(() =>
+        PaginatedPostList.empty.insertAtEnd(post, {arePostCommentsOpen: false}),
+    );
+
     return (
         <main className={sprinkles({height: "full"})}>
             <PostsView
-                list={useMemo(
-                    () => PaginatedPostList.empty.insertAtEnd(post, {arePostCommentsOpen: false}),
-                    [post],
-                )}
+                list={list}
+                onTogglePostComments={index => setList(list => list.togglePostComments(index))}
             />
         </main>
     );

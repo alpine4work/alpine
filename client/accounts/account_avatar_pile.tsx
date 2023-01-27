@@ -1,4 +1,5 @@
 import classNames from "classnames";
+import {differenceInMinutes} from "date-fns";
 import {SpinnerGap} from "phosphor-react";
 import {ReactNode, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
@@ -28,7 +29,7 @@ export function AccountAvatarPile({
     );
 
     return (
-        <Box display="flex" position="relative" zIndex="0">
+        <Box display="flex" position="relative" zIndex="0" paddingRight="1">
             {previewAccounts.map((author, index) => (
                 <Box
                     key={author.id}
@@ -83,7 +84,9 @@ export function AccountAvatarPile({
                             height="6"
                             width="6"
                             borderRadius="full"
-                            style={{boxShadow: `0px 0px 0px 2px ${colorSchemeVars["grey-0"]}`}}
+                            style={{
+                                boxShadow: `0px 0px 0px 2px ${colorSchemeVars["grey-0"]}`,
+                            }}
                             backgroundColor="grey-10"
                             fontSize="2xs"
                             color="grey-70"
@@ -113,7 +116,7 @@ function AsyncTooltip({
     const isLoadingRef = useRef(false);
 
     const [contentState, setContentState] = useState<
-        {isLoaded: false} | {isLoaded: true; content: ReactNode}
+        {isLoaded: false} | {isLoaded: true; loadTime: Date; content: ReactNode}
     >({isLoaded: false});
 
     useEffect(() => {
@@ -137,10 +140,17 @@ function AsyncTooltip({
         if (isLoadingRef.current) return;
         isLoadingRef.current = true;
 
+        const loadTime = new Date();
+
+        // Don't load the tooltip content again unless it has been more than five
+        // minutes since the last time we loaded tooltip content.
+        if (contentState.isLoaded && differenceInMinutes(loadTime, contentState.loadTime) < 5)
+            return;
+
         runPromiseWithoutAwaiting(async () => {
             try {
                 const content = await getContent();
-                setContentState({isLoaded: true, content});
+                setContentState({isLoaded: true, loadTime, content});
             } catch (error) {
                 // eslint-disable-next-line no-console
                 console.error(error);
