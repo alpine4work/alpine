@@ -26,6 +26,16 @@ export class PostModel extends Model(
          * The total number of comments on the post.
          */
         commentCount: Schema.integer,
+        /**
+         * The number of accounts who authored a comment on this post.
+         */
+        commentAuthorCount: Schema.integer,
+        /**
+         * Some of the authors who commented on this post. Only the first 5 or so. If
+         * the length of this array is shorter than `commentAuthorCount` then you know
+         * there are more authors we aren't including.
+         */
+        previewCommentAuthors: Schema.array(AccountModel.schema()),
     }),
 ) {}
 

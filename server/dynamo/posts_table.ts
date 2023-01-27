@@ -10,8 +10,10 @@ import {InternalError, NotFoundError, PermissionDeniedError} from "~/shared/erro
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
+import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable";
 import {generateId} from "~/shared/id/id";
 import {AccountId, ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types";
+import {AccountModel} from "~/shared/models/account_model";
 import {PostCommentModel, PostModel} from "~/shared/models/post_model";
 import {Schema} from "~/shared/schema/schema";
 
@@ -156,19 +158,61 @@ async function createPostModelFromItem(
     context: RequestContext,
     item: PostAttributesItem,
 ): Promise<PostModel> {
+    const [author, previewCommentAuthors] = await runAllPromises([
+        getAccountOrThrow(context, item.spaceId, item.authorId),
+        runAllPromises(
+            Array.from(
+                sliceIterable(item.commentsSummary.commentCountByAuthorId.keys(), 0, 5),
+                accountId => getAccountOrThrow(context, item.spaceId, accountId),
+            ),
+        ),
+    ]);
+
     return new PostModel({
         id: item.postId,
         spaceId: item.spaceId,
         channelId: item.channelId,
         createdTime: item.createdTime,
-        author: await getAccountOrThrow(context, item.spaceId, item.authorId),
+        author,
         content: item.content,
         commentCount: reduceIterable(
             item.commentsSummary.commentCountByAuthorId.values(),
             (commentCount, authorCommentCount) => commentCount + authorCommentCount,
             0,
         ),
+        commentAuthorCount: item.commentsSummary.commentCountByAuthorId.size,
+        previewCommentAuthors,
     });
+}
+
+/**
+ * Get all the authors on a post to a certain limit.
+ */
+export async function getPostCommentAuthors(
+    context: RequestContext,
+    {postId, limit}: {postId: PostId; limit: number},
+): Promise<Array<AccountModel>> {
+    const postItem = await PostsTable.getPartialItem(
+        context,
+        {
+            partitionType: "Post",
+            sortRangeType: "Attributes",
+            postId,
+        },
+        {
+            attributes: ["spaceId", "channelId", "commentsSummary"],
+        },
+    );
+    if (!postItem) throw new NotFoundError("Post not found");
+
+    await authorizeChannelAccess(context, postItem.channelId);
+
+    return runAllPromises(
+        Array.from(
+            sliceIterable(postItem.commentsSummary.commentCountByAuthorId.keys(), 0, limit),
+            accountId => getAccountOrThrow(context, postItem.spaceId, accountId),
+        ),
+    );
 }
 
 /**

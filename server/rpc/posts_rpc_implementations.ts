@@ -1,4 +1,4 @@
-import {createPost, createPostComment} from "~/server/dynamo/posts_table";
+import {createPost, createPostComment, getPostCommentAuthors} from "~/server/dynamo/posts_table";
 import {implementRpc} from "~/server/rpc/internal/implement_rpc";
 import * as definition from "~/shared/rpc/posts_rpc_definitions";
 
@@ -10,4 +10,9 @@ implementRpc(definition.createPost, async (context, input) => {
 implementRpc(definition.createPostComment, async (context, input) => {
     await createPostComment(await context.auth.authenticate(), input);
     return {};
+});
+
+implementRpc(definition.getPostCommentAuthors, async (context, input) => {
+    const authors = await getPostCommentAuthors(await context.auth.authenticate(), input);
+    return {authors};
 });

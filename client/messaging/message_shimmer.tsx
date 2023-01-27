@@ -115,7 +115,7 @@ export function MessageShimmer<Message extends MessageInterface>({
                     />
                 )}
             </Box>
-            <Box>
+            <Box flexGrow="1">
                 {!shouldMergeWithPreviousMessage && (
                     <Box paddingY="0.5" paddingLeft="2">
                         <Box style={{height: 18}} display="flex" alignItems="center">
@@ -132,7 +132,8 @@ export function MessageShimmer<Message extends MessageInterface>({
                     paddingY="2"
                     paddingX="2"
                     backgroundColor="grey-5"
-                    width={messageSize.width}
+                    width="full"
+                    maxWidth={messageSize.width}
                     borderTopLeftRadius={!shouldMergeWithPreviousMessage ? "xl" : undefined}
                     borderTopRightRadius="xl"
                     borderBottomLeftRadius={!shouldMergeWithNextMessage ? "xl" : undefined}

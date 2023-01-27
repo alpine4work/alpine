@@ -99,17 +99,17 @@ export class PaginatedPostList {
      */
     public getItemCount() {
         return (
-            // We have two items for each post. The `PostContent` item and the
-            // `PostCommentInput` item.
-            this._postByOrderKey.size * 2 +
-            // For all posts with open comments, add the size of the comment sections.
+            this._postByOrderKey.size +
+            // For all posts with open comments, add the size of the comment sections plus
+            // one for the comment input.
             reduceIterable(
                 this._openPostCommentPostOrderKeys,
                 (count, postOrderKey) =>
                     count +
                     assertExists(
                         this._postByOrderKey.get(postOrderKey),
-                    ).postComments.getEstimatedMessageCount(),
+                    ).postComments.getEstimatedMessageCount() +
+                    1,
                 0,
             )
         );
@@ -129,24 +129,26 @@ export class PaginatedPostList {
             post: PostModel,
             postComments: PaginatedMessageList<PostCommentModel>,
         ): PaginatedPostListItem | null => {
-            const postCommentIndex = index - (postContentIndex + 1);
-            const postCommentCount = this._openPostCommentPostOrderKeys.has(postOrderKey)
-                ? postComments.getEstimatedMessageCount()
-                : 0;
+            const arePostCommentsOpen = this._openPostCommentPostOrderKeys.has(postOrderKey);
 
-            if (index === postContentIndex) return {type: "PostContent", post};
+            if (index === postContentIndex) return {type: "PostContent", post, arePostCommentsOpen};
 
-            if (0 <= postCommentIndex && postCommentIndex < postCommentCount) {
-                const postComment = postComments.getMessage(postCommentIndex);
-                if (postComment.isLoaded) {
-                    return {type: "LoadedPostComment", post, postComment: postComment.message};
-                } else {
-                    return {type: "UnloadedPostComment", post, postComments, postCommentIndex};
+            if (arePostCommentsOpen) {
+                const postCommentIndex = index - (postContentIndex + 1);
+                const postCommentCount = postComments.getEstimatedMessageCount();
+
+                if (0 <= postCommentIndex && postCommentIndex < postCommentCount) {
+                    const postComment = postComments.getMessage(postCommentIndex);
+                    if (postComment.isLoaded) {
+                        return {type: "LoadedPostComment", post, postComment: postComment.message};
+                    } else {
+                        return {type: "UnloadedPostComment", post, postComments, postCommentIndex};
+                    }
                 }
-            }
 
-            if (index === postContentIndex + postCommentCount + 1)
-                return {type: "PostCommentInput", post};
+                if (index === postContentIndex + postCommentCount + 1)
+                    return {type: "PostCommentInput", post};
+            }
 
             return null;
         };
@@ -187,10 +189,10 @@ export class PaginatedPostList {
                     postContentIndex +
                     // The next post index is past any comments if the comment section is open
                     (this._openPostCommentPostOrderKeys.has(postOrderKey)
-                        ? postComments.getEstimatedMessageCount()
+                        ? postComments.getEstimatedMessageCount() +
+                          // Add one for the post comment input index
+                          1
                         : 0) +
-                    // Add one for the post comment input index
-                    1 +
                     // Add one again to get the next post index
                     1;
             }
@@ -217,10 +219,10 @@ export class PaginatedPostList {
                 postContentIndex +
                 // The next post index is past any comments if the comment section is open
                 (this._openPostCommentPostOrderKeys.has(postOrderKey)
-                    ? postComments.getEstimatedMessageCount()
+                    ? postComments.getEstimatedMessageCount() +
+                      // Add one for the post comment input index
+                      1
                     : 0) +
-                // Add one for the post comment input index
-                1 +
                 // Add one again to get the next post index
                 1;
 
@@ -353,6 +355,7 @@ export type PaginatedPostListItem =
 export type PaginatedPostListPostContentItem = {
     readonly type: "PostContent";
     readonly post: PostModel;
+    readonly arePostCommentsOpen: boolean;
 };
 
 /**

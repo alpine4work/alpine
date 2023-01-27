@@ -95,7 +95,7 @@ type TooltipChildrenProps = {
      * Is the tooltip currently visible? True even when the tooltip is fading in
      * and out of visibility.
      */
-    isVisible: boolean;
+    visible: boolean;
 
     /**
      * When hovering over a tooltip, we have a delay before the tooltip becomes
@@ -115,6 +115,68 @@ export type TooltipRef = {
 const TooltipForwardRef = forwardRef(Tooltip);
 export {TooltipForwardRef as Tooltip};
 
+export type TooltipProps = {
+    /**
+     * The contents of the tooltip. We expect this to be text most of the time.
+     */
+    content: ReactNode;
+
+    /**
+     * If true the tooltip won't open even if the target element is hovered or
+     * focused.
+     *
+     * If the tooltip is opened and `disabled` changes to true then we will
+     * immediately hide the tooltip without animation.
+     */
+    isDisabled?: boolean;
+
+    /**
+     * Suppress opening the tooltip. This is different from `isDisabled` in that
+     * tooltip's state all updates like normal but it does not actually fade in
+     * while this is true.
+     */
+    shouldSuppress?: boolean;
+
+    /**
+     * Where should the tooltip content be placed relative to the target element?
+     * Defaults to `top`.
+     */
+    placement?: OverlayPlacement;
+
+    /**
+     * If true, changes the `placement` of a popper to make sure it stays visible
+     * within the nearest parent `<OverlayScopeContextProvider>`.
+     *
+     * Defaults to `true`.
+     */
+    canFlip?: boolean;
+
+    /**
+     * Offset of the tooltip from the target.
+     *
+     * Defaults to `2`.
+     */
+    offset?: Spacing;
+
+    /**
+     * Do we show the tooltip if a child has focus?
+     *
+     * Defaults to `false`.
+     */
+    visibleWhenFocusWithin?: boolean;
+
+    /**
+     * The element our tooltip content will be rendered to point to. Must provide
+     * a ref to an HTML element or we will throw an error.
+     */
+    children: ReactElement | ((props: TooltipChildrenProps) => ReactElement);
+
+    /**
+     * Observe the tooltips internal state.
+     */
+    onStateChange?: (state: TooltipState) => void;
+};
+
 /**
  * Renders some descriptive, non-interactive, information pointing to a target
  * element when a user is about to interact with that element.
@@ -128,66 +190,14 @@ function Tooltip(
     {
         content,
         isDisabled = false,
+        shouldSuppress = false,
         placement = "top",
         canFlip = true,
         offset = "1.5",
         visibleWhenFocusWithin = false,
         children: actualChildren,
         onStateChange: _onStateChange,
-    }: {
-        /**
-         * The contents of the tooltip. We expect this to be text most of the time.
-         */
-        content: ReactNode;
-
-        /**
-         * If true the tooltip won't open even if the target element is hovered or
-         * focused.
-         *
-         * If the tooltip is opened and `disabled` changes to true then we will
-         * immediately hide the tooltip without animation.
-         */
-        isDisabled?: boolean;
-
-        /**
-         * Where should the tooltip content be placed relative to the target element?
-         * Defaults to `top`.
-         */
-        placement?: OverlayPlacement;
-
-        /**
-         * If true, changes the `placement` of a popper to make sure it stays visible
-         * within the nearest parent `<OverlayScopeContextProvider>`.
-         *
-         * Defaults to `true`.
-         */
-        canFlip?: boolean;
-
-        /**
-         * Offset of the tooltip from the target.
-         *
-         * Defaults to `2`.
-         */
-        offset?: Spacing;
-
-        /**
-         * Do we show the tooltip if a child has focus?
-         *
-         * Defaults to `false`.
-         */
-        visibleWhenFocusWithin?: boolean;
-
-        /**
-         * The element our tooltip content will be rendered to point to. Must provide
-         * a ref to an HTML element or we will throw an error.
-         */
-        children: ReactElement | ((props: TooltipChildrenProps) => ReactElement);
-
-        /**
-         * Observe the tooltips internal state.
-         */
-        onStateChange?: (state: TooltipState) => void;
-    },
+    }: TooltipProps,
     ref: Ref<TooltipRef>,
 ) {
     const overlayRef = useRef<OverlayRef>(null);
@@ -219,7 +229,7 @@ function Tooltip(
     // Controls whether the tooltip is actually visible or not. Only one tooltip
     // can be visible on screen at once and that is managed by our tooltip
     // coordination context.
-    const visible = !isDisabled && tooltipSymbol === activeTooltipSymbol;
+    const visible = !isDisabled && !shouldSuppress && tooltipSymbol === activeTooltipSymbol;
     const hasActiveTooltipSymbol = activeTooltipSymbol !== null;
 
     const [_state, setState] = useState<TooltipState>(initialTooltipState);
@@ -532,7 +542,7 @@ function Tooltip(
                 return actualChildren;
             } else {
                 return actualChildren({
-                    isVisible: visible,
+                    visible,
                     skipHoverDelay: coordinationContext.skipTooltipHoverDelay,
                 });
             }

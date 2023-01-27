@@ -5,6 +5,7 @@ import {
 } from "~/shared/content/post_content_schema";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length";
 import {shuffleArray} from "~/shared/helpers/array/shuffle_array";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {generateId} from "~/shared/id/id";
 import {ChannelId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
@@ -40,7 +41,7 @@ const testContent5 = assertPostContent(
  * Get all items in the list as an array. Accesses the items in random order to
  * exercise our caching logic.
  */
-function getItems(list: PaginatedPostList): Array<PaginatedPostListItem> {
+function getItems(list: PaginatedPostList) {
     const indexOrder = shuffleArray(createArrayWithLength(list.getItemCount(), index => index));
 
     const items: Array<PaginatedPostListItem | null> = createArrayWithLength(
@@ -52,7 +53,10 @@ function getItems(list: PaginatedPostList): Array<PaginatedPostListItem> {
         items[index] = list.getItem(index);
     }
 
-    return items as Array<PaginatedPostListItem>;
+    return items.map((item: {[key: string]: unknown} | null) => {
+        const {postComments, ...remainingItem} = assertExists(item);
+        return remainingItem;
+    });
 }
 
 test("an empty list is empty", () => {
@@ -115,56 +119,41 @@ test("can insert some posts into the end", () => {
     list = list.insertAtEnd(post1);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1},
-        {type: "PostCommentInput", post: post1},
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
     ]);
 
     list = list.insertAtEnd(post2);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1},
-        {type: "PostCommentInput", post: post1},
-        {type: "PostContent", post: post2},
-        {type: "PostCommentInput", post: post2},
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
     ]);
 
     list = list.insertAtEnd(post3);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1},
-        {type: "PostCommentInput", post: post1},
-        {type: "PostContent", post: post2},
-        {type: "PostCommentInput", post: post2},
-        {type: "PostContent", post: post3},
-        {type: "PostCommentInput", post: post3},
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post3, arePostCommentsOpen: false},
     ]);
 
     list = list.insertAtEnd(post4);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1},
-        {type: "PostCommentInput", post: post1},
-        {type: "PostContent", post: post2},
-        {type: "PostCommentInput", post: post2},
-        {type: "PostContent", post: post3},
-        {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post4},
-        {type: "PostCommentInput", post: post4},
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post3, arePostCommentsOpen: false},
+        {type: "PostContent", post: post4, arePostCommentsOpen: false},
     ]);
 
     list = list.insertAtEnd(post5);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1},
-        {type: "PostCommentInput", post: post1},
-        {type: "PostContent", post: post2},
-        {type: "PostCommentInput", post: post2},
-        {type: "PostContent", post: post3},
-        {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post4},
-        {type: "PostCommentInput", post: post4},
-        {type: "PostContent", post: post5},
-        {type: "PostCommentInput", post: post5},
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post3, arePostCommentsOpen: false},
+        {type: "PostContent", post: post4, arePostCommentsOpen: false},
+        {type: "PostContent", post: post5, arePostCommentsOpen: false},
     ]);
 });
 
@@ -224,56 +213,41 @@ test("can insert some posts into the start", () => {
     list = list.insertAtStart(post1);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1},
-        {type: "PostCommentInput", post: post1},
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
     ]);
 
     list = list.insertAtStart(post2);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post2},
-        {type: "PostCommentInput", post: post2},
-        {type: "PostContent", post: post1},
-        {type: "PostCommentInput", post: post1},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
     ]);
 
     list = list.insertAtStart(post3);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post3},
-        {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post2},
-        {type: "PostCommentInput", post: post2},
-        {type: "PostContent", post: post1},
-        {type: "PostCommentInput", post: post1},
+        {type: "PostContent", post: post3, arePostCommentsOpen: false},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
     ]);
 
     list = list.insertAtStart(post4);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post4},
-        {type: "PostCommentInput", post: post4},
-        {type: "PostContent", post: post3},
-        {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post2},
-        {type: "PostCommentInput", post: post2},
-        {type: "PostContent", post: post1},
-        {type: "PostCommentInput", post: post1},
+        {type: "PostContent", post: post4, arePostCommentsOpen: false},
+        {type: "PostContent", post: post3, arePostCommentsOpen: false},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
     ]);
 
     list = list.insertAtStart(post5);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post5},
-        {type: "PostCommentInput", post: post5},
-        {type: "PostContent", post: post4},
-        {type: "PostCommentInput", post: post4},
-        {type: "PostContent", post: post3},
-        {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post2},
-        {type: "PostCommentInput", post: post2},
-        {type: "PostContent", post: post1},
-        {type: "PostCommentInput", post: post1},
+        {type: "PostContent", post: post5, arePostCommentsOpen: false},
+        {type: "PostContent", post: post4, arePostCommentsOpen: false},
+        {type: "PostContent", post: post3, arePostCommentsOpen: false},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
     ]);
 });
 
@@ -333,56 +307,41 @@ test("can insert some posts into the end and others at the start", () => {
     list = list.insertAtStart(post1);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1},
-        {type: "PostCommentInput", post: post1},
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
     ]);
 
     list = list.insertAtEnd(post2);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1},
-        {type: "PostCommentInput", post: post1},
-        {type: "PostContent", post: post2},
-        {type: "PostCommentInput", post: post2},
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
     ]);
 
     list = list.insertAtStart(post3);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post3},
-        {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post1},
-        {type: "PostCommentInput", post: post1},
-        {type: "PostContent", post: post2},
-        {type: "PostCommentInput", post: post2},
+        {type: "PostContent", post: post3, arePostCommentsOpen: false},
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
     ]);
 
     list = list.insertAtEnd(post4);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post3},
-        {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post1},
-        {type: "PostCommentInput", post: post1},
-        {type: "PostContent", post: post2},
-        {type: "PostCommentInput", post: post2},
-        {type: "PostContent", post: post4},
-        {type: "PostCommentInput", post: post4},
+        {type: "PostContent", post: post3, arePostCommentsOpen: false},
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post4, arePostCommentsOpen: false},
     ]);
 
     list = list.insertAtStart(post5);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post5},
-        {type: "PostCommentInput", post: post5},
-        {type: "PostContent", post: post3},
-        {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post1},
-        {type: "PostCommentInput", post: post1},
-        {type: "PostContent", post: post2},
-        {type: "PostCommentInput", post: post2},
-        {type: "PostContent", post: post4},
-        {type: "PostCommentInput", post: post4},
+        {type: "PostContent", post: post5, arePostCommentsOpen: false},
+        {type: "PostContent", post: post3, arePostCommentsOpen: false},
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post4, arePostCommentsOpen: false},
     ]);
 });
 
@@ -446,223 +405,194 @@ test("can toggle the comments for a post open", () => {
     list = list.insertAtEnd(post5);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1},
-        {type: "PostCommentInput", post: post1},
-        {type: "PostContent", post: post2},
-        {type: "PostCommentInput", post: post2},
-        {type: "PostContent", post: post3},
-        {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post4},
-        {type: "PostCommentInput", post: post4},
-        {type: "PostContent", post: post5},
-        {type: "PostCommentInput", post: post5},
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post3, arePostCommentsOpen: false},
+        {type: "PostContent", post: post4, arePostCommentsOpen: false},
+        {type: "PostContent", post: post5, arePostCommentsOpen: false},
     ]);
 
-    list = list.togglePostComments(6);
+    list = list.togglePostComments(3);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1},
-        {type: "PostCommentInput", post: post1},
-        {type: "PostContent", post: post2},
-        {type: "PostCommentInput", post: post2},
-        {type: "PostContent", post: post3},
-        {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post4},
-        {type: "UnloadedPostComment", post: post4},
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post3, arePostCommentsOpen: false},
+        {type: "PostContent", post: post4, arePostCommentsOpen: true},
+        {type: "UnloadedPostComment", post: post4, postCommentIndex: 0},
         {type: "PostCommentInput", post: post4},
-        {type: "PostContent", post: post5},
-        {type: "PostCommentInput", post: post5},
+        {type: "PostContent", post: post5, arePostCommentsOpen: false},
     ]);
 
-    list = list.togglePostComments(4);
+    list = list.togglePostComments(2);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1},
-        {type: "PostCommentInput", post: post1},
-        {type: "PostContent", post: post2},
-        {type: "PostCommentInput", post: post2},
-        {type: "PostContent", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 3},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 4},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 5},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 6},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 7},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 8},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 9},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 10},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 11},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 12},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 13},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 14},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 15},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 16},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 17},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 18},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 19},
         {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post4},
-        {type: "UnloadedPostComment", post: post4},
+        {type: "PostContent", post: post4, arePostCommentsOpen: true},
+        {type: "UnloadedPostComment", post: post4, postCommentIndex: 0},
         {type: "PostCommentInput", post: post4},
-        {type: "PostContent", post: post5},
-        {type: "PostCommentInput", post: post5},
+        {type: "PostContent", post: post5, arePostCommentsOpen: false},
     ]);
 
     list = list.togglePostComments(0);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1},
-        {type: "UnloadedPostComment", post: post1},
-        {type: "UnloadedPostComment", post: post1},
-        {type: "UnloadedPostComment", post: post1},
-        {type: "UnloadedPostComment", post: post1},
-        {type: "UnloadedPostComment", post: post1},
+        {type: "PostContent", post: post1, arePostCommentsOpen: true},
+        {type: "UnloadedPostComment", post: post1, postCommentIndex: 0},
+        {type: "UnloadedPostComment", post: post1, postCommentIndex: 1},
+        {type: "UnloadedPostComment", post: post1, postCommentIndex: 2},
+        {type: "UnloadedPostComment", post: post1, postCommentIndex: 3},
+        {type: "UnloadedPostComment", post: post1, postCommentIndex: 4},
         {type: "PostCommentInput", post: post1},
-        {type: "PostContent", post: post2},
-        {type: "PostCommentInput", post: post2},
-        {type: "PostContent", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 3},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 4},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 5},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 6},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 7},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 8},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 9},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 10},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 11},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 12},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 13},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 14},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 15},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 16},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 17},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 18},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 19},
         {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post4},
-        {type: "UnloadedPostComment", post: post4},
+        {type: "PostContent", post: post4, arePostCommentsOpen: true},
+        {type: "UnloadedPostComment", post: post4, postCommentIndex: 0},
         {type: "PostCommentInput", post: post4},
-        {type: "PostContent", post: post5},
-        {type: "PostCommentInput", post: post5},
+        {type: "PostContent", post: post5, arePostCommentsOpen: false},
     ]);
 
     list = list.togglePostComments(7);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1},
-        {type: "UnloadedPostComment", post: post1},
-        {type: "UnloadedPostComment", post: post1},
-        {type: "UnloadedPostComment", post: post1},
-        {type: "UnloadedPostComment", post: post1},
-        {type: "UnloadedPostComment", post: post1},
+        {type: "PostContent", post: post1, arePostCommentsOpen: true},
+        {type: "UnloadedPostComment", post: post1, postCommentIndex: 0},
+        {type: "UnloadedPostComment", post: post1, postCommentIndex: 1},
+        {type: "UnloadedPostComment", post: post1, postCommentIndex: 2},
+        {type: "UnloadedPostComment", post: post1, postCommentIndex: 3},
+        {type: "UnloadedPostComment", post: post1, postCommentIndex: 4},
         {type: "PostCommentInput", post: post1},
-        {type: "PostContent", post: post2},
+        {type: "PostContent", post: post2, arePostCommentsOpen: true},
         {type: "PostCommentInput", post: post2},
-        {type: "PostContent", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
+        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 3},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 4},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 5},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 6},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 7},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 8},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 9},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 10},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 11},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 12},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 13},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 14},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 15},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 16},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 17},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 18},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 19},
         {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post4},
-        {type: "UnloadedPostComment", post: post4},
+        {type: "PostContent", post: post4, arePostCommentsOpen: true},
+        {type: "UnloadedPostComment", post: post4, postCommentIndex: 0},
         {type: "PostCommentInput", post: post4},
-        {type: "PostContent", post: post5},
-        {type: "PostCommentInput", post: post5},
+        {type: "PostContent", post: post5, arePostCommentsOpen: false},
     ]);
 
     list = list.togglePostComments(9);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1},
-        {type: "UnloadedPostComment", post: post1},
-        {type: "UnloadedPostComment", post: post1},
-        {type: "UnloadedPostComment", post: post1},
-        {type: "UnloadedPostComment", post: post1},
-        {type: "UnloadedPostComment", post: post1},
+        {type: "PostContent", post: post1, arePostCommentsOpen: true},
+        {type: "UnloadedPostComment", post: post1, postCommentIndex: 0},
+        {type: "UnloadedPostComment", post: post1, postCommentIndex: 1},
+        {type: "UnloadedPostComment", post: post1, postCommentIndex: 2},
+        {type: "UnloadedPostComment", post: post1, postCommentIndex: 3},
+        {type: "UnloadedPostComment", post: post1, postCommentIndex: 4},
         {type: "PostCommentInput", post: post1},
-        {type: "PostContent", post: post2},
+        {type: "PostContent", post: post2, arePostCommentsOpen: true},
         {type: "PostCommentInput", post: post2},
-        {type: "PostContent", post: post3},
-        {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post4},
-        {type: "UnloadedPostComment", post: post4},
+        {type: "PostContent", post: post3, arePostCommentsOpen: false},
+        {type: "PostContent", post: post4, arePostCommentsOpen: true},
+        {type: "UnloadedPostComment", post: post4, postCommentIndex: 0},
         {type: "PostCommentInput", post: post4},
-        {type: "PostContent", post: post5},
-        {type: "PostCommentInput", post: post5},
+        {type: "PostContent", post: post5, arePostCommentsOpen: false},
     ]);
 
     list = list.togglePostComments(7);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1},
-        {type: "UnloadedPostComment", post: post1},
-        {type: "UnloadedPostComment", post: post1},
-        {type: "UnloadedPostComment", post: post1},
-        {type: "UnloadedPostComment", post: post1},
-        {type: "UnloadedPostComment", post: post1},
+        {type: "PostContent", post: post1, arePostCommentsOpen: true},
+        {type: "UnloadedPostComment", post: post1, postCommentIndex: 0},
+        {type: "UnloadedPostComment", post: post1, postCommentIndex: 1},
+        {type: "UnloadedPostComment", post: post1, postCommentIndex: 2},
+        {type: "UnloadedPostComment", post: post1, postCommentIndex: 3},
+        {type: "UnloadedPostComment", post: post1, postCommentIndex: 4},
         {type: "PostCommentInput", post: post1},
-        {type: "PostContent", post: post2},
-        {type: "PostCommentInput", post: post2},
-        {type: "PostContent", post: post3},
-        {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post4},
-        {type: "UnloadedPostComment", post: post4},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post3, arePostCommentsOpen: false},
+        {type: "PostContent", post: post4, arePostCommentsOpen: true},
+        {type: "UnloadedPostComment", post: post4, postCommentIndex: 0},
         {type: "PostCommentInput", post: post4},
-        {type: "PostContent", post: post5},
-        {type: "PostCommentInput", post: post5},
+        {type: "PostContent", post: post5, arePostCommentsOpen: false},
     ]);
 
     list = list.togglePostComments(0);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1},
-        {type: "PostCommentInput", post: post1},
-        {type: "PostContent", post: post2},
-        {type: "PostCommentInput", post: post2},
-        {type: "PostContent", post: post3},
-        {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post4},
-        {type: "UnloadedPostComment", post: post4},
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post3, arePostCommentsOpen: false},
+        {type: "PostContent", post: post4, arePostCommentsOpen: true},
+        {type: "UnloadedPostComment", post: post4, postCommentIndex: 0},
         {type: "PostCommentInput", post: post4},
-        {type: "PostContent", post: post5},
-        {type: "PostCommentInput", post: post5},
+        {type: "PostContent", post: post5, arePostCommentsOpen: false},
     ]);
 
-    list = list.togglePostComments(6);
+    list = list.togglePostComments(3);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1},
-        {type: "PostCommentInput", post: post1},
-        {type: "PostContent", post: post2},
-        {type: "PostCommentInput", post: post2},
-        {type: "PostContent", post: post3},
-        {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post4},
-        {type: "PostCommentInput", post: post4},
-        {type: "PostContent", post: post5},
-        {type: "PostCommentInput", post: post5},
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post3, arePostCommentsOpen: false},
+        {type: "PostContent", post: post4, arePostCommentsOpen: false},
+        {type: "PostContent", post: post5, arePostCommentsOpen: false},
     ]);
 });
 
@@ -722,71 +652,59 @@ test("can insert some posts into the end with already open comments", () => {
     list = list.insertAtEnd(post1);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1},
-        {type: "PostCommentInput", post: post1},
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
     ]);
 
     list = list.insertAtEnd(post2);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1},
-        {type: "PostCommentInput", post: post1},
-        {type: "PostContent", post: post2},
-        {type: "PostCommentInput", post: post2},
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
     ]);
 
     list = list.insertAtEnd(post3, {arePostCommentsOpen: true});
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1},
-        {type: "PostCommentInput", post: post1},
-        {type: "PostContent", post: post2},
-        {type: "PostCommentInput", post: post2},
-        {type: "PostContent", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 3},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 4},
         {type: "PostCommentInput", post: post3},
     ]);
 
     list = list.insertAtEnd(post4);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1},
-        {type: "PostCommentInput", post: post1},
-        {type: "PostContent", post: post2},
-        {type: "PostCommentInput", post: post2},
-        {type: "PostContent", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 3},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 4},
         {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post4},
-        {type: "PostCommentInput", post: post4},
+        {type: "PostContent", post: post4, arePostCommentsOpen: false},
     ]);
 
     list = list.insertAtEnd(post5);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1},
-        {type: "PostCommentInput", post: post1},
-        {type: "PostContent", post: post2},
-        {type: "PostCommentInput", post: post2},
-        {type: "PostContent", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 3},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 4},
         {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post4},
-        {type: "PostCommentInput", post: post4},
-        {type: "PostContent", post: post5},
-        {type: "PostCommentInput", post: post5},
+        {type: "PostContent", post: post4, arePostCommentsOpen: false},
+        {type: "PostContent", post: post5, arePostCommentsOpen: false},
     ]);
 });
 
@@ -846,70 +764,58 @@ test("can insert some posts into the start with already open comments", () => {
     list = list.insertAtStart(post1);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1},
-        {type: "PostCommentInput", post: post1},
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
     ]);
 
     list = list.insertAtStart(post2);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post2},
-        {type: "PostCommentInput", post: post2},
-        {type: "PostContent", post: post1},
-        {type: "PostCommentInput", post: post1},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
     ]);
 
     list = list.insertAtStart(post3, {arePostCommentsOpen: true});
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
+        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 3},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 4},
         {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post2},
-        {type: "PostCommentInput", post: post2},
-        {type: "PostContent", post: post1},
-        {type: "PostCommentInput", post: post1},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
     ]);
 
     list = list.insertAtStart(post4);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post4},
-        {type: "PostCommentInput", post: post4},
-        {type: "PostContent", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
+        {type: "PostContent", post: post4, arePostCommentsOpen: false},
+        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 3},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 4},
         {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post2},
-        {type: "PostCommentInput", post: post2},
-        {type: "PostContent", post: post1},
-        {type: "PostCommentInput", post: post1},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
     ]);
 
     list = list.insertAtStart(post5);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post5},
-        {type: "PostCommentInput", post: post5},
-        {type: "PostContent", post: post4},
-        {type: "PostCommentInput", post: post4},
-        {type: "PostContent", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
-        {type: "UnloadedPostComment", post: post3},
+        {type: "PostContent", post: post5, arePostCommentsOpen: false},
+        {type: "PostContent", post: post4, arePostCommentsOpen: false},
+        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 3},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 4},
         {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post2},
-        {type: "PostCommentInput", post: post2},
-        {type: "PostContent", post: post1},
-        {type: "PostCommentInput", post: post1},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
     ]);
 });

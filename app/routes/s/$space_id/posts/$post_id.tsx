@@ -39,7 +39,7 @@ export default function PostRoute() {
         <main className={sprinkles({height: "full"})}>
             <PostsView
                 list={useMemo(
-                    () => PaginatedPostList.empty.insertAtEnd(post, {arePostCommentsOpen: true}),
+                    () => PaginatedPostList.empty.insertAtEnd(post, {arePostCommentsOpen: false}),
                     [post],
                 )}
             />

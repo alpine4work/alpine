@@ -19,16 +19,6 @@ export type RpcDefinitionOutputType<Definition extends RpcDefinition<any, any>> 
  * [1]: https://en.wikipedia.org/wiki/Remote_procedure_call
  */
 export interface RpcDefinition<Input, Output> {
-    /**
-     * The function is actually a function! You can call it on either the client or
-     * the server and it will execute.
-     *
-     * The function does depend on some context like the current user. On the
-     * client, this context is available globally. On the server we use
-     * [`AsyncLocalStorage`][1].
-     *
-     * [1]: https://nodejs.org/api/async_context.html#class-asynclocalstorage
-     */
     (context: Context<{rpc: RpcContextModuleBase}>, input: Input): Promise<Output>;
 
     /**

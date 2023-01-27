@@ -5,6 +5,7 @@ import {
     deletePostComment,
     getPost,
     getPostComment,
+    getPostCommentAuthors,
     getPostCommentsFromEnd,
     getPostCommentsFromStart,
     updatePostCommentContent,
@@ -13,6 +14,10 @@ import {createTestContext} from "~/server/dynamo/test/create_test_context";
 import {createTestSession} from "~/server/dynamo/test/create_test_session";
 import {createTestSpace} from "~/server/dynamo/test/create_test_space";
 import {testMessageImplementation} from "~/server/dynamo/test/test_messaging_implementation";
+import {
+    assertMessageContent,
+    MessageContentProsemirrorSchema as messageSchema,
+} from "~/shared/content/message_content_schema";
 import {
     assertPostContent,
     PostContentProsemirrorSchema as schema,
@@ -23,7 +28,14 @@ import {PostId} from "~/shared/id/types/id_types";
 
 const context = createTestContext();
 const space = createTestSpace(context);
-const session = createTestSession(context, space);
+const session1 = createTestSession(context, space);
+const session2 = createTestSession(context, space);
+const session3 = createTestSession(context, space);
+const session4 = createTestSession(context, space);
+const session5 = createTestSession(context, space);
+const session6 = createTestSession(context, space);
+const session7 = createTestSession(context, space);
+const session8 = createTestSession(context, space);
 const otherSpace = createTestSpace(context);
 const otherSession = createTestSession(context, otherSpace);
 
@@ -31,8 +43,14 @@ const testContent = assertPostContent(
     schema.node("doc", {}, [schema.node("paragraph", {}, [schema.text("test")])]),
 );
 
+const testMessageContent = assertMessageContent(
+    messageSchema.node("doc", {}, [
+        messageSchema.node("paragraph", {}, [messageSchema.text("test")]),
+    ]),
+);
+
 test("can not create a post for a different space", async () => {
-    const channel = await createChannel(context.request(session), {
+    const channel = await createChannel(context.request(session1), {
         spaceId: space.id,
         name: "Test",
     });
@@ -46,28 +64,28 @@ test("can not create a post for a different space", async () => {
 });
 
 test("can create a post", async () => {
-    const channel = await createChannel(context.request(session), {
+    const channel = await createChannel(context.request(session1), {
         spaceId: space.id,
         name: "Test",
     });
 
-    await createPost(context.request(session), {
+    await createPost(context.request(session1), {
         channelId: channel.id,
         content: testContent,
     });
 });
 
 test("can not get a post that does not exist", async () => {
-    expect(await getPost(context.request(session), generateId())).toEqual(null);
+    expect(await getPost(context.request(session1), generateId())).toEqual(null);
 });
 
 test("can not get a post for a different space", async () => {
-    const channel = await createChannel(context.request(session), {
+    const channel = await createChannel(context.request(session1), {
         spaceId: space.id,
         name: "Test",
     });
 
-    const post = await createPost(context.request(session), {
+    const post = await createPost(context.request(session1), {
         channelId: channel.id,
         content: testContent,
     });
@@ -78,19 +96,157 @@ test("can not get a post for a different space", async () => {
 });
 
 test("can get a post", async () => {
-    const channel = await createChannel(context.request(session), {
+    const channel = await createChannel(context.request(session1), {
         spaceId: space.id,
         name: "Test",
     });
 
-    const post = await createPost(context.request(session), {
+    const post = await createPost(context.request(session1), {
         channelId: channel.id,
         content: testContent,
     });
 
-    expect((await getPost(context.request(session), post.id))?.content.toJSON()).toEqual(
+    expect((await getPost(context.request(session1), post.id))?.content.toJSON()).toEqual(
         testContent.toJSON(),
     );
+});
+
+test("can get the comment authors on a post", async () => {
+    const channel = await createChannel(context.request(session1), {
+        spaceId: space.id,
+        name: "Test",
+    });
+
+    const post = await createPost(context.request(session1), {
+        channelId: channel.id,
+        content: testContent,
+    });
+
+    expect(
+        await getPostCommentAuthors(context.request(session1), {postId: post.id, limit: 100}),
+    ).toEqual([]);
+
+    await createPostComment(context.request(session1), {
+        postId: post.id,
+        parentCommentId: null,
+        content: testMessageContent,
+    });
+
+    expect(
+        await getPostCommentAuthors(context.request(session1), {postId: post.id, limit: 100}),
+    ).toEqual([session1.account]);
+
+    await createPostComment(context.request(session2), {
+        postId: post.id,
+        parentCommentId: null,
+        content: testMessageContent,
+    });
+
+    await createPostComment(context.request(session3), {
+        postId: post.id,
+        parentCommentId: null,
+        content: testMessageContent,
+    });
+
+    expect(
+        await getPostCommentAuthors(context.request(session1), {postId: post.id, limit: 100}),
+    ).toEqual([session1.account, session2.account, session3.account]);
+
+    await createPostComment(context.request(session4), {
+        postId: post.id,
+        parentCommentId: null,
+        content: testMessageContent,
+    });
+
+    await createPostComment(context.request(session5), {
+        postId: post.id,
+        parentCommentId: null,
+        content: testMessageContent,
+    });
+
+    await createPostComment(context.request(session6), {
+        postId: post.id,
+        parentCommentId: null,
+        content: testMessageContent,
+    });
+
+    await createPostComment(context.request(session7), {
+        postId: post.id,
+        parentCommentId: null,
+        content: testMessageContent,
+    });
+
+    await createPostComment(context.request(session8), {
+        postId: post.id,
+        parentCommentId: null,
+        content: testMessageContent,
+    });
+
+    expect(
+        await getPostCommentAuthors(context.request(session1), {postId: post.id, limit: 100}),
+    ).toEqual([
+        session1.account,
+        session2.account,
+        session3.account,
+        session4.account,
+        session5.account,
+        session6.account,
+        session7.account,
+        session8.account,
+    ]);
+
+    await deletePostComment(context.request(session3), {
+        postId: post.id,
+        commentId: 3,
+    });
+
+    expect(
+        await getPostCommentAuthors(context.request(session1), {postId: post.id, limit: 100}),
+    ).toEqual([
+        session1.account,
+        session2.account,
+        session4.account,
+        session5.account,
+        session6.account,
+        session7.account,
+        session8.account,
+    ]);
+
+    expect(
+        await getPostCommentAuthors(context.request(session1), {postId: post.id, limit: 5}),
+    ).toEqual([
+        session1.account,
+        session2.account,
+        session4.account,
+        session5.account,
+        session6.account,
+    ]);
+});
+
+test("can not get the comment authors in another space", async () => {
+    const channel = await createChannel(context.request(session1), {
+        spaceId: space.id,
+        name: "Test",
+    });
+
+    const post = await createPost(context.request(session1), {
+        channelId: channel.id,
+        content: testContent,
+    });
+
+    await expect(
+        getPostCommentAuthors(context.request(otherSession), {postId: post.id, limit: 100}),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await createPostComment(context.request(session2), {
+        postId: post.id,
+        parentCommentId: null,
+        content: testMessageContent,
+    });
+
+    await expect(
+        getPostCommentAuthors(context.request(otherSession), {postId: post.id, limit: 100}),
+    ).rejects.toThrow(PermissionDeniedError);
 });
 
 testMessageImplementation<PostId>(context, {

@@ -70,7 +70,7 @@ export default function AlphaManagementPage() {
     );
 
     return (
-        <Box display="flex" justifyContent="center">
+        <Box display="flex" justifyContent="center" backgroundColor="grey-0" height="full">
             <main
                 className={sprinkles({
                     width: "full",

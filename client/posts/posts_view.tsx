@@ -7,7 +7,7 @@ import {PaginatedPostList} from "~/client/posts/paginated_post_list";
 import {PostCommentInput} from "~/client/posts/post_comment_input";
 import {PostContentView, postContentViewMinHeight} from "~/client/posts/post_content_view";
 import {VirtualizedScrollView} from "~/client/virtualized/virtualized_scroll_view";
-import {parseRemLengthNumber, RemLength, Spacing, spacing} from "~/shared/design/spacing";
+import {RemLength, Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 
 export function PostsView({list}: {list: PaginatedPostList}) {
@@ -30,6 +30,9 @@ export function PostsView({list}: {list: PaginatedPostList}) {
                                         maxWidth="160"
                                         backgroundColor="grey-0"
                                         borderTopRadius="md"
+                                        borderBottomRadius={
+                                            !item.arePostCommentsOpen ? "md" : undefined
+                                        }
                                         boxShadow="elevation-5"
                                     >
                                         <PostContentView post={item.post} />
@@ -47,6 +50,20 @@ export function PostsView({list}: {list: PaginatedPostList}) {
                                     <>
                                         <Spacer space={padding} />
                                         {node}
+                                    </>
+                                );
+                            }
+
+                            if (!item.arePostCommentsOpen) {
+                                minHeight = `${
+                                    parseRemLengthNumber(minHeight) +
+                                    parseRemLengthNumber(spacing[padding])
+                                }rem`;
+
+                                node = (
+                                    <>
+                                        {node}
+                                        <Spacer space={padding} />
                                     </>
                                 );
                             }
@@ -121,29 +138,35 @@ export function PostsView({list}: {list: PaginatedPostList}) {
                             const height: Spacing = "16";
                             return {
                                 key: `PostCommentInput:${item.post.id}`,
-                                minHeight: spacing[height],
+                                minHeight: `${
+                                    parseRemLengthNumber(spacing[height]) +
+                                    parseRemLengthNumber(spacing[padding])
+                                }rem`,
                                 node: (
-                                    <Box paddingX={padding}>
-                                        <Box
-                                            marginX="auto"
-                                            maxWidth="160"
-                                            backgroundColor="grey-0"
-                                            borderBottomRadius="md"
-                                            boxShadow="elevation-5"
-                                            paddingX="5"
-                                        >
+                                    <>
+                                        <Box paddingX={padding}>
                                             <Box
-                                                height={height}
-                                                display="flex"
-                                                alignItems="center"
-                                                borderTop="grey-5"
+                                                marginX="auto"
+                                                maxWidth="160"
+                                                backgroundColor="grey-0"
+                                                borderBottomRadius="md"
+                                                boxShadow="elevation-5"
+                                                paddingX="5"
                                             >
-                                                <Box flexGrow="1">
-                                                    <PostCommentInput post={item.post} />
+                                                <Box
+                                                    height={height}
+                                                    display="flex"
+                                                    alignItems="center"
+                                                    borderTop="grey-5"
+                                                >
+                                                    <Box flexGrow="1">
+                                                        <PostCommentInput post={item.post} />
+                                                    </Box>
                                                 </Box>
                                             </Box>
                                         </Box>
-                                    </Box>
+                                        <Spacer space={padding} />
+                                    </>
                                 ),
                             };
                         }
