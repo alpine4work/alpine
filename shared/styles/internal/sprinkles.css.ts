@@ -77,6 +77,12 @@ const properties = defineProperties({
         fontSize: fontSizes,
         fontStyle: fontStyles,
     },
+    shorthands: {
+        borderTopRadius: ["borderTopLeftRadius", "borderTopRightRadius"],
+        borderBottomRadius: ["borderBottomLeftRadius", "borderBottomRightRadius"],
+        borderLeftRadius: ["borderTopLeftRadius", "borderBottomLeftRadius"],
+        borderRightRadius: ["borderTopRightRadius", "borderBottomRightRadius"],
+    },
 });
 
 const spacingWithPercentages = {
@@ -172,10 +178,10 @@ const responsiveProperties = defineProperties({
         paddingBottom: spacing,
         paddingLeft: spacing,
         paddingRight: spacing,
-        marginTop: spacing,
-        marginBottom: spacing,
-        marginLeft: spacing,
-        marginRight: spacing,
+        marginTop: {...spacing, auto: "auto"},
+        marginBottom: {...spacing, auto: "auto"},
+        marginLeft: {...spacing, auto: "auto"},
+        marginRight: {...spacing, auto: "auto"},
         width: spacingWithPercentages,
         minWidth: spacingWithPercentages,
         maxWidth: spacingWithPercentages,

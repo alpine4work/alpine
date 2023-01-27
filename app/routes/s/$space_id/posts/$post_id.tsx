@@ -1,4 +1,6 @@
-import {PostView} from "~/client/posts/post_view";
+import {useMemo} from "react";
+import {PaginatedPostList} from "~/client/posts/paginated_post_list";
+import {PostsView} from "~/client/posts/posts_view";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {getPost} from "~/server/dynamo/posts_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
@@ -30,19 +32,17 @@ export async function loader({params, context}: LoaderArgs) {
     return jsonWithSchema(schema, {post}, {propagateEventData});
 }
 
-export default function ChannelRoute() {
+export default function PostRoute() {
     const {post} = useLoaderDataWithSchema(schema);
 
     return (
-        <main
-            className={sprinkles({
-                height: "full",
-                display: "flex",
-                justifyContent: "center",
-                padding: "4",
-            })}
-        >
-            <PostView post={post} />
+        <main className={sprinkles({height: "full"})}>
+            <PostsView
+                list={useMemo(
+                    () => PaginatedPostList.empty.insertAtEnd(post, {arePostCommentsOpen: true}),
+                    [post],
+                )}
+            />
         </main>
     );
 }

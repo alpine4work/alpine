@@ -85,7 +85,7 @@ export type VirtualizedScrollViewItem = {
     /**
      * The actual rendered React component for this item.
      */
-    readonly item: ReactNode;
+    readonly node: ReactNode;
 };
 
 /**
@@ -542,7 +542,7 @@ function VirtualizedScrollView(
                         }
                     }}
                 >
-                    {item.item}
+                    {item.node}
                 </div>,
             );
         }

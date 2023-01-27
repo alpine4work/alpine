@@ -13,17 +13,17 @@ const mergeMessageMinuteLimit = 5;
 
 export function MessageView({
     message,
-    lastMessage,
+    previousMessage,
     nextMessage,
 }: {
     message: MessageInterface;
-    lastMessage: MessageInterface | null;
+    previousMessage: MessageInterface | null;
     nextMessage: MessageInterface | null;
 }) {
-    const shouldMergeWithLastMessage =
-        lastMessage &&
-        lastMessage.author.id === message.author.id &&
-        Math.abs(differenceInMinutes(message.createdTime, lastMessage.createdTime)) <
+    const shouldMergeWithPreviousMessage =
+        previousMessage &&
+        previousMessage.author.id === message.author.id &&
+        Math.abs(differenceInMinutes(message.createdTime, previousMessage.createdTime)) <
             mergeMessageMinuteLimit;
     const shouldMergeWithNextMessage =
         nextMessage &&
@@ -37,7 +37,7 @@ export function MessageView({
                 {!shouldMergeWithNextMessage && <AccountAvatar account={message.author} />}
             </Box>
             <Box>
-                {!shouldMergeWithLastMessage && (
+                {!shouldMergeWithPreviousMessage && (
                     <Box
                         fontSize="xs"
                         paddingY="0.5"
@@ -54,7 +54,7 @@ export function MessageView({
                     display="inline-block"
                     paddingX="1"
                     paddingY="2"
-                    borderTopLeftRadius={!shouldMergeWithLastMessage ? "xl" : undefined}
+                    borderTopLeftRadius={!shouldMergeWithPreviousMessage ? "xl" : undefined}
                     borderTopRightRadius="xl"
                     borderBottomLeftRadius={!shouldMergeWithNextMessage ? "xl" : undefined}
                     borderBottomRightRadius="xl"

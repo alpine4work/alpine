@@ -141,7 +141,7 @@ export class PaginatedPostList {
                 if (postComment.isLoaded) {
                     return {type: "LoadedPostComment", post, postComment: postComment.message};
                 } else {
-                    return {type: "UnloadedPostComment", post};
+                    return {type: "UnloadedPostComment", post, postComments, postCommentIndex};
                 }
             }
 
@@ -370,6 +370,12 @@ export type PaginatedPostListLoadedPostCommentItem = {
 export type PaginatedPostListUnloadedPostCommentItem = {
     readonly type: "UnloadedPostComment";
     readonly post: PostModel;
+    readonly postComments: PaginatedMessageList<PostCommentModel>;
+    /**
+     * The index the unloaded post comment is at in the `PaginatedMessageList`. The
+     * post index may move but this will stay stable.
+     */
+    readonly postCommentIndex: number;
 };
 
 /**

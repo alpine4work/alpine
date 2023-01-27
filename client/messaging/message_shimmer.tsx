@@ -1,6 +1,7 @@
 import {useRef} from "react";
 import {Box} from "~/client/design/box";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
+import {PaginatedMessageList} from "~/client/messaging/paginated_message_list";
 import {Spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {StableRandom} from "~/shared/helpers/number/stable_random";
@@ -52,16 +53,18 @@ const messageShimmerSizes: Array<{
 
 const shouldMergeMessageShimmerProbability = 0.5;
 
-export function MessageShimmer({
+export function MessageShimmer<Message extends MessageInterface>({
     randomSeed,
     index,
-    lastMessage,
+    previousMessage,
     nextMessage,
+    messages,
 }: {
     randomSeed: string;
     index: number;
-    lastMessage: MessageInterface | null;
-    nextMessage: MessageInterface | null;
+    previousMessage: Message | null;
+    nextMessage: Message | null;
+    messages: PaginatedMessageList<Message>;
 }) {
     const shimmerRef = useRef<HTMLDivElement>(null);
     const stableRandom = new StableRandom(randomSeed);
@@ -73,9 +76,10 @@ export function MessageShimmer({
 
     const shouldMergeWithNextMessage =
         !nextMessage &&
+        index < messages.getEstimatedMessageCount() - 1 &&
         stableRandom.randomFloat("size", index, 1) < shouldMergeMessageShimmerProbability;
-    const shouldMergeWithLastMessage =
-        !lastMessage &&
+    const shouldMergeWithPreviousMessage =
+        !previousMessage &&
         index > 0 &&
         stableRandom.randomFloat("size", index - 1, 1) < shouldMergeMessageShimmerProbability;
 
@@ -112,7 +116,7 @@ export function MessageShimmer({
                 )}
             </Box>
             <Box>
-                {!shouldMergeWithLastMessage && (
+                {!shouldMergeWithPreviousMessage && (
                     <Box paddingY="0.5" paddingLeft="2">
                         <Box style={{height: 18}} display="flex" alignItems="center">
                             <Box
@@ -129,7 +133,7 @@ export function MessageShimmer({
                     paddingX="2"
                     backgroundColor="grey-5"
                     width={messageSize.width}
-                    borderTopLeftRadius={!shouldMergeWithLastMessage ? "xl" : undefined}
+                    borderTopLeftRadius={!shouldMergeWithPreviousMessage ? "xl" : undefined}
                     borderTopRightRadius="xl"
                     borderBottomLeftRadius={!shouldMergeWithNextMessage ? "xl" : undefined}
                     borderBottomRightRadius="xl"

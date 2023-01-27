@@ -36,7 +36,7 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
         let lastMessageId: number | null = null;
         for (let segmentIndex = 0; segmentIndex < segments.length; segmentIndex++) {
             const segment = segments[segmentIndex]!;
-            const lastSegment = segmentIndex > 0 ? segments[segmentIndex - 1]! : null;
+            const previousSegment = segmentIndex > 0 ? segments[segmentIndex - 1]! : null;
 
             if (!segment.isLoaded) {
                 assert(
@@ -44,13 +44,13 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
                     "Unloaded segment has an estimated message count of zero",
                 );
                 assert(
-                    !lastSegment || lastSegment.isLoaded,
+                    !previousSegment || previousSegment.isLoaded,
                     "Can not have adjacent unloaded segments",
                 );
             } else {
                 assert(segment.messages.length > 0, "Loaded segment has no messages");
                 assert(
-                    !lastSegment || !lastSegment.isLoaded,
+                    !previousSegment || !previousSegment.isLoaded,
                     "Can not have adjacent loaded segments",
                 );
 
@@ -412,7 +412,7 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
         const mergeWithExistingLoadedSegments = (
             startIndex: number,
             endIndex: number,
-            lastUnloadedSegment: PaginatedMessageListUnloadedSegment | null,
+            previousUnloadedSegment: PaginatedMessageListUnloadedSegment | null,
             loadedSegments: Array<PaginatedMessageListLoadedSegment<Message>>,
             nextUnloadedSegment: PaginatedMessageListUnloadedSegment | null,
         ) => {
@@ -490,12 +490,12 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
                         isLoaded: false,
                         estimatedMessageCount: Math.max(
                             1,
-                            (lastUnloadedSegment?.estimatedMessageCount ?? 0) -
+                            (previousUnloadedSegment?.estimatedMessageCount ?? 0) -
                                 newMessageCountBeforeLoadedSegments,
                         ),
                     });
                 } else {
-                    if (lastUnloadedSegment) newSegments.push(lastUnloadedSegment);
+                    if (previousUnloadedSegment) newSegments.push(previousUnloadedSegment);
                 }
             }
 
@@ -532,7 +532,7 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
         const insertNewLoadedSegment = (
             startIndex: number,
             endIndex: number,
-            lastLoadedSegment: PaginatedMessageListLoadedSegment<Message> | null,
+            previousLoadedSegment: PaginatedMessageListLoadedSegment<Message> | null,
             unloadedSegment: PaginatedMessageListUnloadedSegment | null,
             nextLoadedSegment: PaginatedMessageListLoadedSegment<Message> | null,
         ) => {
@@ -540,8 +540,8 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
             // the end is the start `id` plus the estimated message count. This leverages
             // the fact that message list `id`s are mostly dense. However deleted messages
             // might mean this is an underestimation of the unloaded segment's end.
-            const unloadedSegmentStartMessageId = lastLoadedSegment
-                ? lastLoadedSegment.messages[lastLoadedSegment.messages.length - 1]!.id
+            const unloadedSegmentStartMessageId = previousLoadedSegment
+                ? previousLoadedSegment.messages[previousLoadedSegment.messages.length - 1]!.id
                 : minMessageId - 1;
             const unloadedSegmentEndMessageId = nextLoadedSegment
                 ? nextLoadedSegment.messages[0]!.id
@@ -602,7 +602,7 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
                 for (const segment of this._segments.slice(0, startIndex))
                     newSegments.push(segment);
 
-                if (lastLoadedSegment) newSegments.push(lastLoadedSegment);
+                if (previousLoadedSegment) newSegments.push(previousLoadedSegment);
             }
 
             if (messages.length > 0) {
@@ -662,28 +662,28 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
             // Figure out what our adjacent segments are and insert...
             if (beforeMessageId < segmentStartMessageId) {
                 if (segmentIndex >= 2) {
-                    const lastLoadedSegment = this._segments[segmentIndex - 2]!;
-                    assert(lastLoadedSegment.isLoaded);
+                    const previousLoadedSegment = this._segments[segmentIndex - 2]!;
+                    assert(previousLoadedSegment.isLoaded);
 
-                    const lastUnloadedSegment = this._segments[segmentIndex - 1]!;
-                    assert(!lastUnloadedSegment.isLoaded);
+                    const previousUnloadedSegment = this._segments[segmentIndex - 1]!;
+                    assert(!previousUnloadedSegment.isLoaded);
 
                     return insertNewLoadedSegment(
                         segmentIndex - 2,
                         segmentIndex,
-                        lastLoadedSegment,
-                        lastUnloadedSegment,
+                        previousLoadedSegment,
+                        previousUnloadedSegment,
                         segment,
                     );
                 } else if (segmentIndex === 1) {
-                    const lastUnloadedSegment = this._segments[segmentIndex - 1]!;
-                    assert(!lastUnloadedSegment.isLoaded);
+                    const previousUnloadedSegment = this._segments[segmentIndex - 1]!;
+                    assert(!previousUnloadedSegment.isLoaded);
 
                     return insertNewLoadedSegment(
                         segmentIndex - 1,
                         segmentIndex,
                         null,
-                        lastUnloadedSegment,
+                        previousUnloadedSegment,
                         segment,
                     );
                 } else {
@@ -734,8 +734,8 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
 
                 // Figure out what segments are adjacent to our segments to merge then merge...
                 if (segmentIndex > 0 && lastLoadedSegmentIndex < this._segments.length - 1) {
-                    const lastUnloadedSegment = this._segments[segmentIndex - 1]!;
-                    assert(!lastUnloadedSegment.isLoaded);
+                    const previousUnloadedSegment = this._segments[segmentIndex - 1]!;
+                    assert(!previousUnloadedSegment.isLoaded);
 
                     const nextUnloadedSegment = this._segments[lastLoadedSegmentIndex + 1]!;
                     assert(!nextUnloadedSegment.isLoaded);
@@ -743,18 +743,18 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
                     return mergeWithExistingLoadedSegments(
                         segmentIndex - 1,
                         lastLoadedSegmentIndex + 1,
-                        lastUnloadedSegment,
+                        previousUnloadedSegment,
                         loadedSegmentsToMerge,
                         nextUnloadedSegment,
                     );
                 } else if (segmentIndex > 0) {
-                    const lastUnloadedSegment = this._segments[segmentIndex - 1]!;
-                    assert(!lastUnloadedSegment.isLoaded);
+                    const previousUnloadedSegment = this._segments[segmentIndex - 1]!;
+                    assert(!previousUnloadedSegment.isLoaded);
 
                     return mergeWithExistingLoadedSegments(
                         segmentIndex - 1,
                         lastLoadedSegmentIndex,
-                        lastUnloadedSegment,
+                        previousUnloadedSegment,
                         loadedSegmentsToMerge,
                         null,
                     );

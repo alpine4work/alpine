@@ -1,3 +1,4 @@
+import {MessageContentSchema} from "~/shared/content/message_content_schema";
 import {PostContentSchema} from "~/shared/content/post_content_schema";
 import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc";
@@ -16,4 +17,14 @@ export const createPost = defineRpc({
             createdTime: Schema.date,
         }),
     },
+});
+
+export const createPostComment = defineRpc({
+    name: "createPostComment",
+    input: {
+        postId: Schema.id<PostId>(),
+        parentCommentId: Schema.integer.nullable(),
+        content: MessageContentSchema,
+    },
+    output: {},
 });

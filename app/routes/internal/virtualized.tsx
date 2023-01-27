@@ -63,7 +63,7 @@ export default function VirtualizedScrollViewDesignPlaygroundPage() {
                         index => ({
                             minHeight: 30,
                             key: index,
-                            item: (
+                            node: (
                                 <Box
                                     display="flex"
                                     alignItems="center"

@@ -450,31 +450,33 @@ export function MessagingView<Message extends MessageInterface>({
                 index => {
                     const messageResult = state.list.getMessage(index);
 
-                    const lastMessageResult = index > 0 ? state.list.getMessage(index - 1) : null;
+                    const previousMessageResult =
+                        index > 0 ? state.list.getMessage(index - 1) : null;
                     const nextMessageResult =
                         index < state.list.getEstimatedMessageCount() - 1
                             ? state.list.getMessage(index + 1)
                             : null;
 
-                    const lastMessage = lastMessageResult?.isLoaded
-                        ? lastMessageResult.message
+                    const previousMessage = previousMessageResult?.isLoaded
+                        ? previousMessageResult.message
                         : null;
                     const nextMessage = nextMessageResult?.isLoaded
                         ? nextMessageResult.message
                         : null;
 
-                    const item = messageResult.isLoaded ? (
+                    const node = messageResult.isLoaded ? (
                         <MessageView
                             message={messageResult.message}
-                            lastMessage={lastMessage}
+                            previousMessage={previousMessage}
                             nextMessage={nextMessage}
                         />
                     ) : (
                         <MessageShimmer
                             randomSeed={shimmerRandomSeed}
                             index={index}
-                            lastMessage={lastMessage}
+                            previousMessage={previousMessage}
                             nextMessage={nextMessage}
+                            messages={state.list}
                         />
                     );
 
@@ -483,14 +485,14 @@ export function MessagingView<Message extends MessageInterface>({
                         key: messageResult.isLoaded
                             ? `MessageView:${messageResult.message.id}`
                             : `MessageShimmer:${index}`,
-                        item:
+                        node:
                             index === 0 ? (
                                 <>
                                     <Spacer space="3" />
-                                    {item}
+                                    {node}
                                 </>
                             ) : (
-                                item
+                                node
                             ),
                     };
                 },

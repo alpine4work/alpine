@@ -1,0 +1,158 @@
+import {useCallback} from "react";
+import {Box} from "~/client/design/box";
+import {Spacer} from "~/client/design/spacer";
+import {MessageShimmer} from "~/client/messaging/message_shimmer";
+import {MessageView, messageViewMinHeight} from "~/client/messaging/message_view";
+import {PaginatedPostList} from "~/client/posts/paginated_post_list";
+import {PostCommentInput} from "~/client/posts/post_comment_input";
+import {PostContentView, postContentViewMinHeight} from "~/client/posts/post_content_view";
+import {VirtualizedScrollView} from "~/client/virtualized/virtualized_scroll_view";
+import {parseRemLengthNumber, RemLength, Spacing, spacing} from "~/shared/design/spacing";
+import {exhaustive} from "~/shared/helpers/control/exhaustive";
+
+export function PostsView({list}: {list: PaginatedPostList}) {
+    const padding: Spacing = "4";
+
+    return (
+        <VirtualizedScrollView
+            itemCount={list.getItemCount()}
+            renderItem={useCallback(
+                index => {
+                    const item = list.getItem(index);
+                    switch (item.type) {
+                        case "PostContent": {
+                            let minHeight: RemLength = postContentViewMinHeight;
+
+                            let node = (
+                                <Box paddingX={padding}>
+                                    <Box
+                                        marginX="auto"
+                                        maxWidth="160"
+                                        backgroundColor="grey-0"
+                                        borderTopRadius="md"
+                                        boxShadow="elevation-5"
+                                    >
+                                        <PostContentView post={item.post} />
+                                    </Box>
+                                </Box>
+                            );
+
+                            if (index === 0) {
+                                minHeight = `${
+                                    parseRemLengthNumber(minHeight) +
+                                    parseRemLengthNumber(spacing[padding])
+                                }rem`;
+
+                                node = (
+                                    <>
+                                        <Spacer space={padding} />
+                                        {node}
+                                    </>
+                                );
+                            }
+
+                            return {
+                                key: `PostContent:${item.post.id}`,
+                                minHeight,
+                                node,
+                            };
+                        }
+                        case "LoadedPostComment":
+                        case "UnloadedPostComment": {
+                            const previousItem = index > 0 ? list.getItem(index - 1) : null;
+                            const nextItem =
+                                index < list.getItemCount() - 1 ? list.getItem(index + 1) : null;
+
+                            const previousComment =
+                                previousItem?.type === "LoadedPostComment"
+                                    ? previousItem.postComment
+                                    : null;
+                            const nextComment =
+                                nextItem?.type === "LoadedPostComment"
+                                    ? nextItem.postComment
+                                    : null;
+
+                            const node = (
+                                <Box paddingX={padding}>
+                                    <Box
+                                        marginX="auto"
+                                        maxWidth="160"
+                                        backgroundColor="grey-0"
+                                        boxShadow="elevation-5"
+                                        paddingX="2"
+                                    >
+                                        {item.type === "LoadedPostComment" ? (
+                                            <MessageView
+                                                message={item.postComment}
+                                                previousMessage={previousComment}
+                                                nextMessage={nextComment}
+                                            />
+                                        ) : (
+                                            <MessageShimmer
+                                                randomSeed={item.post.id}
+                                                index={item.postCommentIndex}
+                                                previousMessage={previousComment}
+                                                nextMessage={nextComment}
+                                                messages={item.postComments}
+                                            />
+                                        )}
+                                    </Box>
+                                </Box>
+                            );
+
+                            return {
+                                key:
+                                    item.type === "LoadedPostComment"
+                                        ? `LoadedPostComment:${item.post.id}:${item.postComment.id}`
+                                        : `UnloadedPostComment:${item.post.id}:${item.postCommentIndex}`,
+                                minHeight: messageViewMinHeight,
+                                node:
+                                    index === 0 ? (
+                                        <>
+                                            <Spacer space="3" />
+                                            {node}
+                                        </>
+                                    ) : (
+                                        node
+                                    ),
+                            };
+                        }
+                        case "PostCommentInput": {
+                            const height: Spacing = "16";
+                            return {
+                                key: `PostCommentInput:${item.post.id}`,
+                                minHeight: spacing[height],
+                                node: (
+                                    <Box paddingX={padding}>
+                                        <Box
+                                            marginX="auto"
+                                            maxWidth="160"
+                                            backgroundColor="grey-0"
+                                            borderBottomRadius="md"
+                                            boxShadow="elevation-5"
+                                            paddingX="5"
+                                        >
+                                            <Box
+                                                height={height}
+                                                display="flex"
+                                                alignItems="center"
+                                                borderTop="grey-5"
+                                            >
+                                                <Box flexGrow="1">
+                                                    <PostCommentInput post={item.post} />
+                                                </Box>
+                                            </Box>
+                                        </Box>
+                                    </Box>
+                                ),
+                            };
+                        }
+                        default:
+                            throw exhaustive(item);
+                    }
+                },
+                [list],
+            )}
+        />
+    );
+}
