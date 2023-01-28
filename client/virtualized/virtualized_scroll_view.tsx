@@ -1015,8 +1015,10 @@ export function adjustVirtualizedScrollViewRenderedRange(
     const renderedItemCount = range.endIndex - range.startIndex;
 
     const heightPerItemOutOfRange =
-        (range.bufferedLeadingHeight + range.bufferedTrailingHeight) /
-        (range.itemCount - renderedItemCount);
+        range.itemCount === renderedItemCount
+            ? 0
+            : (range.bufferedLeadingHeight + range.bufferedTrailingHeight) /
+              (range.itemCount - renderedItemCount);
 
     const heightDifference = (itemCount - range.itemCount) * heightPerItemOutOfRange;
 
@@ -1035,6 +1037,9 @@ export function adjustVirtualizedScrollViewRenderedRange(
     // the end of a scroll view but there are a lot of items at the top.
     // Proportionally we would put all the height at the top which is the wrong UX.
     if (range.startIndex < itemCount && range.endIndex < itemCount) {
+        // If we have no buffered height we have no denominator to add/remove height.
+        if (range.bufferedLeadingHeight + range.bufferedTrailingHeight === 0) return range;
+
         const newBufferedLeadingHeight = Math.max(
             0,
             range.bufferedLeadingHeight +
