@@ -26,6 +26,7 @@ import {
 } from "~/client/virtualized/virtualized_scroll_view_state";
 import {RemLength, convertRemLengthToPx, getRemPxFromScreenWidth} from "~/shared/design/spacing";
 import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_after_next_browser_paint";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
 import {safe} from "~/shared/helpers/string/safe_string";
@@ -239,6 +240,7 @@ function VirtualizedScrollView(
     const [originalState, setState] = useState<{
         state: VirtualizedScrollViewState;
         shouldUpdateRenderedRange: boolean;
+        isJumpScrolling: boolean;
     }>(() => {
         if (pinTo === "top") {
             return {
@@ -249,6 +251,7 @@ function VirtualizedScrollView(
                     getItem: getItemWithoutRender,
                 }),
                 shouldUpdateRenderedRange: false,
+                isJumpScrolling: false,
             };
         } else {
             return {
@@ -259,6 +262,7 @@ function VirtualizedScrollView(
                     getItem: getItemWithoutRender,
                 }),
                 shouldUpdateRenderedRange: false,
+                isJumpScrolling: false,
             };
         }
     });
@@ -361,17 +365,19 @@ function VirtualizedScrollView(
                                 elementRef?.cleanup();
 
                                 let lastHeight = element.offsetHeight;
-                                setState(({state}) => ({
+                                setState(({state, isJumpScrolling}) => ({
                                     state: state.setItemHeight(item.key, lastHeight),
                                     shouldUpdateRenderedRange: true,
+                                    isJumpScrolling,
                                 }));
 
                                 const handleResize = (entry: ResizeObserverEntry) => {
                                     const height = entry.contentRect.height;
                                     if (height !== lastHeight) {
-                                        setState(({state}) => ({
+                                        setState(({state, isJumpScrolling}) => ({
                                             state: state.setItemHeight(item.key, lastHeight),
                                             shouldUpdateRenderedRange: true,
+                                            isJumpScrolling,
                                         }));
                                         lastHeight = height;
                                     }
@@ -399,6 +405,8 @@ function VirtualizedScrollView(
     state = newStateAfterRender;
 
     const hasHandledScrollThisAnimationFrameRef = useRef(false);
+    const lastScrollTopRef = useRef<number | null>(null);
+    const jumpScrollDebounceTimerRef = useRef<Timeout | null>(null);
 
     const handleScroll = () => {
         // Only handle scroll events once per animation frame.
@@ -408,16 +416,53 @@ function VirtualizedScrollView(
             hasHandledScrollThisAnimationFrameRef.current = false;
         });
 
-        const {scrollTop} = assertExists(scrollRef.current);
+        const {scrollTop, clientHeight} = assertExists(scrollRef.current);
 
-        setState(({state}) => ({
-            state: state.updateRenderedRange({
-                scrollOffset: scrollTop,
-                itemCount,
-                getItem: getItemWithoutRender,
-            }),
-            shouldUpdateRenderedRange: false,
-        }));
+        // If the user starts scrolling really fast we enter a jump scroll state. We
+        // will not update the rendered range until after the jump scroll has finished
+        // to maintain high performance as the user jumps through the scrollable view.
+        const isJumpScrollStart =
+            lastScrollTopRef.current !== null &&
+            Math.abs(lastScrollTopRef.current - scrollTop) > clientHeight;
+
+        if (isJumpScrollStart || jumpScrollDebounceTimerRef.current !== null) {
+            jumpScrollDebounceTimerRef.current?.clear();
+            jumpScrollDebounceTimerRef.current = createTimeout(() => {
+                const {scrollTop} = assertExists(scrollRef.current);
+
+                setState(previousState => {
+                    if (!previousState.isJumpScrolling) return previousState;
+                    return {
+                        state: previousState.state.updateRenderedRange({
+                            scrollOffset: scrollTop,
+                            itemCount,
+                            getItem: getItemWithoutRender,
+                        }),
+                        shouldUpdateRenderedRange: false,
+                        isJumpScrolling: false,
+                    };
+                });
+            }, perceivedAsInstantLimitMs);
+        }
+
+        lastScrollTopRef.current = scrollTop;
+
+        setState(previousState => {
+            if (previousState.isJumpScrolling || isJumpScrollStart) {
+                if (previousState.isJumpScrolling) return previousState;
+                return {...previousState, isJumpScrolling: true};
+            } else {
+                return {
+                    state: previousState.state.updateRenderedRange({
+                        scrollOffset: scrollTop,
+                        itemCount,
+                        getItem: getItemWithoutRender,
+                    }),
+                    shouldUpdateRenderedRange: false,
+                    isJumpScrolling: false,
+                };
+            }
+        });
     };
 
     // Make sure any state changes in our render function are reflected back in
@@ -425,23 +470,33 @@ function VirtualizedScrollView(
     // height changed or maybe the list was truncated and visible items were
     // deleted.
     if (state !== originalState.state) {
-        setState({state, shouldUpdateRenderedRange: true});
+        setState({
+            state,
+            shouldUpdateRenderedRange: true,
+            isJumpScrolling: originalState.isJumpScrolling,
+        });
     }
 
     // If there were any state changes in our render function then re-compute the
     // rendered range.
     useLayoutEffectWithoutServerSideWarning(() => {
-        if (originalState.shouldUpdateRenderedRange) {
+        if (originalState.shouldUpdateRenderedRange && !originalState.isJumpScrolling) {
             const {scrollTop} = assertExists(scrollRef.current);
 
-            setState(({state}) => ({
-                state: state.updateRenderedRange({
-                    scrollOffset: scrollTop,
-                    itemCount,
-                    getItem: getItemWithoutRender,
-                }),
-                shouldUpdateRenderedRange: false,
-            }));
+            setState(previousState => {
+                if (previousState.isJumpScrolling || !previousState.shouldUpdateRenderedRange)
+                    return previousState;
+
+                return {
+                    state: previousState.state.updateRenderedRange({
+                        scrollOffset: scrollTop,
+                        itemCount,
+                        getItem: getItemWithoutRender,
+                    }),
+                    shouldUpdateRenderedRange: false,
+                    isJumpScrolling: false,
+                };
+            });
         }
     }, [state, originalState, itemCount, getItemWithoutRender]);
 
