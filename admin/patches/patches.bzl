@@ -8,6 +8,7 @@ NPM_PATCHES = {
     "@remix-run/dev@1.7.5": ["//admin/patches:@remix-run__dev@1.7.5.patch"],
     "@remix-run/react@1.7.5": ["//admin/patches:@remix-run__react@1.7.5.patch"],
     "@remix-run/server-runtime@1.7.5": ["//admin/patches:@remix-run__server-runtime@1.7.5.patch"],
+    "@types/functional-red-black-tree@1.0.1": ["//admin/patches:@types__functional-red-black-tree@1.0.1.patch"],
     "@types/react@18.0.15": ["//admin/patches:@types__react@18.0.15.patch"],
     "@vanilla-extract/integration@5.0.1": ["//admin/patches:@vanilla-extract__integration@5.0.1.patch"],
     "@vanilla-extract/sprinkles@1.5.0": ["//admin/patches:@vanilla-extract__sprinkles@1.5.0.patch"],

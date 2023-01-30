@@ -3,7 +3,11 @@ import {useRemPx} from "~/client/design/helpers/use_rem_px";
 import {Spacer} from "~/client/design/spacer";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {MessageShimmer} from "~/client/messaging/message_shimmer";
-import {MessageView, messageViewMinHeight} from "~/client/messaging/message_view";
+import {
+    MessageView,
+    bufferedMessageViewHeight,
+    messageViewMinHeight,
+} from "~/client/messaging/message_view";
 import {
     PaginatedMessageList,
     maxMessageId,
@@ -445,6 +449,7 @@ export function MessagingView<Message extends MessageInterface>({
         <VirtualizedScrollView
             ref={viewRef}
             pinTo={state.pinTo}
+            bufferedItemHeight={bufferedMessageViewHeight}
             itemCount={state.list.getEstimatedMessageCount()}
             renderItem={useCallback(
                 index => {
@@ -498,7 +503,6 @@ export function MessagingView<Message extends MessageInterface>({
                 },
                 [state.list, shimmerRandomSeed],
             )}
-            onRenderedRangeChange={tryLoadingMore}
         />
     );
 }

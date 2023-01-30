@@ -9,6 +9,14 @@ import {truncateClassName} from "~/shared/styles/styles";
 
 export const messageViewMinHeight: RemLength = "2.625rem";
 
+/**
+ * The buffered height we use for virtualized message views.
+ *
+ * Calculated by rendering 10,000 `<MessageShimmer>`s and get the height
+ * divided by the number of messages. Approximately this value.
+ */
+export const bufferedMessageViewHeight: RemLength = "4rem";
+
 const mergeMessageMinuteLimit = 5;
 
 export function MessageView({

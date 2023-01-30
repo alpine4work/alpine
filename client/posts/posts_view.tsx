@@ -3,7 +3,11 @@ import {Box} from "~/client/design/box";
 import {Spacer} from "~/client/design/spacer";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {MessageShimmer} from "~/client/messaging/message_shimmer";
-import {MessageView, messageViewMinHeight} from "~/client/messaging/message_view";
+import {
+    MessageView,
+    bufferedMessageViewHeight,
+    messageViewMinHeight,
+} from "~/client/messaging/message_view";
 import {PaginatedPostList} from "~/client/posts/paginated_post_list";
 import {PostCommentInput} from "~/client/posts/post_comment_input";
 import {PostContentView, postContentViewMinHeight} from "~/client/posts/post_content_view";
@@ -24,6 +28,9 @@ export function PostsView({
 
     return (
         <VirtualizedScrollView
+            // TODO(calebmer): We should use a bigger height for this virtualized list
+            // that's closer to the size of a post. Probably the minimum height of a post?
+            bufferedItemHeight={bufferedMessageViewHeight}
             itemCount={list.getItemCount()}
             renderItem={useCallback(
                 index => {

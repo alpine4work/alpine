@@ -117,8 +117,6 @@ EOF
                 name = "{}_src".format(test_name),
                 srcs = [test_src],
                 js_outs = [test_src_js],
-                map_outs = ["{}.map".format(test_src_js)],
-                source_maps = "true",
             )
 
             jest_bin.jest_test(
@@ -156,13 +154,15 @@ EOF
                                           "//:jest_config_file",
                                           "//admin/jest:jest_config_files",
                                           "{}_src".format(test_name),
-                                          name,
+                                          "{}_transpile".format(name),
                                       ] +
                                       # Will include a snapshot file if it exists.
                                       native.glob(["{}.snap".format(test_src_js[:len(test_src_js) - 3])])),
             )
 
 def swc_transpiler(**kwargs):
+    kwargs["map_outs"] = ["{}.map".format(js_out) for js_out in kwargs["js_outs"]]
+    kwargs["source_maps"] = "true"
     return _swc_transpiler(
         swcrc = "//admin/typescript:typescript_swc_config",
         **kwargs

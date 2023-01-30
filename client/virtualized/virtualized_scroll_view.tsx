@@ -5,7 +5,6 @@ import {
     Ref,
     RefObject,
     forwardRef,
-    useEffect,
     useImperativeHandle,
     useMemo,
     useRef,
@@ -14,7 +13,6 @@ import {
 import {useRemPx} from "~/client/design/helpers/use_rem_px";
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants";
 import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render";
-import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {
@@ -22,22 +20,17 @@ import {
     removeResizeListenerForElement,
 } from "~/client/helpers/use_resize_observer";
 import {useClientInfo} from "~/client/remix/client_info_context";
+import {
+    VirtualizedScrollViewState,
+    initialVirtualizedScrollViewRenderFillScreenCount,
+} from "~/client/virtualized/virtualized_scroll_view_state";
 import {RemLength, convertRemLengthToPx, getRemPxFromScreenWidth} from "~/shared/design/spacing";
 import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_after_next_browser_paint";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
-import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
 import {safe} from "~/shared/helpers/string/safe_string";
 import {ClientInfo} from "~/shared/remix/client_info";
 import {sprinkles} from "~/shared/styles/styles";
-
-/**
- * How many screens of content to fill on the first virtualized scroll
- * view render?
- */
-const initialVirtualizedScrollViewRenderFillScreenCount = 2;
 
 /**
  * How many items will the virtualized scroll view initially render assuming
@@ -88,73 +81,11 @@ export type VirtualizedScrollViewItem = {
     readonly node: ReactNode;
 };
 
-/**
- * The range of items our scroll view is rendering. If the list is empty then
- * use null.
- */
-export type VirtualizedScrollViewRenderedRange = {
-    /**
-     * The number of items when we set this rendered range. If the component
-     * re-renders with more or fewer items then we need to adjust our rendered
-     * range. We use this property to tell when we need to adjust and by how much.
-     */
-    readonly itemCount: number;
-    /**
-     * The index of the first item we are rendering. Inclusive of this index.
-     */
-    readonly startIndex: number;
-    /**
-     * The index of the last item we are rendering. Inclusive of this index.
-     */
-    readonly endIndex: number;
-    /**
-     * How many pixels of height have we buffered above the items we are rendering?
-     *
-     * This is an estimate. We never scan our entire list of items so this ends up
-     * being an extrapolation. We freeze the height in our rendered range state and
-     * update it incrementally so it stays stable (instead of keeping track of an
-     * "average item height" and computing buffered height from that which means
-     * the height could change dramatically).
-     *
-     * This should converge towards the right height as users scroll items into
-     * view.
-     */
-    readonly bufferedLeadingHeight: number;
-    /**
-     * How many pixels of height have we buffered below the items we are rendering?
-     *
-     * This is an estimate. We never scan our entire list of items so this ends up
-     * being an extrapolation. We freeze the height in our rendered range state and
-     * update it incrementally so it stays stable (instead of keeping track of an
-     * "average item height" and computing buffered height from that which means
-     * the height could change dramatically).
-     *
-     * This should converge towards the right height as users scroll items into
-     * view.
-     */
-    readonly bufferedTrailingHeight: number;
-    /**
-     * The value of 1rem in pixels when this rendered range was created. If the rem
-     * scale changes we will resize our buffered leading and trailing height with
-     * the rem scale. We assume all heights resize with the rem scale.
-     */
-    readonly remPx: number;
-};
-
 export type VirtualizedScrollViewRef = {
     /**
      * Get the height of the scroll view.
      */
     getHeight(): number;
-    /**
-     * Return the current rendered range. This is the same value we pass into
-     * `onRenderedRangeChange`.
-     */
-    getRenderedRange(): {startIndex: number; endIndex: number} | null;
-    /**
-     * Scrolls to the item with the specified index in the scroll view.
-     */
-    scrollToItem(index: number): void;
 };
 
 const VirtualizedScrollViewForwardRef = forwardRef(VirtualizedScrollView);
@@ -174,43 +105,35 @@ export {VirtualizedScrollViewForwardRef as VirtualizedScrollView};
  *
  * - Dynamic item height: You don't need to statically know what the height of
  *   your item is. You provide a minimum height for every item and the list
- *   will measure the actual item heights.
+ *   will measure the actual item heights automatically.
  *
  * - Resizable item height: The list watches for item resizes and will rerender
- *   if any item's height changes.
+ *   if any item's height changes. Correctly re-positioning items that come after.
  *
  * - Server-side rendering: Can be initially rendered on the server then
  *   hydrated on the client before knowing anything about client screen height.
+ *
+ * - Pin to bottom scrolling: By default when content is inserted into a scrollable
+ *   element, the browser keeps the top edge of the scroll window constant. However
+ *   for products where the user starts at the bottom of the scroll element and
+ *   scrolls up (like chat) it is sometimes desirable to keep the bottom edge of
+ *   the scroll window constant instead. We provided this configuration with the
+ *   `pinTo` prop.
  *
  * There are many virtualized list implementations like [`react-window`][1],
  * [`react-virtualized`][2], and the [React Native Web][3] virtualized lists.
  * However supporting the above feature set is uncommon. These libraries
  * typically need to know the height of items ahead-of-time and if an item
- * height changes it can cause potentially expensive layout changes.
+ * height changes it can cause potentially expensive layout changes as all
+ * following items need to be measured again.
  *
- * This component uses non-deterministic statistical approaches to provide a
- * flexible interface for end users. We recognize that it is not important for
- * the "buffered" height of a virtualized scroll view to be accurate. It's also
- * not important that if you randomly scroll to the middle of a scroll view you
- * get the exact item in that position. An estimated item is usually just fine
- * if you're not at the top or bottom of a list.
+ * This component is backed by immutable data structures which let us make
+ * efficient incremental updates to item sizes.
  *
- * To estimate the total scroll view height, instead of asking developers to
- * provide an error prone number we look at previously rendered items and
- * extrapolate based on the item count. When you scroll to a new position we
- * look at the percentage of the scroll view you've scrolled through and give
- * you an item at that percentage of the list (regardless of the heights of
- * things above and below it).
- *
- * We require the developer to provide a minimum item height we can use before
- * measuring real item heights. We use minimum item heights to determine "have
- * we rendered enough items to fill the screen". Because we are using minimums
- * this means we will usually over-render! This is better than under-rendering
- * and showing the user empty space.
- *
- * The statistical heuristics will probably need to be refined over time as we
- * get experience with this component, but the underlying idea I think is
- * cogent: You trade accuracy for flexibility.
+ * This component is also well integrated with the rest of our React component
+ * system. It leverages `ClientInfo` during server-side rendering to determine
+ * how much initial content to render, for instance. It's equipped for our
+ * product.
  *
  * [1]: https://github.com/bvaughn/react-window
  * [2]: https://github.com/bvaughn/react-virtualized
@@ -220,7 +143,7 @@ function VirtualizedScrollView(
     {
         itemCount,
         renderItem: _renderItem,
-        onRenderedRangeChange: _onRenderedRangeChange,
+        bufferedItemHeight: _bufferedItemHeight,
         pinTo = "top",
     }: {
         /**
@@ -243,11 +166,12 @@ function VirtualizedScrollView(
         renderItem: Memo<(index: number) => VirtualizedScrollViewItem>;
 
         /**
-         * Called on initial mount and again whenever the range of rendered items
-         * changes. If no items are rendered then this will be called with `null` for
-         * the range object. The range is inclusive of both the start and end index.
+         * The height we use for items we have never rendered. We'll use this to
+         * calculate the scroll view content's height without rendering every item.
+         * Once items are scrolled into frame we can use their proper height instead of
+         * the buffered height.
          */
-        onRenderedRangeChange?: (range: {startIndex: number; endIndex: number} | null) => void;
+        bufferedItemHeight: number | RemLength;
 
         /**
          * When the size of our scroll view's content changes, should we pin the
@@ -275,156 +199,74 @@ function VirtualizedScrollView(
     const scrollRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
 
-    const {scriptElement: pinToScriptElement} = useScrollViewPinTo(scrollRef, contentRef, pinTo);
-
-    // Cache the `getItem` function as long as the function reference doesn't
-    // change.
-    const getItem = useMemo(() => {
-        const itemByIndex = new Map<number, VirtualizedScrollViewItem>();
-
-        return (index: number): VirtualizedScrollViewItem =>
-            getOrSetDefaultMapValue(itemByIndex, index, _renderItem);
-    }, [_renderItem]);
-
-    const [possiblyOutOfBoundsRenderedRange, setRenderedRange] = useState(
-        // This function determines our initial rendered range. It also needs to run
-        // during server-side rendering.
-        (): VirtualizedScrollViewRenderedRange | null => {
-            if (itemCount === 0) return null;
-
-            // We initially render enough items to fill the user's screen twice (so they
-            // have space to scroll). Some of the screen is probably covered so this is
-            // more than necessary but we'll never show blank content.
-            const maxInitialRenderedHeight =
-                screenHeight * initialVirtualizedScrollViewRenderFillScreenCount;
-            let renderedItemCount = 0;
-            let initialRenderedHeight = 0;
-
-            // If we are pinned to the top of the scroll view, render items at the top. If
-            // we are pinned to the bottom of the scroll view, render items at the bottom.
-            if (pinTo === "top") {
-                for (let index = 0; index < itemCount; index++) {
-                    const item = getItem(index);
-                    renderedItemCount++;
-                    initialRenderedHeight +=
-                        typeof item.minHeight === "string"
-                            ? convertRemLengthToPx(item.minHeight, remPx)
-                            : item.minHeight;
-
-                    if (initialRenderedHeight >= maxInitialRenderedHeight) {
-                        return {
-                            itemCount,
-                            startIndex: 0,
-                            endIndex: index,
-                            bufferedLeadingHeight: 0,
-                            // Estimate the height below our range by extrapolating using the rendered
-                            // height so far.
-                            bufferedTrailingHeight:
-                                (itemCount - renderedItemCount) *
-                                (initialRenderedHeight / renderedItemCount),
-                            remPx,
-                        };
-                    }
-                }
-            } else {
-                for (let index = itemCount - 1; index >= 0; index--) {
-                    const item = getItem(index);
-                    renderedItemCount++;
-                    initialRenderedHeight +=
-                        typeof item.minHeight === "string"
-                            ? convertRemLengthToPx(item.minHeight, remPx)
-                            : item.minHeight;
-
-                    if (initialRenderedHeight >= maxInitialRenderedHeight) {
-                        return {
-                            itemCount,
-                            startIndex: index,
-                            endIndex: itemCount - 1,
-                            // Estimate the height above our range by extrapolating using the rendered
-                            // height so far.
-                            bufferedLeadingHeight:
-                                (itemCount - renderedItemCount) *
-                                (initialRenderedHeight / renderedItemCount),
-                            bufferedTrailingHeight: 0,
-                            remPx,
-                        };
-                    }
-                }
-            }
-
-            return {
-                itemCount,
-                startIndex: 0,
-                endIndex: itemCount - 1,
-                bufferedLeadingHeight: 0,
-                bufferedTrailingHeight: 0,
-                remPx,
-            };
-        },
-    );
-
-    // If item count changed such that our range in state is now out of bounds,
-    // adjust our range so that it's back in bounds.
-    const renderedRange = adjustVirtualizedScrollViewRenderedRange(
-        possiblyOutOfBoundsRenderedRange,
-        itemCount,
-        remPx,
-    );
-
-    // Effect to report the rendered range back to our callback.
-    const onRenderedRangeChange = useEvent(_onRenderedRangeChange);
-    const renderedRangeRef = useRef(
-        renderedRange
-            ? {startIndex: renderedRange.startIndex, endIndex: renderedRange.endIndex}
-            : null,
-    );
-    useEffect(() => {
-        // Make sure we only take effect dependencies on the start and end index. We
-        // don't care about other properties of the rendered range changing.
-        const startIndex = renderedRange?.startIndex;
-        const endIndex = renderedRange?.endIndex;
-
-        let range;
-        if (typeof startIndex !== "number") {
-            assert(typeof endIndex !== "number");
-            range = null;
-        } else {
-            assert(typeof endIndex === "number");
-            range =
-                // Reuse the ref object if it already exists and is the same thing. May help
-                // referential equality checking down the line.
-                renderedRangeRef.current?.startIndex === startIndex &&
-                renderedRangeRef.current.endIndex === endIndex
-                    ? renderedRangeRef.current
-                    : {startIndex, endIndex};
-        }
-
-        renderedRangeRef.current = range;
-        onRenderedRangeChange(range);
-    }, [onRenderedRangeChange, renderedRange?.endIndex, renderedRange?.startIndex]);
-
     useImperativeHandle(
         ref,
-        () => ({
+        (): VirtualizedScrollViewRef => ({
             getHeight: () => assertExists(scrollRef.current).clientHeight,
-            getRenderedRange: () => renderedRangeRef.current,
-            scrollToItem: () => {
-                // TODO(calebmer): Implement this. I am feeling lazy and tired of math.
-                // Hopefully future Caleb will be capable of maths.
-            },
         }),
         [],
     );
 
-    const [itemHeightByKey, setItemHeightByKey] = useState(ImmutableMap.empty<Key, number>());
+    const {scriptElement: pinToScriptElement} = useScrollViewPinTo(scrollRef, contentRef, pinTo);
 
-    const getItemHeight = (item: VirtualizedScrollViewItem) => {
-        const itemHeight = itemHeightByKey.get(item.key);
-        if (itemHeight !== undefined) return itemHeight;
-        return typeof item.minHeight === "string"
-            ? convertRemLengthToPx(item.minHeight, remPx)
-            : item.minHeight;
-    };
+    // Cache the `getItem` function as long as the function reference doesn't
+    // change.
+    const getItemWithoutRender = useMemo(() => {
+        const itemByIndex = new Map<number, {key: Key; minHeight: number; node: ReactNode}>();
+
+        return (index: number): {key: Key; minHeight: number; node: ReactNode} =>
+            getOrSetDefaultMapValue(itemByIndex, index, () => {
+                const item = _renderItem(index);
+                return {
+                    key: item.key,
+                    minHeight:
+                        typeof item.minHeight === "string"
+                            ? convertRemLengthToPx(item.minHeight, remPx)
+                            : item.minHeight,
+                    node: item.node,
+                };
+            });
+    }, [_renderItem, remPx]);
+
+    const bufferedItemHeight = useMemo(
+        () =>
+            typeof _bufferedItemHeight === "string"
+                ? convertRemLengthToPx(_bufferedItemHeight, remPx)
+                : _bufferedItemHeight,
+        [_bufferedItemHeight, remPx],
+    );
+
+    const [originalState, setState] = useState<{
+        state: VirtualizedScrollViewState;
+        shouldUpdateRenderedRange: boolean;
+    }>(() => {
+        if (pinTo === "top") {
+            return {
+                state: VirtualizedScrollViewState.initializeFromTop({
+                    screenHeight,
+                    bufferedItemHeight,
+                    itemCount,
+                    getItem: getItemWithoutRender,
+                }),
+                shouldUpdateRenderedRange: false,
+            };
+        } else {
+            return {
+                state: VirtualizedScrollViewState.initializeFromBottom({
+                    screenHeight,
+                    bufferedItemHeight,
+                    itemCount,
+                    getItem: getItemWithoutRender,
+                }),
+                shouldUpdateRenderedRange: false,
+            };
+        }
+    });
+    let {state} = originalState;
+
+    // Update the buffered item height in our state based on our props if
+    // necessary.
+    state = state.setBufferedItemHeight(bufferedItemHeight);
 
     const itemsRef = useRef<{
         hasScheduledCleanup: boolean;
@@ -448,503 +290,160 @@ function VirtualizedScrollView(
     // while maintaining the position of items lower in the list.
     const shouldRenderWithRelativePositioning = useIsInitialAppRender();
 
-    const children: Array<ReactNode> = [];
-    let contentHeight = 0;
-    if (renderedRange) {
-        let renderedHeight = 0;
+    const {
+        state: newStateAfterRender,
+        children,
+        contentHeight,
+        bufferedHeightBeforeChildren,
+    } = state.render({
+        itemCount,
+        getItem: (
+            index: number,
+        ): {key: Key; minHeight: number; render: (offset: number) => ReactNode} => {
+            const item = getItemWithoutRender(index);
+            return {
+                key: item.key,
+                minHeight: item.minHeight,
+                render: offset => (
+                    <div
+                        key={item.key}
+                        style={{
+                            minHeight: item.minHeight,
+                            ...(shouldRenderWithRelativePositioning
+                                ? {position: "relative"}
+                                : {
+                                      position: "absolute",
+                                      top: offset,
+                                      left: 0,
+                                      right: 0,
+                                  }),
+                        }}
+                        // Listen to the element's height with a resize observer so we can correctly
+                        // position items. The resize observer will notify us whenever the height
+                        // changes.
+                        ref={element => {
+                            // To make sure `itemsRef` doesn't grow forever, we occasionally clean it up.
+                            // We need to wait for all `ref`s to fire in this render to know which refs are
+                            // actually unused now.
+                            if (!itemsRef.current.hasScheduledCleanup) {
+                                itemsRef.current.hasScheduledCleanup = true;
+                                itemsRef.current.generation++;
 
-        for (let index = renderedRange.startIndex; index <= renderedRange.endIndex; index++) {
-            const item = getItem(index);
-            const itemTop = renderedRange.bufferedLeadingHeight + renderedHeight;
-            const itemHeight = getItemHeight(item);
+                                scheduleAfterNextBrowserPaint(() => {
+                                    itemsRef.current.hasScheduledCleanup = false;
 
-            renderedHeight += itemHeight;
+                                    for (const [key, elementRef] of itemsRef.current
+                                        .elementRefByKey) {
+                                        // If this ref is a part of the current generation it will not be
+                                        // cleaned up.
+                                        if (elementRef.generation === itemsRef.current.generation)
+                                            continue;
 
-            children.push(
-                <div
-                    key={item.key}
-                    style={{
-                        minHeight: item.minHeight,
-                        ...(shouldRenderWithRelativePositioning
-                            ? {position: "relative"}
-                            : {
-                                  position: "absolute",
-                                  top: itemTop,
-                                  left: 0,
-                                  right: 0,
-                              }),
-                    }}
-                    // Listen to the element's height with a resize observer so we can correctly
-                    // position items. The resize observer will notify us whenever the height
-                    // changes.
-                    ref={element => {
-                        // To make sure `itemsRef` doesn't grow forever, we occasionally clean it up.
-                        // We need to wait for all `ref`s to fire in this render to know which refs are
-                        // actually unused now.
-                        if (!itemsRef.current.hasScheduledCleanup) {
-                            itemsRef.current.hasScheduledCleanup = true;
-                            itemsRef.current.generation++;
+                                        elementRef.cleanup();
+                                        itemsRef.current.elementRefByKey.delete(key);
+                                    }
+                                });
+                            }
 
-                            scheduleAfterNextBrowserPaint(() => {
-                                itemsRef.current.hasScheduledCleanup = false;
+                            // Ref cleanup is handled in batch above.
+                            if (!element) return;
 
-                                for (const [key, elementRef] of itemsRef.current.elementRefByKey) {
-                                    // If this ref is a part of the current generation it will not be
-                                    // cleaned up.
-                                    if (elementRef.generation === itemsRef.current.generation)
-                                        continue;
+                            const elementRef = itemsRef.current.elementRefByKey.get(item.key);
 
-                                    elementRef.cleanup();
-                                    itemsRef.current.elementRefByKey.delete(key);
-                                }
-                            });
-                        }
+                            // If the element hasn't change for this item key, update the ref to the
+                            // current generation so it doesn't get cleaned up.
+                            if (elementRef && elementRef.element === element) {
+                                elementRef.generation = itemsRef.current.generation;
+                            }
+                            // Otherwise, cleanup the old ref (if it exists) and observe the height of the
+                            // new element.
+                            else {
+                                elementRef?.cleanup();
 
-                        // Ref cleanup is handled in batch above.
-                        if (!element) return;
+                                let lastHeight = element.offsetHeight;
+                                setState(({state}) => ({
+                                    state: state.setItemHeight(item.key, lastHeight),
+                                    shouldUpdateRenderedRange: true,
+                                }));
 
-                        const elementRef = itemsRef.current.elementRefByKey.get(item.key);
+                                const handleResize = (entry: ResizeObserverEntry) => {
+                                    const height = entry.contentRect.height;
+                                    if (height !== lastHeight) {
+                                        setState(({state}) => ({
+                                            state: state.setItemHeight(item.key, lastHeight),
+                                            shouldUpdateRenderedRange: true,
+                                        }));
+                                        lastHeight = height;
+                                    }
+                                };
 
-                        // If the element hasn't change for this item key, update the ref to the
-                        // current generation so it doesn't get cleaned up.
-                        if (elementRef && elementRef.element === element) {
-                            elementRef.generation = itemsRef.current.generation;
-                        }
-                        // Otherwise, cleanup the old ref (if it exists) and observe the height of the
-                        // new element.
-                        else {
-                            elementRef?.cleanup();
+                                addResizeListenerForElement(element, handleResize);
 
-                            let lastHeight = element.offsetHeight;
-                            setItemHeightByKey(itemHeightByKey =>
-                                itemHeightByKey.set(item.key, lastHeight),
-                            );
-
-                            const handleResize = (entry: ResizeObserverEntry) => {
-                                const height = entry.contentRect.height;
-                                if (height !== lastHeight) {
-                                    setItemHeightByKey(itemHeightByKey =>
-                                        itemHeightByKey.set(item.key, height),
-                                    );
-                                    lastHeight = height;
-                                }
-                            };
-
-                            addResizeListenerForElement(element, handleResize);
-
-                            itemsRef.current.elementRefByKey.set(item.key, {
-                                generation: itemsRef.current.generation,
-                                element,
-                                cleanup: () => {
-                                    removeResizeListenerForElement(element, handleResize);
-                                },
-                            });
-                        }
-                    }}
-                >
-                    {item.node}
-                </div>,
-            );
-        }
-
-        contentHeight =
-            renderedRange.bufferedLeadingHeight +
-            renderedHeight +
-            renderedRange.bufferedTrailingHeight;
-    }
-
-    const scheduledUpdateRenderedRangeRef = useRef(false);
-    const jumpScrollDebounceTimeoutRef = useRef<Timeout | null>(null);
-
-    const updateRenderedRange = useEvent((origin: "scroll" | "props") => {
-        // Jump scrolls are handled on a debounce. Whenever the scroll state changes
-        // cancel a scheduled jump scroll.
-        jumpScrollDebounceTimeoutRef.current?.clear();
-        jumpScrollDebounceTimeoutRef.current = null;
-
-        if (scheduledUpdateRenderedRangeRef.current) return;
-        scheduledUpdateRenderedRangeRef.current = true;
-
-        // Throttle our scroll handling to once every animation frame in case the
-        // scroll event fires multiple times in an animation frame.
-        requestAnimationFrame(() => {
-            scheduledUpdateRenderedRangeRef.current = false;
-            actuallyUpdateRenderedRange();
-        });
-
-        const actuallyUpdateRenderedRange = () => {
-            if (!renderedRange) return;
-
-            const {scrollTop, clientHeight, scrollHeight} = assertExists(scrollRef.current);
-
-            // The virtualized window is the range we expect to be filled with content. The
-            // virtualized window changes on every scroll.
-            const virtualizedWindowTop = Math.max(0, scrollTop - clientHeight / 2);
-            const virtualizedWindowBottom = Math.min(
-                scrollHeight,
-                scrollTop + clientHeight + clientHeight / 2,
-            );
-
-            // The rendered range is the range we are currently filling with content. We
-            // update the rendered range if we detect our rendered range does not fully
-            // cover the virtualized window.
-            const renderedRangeTop = renderedRange.bufferedLeadingHeight;
-            const renderedRangeHeight =
-                scrollHeight -
-                renderedRange.bufferedLeadingHeight -
-                renderedRange.bufferedTrailingHeight;
-            const renderedRangeBottom = renderedRangeTop + renderedRangeHeight;
-
-            // Is our rendered range fully covering the virtualized window?
-            const isRenderedRangeCoveringVirtualizedWindow =
-                renderedRangeTop <= virtualizedWindowTop &&
-                renderedRangeBottom >= virtualizedWindowBottom;
-
-            // Is our rendered range partially intersecting with the virtualized window?
-            //
-            // If this is true but `isRenderedRangeCoveringVirtualizedWindow` is false then
-            // we're covering some of the virtualized window but not all of it. We need to
-            // update our rendered range to cover the entire virtualized window.
-            const isRenderedRangeIntersectingVirtualizedWindow = areRangesOverlapping(
-                renderedRangeTop,
-                renderedRangeBottom,
-                virtualizedWindowTop,
-                virtualizedWindowBottom,
-            );
-
-            // Our rendered range covers everything we want to render. Don't bother
-            // updating it.
-            if (isRenderedRangeCoveringVirtualizedWindow) return;
-
-            let newStartIndex: number;
-            let newEndIndex: number;
-            let newBufferedLeadingHeight: number;
-            let newBufferedTrailingHeight: number;
-
-            const actuallySetRenderedRange = () => {
-                const correctBufferHeightItemLimit = 10;
-
-                let minBufferedLeadingHeight = 0;
-                for (
-                    let index = 0;
-                    index < Math.min(newStartIndex, correctBufferHeightItemLimit);
-                    index++
-                ) {
-                    const item = getItem(index);
-                    const itemHeight = getItemHeight(item);
-                    minBufferedLeadingHeight += itemHeight;
-                }
-
-                let minBufferedTrailingHeight = 0;
-                for (
-                    let index = renderedRange.itemCount - 1;
-                    index >
-                    Math.max(
-                        newEndIndex,
-                        renderedRange.itemCount - 1 - correctBufferHeightItemLimit,
-                    );
-                    index--
-                ) {
-                    const item = getItem(index);
-                    const itemHeight = getItemHeight(item);
-                    minBufferedTrailingHeight += itemHeight;
-                }
-
-                setRenderedRange({
-                    itemCount: renderedRange.itemCount,
-                    startIndex: newStartIndex,
-                    endIndex: newEndIndex,
-                    bufferedLeadingHeight:
-                        // Safety mechanism: If we reach the start of the list, make sure leading height
-                        // is zero. It should approach zero naturally but just in case.
-                        newStartIndex === 0
-                            ? 0
-                            : // Safety mechanism: Make sure we always have at least 10 items worth of
-                              // leading height. We use statistical mechanisms to compute buffered height
-                              // and it's possible those mechanisms will under count at times. 10 items of
-                              // height is cheap to compute.
-                              Math.max(minBufferedLeadingHeight, newBufferedLeadingHeight),
-                    bufferedTrailingHeight:
-                        // Safety mechanism: If we reach the end of the list, make sure trailing height
-                        // is zero. It should approach zero naturally but just in case.
-                        newEndIndex === renderedRange.itemCount - 1
-                            ? 0
-                            : // Safety mechanism: Make sure we always have at least 10 items worth of
-                              // trailing height. We use statistical mechanisms to compute buffered height
-                              // and it's possible those mechanisms will under count at times. 10 items of
-                              // height is cheap to compute.
-                              Math.max(minBufferedTrailingHeight, newBufferedTrailingHeight),
-                    remPx,
-                });
+                                itemsRef.current.elementRefByKey.set(item.key, {
+                                    generation: itemsRef.current.generation,
+                                    element,
+                                    cleanup: () => {
+                                        removeResizeListenerForElement(element, handleResize);
+                                    },
+                                });
+                            }
+                        }}
+                    >
+                        {item.node}
+                    </div>
+                ),
             };
-
-            // If our rendered range intersects our virtualized window then we move our
-            // rendered range to adjacent items.
-            //
-            // Because each item has a dynamic height in order to find the position of item
-            // N we need to iterate through the N previous items to find out their heights.
-            // However, we know the position of the items in our rendered range so we can
-            // easily find the position of an adjacent item outside the rendered range.
-            if (isRenderedRangeIntersectingVirtualizedWindow) {
-                let bufferedLeadingHeightDifference = 0;
-                let bufferedTrailingHeightDifference = 0;
-
-                newStartIndex = renderedRange.startIndex;
-                let newStartIndexTop = renderedRangeTop;
-
-                // Finds the last possible item in our list that covers the top of the
-                // virtualized window through an iterative algorithm.
-                //
-                // 1. If our current start item is below the virtualized window top then we
-                //    iteratively search previous items for the first item above the
-                //    virtualized window top.
-                //
-                // 2. If our current start item is above the virtualized window top then we
-                //    iteratively search the next items for the last possible item above the
-                //    virtualized window top. This is optional. We do this to minimize the
-                //    number of items we need to render. Our current start item would also
-                //    cover the virtualized window.
-                if (newStartIndexTop > virtualizedWindowTop) {
-                    while (newStartIndex > 0 && newStartIndexTop > virtualizedWindowTop) {
-                        const item = getItem(newStartIndex - 1);
-                        const itemHeight = getItemHeight(item);
-
-                        newStartIndex -= 1;
-                        newStartIndexTop -= itemHeight;
-                        bufferedLeadingHeightDifference -= itemHeight;
-                    }
-                } else {
-                    while (newStartIndex < renderedRange.endIndex) {
-                        const item = getItem(newStartIndex);
-                        const itemHeight = getItemHeight(item);
-
-                        // Stop moving forwards if it would cause us to not cover our
-                        // virtualized window.
-                        if (newStartIndexTop + itemHeight > virtualizedWindowTop) break;
-
-                        newStartIndex += 1;
-                        newStartIndexTop += itemHeight;
-                        bufferedLeadingHeightDifference += itemHeight;
-                    }
-                }
-
-                newEndIndex = renderedRange.endIndex;
-                let newEndIndexBottom = renderedRangeBottom;
-
-                // Finds the first possible item in our list that covers the bottom of the
-                // virtualized window through an iterative algorithm.
-                //
-                // 1. If our current end item is above the virtualized window bottom then we
-                //    iteratively search the next items for the first item below the
-                //    virtualized window bottom.
-                //
-                // 2. If our current end item is below the virtualized window bottom then we
-                //    iteratively search previous items for the last possible item below the
-                //    virtualized window bottom. This is optional. We do this to minimize the
-                //    number of items we need to render. Our current end item would also cover
-                //    the virtualized window.
-                if (newEndIndexBottom < virtualizedWindowBottom) {
-                    while (
-                        newEndIndex < itemCount - 1 &&
-                        newEndIndexBottom < virtualizedWindowBottom
-                    ) {
-                        const item = getItem(newEndIndex + 1);
-                        const itemHeight = getItemHeight(item);
-
-                        newEndIndex += 1;
-                        newEndIndexBottom += itemHeight;
-                        bufferedTrailingHeightDifference -= itemHeight;
-                    }
-                } else {
-                    while (newEndIndex > renderedRange.startIndex) {
-                        const item = getItem(newEndIndex);
-                        const itemHeight = getItemHeight(item);
-
-                        // Stop moving back if it would cause us to not cover our
-                        // virtualized window.
-                        if (newEndIndexBottom - itemHeight < virtualizedWindowBottom) break;
-
-                        newEndIndex -= 1;
-                        newEndIndexBottom -= itemHeight;
-                        bufferedTrailingHeightDifference += itemHeight;
-                    }
-                }
-
-                newBufferedLeadingHeight =
-                    renderedRange.bufferedLeadingHeight + bufferedLeadingHeightDifference;
-                newBufferedTrailingHeight =
-                    renderedRange.bufferedTrailingHeight + bufferedTrailingHeightDifference;
-
-                actuallySetRenderedRange();
-            }
-            // If our rendered range doesn't intersect the virtualized window, we guess a
-            // new range of indexes to render based on what percentage we are through the
-            // buffered area. It's expensive to compute the actual item at a given scroll
-            // position because we'd need to iterate through all items before that one.
-            //
-            // We call this a "jump scroll" since you are jumping to a new position.
-            else {
-                const handleJumpScroll = () => {
-                    const oldContentHeight =
-                        renderedRangeHeight +
-                        renderedRange.bufferedLeadingHeight +
-                        renderedRange.bufferedTrailingHeight;
-
-                    const virtualizedWindowMiddle =
-                        virtualizedWindowTop + (virtualizedWindowBottom - virtualizedWindowTop) / 2;
-
-                    const isVirtualizedWindowMiddleInBufferedLeadingHeight =
-                        virtualizedWindowMiddle < renderedRangeTop;
-                    const isVirtualizedWindowMiddleInBufferedTrailingHeight =
-                        renderedRangeBottom < virtualizedWindowMiddle;
-
-                    // The virtualized window does not intersect the rendered range so likewise the
-                    // virtualized window middle should be outside of the rendered range.
-                    assert(
-                        isVirtualizedWindowMiddleInBufferedLeadingHeight ||
-                            isVirtualizedWindowMiddleInBufferedTrailingHeight,
-                    );
-
-                    // Guess the index corresponding with the middle of the virtualized window in
-                    // the buffered height. This is a statistical guess given it's expensive to
-                    // compute the exact index at this position because we'd have to iterate
-                    // through all items.
-                    //
-                    // We will iterate backwards and forwards from this `scanIndex` to find the new
-                    // rendered range.
-                    let scanIndex: number;
-                    let scanIndexTop: number;
-                    let scanIndexBottom: number;
-                    if (isVirtualizedWindowMiddleInBufferedLeadingHeight) {
-                        // Special case: If the virtualized window starts near the top of the list then
-                        // scan from the start.
-                        if (virtualizedWindowTop < clientHeight) {
-                            scanIndex = 0;
-
-                            const scanItem = getItem(scanIndex);
-                            const scanItemHeight = getItemHeight(scanItem);
-
-                            scanIndexTop = 0;
-                            scanIndexBottom = scanItemHeight;
-                        } else {
-                            scanIndex = Math.floor(
-                                renderedRange.startIndex *
-                                    (virtualizedWindowMiddle / renderedRange.bufferedLeadingHeight),
-                            );
-
-                            const scanItem = getItem(scanIndex);
-                            const scanItemHeight = getItemHeight(scanItem);
-
-                            scanIndexTop = virtualizedWindowMiddle - scanItemHeight;
-                            scanIndexBottom = virtualizedWindowMiddle;
-                        }
-                    } else {
-                        assert(isVirtualizedWindowMiddleInBufferedTrailingHeight);
-
-                        // Special case: If the virtualized window ends near the bottom of the list then
-                        // scan from the end.
-                        if (virtualizedWindowBottom > scrollHeight - clientHeight) {
-                            scanIndex = renderedRange.itemCount - 1;
-
-                            const scanItem = getItem(scanIndex);
-                            const scanItemHeight = getItemHeight(scanItem);
-
-                            scanIndexTop = oldContentHeight - scanItemHeight;
-                            scanIndexBottom = oldContentHeight;
-                        } else {
-                            scanIndex = Math.floor(
-                                renderedRange.endIndex +
-                                    (renderedRange.itemCount - 1 - renderedRange.endIndex) *
-                                        ((virtualizedWindowMiddle - renderedRangeBottom) /
-                                            renderedRange.bufferedTrailingHeight),
-                            );
-
-                            const scanItem = getItem(scanIndex);
-                            const scanItemHeight = getItemHeight(scanItem);
-
-                            scanIndexTop = virtualizedWindowMiddle - scanItemHeight;
-                            scanIndexBottom = virtualizedWindowMiddle;
-                        }
-                    }
-
-                    newStartIndex = scanIndex;
-                    let newStartIndexTop = scanIndexTop;
-
-                    // Move the start index back until we cover the virtualized window top.
-                    while (newStartIndex > 0 && newStartIndexTop > virtualizedWindowTop) {
-                        const item = getItem(newStartIndex - 1);
-                        const itemHeight = getItemHeight(item);
-                        newStartIndex -= 1;
-                        newStartIndexTop -= itemHeight;
-                    }
-
-                    newEndIndex = scanIndex;
-                    let newEndIndexBottom = scanIndexBottom;
-
-                    // Move the end index forward until we cover the virtualized window bottom.
-                    while (
-                        newEndIndex < itemCount - 1 &&
-                        newEndIndexBottom < virtualizedWindowBottom
-                    ) {
-                        const item = getItem(newEndIndex + 1);
-                        const itemHeight = getItemHeight(item);
-                        newEndIndex += 1;
-                        newEndIndexBottom += itemHeight;
-                    }
-
-                    const newRenderedRangeHeight = newEndIndexBottom - newStartIndexTop;
-                    const newContentHeight =
-                        oldContentHeight + (newRenderedRangeHeight - renderedRangeHeight);
-
-                    // Remove the new rendered range height from the buffered height area we are
-                    // rendering our new range in. Add the old rendered range height to the other
-                    // buffered height area.
-                    if (isVirtualizedWindowMiddleInBufferedLeadingHeight) {
-                        newBufferedLeadingHeight = virtualizedWindowTop;
-                        newBufferedTrailingHeight =
-                            newContentHeight - newRenderedRangeHeight - newBufferedLeadingHeight;
-                    } else {
-                        assert(isVirtualizedWindowMiddleInBufferedTrailingHeight);
-
-                        newBufferedTrailingHeight = newContentHeight - virtualizedWindowBottom;
-                        newBufferedLeadingHeight =
-                            newContentHeight - newRenderedRangeHeight - newBufferedTrailingHeight;
-                    }
-
-                    actuallySetRenderedRange();
-                };
-
-                // Jump scrolls are expensive (they change a lot of the screen) so put it
-                // behind a debounce. If we can't scroll as fast as the mouse while the user is
-                // scrubbing there will be some desync between the user's mouse and scrollbar
-                // which feels janky.
-                if (origin === "scroll") {
-                    jumpScrollDebounceTimeoutRef.current = createTimeout(
-                        handleJumpScroll,
-                        perceivedAsInstantLimitMs,
-                    );
-                } else {
-                    handleJumpScroll();
-                }
-            }
-        };
+        },
     });
 
-    // Update the rendered range when specific props and state change since they
-    // might affect what gets rendered.
+    state = newStateAfterRender;
+
+    const hasHandledScrollThisAnimationFrameRef = useRef(false);
+
+    const handleScroll = () => {
+        // Only handle scroll events once per animation frame.
+        if (hasHandledScrollThisAnimationFrameRef.current) return;
+        hasHandledScrollThisAnimationFrameRef.current = true;
+        requestAnimationFrame(() => {
+            hasHandledScrollThisAnimationFrameRef.current = false;
+        });
+
+        const {scrollTop} = assertExists(scrollRef.current);
+
+        setState(({state}) => ({
+            state: state.updateRenderedRange({
+                scrollOffset: scrollTop,
+                itemCount,
+                getItem: getItemWithoutRender,
+            }),
+            shouldUpdateRenderedRange: false,
+        }));
+    };
+
+    // Make sure any state changes in our render function are reflected back in
+    // state. We need to update the rendered range because maybe the buffered item
+    // height changed or maybe the list was truncated and visible items were
+    // deleted.
+    if (state !== originalState.state) {
+        setState({state, shouldUpdateRenderedRange: true});
+    }
+
+    // If there were any state changes in our render function then re-compute the
+    // rendered range.
     useLayoutEffectWithoutServerSideWarning(() => {
-        // We don't use these variables but want to mark them as dependencies of the
-        // effect so the effect reruns when they change.
+        if (originalState.shouldUpdateRenderedRange) {
+            const {scrollTop} = assertExists(scrollRef.current);
 
-        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-        getItem;
-        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-        itemCount;
-        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-        remPx;
-
-        updateRenderedRange("props");
-    }, [getItem, itemCount, remPx, updateRenderedRange]);
+            setState(({state}) => ({
+                state: state.updateRenderedRange({
+                    scrollOffset: scrollTop,
+                    itemCount,
+                    getItem: getItemWithoutRender,
+                }),
+                shouldUpdateRenderedRange: false,
+            }));
+        }
+    }, [state, originalState, itemCount, getItemWithoutRender]);
 
     return (
         <>
@@ -956,7 +455,7 @@ function VirtualizedScrollView(
                     overflowX: "hidden",
                     overflowY: "scroll",
                 })}
-                onScroll={() => updateRenderedRange("scroll")}
+                onScroll={handleScroll}
             >
                 <div style={{height: contentHeight}} />
                 <div
@@ -966,11 +465,9 @@ function VirtualizedScrollView(
                     // `pinTo="bottom"`. It is unclear to me why this is the fix.
                     style={{position: "absolute", left: 0, right: 0, top: 0, height: contentHeight}}
                 >
-                    {shouldRenderWithRelativePositioning &&
-                        renderedRange &&
-                        renderedRange.bufferedLeadingHeight > 0 && (
-                            <div style={{height: renderedRange.bufferedLeadingHeight}} />
-                        )}
+                    {shouldRenderWithRelativePositioning && bufferedHeightBeforeChildren > 0 && (
+                        <div style={{height: bufferedHeightBeforeChildren}} />
+                    )}
                     {children}
                 </div>
             </div>
@@ -979,124 +476,17 @@ function VirtualizedScrollView(
     );
 }
 
-/**
- * Adjust the rendered range with a new item count. If the indexes are out of
- * bounds then we update to new indexes. If the item count changed then we
- * adjust the extra height around the rendered range proportionally with the
- * item count difference.
- */
-export function adjustVirtualizedScrollViewRenderedRange(
-    range: VirtualizedScrollViewRenderedRange | null,
-    itemCount: number,
-    remPx: number,
-): VirtualizedScrollViewRenderedRange | null {
-    if (!range) return null;
-
-    // If the value of 1rem changed then resize our leading and trailing heights
-    // accordingly. We assume everything resizes on the rem scale.
-    if (range.remPx !== remPx) {
-        range = {
-            ...range,
-            bufferedLeadingHeight: range.bufferedLeadingHeight * (remPx / range.remPx),
-            bufferedTrailingHeight: range.bufferedTrailingHeight * (remPx / range.remPx),
-            remPx,
-        };
-    }
-
-    assert(range.startIndex >= 0);
-    assert(range.startIndex <= range.endIndex);
-
-    // If the item count did not change, we don't need to adjust our range.
-    if (range.itemCount === itemCount) return range;
-
-    // If the item count is zero, the range is now empty.
-    if (itemCount === 0) return null;
-
-    const renderedItemCount = range.endIndex - range.startIndex;
-
-    const heightPerItemOutOfRange =
-        range.itemCount === renderedItemCount
-            ? 0
-            : (range.bufferedLeadingHeight + range.bufferedTrailingHeight) /
-              (range.itemCount - renderedItemCount);
-
-    const heightDifference = (itemCount - range.itemCount) * heightPerItemOutOfRange;
-
-    // If the range indexes are still valid but the item count changed modify the
-    // range's top/bottom height by an amount proportional to how much the item
-    // count changed.
-    //
-    // For example: if you have 100 items not in the rendered range, `bufferedLeadingHeight`
-    // of 3000px, and `bufferedTrailingHeight` of 1000px then the average height of each item
-    // is 40px. If you remove 5 items that's 200px of height we want to remove. We
-    // will remove 150px (200 * (3000 / 4000)) from `bufferedLeadingHeight` and will remove
-    // 50px from `bufferedTrailingHeight`.
-    //
-    // TODO(calebmer): The developer may need to control where the new item count
-    // height is going. For example, in a chat app new items are only ever added to
-    // the end of a scroll view but there are a lot of items at the top.
-    // Proportionally we would put all the height at the top which is the wrong UX.
-    if (range.startIndex < itemCount && range.endIndex < itemCount) {
-        // If we have no buffered height we have no denominator to add/remove height.
-        if (range.bufferedLeadingHeight + range.bufferedTrailingHeight === 0) return range;
-
-        const newBufferedLeadingHeight = Math.max(
-            0,
-            range.bufferedLeadingHeight +
-                heightDifference *
-                    (range.bufferedLeadingHeight /
-                        (range.bufferedLeadingHeight + range.bufferedTrailingHeight)),
-        );
-
-        const newBufferedTrailingHeight = Math.max(
-            0,
-            range.bufferedTrailingHeight +
-                heightDifference *
-                    (range.bufferedTrailingHeight /
-                        (range.bufferedLeadingHeight + range.bufferedTrailingHeight)),
-        );
-
-        return {
-            itemCount,
-            startIndex: range.startIndex,
-            endIndex: range.endIndex,
-            bufferedLeadingHeight: newBufferedLeadingHeight,
-            bufferedTrailingHeight: newBufferedTrailingHeight,
-            remPx: range.remPx,
-        };
-    }
-
-    // If the range is out of bounds, we try to maintain the number of rendered
-    // items. The end of the range will be the end of our bounds. This has the
-    // effect of pushing our range backwards.
-    const newEndIndex = itemCount - 1;
-    const newStartIndex = Math.max(0, newEndIndex - renderedItemCount);
-
-    // Put all the height difference into `bufferedLeadingHeight`, less any height from the old
-    // `bufferedTrailingHeight` since that is going to zero.
-    const newBufferedLeadingHeight = Math.max(
-        0,
-        range.bufferedLeadingHeight + Math.min(0, heightDifference + range.bufferedTrailingHeight),
-    );
-
-    return {
-        itemCount,
-        startIndex: newStartIndex,
-        endIndex: newEndIndex,
-        bufferedLeadingHeight: newBufferedLeadingHeight,
-        bufferedTrailingHeight: 0,
-        remPx: range.remPx,
-    };
-}
-
 function useScrollViewPinTo(
     scrollRef: RefObject<HTMLDivElement>,
     contentRef: RefObject<HTMLDivElement>,
     pinTo: "top" | "bottom",
 ): {scriptElement: ReactNode} {
     const pinToRef = useRef(pinTo);
+    const onLayoutEffectRef = useRef<(() => void) | null>(null);
+
     useLayoutEffectWithoutServerSideWarning(() => {
         pinToRef.current = pinTo;
+        onLayoutEffectRef.current?.();
     });
 
     // This layout effect is safe because in server side renders we include a
@@ -1110,7 +500,6 @@ function useScrollViewPinTo(
         }
     }, [scrollRef]);
 
-    // This layout effect is safe because it does not change the UI.
     useLayoutEffectWithoutServerSideWarning(() => {
         if (pinTo !== "bottom") return;
 
@@ -1123,14 +512,7 @@ function useScrollViewPinTo(
         let scrollBottom = getScrollBottom();
 
         const handleScroll = () => {
-            // Record the new scroll position after a browser paint. If the browser does a
-            // resize + scroll in the same frame then we want to ignore the scroll since
-            // the scroll is probably a result of browser internals responding to the
-            // resize. We want this code to control the scroll position after a resize, not
-            // the browser.
-            scheduleAfterNextBrowserPaint(() => {
-                scrollBottom = getScrollBottom();
-            });
+            scrollBottom = getScrollBottom();
         };
 
         let lastInteractionEventTimeMs: number;
@@ -1139,7 +521,7 @@ function useScrollViewPinTo(
             lastInteractionEventTimeMs = Date.now();
         };
 
-        const observer = new ResizeObserver(() => {
+        const handleResize = () => {
             // When focus is within the scroll view, always pin to top. Users
             // typically expect the top of whatever elements they're interacting with
             // to stay in place.
@@ -1164,8 +546,11 @@ function useScrollViewPinTo(
             // doesn’t actually exist in the DOM).
             scrollElement.scrollTop =
                 scrollElement.scrollHeight - scrollElement.clientHeight - scrollBottom;
-        });
+        };
 
+        const observer = new ResizeObserver(handleResize);
+
+        onLayoutEffectRef.current = handleResize;
         observer.observe(scrollElement, {box: "border-box"});
         observer.observe(contentElement, {box: "border-box"});
         scrollElement.addEventListener("scroll", handleScroll);
@@ -1176,6 +561,7 @@ function useScrollViewPinTo(
         scrollElement.addEventListener("pointerdown", handleInteraction);
         scrollElement.addEventListener("pointerup", handleInteraction);
         return () => {
+            onLayoutEffectRef.current = null;
             observer.unobserve(scrollElement);
             observer.unobserve(contentElement);
             scrollElement.removeEventListener("scroll", handleScroll);
@@ -1207,11 +593,4 @@ function useScrollViewPinTo(
                 />
             ) : null,
     };
-}
-
-// https://stackoverflow.com/questions/3269434/whats-the-most-efficient-way-to-test-if-two-ranges-overlap
-function areRangesOverlapping(start1: number, end1: number, start2: number, end2: number) {
-    assert(start1 <= end1);
-    assert(start2 <= end2);
-    return start1 <= end2 && end1 >= start2;
 }

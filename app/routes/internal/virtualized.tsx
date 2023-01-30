@@ -79,6 +79,7 @@ export default function VirtualizedScrollViewDesignPlaygroundPage() {
                         }),
                         [],
                     )}
+                    bufferedItemHeight={65}
                     pinTo={pinTo === "top" ? "top" : "bottom"}
                 />
             </Box>
