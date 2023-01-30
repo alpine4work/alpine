@@ -40,7 +40,14 @@ export function PostContentView({
             <Box paddingX="3" paddingY="5">
                 <ContentView content={post.content} onNavigate={useNavigate()} />
             </Box>
-            <Box marginX="5" borderTop="grey-5" height="12" display="flex" alignItems="center">
+            <Box
+                marginX="5"
+                borderTop="grey-5"
+                borderBottom={arePostCommentsOpen ? "grey-5" : "transparent"}
+                height="12"
+                display="flex"
+                alignItems="center"
+            >
                 <Box flexGrow="1" />
                 <PostCommentsToggleButton
                     post={post}

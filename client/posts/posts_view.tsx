@@ -109,33 +109,22 @@ export function PostsView({
                                     ? nextItem.postComment
                                     : null;
 
-                            const node = (
-                                <Box paddingX={padding}>
-                                    <Box
-                                        marginX="auto"
-                                        maxWidth="160"
-                                        backgroundColor="grey-0"
-                                        boxShadow="elevation-5"
-                                        paddingX="2"
-                                    >
-                                        {item.type === "LoadedPostComment" ? (
-                                            <MessageView
-                                                message={item.postComment}
-                                                previousMessage={previousComment}
-                                                nextMessage={nextComment}
-                                            />
-                                        ) : (
-                                            <MessageShimmer
-                                                randomSeed={item.post.id}
-                                                index={item.postCommentIndex}
-                                                previousMessage={previousComment}
-                                                nextMessage={nextComment}
-                                                messages={item.postComments}
-                                            />
-                                        )}
-                                    </Box>
-                                </Box>
-                            );
+                            const node =
+                                item.type === "LoadedPostComment" ? (
+                                    <MessageView
+                                        message={item.postComment}
+                                        previousMessage={previousComment}
+                                        nextMessage={nextComment}
+                                    />
+                                ) : (
+                                    <MessageShimmer
+                                        randomSeed={item.post.id}
+                                        index={item.postCommentIndex}
+                                        previousMessage={previousComment}
+                                        nextMessage={nextComment}
+                                        messages={item.postComments}
+                                    />
+                                );
 
                             return {
                                 key:
@@ -143,15 +132,26 @@ export function PostsView({
                                         ? `LoadedPostComment:${item.post.id}:${item.postComment.id}`
                                         : `UnloadedPostComment:${item.post.id}:${item.postCommentIndex}`,
                                 minHeight: messageViewMinHeight,
-                                node:
-                                    index === 0 ? (
-                                        <>
-                                            <Spacer space="3" />
-                                            {node}
-                                        </>
-                                    ) : (
-                                        node
-                                    ),
+                                node: (
+                                    <Box paddingX={padding}>
+                                        <Box
+                                            marginX="auto"
+                                            maxWidth="160"
+                                            backgroundColor="grey-0"
+                                            boxShadow="elevation-5"
+                                            paddingX="2"
+                                        >
+                                            {item.postCommentIndex === 0 ? (
+                                                <>
+                                                    <Spacer space="3" />
+                                                    {node}
+                                                </>
+                                            ) : (
+                                                node
+                                            )}
+                                        </Box>
+                                    </Box>
+                                ),
                             };
                         }
                         case "PostCommentInput": {

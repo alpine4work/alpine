@@ -140,9 +140,20 @@ export class PaginatedPostList {
                 if (0 <= postCommentIndex && postCommentIndex < postCommentCount) {
                     const postComment = postComments.getMessage(postCommentIndex);
                     if (postComment.isLoaded) {
-                        return {type: "LoadedPostComment", post, postComment: postComment.message};
+                        return {
+                            type: "LoadedPostComment",
+                            post,
+                            postComments,
+                            postCommentIndex,
+                            postComment: postComment.message,
+                        };
                     } else {
-                        return {type: "UnloadedPostComment", post, postComments, postCommentIndex};
+                        return {
+                            type: "UnloadedPostComment",
+                            post,
+                            postComments,
+                            postCommentIndex,
+                        };
                     }
                 }
 
@@ -364,6 +375,12 @@ export type PaginatedPostListPostContentItem = {
 export type PaginatedPostListLoadedPostCommentItem = {
     readonly type: "LoadedPostComment";
     readonly post: PostModel;
+    readonly postComments: PaginatedMessageList<PostCommentModel>;
+    /**
+     * The index the loaded post comment is at in the `PaginatedMessageList`. The
+     * post index may move but this will stay stable.
+     */
+    readonly postCommentIndex: number;
     readonly postComment: PostCommentModel;
 };
 
