@@ -110,7 +110,7 @@ function AsyncTooltip({
     const context = useAppContext();
 
     const [tooltipState, setTooltipState] = useState<
-        {isHoveredOrFocused: false} | {isHoveredOrFocused: true; isSuspendingTooltipOpen: boolean}
+        {isHoveredOrFocused: false} | {isHoveredOrFocused: true; isTooltipOpenStalled: boolean}
     >({isHoveredOrFocused: false});
 
     const isLoadingRef = useRef(false);
@@ -122,11 +122,11 @@ function AsyncTooltip({
     useEffect(() => {
         // Don't open the tooltip for 1s while we load content. After that open the
         // tooltip with a loading spinner.
-        if (tooltipState.isHoveredOrFocused && tooltipState.isSuspendingTooltipOpen) {
+        if (tooltipState.isHoveredOrFocused && tooltipState.isTooltipOpenStalled) {
             const timeoutId = setTimeout(() => {
                 setTooltipState({
                     isHoveredOrFocused: true,
-                    isSuspendingTooltipOpen: false,
+                    isTooltipOpenStalled: false,
                 });
             }, uninterruptedThoughtLimitMs);
 
@@ -179,7 +179,7 @@ function AsyncTooltip({
             {...tooltipProps}
             shouldSuppress={
                 !contentState.isLoaded &&
-                (!tooltipState.isHoveredOrFocused || tooltipState.isSuspendingTooltipOpen)
+                (!tooltipState.isHoveredOrFocused || tooltipState.isTooltipOpenStalled)
             }
             content={
                 contentState.isLoaded ? (
@@ -201,7 +201,7 @@ function AsyncTooltip({
                 if (state.isHovered || state.isFocused) {
                     setTooltipState(tooltipState => {
                         if (tooltipState.isHoveredOrFocused) return tooltipState;
-                        return {isHoveredOrFocused: true, isSuspendingTooltipOpen: true};
+                        return {isHoveredOrFocused: true, isTooltipOpenStalled: true};
                     });
                 } else {
                     setTooltipState({isHoveredOrFocused: false});

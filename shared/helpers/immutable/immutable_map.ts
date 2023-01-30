@@ -108,6 +108,41 @@ export class ImmutableMap<Key extends string | number, Value> implements Readonl
     }
 
     /**
+     * Updates a value in the map. Slightly more efficient than calling `get()` and
+     * `set()` separately.
+     *
+     * If there is no value for this key then your update function will get
+     * `undefined`. If you want to remove the entry from the map then return
+     * `undefined` from your update function.
+     *
+     * Completes in O(log(n)) time.
+     *
+     * If the new value is equal to the old value then we will return the immutable
+     * map as-is as an optimization.
+     */
+    public update(
+        key: Key,
+        update: (value: Value | undefined) => Value | undefined,
+    ): ImmutableMap<Key, Value> {
+        const node = this._tree.find(key);
+        if (node.valid) {
+            const newValue = update(node.value);
+
+            if (newValue === undefined) return new ImmutableMap(node.remove());
+
+            // Optimization: If the new value is equal to the old value, return the
+            // existing immutable map without updating.
+            if (Object.is(node.value, newValue)) return this;
+
+            return new ImmutableMap(node.update(newValue));
+        } else {
+            const newValue = update(undefined);
+            if (newValue === undefined) return this;
+            return new ImmutableMap(this._tree.insert(key, newValue));
+        }
+    }
+
+    /**
      * Returns a new map with the entry associated with the passed key removed.
      * The old map is unchanged.
      *

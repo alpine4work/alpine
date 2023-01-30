@@ -821,6 +821,77 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
             }
         }
     }
+
+    /**
+     * Load messages into the list that you received from a
+     * `getMessagesFromStart()` call. You pass the input and output of that RPC
+     * call to this function and we will call `loadMessages()` with the correct
+     * options.
+     */
+    public loadMessagesFromStart({
+        afterMessageId,
+        beforeMessageId,
+        limit,
+        hasMoreMessagesAfter,
+        messages,
+    }: {
+        afterMessageId: number | null;
+        beforeMessageId: number | null;
+        limit: number;
+        hasMoreMessagesAfter: boolean;
+        messages: ReadonlyArray<Message>;
+    }) {
+        const hasExceededLimit = messages.length >= limit;
+
+        return this.loadMessages({
+            afterMessageId: afterMessageId ?? minMessageId - 1,
+            // If we exceeded the limit, we don't want to use the actual `afterMessageId`
+            // because our list will think the messages between our first message `id` and
+            // `afterMessageId` were deleted.
+            beforeMessageId: hasExceededLimit
+                ? messages[messages.length - 1]!.id + 1
+                : beforeMessageId ?? maxMessageId + 1,
+            mayHaveMoreMessagesBefore:
+                afterMessageId !== null ? afterMessageId >= minMessageId : false,
+            mayHaveMoreMessagesAfter: beforeMessageId !== null || hasMoreMessagesAfter,
+            messages,
+        });
+    }
+
+    /**
+     * Load messages into the list that you received from a
+     * `getMessagesFromEnd()` call. You pass the input and output of that RPC
+     * call to this function and we will call `loadMessages()` with the correct
+     * options.
+     */
+    public loadMessagesFromEnd({
+        afterMessageId,
+        beforeMessageId,
+        limit,
+        hasMoreMessagesBefore,
+        messages,
+    }: {
+        afterMessageId: number | null;
+        beforeMessageId: number | null;
+        limit: number;
+        hasMoreMessagesBefore: boolean;
+        messages: ReadonlyArray<Message>;
+    }) {
+        const hasExceededLimit = messages.length >= limit;
+
+        return this.loadMessages({
+            // If we exceeded the limit, we don't want to use the actual `beforeMessageId`
+            // because our list will think the messages between our last message `id` and
+            // `beforeMessageId` were deleted.
+            afterMessageId: hasExceededLimit
+                ? messages[0]!.id - 1
+                : afterMessageId ?? minMessageId - 1,
+            beforeMessageId: beforeMessageId ?? maxMessageId + 1,
+            mayHaveMoreMessagesBefore: afterMessageId !== null || hasMoreMessagesBefore,
+            mayHaveMoreMessagesAfter: beforeMessageId !== null,
+            messages,
+        });
+    }
 }
 
 /**

@@ -12,19 +12,32 @@ import {PaginatedPostList} from "~/client/posts/paginated_post_list";
 import {PostCommentInput} from "~/client/posts/post_comment_input";
 import {PostContentView, postContentViewMinHeight} from "~/client/posts/post_content_view";
 import {VirtualizedScrollView} from "~/client/virtualized/virtualized_scroll_view";
-import {RemLength, Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
+import {RemLength, Spacing, addRemLengths, spacing} from "~/shared/design/spacing";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {PostCommentModel} from "~/shared/models/post_model";
 
 export function PostsView({
     list,
     onTogglePostComments: _onTogglePostComments,
+    onLoadPostCommentsFromStart: _onLoadPostCommentsFromStart,
 }: {
     list: PaginatedPostList;
     onTogglePostComments: (index: number) => void;
+    onLoadPostCommentsFromStart: (
+        index: number,
+        options: {
+            afterCommentId: number | null;
+            beforeCommentId: number | null;
+            limit: number;
+            hasMoreCommentsAfter: boolean;
+            comments: ReadonlyArray<PostCommentModel>;
+        },
+    ) => void;
 }) {
     const padding: Spacing = "4";
 
     const onTogglePostComments = useEvent(_onTogglePostComments);
+    const onLoadPostCommentsFromStart = useEvent(_onLoadPostCommentsFromStart);
 
     return (
         <VirtualizedScrollView
@@ -39,59 +52,47 @@ export function PostsView({
                         case "PostContent": {
                             let minHeight: RemLength = postContentViewMinHeight;
 
-                            let node = (
-                                <Box paddingX={padding}>
-                                    <Box
-                                        marginX="auto"
-                                        maxWidth="160"
-                                        backgroundColor="grey-0"
-                                        borderTopRadius="md"
-                                        borderBottomRadius={
-                                            !item.arePostCommentsOpen ? "md" : undefined
-                                        }
-                                        boxShadow="elevation-5"
-                                    >
-                                        <PostContentView
-                                            post={item.post}
-                                            arePostCommentsOpen={item.arePostCommentsOpen}
-                                            onTogglePostComments={() => onTogglePostComments(index)}
-                                        />
-                                    </Box>
-                                </Box>
-                            );
-
                             if (index === 0) {
-                                minHeight = `${
-                                    parseRemLengthNumber(minHeight) +
-                                    parseRemLengthNumber(spacing[padding])
-                                }rem`;
-
-                                node = (
-                                    <>
-                                        <Spacer space={padding} />
-                                        {node}
-                                    </>
-                                );
+                                minHeight = addRemLengths(minHeight, spacing[padding]);
                             }
 
                             if (!item.arePostCommentsOpen) {
-                                minHeight = `${
-                                    parseRemLengthNumber(minHeight) +
-                                    parseRemLengthNumber(spacing[padding])
-                                }rem`;
-
-                                node = (
-                                    <>
-                                        {node}
-                                        <Spacer space={padding} />
-                                    </>
-                                );
+                                minHeight = addRemLengths(minHeight, spacing[padding]);
                             }
 
                             return {
                                 key: `PostContent:${item.post.id}`,
                                 minHeight,
-                                node,
+                                node: (
+                                    <>
+                                        {index === 0 && <Spacer space={padding} />}
+                                        <Box paddingX={padding}>
+                                            <Box
+                                                marginX="auto"
+                                                maxWidth="160"
+                                                backgroundColor="grey-0"
+                                                borderTopRadius="md"
+                                                borderBottomRadius={
+                                                    !item.arePostCommentsOpen ? "md" : undefined
+                                                }
+                                                boxShadow="elevation-5"
+                                            >
+                                                <PostContentView
+                                                    post={item.post}
+                                                    postComments={item.postComments}
+                                                    arePostCommentsOpen={item.arePostCommentsOpen}
+                                                    onTogglePostComments={() =>
+                                                        onTogglePostComments(index)
+                                                    }
+                                                    onLoadPostCommentsFromStart={options =>
+                                                        onLoadPostCommentsFromStart(index, options)
+                                                    }
+                                                />
+                                            </Box>
+                                        </Box>
+                                        {!item.arePostCommentsOpen && <Spacer space={padding} />}
+                                    </>
+                                ),
                             };
                         }
                         case "LoadedPostComment":
@@ -158,10 +159,7 @@ export function PostsView({
                             const height: Spacing = "16";
                             return {
                                 key: `PostCommentInput:${item.post.id}`,
-                                minHeight: `${
-                                    parseRemLengthNumber(spacing[height]) +
-                                    parseRemLengthNumber(spacing[padding])
-                                }rem`,
+                                minHeight: addRemLengths(spacing[height], spacing[padding]),
                                 node: (
                                     <>
                                         <Box paddingX={padding}>
@@ -194,7 +192,7 @@ export function PostsView({
                             throw exhaustive(item);
                     }
                 },
-                [list, onTogglePostComments],
+                [list, onLoadPostCommentsFromStart, onTogglePostComments],
             )}
         />
     );

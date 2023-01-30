@@ -44,6 +44,19 @@ export default function PostRoute() {
             <PostsView
                 list={list}
                 onTogglePostComments={index => setList(list => list.togglePostComments(index))}
+                onLoadPostCommentsFromStart={(index, options) =>
+                    setList(list =>
+                        list.updatePostComments(index, postComments =>
+                            postComments.loadMessagesFromStart({
+                                afterMessageId: options.afterCommentId,
+                                beforeMessageId: options.beforeCommentId,
+                                limit: options.limit,
+                                hasMoreMessagesAfter: options.hasMoreCommentsAfter,
+                                messages: options.comments,
+                            }),
+                        ),
+                    )
+                }
             />
         </main>
     );

@@ -131,7 +131,15 @@ export class PaginatedPostList {
         ): PaginatedPostListItem | null => {
             const arePostCommentsOpen = this._openPostCommentPostOrderKeys.has(postOrderKey);
 
-            if (index === postContentIndex) return {type: "PostContent", post, arePostCommentsOpen};
+            if (index === postContentIndex) {
+                return {
+                    type: "PostContent",
+                    postOrderKey,
+                    post,
+                    postComments,
+                    arePostCommentsOpen,
+                };
+            }
 
             if (arePostCommentsOpen) {
                 const postCommentIndex = index - (postContentIndex + 1);
@@ -310,8 +318,8 @@ export class PaginatedPostList {
     }
 
     /**
-     * Toggle the post's comment section as open or closed. The index must be the
-     * index for the post's content. Otherwise we will throw.
+     * Toggle the post's comment section as open or closed. The index must point to
+     * the post's content. Otherwise we will throw.
      */
     public togglePostComments(index: number): PaginatedPostList {
         const item = this.getItem(index);
@@ -349,6 +357,64 @@ export class PaginatedPostList {
             postOrderKeyByPostContentIndex,
         });
     }
+
+    /**
+     * Update the comments list for a post. The index must point to the post's
+     * content. Otherwise we will throw.
+     */
+    public updatePostComments(
+        index: number,
+        update: (
+            postComments: PaginatedMessageList<PostCommentModel>,
+        ) => PaginatedMessageList<PostCommentModel>,
+    ): PaginatedPostList {
+        const item = this.getItem(index);
+
+        if (item.type !== "PostContent")
+            throw new InternalError("Expected the index for post content");
+
+        const newPostComments = update(item.postComments);
+
+        const postByOrderKey = this._postByOrderKey.set(item.postOrderKey, {
+            post: item.post,
+            postComments: newPostComments,
+        });
+
+        // Keep the `left` side of the `postOrderKeyByPostContentIndex` cache and throw
+        // away the `right` side which is now invalid.
+        const postOrderKeyByPostContentIndex = (() => {
+            // Optimization: If our new post comments object has the same number of
+            // messages as our old post comment object then we don't need to clear our
+            // index cache.
+            if (
+                item.postComments.getEstimatedMessageCount() ===
+                newPostComments.getEstimatedMessageCount()
+            ) {
+                return this._postOrderKeyByPostContentIndex;
+            }
+
+            const iterator = this._postOrderKeyByPostContentIndex.find(index);
+            if (!iterator.valid)
+                throw new InternalError(
+                    "Expected finding the post content item to populate the post content index cache",
+                );
+
+            // HACK(calebmer): Hackishly get the constructor for a
+            // `functional-red-black-tree` tree and construct it with the left-hand-side
+            // subtree since there's not an official API.
+            const leftTree = new (this._postOrderKeyByPostContentIndex as any).constructor(
+                (this._postOrderKeyByPostContentIndex as any)._compare,
+                iterator.node!.left,
+            );
+            return leftTree.insert(index, item.postOrderKey);
+        })();
+
+        return new PaginatedPostList({
+            postByOrderKey,
+            openPostCommentPostOrderKeys: this._openPostCommentPostOrderKeys,
+            postOrderKeyByPostContentIndex,
+        });
+    }
 }
 
 /**
@@ -365,7 +431,9 @@ export type PaginatedPostListItem =
  */
 export type PaginatedPostListPostContentItem = {
     readonly type: "PostContent";
+    readonly postOrderKey: OrderKey;
     readonly post: PostModel;
+    readonly postComments: PaginatedMessageList<PostCommentModel>;
     readonly arePostCommentsOpen: boolean;
 };
 

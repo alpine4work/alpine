@@ -1,3 +1,4 @@
+import {PaginatedMessageList} from "~/client/messaging/paginated_message_list";
 import {PaginatedPostList, PaginatedPostListItem} from "~/client/posts/paginated_post_list";
 import {
     assertPostContent,
@@ -54,7 +55,7 @@ function getItems(list: PaginatedPostList) {
     }
 
     return items.map((item: {[key: string]: unknown} | null) => {
-        const {postComments, ...remainingItem} = assertExists(item);
+        const {postOrderKey, postComments, ...remainingItem} = assertExists(item);
         return remainingItem;
     });
 }
@@ -877,5 +878,121 @@ test("can insert some posts into the start with already open comments", () => {
         {type: "PostCommentInput", post: post3},
         {type: "PostContent", post: post2, arePostCommentsOpen: false},
         {type: "PostContent", post: post1, arePostCommentsOpen: false},
+    ]);
+});
+
+test("can update the post comments list", () => {
+    let list = PaginatedPostList.empty;
+
+    const post1 = new PostModel({
+        id: generateId(),
+        spaceId,
+        channelId,
+        createdTime,
+        author: account1,
+        content: testContent1,
+        commentCount: 1,
+        commentAuthorCount: 1,
+        previewCommentAuthors: [account1],
+    });
+
+    const post2 = new PostModel({
+        id: generateId(),
+        spaceId,
+        channelId,
+        createdTime,
+        author: account1,
+        content: testContent1,
+        commentCount: 0,
+        commentAuthorCount: 0,
+        previewCommentAuthors: [],
+    });
+
+    const post3 = new PostModel({
+        id: generateId(),
+        spaceId,
+        channelId,
+        createdTime,
+        author: account1,
+        content: testContent1,
+        commentCount: 5,
+        commentAuthorCount: 1,
+        previewCommentAuthors: [account1],
+    });
+
+    const post4 = new PostModel({
+        id: generateId(),
+        spaceId,
+        channelId,
+        createdTime,
+        author: account1,
+        content: testContent1,
+        commentCount: 20,
+        commentAuthorCount: 1,
+        previewCommentAuthors: [account1],
+    });
+
+    const post5 = new PostModel({
+        id: generateId(),
+        spaceId,
+        channelId,
+        createdTime,
+        author: account1,
+        content: testContent1,
+        commentCount: 0,
+        commentAuthorCount: 0,
+        previewCommentAuthors: [],
+    });
+
+    list = list.insertAtEnd(post1);
+    list = list.insertAtEnd(post2);
+    list = list.insertAtEnd(post3, {arePostCommentsOpen: true});
+    list = list.insertAtEnd(post4);
+    list = list.insertAtEnd(post5);
+
+    expect(getItems(list)).toEqual([
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 3},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 4},
+        {type: "PostCommentInput", post: post3},
+        {type: "PostContent", post: post4, arePostCommentsOpen: false},
+        {type: "PostContent", post: post5, arePostCommentsOpen: false},
+    ]);
+
+    list = list.updatePostComments(2, () => PaginatedMessageList.new(3));
+
+    expect(getItems(list)).toEqual([
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
+        {type: "PostCommentInput", post: post3},
+        {type: "PostContent", post: post4, arePostCommentsOpen: false},
+        {type: "PostContent", post: post5, arePostCommentsOpen: false},
+    ]);
+
+    list = list.updatePostComments(2, () => PaginatedMessageList.new(7));
+
+    expect(getItems(list)).toEqual([
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 3},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 4},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 5},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 6},
+        {type: "PostCommentInput", post: post3},
+        {type: "PostContent", post: post4, arePostCommentsOpen: false},
+        {type: "PostContent", post: post5, arePostCommentsOpen: false},
     ]);
 });

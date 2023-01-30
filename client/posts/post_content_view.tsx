@@ -8,21 +8,35 @@ import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
 import {PrettyAbsoluteDate} from "~/client/design/pretty_absolute_date";
 import {PrettyNumber} from "~/client/design/pretty_number";
-import {spacing} from "~/shared/design/spacing";
-import {PostModel} from "~/shared/models/post_model";
-import {getPostCommentAuthors} from "~/shared/rpc/posts_rpc_definitions";
+import {uninterruptedThoughtLimitMs} from "~/client/design/timing_constants";
+import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
+import {PaginatedMessageList} from "~/client/messaging/paginated_message_list";
+import {useClientInfo} from "~/client/remix/client_info_context";
+import {wait} from "~/shared/helpers/async/wait";
+import {PostCommentModel, PostModel} from "~/shared/models/post_model";
+import {getPostCommentAuthors, getPostCommentsFromStart} from "~/shared/rpc/posts_rpc_definitions";
 import {truncateClassName} from "~/shared/styles/styles";
 
 export const postContentViewMinHeight = "7.75rem";
 
 export function PostContentView({
     post,
+    postComments,
     arePostCommentsOpen,
     onTogglePostComments,
+    onLoadPostCommentsFromStart,
 }: {
     post: PostModel;
+    postComments: PaginatedMessageList<PostCommentModel>;
     arePostCommentsOpen: boolean;
     onTogglePostComments: () => void;
+    onLoadPostCommentsFromStart: (options: {
+        afterCommentId: number | null;
+        beforeCommentId: number | null;
+        limit: number;
+        hasMoreCommentsAfter: boolean;
+        comments: ReadonlyArray<PostCommentModel>;
+    }) => void;
 }) {
     return (
         <Box style={{minHeight: postContentViewMinHeight}}>
@@ -51,8 +65,10 @@ export function PostContentView({
                 <Box flexGrow="1" />
                 <PostCommentsToggleButton
                     post={post}
+                    postComments={postComments}
                     arePostCommentsOpen={arePostCommentsOpen}
                     onTogglePostComments={onTogglePostComments}
+                    onLoadPostCommentsFromStart={onLoadPostCommentsFromStart}
                 />
             </Box>
         </Box>
@@ -61,14 +77,25 @@ export function PostContentView({
 
 function PostCommentsToggleButton({
     post,
+    postComments,
     arePostCommentsOpen,
     onTogglePostComments,
+    onLoadPostCommentsFromStart,
 }: {
     post: PostModel;
+    postComments: PaginatedMessageList<PostCommentModel>;
     arePostCommentsOpen: boolean;
     onTogglePostComments: () => void;
+    onLoadPostCommentsFromStart: (options: {
+        afterCommentId: number | null;
+        beforeCommentId: number | null;
+        limit: number;
+        hasMoreCommentsAfter: boolean;
+        comments: ReadonlyArray<PostCommentModel>;
+    }) => void;
 }) {
     const context = useAppContext();
+    const clientInfo = useClientInfo();
 
     return (
         <Box display="flex" alignItems="center" gap="1.5">
@@ -85,15 +112,59 @@ function PostCommentsToggleButton({
             />
             <Button
                 paddingX="2"
-                icon={
-                    arePostCommentsOpen ? (
-                        <CaretDown size={spacing["3"]} />
-                    ) : (
-                        <CaretRight size={spacing["3"]} />
-                    )
-                }
+                icon={arePostCommentsOpen ? <CaretDown /> : <CaretRight />}
                 iconPlacement="end"
-                onPress={onTogglePostComments}
+                onPress={async () => {
+                    if (arePostCommentsOpen) {
+                        onTogglePostComments();
+                        return;
+                    }
+
+                    // Open comments immediately if:
+                    //
+                    // 1. There are no comments. There may be an async race condition where a
+                    //    comment was added after the server gave us an estimated message count so
+                    //    we'll still need to backfill comments.
+                    // 2. Comments are already loaded. We only check that the first comment is
+                    //    loaded. If other comments onscreen are unloaded then we fallback to
+                    //    shimmers kicking off data loading.
+                    if (
+                        postComments.getEstimatedMessageCount() === 0 ||
+                        postComments.getMessage(0).isLoaded
+                    ) {
+                        onTogglePostComments();
+                        return;
+                    }
+
+                    const limit = getInitialLoadMessageCount(clientInfo);
+
+                    const postCommentsPromise = getPostCommentsFromStart(context, {
+                        postId: post.id,
+                        limit,
+                        afterCommentId: null,
+                        beforeCommentId: null,
+                    });
+
+                    // Open post comments once we get our data back. But if the data is taking a
+                    // long time to load, open post comments after 1000ms.
+                    const postCommentsResult = await Promise.race([
+                        postCommentsPromise,
+                        wait(uninterruptedThoughtLimitMs),
+                    ]);
+                    onTogglePostComments();
+
+                    // Finish waiting for post comments in case the `wait()` won the race.
+                    const {hasMoreCommentsAfter, comments} =
+                        postCommentsResult ?? (await postCommentsPromise);
+
+                    onLoadPostCommentsFromStart({
+                        afterCommentId: null,
+                        beforeCommentId: null,
+                        limit,
+                        hasMoreCommentsAfter,
+                        comments,
+                    });
+                }}
             >
                 <PrettyNumber number={post.commentCount} label="comment" />
             </Button>

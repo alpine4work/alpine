@@ -6,7 +6,7 @@ import {AriaButtonProps, mergeProps, useButton, useHover} from "react-aria";
 import {FocusRing} from "~/client/design/focus_ring";
 import {useMergedRef} from "~/client/design/helpers/use_merged_ref";
 import {uninterruptedThoughtLimitMs} from "~/client/design/timing_constants";
-import {spacing} from "~/shared/design/spacing";
+import {Spacing, spacing} from "~/shared/design/spacing";
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {
     Sprinkles,
@@ -142,16 +142,18 @@ function Button(
         </span>
     );
 
-    const iconChild = (
+    const iconSize: Spacing = "3";
+
+    const iconChild = icon ? (
         <IconContext.Provider
             value={{
                 color: "currentColor",
-                size: spacing["4"],
+                size: spacing[iconSize],
             }}
         >
             {icon}
         </IconContext.Provider>
-    );
+    ) : null;
 
     const stylesByVariant: {[K in ButtonVariant]: Sprinkles} = {
         // TODO(calebmer): I would like this button to have a little bit of
@@ -224,13 +226,12 @@ function Button(
                         style={{opacity: 0.2}}
                     />
                 )}
-                {shouldShowPendingSpinner && (
+                {shouldShowPendingSpinner && !iconChild && (
                     <SpinnerGap
                         className={classNames(
                             sprinkles({position: "absolute"}),
                             spinAnimationClassName,
                         )}
-                        color="currentColor"
                         size={spacing["4"]}
                     />
                 )}
@@ -239,12 +240,30 @@ function Button(
                     style={{
                         // Keep the icon and label in the DOM so we keep the shape of the button but
                         // hide them so we can show a spinner.
-                        opacity: shouldShowPendingSpinner ? 0 : undefined,
+                        opacity: shouldShowPendingSpinner && !iconChild ? 0 : undefined,
                     }}
                 >
-                    {iconPlacement === "start" && iconChild}
+                    {iconPlacement === "start" &&
+                        iconChild &&
+                        (shouldShowPendingSpinner ? (
+                            <SpinnerGap
+                                className={spinAnimationClassName}
+                                size={spacing[iconSize]}
+                            />
+                        ) : (
+                            iconChild
+                        ))}
                     {labelChild}
-                    {iconPlacement === "end" && iconChild}
+                    {iconPlacement === "end" &&
+                        iconChild &&
+                        (shouldShowPendingSpinner ? (
+                            <SpinnerGap
+                                className={spinAnimationClassName}
+                                size={spacing[iconSize]}
+                            />
+                        ) : (
+                            iconChild
+                        ))}
                 </span>
             </button>
         </FocusRing>
