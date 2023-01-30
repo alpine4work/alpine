@@ -74,6 +74,8 @@ test("can insert some posts into the end", () => {
         author: account1,
         content: testContent1,
         commentCount: 5,
+        commentAuthorCount: 1,
+        previewCommentAuthors: [account1],
     });
 
     const post2 = new PostModel({
@@ -84,6 +86,8 @@ test("can insert some posts into the end", () => {
         author: account1,
         content: testContent1,
         commentCount: 0,
+        commentAuthorCount: 0,
+        previewCommentAuthors: [],
     });
 
     const post3 = new PostModel({
@@ -94,6 +98,8 @@ test("can insert some posts into the end", () => {
         author: account1,
         content: testContent1,
         commentCount: 20,
+        commentAuthorCount: 1,
+        previewCommentAuthors: [account1],
     });
 
     const post4 = new PostModel({
@@ -104,6 +110,8 @@ test("can insert some posts into the end", () => {
         author: account1,
         content: testContent1,
         commentCount: 1,
+        commentAuthorCount: 1,
+        previewCommentAuthors: [account1],
     });
 
     const post5 = new PostModel({
@@ -114,6 +122,8 @@ test("can insert some posts into the end", () => {
         author: account1,
         content: testContent1,
         commentCount: 0,
+        commentAuthorCount: 0,
+        previewCommentAuthors: [],
     });
 
     list = list.insertAtEnd(post1);
@@ -168,6 +178,8 @@ test("can insert some posts into the start", () => {
         author: account1,
         content: testContent1,
         commentCount: 5,
+        commentAuthorCount: 1,
+        previewCommentAuthors: [account1],
     });
 
     const post2 = new PostModel({
@@ -178,6 +190,8 @@ test("can insert some posts into the start", () => {
         author: account1,
         content: testContent1,
         commentCount: 0,
+        commentAuthorCount: 0,
+        previewCommentAuthors: [],
     });
 
     const post3 = new PostModel({
@@ -188,6 +202,8 @@ test("can insert some posts into the start", () => {
         author: account1,
         content: testContent1,
         commentCount: 20,
+        commentAuthorCount: 1,
+        previewCommentAuthors: [account1],
     });
 
     const post4 = new PostModel({
@@ -198,6 +214,8 @@ test("can insert some posts into the start", () => {
         author: account1,
         content: testContent1,
         commentCount: 1,
+        commentAuthorCount: 1,
+        previewCommentAuthors: [account1],
     });
 
     const post5 = new PostModel({
@@ -208,6 +226,8 @@ test("can insert some posts into the start", () => {
         author: account1,
         content: testContent1,
         commentCount: 0,
+        commentAuthorCount: 0,
+        previewCommentAuthors: [],
     });
 
     list = list.insertAtStart(post1);
@@ -262,6 +282,8 @@ test("can insert some posts into the end and others at the start", () => {
         author: account1,
         content: testContent1,
         commentCount: 5,
+        commentAuthorCount: 1,
+        previewCommentAuthors: [account1],
     });
 
     const post2 = new PostModel({
@@ -272,6 +294,8 @@ test("can insert some posts into the end and others at the start", () => {
         author: account1,
         content: testContent1,
         commentCount: 0,
+        commentAuthorCount: 0,
+        previewCommentAuthors: [],
     });
 
     const post3 = new PostModel({
@@ -282,6 +306,8 @@ test("can insert some posts into the end and others at the start", () => {
         author: account1,
         content: testContent1,
         commentCount: 20,
+        commentAuthorCount: 1,
+        previewCommentAuthors: [account1],
     });
 
     const post4 = new PostModel({
@@ -292,6 +318,8 @@ test("can insert some posts into the end and others at the start", () => {
         author: account1,
         content: testContent1,
         commentCount: 1,
+        commentAuthorCount: 1,
+        previewCommentAuthors: [account1],
     });
 
     const post5 = new PostModel({
@@ -302,6 +330,8 @@ test("can insert some posts into the end and others at the start", () => {
         author: account1,
         content: testContent1,
         commentCount: 0,
+        commentAuthorCount: 0,
+        previewCommentAuthors: [],
     });
 
     list = list.insertAtStart(post1);
@@ -356,6 +386,8 @@ test("can toggle the comments for a post open", () => {
         author: account1,
         content: testContent1,
         commentCount: 5,
+        commentAuthorCount: 1,
+        previewCommentAuthors: [account1],
     });
 
     const post2 = new PostModel({
@@ -366,6 +398,8 @@ test("can toggle the comments for a post open", () => {
         author: account2,
         content: testContent2,
         commentCount: 0,
+        commentAuthorCount: 0,
+        previewCommentAuthors: [],
     });
 
     const post3 = new PostModel({
@@ -376,6 +410,8 @@ test("can toggle the comments for a post open", () => {
         author: account3,
         content: testContent3,
         commentCount: 20,
+        commentAuthorCount: 1,
+        previewCommentAuthors: [account1],
     });
 
     const post4 = new PostModel({
@@ -386,6 +422,8 @@ test("can toggle the comments for a post open", () => {
         author: account4,
         content: testContent4,
         commentCount: 1,
+        commentAuthorCount: 1,
+        previewCommentAuthors: [account1],
     });
 
     const post5 = new PostModel({
@@ -396,6 +434,8 @@ test("can toggle the comments for a post open", () => {
         author: account5,
         content: testContent5,
         commentCount: 0,
+        commentAuthorCount: 0,
+        previewCommentAuthors: [],
     });
 
     list = list.insertAtEnd(post1);
@@ -607,6 +647,8 @@ test("can insert some posts into the end with already open comments", () => {
         author: account1,
         content: testContent1,
         commentCount: 1,
+        commentAuthorCount: 1,
+        previewCommentAuthors: [account1],
     });
 
     const post2 = new PostModel({
@@ -617,6 +659,8 @@ test("can insert some posts into the end with already open comments", () => {
         author: account1,
         content: testContent1,
         commentCount: 0,
+        commentAuthorCount: 0,
+        previewCommentAuthors: [],
     });
 
     const post3 = new PostModel({
@@ -627,6 +671,8 @@ test("can insert some posts into the end with already open comments", () => {
         author: account1,
         content: testContent1,
         commentCount: 5,
+        commentAuthorCount: 1,
+        previewCommentAuthors: [account1],
     });
 
     const post4 = new PostModel({
@@ -637,6 +683,8 @@ test("can insert some posts into the end with already open comments", () => {
         author: account1,
         content: testContent1,
         commentCount: 20,
+        commentAuthorCount: 1,
+        previewCommentAuthors: [account1],
     });
 
     const post5 = new PostModel({
@@ -647,6 +695,8 @@ test("can insert some posts into the end with already open comments", () => {
         author: account1,
         content: testContent1,
         commentCount: 0,
+        commentAuthorCount: 0,
+        previewCommentAuthors: [],
     });
 
     list = list.insertAtEnd(post1);
@@ -719,6 +769,8 @@ test("can insert some posts into the start with already open comments", () => {
         author: account1,
         content: testContent1,
         commentCount: 1,
+        commentAuthorCount: 1,
+        previewCommentAuthors: [account1],
     });
 
     const post2 = new PostModel({
@@ -729,6 +781,8 @@ test("can insert some posts into the start with already open comments", () => {
         author: account1,
         content: testContent1,
         commentCount: 0,
+        commentAuthorCount: 0,
+        previewCommentAuthors: [],
     });
 
     const post3 = new PostModel({
@@ -739,6 +793,8 @@ test("can insert some posts into the start with already open comments", () => {
         author: account1,
         content: testContent1,
         commentCount: 5,
+        commentAuthorCount: 1,
+        previewCommentAuthors: [account1],
     });
 
     const post4 = new PostModel({
@@ -749,6 +805,8 @@ test("can insert some posts into the start with already open comments", () => {
         author: account1,
         content: testContent1,
         commentCount: 20,
+        commentAuthorCount: 1,
+        previewCommentAuthors: [account1],
     });
 
     const post5 = new PostModel({
@@ -759,6 +817,8 @@ test("can insert some posts into the start with already open comments", () => {
         author: account1,
         content: testContent1,
         commentCount: 0,
+        commentAuthorCount: 0,
+        previewCommentAuthors: [],
     });
 
     list = list.insertAtStart(post1);
