@@ -1,4 +1,5 @@
 import {RefObject, useState} from "react";
+import {unstable_ImmediatePriority, unstable_runWithPriority} from "scheduler";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -73,19 +74,24 @@ export function addResizeListenerForElement(
 ) {
     if (!resizeObserver) {
         resizeObserver = new ResizeObserver(entries => {
-            for (const entry of entries) {
-                lastResizeObserverEntryByElement.set(entry.target, entry);
-                const resizeListeners = resizeListenersByElement.get(entry.target);
-                if (resizeListeners) {
-                    for (const listener of resizeListeners) {
-                        try {
-                            listener(entry);
-                        } catch (error) {
-                            scheduleUncaughtError(error);
+            // Run resize observer listeners with immediate priority. React component
+            // updates made in resize listeners should happen in the same browser paint
+            // where they were dispatched so the user doesn't see a tear in the UI.
+            unstable_runWithPriority(unstable_ImmediatePriority, () => {
+                for (const entry of entries) {
+                    lastResizeObserverEntryByElement.set(entry.target, entry);
+                    const resizeListeners = resizeListenersByElement.get(entry.target);
+                    if (resizeListeners) {
+                        for (const listener of resizeListeners) {
+                            try {
+                                listener(entry);
+                            } catch (error) {
+                                scheduleUncaughtError(error);
+                            }
                         }
                     }
                 }
-            }
+            });
         });
     }
 
