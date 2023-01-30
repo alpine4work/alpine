@@ -4,7 +4,6 @@ import createTree, {
     Node as TreeNode,
 } from "functional-red-black-tree";
 import {Key, ReactNode} from "react";
-import {UnimplementedError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {clamp} from "~/shared/helpers/number/clamp";
 import {
@@ -509,15 +508,28 @@ export class VirtualizedScrollViewState {
      * If our rendered range already completely covers the virtualization window
      * then this function returns the state object as-is.
      */
-    public updateRenderedRange({
-        scrollOffset,
-        itemCount,
-        getItem,
-    }: {
+    public updateRenderedRange(options: {
         scrollOffset: number;
         itemCount: number;
         getItem: (index: number) => {key: Key; minHeight: number};
     }): VirtualizedScrollViewState {
+        return VirtualizedScrollViewState._updateRenderedRange(this, options);
+    }
+
+    // Implemented with a static function so we can reassign to the `state`
+    // variable. We can't reassign to `this` in an instance method.
+    private static _updateRenderedRange(
+        state: VirtualizedScrollViewState,
+        {
+            scrollOffset,
+            itemCount,
+            getItem,
+        }: {
+            scrollOffset: number;
+            itemCount: number;
+            getItem: (index: number) => {key: Key; minHeight: number};
+        },
+    ): VirtualizedScrollViewState {
         // Validation to make sure that every index has a unique key. In future
         // renders items may move around so two indexes may have the same key at
         // different points in time but at a given point in time each index should
@@ -529,11 +541,11 @@ export class VirtualizedScrollViewState {
                 const item = originalGetItem(index);
 
                 const expectedIndex = indexByKey.get(item.key);
-                if (expectedIndex === undefined) {
-                    indexByKey.set(item.key, index);
-                } else {
-                    assert(expectedIndex === index, "Must have a unique item key for every index");
-                }
+                if (expectedIndex === undefined) indexByKey.set(item.key, index);
+                assert(
+                    expectedIndex === undefined || expectedIndex === index,
+                    "Must have a unique item key for every index",
+                );
 
                 return item;
             };
@@ -541,31 +553,31 @@ export class VirtualizedScrollViewState {
 
         // You should call `render()` before this function when the item count changes.
         // `render()` will adjust the item count.
-        assert(itemCount === this.getItemCount(), "Item count mismatch");
+        assert(itemCount === state.getItemCount(), "Item count mismatch");
 
         // There is no rendered range when there are no items.
-        if (itemCount === 0) return this;
+        if (itemCount === 0) return state;
 
-        const contentHeight = this.getContentHeight();
+        const contentHeight = state.getContentHeight();
 
         const minScrollStartOffset = 0;
-        const maxScrollStartOffset = Math.max(0, contentHeight - this._viewHeight);
+        const maxScrollStartOffset = Math.max(0, contentHeight - state._viewHeight);
 
-        const minScrollEndOffset = Math.min(this._viewHeight, contentHeight);
+        const minScrollEndOffset = Math.min(state._viewHeight, contentHeight);
         const maxScrollEndOffset = contentHeight;
 
         const scrollStartOffset = clamp(minScrollStartOffset, scrollOffset, maxScrollStartOffset);
         const scrollEndOffset = clamp(
             minScrollEndOffset,
-            scrollStartOffset + this._viewHeight,
+            scrollStartOffset + state._viewHeight,
             maxScrollEndOffset,
         );
 
         // The virtualized window is the range we expect to be filled with content. It
         // is the scroll window plus half a view in either direction so that a user
         // scrolling quickly will see more content.
-        const virtualizedWindowStartOffset = scrollStartOffset - this._viewHeight * 0.5;
-        const virtualizedWindowEndOffset = scrollEndOffset + this._viewHeight * 0.5;
+        const virtualizedWindowStartOffset = scrollStartOffset - state._viewHeight * 0.5;
+        const virtualizedWindowEndOffset = scrollEndOffset + state._viewHeight * 0.5;
         const clampedVirtualizedWindowStartOffset = clamp(
             minScrollStartOffset,
             virtualizedWindowStartOffset,
@@ -577,84 +589,22 @@ export class VirtualizedScrollViewState {
             maxScrollEndOffset,
         );
 
-        const handleJumpScroll = (): VirtualizedScrollViewState => {
-            throw new UnimplementedError("TODO");
-        };
-
-        const renderedRange = this._renderedRange;
-        if (!renderedRange) return handleJumpScroll();
-
-        // The rendered range is the range we are currently filling with content. We
-        // update the rendered range if we detect our rendered range does not fully
-        // cover the virtualized window.
-        const renderedRangeIterator = this._entryByOrderKey.find(renderedRange.startOrderKey);
-        assert(renderedRangeIterator.node, "Could not find rendered range start order key");
-        const renderedRangeStartNode = renderedRangeIterator.node;
-        assert(
-            renderedRangeStartNode.value.type === "Item",
-            "Rendered range should only contain item entries",
-        );
-        const renderedRangeStartIndex = this._getPreviousItemCount(renderedRangeIterator);
-        const renderedRangeStartOffset = this._getPreviousContentHeight(renderedRangeIterator);
-
-        let renderedRangeEndNode: TreeNode<OrderKey, VirtualizedScrollViewStateEntry> | undefined;
-        let renderedRangeItemCount = 0;
-        let renderedRangeEndOffset = renderedRangeStartOffset;
-
-        // Iterate through our rendered range to find the end of the range.
-        while (renderedRangeIterator.node) {
-            const renderedRangeNode = renderedRangeIterator.node;
-            assert(
-                renderedRangeNode.value.type === "Item",
-                "Rendered range should only contain item entries",
-            );
-
-            renderedRangeItemCount += 1;
-            renderedRangeEndOffset += renderedRangeNode.value.height;
-
-            // Stop iteration when we've either found the end order key or we've passed it.
-            if (renderedRangeNode.key >= renderedRange.endOrderKey) {
-                if (renderedRangeNode.key === renderedRange.endOrderKey)
-                    renderedRangeEndNode = renderedRangeNode;
-                break;
-            }
-
-            renderedRangeIterator.next();
-        }
-
-        assert(renderedRangeEndNode, "Could not find rendered range end order key");
-
-        // Is our rendered range fully covering the virtualized window?
-        const isRenderedRangeCoveringVirtualizedWindow =
-            renderedRangeStartOffset <= clampedVirtualizedWindowStartOffset &&
-            renderedRangeEndOffset >= clampedVirtualizedWindowEndOffset;
-
-        // Is our rendered range partially intersecting with the virtualized window?
-        //
-        // If this is true but `isRenderedRangeCoveringVirtualizedWindow` is false then
-        // we're covering some of the virtualized window but not all of it. We need to
-        // update our rendered range to cover the entire virtualized window.
-        const isRenderedRangeIntersectingVirtualizedWindow = areRangesOverlapping(
-            renderedRangeStartOffset,
-            renderedRangeEndOffset,
-            clampedVirtualizedWindowStartOffset,
-            clampedVirtualizedWindowEndOffset,
-        );
-
-        // Our rendered range covers everything we want to render. Don't bother
-        // updating it.
-        if (isRenderedRangeCoveringVirtualizedWindow) return this;
-
-        if (!isRenderedRangeIntersectingVirtualizedWindow) {
-            return handleJumpScroll();
-        } else {
-            let newState: VirtualizedScrollViewState = this;
-            let newRenderedRangeStartIndex = renderedRangeStartIndex;
-            let newRenderedRangeStartOffset = renderedRangeStartOffset;
-            let newRenderedRangeStartOrderKey = renderedRange.startOrderKey;
-            let newRenderedRangeEndIndex = newRenderedRangeStartIndex + renderedRangeItemCount - 1;
-            let newRenderedRangeEndOffset = renderedRangeEndOffset;
-            let newRenderedRangeEndOrderKey = renderedRange.endOrderKey;
+        // Expands an existing rendered range that intersects with our virtualized
+        // window to cover our virtualized window.
+        const expandRenderedRange = (
+            oldRenderedRangeStartOrderKey: OrderKey,
+            oldRenderedRangeStartIndex: number,
+            oldRenderedRangeStartOffset: number,
+            oldRenderedRangeEndOrderKey: OrderKey,
+            oldRenderedRangeEndIndex: number,
+            oldRenderedRangeEndOffset: number,
+        ) => {
+            let newRenderedRangeStartOrderKey = oldRenderedRangeStartOrderKey;
+            let newRenderedRangeStartIndex = oldRenderedRangeStartIndex;
+            let newRenderedRangeStartOffset = oldRenderedRangeStartOffset;
+            let newRenderedRangeEndOrderKey = oldRenderedRangeEndOrderKey;
+            let newRenderedRangeEndIndex = oldRenderedRangeEndIndex;
+            let newRenderedRangeEndOffset = oldRenderedRangeEndOffset;
 
             // Finds the last possible item in our list that covers the top of the
             // virtualized window through an iterative algorithm.
@@ -672,7 +622,7 @@ export class VirtualizedScrollViewState {
             // Case 1 is the first branch of the `if` and case 2 is the second branch of
             // the `if`.
             if (newRenderedRangeStartOffset > virtualizedWindowStartOffset) {
-                const iterator = this._entryByOrderKey.find(renderedRange.startOrderKey);
+                const iterator = state._entryByOrderKey.find(oldRenderedRangeStartOrderKey);
                 assert(iterator.node, "Could not find rendered range start order key");
                 iterator.prev();
 
@@ -696,8 +646,8 @@ export class VirtualizedScrollViewState {
                     // that item with our new one. If the new item existed somewhere else in the
                     // list it will be replaced with a buffer.
                     else if (node.value.type === "Item") {
-                        newState = VirtualizedScrollViewState._setEntry(
-                            newState,
+                        state = VirtualizedScrollViewState._setEntry(
+                            state,
                             node.key,
                             {
                                 type: "Item",
@@ -720,8 +670,8 @@ export class VirtualizedScrollViewState {
                             node.key,
                             newRenderedRangeStartOrderKey,
                         );
-                        newState = VirtualizedScrollViewState._setEntry(
-                            newState,
+                        state = VirtualizedScrollViewState._setEntry(
+                            state,
                             newEntryOrderKey,
                             {
                                 type: "Item",
@@ -746,8 +696,8 @@ export class VirtualizedScrollViewState {
                                 node.key,
                                 newRenderedRangeStartOrderKey,
                             );
-                            newState = VirtualizedScrollViewState._setEntry(
-                                newState,
+                            state = VirtualizedScrollViewState._setEntry(
+                                state,
                                 newEntryOrderKey,
                                 {
                                     type: "Item",
@@ -761,8 +711,8 @@ export class VirtualizedScrollViewState {
                         }
 
                         if (newBufferItemCount > 0) {
-                            newState = VirtualizedScrollViewState._setEntry(
-                                newState,
+                            state = VirtualizedScrollViewState._setEntry(
+                                state,
                                 node.key,
                                 {
                                     type: "Buffer",
@@ -771,15 +721,18 @@ export class VirtualizedScrollViewState {
                                 getItem,
                             );
                         } else {
-                            newState = VirtualizedScrollViewState._deleteEntry(newState, node.key);
+                            state = VirtualizedScrollViewState._deleteEntry(state, node.key);
                         }
                     }
                 }
             } else {
-                const iterator = this._entryByOrderKey.find(renderedRange.startOrderKey);
+                const iterator = state._entryByOrderKey.find(oldRenderedRangeStartOrderKey);
                 assert(iterator.node, "Could not find rendered range start order key");
 
-                while (iterator.node && newRenderedRangeStartOrderKey < renderedRange.endOrderKey) {
+                while (
+                    iterator.node &&
+                    newRenderedRangeStartOrderKey < oldRenderedRangeEndOrderKey
+                ) {
                     const node = iterator.node;
                     iterator.next();
                     const nextNode = iterator.valid ? iterator.node : null;
@@ -821,13 +774,8 @@ export class VirtualizedScrollViewState {
             // Case 1 is the first branch of the `if` and case 2 is the second branch of
             // the `if`.
             if (newRenderedRangeEndOffset < virtualizedWindowEndOffset) {
-                // Reuse the existing rendered range iterator to iterate forwards from the
-                // end node.
-                assert(
-                    renderedRangeIterator.node === renderedRangeEndNode,
-                    "Expected existing rendered range iterator to be at the end node",
-                );
-                const iterator = renderedRangeIterator;
+                const iterator = state._entryByOrderKey.find(oldRenderedRangeEndOrderKey);
+                assert(iterator.node, "Could not find rendered range end order key");
                 iterator.next();
 
                 while (iterator.node && newRenderedRangeEndOffset < virtualizedWindowEndOffset) {
@@ -847,8 +795,8 @@ export class VirtualizedScrollViewState {
                     // item with our new one. If the new item existed somewhere else in the list it
                     // will be replaced with a buffer.
                     else if (node.value.type === "Item") {
-                        newState = VirtualizedScrollViewState._setEntry(
-                            newState,
+                        state = VirtualizedScrollViewState._setEntry(
+                            state,
                             node.key,
                             {
                                 type: "Item",
@@ -871,8 +819,8 @@ export class VirtualizedScrollViewState {
                             newRenderedRangeEndOrderKey,
                             node.key,
                         );
-                        newState = VirtualizedScrollViewState._setEntry(
-                            newState,
+                        state = VirtualizedScrollViewState._setEntry(
+                            state,
                             newEntryOrderKey,
                             {
                                 type: "Item",
@@ -897,8 +845,8 @@ export class VirtualizedScrollViewState {
                                 newRenderedRangeEndOrderKey,
                                 node.key,
                             );
-                            newState = VirtualizedScrollViewState._setEntry(
-                                newState,
+                            state = VirtualizedScrollViewState._setEntry(
+                                state,
                                 newEntryOrderKey,
                                 {
                                     type: "Item",
@@ -912,8 +860,8 @@ export class VirtualizedScrollViewState {
                         }
 
                         if (newBufferItemCount > 0) {
-                            newState = VirtualizedScrollViewState._setEntry(
-                                newState,
+                            state = VirtualizedScrollViewState._setEntry(
+                                state,
                                 node.key,
                                 {
                                     type: "Buffer",
@@ -922,20 +870,18 @@ export class VirtualizedScrollViewState {
                                 getItem,
                             );
                         } else {
-                            newState = VirtualizedScrollViewState._deleteEntry(newState, node.key);
+                            state = VirtualizedScrollViewState._deleteEntry(state, node.key);
                         }
                     }
                 }
             } else {
-                // Reuse the existing rendered range iterator to iterate forwards from the
-                // end node.
-                assert(
-                    renderedRangeIterator.node === renderedRangeEndNode,
-                    "Expected existing rendered range iterator to be at the end node",
-                );
-                const iterator = renderedRangeIterator;
+                const iterator = state._entryByOrderKey.find(oldRenderedRangeEndOrderKey);
+                assert(iterator.node, "Could not find rendered range end order key");
 
-                while (iterator.node && newRenderedRangeEndOrderKey > renderedRange.startOrderKey) {
+                while (
+                    iterator.node &&
+                    newRenderedRangeEndOrderKey > oldRenderedRangeStartOrderKey
+                ) {
                     const node = iterator.node;
                     iterator.prev();
                     const previousNode = iterator.valid ? iterator.node : null;
@@ -958,17 +904,268 @@ export class VirtualizedScrollViewState {
             }
 
             return new VirtualizedScrollViewState({
-                viewHeight: newState._viewHeight,
-                bufferedItemHeight: newState._bufferedItemHeight,
-                entryByOrderKey: newState._entryByOrderKey,
-                orderKeyByItemKey: newState._orderKeyByItemKey,
+                viewHeight: state._viewHeight,
+                bufferedItemHeight: state._bufferedItemHeight,
+                entryByOrderKey: state._entryByOrderKey,
+                orderKeyByItemKey: state._orderKeyByItemKey,
                 renderedRange: {
                     startOrderKey: newRenderedRangeStartOrderKey,
                     endOrderKey: newRenderedRangeEndOrderKey,
                 },
-                itemCountCache: newState._itemCountCache,
-                contentHeightCache: newState._contentHeightCache,
+                itemCountCache: state._itemCountCache,
+                contentHeightCache: state._contentHeightCache,
             });
+        };
+
+        // This function handles when the user is scrolled at a completely unknown
+        // position. So we can't incrementally extend the rendered range we already
+        // have, we need to create a completely new rendered range.
+        const resetRenderedRange = (): VirtualizedScrollViewState => {
+            state = new VirtualizedScrollViewState({
+                viewHeight: state._viewHeight,
+                bufferedItemHeight: state._bufferedItemHeight,
+                entryByOrderKey: state._entryByOrderKey,
+                orderKeyByItemKey: state._orderKeyByItemKey,
+                renderedRange: null,
+                itemCountCache: state._itemCountCache,
+                contentHeightCache: state._contentHeightCache,
+            });
+
+            // Perform a binary search for the node which contains the provided offset.
+            const search = (
+                offset: number,
+                node: TreeNode<OrderKey, VirtualizedScrollViewStateEntry> | null,
+                stack: Array<TreeNode<OrderKey, VirtualizedScrollViewStateEntry>>,
+            ): {
+                node: TreeNode<OrderKey, VirtualizedScrollViewStateEntry>;
+                nodeOffset: number;
+            } | null => {
+                if (!node) return null;
+                stack.push(node);
+
+                const valueContentHeight =
+                    node.value.type === "Item"
+                        ? node.value.height
+                        : node.value.itemCount * state._bufferedItemHeight;
+
+                const leftContentHeight = state._getSubtreeContentHeight(node.left);
+
+                // If the offset is in our node then hooray! Return this node and the offset.
+                //
+                // Otherwise the offset is either in the left subtree or right subtree of this
+                // node. Find the appropriate subtree and recurse.
+                if (
+                    leftContentHeight <= offset &&
+                    offset < leftContentHeight + valueContentHeight
+                ) {
+                    return {node, nodeOffset: offset};
+                } else if (offset < leftContentHeight) {
+                    return search(offset, node.left, stack);
+                } else {
+                    assert(leftContentHeight + valueContentHeight <= offset);
+                    return search(
+                        offset - (leftContentHeight + valueContentHeight),
+                        node.right,
+                        stack,
+                    );
+                }
+            };
+
+            const iteratorStack: Array<TreeNode<OrderKey, VirtualizedScrollViewStateEntry>> = [];
+            const searchResult = search(
+                clampedVirtualizedWindowStartOffset,
+                state._entryByOrderKey.root,
+                iteratorStack,
+            );
+
+            // If we can't find a node at the offset we are searching for, return an empty
+            // rendered range.
+            if (!searchResult) return state;
+
+            // HACK(calebmer): Hackishly get the constructor for a
+            // `functional-red-black-tree` iterator and construct it since there's not an
+            // official API. This happens to be a tiny bit more efficient than calling
+            // `tree.find()` with the node returned from `search()` given we already know
+            // the node stack.
+            const iterator: TreeIterator<OrderKey, VirtualizedScrollViewStateEntry> = new (
+                state._entryByOrderKey.begin as any
+            ).constructor(state._entryByOrderKey, iteratorStack);
+
+            // The stack should be non-empty if `searchResult` is not null.
+            assert(iterator.node);
+
+            const node = iterator.node;
+
+            // If we land in a measured item, then expand our rendered range from there.
+            if (node.value.type === "Item") {
+                const index = state._getPreviousItemCount(iterator);
+                const offset = state._getPreviousContentHeight(iterator);
+
+                return expandRenderedRange(
+                    node.key,
+                    index,
+                    offset,
+                    node.key,
+                    index,
+                    offset + node.value.height,
+                );
+            }
+
+            // Our start offset is inside of a buffer. Determine where exactly we are in
+            // the buffer, split the buffer in two by adding a single item, and expand the
+            // rendered range from there to fill the virtualization window.
+            assert(node.value.type === "Buffer");
+
+            const bufferedItemIndex = Math.floor(
+                node.value.itemCount *
+                    (searchResult.nodeOffset / (node.value.itemCount * state._bufferedItemHeight)),
+            );
+
+            const newBufferedItemCountBefore = bufferedItemIndex;
+            const newBufferedItemCountAfter = node.value.itemCount - bufferedItemIndex - 1;
+
+            const index = state._getPreviousItemCount(iterator) + bufferedItemIndex;
+            const offset =
+                state._getPreviousContentHeight(iterator) +
+                newBufferedItemCountBefore * state._bufferedItemHeight;
+
+            const item = getItem(index);
+
+            let previousNode: TreeNode<OrderKey, VirtualizedScrollViewStateEntry> | null = null;
+            let nextNode: TreeNode<OrderKey, VirtualizedScrollViewStateEntry> | null = null;
+
+            if (iterator.hasPrev) {
+                iterator.prev();
+                previousNode = iterator.node;
+                iterator.next();
+            }
+
+            if (iterator.hasNext) {
+                iterator.next();
+                nextNode = iterator.node;
+            }
+
+            state = VirtualizedScrollViewState._setEntry(
+                state,
+                node.key,
+                {
+                    type: "Item",
+                    key: item.key,
+                    height: item.minHeight,
+                },
+                getItem,
+            );
+
+            if (newBufferedItemCountBefore > 0) {
+                state = VirtualizedScrollViewState._setEntry(
+                    state,
+                    generateOrderKeyBetween(previousNode?.key ?? null, node.key),
+                    {
+                        type: "Buffer",
+                        itemCount: newBufferedItemCountBefore,
+                    },
+                    getItem,
+                );
+            }
+
+            if (newBufferedItemCountAfter > 0) {
+                state = VirtualizedScrollViewState._setEntry(
+                    state,
+                    generateOrderKeyBetween(node.key, nextNode?.key ?? null),
+                    {
+                        type: "Buffer",
+                        itemCount: newBufferedItemCountAfter,
+                    },
+                    getItem,
+                );
+            }
+
+            return expandRenderedRange(
+                node.key,
+                index,
+                offset,
+                node.key,
+                index,
+                offset + item.minHeight,
+            );
+        };
+
+        if (!state._renderedRange) return resetRenderedRange();
+
+        // The rendered range is the range we are currently filling with content. We
+        // update the rendered range if we detect our rendered range does not fully
+        // cover the virtualized window.
+        const renderedRangeIterator = state._entryByOrderKey.find(
+            state._renderedRange.startOrderKey,
+        );
+        assert(renderedRangeIterator.node, "Could not find rendered range start order key");
+        const renderedRangeStartNode = renderedRangeIterator.node;
+        assert(
+            renderedRangeStartNode.value.type === "Item",
+            "Rendered range should only contain item entries",
+        );
+        const renderedRangeStartIndex = state._getPreviousItemCount(renderedRangeIterator);
+        const renderedRangeStartOffset = state._getPreviousContentHeight(renderedRangeIterator);
+
+        let renderedRangeEndNode: TreeNode<OrderKey, VirtualizedScrollViewStateEntry> | undefined;
+        let renderedRangeItemCount = 0;
+        let renderedRangeEndOffset = renderedRangeStartOffset;
+
+        // Iterate through our rendered range to find the end of the range.
+        while (renderedRangeIterator.node) {
+            const renderedRangeNode = renderedRangeIterator.node;
+            assert(
+                renderedRangeNode.value.type === "Item",
+                "Rendered range should only contain item entries",
+            );
+
+            renderedRangeItemCount += 1;
+            renderedRangeEndOffset += renderedRangeNode.value.height;
+
+            // Stop iteration when we've either found the end order key or we've passed it.
+            if (renderedRangeNode.key >= state._renderedRange.endOrderKey) {
+                if (renderedRangeNode.key === state._renderedRange.endOrderKey)
+                    renderedRangeEndNode = renderedRangeNode;
+                break;
+            }
+
+            renderedRangeIterator.next();
+        }
+
+        assert(renderedRangeEndNode, "Could not find rendered range end order key");
+
+        // Is our rendered range fully covering the virtualized window?
+        const isRenderedRangeCoveringVirtualizedWindow =
+            renderedRangeStartOffset <= clampedVirtualizedWindowStartOffset &&
+            renderedRangeEndOffset >= clampedVirtualizedWindowEndOffset;
+
+        // Is our rendered range partially intersecting with the virtualized window?
+        //
+        // If this is true but `isRenderedRangeCoveringVirtualizedWindow` is false then
+        // we're covering some of the virtualized window but not all of it. We need to
+        // update our rendered range to cover the entire virtualized window.
+        const isRenderedRangeIntersectingVirtualizedWindow = areRangesOverlapping(
+            renderedRangeStartOffset,
+            renderedRangeEndOffset,
+            clampedVirtualizedWindowStartOffset,
+            clampedVirtualizedWindowEndOffset,
+        );
+
+        // Our rendered range covers everything we want to render. Don't bother
+        // updating it.
+        if (isRenderedRangeCoveringVirtualizedWindow) return state;
+
+        if (!isRenderedRangeIntersectingVirtualizedWindow) {
+            return resetRenderedRange();
+        } else {
+            return expandRenderedRange(
+                state._renderedRange.startOrderKey,
+                renderedRangeStartIndex,
+                renderedRangeStartOffset,
+                state._renderedRange.endOrderKey,
+                renderedRangeStartIndex + renderedRangeItemCount - 1,
+                renderedRangeEndOffset,
+            );
         }
     }
 
@@ -1181,7 +1378,56 @@ export class VirtualizedScrollViewState {
         // We may recursively call this function so create an intermediate function
         // definition.
         const setEntry = (orderKey: OrderKey, entry: VirtualizedScrollViewStateEntry) => {
+            // If we are replacing an item then add the `itemKey -> orderKey` association.
+            if (entry.type === "Item") {
+                const iterator2 = orderKeyByItemKey.find(entry.key);
+
+                orderKeyByItemKey = iterator2.valid
+                    ? iterator2.update(orderKey)
+                    : orderKeyByItemKey.insert(entry.key, orderKey);
+
+                // If this item already existed in the list, then replace the item in the old
+                // position with a buffer. This maintains the item count in the list. Maybe we
+                // swapped positions with another item?
+                if (iterator2.node) {
+                    const iterator3 = entryByOrderKey.find(iterator2.node.value);
+
+                    // Reuse the height from the old, measured, item in the new entry instead of
+                    // using a `minHeight`.
+                    assert(iterator3.node?.value.type === "Item");
+                    entry = {...entry, height: iterator3.node.value.height};
+
+                    if (iterator2.node.value !== orderKey) {
+                        entryByOrderKey = iterator3.update({type: "Buffer", itemCount: 1});
+
+                        // We can not leave a buffer in the rendered range. So if the order key we are
+                        // replacing is in the rendered range, get the actual item at this position and
+                        // place it there instead.
+                        //
+                        // This should not recurse forever if `getItem()` returns unique key values for
+                        // each index. We have a validation in `render()` and `updatedRenderedRange()`
+                        // that checks that every index has a unique key which means we should not need
+                        // to check for cycles here.
+                        if (
+                            state._renderedRange &&
+                            state._renderedRange.startOrderKey <= iterator2.node.value &&
+                            iterator2.node.value <= state._renderedRange.endOrderKey
+                        ) {
+                            const index = state._getPreviousItemCount(iterator3);
+                            const newItem = getItem(index);
+                            setEntry(iterator2.node.value, {
+                                type: "Item",
+                                key: newItem.key,
+                                height: newItem.minHeight,
+                            });
+                        }
+                    }
+                }
+            }
+
             // Replace the entry at the provided order key.
+            //
+            // We do this last so we can reassign `entry` in the above branch.
             const iterator1 = entryByOrderKey.find(orderKey);
             entryByOrderKey = iterator1.valid
                 ? iterator1.update(entry)
@@ -1191,45 +1437,6 @@ export class VirtualizedScrollViewState {
             // `itemKey -> orderKey` association.
             if (iterator1.value?.type === "Item") {
                 orderKeyByItemKey = orderKeyByItemKey.remove(iterator1.value.key);
-            }
-
-            // If we are replacing an item then add the `itemKey -> orderKey` association.
-            if (entry.type === "Item") {
-                const iterator2 = orderKeyByItemKey.find(entry.key);
-
-                orderKeyByItemKey = iterator2.valid
-                    ? iterator2.update(orderKey)
-                    : orderKeyByItemKey.insert(entry.key, orderKey);
-
-                // If this item already existed in the list, then replace the old item with a
-                // buffer. This maintains the item count in the list. Maybe we swapped
-                // positions with another item?
-                if (iterator2.node && iterator2.node.value !== orderKey) {
-                    const iterator3 = entryByOrderKey.find(iterator2.node.value);
-                    entryByOrderKey = iterator3.update({type: "Buffer", itemCount: 1});
-
-                    // We can not leave a buffer in the rendered range. So if the order key we are
-                    // replacing is in the rendered range, get the actual item at this position and
-                    // place it there instead.
-                    //
-                    // This should not recurse forever if `getItem()` returns unique key values for
-                    // each index. We have a validation in `render()` and `updatedRenderedRange()`
-                    // that checks that every index has a unique key which means we should not need
-                    // to check for cycles here.
-                    if (
-                        state._renderedRange &&
-                        state._renderedRange.startOrderKey <= iterator2.node.value &&
-                        iterator2.node.value <= state._renderedRange.endOrderKey
-                    ) {
-                        const index = state._getPreviousItemCount(iterator3);
-                        const newItem = getItem(index);
-                        setEntry(iterator2.node.value, {
-                            type: "Item",
-                            key: newItem.key,
-                            height: newItem.minHeight,
-                        });
-                    }
-                }
             }
         };
 

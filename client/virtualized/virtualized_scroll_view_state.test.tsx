@@ -2548,3 +2548,256 @@ test("can remove every visible item while removing item count", () => {
         bufferedHeightBeforeChildren: 0,
     });
 });
+
+test("can jump to arbitrary positions in list when rendering starts at the top", () => {
+    const itemCount = 1_000;
+    const getItem = (index: number) => ({
+        key: index,
+        minHeight: 10,
+        render: (offset: number) => <div style={{top: offset}}>{String(index)}</div>,
+    });
+
+    let state = VirtualizedScrollViewState.initializeFromTop({
+        screenHeight: 100,
+        bufferedItemHeight: 10,
+        itemCount,
+        getItem,
+    });
+
+    expect(
+        omitObject(
+            state.render({
+                itemCount,
+                getItem,
+            }),
+            ["state"],
+        ),
+    ).toEqual({
+        children: [
+            <div style={{top: 0}}>0</div>,
+            <div style={{top: 10}}>1</div>,
+            <div style={{top: 20}}>2</div>,
+            <div style={{top: 30}}>3</div>,
+            <div style={{top: 40}}>4</div>,
+            <div style={{top: 50}}>5</div>,
+            <div style={{top: 60}}>6</div>,
+            <div style={{top: 70}}>7</div>,
+            <div style={{top: 80}}>8</div>,
+            <div style={{top: 90}}>9</div>,
+            <div style={{top: 100}}>10</div>,
+            <div style={{top: 110}}>11</div>,
+            <div style={{top: 120}}>12</div>,
+            <div style={{top: 130}}>13</div>,
+            <div style={{top: 140}}>14</div>,
+            <div style={{top: 150}}>15</div>,
+            <div style={{top: 160}}>16</div>,
+            <div style={{top: 170}}>17</div>,
+            <div style={{top: 180}}>18</div>,
+            <div style={{top: 190}}>19</div>,
+        ],
+        contentHeight: 10_000,
+        bufferedHeightBeforeChildren: 0,
+    });
+
+    state = state.setViewHeight(20);
+
+    state = state.updateRenderedRange({
+        scrollOffset: 400,
+        itemCount,
+        getItem,
+    });
+
+    expect(
+        omitObject(
+            state.render({
+                itemCount,
+                getItem,
+            }),
+            ["state"],
+        ),
+    ).toEqual({
+        children: [
+            <div style={{top: 390}}>39</div>,
+            <div style={{top: 400}}>40</div>,
+            <div style={{top: 410}}>41</div>,
+            <div style={{top: 420}}>42</div>,
+        ],
+        contentHeight: 10_000,
+        bufferedHeightBeforeChildren: 390,
+    });
+
+    state = state.updateRenderedRange({
+        scrollOffset: 0,
+        itemCount,
+        getItem,
+    });
+
+    state = state.setViewHeight(100);
+
+    state = state.updateRenderedRange({
+        scrollOffset: 0,
+        itemCount,
+        getItem,
+    });
+
+    for (let scrollOffset = 251; scrollOffset < 9_900; scrollOffset++) {
+        // eslint-disable-next-line testing-library/render-result-naming-convention
+        const jumpState = state.updateRenderedRange({
+            scrollOffset,
+            itemCount,
+            getItem,
+        });
+
+        const children = [];
+
+        for (
+            let index = Math.floor((scrollOffset - 50) / 10);
+            index <= Math.min(itemCount - 1, Math.floor((scrollOffset + 150 - 1) / 10));
+            index++
+        ) {
+            children.push(<div style={{top: index * 10}}>{String(index)}</div>);
+        }
+
+        expect(
+            omitObject(
+                jumpState.render({
+                    itemCount,
+                    getItem,
+                }),
+                ["state"],
+            ),
+        ).toEqual({
+            children,
+            contentHeight: 10_000,
+            bufferedHeightBeforeChildren: children[0]?.props.style.top,
+        });
+    }
+});
+
+test("can jump to arbitrary positions in list when rendering starts at the end", () => {
+    const itemCount = 1_000;
+    const getItem = (index: number) => ({
+        key: index,
+        minHeight: 10,
+        render: (offset: number) => <div style={{top: offset}}>{String(index)}</div>,
+    });
+
+    let state = VirtualizedScrollViewState.initializeFromBottom({
+        screenHeight: 100,
+        bufferedItemHeight: 10,
+        itemCount,
+        getItem,
+    });
+
+    expect(
+        omitObject(
+            state.render({
+                itemCount,
+                getItem,
+            }),
+            ["state"],
+        ),
+    ).toEqual({
+        children: [
+            <div style={{top: 9800}}>980</div>,
+            <div style={{top: 9810}}>981</div>,
+            <div style={{top: 9820}}>982</div>,
+            <div style={{top: 9830}}>983</div>,
+            <div style={{top: 9840}}>984</div>,
+            <div style={{top: 9850}}>985</div>,
+            <div style={{top: 9860}}>986</div>,
+            <div style={{top: 9870}}>987</div>,
+            <div style={{top: 9880}}>988</div>,
+            <div style={{top: 9890}}>989</div>,
+            <div style={{top: 9900}}>990</div>,
+            <div style={{top: 9910}}>991</div>,
+            <div style={{top: 9920}}>992</div>,
+            <div style={{top: 9930}}>993</div>,
+            <div style={{top: 9940}}>994</div>,
+            <div style={{top: 9950}}>995</div>,
+            <div style={{top: 9960}}>996</div>,
+            <div style={{top: 9970}}>997</div>,
+            <div style={{top: 9980}}>998</div>,
+            <div style={{top: 9990}}>999</div>,
+        ],
+        contentHeight: 10_000,
+        bufferedHeightBeforeChildren: 9800,
+    });
+
+    state = state.setViewHeight(20);
+
+    state = state.updateRenderedRange({
+        scrollOffset: 400,
+        itemCount,
+        getItem,
+    });
+
+    expect(
+        omitObject(
+            state.render({
+                itemCount,
+                getItem,
+            }),
+            ["state"],
+        ),
+    ).toEqual({
+        children: [
+            <div style={{top: 390}}>39</div>,
+            <div style={{top: 400}}>40</div>,
+            <div style={{top: 410}}>41</div>,
+            <div style={{top: 420}}>42</div>,
+        ],
+        contentHeight: 10_000,
+        bufferedHeightBeforeChildren: 390,
+    });
+
+    state = state.updateRenderedRange({
+        scrollOffset: 9_900,
+        itemCount,
+        getItem,
+    });
+
+    state = state.setViewHeight(100);
+
+    state = state.updateRenderedRange({
+        scrollOffset: 9_900,
+        itemCount,
+        getItem,
+    });
+
+    for (let scrollOffset = 0; scrollOffset < 9_649; scrollOffset++) {
+        // eslint-disable-next-line testing-library/render-result-naming-convention
+        const jumpState = state.updateRenderedRange({
+            scrollOffset,
+            itemCount,
+            getItem,
+        });
+
+        const children = [];
+
+        for (
+            let index =
+                // `scrollOffset === 360` special case accounts for floating point math
+                // weirdness.
+                scrollOffset === 360 ? 30 : Math.max(0, Math.floor((scrollOffset - 50) / 10));
+            index <= Math.floor((scrollOffset + 150 - 1) / 10);
+            index++
+        ) {
+            children.push(<div style={{top: index * 10}}>{String(index)}</div>);
+        }
+
+        expect(
+            omitObject(
+                jumpState.render({
+                    itemCount,
+                    getItem,
+                }),
+                ["state"],
+            ),
+        ).toEqual({
+            children,
+            contentHeight: 10_000,
+            bufferedHeightBeforeChildren: children[0]?.props.style.top ?? 0,
+        });
+    }
+});
