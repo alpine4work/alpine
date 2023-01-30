@@ -112,7 +112,14 @@ function PostCommentsToggleButton({
             />
             <Button
                 paddingX="2"
-                icon={arePostCommentsOpen ? <CaretDown /> : <CaretRight />}
+                icon={
+                    <CaretRight
+                        style={{
+                            transform: arePostCommentsOpen ? "rotate(90deg)" : "rotate(0deg)",
+                            transition: "transform 100ms ease",
+                        }}
+                    />
+                }
                 iconPlacement="end"
                 onPress={async () => {
                     if (arePostCommentsOpen) {
