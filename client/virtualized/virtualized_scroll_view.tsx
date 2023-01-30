@@ -12,6 +12,7 @@ import {
 } from "react";
 import {useRemPx} from "~/client/design/helpers/use_rem_px";
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants";
+import {isMobileWebKit} from "~/client/helpers/is_mobile_web_kit";
 import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
@@ -91,6 +92,46 @@ export type VirtualizedScrollViewRef = {
 
 const VirtualizedScrollViewForwardRef = forwardRef(VirtualizedScrollView);
 export {VirtualizedScrollViewForwardRef as VirtualizedScrollView};
+
+type VirtualizedScrollViewActualState = {
+    readonly state: VirtualizedScrollViewState;
+    readonly shouldUpdateRenderedRange: boolean;
+    readonly isJumpScrolling: boolean;
+    /**
+     * Well, this is annoying.
+     *
+     * Our `pinTo="bottom"` prop makes sure that when content is added to the
+     * scroll view, the bottom of the scroll window stays constant. Otherwise you
+     * get a janky, jittery, experience when scrolling up. To do that we have a
+     * hook that adjusts `scrollElement.scrollTop` on resize. However in Safari on
+     * iOS (not Safari on MacOS) this cancels the momentum scroll animation ([you
+     * can follow this code around][1]) leading to an even more janky experience
+     * where your scrolls don't feel continuous.
+     *
+     * I spent a lot of time digging around in the WebKit source code for a way to
+     * adjust scroll position without cancelling the scroll animation (e.g.
+     * dispatch `wheel` event?) but couldn't find anything.
+     *
+     * So on mobile WebKit the way we implement `pinTo="bottom"` is by offsetting
+     * the position in which all our items are rendered during a scroll then fixing
+     * the position once the scroll is done (with a `scrollElement.scrollTop`
+     * assignment).
+     *
+     * So if we start with content height of 100 and render an item above our
+     * rendered range which is 5 pixels larger than its min-height while scrolling
+     * up, we will keep a content height of 100 (even though the true content
+     * height is now 105) and we will offset the position of all items by -5. When
+     * the scroll is complete, we set the content height back to 105 and offset the
+     * `scrollElement.scrollTop` by +5 so to the user it feels like you didn't move.
+     *
+     * Now, this is a little janky when you get to the top of the scroll view.
+     * Especially if the accumulated offset is a big number. But we are ok with
+     * this tradeoff for smooth continuous scrolling.
+     *
+     * [1]: https://github.com/WebKit/WebKit/blob/8f690bd4d72836915fb0c82775e16f1bf01caf59/Source/WebCore/dom/Element.cpp#L1564-L1585
+     */
+    readonly contentHeightBeforeScrollForMobileWebKitPinToBottom: number | null;
+};
 
 /**
  * Component for rendering a large list of items. Web browsers start to slow
@@ -237,11 +278,7 @@ function VirtualizedScrollView(
         [_bufferedItemHeight, remPx],
     );
 
-    const [originalState, setState] = useState<{
-        state: VirtualizedScrollViewState;
-        shouldUpdateRenderedRange: boolean;
-        isJumpScrolling: boolean;
-    }>(() => {
+    const [originalState, setState] = useState<VirtualizedScrollViewActualState>(() => {
         if (pinTo === "top") {
             return {
                 state: VirtualizedScrollViewState.initializeFromTop({
@@ -252,6 +289,7 @@ function VirtualizedScrollView(
                 }),
                 shouldUpdateRenderedRange: false,
                 isJumpScrolling: false,
+                contentHeightBeforeScrollForMobileWebKitPinToBottom: null,
             };
         } else {
             return {
@@ -263,10 +301,12 @@ function VirtualizedScrollView(
                 }),
                 shouldUpdateRenderedRange: false,
                 isJumpScrolling: false,
+                contentHeightBeforeScrollForMobileWebKitPinToBottom: null,
             };
         }
     });
     let {state} = originalState;
+    const {contentHeightBeforeScrollForMobileWebKitPinToBottom} = originalState;
 
     // Update the buffered item height in our state based on our props if
     // necessary.
@@ -365,10 +405,12 @@ function VirtualizedScrollView(
                                 elementRef?.cleanup();
 
                                 let lastHeight = element.offsetHeight;
-                                setState(({state, isJumpScrolling}) => ({
-                                    state: state.setItemHeight(item.key, lastHeight),
+                                setState(previousState => ({
+                                    state: previousState.state.setItemHeight(item.key, lastHeight),
                                     shouldUpdateRenderedRange: true,
-                                    isJumpScrolling,
+                                    isJumpScrolling: previousState.isJumpScrolling,
+                                    contentHeightBeforeScrollForMobileWebKitPinToBottom:
+                                        previousState.contentHeightBeforeScrollForMobileWebKitPinToBottom,
                                 }));
 
                                 const handleResize = (entry: ResizeObserverEntry) => {
@@ -379,10 +421,15 @@ function VirtualizedScrollView(
                                     if (!document.body.contains(element)) return;
 
                                     if (height !== lastHeight) {
-                                        setState(({state, isJumpScrolling}) => ({
-                                            state: state.setItemHeight(item.key, lastHeight),
+                                        setState(previousState => ({
+                                            state: previousState.state.setItemHeight(
+                                                item.key,
+                                                lastHeight,
+                                            ),
                                             shouldUpdateRenderedRange: true,
-                                            isJumpScrolling,
+                                            isJumpScrolling: previousState.isJumpScrolling,
+                                            contentHeightBeforeScrollForMobileWebKitPinToBottom:
+                                                previousState.contentHeightBeforeScrollForMobileWebKitPinToBottom,
                                         }));
                                         lastHeight = height;
                                     }
@@ -411,7 +458,8 @@ function VirtualizedScrollView(
 
     const hasHandledScrollThisAnimationFrameRef = useRef(false);
     const lastScrollTopRef = useRef<number | null>(null);
-    const jumpScrollDebounceTimerRef = useRef<Timeout | null>(null);
+    const jumpScrollDebounceTimeoutRef = useRef<Timeout | null>(null);
+    const scrollForMobileWebkitPinToBottomTimeoutRef = useRef<Timeout | null>(null);
 
     const handleScroll = () => {
         // Only handle scroll events once per animation frame.
@@ -437,21 +485,18 @@ function VirtualizedScrollView(
             Math.abs(lastScrollTopRef.current - scrollTop) > clientHeight / 2;
 
         if (isJumpScrolling) {
-            jumpScrollDebounceTimerRef.current?.clear();
-            jumpScrollDebounceTimerRef.current = createTimeout(() => {
+            jumpScrollDebounceTimeoutRef.current?.clear();
+            jumpScrollDebounceTimeoutRef.current = createTimeout(() => {
                 const {scrollTop} = assertExists(scrollRef.current);
 
                 setState(previousState => {
                     if (!previousState.isJumpScrolling) return previousState;
-                    return {
-                        state: previousState.state.updateRenderedRange({
-                            scrollOffset: scrollTop,
-                            itemCount,
-                            getItem: getItemWithoutRender,
-                        }),
-                        shouldUpdateRenderedRange: false,
-                        isJumpScrolling: false,
-                    };
+                    return updateVirtualizedScrollViewActualStateRenderedRange(previousState, {
+                        pinTo,
+                        itemCount,
+                        getItemWithoutRender,
+                        scrollTop,
+                    });
                 });
             }, perceivedAsInstantLimitMs);
         }
@@ -461,18 +506,29 @@ function VirtualizedScrollView(
                 if (previousState.isJumpScrolling) return previousState;
                 return {...previousState, isJumpScrolling: true};
             } else {
-                return {
-                    state: previousState.state.updateRenderedRange({
-                        scrollOffset: scrollTop,
-                        itemCount,
-                        getItem: getItemWithoutRender,
-                    }),
-                    shouldUpdateRenderedRange: false,
-                    isJumpScrolling: false,
-                };
+                return updateVirtualizedScrollViewActualStateRenderedRange(previousState, {
+                    pinTo,
+                    itemCount,
+                    getItemWithoutRender,
+                    scrollTop,
+                });
             }
         });
 
+        // If this is mobile WebKit, detect when the user has stopped scrolling and
+        // reset the before content height. This should update our rendered element's
+        // content height.
+        if (isMobileWebKit && pinTo === "bottom") {
+            scrollForMobileWebkitPinToBottomTimeoutRef.current?.clear();
+            scrollForMobileWebkitPinToBottomTimeoutRef.current = createTimeout(() => {
+                setState(previousState => ({
+                    ...previousState,
+                    contentHeightBeforeScrollForMobileWebKitPinToBottom: null,
+                }));
+            }, perceivedAsInstantLimitMs);
+        }
+
+        // Finally, update the scroll top so we know what the last value was.
         lastScrollTopRef.current = scrollTop;
     };
 
@@ -485,6 +541,8 @@ function VirtualizedScrollView(
             state,
             shouldUpdateRenderedRange: true,
             isJumpScrolling: originalState.isJumpScrolling,
+            contentHeightBeforeScrollForMobileWebKitPinToBottom:
+                originalState.contentHeightBeforeScrollForMobileWebKitPinToBottom,
         });
     }
 
@@ -498,18 +556,41 @@ function VirtualizedScrollView(
                 if (previousState.isJumpScrolling || !previousState.shouldUpdateRenderedRange)
                     return previousState;
 
-                return {
-                    state: previousState.state.updateRenderedRange({
-                        scrollOffset: scrollTop,
-                        itemCount,
-                        getItem: getItemWithoutRender,
-                    }),
-                    shouldUpdateRenderedRange: false,
-                    isJumpScrolling: false,
-                };
+                return updateVirtualizedScrollViewActualStateRenderedRange(previousState, {
+                    pinTo,
+                    itemCount,
+                    getItemWithoutRender,
+                    scrollTop,
+                });
             });
         }
-    }, [state, originalState, itemCount, getItemWithoutRender]);
+    }, [state, originalState, itemCount, getItemWithoutRender, pinTo]);
+
+    const previousContentHeightRef = useRef(contentHeight);
+    const previousContentHeightBeforeScrollForMobileWebKitPinToBottomRef = useRef(
+        contentHeightBeforeScrollForMobileWebKitPinToBottom,
+    );
+
+    // When we clear `contentHeightBeforeScrollForMobileWebKitPinToBottom` from
+    // state, all items shift as they find their correct positions. This layout
+    // effect counteracts the shift to maintain the position in the scroll view the
+    // user was looking at.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        const scrollElement = assertExists(scrollRef.current);
+
+        if (
+            previousContentHeightBeforeScrollForMobileWebKitPinToBottomRef.current !== null &&
+            contentHeightBeforeScrollForMobileWebKitPinToBottom === null
+        ) {
+            scrollElement.scrollTop -=
+                previousContentHeightBeforeScrollForMobileWebKitPinToBottomRef.current -
+                previousContentHeightRef.current;
+        }
+
+        previousContentHeightRef.current = contentHeight;
+        previousContentHeightBeforeScrollForMobileWebKitPinToBottomRef.current =
+            contentHeightBeforeScrollForMobileWebKitPinToBottom;
+    }, [contentHeight, contentHeightBeforeScrollForMobileWebKitPinToBottom]);
 
     return (
         <>
@@ -521,15 +602,34 @@ function VirtualizedScrollView(
                     overflowX: "hidden",
                     overflowY: "scroll",
                 })}
+                style={{
+                    // Make sure we use momentum-based scrolling on iOS.
+                    WebkitOverflowScrolling: "touch",
+                }}
                 onScroll={handleScroll}
             >
-                <div style={{height: contentHeight}} />
+                <div
+                    style={{
+                        height:
+                            contentHeightBeforeScrollForMobileWebKitPinToBottom ?? contentHeight,
+                    }}
+                />
                 <div
                     ref={contentRef}
                     // NOTE(calebmer): We render our virtualized list in an absolutely positioned
                     // container because we find it helps avoid some jankiness on initial load with
                     // `pinTo="bottom"`. It is unclear to me why this is the fix.
-                    style={{position: "absolute", left: 0, right: 0, top: 0, height: contentHeight}}
+                    style={{
+                        position: "absolute",
+                        left: 0,
+                        right: 0,
+                        top:
+                            contentHeightBeforeScrollForMobileWebKitPinToBottom !== null
+                                ? contentHeightBeforeScrollForMobileWebKitPinToBottom -
+                                  contentHeight
+                                : 0,
+                        height: contentHeight,
+                    }}
                 >
                     {shouldRenderWithRelativePositioning && bufferedHeightBeforeChildren > 0 && (
                         <div style={{height: bufferedHeightBeforeChildren}} />
@@ -540,6 +640,39 @@ function VirtualizedScrollView(
             {pinToScriptElement}
         </>
     );
+}
+
+function updateVirtualizedScrollViewActualStateRenderedRange(
+    previousState: VirtualizedScrollViewActualState,
+    {
+        pinTo,
+        itemCount,
+        getItemWithoutRender,
+        scrollTop,
+    }: {
+        pinTo: "top" | "bottom";
+        itemCount: number;
+        getItemWithoutRender: (index: number) => {key: Key; minHeight: number};
+        scrollTop: number;
+    },
+): VirtualizedScrollViewActualState {
+    return {
+        state: previousState.state.updateRenderedRange({
+            scrollOffset:
+                scrollTop -
+                (previousState.contentHeightBeforeScrollForMobileWebKitPinToBottom !== null
+                    ? previousState.contentHeightBeforeScrollForMobileWebKitPinToBottom -
+                      previousState.state.getContentHeight()
+                    : 0),
+            itemCount,
+            getItem: getItemWithoutRender,
+        }),
+        shouldUpdateRenderedRange: false,
+        isJumpScrolling: false,
+        contentHeightBeforeScrollForMobileWebKitPinToBottom:
+            previousState.contentHeightBeforeScrollForMobileWebKitPinToBottom ??
+            (isMobileWebKit && pinTo === "bottom" ? previousState.state.getContentHeight() : null),
+    };
 }
 
 function useScrollViewPinTo(
@@ -568,6 +701,15 @@ function useScrollViewPinTo(
 
     useLayoutEffectWithoutServerSideWarning(() => {
         if (pinTo !== "bottom") return;
+
+        // Unfortunately, setting `scrollTop` in mobile WebKit (but not desktop
+        // WebKit!) cancels any animations. So if the user is momentum scrolling with
+        // touch, that scroll will be cancelled.
+        //
+        // In order to get the same behavior on mobile WebKit we use a hacky
+        // implementation that maintains the position of items until the scroll
+        // finishes.
+        if (isMobileWebKit) return;
 
         const scrollElement = assertExists(scrollRef.current);
         const contentElement = assertExists(contentRef.current);
