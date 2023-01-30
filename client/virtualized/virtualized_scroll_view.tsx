@@ -373,6 +373,11 @@ function VirtualizedScrollView(
 
                                 const handleResize = (entry: ResizeObserverEntry) => {
                                     const height = entry.contentRect.height;
+
+                                    // If the element was removed from the DOM its height will be zero. Don't
+                                    // record that height.
+                                    if (!document.body.contains(element)) return;
+
                                     if (height !== lastHeight) {
                                         setState(({state, isJumpScrolling}) => ({
                                             state: state.setItemHeight(item.key, lastHeight),
@@ -418,14 +423,20 @@ function VirtualizedScrollView(
 
         const {scrollTop, clientHeight} = assertExists(scrollRef.current);
 
-        // If the user starts scrolling really fast we enter a jump scroll state. We
-        // will not update the rendered range until after the jump scroll has finished
+        // If the user is scrolling fast we enter a jump scroll state. We will not
+        // update the rendered range until after the jump scroll has finished
         // to maintain high performance as the user jumps through the scrollable view.
-        const isJumpScrollStart =
+        //
+        // The threshold for jump scrolling is the user has moved more than half of the
+        // scroll view height in the last render frame. As long as the user maintains
+        // that speed we will continue the jump scroll. If scrolling decelerates (like
+        // in an iOS toss scroll which maintains scrolling momentum a while) the jump
+        // scroll ends.
+        const isJumpScrolling =
             lastScrollTopRef.current !== null &&
-            Math.abs(lastScrollTopRef.current - scrollTop) > clientHeight;
+            Math.abs(lastScrollTopRef.current - scrollTop) > clientHeight / 2;
 
-        if (isJumpScrollStart || jumpScrollDebounceTimerRef.current !== null) {
+        if (isJumpScrolling) {
             jumpScrollDebounceTimerRef.current?.clear();
             jumpScrollDebounceTimerRef.current = createTimeout(() => {
                 const {scrollTop} = assertExists(scrollRef.current);
@@ -445,10 +456,8 @@ function VirtualizedScrollView(
             }, perceivedAsInstantLimitMs);
         }
 
-        lastScrollTopRef.current = scrollTop;
-
         setState(previousState => {
-            if (previousState.isJumpScrolling || isJumpScrollStart) {
+            if (previousState.isJumpScrolling || isJumpScrolling) {
                 if (previousState.isJumpScrolling) return previousState;
                 return {...previousState, isJumpScrolling: true};
             } else {
@@ -463,6 +472,8 @@ function VirtualizedScrollView(
                 };
             }
         });
+
+        lastScrollTopRef.current = scrollTop;
     };
 
     // Make sure any state changes in our render function are reflected back in
