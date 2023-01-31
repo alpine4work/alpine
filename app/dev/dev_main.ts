@@ -41,6 +41,9 @@ const miniflare = new Miniflare({
     durableObjects: {
         DocumentCollaborationDurableObjectNamespace: "DocumentCollaborationDurableObject",
     },
+    globals: {
+        __writeDevTracerEvent: writeDevTracerEvent,
+    },
 });
 
 const miniflareListener = createRequestListener(miniflare);
@@ -317,31 +320,6 @@ fs.ensureDirSync(tracerLogDirectoryPath);
 
 const devServer = express();
 
-devServer.use(express.json());
-
-devServer.post("/tracer", (req, res, next) => {
-    const promise = (async () => {
-        const event = req.body;
-
-        const date = new Date();
-        const dateString =
-            date.getUTCFullYear().toString().padStart(4, "0") +
-            "-" +
-            (date.getUTCMonth() + 1).toString().padStart(2, "0") +
-            "-" +
-            date.getUTCDate().toString().padStart(2, "0");
-
-        const tracerLogFilePath = path.join(tracerLogDirectoryPath, `tracer-${dateString}.log`);
-
-        await fs.appendFile(tracerLogFilePath, JSON.stringify(event) + "\n");
-    })();
-
-    promise.then(
-        () => res.status(200).end(),
-        error => next(error),
-    );
-});
-
 const devServerPromiseResolver = createPromiseResolver();
 
 const actualDevServer = http.createServer();
@@ -363,4 +341,24 @@ function broadcast(event: unknown) {
 function broadcastLog(message: string) {
     message = `💿 ${message}`;
     broadcast({type: "LOG", message});
+}
+
+/* ========================================================================== *\
+ *                                  Tracer                                    *
+\* ========================================================================== */
+
+function writeDevTracerEvent(event: unknown) {
+    runPromiseWithoutAwaiting(async () => {
+        const date = new Date();
+        const dateString =
+            date.getUTCFullYear().toString().padStart(4, "0") +
+            "-" +
+            (date.getUTCMonth() + 1).toString().padStart(2, "0") +
+            "-" +
+            date.getUTCDate().toString().padStart(2, "0");
+
+        const tracerLogFilePath = path.join(tracerLogDirectoryPath, `tracer-${dateString}.log`);
+
+        await fs.appendFile(tracerLogFilePath, JSON.stringify(event) + "\n");
+    });
 }

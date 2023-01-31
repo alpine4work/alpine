@@ -1,5 +1,4 @@
 import {HoneycombTracerClient} from "~/server/tracer/honeycomb_tracer_client";
-import {InternalError} from "~/shared/error/error";
 import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root";
 
 /**
@@ -39,27 +38,13 @@ export function createServerTracer({
         sendEvent: event => {
             honeycombClient?.sendEvent(event);
 
-            // In development, send every event to our dev server so that we can write it
-            // to a log file.
-            if (process.env.NODE_ENV !== "production" && env.DEV_SERVER_PORT) {
-                waitUntil(
-                    // Being lazy and not writing error handling since this is dev only.
-                    // eslint-disable-next-line no-global-fetch
-                    fetch(`http://localhost:${env.DEV_SERVER_PORT}/tracer`, {
-                        method: "POST",
-                        headers: {"content-type": "application/json"},
-                        body: JSON.stringify({
-                            time: event.time,
-                            data: event.getFlatData(),
-                        }),
-                    }).catch(error => {
-                        // If there is an error, log it but don't crash the process.
-                        // eslint-disable-next-line no-console
-                        console.error(
-                            InternalError.from(error, "Failed to send dev server events"),
-                        );
-                    }),
-                );
+            // In development, we write every event to a log file. This function is
+            // provided to us by `dev_main.ts` setting a global.
+            if (process.env.NODE_ENV !== "production") {
+                (globalThis as any).__writeDevTracerEvent({
+                    time: event.time,
+                    data: event.getFlatData(),
+                });
             }
         },
     });
