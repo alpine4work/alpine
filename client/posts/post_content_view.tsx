@@ -1,4 +1,4 @@
-import {CaretDown, CaretRight} from "phosphor-react";
+import {CaretRight} from "phosphor-react";
 import {useNavigate} from "react-router-dom";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile";
