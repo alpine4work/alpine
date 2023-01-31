@@ -1,5 +1,7 @@
-import {useCallback, useRef, useState} from "react";
+import {useCallback, useEffect, useRef, useState} from "react";
+import {useRemPx} from "~/client/design/helpers/use_rem_px";
 import {Spacer} from "~/client/design/spacer";
+import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {MessageShimmer} from "~/client/messaging/message_shimmer";
 import {
     MessageView,
@@ -16,6 +18,9 @@ import {
     VirtualizedScrollViewRef,
     getInitialVirtualizedScrollViewRenderedItemCount,
 } from "~/client/virtualized/virtualized_scroll_view";
+import {convertRemLengthToPx} from "~/shared/design/spacing";
+import {assert} from "~/shared/helpers/control/assert";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {MessageInterface} from "~/shared/models/message_interface";
 import {ClientInfo} from "~/shared/remix/client_info";
@@ -65,14 +70,14 @@ export function MessagingView<Message extends MessageInterface>({
     }>;
 }) {
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
+    const remPx = useRemPx();
 
-    const [state] = useState(
+    const [state, setState] = useState(
         (): {
             pinTo: "top" | "bottom";
             list: PaginatedMessageList<Message>;
             isLoading: boolean;
             errorState: {hasError: false} | {hasError: true; error: unknown};
-            scrollToIndexAfterLoading: number | null;
         } => {
             switch (initialState.from) {
                 case "Start": {
@@ -93,7 +98,6 @@ export function MessagingView<Message extends MessageInterface>({
                         }),
                         isLoading: false,
                         errorState: {hasError: false},
-                        scrollToIndexAfterLoading: null,
                     };
                 }
                 case "End": {
@@ -113,7 +117,6 @@ export function MessagingView<Message extends MessageInterface>({
                         }),
                         isLoading: false,
                         errorState: {hasError: false},
-                        scrollToIndexAfterLoading: null,
                     };
                 }
                 default:
@@ -125,7 +128,194 @@ export function MessagingView<Message extends MessageInterface>({
     // Escalate network errors to component errors.
     if (state.errorState.hasError) throw state.errorState.error;
 
-    // TODO(calebmer): Reimplement message loading...
+    // This is an event function so that every time it is called it uses the
+    // latest props.
+    //
+    // IMPORTANT: In this function be careful about using props after an
+    // asynchronous callback! Those props may be stale.
+    const tryLoadingMore = useEvent(() => {
+        // If we're already loading, don't try to load more data.
+        if (state.isLoading) return;
+
+        const view = assertExists(viewRef.current);
+        const range = view.getRenderedRange();
+        if (!range) return;
+
+        const startMessage = state.list.getMessage(range.startIndex);
+        const endMessage = state.list.getMessage(range.endIndex);
+
+        // Everything rendered is loaded. Yay! Proceed if we need to load some data.
+        if (startMessage.isLoaded && endMessage.isLoaded) return;
+
+        // The limit of items we will load is two views worth of messages. This gives
+        // the user some space to scroll and read before we need to load more messages.
+        //
+        // If the user did a jump scroll then we will load three views worth of
+        // messages.
+        const viewHeight = view.getHeight();
+        const limit = Math.max(
+            20,
+            Math.ceil((viewHeight * 2) / convertRemLengthToPx(messageViewMinHeight, remPx)),
+        );
+        const jumpLimitViewCount = 3;
+        const jumpLimit = Math.max(
+            20,
+            Math.ceil(
+                (viewHeight * jumpLimitViewCount) /
+                    convertRemLengthToPx(messageViewMinHeight, remPx),
+            ),
+        );
+
+        const loadFromStart = ({
+            afterMessageId,
+            beforeMessageId,
+            limit,
+        }: {
+            afterMessageId: number;
+            beforeMessageId: number | null;
+            limit: number;
+        }) => {
+            setState(state => ({...state, isLoading: true}));
+
+            onLoadFromStart({
+                afterMessageId,
+                beforeMessageId,
+                limit,
+            }).then(
+                result => {
+                    setState(state => ({
+                        ...state,
+                        isLoading: false,
+                        list: state.list.loadMessagesFromStart({
+                            afterMessageId,
+                            beforeMessageId,
+                            limit,
+                            hasMoreMessagesAfter: result.hasMoreMessagesAfter,
+                            messages: result.messages,
+                        }),
+                    }));
+                },
+                error => {
+                    setState(state => ({
+                        ...state,
+                        isLoading: false,
+                        errorState: {hasError: true, error},
+                    }));
+                },
+            );
+        };
+
+        if (startMessage.isLoaded && !endMessage.isLoaded) {
+            const afterMessageId = assertExists(
+                state.list.getLastLoadedMessageBefore(range.endIndex),
+                "Start message is loaded so there should be a loaded message after our end index",
+            ).message.id;
+
+            const beforeMessageId =
+                state.list.getFirstLoadedMessageAfter(range.endIndex)?.message.id ?? null;
+
+            loadFromStart({
+                afterMessageId,
+                beforeMessageId,
+                limit,
+            });
+            return;
+        }
+
+        if (!startMessage.isLoaded && endMessage.isLoaded) {
+            setState(state => ({...state, isLoading: true}));
+
+            const afterMessageId =
+                state.list.getLastLoadedMessageBefore(range.startIndex)?.message.id ?? null;
+
+            const beforeMessageId = assertExists(
+                state.list.getFirstLoadedMessageAfter(range.startIndex),
+                "End message is loaded so there should be a loaded message after our start index",
+            ).message.id;
+
+            onLoadFromEnd({
+                afterMessageId,
+                beforeMessageId,
+                limit,
+            }).then(
+                result => {
+                    setState(state => ({
+                        ...state,
+                        isLoading: false,
+                        list: state.list.loadMessagesFromEnd({
+                            afterMessageId,
+                            beforeMessageId,
+                            limit,
+                            hasMoreMessagesBefore: result.hasMoreMessagesBefore,
+                            messages: result.messages,
+                        }),
+                    }));
+                },
+                error => {
+                    setState(state => ({
+                        ...state,
+                        isLoading: false,
+                        errorState: {hasError: true, error},
+                    }));
+                },
+            );
+            return;
+        }
+
+        // If neither of the messages in our rendered range are loaded then this is a
+        // jump scroll. During a jump scroll we take advantage of the fact that message
+        // `id`s are mostly dense to pick a message `id` at roughly the same percentage
+        // the user has scrolled. We load data in at that point and scroll it
+        // into view.
+        assert(!startMessage.isLoaded && !endMessage.isLoaded);
+
+        const messageBeforeUnloadedSegment = state.list.getLastLoadedMessageBefore(
+            range.startIndex,
+        );
+        const messageAfterUnloadedSegment = state.list.getFirstLoadedMessageAfter(range.endIndex);
+
+        const unloadedSegmentStartMessageId =
+            messageBeforeUnloadedSegment?.message.id ?? minMessageId - 1;
+        const unloadedSegmentEndMessageId =
+            messageAfterUnloadedSegment?.message.id ??
+            Math.max(state.list.getEstimatedMessageCount() + 1, unloadedSegmentStartMessageId + 1);
+
+        const unloadedSegmentStartIndex = messageBeforeUnloadedSegment?.index ?? 0;
+        const unloadedSegmentEndIndex =
+            messageAfterUnloadedSegment?.index ?? state.list.getEstimatedMessageCount() - 1;
+
+        const rangeStartFraction =
+            (range.startIndex - unloadedSegmentStartIndex) /
+            (unloadedSegmentEndIndex - unloadedSegmentStartIndex);
+
+        // Pick a message `id` to start loading data from taking advantage of the fact
+        // that messages are mostly dense.
+        const afterMessageId = Math.min(
+            Math.max(0, unloadedSegmentEndMessageId - jumpLimit),
+            Math.round(
+                unloadedSegmentStartMessageId +
+                    (unloadedSegmentEndMessageId - unloadedSegmentStartMessageId) *
+                        rangeStartFraction,
+            ),
+        );
+
+        // Jump scrolls switch us into pin to top mode.
+        setState(state => ({...state, pinTo: "top"}));
+
+        loadFromStart({
+            afterMessageId,
+            beforeMessageId: messageAfterUnloadedSegment?.message.id ?? null,
+            limit: jumpLimit,
+        });
+    });
+
+    // Whenever we stop loading, try loading more messages. Maybe while we were
+    // loading the user scrolled and so there are new unloaded messages in view.
+    useEffect(() => {
+        if (!state.isLoading) {
+            tryLoadingMore();
+        }
+    }, [state.isLoading, tryLoadingMore]);
 
     return (
         <VirtualizedScrollView
@@ -185,6 +375,7 @@ export function MessagingView<Message extends MessageInterface>({
                 },
                 [state.list, shimmerRandomSeed],
             )}
+            onRenderedRangeChange={tryLoadingMore}
         />
     );
 }

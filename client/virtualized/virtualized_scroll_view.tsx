@@ -7,6 +7,7 @@ import {
     RefObject,
     cloneElement,
     forwardRef,
+    useEffect,
     useImperativeHandle,
     useMemo,
     useRef,
@@ -16,6 +17,7 @@ import {useRemPx} from "~/client/design/helpers/use_rem_px";
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants";
 import {isMobileWebKit} from "~/client/helpers/is_mobile_web_kit";
 import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render";
+import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {
@@ -30,6 +32,7 @@ import {
 import {RemLength, convertRemLengthToPx, getRemPxFromScreenWidth} from "~/shared/design/spacing";
 import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_after_next_browser_paint";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
+import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
 import {safe} from "~/shared/helpers/string/safe_string";
@@ -143,6 +146,11 @@ export type VirtualizedScrollViewRef = {
      * Get the height of the scroll view.
      */
     getHeight(): number;
+    /**
+     * Return the current rendered range. This is the same value we pass into
+     * `onRenderedRangeChange`.
+     */
+    getRenderedRange(): {startIndex: number; endIndex: number} | null;
 };
 
 const VirtualizedScrollViewForwardRef = forwardRef(VirtualizedScrollView);
@@ -246,6 +254,7 @@ function VirtualizedScrollView(
         itemCount,
         renderItem: _renderItem,
         bufferedItemHeight: _bufferedItemHeight,
+        onRenderedRangeChange: _onRenderedRangeChange,
         pinTo = "top",
     }: {
         /**
@@ -274,6 +283,13 @@ function VirtualizedScrollView(
          * the buffered height.
          */
         bufferedItemHeight: number | RemLength;
+
+        /**
+         * Called on initial mount and again whenever the range of rendered items
+         * changes. If no items are rendered then this will be called with `null` for
+         * the range object. The range is inclusive of both the start and end index.
+         */
+        onRenderedRangeChange?: (range: {startIndex: number; endIndex: number} | null) => void;
 
         /**
          * When the size of our scroll view's content changes, should we pin the
@@ -305,6 +321,7 @@ function VirtualizedScrollView(
         ref,
         (): VirtualizedScrollViewRef => ({
             getHeight: () => assertExists(scrollRef.current).clientHeight,
+            getRenderedRange: () => renderedRangeRef.current,
         }),
         [],
     );
@@ -408,6 +425,7 @@ function VirtualizedScrollView(
         children,
         contentHeight,
         bufferedHeightBeforeChildren,
+        renderedRange,
     } = state.render({
         itemCount,
         getItem: (index: number) => {
@@ -643,6 +661,10 @@ function VirtualizedScrollView(
             // Ignore refs from old generations.
             if (elementRef.generation !== itemsRef.current.generation) continue;
 
+            // If the element was removed from the DOM its height will be zero. Don't
+            // record that height.
+            if (!document.body.contains(elementRef.element)) return;
+
             const height = elementRef.element.offsetHeight;
             if (height !== elementRef.lastHeight) {
                 heightByKey.set(key, height);
@@ -709,6 +731,38 @@ function VirtualizedScrollView(
         previousContentHeightBeforeScrollForMobileWebKitPinToBottomRef.current =
             contentHeightBeforeScrollForMobileWebKitPinToBottom;
     }, [contentHeight, contentHeightBeforeScrollForMobileWebKitPinToBottom]);
+
+    // Effect to report the rendered range back to our callback.
+    const onRenderedRangeChange = useEvent(_onRenderedRangeChange);
+    const renderedRangeRef = useRef(
+        renderedRange
+            ? {startIndex: renderedRange.startIndex, endIndex: renderedRange.endIndex}
+            : null,
+    );
+    useEffect(() => {
+        // Make sure we only take effect dependencies on the start and end index. We
+        // don't care about other properties of the rendered range changing.
+        const startIndex = renderedRange?.startIndex;
+        const endIndex = renderedRange?.endIndex;
+
+        let range;
+        if (typeof startIndex !== "number") {
+            assert(typeof endIndex !== "number");
+            range = null;
+        } else {
+            assert(typeof endIndex === "number");
+            range =
+                // Reuse the ref object if it already exists and is the same thing. May help
+                // referential equality checking down the line.
+                renderedRangeRef.current?.startIndex === startIndex &&
+                renderedRangeRef.current.endIndex === endIndex
+                    ? renderedRangeRef.current
+                    : {startIndex, endIndex};
+        }
+
+        renderedRangeRef.current = range;
+        onRenderedRangeChange(range);
+    }, [onRenderedRangeChange, renderedRange?.endIndex, renderedRange?.startIndex]);
 
     return (
         <>

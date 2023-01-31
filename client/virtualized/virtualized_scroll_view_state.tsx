@@ -1193,6 +1193,7 @@ export class VirtualizedScrollViewState {
         children: ReactNode;
         contentHeight: number;
         bufferedHeightBeforeChildren: number;
+        renderedRange: {startIndex: number; endIndex: number} | null;
     } {
         return VirtualizedScrollViewState._render(this, options);
     }
@@ -1221,6 +1222,7 @@ export class VirtualizedScrollViewState {
         children: ReactNode;
         contentHeight: number;
         bufferedHeightBeforeChildren: number;
+        renderedRange: {startIndex: number; endIndex: number} | null;
     } {
         // Validation to make sure that every index has a unique key. In future
         // renders items may move around so two indexes may have the same key at
@@ -1326,6 +1328,7 @@ export class VirtualizedScrollViewState {
                 children: null,
                 contentHeight: state.getContentHeight(),
                 bufferedHeightBeforeChildren: 0,
+                renderedRange: null,
             };
         }
 
@@ -1536,6 +1539,7 @@ export class VirtualizedScrollViewState {
             children,
             contentHeight: state.getContentHeight(),
             bufferedHeightBeforeChildren,
+            renderedRange: startIndex !== endIndex ? {startIndex, endIndex: endIndex - 1} : null,
         };
     }
 
