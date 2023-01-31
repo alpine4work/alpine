@@ -116,73 +116,17 @@ export class PaginatedPostList {
     }
 
     /**
-     * Get the item at the provided index. Throws an error if the index is out
-     * of bounds.
+     * Get the post this index is referring to. Throws an error if the index is out
+     * of range. Every item in this list is associated with a post.
      */
-    public getItem(index: number): PaginatedPostListItem {
+    private _getPost(index: number): {
+        postContentItemIndex: number;
+        postOrderKey: OrderKey;
+        post: PostModel;
+        postComments: PaginatedMessageList<PostCommentModel>;
+    } {
         if (index < 0 || !Number.isSafeInteger(index))
             throw new OutOfRangeError("Index should be a positive integer");
-
-        const getItemInNode = (
-            postContentItemIndex: number,
-            postOrderKey: OrderKey,
-            post: PostModel,
-            postComments: PaginatedMessageList<PostCommentModel>,
-        ): PaginatedPostListItem | null => {
-            const arePostCommentsOpen = this._openPostCommentPostOrderKeys.has(postOrderKey);
-
-            if (index === postContentItemIndex) {
-                return {
-                    type: "PostContent",
-                    postOrderKey,
-                    post,
-                    postComments,
-                    arePostCommentsOpen,
-                    postCommentInputItemIndex: arePostCommentsOpen
-                        ? postContentItemIndex + postComments.getEstimatedMessageCount() + 1
-                        : null,
-                };
-            }
-
-            if (arePostCommentsOpen) {
-                const postCommentIndex = index - (postContentItemIndex + 1);
-                const postCommentCount = postComments.getEstimatedMessageCount();
-                const postCommentInputItemIndex =
-                    postContentItemIndex + postComments.getEstimatedMessageCount() + 1;
-
-                if (0 <= postCommentIndex && postCommentIndex < postCommentCount) {
-                    const postComment = postComments.getMessage(postCommentIndex);
-                    if (postComment.isLoaded) {
-                        return {
-                            type: "LoadedPostComment",
-                            post,
-                            postComments,
-                            postCommentIndex,
-                            postComment: postComment.message,
-                            postCommentInputItemIndex,
-                        };
-                    } else {
-                        return {
-                            type: "UnloadedPostComment",
-                            post,
-                            postComments,
-                            postCommentIndex,
-                            postCommentInputItemIndex,
-                        };
-                    }
-                }
-
-                if (index === postContentItemIndex + postCommentCount + 1) {
-                    return {
-                        type: "PostCommentInput",
-                        post,
-                        postContentItemIndex,
-                    };
-                }
-            }
-
-            return null;
-        };
 
         let startAfterOrderKey: OrderKey | null;
         let nextPostContentItemIndex: number;
@@ -210,11 +154,6 @@ export class PaginatedPostList {
                     "Expected order key at index to exist",
                 );
 
-                // Check if the item is somewhere in the post we found. If it is not then we
-                // need to search for the item by iterating through our posts.
-                const item = getItemInNode(postContentItemIndex, postOrderKey, post, postComments);
-                if (item) return item;
-
                 startAfterOrderKey = postOrderKey;
                 nextPostContentItemIndex =
                     postContentItemIndex +
@@ -226,6 +165,17 @@ export class PaginatedPostList {
                         : 0) +
                     // Add one again to get the next post index
                     1;
+
+                // If this index is before the next content item index then the index is inside
+                // the post content item we found!
+                if (index < nextPostContentItemIndex) {
+                    return {
+                        postContentItemIndex,
+                        postOrderKey,
+                        post,
+                        postComments,
+                    };
+                }
             }
         }
 
@@ -263,14 +213,101 @@ export class PaginatedPostList {
 
             // If our index is in this range, yay! Return the specific item.
             if (postContentItemIndex <= index && index < nextPostContentItemIndex) {
-                return assertExists(
-                    getItemInNode(postContentItemIndex, postOrderKey, post, postComments),
-                    "Could not find index in post, stopping iteration",
-                );
+                return {
+                    postContentItemIndex,
+                    postOrderKey,
+                    post,
+                    postComments,
+                };
             }
         }
 
         throw new OutOfRangeError("Out of bounds index");
+    }
+
+    /**
+     * Get the post content item for the provided index. If this index is pointing
+     * at a comment then we will return the item for the post the comment is a part
+     * of. Will throw an error if the index is out of bounds. Every index in this
+     * list is associated to a post.
+     */
+    public getPostContentItem(index: number): PaginatedPostListPostContentItem {
+        const {postContentItemIndex, postOrderKey, post, postComments} = this._getPost(index);
+        const arePostCommentsOpen = this._openPostCommentPostOrderKeys.has(postOrderKey);
+
+        return {
+            type: "PostContent",
+            postOrderKey,
+            post,
+            postComments,
+            arePostCommentsOpen,
+            postContentItemIndex,
+            postCommentInputItemIndex: arePostCommentsOpen
+                ? postContentItemIndex + postComments.getEstimatedMessageCount() + 1
+                : null,
+        };
+    }
+
+    /**
+     * Get the item at the provided index. Throws an error if the index is out
+     * of bounds.
+     */
+    public getItem(index: number): PaginatedPostListItem {
+        const {postContentItemIndex, postOrderKey, post, postComments} = this._getPost(index);
+        const arePostCommentsOpen = this._openPostCommentPostOrderKeys.has(postOrderKey);
+
+        if (index === postContentItemIndex) {
+            return {
+                type: "PostContent",
+                postOrderKey,
+                post,
+                postComments,
+                arePostCommentsOpen,
+                postContentItemIndex,
+                postCommentInputItemIndex: arePostCommentsOpen
+                    ? postContentItemIndex + postComments.getEstimatedMessageCount() + 1
+                    : null,
+            };
+        }
+
+        if (arePostCommentsOpen) {
+            const postCommentIndex = index - (postContentItemIndex + 1);
+            const postCommentCount = postComments.getEstimatedMessageCount();
+            const postCommentInputItemIndex =
+                postContentItemIndex + postComments.getEstimatedMessageCount() + 1;
+
+            if (0 <= postCommentIndex && postCommentIndex < postCommentCount) {
+                const postComment = postComments.getMessage(postCommentIndex);
+                if (postComment.isLoaded) {
+                    return {
+                        type: "LoadedPostComment",
+                        post,
+                        postComments,
+                        postCommentIndex,
+                        postComment: postComment.message,
+                        postCommentInputItemIndex,
+                    };
+                } else {
+                    return {
+                        type: "UnloadedPostComment",
+                        post,
+                        postComments,
+                        postCommentIndex,
+                        postCommentInputItemIndex,
+                    };
+                }
+            }
+
+            if (index === postContentItemIndex + postCommentCount + 1) {
+                return {
+                    type: "PostCommentInput",
+                    post,
+                    postContentItemIndex,
+                };
+            }
+        }
+
+        throw new InternalError("Index is not actually in post");
     }
 
     /**
@@ -379,56 +416,29 @@ export class PaginatedPostList {
      * content. Otherwise we will throw.
      */
     public updatePostComments(
-        index: number,
+        postOrderKey: OrderKey,
         update: (
             postComments: PaginatedMessageList<PostCommentModel>,
         ) => PaginatedMessageList<PostCommentModel>,
     ): PaginatedPostList {
-        const item = this.getItem(index);
+        const postByOrderKey = this._postByOrderKey.update(postOrderKey, post => {
+            if (!post) throw new InternalError("Post not found for order key");
 
-        if (item.type !== "PostContent")
-            throw new InternalError("Expected the index for post content");
+            const newPostComments = update(post.postComments);
 
-        const newPostComments = update(item.postComments);
-
-        const postByOrderKey = this._postByOrderKey.set(item.postOrderKey, {
-            post: item.post,
-            postComments: newPostComments,
+            return {
+                post: post.post,
+                postComments: newPostComments,
+            };
         });
-
-        // Keep the `left` side of the `postOrderKeyByPostContentIndex` cache and throw
-        // away the `right` side which is now invalid.
-        const postOrderKeyByPostContentIndex = (() => {
-            // Optimization: If our new post comments object has the same number of
-            // messages as our old post comment object then we don't need to clear our
-            // index cache.
-            if (
-                item.postComments.getEstimatedMessageCount() ===
-                newPostComments.getEstimatedMessageCount()
-            ) {
-                return this._postOrderKeyByPostContentItemIndex;
-            }
-
-            const iterator = this._postOrderKeyByPostContentItemIndex.find(index);
-            if (!iterator.valid)
-                throw new InternalError(
-                    "Expected finding the post content item to populate the post content index cache",
-                );
-
-            // HACK(calebmer): Hackishly get the constructor for a
-            // `functional-red-black-tree` tree and construct it with the left-hand-side
-            // subtree since there's not an official API.
-            const leftTree = new (this._postOrderKeyByPostContentItemIndex as any).constructor(
-                (this._postOrderKeyByPostContentItemIndex as any)._compare,
-                iterator.node!.left,
-            );
-            return leftTree.insert(index, item.postOrderKey);
-        })();
 
         return new PaginatedPostList({
             postByOrderKey,
             openPostCommentPostOrderKeys: this._openPostCommentPostOrderKeys,
-            postOrderKeyByPostContentIndex,
+            // We don't know what index our post was out so we have to clear the entire
+            // index tree. Maybe we should build our index cache like
+            // `VirtualizedScrollViewState` where we sum up the item count of subtrees?
+            postOrderKeyByPostContentIndex: createTree(),
         });
     }
 }
@@ -451,6 +461,11 @@ export type PaginatedPostListPostContentItem = {
     readonly post: PostModel;
     readonly postComments: PaginatedMessageList<PostCommentModel>;
     readonly arePostCommentsOpen: boolean;
+    /**
+     * The index of the `PostContent` item for this comment input in the full
+     * `PaginatedPostList`.
+     */
+    readonly postContentItemIndex: number;
     /**
      * If the comment section is open, this will be the index of the post comment
      * input in the full `PaginatedPostList`.

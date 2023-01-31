@@ -26,9 +26,15 @@ const reactDispatchersSeenDuringRender = new Set();
  *
  * [1]: https://github.com/reactjs/rfcs/pull/220
  */
+export function useEvent<Args extends Array<unknown>, Return>(
+    handler: (...args: Args) => Return,
+): Memo<(...args: Args) => Return>;
 export function useEvent<Args extends Array<unknown>>(
     handler: ((...args: Args) => void) | undefined,
-): Memo<(...args: Args) => void> {
+): Memo<(...args: Args) => void>;
+export function useEvent<Args extends Array<unknown>>(
+    handler: ((...args: Args) => void) | undefined,
+): Memo<(...args: Args) => unknown> {
     const handlerRef = useRef(handler);
 
     // In a real implementation, this would run before layout effects.

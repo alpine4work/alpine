@@ -1,19 +1,24 @@
-import {useCallback} from "react";
+import {useCallback, useEffect, useRef, useState} from "react";
+import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
 import {useRemPx} from "~/client/design/helpers/use_rem_px";
 import {Spacer} from "~/client/design/spacer";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {MessageShimmer} from "~/client/messaging/message_shimmer";
+import {MessageView, messageViewMinHeight} from "~/client/messaging/message_view";
+import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
+import {PaginatedMessageList} from "~/client/messaging/paginated_message_list";
+import {tryLoadingMessages} from "~/client/messaging/try_loading_messages";
 import {
-    MessageView,
-    bufferedMessageViewHeight,
-    messageViewMinHeight,
-} from "~/client/messaging/message_view";
-import {PaginatedPostList} from "~/client/posts/paginated_post_list";
+    PaginatedPostList,
+    PaginatedPostListPostContentItem,
+} from "~/client/posts/paginated_post_list";
 import {PostCommentInput} from "~/client/posts/post_comment_input";
 import {PostContentView, postContentViewMinHeight} from "~/client/posts/post_content_view";
+import {useClientInfo} from "~/client/remix/client_info_context";
 import {
     VirtualizedScrollView,
+    VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view";
 import {
@@ -23,34 +28,215 @@ import {
     convertRemLengthToPx,
     spacing,
 } from "~/shared/design/spacing";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping";
+import {OrderKey} from "~/shared/helpers/sort/order_key";
 import {PostCommentModel} from "~/shared/models/post_model";
+import {getPostCommentsFromEnd, getPostCommentsFromStart} from "~/shared/rpc/posts_rpc_definitions";
 import {sprinkles} from "~/shared/styles/styles";
+
+const padding: Spacing = "4";
+
+/**
+ * The buffered height of an item in the post view virtualized list is the minimum
+ * height of a single post.
+ */
+const bufferedPostViewHeight = addRemLengths(postContentViewMinHeight, spacing[padding]);
 
 export function PostsView({
     list,
     onTogglePostComments: _onTogglePostComments,
-    onLoadPostCommentsFromStart: _onLoadPostCommentsFromStart,
+    onUpdatePostComments: _onUpdatePostComments,
 }: {
     list: PaginatedPostList;
     onTogglePostComments: (index: number) => void;
-    onLoadPostCommentsFromStart: (
-        index: number,
-        options: {
-            afterCommentId: number | null;
-            beforeCommentId: number | null;
-            limit: number;
-            hasMoreCommentsAfter: boolean;
-            comments: ReadonlyArray<PostCommentModel>;
-        },
+    onUpdatePostComments: (
+        postOrderKey: OrderKey,
+        update: (
+            postComments: PaginatedMessageList<PostCommentModel>,
+        ) => PaginatedMessageList<PostCommentModel>,
     ) => void;
 }) {
-    const padding: Spacing = "4";
+    const context = useAppContext();
+    const clientInfo = useClientInfo();
+    const remPx = useRemPx();
+    const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
     const onTogglePostComments = useEvent(_onTogglePostComments);
-    const onLoadPostCommentsFromStart = useEvent(_onLoadPostCommentsFromStart);
+    const onUpdatePostComments = useEvent(_onUpdatePostComments);
 
-    const remPx = useRemPx();
+    const [postCommentsLoadingState, setPostCommentsLoadingState] = useState<{
+        isLoading: boolean;
+        errorState: {hasError: false} | {hasError: true; error: unknown};
+    }>({isLoading: false, errorState: {hasError: false}});
+
+    if (postCommentsLoadingState.errorState.hasError)
+        throw postCommentsLoadingState.errorState.error;
+
+    const tryLoadingMorePostComments = useEvent(() => {
+        // If we're already loading, don't try to load more comments.
+        if (postCommentsLoadingState.isLoading) return;
+
+        const view = assertExists(viewRef.current);
+        const renderedRange = view.getRenderedRange();
+        if (!renderedRange) return;
+
+        let nextIndex = renderedRange.startIndex;
+        while (nextIndex <= renderedRange.startIndex) {
+            const item = list.getPostContentItem(nextIndex);
+            nextIndex =
+                item.postCommentInputItemIndex !== null
+                    ? item.postCommentInputItemIndex + 1
+                    : item.postContentItemIndex + 1;
+
+            // The post comments are not open, there's nothing to load here.
+            if (item.postCommentInputItemIndex === null) continue;
+
+            // There are no comments in this post, nothing to load here.
+            if (item.postContentItemIndex + 1 === item.postCommentInputItemIndex) continue;
+
+            const postCommentRangeStartIndex = item.postContentItemIndex + 1;
+            const postCommentRangeEndIndex = item.postCommentInputItemIndex - 1;
+
+            // We are rendering the post but we are not rendering any of the posts
+            // comments. Don't load anything new.
+            if (
+                !areRangesOverlapping(
+                    postCommentRangeStartIndex,
+                    postCommentRangeEndIndex,
+                    renderedRange.startIndex,
+                    renderedRange.endIndex,
+                )
+            ) {
+                continue;
+            }
+
+            const renderedPostCommentRangeStartIndex =
+                Math.max(postCommentRangeStartIndex, renderedRange.startIndex) -
+                (item.postContentItemIndex + 1);
+            const renderedPostCommentRangeEndIndex =
+                Math.min(postCommentRangeEndIndex, renderedRange.endIndex) -
+                (item.postContentItemIndex + 1);
+
+            const result = tryLoadingMessages({
+                viewHeight: view.getHeight(),
+                messages: item.postComments,
+                range: {
+                    startIndex: renderedPostCommentRangeStartIndex,
+                    endIndex: renderedPostCommentRangeEndIndex,
+                },
+                onLoadFromStart: async ({afterMessageId, beforeMessageId, limit}) => {
+                    const {hasMoreCommentsAfter, comments} = await getPostCommentsFromStart(
+                        context,
+                        {
+                            postId: item.post.id,
+                            afterCommentId: afterMessageId,
+                            beforeCommentId: beforeMessageId,
+                            limit,
+                        },
+                    );
+                    return {
+                        hasMoreMessagesAfter: hasMoreCommentsAfter,
+                        messages: comments,
+                    };
+                },
+                onLoadFromEnd: async ({afterMessageId, beforeMessageId, limit}) => {
+                    const {hasMoreCommentsBefore, comments} = await getPostCommentsFromEnd(
+                        context,
+                        {
+                            postId: item.post.id,
+                            afterCommentId: afterMessageId,
+                            beforeCommentId: beforeMessageId,
+                            limit,
+                        },
+                    );
+                    return {
+                        hasMoreMessagesBefore: hasMoreCommentsBefore,
+                        messages: comments,
+                    };
+                },
+                onFinishLoadingMessages: result => {
+                    if (result.ok) {
+                        setPostCommentsLoadingState(state => ({
+                            ...state,
+                            isLoading: false,
+                        }));
+                        onUpdatePostComments(item.postOrderKey, result.value.updateMessages);
+                    } else {
+                        setPostCommentsLoadingState(state => ({
+                            ...state,
+                            isLoading: false,
+                            errorState: {hasError: true, error: result.error},
+                        }));
+                    }
+                },
+            });
+
+            if (result.isLoading) {
+                setPostCommentsLoadingState(state => ({
+                    ...state,
+                    isLoading: true,
+                }));
+                // If we started loading some comments, don't try to load comments from any
+                // other posts. We only want to send one load request at a time.
+                break;
+            }
+        }
+    });
+
+    // Whenever we stop loading, try loading more comments. Maybe while we were
+    // loading the user scrolled and so there are new unloaded comments in view.
+    useEffect(() => {
+        if (!postCommentsLoadingState.isLoading) {
+            tryLoadingMorePostComments();
+        }
+    }, [postCommentsLoadingState.isLoading, tryLoadingMorePostComments]);
+
+    const loadInitialPostComments = useEvent(
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+        async (item: PaginatedPostListPostContentItem): Promise<void> => {
+            // If we're already loading, don't try to load more comments.
+            if (postCommentsLoadingState.isLoading) return;
+
+            setPostCommentsLoadingState(state => ({
+                ...state,
+                isLoading: true,
+            }));
+
+            try {
+                const limit = getInitialLoadMessageCount(clientInfo);
+
+                const {hasMoreCommentsAfter, comments} = await getPostCommentsFromStart(context, {
+                    postId: item.post.id,
+                    afterCommentId: null,
+                    beforeCommentId: null,
+                    limit,
+                });
+
+                onUpdatePostComments(item.postOrderKey, postComments =>
+                    postComments.loadMessagesFromStart({
+                        afterMessageId: null,
+                        beforeMessageId: null,
+                        limit,
+                        hasMoreMessagesAfter: hasMoreCommentsAfter,
+                        messages: comments,
+                    }),
+                );
+
+                setPostCommentsLoadingState(state => ({
+                    ...state,
+                    isLoading: false,
+                }));
+            } catch (error) {
+                setPostCommentsLoadingState(state => ({
+                    ...state,
+                    isLoading: false,
+                    errorState: {hasError: true, error},
+                }));
+            }
+        },
+    );
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {
@@ -89,8 +275,8 @@ export function PostsView({
                                             postComments={item.postComments}
                                             arePostCommentsOpen={item.arePostCommentsOpen}
                                             onTogglePostComments={() => onTogglePostComments(index)}
-                                            onLoadPostCommentsFromStart={options =>
-                                                onLoadPostCommentsFromStart(index, options)
+                                            onLoadInitialPostComments={() =>
+                                                loadInitialPostComments(item)
                                             }
                                         />
                                     </Box>
@@ -369,16 +555,16 @@ export function PostsView({
                     throw exhaustive(item);
             }
         },
-        [list, onLoadPostCommentsFromStart, onTogglePostComments, remPx],
+        [list, loadInitialPostComments, onTogglePostComments, remPx],
     );
 
     return (
         <VirtualizedScrollView
-            // TODO(calebmer): We should use a bigger height for this virtualized list
-            // that's closer to the size of a post. Probably the minimum height of a post?
-            bufferedItemHeight={bufferedMessageViewHeight}
+            ref={viewRef}
+            bufferedItemHeight={bufferedPostViewHeight}
             itemCount={list.getItemCount()}
             renderItem={renderItem}
+            onRenderedRangeChange={tryLoadingMorePostComments}
         />
     );
 }

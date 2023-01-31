@@ -55,7 +55,13 @@ function getItems(list: PaginatedPostList) {
     }
 
     return items.map((item: {[key: string]: unknown} | null) => {
-        const {postOrderKey, postComments, ...remainingItem} = assertExists(item);
+        const {
+            postOrderKey,
+            postComments,
+            postContentItemIndex,
+            postCommentInputItemIndex,
+            ...remainingItem
+        } = assertExists(item);
         return remainingItem;
     });
 }

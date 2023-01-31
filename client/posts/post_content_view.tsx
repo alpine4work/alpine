@@ -9,34 +9,26 @@ import {Button} from "~/client/design/button";
 import {PrettyAbsoluteDate} from "~/client/design/pretty_absolute_date";
 import {PrettyNumber} from "~/client/design/pretty_number";
 import {uninterruptedThoughtLimitMs} from "~/client/design/timing_constants";
-import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {PaginatedMessageList} from "~/client/messaging/paginated_message_list";
-import {useClientInfo} from "~/client/remix/client_info_context";
 import {wait} from "~/shared/helpers/async/wait";
 import {PostCommentModel, PostModel} from "~/shared/models/post_model";
-import {getPostCommentAuthors, getPostCommentsFromStart} from "~/shared/rpc/posts_rpc_definitions";
+import {getPostCommentAuthors} from "~/shared/rpc/posts_rpc_definitions";
 import {truncateClassName} from "~/shared/styles/styles";
 
-export const postContentViewMinHeight = "7.75rem";
+export const postContentViewMinHeight = "10.75rem";
 
 export function PostContentView({
     post,
     postComments,
     arePostCommentsOpen,
     onTogglePostComments,
-    onLoadPostCommentsFromStart,
+    onLoadInitialPostComments,
 }: {
     post: PostModel;
     postComments: PaginatedMessageList<PostCommentModel>;
     arePostCommentsOpen: boolean;
     onTogglePostComments: () => void;
-    onLoadPostCommentsFromStart: (options: {
-        afterCommentId: number | null;
-        beforeCommentId: number | null;
-        limit: number;
-        hasMoreCommentsAfter: boolean;
-        comments: ReadonlyArray<PostCommentModel>;
-    }) => void;
+    onLoadInitialPostComments: () => Promise<void>;
 }) {
     return (
         <Box style={{minHeight: postContentViewMinHeight}}>
@@ -72,7 +64,7 @@ export function PostContentView({
                     postComments={postComments}
                     arePostCommentsOpen={arePostCommentsOpen}
                     onTogglePostComments={onTogglePostComments}
-                    onLoadPostCommentsFromStart={onLoadPostCommentsFromStart}
+                    onLoadInitialPostComments={onLoadInitialPostComments}
                 />
             </Box>
         </Box>
@@ -84,22 +76,15 @@ function PostCommentsToggleButton({
     postComments,
     arePostCommentsOpen,
     onTogglePostComments,
-    onLoadPostCommentsFromStart,
+    onLoadInitialPostComments,
 }: {
     post: PostModel;
     postComments: PaginatedMessageList<PostCommentModel>;
     arePostCommentsOpen: boolean;
     onTogglePostComments: () => void;
-    onLoadPostCommentsFromStart: (options: {
-        afterCommentId: number | null;
-        beforeCommentId: number | null;
-        limit: number;
-        hasMoreCommentsAfter: boolean;
-        comments: ReadonlyArray<PostCommentModel>;
-    }) => void;
+    onLoadInitialPostComments: () => Promise<void>;
 }) {
     const context = useAppContext();
-    const clientInfo = useClientInfo();
 
     return (
         <Box display="flex" alignItems="center" gap="1.5">
@@ -147,34 +132,14 @@ function PostCommentsToggleButton({
                         return;
                     }
 
-                    const limit = getInitialLoadMessageCount(clientInfo);
-
-                    const postCommentsPromise = getPostCommentsFromStart(context, {
-                        postId: post.id,
-                        limit,
-                        afterCommentId: null,
-                        beforeCommentId: null,
-                    });
+                    const postCommentsPromise = onLoadInitialPostComments();
 
                     // Open post comments once we get our data back. But if the data is taking a
                     // long time to load, open post comments after 1000ms.
-                    const postCommentsResult = await Promise.race([
-                        postCommentsPromise,
-                        wait(uninterruptedThoughtLimitMs),
-                    ]);
+                    await Promise.race([postCommentsPromise, wait(uninterruptedThoughtLimitMs)]);
                     onTogglePostComments();
 
-                    // Finish waiting for post comments in case the `wait()` won the race.
-                    const {hasMoreCommentsAfter, comments} =
-                        postCommentsResult ?? (await postCommentsPromise);
-
-                    onLoadPostCommentsFromStart({
-                        afterCommentId: null,
-                        beforeCommentId: null,
-                        limit,
-                        hasMoreCommentsAfter,
-                        comments,
-                    });
+                    await postCommentsPromise;
                 }}
             >
                 <PrettyNumber number={post.commentCount} label="comment" />
