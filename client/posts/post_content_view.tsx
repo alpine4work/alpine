@@ -57,7 +57,11 @@ export function PostContentView({
             <Box
                 marginX="5"
                 borderTop="grey-5"
-                borderBottom={arePostCommentsOpen ? "grey-5" : "transparent"}
+                borderBottom={
+                    arePostCommentsOpen && postComments.getEstimatedMessageCount() > 0
+                        ? "grey-5"
+                        : "transparent"
+                }
                 height="12"
                 display="flex"
                 alignItems="center"
