@@ -279,6 +279,7 @@ export function PostsView({
                                                         ),
                                                     pointerEvents: "none",
                                                     display: "flex",
+                                                    justifyContent: "center",
                                                     alignItems: "flex-end",
                                                 }}
                                             >
@@ -298,6 +299,30 @@ export function PostsView({
                                                 >
                                                     {node}
                                                 </div>
+                                                <Box
+                                                    // Render a white backdrop below the entire post so that when the user is jump
+                                                    // scrolling we don't have the pinned comment input and the wash
+                                                    // background color.
+                                                    position="absolute"
+                                                    bottom={height}
+                                                    width="full"
+                                                    maxWidth="160"
+                                                    marginX="auto"
+                                                    backgroundColor="grey-0"
+                                                    zIndex="-10"
+                                                    borderTopRadius="md"
+                                                    style={{
+                                                        top:
+                                                            -postContentPosition.height +
+                                                            (item.postContentItemIndex === 0
+                                                                ? convertRemLengthToPx(
+                                                                      spacing[padding],
+                                                                      remPx,
+                                                                  )
+                                                                : 0) +
+                                                            1,
+                                                    }}
+                                                />
                                             </div>
                                             <div
                                                 style={{
