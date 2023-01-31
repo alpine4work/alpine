@@ -116,6 +116,15 @@ const spacingWithPercentages = {
     "11/12": "91.666667%",
 };
 
+const spacingWithNegatives = {
+    ...spacing,
+    ...(Object.fromEntries(
+        Object.entries(spacing).map(([key, value]) => [`-${key}`, `-${value}`]),
+    ) as any as {
+        [K in keyof typeof spacing as `-${K}`]: `-${typeof spacing[K]}`;
+    }),
+};
+
 const responsiveProperties = defineProperties({
     conditions: {
         mobile: {"@media": mobilePlatformMediaQuery},
@@ -131,10 +140,10 @@ const responsiveProperties = defineProperties({
             flex: "flex",
             "inline-flex": "inline-flex",
         },
-        top: spacing,
-        bottom: spacing,
-        left: spacing,
-        right: spacing,
+        top: spacingWithNegatives,
+        bottom: spacingWithNegatives,
+        left: spacingWithNegatives,
+        right: spacingWithNegatives,
         flexDirection: {
             row: "row",
             "row-reverse": "row-reverse",
@@ -178,10 +187,10 @@ const responsiveProperties = defineProperties({
         paddingBottom: spacing,
         paddingLeft: spacing,
         paddingRight: spacing,
-        marginTop: {...spacing, auto: "auto"},
-        marginBottom: {...spacing, auto: "auto"},
-        marginLeft: {...spacing, auto: "auto"},
-        marginRight: {...spacing, auto: "auto"},
+        marginTop: {...spacingWithNegatives, auto: "auto"},
+        marginBottom: {...spacingWithNegatives, auto: "auto"},
+        marginLeft: {...spacingWithNegatives, auto: "auto"},
+        marginRight: {...spacingWithNegatives, auto: "auto"},
         width: spacingWithPercentages,
         minWidth: spacingWithPercentages,
         maxWidth: spacingWithPercentages,

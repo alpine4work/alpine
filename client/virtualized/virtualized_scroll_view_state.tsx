@@ -4,7 +4,7 @@ import createTree, {
     Node as TreeNode,
 } from "functional-red-black-tree";
 import {Key, ReactNode} from "react";
-import {OutOfRangeError} from "~/shared/error/error";
+import {OutOfRangeError, UnimplementedError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {clamp} from "~/shared/helpers/number/clamp";
@@ -1182,8 +1182,11 @@ export class VirtualizedScrollViewState {
         getItem: (index: number) => {
             key: Key;
             minHeight: number;
-            renderAdditionalIndexes?: ReadonlyArray<number>;
-            render: (offset: number) => ReactNode;
+            renderAdditionalItemIndexes?: ReadonlyArray<number>;
+            render: (props: {
+                offset: number;
+                getIndexPosition: (index: number) => {offset: number; height: number};
+            }) => ReactNode;
         };
     }): {
         state: VirtualizedScrollViewState;
@@ -1206,8 +1209,11 @@ export class VirtualizedScrollViewState {
             getItem: (index: number) => {
                 key: Key;
                 minHeight: number;
-                renderAdditionalIndexes?: ReadonlyArray<number>;
-                render: (offset: number) => ReactNode;
+                renderAdditionalItemIndexes?: ReadonlyArray<number>;
+                render: (props: {
+                    offset: number;
+                    getIndexPosition: (index: number) => {offset: number; height: number};
+                }) => ReactNode;
             };
         },
     ): {
@@ -1329,27 +1335,61 @@ export class VirtualizedScrollViewState {
         assert(iterator.node, "Could not find rendered range start order key");
         const bufferedHeightBeforeChildren = state._getPreviousContentHeight(iterator);
         const startIndex = state._getPreviousItemCount(iterator);
-        let index = startIndex;
+        let endIndex = startIndex;
         let offset = bufferedHeightBeforeChildren;
-        const renderAdditionalIndexes = new Set<number>();
+        const renderAdditionalItemIndexes = new Set<number>();
+
+        const getIndexPosition = (index: number) => {
+            const {iterator, nodeIndex} = state._getNodeAtIndex(index);
+            const node = assertExists(iterator.node);
+            if (node.value.type === "Item") {
+                assert(nodeIndex === 0);
+                return {
+                    offset: state._getPreviousContentHeight(iterator),
+                    height: node.value.height,
+                };
+            } else {
+                return {
+                    offset:
+                        state._getPreviousContentHeight(iterator) +
+                        nodeIndex * state._bufferedItemHeight,
+                    height: state._bufferedItemHeight,
+                };
+            }
+        };
 
         while (iterator.node && iterator.node.key <= state._renderedRange!.endOrderKey) {
             const node = iterator.node;
             assert(node.value.type === "Item", "Entries within rendered range must be items");
             iterator.next();
 
+            const index = endIndex;
             const item = getItem(index);
-            const renderedItem = item.render(offset);
 
-            if (item.renderAdditionalIndexes)
-                for (const index of item.renderAdditionalIndexes)
-                    renderAdditionalIndexes.add(index);
+            const renderedItem = item.render({
+                offset,
+                getIndexPosition: searchIndex => {
+                    // NOTE(calebmer): We do not allow this because we are not done laying out items
+                    // after this one. We could implement this by laying out all items first then
+                    // calling `render()`.
+                    if (searchIndex > index)
+                        throw new UnimplementedError(
+                            "Can not get the offset for an index after the item index",
+                        );
+
+                    return getIndexPosition(searchIndex);
+                },
+            });
+
+            if (item.renderAdditionalItemIndexes)
+                for (const index of item.renderAdditionalItemIndexes)
+                    renderAdditionalItemIndexes.add(index);
 
             // If the item key changed from what we have in state then we need to set a new
             // entry in our state with a new key and new height.
             if (node.value.key === item.key) {
                 children.push(renderedItem);
-                index += 1;
+                endIndex += 1;
                 offset += node.value.height;
             } else {
                 state = VirtualizedScrollViewState._setEntry(
@@ -1363,26 +1403,38 @@ export class VirtualizedScrollViewState {
                     getItem,
                 );
                 children.push(renderedItem);
-                index += 1;
+                endIndex += 1;
                 offset += item.minHeight;
             }
         }
 
-        const endIndex = index;
-
-        if (renderAdditionalIndexes.size > 0) {
-            for (const index of Array.from(renderAdditionalIndexes).sort((a, b) => a - b)) {
+        if (renderAdditionalItemIndexes.size > 0) {
+            for (const index of Array.from(renderAdditionalItemIndexes).sort((a, b) => a - b)) {
                 // If the index was in our rendered range, we don't need to render it again.
                 if (startIndex <= index && index < endIndex) continue;
+
+                // NOTE(calebmer): Rendering items above the rendered range would change would
+                // change the offsets of the children we already rendered. It also means we
+                // can't rely on one `bufferedHeightBeforeChildren` to push down relatively
+                // positioned children and would need multiple spacer elements.
+                //
+                // We're not solving these problems for now since coincidentally we only need
+                // this feature for additional items after the rendered range. But there's no
+                // reason we couldn't support this in theory.
+                if (index < startIndex) {
+                    throw new UnimplementedError(
+                        "Rendering additional items before the rendered range is currently unsupported",
+                    );
+                }
 
                 const item = getItem(index);
                 const {iterator, nodeIndex} = state._getNodeAtIndex(index);
                 const node = assertExists(iterator.node);
                 const nodeOffset = state._getPreviousContentHeight(iterator);
 
+                let offset: number;
                 if (node.value.type === "Item") {
                     assert(nodeIndex === 0);
-                    const renderedItem = item.render(nodeOffset);
 
                     // If the item key changed from what we have in state then we need to set a new
                     // entry in our state with a new key and new height.
@@ -1399,11 +1451,7 @@ export class VirtualizedScrollViewState {
                         );
                     }
 
-                    if (index < startIndex) {
-                        children.unshift(renderedItem);
-                    } else {
-                        children.push(renderedItem);
-                    }
+                    offset = nodeOffset;
                 }
                 // If the index is in a buffer, we need to split the buffer in half to add an
                 // entry for the additional item we're rendering.
@@ -1461,16 +1509,25 @@ export class VirtualizedScrollViewState {
                         );
                     }
 
-                    const renderedItem = item.render(
-                        nodeOffset + newBufferedItemCountBefore * state._bufferedItemHeight,
-                    );
-
-                    if (index < startIndex) {
-                        children.unshift(renderedItem);
-                    } else {
-                        children.push(renderedItem);
-                    }
+                    offset = nodeOffset + newBufferedItemCountBefore * state._bufferedItemHeight;
                 }
+
+                const renderedItem = item.render({
+                    offset,
+                    getIndexPosition: searchIndex => {
+                        // NOTE(calebmer): We do not allow this because we are not done laying out items
+                        // after this one. We could implement this by laying out all items first then
+                        // calling `render()`.
+                        if (searchIndex > index)
+                            throw new UnimplementedError(
+                                "Can not get the offset for an index after the item index",
+                            );
+
+                        return getIndexPosition(searchIndex);
+                    },
+                });
+
+                children.push(renderedItem);
             }
         }
 

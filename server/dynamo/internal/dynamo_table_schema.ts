@@ -32,6 +32,7 @@ import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order_ke
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier";
 import {quote} from "~/shared/helpers/string/quote";
+import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection";
 import {
     ObjectSchema,
@@ -1841,11 +1842,3 @@ function checkDynamoTableSortRangeSchemaDescriptionBackwardsCompatibility(
         nextDescription.attributesSchema,
     );
 }
-
-/**
- * `keyof T` but it distributes across a union. So
- * `DistributiveKeyOf<A | B | C>` becomes
- * `(keyof A) | (keyof B) | (keyof C)` as opposed to `keyof (A | B | C)` which
- * is the equivalent of `(keyof A) & (keyof B) & (keyof C)`.
- */
-type DistributiveKeyOf<T> = T extends unknown ? keyof T : never;

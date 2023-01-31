@@ -1,9 +1,11 @@
 import {
     Key,
     Memo,
+    ReactElement,
     ReactNode,
     Ref,
     RefObject,
+    cloneElement,
     forwardRef,
     useImperativeHandle,
     useMemo,
@@ -31,6 +33,7 @@ import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
 import {safe} from "~/shared/helpers/string/safe_string";
+import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit";
 import {ClientInfo} from "~/shared/remix/client_info";
 import {sprinkles} from "~/shared/styles/styles";
 
@@ -54,10 +57,7 @@ export function getInitialVirtualizedScrollViewRenderedItemCount(
     );
 }
 
-/**
- * An item rendered by the scroll view.
- */
-export type VirtualizedScrollViewItem = {
+type VirtualizedScrollViewItemBase = {
     /**
      * The key of the item. Items may be re-ordered so indexes are not stable
      * but the key should provided a stable identifier for the item.
@@ -78,16 +78,65 @@ export type VirtualizedScrollViewItem = {
      */
     readonly minHeight: number | RemLength;
     /**
-     * The actual rendered React component for this item.
-     */
-    readonly node: ReactNode;
-    /**
      * If this item is rendered then we will also render the items at the indexes
      * provided in this array even if they are not in the virtualized window.
      * Useful for implementing sticky section headers.
      */
-    readonly renderAdditionalIndexes?: ReadonlyArray<number>;
+    readonly renderAdditionalItemIndexes?: ReadonlyArray<number>;
 };
+
+/**
+ * An item rendered by the scroll view.
+ */
+export type VirtualizedScrollViewItem =
+    | (VirtualizedScrollViewItemBase & {
+          /**
+           * The actual rendered React component for this item.
+           */
+          readonly node: ReactNode;
+          readonly withManualLayout?: undefined;
+      })
+    | (VirtualizedScrollViewItemBase & {
+          readonly withManualLayout: true;
+          /**
+           * Manually render the wrapper `<div>` to position the item with a render
+           * function.
+           *
+           * The default implementation is:
+           *
+           * ```ts
+           * <div
+           *     ref={ref}
+           *     style={{
+           *         minHeight: item.minHeight,
+           *         ...(shouldRenderWithRelativePositioning
+           *             ? {position: "relative"}
+           *             : {
+           *                   position: "absolute",
+           *                   top: offset,
+           *                   left: 0,
+           *                   right: 0,
+           *               }),
+           *     }}
+           * >
+           *     {item.node}
+           * </div>
+           * ```
+           *
+           * You should attach the `ref` so React can detect item size changes. If you
+           * don't the item will use the `minHeight` as the item's constant height.
+           *
+           * `shouldRenderWithRelativePositioning` is set to true when server-side rendering. We
+           * don't know the heights of elements in the component so we lay items out relative to
+           * each other and let the browser perform layout.
+           */
+          readonly render: (props: {
+              ref: Ref<HTMLDivElement>;
+              offset: number;
+              shouldRenderWithRelativePositioning: boolean;
+              getIndexPosition: (index: number) => {offset: number; height: number};
+          }) => ReactElement;
+      });
 
 export type VirtualizedScrollViewRef = {
     /**
@@ -139,6 +188,8 @@ type VirtualizedScrollViewActualState = {
     readonly contentHeightBeforeScrollForMobileWebKitPinToBottom: number | null;
 };
 
+export type VirtualizedScrollViewRenderItem = Memo<(index: number) => VirtualizedScrollViewItem>;
+
 /**
  * Component for rendering a large list of items. Web browsers start to slow
  * down when you have hundreds of thousands of DOM nodes so virtualization is a
@@ -167,6 +218,9 @@ type VirtualizedScrollViewActualState = {
  *   scrolls up (like chat) it is sometimes desirable to keep the bottom edge of
  *   the scroll window constant instead. We provided this configuration with the
  *   `pinTo` prop.
+ *
+ * - Advanced escape hatches: Advanced props that allow you to break out of
+ *   normal operation for rendering things like sticky headers/footers.
  *
  * There are many virtualized list implementations like [`react-window`][1],
  * [`react-virtualized`][2], and the [React Native Web][3] virtualized lists.
@@ -211,7 +265,7 @@ function VirtualizedScrollView(
          *
          * We recommend memoizing this function with `useCallback()`.
          */
-        renderItem: Memo<(index: number) => VirtualizedScrollViewItem>;
+        renderItem: VirtualizedScrollViewRenderItem;
 
         /**
          * The height we use for items we have never rendered. We'll use this to
@@ -262,12 +316,12 @@ function VirtualizedScrollView(
     const getItemWithoutRender = useMemo(() => {
         const itemByIndex = new Map<
             number,
-            Omit<VirtualizedScrollViewItem, "minHeight"> & {minHeight: number}
+            DistributiveOmit<VirtualizedScrollViewItem, "minHeight"> & {minHeight: number}
         >();
 
         return (
             index: number,
-        ): Omit<VirtualizedScrollViewItem, "minHeight"> & {minHeight: number} =>
+        ): DistributiveOmit<VirtualizedScrollViewItem, "minHeight"> & {minHeight: number} =>
             getOrSetDefaultMapValue(itemByIndex, index, () => {
                 const item = _renderItem(index);
                 return {
@@ -358,112 +412,124 @@ function VirtualizedScrollView(
         itemCount,
         getItem: (index: number) => {
             const item = getItemWithoutRender(index);
+
             return {
                 key: item.key,
                 minHeight: item.minHeight,
-                renderAdditionalIndexes: item.renderAdditionalIndexes,
-                render: offset => (
-                    <div
-                        key={item.key}
-                        style={{
-                            minHeight: item.minHeight,
-                            ...(shouldRenderWithRelativePositioning
-                                ? {position: "relative"}
-                                : {
-                                      position: "absolute",
-                                      top: offset,
-                                      left: 0,
-                                      right: 0,
-                                  }),
-                        }}
-                        // Listen to the element's height with a resize observer so we can correctly
-                        // position items. The resize observer will notify us whenever the height
-                        // changes.
-                        ref={element => {
-                            // To make sure `itemsRef` doesn't grow forever, we occasionally clean it up.
-                            // We need to wait for all `ref`s to fire in this render to know which refs are
-                            // actually unused now.
-                            if (!itemsRef.current.hasScheduledCleanup) {
-                                itemsRef.current.hasScheduledCleanup = true;
-                                itemsRef.current.generation++;
+                renderAdditionalItemIndexes: item.renderAdditionalItemIndexes,
+                render: ({offset, getIndexPosition}) => {
+                    // Listen to the element's height with a resize observer so we can correctly
+                    // position items. The resize observer will notify us whenever the height
+                    // changes.
+                    const ref = (element: HTMLDivElement | null) => {
+                        // To make sure `itemsRef` doesn't grow forever, we occasionally clean it up.
+                        // We need to wait for all `ref`s to fire in this render to know which refs are
+                        // actually unused now.
+                        if (!itemsRef.current.hasScheduledCleanup) {
+                            itemsRef.current.hasScheduledCleanup = true;
+                            itemsRef.current.generation++;
 
-                                scheduleAfterNextBrowserPaint(() => {
-                                    itemsRef.current.hasScheduledCleanup = false;
+                            scheduleAfterNextBrowserPaint(() => {
+                                itemsRef.current.hasScheduledCleanup = false;
 
-                                    for (const [key, elementRef] of itemsRef.current
-                                        .elementRefByKey) {
-                                        // If this ref is a part of the current generation it will not be
-                                        // cleaned up.
-                                        if (elementRef.generation === itemsRef.current.generation)
-                                            continue;
+                                for (const [key, elementRef] of itemsRef.current.elementRefByKey) {
+                                    // If this ref is a part of the current generation it will not be
+                                    // cleaned up.
+                                    if (elementRef.generation === itemsRef.current.generation)
+                                        continue;
 
-                                        elementRef.cleanup();
-                                        itemsRef.current.elementRefByKey.delete(key);
-                                    }
-                                });
-                            }
+                                    elementRef.cleanup();
+                                    itemsRef.current.elementRefByKey.delete(key);
+                                }
+                            });
+                        }
 
-                            // Ref cleanup is handled in batch above.
-                            if (!element) return;
+                        // Ref cleanup is handled in batch above.
+                        if (!element) return;
 
-                            const currentElementRef = itemsRef.current.elementRefByKey.get(
-                                item.key,
-                            );
+                        const currentElementRef = itemsRef.current.elementRefByKey.get(item.key);
 
-                            // If the element hasn't change for this item key, update the ref to the
-                            // current generation so it doesn't get cleaned up.
-                            if (currentElementRef && currentElementRef.element === element) {
-                                currentElementRef.generation = itemsRef.current.generation;
-                            }
-                            // Otherwise, cleanup the old ref (if it exists) and observe the height of the
-                            // new element.
-                            else {
-                                currentElementRef?.cleanup();
+                        // If the element hasn't change for this item key, update the ref to the
+                        // current generation so it doesn't get cleaned up.
+                        if (currentElementRef && currentElementRef.element === element) {
+                            currentElementRef.generation = itemsRef.current.generation;
+                        }
+                        // Otherwise, cleanup the old ref (if it exists) and observe the height of the
+                        // new element.
+                        else {
+                            currentElementRef?.cleanup();
 
-                                const handleResize = (entry: ResizeObserverEntry) => {
-                                    const height = entry.contentRect.height;
+                            const handleResize = (entry: ResizeObserverEntry) => {
+                                const height = entry.contentRect.height;
 
-                                    // If the element was removed from the DOM its height will be zero. Don't
-                                    // record that height.
-                                    if (!document.body.contains(element)) return;
+                                // If the element was removed from the DOM its height will be zero. Don't
+                                // record that height.
+                                if (!document.body.contains(element)) return;
 
-                                    // If the height didn't change, don't bother setting state.
-                                    if (height === newElementRef.lastHeight) return;
-                                    newElementRef.lastHeight = height;
+                                // If the height didn't change, don't bother setting state.
+                                if (height === newElementRef.lastHeight) return;
+                                newElementRef.lastHeight = height;
 
-                                    // NOTE(calebmer): We can't update the rendered range inline here because we
-                                    // will have captured stale `itemCount` and `renderItem` props.
-                                    setState(previousState => ({
-                                        state: previousState.state.setItemHeight(item.key, height),
-                                        shouldUpdateRenderedRange: true,
-                                        isJumpScrolling: previousState.isJumpScrolling,
-                                        contentHeightBeforeScrollForMobileWebKitPinToBottom:
-                                            previousState.contentHeightBeforeScrollForMobileWebKitPinToBottom,
-                                    }));
-                                };
+                                // NOTE(calebmer): We can't update the rendered range inline here because we
+                                // will have captured stale `itemCount` and `renderItem` props.
+                                setState(previousState => ({
+                                    state: previousState.state.setItemHeight(item.key, height),
+                                    shouldUpdateRenderedRange: true,
+                                    isJumpScrolling: previousState.isJumpScrolling,
+                                    contentHeightBeforeScrollForMobileWebKitPinToBottom:
+                                        previousState.contentHeightBeforeScrollForMobileWebKitPinToBottom,
+                                }));
+                            };
 
-                                addResizeListenerForElement(element, handleResize);
+                            addResizeListenerForElement(element, handleResize);
 
-                                const newElementRef: {
-                                    generation: number;
-                                    element: HTMLDivElement;
-                                    lastHeight: number | null;
-                                    cleanup: () => void;
-                                } = {
-                                    generation: itemsRef.current.generation,
-                                    element,
-                                    lastHeight: null,
-                                    cleanup: () =>
-                                        removeResizeListenerForElement(element, handleResize),
-                                };
+                            const newElementRef: {
+                                generation: number;
+                                element: HTMLDivElement;
+                                lastHeight: number | null;
+                                cleanup: () => void;
+                            } = {
+                                generation: itemsRef.current.generation,
+                                element,
+                                lastHeight: null,
+                                cleanup: () =>
+                                    removeResizeListenerForElement(element, handleResize),
+                            };
 
-                                itemsRef.current.elementRefByKey.set(item.key, newElementRef);
-                            }
-                        }}
-                    >
-                        {item.node}
-                    </div>
-                ),
+                            itemsRef.current.elementRefByKey.set(item.key, newElementRef);
+                        }
+                    };
+
+                    if (item.withManualLayout) {
+                        const element = item.render({
+                            ref,
+                            offset,
+                            shouldRenderWithRelativePositioning,
+                            getIndexPosition,
+                        });
+                        return cloneElement(element, {key: item.key});
+                    } else {
+                        return (
+                            <div
+                                key={item.key}
+                                ref={ref}
+                                style={{
+                                    minHeight: item.minHeight,
+                                    ...(shouldRenderWithRelativePositioning
+                                        ? {position: "relative"}
+                                        : {
+                                              position: "absolute",
+                                              top: offset,
+                                              left: 0,
+                                              right: 0,
+                                          }),
+                                }}
+                            >
+                                {item.node}
+                            </div>
+                        );
+                    }
+                },
             };
         },
     });
@@ -681,6 +747,7 @@ function VirtualizedScrollView(
                                   contentHeight
                                 : 0,
                         height: contentHeight,
+                        zIndex: "0", // Make sure we create a new z-index stacking context
                     }}
                 >
                     {shouldRenderWithRelativePositioning && bufferedHeightBeforeChildren > 0 && (

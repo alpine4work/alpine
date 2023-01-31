@@ -2817,14 +2817,17 @@ test("can render additional items", () => {
         return {
             key: index,
             minHeight: 10,
-            renderAdditionalIndexes: renderAdditionalIndex !== null ? [renderAdditionalIndex] : [],
+            renderAdditionalItemIndexes:
+                renderAdditionalIndex !== null && renderAdditionalIndex >= index
+                    ? [renderAdditionalIndex]
+                    : [],
             render: (offset: number) => <div style={{top: offset}}>{String(index)}</div>,
         };
     };
 
     let state = VirtualizedScrollViewState.initializeFromTop({
         screenHeight: 100,
-        bufferedItemHeight: 10,
+        bufferedItemHeight: 5,
         itemCount,
         getItem,
     });
@@ -2835,6 +2838,8 @@ test("can render additional items", () => {
             getItem,
         });
         state = newState;
+
+        let bufferItemCount = 0;
 
         expect(renderResult).toEqual({
             children: [
@@ -2858,21 +2863,21 @@ test("can render additional items", () => {
                 <div style={{top: 170}}>17</div>,
                 <div style={{top: 180}}>18</div>,
                 <div style={{top: 190}}>19</div>,
-                <div style={{top: 280}}>28</div>,
-                <div style={{top: 500}}>50</div>,
-                <div style={{top: 1280}}>128</div>,
-                <div style={{top: 1480}}>148</div>,
-                <div style={{top: 2100}}>210</div>,
-                <div style={{top: 2840}}>284</div>,
-                <div style={{top: 2920}}>292</div>,
-                <div style={{top: 4160}}>416</div>,
-                <div style={{top: 4200}}>420</div>,
-                <div style={{top: 4340}}>434</div>,
-                <div style={{top: 6040}}>604</div>,
-                <div style={{top: 8180}}>818</div>,
-                <div style={{top: 9240}}>924</div>,
+                <div style={{top: 10 * 20 + 5 * (bufferItemCount += 9 - 1)}}>28</div>,
+                <div style={{top: 10 * 21 + 5 * (bufferItemCount += 22 - 1)}}>50</div>,
+                <div style={{top: 10 * 22 + 5 * (bufferItemCount += 78 - 1)}}>128</div>,
+                <div style={{top: 10 * 23 + 5 * (bufferItemCount += 20 - 1)}}>148</div>,
+                <div style={{top: 10 * 24 + 5 * (bufferItemCount += 62 - 1)}}>210</div>,
+                <div style={{top: 10 * 25 + 5 * (bufferItemCount += 74 - 1)}}>284</div>,
+                <div style={{top: 10 * 26 + 5 * (bufferItemCount += 8 - 1)}}>292</div>,
+                <div style={{top: 10 * 27 + 5 * (bufferItemCount += 124 - 1)}}>416</div>,
+                <div style={{top: 10 * 28 + 5 * (bufferItemCount += 4 - 1)}}>420</div>,
+                <div style={{top: 10 * 29 + 5 * (bufferItemCount += 14 - 1)}}>434</div>,
+                <div style={{top: 10 * 30 + 5 * (bufferItemCount += 170 - 1)}}>604</div>,
+                <div style={{top: 10 * 31 + 5 * (bufferItemCount += 214 - 1)}}>818</div>,
+                <div style={{top: 10 * 32 + 5 * (bufferItemCount += 106 - 1)}}>924</div>,
             ],
-            contentHeight: 10_000,
+            contentHeight: 10 * 33 + 5 * (itemCount - 33),
             bufferedHeightBeforeChildren: 0,
         });
     }
@@ -2912,24 +2917,24 @@ test("can render additional items", () => {
                 <div style={{top: 320}}>32</div>,
                 <div style={{top: 330}}>33</div>,
                 <div style={{top: 340}}>34</div>,
-                <div style={{top: 380}}>38</div>,
-                <div style={{top: 500}}>50</div>,
-                <div style={{top: 1800}}>180</div>,
-                <div style={{top: 2680}}>268</div>,
-                <div style={{top: 2840}}>284</div>,
-                <div style={{top: 3660}}>366</div>,
-                <div style={{top: 3960}}>396</div>,
-                <div style={{top: 4160}}>416</div>,
-                <div style={{top: 6920}}>692</div>,
-                <div style={{top: 8720}}>872</div>,
+                <div style={{top: 365}}>38</div>,
+                <div style={{top: 430}}>50</div>,
+                <div style={{top: 1095}}>180</div>,
+                <div style={{top: 1545}}>268</div>,
+                <div style={{top: 1630}}>284</div>,
+                <div style={{top: 2050}}>366</div>,
+                <div style={{top: 2205}}>396</div>,
+                <div style={{top: 2310}}>416</div>,
+                <div style={{top: 3710}}>692</div>,
+                <div style={{top: 4620}}>872</div>,
             ],
-            contentHeight: 10_000,
+            contentHeight: 5270,
             bufferedHeightBeforeChildren: 150,
         });
     }
 
     state = state.updateRenderedRange({
-        scrollOffset: 800,
+        scrollOffset: 610,
         itemCount,
         getItem,
     });
@@ -2943,39 +2948,38 @@ test("can render additional items", () => {
 
         expect(renderResult).toEqual({
             children: [
-                <div style={{top: 400}}>40</div>,
-                <div style={{top: 750}}>75</div>,
-                <div style={{top: 760}}>76</div>,
-                <div style={{top: 770}}>77</div>,
-                <div style={{top: 780}}>78</div>,
-                <div style={{top: 790}}>79</div>,
-                <div style={{top: 800}}>80</div>,
-                <div style={{top: 810}}>81</div>,
-                <div style={{top: 820}}>82</div>,
-                <div style={{top: 830}}>83</div>,
-                <div style={{top: 840}}>84</div>,
-                <div style={{top: 850}}>85</div>,
-                <div style={{top: 860}}>86</div>,
-                <div style={{top: 870}}>87</div>,
-                <div style={{top: 880}}>88</div>,
-                <div style={{top: 890}}>89</div>,
-                <div style={{top: 900}}>90</div>,
-                <div style={{top: 910}}>91</div>,
-                <div style={{top: 920}}>92</div>,
-                <div style={{top: 930}}>93</div>,
-                <div style={{top: 940}}>94</div>,
-                <div style={{top: 1160}}>116</div>,
-                <div style={{top: 2120}}>212</div>,
-                <div style={{top: 4140}}>414</div>,
-                <div style={{top: 4560}}>456</div>,
-                <div style={{top: 6660}}>666</div>,
-                <div style={{top: 7440}}>744</div>,
-                <div style={{top: 8940}}>894</div>,
-                <div style={{top: 9560}}>956</div>,
-                <div style={{top: 9580}}>958</div>,
+                <div style={{top: 560}}>75</div>,
+                <div style={{top: 570}}>76</div>,
+                <div style={{top: 580}}>77</div>,
+                <div style={{top: 590}}>78</div>,
+                <div style={{top: 600}}>79</div>,
+                <div style={{top: 610}}>80</div>,
+                <div style={{top: 620}}>81</div>,
+                <div style={{top: 630}}>82</div>,
+                <div style={{top: 640}}>83</div>,
+                <div style={{top: 650}}>84</div>,
+                <div style={{top: 660}}>85</div>,
+                <div style={{top: 670}}>86</div>,
+                <div style={{top: 680}}>87</div>,
+                <div style={{top: 690}}>88</div>,
+                <div style={{top: 700}}>89</div>,
+                <div style={{top: 710}}>90</div>,
+                <div style={{top: 720}}>91</div>,
+                <div style={{top: 730}}>92</div>,
+                <div style={{top: 740}}>93</div>,
+                <div style={{top: 750}}>94</div>,
+                <div style={{top: 865}}>116</div>,
+                <div style={{top: 1370}}>212</div>,
+                <div style={{top: 2410}}>414</div>,
+                <div style={{top: 2640}}>456</div>,
+                <div style={{top: 3700}}>666</div>,
+                <div style={{top: 4100}}>744</div>,
+                <div style={{top: 4865}}>894</div>,
+                <div style={{top: 5185}}>956</div>,
+                <div style={{top: 5200}}>958</div>,
             ],
-            contentHeight: 10_000,
-            bufferedHeightBeforeChildren: 750,
+            contentHeight: 5415,
+            bufferedHeightBeforeChildren: 560,
         });
     }
 });
