@@ -39,10 +39,7 @@ export function AccountAvatar({
             position="relative"
             zIndex="0"
         >
-            <Box
-                fontSize="xs"
-                style={{letterSpacing: "0.05em", transform: `scale(${parseInt(size, 10) / 8})`}}
-            >
+            <Box fontSize="xs" style={{transform: `scale(${parseInt(size, 10) / 8})`}}>
                 {firstInitial.toUpperCase()}
                 {lastInitial?.toUpperCase()}
             </Box>
