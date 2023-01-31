@@ -4,7 +4,9 @@ import createTree, {
     Node as TreeNode,
 } from "functional-red-black-tree";
 import {Key, ReactNode} from "react";
+import {OutOfRangeError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {clamp} from "~/shared/helpers/number/clamp";
 import {
     OrderKey,
@@ -1180,6 +1182,7 @@ export class VirtualizedScrollViewState {
         getItem: (index: number) => {
             key: Key;
             minHeight: number;
+            renderAdditionalIndexes?: ReadonlyArray<number>;
             render: (offset: number) => ReactNode;
         };
     }): {
@@ -1203,6 +1206,7 @@ export class VirtualizedScrollViewState {
             getItem: (index: number) => {
                 key: Key;
                 minHeight: number;
+                renderAdditionalIndexes?: ReadonlyArray<number>;
                 render: (offset: number) => ReactNode;
             };
         },
@@ -1324,8 +1328,10 @@ export class VirtualizedScrollViewState {
         const iterator = state._entryByOrderKey.find(state._renderedRange.startOrderKey);
         assert(iterator.node, "Could not find rendered range start order key");
         const bufferedHeightBeforeChildren = state._getPreviousContentHeight(iterator);
-        let index = state._getPreviousItemCount(iterator);
+        const startIndex = state._getPreviousItemCount(iterator);
+        let index = startIndex;
         let offset = bufferedHeightBeforeChildren;
+        const renderAdditionalIndexes = new Set<number>();
 
         while (iterator.node && iterator.node.key <= state._renderedRange!.endOrderKey) {
             const node = iterator.node;
@@ -1334,6 +1340,10 @@ export class VirtualizedScrollViewState {
 
             const item = getItem(index);
             const renderedItem = item.render(offset);
+
+            if (item.renderAdditionalIndexes)
+                for (const index of item.renderAdditionalIndexes)
+                    renderAdditionalIndexes.add(index);
 
             // If the item key changed from what we have in state then we need to set a new
             // entry in our state with a new key and new height.
@@ -1355,6 +1365,112 @@ export class VirtualizedScrollViewState {
                 children.push(renderedItem);
                 index += 1;
                 offset += item.minHeight;
+            }
+        }
+
+        const endIndex = index;
+
+        if (renderAdditionalIndexes.size > 0) {
+            for (const index of Array.from(renderAdditionalIndexes).sort((a, b) => a - b)) {
+                // If the index was in our rendered range, we don't need to render it again.
+                if (startIndex <= index && index < endIndex) continue;
+
+                const item = getItem(index);
+                const {iterator, nodeIndex} = state._getNodeAtIndex(index);
+                const node = assertExists(iterator.node);
+                const nodeOffset = state._getPreviousContentHeight(iterator);
+
+                if (node.value.type === "Item") {
+                    assert(nodeIndex === 0);
+                    const renderedItem = item.render(nodeOffset);
+
+                    // If the item key changed from what we have in state then we need to set a new
+                    // entry in our state with a new key and new height.
+                    if (node.value.key !== item.key) {
+                        state = VirtualizedScrollViewState._setEntry(
+                            state,
+                            node.key,
+                            {
+                                type: "Item",
+                                key: item.key,
+                                height: item.minHeight,
+                            },
+                            getItem,
+                        );
+                    }
+
+                    if (index < startIndex) {
+                        children.unshift(renderedItem);
+                    } else {
+                        children.push(renderedItem);
+                    }
+                }
+                // If the index is in a buffer, we need to split the buffer in half to add an
+                // entry for the additional item we're rendering.
+                else {
+                    const newBufferedItemCountBefore = nodeIndex;
+                    const newBufferedItemCountAfter = node.value.itemCount - nodeIndex - 1;
+
+                    let previousNode: TreeNode<OrderKey, VirtualizedScrollViewStateEntry> | null =
+                        null;
+                    let nextNode: TreeNode<OrderKey, VirtualizedScrollViewStateEntry> | null = null;
+
+                    if (iterator.hasPrev) {
+                        iterator.prev();
+                        previousNode = iterator.node;
+                        iterator.next();
+                    }
+
+                    if (iterator.hasNext) {
+                        iterator.next();
+                        nextNode = iterator.node;
+                    }
+
+                    state = VirtualizedScrollViewState._setEntry(
+                        state,
+                        node.key,
+                        {
+                            type: "Item",
+                            key: item.key,
+                            height: item.minHeight,
+                        },
+                        getItem,
+                    );
+
+                    if (newBufferedItemCountBefore > 0) {
+                        state = VirtualizedScrollViewState._setEntry(
+                            state,
+                            generateOrderKeyBetween(previousNode?.key ?? null, node.key),
+                            {
+                                type: "Buffer",
+                                itemCount: newBufferedItemCountBefore,
+                            },
+                            getItem,
+                        );
+                    }
+
+                    if (newBufferedItemCountAfter > 0) {
+                        state = VirtualizedScrollViewState._setEntry(
+                            state,
+                            generateOrderKeyBetween(node.key, nextNode?.key ?? null),
+                            {
+                                type: "Buffer",
+                                itemCount: newBufferedItemCountAfter,
+                            },
+                            getItem,
+                        );
+                    }
+
+                    const renderedItem = item.render(
+                        nodeOffset + newBufferedItemCountBefore * state._bufferedItemHeight,
+                    );
+
+                    if (index < startIndex) {
+                        children.unshift(renderedItem);
+                    } else {
+                        children.push(renderedItem);
+                    }
+                }
             }
         }
 
@@ -1487,6 +1603,66 @@ export class VirtualizedScrollViewState {
             itemCountCache: state._itemCountCache,
             contentHeightCache: state._contentHeightCache,
         });
+    }
+
+    /**
+     * Gets the node at the provided index. The returned iterator is guaranteed to
+     * have a non-null `node` property otherwise we will throw an out of range
+     * error.
+     *
+     * If the node covers multiple indexes then we will provide a `nodeIndex` which
+     * is the index within the node. If node only covers one index the `nodeIndex`
+     * will always be zero.
+     */
+    private _getNodeAtIndex(index: number): {
+        iterator: TreeIterator<OrderKey, VirtualizedScrollViewStateEntry>;
+        nodeIndex: number;
+    } {
+        const stack: Array<TreeNode<OrderKey, VirtualizedScrollViewStateEntry>> = [];
+
+        const search = (
+            index: number,
+            node: TreeNode<OrderKey, VirtualizedScrollViewStateEntry> | null,
+        ): {
+            node: TreeNode<OrderKey, VirtualizedScrollViewStateEntry>;
+            nodeIndex: number;
+        } | null => {
+            if (!node) return null;
+            stack.push(node);
+
+            const valueItemCount = node.value.type === "Item" ? 1 : node.value.itemCount;
+            const leftItemCount = this._getSubtreeItemCount(node.left);
+
+            // If the index is in our node then hooray! Return this node and the index.
+            //
+            // Otherwise the index is either in the left subtree or right subtree of this
+            // node. Find the appropriate subtree and recurse.
+            if (leftItemCount <= index && index < leftItemCount + valueItemCount) {
+                return {node, nodeIndex: index - leftItemCount};
+            } else if (index < leftItemCount) {
+                return search(index, node.left);
+            } else {
+                assert(leftItemCount + valueItemCount <= index);
+                return search(index - (leftItemCount + valueItemCount), node.right);
+            }
+        };
+
+        const searchResult = search(index, this._entryByOrderKey.root);
+        if (!searchResult) throw new OutOfRangeError("Index out of bounds");
+
+        // HACK(calebmer): Hackishly get the constructor for a
+        // `functional-red-black-tree` iterator and construct it since there's not an
+        // official API. This happens to be a tiny bit more efficient than calling
+        // `tree.find()` with the node returned from `search()` given we already know
+        // the node stack.
+        const iterator: TreeIterator<OrderKey, VirtualizedScrollViewStateEntry> = new (
+            this._entryByOrderKey.begin as any
+        ).constructor(this._entryByOrderKey, stack);
+
+        return {
+            iterator,
+            nodeIndex: searchResult.nodeIndex,
+        };
     }
 }
 

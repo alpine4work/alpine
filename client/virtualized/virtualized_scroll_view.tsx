@@ -81,6 +81,12 @@ export type VirtualizedScrollViewItem = {
      * The actual rendered React component for this item.
      */
     readonly node: ReactNode;
+    /**
+     * If this item is rendered then we will also render the items at the indexes
+     * provided in this array even if they are not in the virtualized window.
+     * Useful for implementing sticky section headers.
+     */
+    readonly renderAdditionalIndexes?: ReadonlyArray<number>;
 };
 
 export type VirtualizedScrollViewRef = {
@@ -254,18 +260,22 @@ function VirtualizedScrollView(
     // Cache the `getItem` function as long as the function reference doesn't
     // change.
     const getItemWithoutRender = useMemo(() => {
-        const itemByIndex = new Map<number, {key: Key; minHeight: number; node: ReactNode}>();
+        const itemByIndex = new Map<
+            number,
+            Omit<VirtualizedScrollViewItem, "minHeight"> & {minHeight: number}
+        >();
 
-        return (index: number): {key: Key; minHeight: number; node: ReactNode} =>
+        return (
+            index: number,
+        ): Omit<VirtualizedScrollViewItem, "minHeight"> & {minHeight: number} =>
             getOrSetDefaultMapValue(itemByIndex, index, () => {
                 const item = _renderItem(index);
                 return {
-                    key: item.key,
+                    ...item,
                     minHeight:
                         typeof item.minHeight === "string"
                             ? convertRemLengthToPx(item.minHeight, remPx)
                             : item.minHeight,
-                    node: item.node,
                 };
             });
     }, [_renderItem, remPx]);
@@ -346,13 +356,12 @@ function VirtualizedScrollView(
         bufferedHeightBeforeChildren,
     } = state.render({
         itemCount,
-        getItem: (
-            index: number,
-        ): {key: Key; minHeight: number; render: (offset: number) => ReactNode} => {
+        getItem: (index: number) => {
             const item = getItemWithoutRender(index);
             return {
                 key: item.key,
                 minHeight: item.minHeight,
+                renderAdditionalIndexes: item.renderAdditionalIndexes,
                 render: offset => (
                     <div
                         key={item.key}

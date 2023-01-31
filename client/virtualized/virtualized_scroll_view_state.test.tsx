@@ -2801,3 +2801,181 @@ test("can jump to arbitrary positions in list when rendering starts at the end",
         });
     }
 });
+
+test("can render additional items", () => {
+    const itemCount = 1_000;
+
+    const stableRandom = new StableRandom("test-1694b944");
+    const renderAdditionalIndexByIndex = stableShuffleArray(
+        stableRandom,
+        "shuffle",
+        createArrayWithLength(itemCount, index => (index % 2 === 0 ? index : null)),
+    );
+
+    const getItem = (index: number) => {
+        const renderAdditionalIndex = renderAdditionalIndexByIndex[index]!;
+        return {
+            key: index,
+            minHeight: 10,
+            renderAdditionalIndexes: renderAdditionalIndex !== null ? [renderAdditionalIndex] : [],
+            render: (offset: number) => <div style={{top: offset}}>{String(index)}</div>,
+        };
+    };
+
+    let state = VirtualizedScrollViewState.initializeFromTop({
+        screenHeight: 100,
+        bufferedItemHeight: 10,
+        itemCount,
+        getItem,
+    });
+
+    {
+        const {state: newState, ...renderResult} = state.render({
+            itemCount,
+            getItem,
+        });
+        state = newState;
+
+        expect(renderResult).toEqual({
+            children: [
+                <div style={{top: 0}}>0</div>,
+                <div style={{top: 10}}>1</div>,
+                <div style={{top: 20}}>2</div>,
+                <div style={{top: 30}}>3</div>,
+                <div style={{top: 40}}>4</div>,
+                <div style={{top: 50}}>5</div>,
+                <div style={{top: 60}}>6</div>,
+                <div style={{top: 70}}>7</div>,
+                <div style={{top: 80}}>8</div>,
+                <div style={{top: 90}}>9</div>,
+                <div style={{top: 100}}>10</div>,
+                <div style={{top: 110}}>11</div>,
+                <div style={{top: 120}}>12</div>,
+                <div style={{top: 130}}>13</div>,
+                <div style={{top: 140}}>14</div>,
+                <div style={{top: 150}}>15</div>,
+                <div style={{top: 160}}>16</div>,
+                <div style={{top: 170}}>17</div>,
+                <div style={{top: 180}}>18</div>,
+                <div style={{top: 190}}>19</div>,
+                <div style={{top: 280}}>28</div>,
+                <div style={{top: 500}}>50</div>,
+                <div style={{top: 1280}}>128</div>,
+                <div style={{top: 1480}}>148</div>,
+                <div style={{top: 2100}}>210</div>,
+                <div style={{top: 2840}}>284</div>,
+                <div style={{top: 2920}}>292</div>,
+                <div style={{top: 4160}}>416</div>,
+                <div style={{top: 4200}}>420</div>,
+                <div style={{top: 4340}}>434</div>,
+                <div style={{top: 6040}}>604</div>,
+                <div style={{top: 8180}}>818</div>,
+                <div style={{top: 9240}}>924</div>,
+            ],
+            contentHeight: 10_000,
+            bufferedHeightBeforeChildren: 0,
+        });
+    }
+
+    state = state.updateRenderedRange({
+        scrollOffset: 200,
+        itemCount,
+        getItem,
+    });
+
+    {
+        const {state: newState, ...renderResult} = state.render({
+            itemCount,
+            getItem,
+        });
+        state = newState;
+
+        expect(renderResult).toEqual({
+            children: [
+                <div style={{top: 150}}>15</div>,
+                <div style={{top: 160}}>16</div>,
+                <div style={{top: 170}}>17</div>,
+                <div style={{top: 180}}>18</div>,
+                <div style={{top: 190}}>19</div>,
+                <div style={{top: 200}}>20</div>,
+                <div style={{top: 210}}>21</div>,
+                <div style={{top: 220}}>22</div>,
+                <div style={{top: 230}}>23</div>,
+                <div style={{top: 240}}>24</div>,
+                <div style={{top: 250}}>25</div>,
+                <div style={{top: 260}}>26</div>,
+                <div style={{top: 270}}>27</div>,
+                <div style={{top: 280}}>28</div>,
+                <div style={{top: 290}}>29</div>,
+                <div style={{top: 300}}>30</div>,
+                <div style={{top: 310}}>31</div>,
+                <div style={{top: 320}}>32</div>,
+                <div style={{top: 330}}>33</div>,
+                <div style={{top: 340}}>34</div>,
+                <div style={{top: 380}}>38</div>,
+                <div style={{top: 500}}>50</div>,
+                <div style={{top: 1800}}>180</div>,
+                <div style={{top: 2680}}>268</div>,
+                <div style={{top: 2840}}>284</div>,
+                <div style={{top: 3660}}>366</div>,
+                <div style={{top: 3960}}>396</div>,
+                <div style={{top: 4160}}>416</div>,
+                <div style={{top: 6920}}>692</div>,
+                <div style={{top: 8720}}>872</div>,
+            ],
+            contentHeight: 10_000,
+            bufferedHeightBeforeChildren: 150,
+        });
+    }
+
+    state = state.updateRenderedRange({
+        scrollOffset: 800,
+        itemCount,
+        getItem,
+    });
+
+    {
+        const {state: newState, ...renderResult} = state.render({
+            itemCount,
+            getItem,
+        });
+        state = newState;
+
+        expect(renderResult).toEqual({
+            children: [
+                <div style={{top: 400}}>40</div>,
+                <div style={{top: 750}}>75</div>,
+                <div style={{top: 760}}>76</div>,
+                <div style={{top: 770}}>77</div>,
+                <div style={{top: 780}}>78</div>,
+                <div style={{top: 790}}>79</div>,
+                <div style={{top: 800}}>80</div>,
+                <div style={{top: 810}}>81</div>,
+                <div style={{top: 820}}>82</div>,
+                <div style={{top: 830}}>83</div>,
+                <div style={{top: 840}}>84</div>,
+                <div style={{top: 850}}>85</div>,
+                <div style={{top: 860}}>86</div>,
+                <div style={{top: 870}}>87</div>,
+                <div style={{top: 880}}>88</div>,
+                <div style={{top: 890}}>89</div>,
+                <div style={{top: 900}}>90</div>,
+                <div style={{top: 910}}>91</div>,
+                <div style={{top: 920}}>92</div>,
+                <div style={{top: 930}}>93</div>,
+                <div style={{top: 940}}>94</div>,
+                <div style={{top: 1160}}>116</div>,
+                <div style={{top: 2120}}>212</div>,
+                <div style={{top: 4140}}>414</div>,
+                <div style={{top: 4560}}>456</div>,
+                <div style={{top: 6660}}>666</div>,
+                <div style={{top: 7440}}>744</div>,
+                <div style={{top: 8940}}>894</div>,
+                <div style={{top: 9560}}>956</div>,
+                <div style={{top: 9580}}>958</div>,
+            ],
+            contentHeight: 10_000,
+            bufferedHeightBeforeChildren: 750,
+        });
+    }
+});
