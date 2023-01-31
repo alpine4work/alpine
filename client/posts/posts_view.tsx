@@ -369,6 +369,7 @@ export function PostsView({
 
                     const node = (
                         <Box
+                            flexGrow="1"
                             height={height}
                             display="flex"
                             alignItems="center"
@@ -411,7 +412,6 @@ export function PostsView({
                                     >
                                         <Box paddingX={padding}>
                                             <Box
-                                                position="relative"
                                                 marginX="auto"
                                                 maxWidth="160"
                                                 height={height}
@@ -420,29 +420,6 @@ export function PostsView({
                                                 boxShadow="elevation-5"
                                                 paddingX="5"
                                             >
-                                                <Box
-                                                    position="absolute"
-                                                    top="0"
-                                                    left="0"
-                                                    right="0"
-                                                    display="flex"
-                                                    justifyContent="space-between"
-                                                >
-                                                    <Box
-                                                        width="5"
-                                                        height="5"
-                                                        backgroundColor="grey-0"
-                                                        position="relative"
-                                                        zIndex="30"
-                                                    />
-                                                    <Box
-                                                        width="5"
-                                                        height="5"
-                                                        backgroundColor="grey-0"
-                                                        position="relative"
-                                                        zIndex="30"
-                                                    />
-                                                </Box>
                                                 {shouldRenderWithRelativePositioning && node}
                                             </Box>
                                         </Box>
@@ -480,10 +457,32 @@ export function PostsView({
                                                         maxWidth: "160",
                                                         marginX: "auto",
                                                         pointerEvents: "auto",
-                                                        paddingX: "5",
+                                                        display: "flex",
                                                     })}
                                                 >
+                                                    <Box
+                                                        flexShrink="0"
+                                                        width="5"
+                                                        backgroundColor="grey-0"
+                                                        borderBottomLeftRadius="md"
+                                                        style={{
+                                                            position: "relative",
+                                                            top: 1,
+                                                            height: `calc(${spacing[height]} - 1px)`,
+                                                        }}
+                                                    />
                                                     {node}
+                                                    <Box
+                                                        flexShrink="0"
+                                                        width="5"
+                                                        backgroundColor="grey-0"
+                                                        borderBottomRightRadius="md"
+                                                        style={{
+                                                            position: "relative",
+                                                            top: 1,
+                                                            height: `calc(${spacing[height]} - 1px)`,
+                                                        }}
+                                                    />
                                                 </div>
                                                 <Box
                                                     // Render a white backdrop below the entire post so that when the user is jump
