@@ -257,7 +257,17 @@ export class TracerSpan extends TracerBase {
         };
 
         this._tracer._sendEvent(
-            new TracerEvent(time, {value: data, next: null}, this._propagatedEventFlatData),
+            new TracerEvent(
+                time,
+                {
+                    value: data,
+                    next: {
+                        value: this._tracer.sharedEventData,
+                        next: this._propagatedEventData,
+                    },
+                },
+                this._propagatedEventFlatData,
+            ),
         );
     }
 

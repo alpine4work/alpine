@@ -602,6 +602,19 @@ function VirtualizedScrollView(
 
                 setState(previousState => {
                     if (!previousState.isJumpScrolling) return previousState;
+
+                    // Sometimes React tries to eagerly compute the next state. Then will rebase
+                    // during render.
+                    //
+                    // If the `itemCount` changed we need to wait for React to render before
+                    // calling `updateRenderedRange()` or else it will throw. So if we detect an
+                    // incorrect item count then React is probably trying to eagerly evaluate this
+                    // state update. Return a new state value to trigger a re-render and React
+                    // should properly apply state updates from there.
+                    if (itemCount !== previousState.state.getItemCount()) {
+                        return {...previousState, isJumpScrolling: false};
+                    }
+
                     return updateVirtualizedScrollViewActualStateRenderedRange(previousState, {
                         pinTo,
                         itemCount,
@@ -617,6 +630,18 @@ function VirtualizedScrollView(
                 if (previousState.isJumpScrolling) return previousState;
                 return {...previousState, isJumpScrolling: true};
             } else {
+                // Sometimes React tries to eagerly compute the next state. Then will rebase
+                // during render.
+                //
+                // If the `itemCount` changed we need to wait for React to render before
+                // calling `updateRenderedRange()` or else it will throw. So if we detect an
+                // incorrect item count then React is probably trying to eagerly evaluate this
+                // state update. Return a new state value to trigger a re-render and React
+                // should properly apply state updates from there.
+                if (itemCount !== previousState.state.getItemCount()) {
+                    return {...previousState};
+                }
+
                 return updateVirtualizedScrollViewActualStateRenderedRange(previousState, {
                     pinTo,
                     itemCount,
@@ -905,8 +930,6 @@ function useScrollViewPinTo(
         const handleInteraction = () => {
             lastInteractionEventTimeMs = Date.now();
         };
-
-        console.log("PIN TO BOTTOM?");
 
         const handleResize = () => {
             // When focus is within the scroll view, always pin to top. Users

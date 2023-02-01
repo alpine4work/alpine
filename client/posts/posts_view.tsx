@@ -59,17 +59,16 @@ export function PostsView({
     const onTogglePostComments = useEvent(_onTogglePostComments);
     const onUpdatePostComments = useEvent(_onUpdatePostComments);
 
-    const [postCommentsLoadingState, setPostCommentsLoadingState] = useState<{
-        isLoading: boolean;
-        errorState: {hasError: false} | {hasError: true; error: unknown};
-    }>({isLoading: false, errorState: {hasError: false}});
+    const isLoadingRef = useRef(false);
+    const [errorState, setErrorState] = useState<
+        {hasError: false} | {hasError: true; error: unknown}
+    >({hasError: false});
 
-    if (postCommentsLoadingState.errorState.hasError)
-        throw postCommentsLoadingState.errorState.error;
+    if (errorState.hasError) throw errorState.error;
 
     const tryLoadingMorePostComments = useEvent(() => {
         // If we're already loading, don't try to load more comments.
-        if (postCommentsLoadingState.isLoading) return;
+        if (isLoadingRef.current) return;
 
         const view = assertExists(viewRef.current);
         const renderedRange = view.getRenderedRange();
@@ -150,27 +149,17 @@ export function PostsView({
                     };
                 },
                 onFinishLoadingMessages: result => {
+                    isLoadingRef.current = false;
                     if (result.ok) {
-                        setPostCommentsLoadingState(state => ({
-                            ...state,
-                            isLoading: false,
-                        }));
                         onUpdatePostComments(item.postOrderKey, result.value.updateMessages);
                     } else {
-                        setPostCommentsLoadingState(state => ({
-                            ...state,
-                            isLoading: false,
-                            errorState: {hasError: true, error: result.error},
-                        }));
+                        setErrorState({hasError: true, error: result.error});
                     }
                 },
             });
 
             if (result.isLoading) {
-                setPostCommentsLoadingState(state => ({
-                    ...state,
-                    isLoading: true,
-                }));
+                isLoadingRef.current = false;
                 // If we started loading some comments, don't try to load comments from any
                 // other posts. We only want to send one load request at a time.
                 break;
@@ -178,24 +167,24 @@ export function PostsView({
         }
     });
 
-    // Whenever we stop loading, try loading more comments. Maybe while we were
-    // loading the user scrolled and so there are new unloaded comments in view.
+    // Whenever our list data changes, try loading more comments. In case our
+    // rendered range stayed the same but we see some some unloaded comments.
+    //
+    // This effect should also fire when `tryLoadingMorePostComments()` completes
+    // in case it didn't fully load the list.
     useEffect(() => {
-        if (!postCommentsLoadingState.isLoading) {
-            tryLoadingMorePostComments();
-        }
-    }, [postCommentsLoadingState.isLoading, tryLoadingMorePostComments]);
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        list;
+
+        tryLoadingMorePostComments();
+    }, [list, tryLoadingMorePostComments]);
 
     const loadInitialPostComments = useEvent(
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
         async (item: PaginatedPostListPostContentItem): Promise<void> => {
             // If we're already loading, don't try to load more comments.
-            if (postCommentsLoadingState.isLoading) return;
-
-            setPostCommentsLoadingState(state => ({
-                ...state,
-                isLoading: true,
-            }));
+            if (isLoadingRef.current) return;
+            isLoadingRef.current = true;
 
             try {
                 const limit = getInitialLoadMessageCount(clientInfo);
@@ -217,16 +206,9 @@ export function PostsView({
                     }),
                 );
 
-                setPostCommentsLoadingState(state => ({
-                    ...state,
-                    isLoading: false,
-                }));
+                isLoadingRef.current = false;
             } catch (error) {
-                setPostCommentsLoadingState(state => ({
-                    ...state,
-                    isLoading: false,
-                    errorState: {hasError: true, error},
-                }));
+                setErrorState({hasError: true, error});
             }
         },
     );
