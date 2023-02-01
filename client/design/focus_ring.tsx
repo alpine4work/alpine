@@ -13,7 +13,7 @@ import {useFocusVisible} from "react-aria";
 import {Box} from "~/client/design/box";
 import {useElementWithRef} from "~/client/design/helpers/use_element_with_ref";
 import {useLifecycleRef} from "~/client/design/helpers/use_lifecycle_ref";
-import {useMergedRef} from "~/client/design/helpers/use_merged_ref";
+import {useMergedRefs} from "~/client/design/helpers/use_merged_refs";
 import {useSpacingPx} from "~/client/design/helpers/use_spacing_px";
 import {Overlay} from "~/client/design/overlay";
 import {Spacing} from "~/shared/design/spacing";
@@ -88,7 +88,7 @@ function FocusRing(
 
     return (
         <Overlay
-            visible={isFocused && isFocusVisible}
+            isVisible={isFocused && isFocusVisible}
             placement="center"
             preventOverflow={false}
             sameWidth={true}
@@ -101,7 +101,7 @@ function FocusRing(
         >
             {useElementWithRef(
                 children,
-                useMergedRef(foreignRef, useLifecycleRef(targetLifecycleRef)),
+                useMergedRefs(foreignRef, useLifecycleRef(targetLifecycleRef)),
             )}
         </Overlay>
     );

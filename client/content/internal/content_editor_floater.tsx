@@ -191,7 +191,7 @@ function ContentEditorKeyboardHighlightFloater({
             //
             // Also it looks a little better to not animate when replacing a possibly
             // existing toolbar.
-            visible={!isClosing}
+            isVisible={!isClosing}
             disableAnimation={!isClosing}
             placement="top-start"
             offset="3"
@@ -294,7 +294,7 @@ function ContentEditorKeyboardLinkFloater({
             //
             // Also it looks a little better to not animate when replacing a possibly
             // existing toolbar.
-            visible={!isClosing}
+            isVisible={!isClosing}
             disableAnimation={!isClosing}
             placement="top-start"
             offset="3"
@@ -414,7 +414,7 @@ function ContentEditorPointerLinkFloater({
             //
             // Also it looks a little better to not animate when replacing a possibly
             // existing toolbar.
-            visible={!isClosing}
+            isVisible={!isClosing}
             placement="top-start"
             // This floater is closer to the cursor than the others because it doesn't have
             // a visual text selection indication for what it's targeting.

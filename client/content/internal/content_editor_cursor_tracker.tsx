@@ -2,7 +2,7 @@ import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {Memo, Ref, RefObject, forwardRef, useCallback, useLayoutEffect, useRef} from "react";
 import {Box} from "~/client/design/box";
-import {useMergedRef} from "~/client/design/helpers/use_merged_ref";
+import {useMergedRefs} from "~/client/design/helpers/use_merged_refs";
 import {
     addResizeListenerForElement,
     removeResizeListenerForElement,
@@ -41,7 +41,7 @@ function ContentEditorCursorTracker(
 
     return (
         <Box
-            ref={useMergedRef(localRef, foreignRef)}
+            ref={useMergedRefs(localRef, foreignRef)}
             width="0"
             position="absolute"
             pointerEvents="none"

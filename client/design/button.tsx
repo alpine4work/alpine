@@ -4,7 +4,7 @@ import {IconContext, SpinnerGap} from "phosphor-react";
 import {ReactNode, Ref, forwardRef, useEffect, useRef, useState} from "react";
 import {AriaButtonProps, mergeProps, useButton, useHover} from "react-aria";
 import {FocusRing} from "~/client/design/focus_ring";
-import {useMergedRef} from "~/client/design/helpers/use_merged_ref";
+import {useMergedRefs} from "~/client/design/helpers/use_merged_refs";
 import {uninterruptedThoughtLimitMs} from "~/client/design/timing_constants";
 import {Spacing, spacing} from "~/shared/design/spacing";
 import {createTimeout} from "~/shared/helpers/async/timeout";
@@ -173,7 +173,7 @@ function Button(
         <FocusRing offset={variant === "quiet" ? "0" : "0.5"}>
             <button
                 {...mergeProps(buttonProps, hoverProps)}
-                ref={useMergedRef(foreignRef, localRef)}
+                ref={useMergedRefs(foreignRef, localRef)}
                 className={sprinkles({
                     ...stylesByVariant[variant],
 

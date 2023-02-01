@@ -65,7 +65,7 @@ export function InlineAlert({
         >
             <Box position="absolute" top="1.5" right="1.5">
                 <IconButton
-                    size="sm"
+                    size="xs"
                     description="Dismiss alert"
                     onPress={onDismiss}
                     withoutTooltip={true}

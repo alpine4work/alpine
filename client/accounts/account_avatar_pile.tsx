@@ -106,7 +106,7 @@ export function AccountAvatarPile({
 function AsyncTooltip({
     getContent,
     ...tooltipProps
-}: Omit<TooltipProps, "content" | "shouldSuppress"> & {getContent: () => Promise<ReactNode>}) {
+}: Omit<TooltipProps, "content" | "isDisabled"> & {getContent: () => Promise<ReactNode>}) {
     const context = useAppContext();
 
     const [tooltipState, setTooltipState] = useState<
@@ -177,7 +177,7 @@ function AsyncTooltip({
     return (
         <Tooltip
             {...tooltipProps}
-            shouldSuppress={
+            isDisabled={
                 !contentState.isLoaded &&
                 (!tooltipState.isHoveredOrFocused || tooltipState.isTooltipOpenStalled)
             }

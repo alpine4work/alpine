@@ -259,7 +259,7 @@ function ContentEditorPointerToolbarOverlay({
     return (
         <Overlay
             ref={overlayRef}
-            visible={true}
+            isVisible={true}
             placement="top-start"
             // Since we position the overlay based on the start of the selection we can't
             // flip down or else we might cover selection content.
@@ -674,7 +674,7 @@ function ContentEditorPointerToolbarLinkButton({
 
     return (
         <OverlayAnimated
-            visible={isLinkInputOpen && !isToolbarFadingOut}
+            isVisible={isLinkInputOpen && !isToolbarFadingOut}
             placement="top"
             canFlip={false}
             offset="1.5"
@@ -776,7 +776,7 @@ function ContentEditorPointerToolbarHighlightButton({
 
     return (
         <OverlayAnimated
-            visible={isOpen}
+            isVisible={isOpen}
             placement="top"
             canFlip={false}
             offset="1.5"

@@ -2,7 +2,7 @@ import {IconContext} from "phosphor-react";
 import {Ref, forwardRef, useRef} from "react";
 import {AriaButtonProps, mergeProps, useButton, useHover} from "react-aria";
 import {FocusRing} from "~/client/design/focus_ring";
-import {useMergedRef} from "~/client/design/helpers/use_merged_ref";
+import {useMergedRefs} from "~/client/design/helpers/use_merged_refs";
 import {Tooltip} from "~/client/design/tooltip";
 import {spacing} from "~/shared/design/spacing";
 import {sprinkles} from "~/shared/styles/styles";
@@ -12,7 +12,7 @@ import {sprinkles} from "~/shared/styles/styles";
 const IconButtonForwardRef = forwardRef(IconButton);
 export {IconButtonForwardRef as IconButton};
 
-type IconButtonSize = "base" | "sm";
+type IconButtonSize = "base" | "sm" | "xs";
 
 /**
  * A button represented by a single icon.
@@ -55,9 +55,15 @@ function IconButton(
                 buttonSize: "7",
                 buttonPadding: "1",
                 iconSize: "5",
-                tooltipOffset: "2",
+                tooltipOffset: undefined,
             },
             sm: {
+                buttonSize: "5",
+                buttonPadding: "0.5",
+                iconSize: "4",
+                tooltipOffset: undefined,
+            },
+            xs: {
                 buttonSize: "4",
                 buttonPadding: "0.5",
                 iconSize: "3",
@@ -76,7 +82,7 @@ function IconButton(
             <FocusRing>
                 <button
                     {...mergeProps(buttonProps, hoverProps)}
-                    ref={useMergedRef(foreignRef, localRef)}
+                    ref={useMergedRefs(foreignRef, localRef)}
                     className={sprinkles({
                         width: buttonSize,
                         height: buttonSize,

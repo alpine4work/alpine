@@ -29,7 +29,6 @@ import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted";
 import {Spacing} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
 import {
     overlayAnimateContainerClassName,
     overlayAnimateFadeInClassName,
@@ -95,7 +94,7 @@ type TooltipChildrenProps = {
      * Is the tooltip currently visible? True even when the tooltip is fading in
      * and out of visibility.
      */
-    visible: boolean;
+    isVisible: boolean;
 
     /**
      * When hovering over a tooltip, we have a delay before the tooltip becomes
@@ -129,13 +128,6 @@ export type TooltipProps = {
      * immediately hide the tooltip without animation.
      */
     isDisabled?: boolean;
-
-    /**
-     * Suppress opening the tooltip. This is different from `isDisabled` in that
-     * tooltip's state all updates like normal but it does not actually fade in
-     * while this is true.
-     */
-    shouldSuppress?: boolean;
 
     /**
      * Where should the tooltip content be placed relative to the target element?
@@ -190,7 +182,6 @@ function Tooltip(
     {
         content,
         isDisabled = false,
-        shouldSuppress = false,
         placement = "top",
         canFlip = true,
         offset = "1.5",
@@ -229,15 +220,10 @@ function Tooltip(
     // Controls whether the tooltip is actually visible or not. Only one tooltip
     // can be visible on screen at once and that is managed by our tooltip
     // coordination context.
-    const visible = !isDisabled && !shouldSuppress && tooltipSymbol === activeTooltipSymbol;
+    const isVisible = !isDisabled && tooltipSymbol === activeTooltipSymbol;
     const hasActiveTooltipSymbol = activeTooltipSymbol !== null;
 
-    const [_state, setState] = useState<TooltipState>(initialTooltipState);
-
-    // If the tooltip is disabled, immediately reset to the initial tooltip state.
-    const state =
-        isDisabled && !isDeepEqual(_state, initialTooltipState) ? initialTooltipState : _state;
-    if (state !== _state) setState(state);
+    const [state, setState] = useState<TooltipState>(initialTooltipState);
 
     // Manage our tooltip symbol in the tooltip coordination context based on our
     // hover/focus state.
@@ -265,7 +251,7 @@ function Tooltip(
     // animation ends.
     useEffect(() => {
         if (state.isFadingIn) {
-            if (visible) {
+            if (isVisible) {
                 const timeoutId = setTimeout(() => {
                     setState(state => {
                         if (!state.isFadingIn) {
@@ -294,13 +280,13 @@ function Tooltip(
                 // context tells us we are the only visible tooltip.
             }
         }
-    }, [state.isFadingIn, visible]);
+    }, [state.isFadingIn, isVisible]);
 
     // If we are fading out then setup a timeout to update our state when the
     // animation ends.
     useEffect(() => {
         if (state.isFadingOut) {
-            if (visible) {
+            if (isVisible) {
                 const timeoutId = setTimeout(() => {
                     setState(state => {
                         if (!state.isFadingOut) {
@@ -319,7 +305,7 @@ function Tooltip(
                 setState(state => ({...state, isFadingOut: false}));
             }
         }
-    }, [state.isFadingOut, visible]);
+    }, [state.isFadingOut, isVisible]);
 
     const onStateChange = useEvent(_onStateChange);
     useEffect(() => {
@@ -335,10 +321,7 @@ function Tooltip(
                 "Expected the children of a `<Tooltip>` component to render an element with a ref to an HTML element",
             );
 
-            // Don't attach handlers when we're disabled.
-            if (isDisabled) return;
-
-            assert(!visible || tooltipRef.current);
+            assert(!isVisible || tooltipRef.current);
             const tooltipElement = tooltipRef.current;
 
             function handleMouseEnter(event: MouseEvent) {
@@ -376,7 +359,7 @@ function Tooltip(
                         if (!state.isHovered) {
                             return state;
                         } else if (!state.isFocused) {
-                            if (!visible) {
+                            if (!isVisible) {
                                 return {
                                     ...state,
                                     isHovered: false,
@@ -459,7 +442,7 @@ function Tooltip(
                         if (!state.isFocused) {
                             return state;
                         } else if (!state.isHovered) {
-                            if (!visible) {
+                            if (!isVisible) {
                                 return {
                                     ...state,
                                     isFocused: false,
@@ -527,8 +510,7 @@ function Tooltip(
             };
         },
         [
-            isDisabled,
-            visible,
+            isVisible,
             tooltipSymbolThatIsFadingOutNextAnimationFrameRef,
             hasActiveTooltipSymbol,
             tooltipSymbol,
@@ -542,11 +524,11 @@ function Tooltip(
                 return actualChildren;
             } else {
                 return actualChildren({
-                    visible,
+                    isVisible,
                     skipHoverDelay: coordinationContext.skipTooltipHoverDelay,
                 });
             }
-        }, [actualChildren, coordinationContext.skipTooltipHoverDelay, visible]),
+        }, [actualChildren, coordinationContext.skipTooltipHoverDelay, isVisible]),
         useLifecycleRef(targetLifecycleRef),
     );
 
@@ -561,7 +543,7 @@ function Tooltip(
         return (
             <Overlay
                 ref={overlayRef}
-                visible={visible}
+                isVisible={isVisible}
                 placement={placement}
                 canFlip={canFlip}
                 offset={offset}
@@ -598,7 +580,7 @@ function Tooltip(
             </Overlay>
         );
     }, [
-        visible,
+        isVisible,
         placement,
         canFlip,
         offset,

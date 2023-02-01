@@ -6,7 +6,7 @@ import {assignRef} from "~/client/design/helpers/assign_ref";
  *
  * Maintains referential integrity as long as both refs stay the same.
  */
-export function useMergedRef<T>(ref1: Ref<T>, ref2: Ref<T>): Ref<T> {
+export function useMergedRefs<T>(ref1: Ref<T>, ref2: Ref<T>): Ref<T> {
     return useMemo(() => {
         if (ref1 === null) return ref2;
         if (ref2 === null) return ref1;

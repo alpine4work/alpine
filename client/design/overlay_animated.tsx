@@ -16,13 +16,13 @@ const OverlayAnimatedForwardRef = forwardRef(OverlayAnimated);
 export {OverlayAnimatedForwardRef as OverlayAnimated};
 
 type OverlayAnimatedState = {
-    readonly visible: boolean;
-    readonly animating: boolean;
+    readonly isVisible: boolean;
+    readonly isAnimating: boolean;
 };
 
 const initialOverlayAnimatedState: OverlayAnimatedState = {
-    visible: false,
-    animating: false,
+    isVisible: false,
+    isAnimating: false,
 };
 
 /**
@@ -35,7 +35,7 @@ const initialOverlayAnimatedState: OverlayAnimatedState = {
  */
 function OverlayAnimated(
     {
-        visible = false,
+        isVisible = false,
         disableAnimation = false,
         overlay: originalOverlay,
         ...props
@@ -56,14 +56,14 @@ function OverlayAnimated(
 
     if (disableAnimation) {
         const disabledState: OverlayAnimatedState = {
-            visible,
-            animating: false,
+            isVisible,
+            isAnimating: false,
         };
         state = !isDeepEqual(_state, disabledState) ? disabledState : _state;
-    } else if (visible !== _state.visible) {
+    } else if (isVisible !== _state.isVisible) {
         state = {
-            visible,
-            animating: true,
+            isVisible,
+            isAnimating: true,
         };
     } else {
         state = _state;
@@ -72,12 +72,12 @@ function OverlayAnimated(
     if (state !== _state) setState(state);
 
     useEffect(() => {
-        if (state.animating) {
+        if (state.isAnimating) {
             const timeoutId = setTimeout(
                 () => {
                     setState(prevState => ({...prevState, animating: false}));
                 },
-                state.visible
+                state.isVisible
                     ? overlayFadeInAnimationDurationMs
                     : overlayFadeOutAnimationDurationMs,
             );
@@ -85,7 +85,7 @@ function OverlayAnimated(
                 clearTimeout(timeoutId);
             };
         }
-    }, [state.animating, state.visible]);
+    }, [state.isAnimating, state.isVisible]);
 
     const overlayRef = useRef<HTMLElement>(null);
 
@@ -99,8 +99,8 @@ function OverlayAnimated(
     // It's ok to ignore the server-side warning since overlays are not visible in
     // the server-side render.
     useLayoutEffectWithoutServerSideWarning(() => {
-        const animateClassName = state.animating
-            ? state.visible
+        const animateClassName = state.isAnimating
+            ? state.isVisible
                 ? overlayAnimateFadeInClassName
                 : overlayAnimateFadeOutClassName
             : null;
@@ -111,13 +111,13 @@ function OverlayAnimated(
             overlayElement.classList.add(animateClassName);
             return () => overlayElement.classList.remove(animateClassName);
         }
-    }, [state.animating, state.visible]);
+    }, [state.isAnimating, state.isVisible]);
 
     return (
         <Overlay
             {...props}
             ref={ref}
-            visible={state.visible || state.animating}
+            isVisible={state.isVisible || state.isAnimating}
             overlay={overlay}
         />
     );

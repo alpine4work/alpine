@@ -58,7 +58,7 @@ export type OverlayProps = {
      * overlay to be visible immediately on page load it might flash in. To avoid
      * this, only render overlay in response to user interaction.
      */
-    visible?: boolean;
+    isVisible?: boolean;
 
     /**
      * Where should the overlay content be placed relative to the target element?
@@ -149,7 +149,7 @@ export type OverlayProps = {
  */
 function Overlay(
     {
-        visible: actuallyVisible = false,
+        isVisible: actuallyIsVisible = false,
         placement,
         overlay: actualOverlay,
         offset,
@@ -167,7 +167,7 @@ function Overlay(
 
     // Always hide overlays when we don't yet have the portal element. This means
     // overlays can't be rendered on the server.
-    const visible = overlaySink.portalElement !== null && actuallyVisible;
+    const isVisible = overlaySink.portalElement !== null && actuallyIsVisible;
 
     const overlayRef = useRef<HTMLDivElement>(null);
     const popperRef = useRef<Instance | null>(null);
@@ -189,7 +189,7 @@ function Overlay(
                 "Expected the children of an `<Overlay>` component to render an element with a ref to an HTML element",
             );
 
-            if (!visible) return;
+            if (!isVisible) return;
 
             assert(
                 overlayRef.current && overlayRef.current instanceof HTMLElement,
@@ -296,7 +296,16 @@ function Overlay(
                 popper.destroy();
             };
         },
-        [visible, placement, preventOverflow, canFlip, offset, offsetAlong, sameWidth, sameHeight],
+        [
+            isVisible,
+            placement,
+            preventOverflow,
+            canFlip,
+            offset,
+            offsetAlong,
+            sameWidth,
+            sameHeight,
+        ],
     );
 
     const overlay = useElementWithRef(actualOverlay, overlayRef);
@@ -304,7 +313,7 @@ function Overlay(
     return (
         <>
             {overlaySink.portalElement !== null &&
-                visible &&
+                isVisible &&
                 // This intentionally comes before `children` so that React executes
                 // `overlayRef` before `targetRef`.
                 createPortal(overlay, overlaySink.portalElement)}
