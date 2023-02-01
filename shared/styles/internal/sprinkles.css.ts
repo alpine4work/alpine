@@ -26,6 +26,7 @@ const borderRadiuses = {
     base: "0.25rem",
     md: "0.375rem",
     xl: "0.75rem",
+    "2xl": "1.25rem",
     full: "9999px",
 } as const;
 

@@ -1,7 +1,6 @@
 import {useCallback, useEffect, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
-import {useRemPx} from "~/client/design/helpers/use_rem_px";
 import {Spacer} from "~/client/design/spacer";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {MessageShimmer} from "~/client/messaging/message_shimmer";
@@ -21,13 +20,7 @@ import {
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view";
-import {
-    RemLength,
-    Spacing,
-    addRemLengths,
-    convertRemLengthToPx,
-    spacing,
-} from "~/shared/design/spacing";
+import {RemLength, Spacing, addRemLengths, spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping";
@@ -60,7 +53,6 @@ export function PostsView({
 }) {
     const context = useAppContext();
     const clientInfo = useClientInfo();
-    const remPx = useRemPx();
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
     const onTogglePostComments = useEvent(_onTogglePostComments);
@@ -359,35 +351,23 @@ export function PostsView({
                 // We create a `<div>` that spans the bottom of the post content to the end of
                 // the entire post. This is the range in which our post comment input will be
                 // sticky. We create a second `<div>` of the same range but rendering the full
-                // post width border. This full post width border will be hidden under two
-                // boxes at the bottom of the post. This creates the effect of the comment
-                // input being full width and sticky when you haven't scrolled to the bottom of
-                // the post but when you have scrolled to the bottom the comment input is
-                // rendered inline and not full width.
+                // post width border. The post comment input is shaped so that when we reach the
+                // bottom of the page the full width border will slide underneath it. Creating
+                // the effect if while scrolling the comment input is a layer on top of the post
+                // and when at the bottom of the post the comment input is inline.
                 case "PostCommentInput": {
-                    const height: Spacing = "16";
-
-                    const node = (
-                        <Box
-                            flexGrow="1"
-                            height={height}
-                            display="flex"
-                            alignItems="center"
-                            borderTop="grey-5"
-                            backgroundColor="grey-0"
-                        >
-                            <Box flexGrow="1">
-                                <PostCommentInput post={item.post} />
-                            </Box>
-                        </Box>
-                    );
+                    // This is defined out here so that it doesn't re-rerender every time the
+                    // `render()` function is called since it's referentially stable.
+                    const inputNode = <PostCommentInput post={item.post} />;
 
                     return {
                         key: `PostCommentInput:${item.post.id}`,
-                        minHeight: addRemLengths(spacing[height], spacing[padding]),
+                        minHeight: addRemLengths(spacing["16"], spacing[padding]),
                         withManualLayout: true,
                         render: ({
+                            ref,
                             offset,
+                            height,
                             shouldRenderWithRelativePositioning,
                             getIndexPosition,
                         }) => {
@@ -410,20 +390,34 @@ export function PostsView({
                                                   }
                                         }
                                     >
-                                        <Box paddingX={padding}>
+                                        <Box
+                                            paddingX={padding}
+                                            paddingBottom={padding}
+                                            style={{height}}
+                                        >
                                             <Box
                                                 marginX="auto"
                                                 maxWidth="160"
-                                                height={height}
+                                                height="full"
                                                 backgroundColor="grey-0"
                                                 borderBottomRadius="md"
                                                 boxShadow="elevation-5"
                                                 paddingX="5"
                                             >
-                                                {shouldRenderWithRelativePositioning && node}
+                                                {shouldRenderWithRelativePositioning && (
+                                                    <Box
+                                                        borderTop="grey-5"
+                                                        style={{
+                                                            // Remove one pixel from top padding for border.
+                                                            paddingTop: `calc(${spacing["3"]} - 1px)`,
+                                                            paddingBottom: spacing["3"],
+                                                        }}
+                                                    >
+                                                        {inputNode}
+                                                    </Box>
+                                                )}
                                             </Box>
                                         </Box>
-                                        <Spacer space={padding} />
                                     </div>
                                     {!shouldRenderWithRelativePositioning && (
                                         <>
@@ -433,13 +427,7 @@ export function PostsView({
                                                     top: postContentOffsetEnd,
                                                     left: spacing[padding],
                                                     right: spacing[padding],
-                                                    height:
-                                                        offset -
-                                                        postContentOffsetEnd +
-                                                        convertRemLengthToPx(
-                                                            spacing[height],
-                                                            remPx,
-                                                        ),
+                                                    height: offset - postContentOffsetEnd + height,
                                                     pointerEvents: "none",
                                                     display: "flex",
                                                     justifyContent: "center",
@@ -447,9 +435,10 @@ export function PostsView({
                                                 }}
                                             >
                                                 <div
+                                                    ref={ref}
                                                     style={{
                                                         position: "sticky",
-                                                        bottom: 0,
+                                                        bottom: `-${spacing[padding]}`,
                                                     }}
                                                     className={sprinkles({
                                                         zIndex: "20",
@@ -458,6 +447,7 @@ export function PostsView({
                                                         marginX: "auto",
                                                         pointerEvents: "auto",
                                                         display: "flex",
+                                                        paddingBottom: padding,
                                                     })}
                                                 >
                                                     <Box
@@ -468,10 +458,23 @@ export function PostsView({
                                                         style={{
                                                             position: "relative",
                                                             top: 1,
-                                                            height: `calc(${spacing[height]} - 1px)`,
+                                                            height: `calc(${height - 1}px - ${
+                                                                spacing[padding]
+                                                            })`,
                                                         }}
                                                     />
-                                                    {node}
+                                                    <Box
+                                                        flexGrow="1"
+                                                        borderTop="grey-5"
+                                                        backgroundColor="grey-0"
+                                                        style={{
+                                                            // Remove one pixel from top padding for border.
+                                                            paddingTop: `calc(${spacing["3"]} - 1px)`,
+                                                            paddingBottom: spacing["3"],
+                                                        }}
+                                                    >
+                                                        {inputNode}
+                                                    </Box>
                                                     <Box
                                                         flexShrink="0"
                                                         width="5"
@@ -480,7 +483,9 @@ export function PostsView({
                                                         style={{
                                                             position: "relative",
                                                             top: 1,
-                                                            height: `calc(${spacing[height]} - 1px)`,
+                                                            height: `calc(${height - 1}px - ${
+                                                                spacing[padding]
+                                                            })`,
                                                         }}
                                                     />
                                                 </div>
@@ -489,7 +494,6 @@ export function PostsView({
                                                     // scrolling we don't have the pinned comment input and the wash
                                                     // background color.
                                                     position="absolute"
-                                                    bottom={height}
                                                     width="full"
                                                     maxWidth="160"
                                                     marginX="auto"
@@ -498,14 +502,10 @@ export function PostsView({
                                                     borderTopRadius="md"
                                                     style={{
                                                         top:
-                                                            -postContentPosition.height +
-                                                            (item.postContentItemIndex === 0
-                                                                ? convertRemLengthToPx(
-                                                                      spacing[padding],
-                                                                      remPx,
-                                                                  )
-                                                                : 0) +
-                                                            1,
+                                                            item.postContentItemIndex === 0
+                                                                ? `calc(-${postContentPosition.height}px + ${spacing[padding]} + 1px)`
+                                                                : -postContentPosition.height,
+                                                        bottom: height,
                                                     }}
                                                 />
                                             </div>
@@ -516,13 +516,7 @@ export function PostsView({
                                                     left: spacing[padding],
                                                     right: spacing[padding],
                                                     height:
-                                                        offset -
-                                                        postContentOffsetEnd +
-                                                        convertRemLengthToPx(
-                                                            spacing[height],
-                                                            remPx,
-                                                        ) +
-                                                        1,
+                                                        offset - postContentOffsetEnd + height + 1,
                                                     pointerEvents: "none",
                                                     display: "flex",
                                                     alignItems: "flex-end",
@@ -531,12 +525,12 @@ export function PostsView({
                                                 <div
                                                     style={{
                                                         position: "sticky",
-                                                        bottom: 0,
+                                                        bottom: `-${spacing[padding]}`,
+                                                        height,
                                                     }}
                                                     className={sprinkles({
                                                         zIndex: "10",
                                                         width: "full",
-                                                        height,
                                                         maxWidth: "160",
                                                         marginX: "auto",
                                                         borderTop: "grey-5",
@@ -554,7 +548,7 @@ export function PostsView({
                     throw exhaustive(item);
             }
         },
-        [list, loadInitialPostComments, onTogglePostComments, remPx],
+        [list, loadInitialPostComments, onTogglePostComments],
     );
 
     return (

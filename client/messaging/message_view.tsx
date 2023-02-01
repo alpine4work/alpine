@@ -62,10 +62,10 @@ export function MessageView({
                     display="inline-block"
                     paddingX="1"
                     paddingY="2"
-                    borderTopLeftRadius={!shouldMergeWithPreviousMessage ? "xl" : undefined}
-                    borderTopRightRadius="xl"
-                    borderBottomLeftRadius={!shouldMergeWithNextMessage ? "xl" : undefined}
-                    borderBottomRightRadius="xl"
+                    borderTopLeftRadius={!shouldMergeWithPreviousMessage ? "2xl" : undefined}
+                    borderTopRightRadius="2xl"
+                    borderBottomLeftRadius={!shouldMergeWithNextMessage ? "2xl" : undefined}
+                    borderBottomRightRadius="2xl"
                 >
                     <ContentView content={message.content} onNavigate={useNavigate()} />
                 </Box>

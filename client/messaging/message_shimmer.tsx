@@ -134,10 +134,10 @@ export function MessageShimmer<Message extends MessageInterface>({
                     backgroundColor="grey-5"
                     width="full"
                     maxWidth={messageSize.width}
-                    borderTopLeftRadius={!shouldMergeWithPreviousMessage ? "xl" : undefined}
-                    borderTopRightRadius="xl"
-                    borderBottomLeftRadius={!shouldMergeWithNextMessage ? "xl" : undefined}
-                    borderBottomRightRadius="xl"
+                    borderTopLeftRadius={!shouldMergeWithPreviousMessage ? "2xl" : undefined}
+                    borderTopRightRadius="2xl"
+                    borderBottomLeftRadius={!shouldMergeWithNextMessage ? "2xl" : undefined}
+                    borderBottomRightRadius="2xl"
                 >
                     <div style={{height: `${messageSize.heightLines * 1.5}rem`}} />
                 </Box>

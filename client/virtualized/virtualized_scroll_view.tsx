@@ -136,6 +136,7 @@ export type VirtualizedScrollViewItem =
           readonly render: (props: {
               ref: Ref<HTMLDivElement>;
               offset: number;
+              height: number;
               shouldRenderWithRelativePositioning: boolean;
               getIndexPosition: (index: number) => {offset: number; height: number};
           }) => ReactElement;
@@ -435,7 +436,7 @@ function VirtualizedScrollView(
                 key: item.key,
                 minHeight: item.minHeight,
                 renderAdditionalItemIndexes: item.renderAdditionalItemIndexes,
-                render: ({offset, getIndexPosition}) => {
+                render: ({offset, height, getIndexPosition}) => {
                     // Listen to the element's height with a resize observer so we can correctly
                     // position items. The resize observer will notify us whenever the height
                     // changes.
@@ -522,6 +523,7 @@ function VirtualizedScrollView(
                         const element = item.render({
                             ref,
                             offset,
+                            height,
                             shouldRenderWithRelativePositioning,
                             getIndexPosition,
                         });

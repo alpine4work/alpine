@@ -17,7 +17,7 @@ export function PostCommentInput({post}: {post: PostModel}) {
     const [isSaving, setIsSaving] = useState(false);
 
     return (
-        <Box display="flex">
+        <Box flexGrow="1" display="flex">
             <Box marginY="1">
                 <Box
                     flexShrink="0"
@@ -27,7 +27,7 @@ export function PostCommentInput({post}: {post: PostModel}) {
                     borderRadius="full"
                 />
             </Box>
-            <Box flexGrow="1" marginLeft="2" backgroundColor="grey-5" borderRadius="xl">
+            <Box flexGrow="1" marginLeft="2" backgroundColor="grey-5" borderRadius="2xl">
                 <ContentEditor
                     state={state}
                     onChange={state => {
