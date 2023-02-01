@@ -391,6 +391,11 @@ export function PostsView({
                                         }
                                     >
                                         <Box
+                                            ref={
+                                                shouldRenderWithRelativePositioning
+                                                    ? ref
+                                                    : undefined
+                                            }
                                             paddingX={padding}
                                             paddingBottom={padding}
                                             style={{height}}
@@ -452,17 +457,20 @@ export function PostsView({
                                                 >
                                                     <Box
                                                         flexShrink="0"
+                                                        alignSelf="stretch"
                                                         width="5"
-                                                        backgroundColor="grey-0"
-                                                        borderBottomLeftRadius="md"
                                                         style={{
-                                                            position: "relative",
-                                                            top: 1,
-                                                            height: `calc(${height - 1}px - ${
-                                                                spacing[padding]
-                                                            })`,
+                                                            // Allow full-width top border to be visible until it slides under.
+                                                            paddingTop: 1,
                                                         }}
-                                                    />
+                                                    >
+                                                        <Box
+                                                            width="full"
+                                                            height="full"
+                                                            backgroundColor="grey-0"
+                                                            borderBottomLeftRadius="md"
+                                                        />
+                                                    </Box>
                                                     <Box
                                                         flexGrow="1"
                                                         borderTop="grey-5"
@@ -477,17 +485,20 @@ export function PostsView({
                                                     </Box>
                                                     <Box
                                                         flexShrink="0"
+                                                        alignSelf="stretch"
                                                         width="5"
-                                                        backgroundColor="grey-0"
-                                                        borderBottomRightRadius="md"
                                                         style={{
-                                                            position: "relative",
-                                                            top: 1,
-                                                            height: `calc(${height - 1}px - ${
-                                                                spacing[padding]
-                                                            })`,
+                                                            // Allow full-width top border to be visible until it slides under.
+                                                            paddingTop: 1,
                                                         }}
-                                                    />
+                                                    >
+                                                        <Box
+                                                            width="full"
+                                                            height="full"
+                                                            backgroundColor="grey-0"
+                                                            borderBottomRightRadius="md"
+                                                        />
+                                                    </Box>
                                                 </div>
                                                 <Box
                                                     // Render a white backdrop below the entire post so that when the user is jump

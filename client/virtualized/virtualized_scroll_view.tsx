@@ -510,7 +510,7 @@ function VirtualizedScrollView(
                             } = {
                                 generation: itemsRef.current.generation,
                                 element,
-                                lastHeight: null,
+                                lastHeight: currentElementRef?.lastHeight ?? null,
                                 cleanup: () =>
                                     removeResizeListenerForElement(element, handleResize),
                             };
@@ -646,67 +646,28 @@ function VirtualizedScrollView(
         });
     }
 
-    // On every render, check item heights and if the item height changed update
-    // our state with the new height. We do this in batch for all rendered items
-    // and update our rendered range at the same time in case shifting items caused
-    // our rendered range to move out of the virtualization window.
-    //
-    // This ensures that if a layout changed happened in response to a React
-    // render, we will pick it up in this browser frame. We've observed the resize
-    // observer listener is sometimes behind by a frame. We can also update all our
-    // item heights at once as opposed to many individual set state calls.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // If a rendered range update was requested then go do that...
     useLayoutEffectWithoutServerSideWarning(() => {
-        const heightByKey = new Map<Key, number>();
-
-        for (const [key, elementRef] of itemsRef.current.elementRefByKey) {
-            // Ignore refs from old generations.
-            if (elementRef.generation !== itemsRef.current.generation) continue;
-
-            // If the element was removed from the DOM its height will be zero. Don't
-            // record that height.
-            if (!document.body.contains(elementRef.element)) return;
-
-            const height = elementRef.element.offsetHeight;
-            if (height !== elementRef.lastHeight) {
-                heightByKey.set(key, height);
-                elementRef.lastHeight = height;
-            }
-        }
-
-        if (
-            heightByKey.size > 0 ||
-            // If we have no height changes but a rendered range update was requested we
-            // will do the rendered range update.
-            (originalState.shouldUpdateRenderedRange && !originalState.isJumpScrolling)
-        ) {
+        if (originalState.shouldUpdateRenderedRange && !originalState.isJumpScrolling) {
             const {scrollTop} = assertExists(scrollRef.current);
 
-            let newState = state;
-
-            for (const [key, height] of heightByKey) {
-                newState = newState.setItemHeight(key, height);
-            }
-
-            setState(
-                updateVirtualizedScrollViewActualStateRenderedRange(
-                    {
-                        state: newState,
-                        shouldUpdateRenderedRange: false,
-                        isJumpScrolling: originalState.isJumpScrolling,
-                        contentHeightBeforeScrollForMobileWebKitPinToBottom:
-                            originalState.contentHeightBeforeScrollForMobileWebKitPinToBottom,
-                    },
-                    {
-                        pinTo,
-                        itemCount,
-                        getItemWithoutRender,
-                        scrollTop,
-                    },
-                ),
+            setState(previousState =>
+                updateVirtualizedScrollViewActualStateRenderedRange(previousState, {
+                    pinTo,
+                    itemCount,
+                    getItemWithoutRender,
+                    scrollTop,
+                }),
             );
         }
-    });
+    }, [
+        getItemWithoutRender,
+        itemCount,
+        originalState.isJumpScrolling,
+        originalState.shouldUpdateRenderedRange,
+        pinTo,
+        setState,
+    ]);
 
     const previousContentHeightRef = useRef(contentHeight);
     const previousContentHeightBeforeScrollForMobileWebKitPinToBottomRef = useRef(
