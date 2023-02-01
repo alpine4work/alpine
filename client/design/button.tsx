@@ -156,9 +156,6 @@ function Button(
     ) : null;
 
     const stylesByVariant: {[K in ButtonVariant]: Sprinkles} = {
-        // TODO(calebmer): I would like this button to have a little bit of
-        // dimensionality. Work with someone who knows more about design to make
-        // that happen.
         accent: {
             backgroundColor: "theme-40-const",
             color: "grey-0-const",

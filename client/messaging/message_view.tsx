@@ -7,7 +7,8 @@ import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {ContentView} from "~/client/content/content_view";
 import {Box} from "~/client/design/box";
 import {IconButton} from "~/client/design/icon_button";
-import {uninterruptedThoughtLimitMs} from "~/client/design/timing_constants";
+import {MenuButton} from "~/client/design/menu_button";
+import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants";
 import {RemLength} from "~/shared/design/spacing";
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {MessageInterface} from "~/shared/models/message_interface";
@@ -46,12 +47,12 @@ export function MessageView({
             mergeMessageMinuteLimit;
 
     const {isHovered, hoverProps} = useHover({});
-
-    const [isFocusWithinActions, setIsFocusWithinActions] = useState(false);
     const {isFocusVisible} = useFocusVisible({});
+    const [isFocusWithinActions, setIsFocusWithinActions] = useState(false);
     const {focusWithinProps: focusWithinActionsProps} = useFocusWithin({
         onFocusWithinChange: setIsFocusWithinActions,
     });
+    const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
 
     // Putting a delay on showing actions after a hover makes it feel more
     // deliberate. You don't get flashing actions whenever you move your mouse.
@@ -65,14 +66,15 @@ export function MessageView({
 
         const timeout = createTimeout(() => {
             setIsShowingActionsFromHover(true);
-        }, uninterruptedThoughtLimitMs / 4);
+        }, perceivedAsInstantLimitMs);
 
         return () => {
             timeout.clear();
         };
     }, [isHovered]);
 
-    const isShowingActions = isShowingActionsFromHover || (isFocusWithinActions && isFocusVisible);
+    const isShowingActions =
+        isShowingActionsFromHover || (isFocusWithinActions && isFocusVisible) || isMoreMenuOpen;
 
     return (
         <Box>
@@ -114,7 +116,6 @@ export function MessageView({
                     alignSelf="center"
                     paddingLeft="3"
                     display="flex"
-                    gap="0.5"
                     style={{
                         opacity: isShowingActions ? "1" : "0",
                         transition:
@@ -131,13 +132,27 @@ export function MessageView({
                     >
                         <ArrowArcLeft />
                     </IconButton>
-                    <IconButton
-                        description="More"
-                        size="sm"
-                        withoutTooltip={isHovered && !isShowingActions}
+                    <MenuButton
+                        actions={[
+                            {
+                                label: "Edit",
+                                onPress: () => {},
+                            },
+                            {
+                                label: "Delete",
+                                onPress: () => {},
+                            },
+                        ]}
+                        onStateChange={state => setIsMoreMenuOpen(state.isExpanded)}
                     >
-                        <DotsThree />
-                    </IconButton>
+                        <IconButton
+                            description="More"
+                            size="sm"
+                            withoutTooltip={isHovered && !isShowingActions}
+                        >
+                            <DotsThree />
+                        </IconButton>
+                    </MenuButton>
                 </Box>
             </Box>
         </Box>

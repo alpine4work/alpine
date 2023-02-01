@@ -324,7 +324,7 @@ export function PostsView({
                                 : `UnloadedPostComment:${item.post.id}:${item.postCommentIndex}`,
                         minHeight: messageViewMinHeight,
                         node: (
-                            <Box paddingX={padding}>
+                            <Box paddingX={padding} overflowY="hidden">
                                 <Box
                                     marginX="auto"
                                     maxWidth="160"
@@ -410,6 +410,7 @@ export function PostsView({
                                             paddingX={padding}
                                             paddingBottom={padding}
                                             style={{height}}
+                                            overflowY="hidden"
                                         >
                                             <Box
                                                 marginX="auto"

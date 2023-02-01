@@ -27,6 +27,7 @@ import {
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted";
 import {Spacing} from "~/shared/design/spacing";
+import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {
@@ -146,7 +147,7 @@ export type TooltipProps = {
     /**
      * Offset of the tooltip from the target.
      *
-     * Defaults to `2`.
+     * Defaults to `1.5`.
      */
     offset?: Spacing;
 
@@ -164,10 +165,12 @@ export type TooltipProps = {
     children: ReactElement | ((props: TooltipChildrenProps) => ReactElement);
 
     /**
-     * Observe the tooltips internal state.
+     * Observe the tooltip's internal state.
      */
     onStateChange?: (state: TooltipState) => void;
 };
+
+export const defaultTooltipOffset: Spacing = "1.5";
 
 /**
  * Renders some descriptive, non-interactive, information pointing to a target
@@ -184,7 +187,7 @@ function Tooltip(
         isDisabled = false,
         placement = "top",
         canFlip = true,
-        offset = "1.5",
+        offset = defaultTooltipOffset,
         visibleWhenFocusWithin = false,
         children: actualChildren,
         onStateChange: _onStateChange,
@@ -222,6 +225,7 @@ function Tooltip(
     // coordination context.
     const isVisible = !isDisabled && tooltipSymbol === activeTooltipSymbol;
     const hasActiveTooltipSymbol = activeTooltipSymbol !== null;
+    const getHasActiveTooltipSymbol = useEvent(() => hasActiveTooltipSymbol);
 
     const [state, setState] = useState<TooltipState>(initialTooltipState);
 
@@ -252,7 +256,7 @@ function Tooltip(
     useEffect(() => {
         if (state.isFadingIn) {
             if (isVisible) {
-                const timeoutId = setTimeout(() => {
+                const timeout = createTimeout(() => {
                     setState(state => {
                         if (!state.isFadingIn) {
                             return state;
@@ -273,7 +277,7 @@ function Tooltip(
                 }, overlayFadeInAnimationDurationMs);
 
                 return () => {
-                    clearTimeout(timeoutId);
+                    timeout.clear();
                 };
             } else {
                 // If we aren't visible then we're waiting to see if our coordination
@@ -287,7 +291,7 @@ function Tooltip(
     useEffect(() => {
         if (state.isFadingOut) {
             if (isVisible) {
-                const timeoutId = setTimeout(() => {
+                const timeout = createTimeout(() => {
                     setState(state => {
                         if (!state.isFadingOut) {
                             return state;
@@ -298,7 +302,7 @@ function Tooltip(
                 }, overlayFadeOutAnimationDurationMs);
 
                 return () => {
-                    clearTimeout(timeoutId);
+                    timeout.clear();
                 };
             } else {
                 // If we aren't visible there is no animation happening, so don't wait.
@@ -388,7 +392,7 @@ function Tooltip(
                 // another tooltip wants to be visible in the next animation frame we want to
                 // skip our animation.
                 if (
-                    hasActiveTooltipSymbol &&
+                    getHasActiveTooltipSymbol() &&
                     tooltipSymbolThatIsFadingOutNextAnimationFrameRef.current === null
                 ) {
                     tooltipSymbolThatIsFadingOutNextAnimationFrameRef.current = tooltipSymbol;
@@ -471,7 +475,7 @@ function Tooltip(
                 // another tooltip wants to be visible in the next animation frame we want to
                 // skip our animation.
                 if (
-                    hasActiveTooltipSymbol &&
+                    getHasActiveTooltipSymbol() &&
                     tooltipSymbolThatIsFadingOutNextAnimationFrameRef.current === null
                 ) {
                     tooltipSymbolThatIsFadingOutNextAnimationFrameRef.current = tooltipSymbol;
@@ -509,10 +513,13 @@ function Tooltip(
                 targetElement.removeEventListener("focusout", handleFocusOut);
             };
         },
+        // IMPORTANT: Be careful what you put in this dependency array. Other
+        // components which wrap this one (like `<MenuButton>`) and modify the ref will
+        // need to rerun whenever this ref changes.
         [
             isVisible,
             tooltipSymbolThatIsFadingOutNextAnimationFrameRef,
-            hasActiveTooltipSymbol,
+            getHasActiveTooltipSymbol,
             tooltipSymbol,
             visibleWhenFocusWithin,
         ],
