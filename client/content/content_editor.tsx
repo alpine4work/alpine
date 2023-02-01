@@ -3,6 +3,7 @@ import {Node, Slice} from "prosemirror-model";
 import {EditorState, Transaction} from "prosemirror-state";
 import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
 import {
+    FocusEvent,
     PropsWithoutRef,
     ReactElement,
     Ref,
@@ -144,12 +145,12 @@ export type ContentEditorProps<Content extends Node> = {
     /**
      * Event fired when the user focuses the content editor.
      */
-    onFocus?: () => void;
+    onFocus?: (event: FocusEvent<HTMLDivElement>) => void;
 
     /**
      * Event fired when the user unfocuses the content editor.
      */
-    onBlur?: () => void;
+    onBlur?: (event: FocusEvent<HTMLDivElement>) => void;
 
     /**
      * Fired when the user presses the escape key.

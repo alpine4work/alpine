@@ -256,6 +256,7 @@ function VirtualizedScrollView(
         bufferedItemHeight: _bufferedItemHeight,
         onRenderedRangeChange: _onRenderedRangeChange,
         pinTo = "top",
+        disablePinHeuristics,
     }: {
         /**
          * The total number of virtualized items. You do not need all the items loaded
@@ -308,6 +309,13 @@ function VirtualizedScrollView(
          * bottom to the scroll bottom is kept constant.
          */
         pinTo?: "top" | "bottom";
+        /**
+         * Disable any heuristics associated with `pinTo`. For example when you have
+         * `pinTo="bottom"` and an element is focused we treat the element as
+         * `pinTo="top"`. If this is true then the view will always behave as
+         * `pinTo="bottom"`.
+         */
+        disablePinHeuristics?: boolean;
     },
     ref: Ref<VirtualizedScrollViewRef>,
 ) {
@@ -326,7 +334,10 @@ function VirtualizedScrollView(
         [],
     );
 
-    const {scriptElement: pinToScriptElement} = useScrollViewPinTo(scrollRef, contentRef, pinTo);
+    const {scriptElement: pinToScriptElement} = useScrollViewPinTo(scrollRef, contentRef, {
+        pinTo,
+        disablePinHeuristics,
+    });
 
     // Cache the `getItem` function as long as the function reference doesn't
     // change.
@@ -475,6 +486,8 @@ function VirtualizedScrollView(
                         else {
                             currentElementRef?.cleanup();
 
+                            // IMPORTANT: Be careful about using props in this function because we will
+                            // capture a version of props when the component is rendered.
                             const handleResize = () => {
                                 const height = element.offsetHeight;
 
@@ -836,7 +849,13 @@ function updateVirtualizedScrollViewActualStateRenderedRange(
 function useScrollViewPinTo(
     scrollRef: RefObject<HTMLDivElement>,
     contentRef: RefObject<HTMLDivElement>,
-    pinTo: "top" | "bottom",
+    {
+        pinTo,
+        disablePinHeuristics = false,
+    }: {
+        pinTo: "top" | "bottom";
+        disablePinHeuristics?: boolean;
+    },
 ): {scriptElement: ReactNode} {
     const pinToRef = useRef(pinTo);
     const onLayoutEffectRef = useRef<(() => void) | null>(null);
@@ -887,11 +906,17 @@ function useScrollViewPinTo(
             lastInteractionEventTimeMs = Date.now();
         };
 
+        console.log("PIN TO BOTTOM?");
+
         const handleResize = () => {
             // When focus is within the scroll view, always pin to top. Users
             // typically expect the top of whatever elements they're interacting with
             // to stay in place.
-            if (document.activeElement && scrollElement.contains(document.activeElement)) {
+            if (
+                !disablePinHeuristics &&
+                document.activeElement &&
+                scrollElement.contains(document.activeElement)
+            ) {
                 return;
             }
 
@@ -900,6 +925,7 @@ function useScrollViewPinTo(
             // typically expect the top of whatever elements they're interacting with
             // to stay in place.
             if (
+                !disablePinHeuristics &&
                 lastInteractionEventTimeMs !== undefined &&
                 Date.now() - lastInteractionEventTimeMs < perceivedAsInstantLimitMs
             ) {
@@ -938,7 +964,7 @@ function useScrollViewPinTo(
             scrollElement.removeEventListener("pointerdown", handleInteraction);
             scrollElement.removeEventListener("pointerup", handleInteraction);
         };
-    }, [contentRef, pinTo, scrollRef]);
+    }, [contentRef, disablePinHeuristics, pinTo, scrollRef]);
 
     return {
         scriptElement:

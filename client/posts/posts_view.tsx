@@ -25,6 +25,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping";
 import {OrderKey} from "~/shared/helpers/sort/order_key";
+import {PostId} from "~/shared/id/types/id_types";
 import {PostCommentModel} from "~/shared/models/post_model";
 import {getPostCommentsFromEnd, getPostCommentsFromStart} from "~/shared/rpc/posts_rpc_definitions";
 import {sprinkles} from "~/shared/styles/styles";
@@ -230,6 +231,27 @@ export function PostsView({
         },
     );
 
+    const [focusedPostCommentInputPostId, setFocusedPostCommentInputPostId] =
+        useState<PostId | null>(null);
+
+    const onPostCommentInputFocusChange = useEvent((postId: PostId, focused: boolean) => {
+        setFocusedPostCommentInputPostId(focusedPostCommentInputPostId => {
+            if (focused) return postId;
+            if (!focused && focusedPostCommentInputPostId === postId) return null;
+            return focusedPostCommentInputPostId;
+        });
+    });
+
+    // Handle case where component unmounts without firing `blur` event. Whenever
+    // we see a blur event on the document that should clear our focus state.
+    useEffect(() => {
+        const handleBlur = () => setFocusedPostCommentInputPostId(null);
+        document.addEventListener("blur", handleBlur);
+        return () => {
+            document.removeEventListener("blur", handleBlur);
+        };
+    }, []);
+
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {
             const item = list.getItem(index);
@@ -358,12 +380,19 @@ export function PostsView({
                 case "PostCommentInput": {
                     // This is defined out here so that it doesn't re-rerender every time the
                     // `render()` function is called since it's referentially stable.
-                    const inputNode = <PostCommentInput post={item.post} />;
+                    const inputNode = (
+                        <PostCommentInput
+                            post={item.post}
+                            onFocus={() => onPostCommentInputFocusChange(item.post.id, true)}
+                            onBlur={() => onPostCommentInputFocusChange(item.post.id, false)}
+                        />
+                    );
 
                     return {
                         key: `PostCommentInput:${item.post.id}`,
                         minHeight: addRemLengths(spacing["16"], spacing[padding]),
                         withManualLayout: true,
+                        stayCompletelyVisibleAfterResize: true,
                         render: ({
                             ref,
                             offset,
@@ -449,6 +478,7 @@ export function PostsView({
                                                         zIndex: "20",
                                                         width: "full",
                                                         maxWidth: "160",
+                                                        overflowX: "hidden",
                                                         marginX: "auto",
                                                         pointerEvents: "auto",
                                                         display: "flex",
@@ -473,6 +503,7 @@ export function PostsView({
                                                     </Box>
                                                     <Box
                                                         flexGrow="1"
+                                                        overflowX="hidden"
                                                         borderTop="grey-5"
                                                         backgroundColor="grey-0"
                                                         style={{
@@ -559,7 +590,7 @@ export function PostsView({
                     throw exhaustive(item);
             }
         },
-        [list, loadInitialPostComments, onTogglePostComments],
+        [onPostCommentInputFocusChange, list, loadInitialPostComments, onTogglePostComments],
     );
 
     return (
@@ -569,6 +600,13 @@ export function PostsView({
             itemCount={list.getItemCount()}
             renderItem={renderItem}
             onRenderedRangeChange={tryLoadingMorePostComments}
+            // Pin to bottom when a comment element is focused because the user's attention
+            // is at the bottom of the scroll view where they are typing.
+            //
+            // As the comment input grows it should push the content the user is looking
+            // at up.
+            pinTo={focusedPostCommentInputPostId === null ? "top" : "bottom"}
+            disablePinHeuristics={focusedPostCommentInputPostId !== null}
         />
     );
 }
