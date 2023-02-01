@@ -315,16 +315,27 @@ export class PaginatedPostList {
      */
     public insertAtStart(
         post: PostModel,
-        {arePostCommentsOpen = false}: {arePostCommentsOpen?: boolean} = {},
+        {
+            arePostCommentsOpen = false,
+            insertInitialPostComments,
+        }: {
+            arePostCommentsOpen?: boolean;
+            insertInitialPostComments?: (
+                postComments: PaginatedMessageList<PostCommentModel>,
+            ) => PaginatedMessageList<PostCommentModel>;
+        } = {},
     ): PaginatedPostList {
         const postOrderKey = generateOrderKeyBetween(
             null,
             this._postByOrderKey.getFirstEntry()?.[0] ?? null,
         );
 
+        let postComments = PaginatedMessageList.new<PostCommentModel>(post.commentCount);
+        if (insertInitialPostComments) postComments = insertInitialPostComments(postComments);
+
         const postByOrderKey = this._postByOrderKey.set(postOrderKey, {
             post,
-            postComments: PaginatedMessageList.new(post.commentCount),
+            postComments,
         });
 
         const openPostCommentPostOrderKeys = arePostCommentsOpen
@@ -345,16 +356,27 @@ export class PaginatedPostList {
      */
     public insertAtEnd(
         post: PostModel,
-        {arePostCommentsOpen = false}: {arePostCommentsOpen?: boolean} = {},
+        {
+            arePostCommentsOpen = false,
+            insertInitialPostComments,
+        }: {
+            arePostCommentsOpen?: boolean;
+            insertInitialPostComments?: (
+                postComments: PaginatedMessageList<PostCommentModel>,
+            ) => PaginatedMessageList<PostCommentModel>;
+        } = {},
     ): PaginatedPostList {
         const postOrderKey = generateOrderKeyBetween(
             this._postByOrderKey.getLastEntry()?.[0] ?? null,
             null,
         );
 
+        let postComments = PaginatedMessageList.new<PostCommentModel>(post.commentCount);
+        if (insertInitialPostComments) postComments = insertInitialPostComments(postComments);
+
         const postByOrderKey = this._postByOrderKey.set(postOrderKey, {
             post,
-            postComments: PaginatedMessageList.new(post.commentCount),
+            postComments,
         });
 
         const openPostCommentPostOrderKeys = arePostCommentsOpen

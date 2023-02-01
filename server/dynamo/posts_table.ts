@@ -6,8 +6,15 @@ import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/d
 import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry_dynamo_condition_check_errors";
 import {MessageContent, MessageContentSchema} from "~/shared/content/message_content_schema";
 import {PostContent, PostContentSchema} from "~/shared/content/post_content_schema";
-import {InternalError, NotFoundError, PermissionDeniedError} from "~/shared/error/error";
+import {
+    DataLossError,
+    InternalError,
+    NotFoundError,
+    PermissionDeniedError,
+} from "~/shared/error/error";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises";
+import {assert} from "~/shared/helpers/control/assert";
+import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable";
@@ -467,6 +474,102 @@ export function deletePostComment(
             ),
         ]);
     });
+}
+
+/**
+ * Gets both the post model and the first few comments for the post in
+ * one request.
+ */
+export async function getPostAndCommentsFromStart(
+    context: RequestContext,
+    {
+        postId,
+        postCommentLimit,
+    }: {
+        postId: PostId;
+        postCommentLimit: number;
+    },
+): Promise<{
+    post: PostModel;
+    hasMorePostCommentsAfter: boolean;
+    postComments: Array<PostCommentModel>;
+} | null> {
+    // Start querying before authorization so our query runs in parallel
+    // with authorization.
+    const queryIterable = PostsTable.query(context, {
+        startKey: {
+            partitionType: "Post",
+            sortRangeType: "Attributes",
+            postId,
+        },
+        endKey: {
+            partitionType: "Post",
+            sortRangeType: "Comments",
+            postId,
+            commentId: Number.MAX_SAFE_INTEGER,
+        },
+        // Add two to the limit:
+        //
+        // - One for the post attributes item.
+        // - One so we can determine whether there are more comments after.
+        limit: postCommentLimit + 2,
+    });
+
+    let state: {
+        spaceId: SpaceId;
+        postPromise: Promise<PostModel>;
+        postCommentPromises: Array<Promise<PostCommentModel>>;
+        hasMorePostCommentsAfter: boolean;
+    } | null = null;
+
+    for await (const item of queryIterable) {
+        switch (item.sortRangeType) {
+            case "Attributes": {
+                assert(state === null);
+
+                await authorizeChannelAccess(context, item.channelId);
+
+                state = {
+                    spaceId: item.spaceId,
+                    postPromise: createPostModelFromItem(context, item),
+                    postCommentPromises: [],
+                    hasMorePostCommentsAfter: false,
+                };
+                break;
+            }
+            case "Comments": {
+                if (state === null)
+                    throw new DataLossError("Found post comment item but no post attributes item");
+
+                // For items outside our limit, we don't return them and instead mark that
+                // there are more post comments.
+                if (state.postCommentPromises.length >= postCommentLimit) {
+                    state.hasMorePostCommentsAfter = true;
+                    break;
+                }
+
+                state.postCommentPromises.push(
+                    createPostCommentModelFromItem(context, state.spaceId, item),
+                );
+                break;
+            }
+            default:
+                throw exhaustive(item);
+        }
+    }
+
+    if (!state) return null;
+
+    const [post, postComments] = await runAllPromises([
+        state.postPromise,
+        runAllPromises(state.postCommentPromises),
+    ]);
+
+    return {
+        post,
+        hasMorePostCommentsAfter: state.hasMorePostCommentsAfter,
+        postComments,
+    };
 }
 
 /**
