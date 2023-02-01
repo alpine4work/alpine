@@ -1,4 +1,5 @@
 import areDatesEqual from "date-fns/isEqual";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object";
 
 /**
@@ -78,7 +79,9 @@ function areObjectsDeeplyEqual(
     for (const [key, value2] of Object.entries(object2)) {
         if (!object1Keys.delete(key)) return false;
 
+        if (!hasOwnProperty(object1, key)) return false;
         const value1 = object1[key];
+
         if (!isDeepEqual(value1, value2)) return false;
     }
 
