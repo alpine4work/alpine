@@ -1,9 +1,11 @@
 import {FocusEvent, useState} from "react";
 import {useNavigate} from "react-router-dom";
+import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {ContentEditor} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
+import {useSpaceContext} from "~/client/spaces/space_context";
 import {isContentEmpty} from "~/shared/content/is_content_empty";
 import {emptyMessageContent} from "~/shared/content/message_content_schema";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
@@ -21,19 +23,14 @@ export function PostCommentInput({
     onBlur?: (event: FocusEvent<HTMLDivElement>) => void;
 }) {
     const context = useAppContext();
+    const {currentAccount} = useSpaceContext();
     const [state, setState] = useState(ContentEditorState.create(emptyMessageContent));
     const [isSaving, setIsSaving] = useState(false);
 
     return (
         <Box flexGrow="1" overflowX="hidden" display="flex">
             <Box marginY="1">
-                <Box
-                    flexShrink="0"
-                    width="8"
-                    height="8"
-                    backgroundColor="grey-40-const"
-                    borderRadius="full"
-                />
+                <AccountAvatar account={currentAccount} size="8" />
             </Box>
             <Box
                 flexGrow="1"
