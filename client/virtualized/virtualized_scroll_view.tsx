@@ -478,8 +478,8 @@ function VirtualizedScrollView(
                         else {
                             currentElementRef?.cleanup();
 
-                            const handleResize = (entry: ResizeObserverEntry) => {
-                                const height = entry.contentRect.height;
+                            const handleResize = () => {
+                                const height = element.offsetHeight;
 
                                 // If the element was removed from the DOM its height will be zero. Don't
                                 // record that height.

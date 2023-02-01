@@ -27,10 +27,10 @@ export function useResizeObserver<T extends HTMLElement>(
     useLayoutEffectWithoutServerSideWarning(() => {
         const element = assertExists(ref.current);
 
-        const listener = (entry: {contentRect: {height: number; width: number}}) => {
+        const listener = () => {
             const newContentRect = {
-                height: entry.contentRect.height,
-                width: entry.contentRect.width,
+                height: element.offsetHeight,
+                width: element.offsetWidth,
             };
             setContentRect(contentRect => {
                 return newContentRect.height !== contentRect?.height ||
@@ -42,12 +42,7 @@ export function useResizeObserver<T extends HTMLElement>(
 
         // Immediately populate the content rect with our element's dimensions
         // on mount.
-        listener({
-            contentRect: {
-                height: element.offsetHeight,
-                width: element.offsetWidth,
-            },
-        });
+        listener();
 
         addResizeListenerForElement(element, listener);
         return () => {
@@ -78,6 +73,20 @@ export function addResizeListenerForElement(
             // updates made in resize listeners should happen in the same browser paint
             // where they were dispatched so the user doesn't see a tear in the UI.
             unstable_runWithPriority(unstable_ImmediatePriority, () => {
+                // HACK(calebmer): In order for React to respect the scheduler priority level
+                // we need to be in a message event (since the scheduler callback uses a
+                // message event). So trick React into thinking we are in a message event by
+                // setting a message event object globally.
+                //
+                // See how the `requestUpdateLane()` function calls `getCurrentEventPriority()`
+                // which calls `getEventPriority()` which then consults the scheduler for
+                // `message` events.
+                //
+                // - https://github.com/facebook/react/blob/9e3b772b8cabbd8cadc7522ebe3dde3279e79d9e/packages/react-reconciler/src/ReactFiberWorkLoop.new.js#L498-L516
+                // - https://github.com/facebook/react/blob/9e3b772b8cabbd8cadc7522ebe3dde3279e79d9e/packages/react-dom/src/events/ReactDOMEventListener.js#L493-L512
+                const lastWindowEvent = window.event;
+                window.event = new MessageEvent("message");
+
                 for (const entry of entries) {
                     lastResizeObserverEntryByElement.set(entry.target, entry);
                     const resizeListeners = resizeListenersByElement.get(entry.target);
@@ -91,6 +100,8 @@ export function addResizeListenerForElement(
                         }
                     }
                 }
+
+                window.event = lastWindowEvent;
             });
         });
     }
