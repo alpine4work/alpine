@@ -32,7 +32,7 @@ test("can render an empty list", () => {
     const getItem = (index: number) => ({
         key: index,
         minHeight: 10,
-        render: (offset: number) => <div style={{top: offset}}>{String(index)}</div>,
+        render: ({offset}: {offset: number}) => <div style={{top: offset}}>{String(index)}</div>,
     });
 
     const state = VirtualizedScrollViewState.initializeFromTop({
@@ -48,7 +48,7 @@ test("can render an empty list", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: null,
@@ -62,7 +62,7 @@ test("can scroll from top", () => {
     const getItem = (index: number) => ({
         key: index,
         minHeight: 10,
-        render: (offset: number) => <div style={{top: offset}}>{String(index)}</div>,
+        render: ({offset}: {offset: number}) => <div style={{top: offset}}>{String(index)}</div>,
     });
 
     let state = VirtualizedScrollViewState.initializeFromTop({
@@ -78,7 +78,7 @@ test("can scroll from top", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -119,7 +119,7 @@ test("can scroll from top", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -160,7 +160,7 @@ test("can scroll from top", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -201,7 +201,7 @@ test("can scroll from top", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -243,7 +243,7 @@ test("can scroll from top", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -285,7 +285,7 @@ test("can scroll from top", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -327,7 +327,7 @@ test("can scroll from top", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -368,7 +368,7 @@ test("can scroll from top", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -399,7 +399,7 @@ test("can scroll from end", () => {
     const getItem = (index: number) => ({
         key: index,
         minHeight: 10,
-        render: (offset: number) => <div style={{top: offset}}>{String(index)}</div>,
+        render: ({offset}: {offset: number}) => <div style={{top: offset}}>{String(index)}</div>,
     });
 
     let state = VirtualizedScrollViewState.initializeFromBottom({
@@ -415,7 +415,7 @@ test("can scroll from end", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -458,7 +458,7 @@ test("can scroll from end", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -499,7 +499,7 @@ test("can scroll from end", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -540,7 +540,7 @@ test("can scroll from end", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -582,7 +582,7 @@ test("can scroll from end", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -624,7 +624,7 @@ test("can scroll from end", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -666,7 +666,7 @@ test("can scroll from end", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -707,7 +707,7 @@ test("can scroll from end", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -738,7 +738,7 @@ test("can change the view height", () => {
     const getItem = (index: number) => ({
         key: index,
         minHeight: 10,
-        render: (offset: number) => <div style={{top: offset}}>{String(index)}</div>,
+        render: ({offset}: {offset: number}) => <div style={{top: offset}}>{String(index)}</div>,
     });
 
     let state = VirtualizedScrollViewState.initializeFromTop({
@@ -760,7 +760,7 @@ test("can change the view height", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -802,7 +802,7 @@ test("can change the view height", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -843,7 +843,7 @@ test("can change the view height", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -884,7 +884,7 @@ test("can change the view height", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -912,7 +912,7 @@ test("can change the view height", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -944,7 +944,7 @@ test("can change the view height", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -999,7 +999,7 @@ test("can change the buffered item height", () => {
     const getItem = (index: number) => ({
         key: index,
         minHeight: 10,
-        render: (offset: number) => <div style={{top: offset}}>{String(index)}</div>,
+        render: ({offset}: {offset: number}) => <div style={{top: offset}}>{String(index)}</div>,
     });
 
     let state = VirtualizedScrollViewState.initializeFromBottom({
@@ -1026,7 +1026,7 @@ test("can change the buffered item height", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -1069,7 +1069,7 @@ test("can change the buffered item height", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -1111,7 +1111,7 @@ test("can change the buffered item height", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -1153,7 +1153,7 @@ test("can change the buffered item height", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -1190,7 +1190,7 @@ test("can change the buffered item height", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -1231,7 +1231,7 @@ test("can change the buffered item height", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -1272,7 +1272,7 @@ test("can change the buffered item height", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -1309,7 +1309,7 @@ test("can change the buffered item height", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -1344,7 +1344,7 @@ test("can change item heights", () => {
     const getItem = (index: number) => ({
         key: index,
         minHeight: 10,
-        render: (offset: number) => <div style={{top: offset}}>{String(index)}</div>,
+        render: ({offset}: {offset: number}) => <div style={{top: offset}}>{String(index)}</div>,
     });
 
     let state = VirtualizedScrollViewState.initializeFromTop({
@@ -1366,7 +1366,7 @@ test("can change item heights", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -1408,7 +1408,7 @@ test("can change item heights", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -1449,7 +1449,7 @@ test("can change item heights", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -1490,7 +1490,7 @@ test("can change item heights", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -1523,7 +1523,7 @@ test("can change item heights", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -1560,7 +1560,7 @@ test("can change item heights", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -1597,7 +1597,7 @@ test("can change item heights", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -1638,7 +1638,7 @@ test("can change item heights", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -1675,7 +1675,7 @@ test("can change item heights", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -1716,7 +1716,7 @@ test("can change item heights", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -1752,7 +1752,7 @@ test("can move items between renders", () => {
     const items = createArrayWithLength(itemCount, index => ({
         key: index,
         minHeight: 100,
-        render: (offset: number) => <div style={{top: offset}}>{String(index)}</div>,
+        render: ({offset}: {offset: number}) => <div style={{top: offset}}>{String(index)}</div>,
     }));
 
     const getItem = (index: number) => items[index]!;
@@ -1786,7 +1786,7 @@ test("can move items between renders", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -1823,7 +1823,7 @@ test("can move items between renders", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -1864,7 +1864,7 @@ test("can move items between renders", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -1910,7 +1910,7 @@ test("can move items between renders", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -1946,7 +1946,7 @@ test("can scroll entire list from top", () => {
     const getItem = (index: number) => ({
         key: index,
         minHeight: 10,
-        render: (offset: number) => <div style={{top: offset}}>{String(index)}</div>,
+        render: ({offset}: {offset: number}) => <div style={{top: offset}}>{String(index)}</div>,
     });
 
     let state = VirtualizedScrollViewState.initializeFromTop({
@@ -1962,7 +1962,7 @@ test("can scroll entire list from top", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -2003,7 +2003,7 @@ test("can scroll entire list from top", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -2033,7 +2033,7 @@ test("can scroll entire list from end", () => {
     const getItem = (index: number) => ({
         key: index,
         minHeight: 10,
-        render: (offset: number) => <div style={{top: offset}}>{String(index)}</div>,
+        render: ({offset}: {offset: number}) => <div style={{top: offset}}>{String(index)}</div>,
     });
 
     let state = VirtualizedScrollViewState.initializeFromBottom({
@@ -2049,7 +2049,7 @@ test("can scroll entire list from end", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -2090,7 +2090,7 @@ test("can scroll entire list from end", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -2120,7 +2120,7 @@ test("can add item count", () => {
     const getItem = (index: number) => ({
         key: index,
         minHeight: 10,
-        render: (offset: number) => <div style={{top: offset}}>{String(index)}</div>,
+        render: ({offset}: {offset: number}) => <div style={{top: offset}}>{String(index)}</div>,
     });
 
     let state = VirtualizedScrollViewState.initializeFromTop({
@@ -2142,7 +2142,7 @@ test("can add item count", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -2177,7 +2177,7 @@ test("can add item count", () => {
                 itemCount: 1_100,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -2212,7 +2212,7 @@ test("can remove item count", () => {
     const getItem = (index: number) => ({
         key: index,
         minHeight: 10,
-        render: (offset: number) => <div style={{top: offset}}>{String(index)}</div>,
+        render: ({offset}: {offset: number}) => <div style={{top: offset}}>{String(index)}</div>,
     });
 
     let state = VirtualizedScrollViewState.initializeFromTop({
@@ -2234,7 +2234,7 @@ test("can remove item count", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -2269,7 +2269,7 @@ test("can remove item count", () => {
                 itemCount: 900,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -2304,7 +2304,7 @@ test("can remove all buffered item count", () => {
     const getItem = (index: number) => ({
         key: index,
         minHeight: 10,
-        render: (offset: number) => <div style={{top: offset}}>{String(index)}</div>,
+        render: ({offset}: {offset: number}) => <div style={{top: offset}}>{String(index)}</div>,
     });
 
     let state = VirtualizedScrollViewState.initializeFromTop({
@@ -2326,7 +2326,7 @@ test("can remove all buffered item count", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -2361,7 +2361,7 @@ test("can remove all buffered item count", () => {
                 itemCount: 35,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -2396,7 +2396,7 @@ test("can remove some items while removing item count", () => {
     const getItem = (index: number) => ({
         key: index,
         minHeight: 10,
-        render: (offset: number) => <div style={{top: offset}}>{String(index)}</div>,
+        render: ({offset}: {offset: number}) => <div style={{top: offset}}>{String(index)}</div>,
     });
 
     let state = VirtualizedScrollViewState.initializeFromTop({
@@ -2418,7 +2418,7 @@ test("can remove some items while removing item count", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -2453,7 +2453,7 @@ test("can remove some items while removing item count", () => {
                 itemCount: 30,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -2483,7 +2483,7 @@ test("can remove every visible item while removing item count", () => {
     const getItem = (index: number) => ({
         key: index,
         minHeight: 10,
-        render: (offset: number) => <div style={{top: offset}}>{String(index)}</div>,
+        render: ({offset}: {offset: number}) => <div style={{top: offset}}>{String(index)}</div>,
     });
 
     let state = VirtualizedScrollViewState.initializeFromTop({
@@ -2505,7 +2505,7 @@ test("can remove every visible item while removing item count", () => {
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -2540,7 +2540,7 @@ test("can remove every visible item while removing item count", () => {
                 itemCount: 10,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: null,
@@ -2554,7 +2554,7 @@ test("can jump to arbitrary positions in list when rendering starts at the top",
     const getItem = (index: number) => ({
         key: index,
         minHeight: 10,
-        render: (offset: number) => <div style={{top: offset}}>{String(index)}</div>,
+        render: ({offset}: {offset: number}) => <div style={{top: offset}}>{String(index)}</div>,
     });
 
     let state = VirtualizedScrollViewState.initializeFromTop({
@@ -2570,7 +2570,7 @@ test("can jump to arbitrary positions in list when rendering starts at the top",
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -2613,7 +2613,7 @@ test("can jump to arbitrary positions in list when rendering starts at the top",
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -2664,7 +2664,7 @@ test("can jump to arbitrary positions in list when rendering starts at the top",
                     itemCount,
                     getItem,
                 }),
-                ["state"],
+                ["state", "renderedRange"],
             ),
         ).toEqual({
             children,
@@ -2679,7 +2679,7 @@ test("can jump to arbitrary positions in list when rendering starts at the end",
     const getItem = (index: number) => ({
         key: index,
         minHeight: 10,
-        render: (offset: number) => <div style={{top: offset}}>{String(index)}</div>,
+        render: ({offset}: {offset: number}) => <div style={{top: offset}}>{String(index)}</div>,
     });
 
     let state = VirtualizedScrollViewState.initializeFromBottom({
@@ -2695,7 +2695,7 @@ test("can jump to arbitrary positions in list when rendering starts at the end",
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -2738,7 +2738,7 @@ test("can jump to arbitrary positions in list when rendering starts at the end",
                 itemCount,
                 getItem,
             }),
-            ["state"],
+            ["state", "renderedRange"],
         ),
     ).toEqual({
         children: [
@@ -2792,7 +2792,7 @@ test("can jump to arbitrary positions in list when rendering starts at the end",
                     itemCount,
                     getItem,
                 }),
-                ["state"],
+                ["state", "renderedRange"],
             ),
         ).toEqual({
             children,
@@ -2821,7 +2821,9 @@ test("can render additional items", () => {
                 renderAdditionalIndex !== null && renderAdditionalIndex >= index
                     ? [renderAdditionalIndex]
                     : [],
-            render: (offset: number) => <div style={{top: offset}}>{String(index)}</div>,
+            render: ({offset}: {offset: number}) => (
+                <div style={{top: offset}}>{String(index)}</div>
+            ),
         };
     };
 
@@ -2833,7 +2835,11 @@ test("can render additional items", () => {
     });
 
     {
-        const {state: newState, ...renderResult} = state.render({
+        const {
+            state: newState,
+            renderedRange,
+            ...renderResult
+        } = state.render({
             itemCount,
             getItem,
         });
@@ -2889,7 +2895,11 @@ test("can render additional items", () => {
     });
 
     {
-        const {state: newState, ...renderResult} = state.render({
+        const {
+            state: newState,
+            renderedRange,
+            ...renderResult
+        } = state.render({
             itemCount,
             getItem,
         });
@@ -2940,7 +2950,11 @@ test("can render additional items", () => {
     });
 
     {
-        const {state: newState, ...renderResult} = state.render({
+        const {
+            state: newState,
+            renderedRange,
+            ...renderResult
+        } = state.render({
             itemCount,
             getItem,
         });
