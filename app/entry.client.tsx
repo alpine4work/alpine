@@ -42,6 +42,11 @@ hydrateRoot(
     <AppContextProvider value={context}>
         <RemixBrowser />
     </AppContextProvider>,
+    {
+        onRecoverableError: error => {
+            tracer.logUncaughtException("Recoverable React error", error);
+        },
+    },
 );
 
 attachDevConsole();

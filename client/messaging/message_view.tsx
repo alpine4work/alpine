@@ -1,7 +1,7 @@
 import {differenceInMinutes} from "date-fns";
 import {ArrowArcLeft, DotsThree} from "phosphor-react";
-import {useState} from "react";
-import {useFocusVisible, useFocusWithin, useHover} from "react-aria";
+import {useEffect, useRef, useState} from "react";
+import {useFocusVisible, useFocusWithin} from "react-aria";
 import {useNavigate} from "react-router-dom";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {ContentView} from "~/client/content/content_view";
@@ -10,6 +10,7 @@ import {IconButton} from "~/client/design/icon_button";
 import {MenuButton} from "~/client/design/menu_button";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {RemLength} from "~/shared/design/spacing";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {MessageInterface} from "~/shared/models/message_interface";
 import {truncateClassName} from "~/shared/styles/styles";
 
@@ -47,7 +48,26 @@ export function MessageView({
         Math.abs(differenceInMinutes(nextMessage.createdTime, message.createdTime)) <
             mergeMessageMinuteLimit;
 
-    const {isHovered, hoverProps} = useHover({});
+    // Manually implement hovering state by attaching event listeners (instead of
+    // using `useHover()` from `react-aria`). React doesn't deliver a
+    // `pointerleave` event when the pointer goes into a portalled element.
+    const hoverRef = useRef<HTMLDivElement>(null);
+    const [isHovered, setIsHovered] = useState(false);
+
+    useEffect(() => {
+        const hoverElement = assertExists(hoverRef.current);
+
+        const handlePointerEnter = () => setIsHovered(true);
+        const handlePointerLeave = () => setIsHovered(false);
+
+        hoverElement.addEventListener("pointerenter", handlePointerEnter);
+        hoverElement.addEventListener("pointerleave", handlePointerLeave);
+        return () => {
+            hoverElement.removeEventListener("pointerenter", handlePointerEnter);
+            hoverElement.removeEventListener("pointerleave", handlePointerLeave);
+        };
+    }, []);
+
     const {isFocusVisible} = useFocusVisible({});
     const [isFocusWithinActions, setIsFocusWithinActions] = useState(false);
     const {focusWithinProps: focusWithinActionsProps} = useFocusWithin({
@@ -73,10 +93,10 @@ export function MessageView({
                 </Box>
             )}
             <Box
+                ref={hoverRef}
                 display="flex"
                 paddingX="3"
                 paddingBottom={!shouldMergeWithNextMessage ? "3" : "0.5"}
-                {...hoverProps}
             >
                 <Box flexShrink="0" width="10" display="flex" alignItems="flex-end">
                     {!shouldMergeWithNextMessage && <AccountAvatar account={message.author} />}
