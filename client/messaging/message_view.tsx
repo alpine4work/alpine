@@ -1,6 +1,6 @@
 import {differenceInMinutes} from "date-fns";
 import {ArrowArcLeft, DotsThree} from "phosphor-react";
-import {useEffect, useState} from "react";
+import {useState} from "react";
 import {useFocusVisible, useFocusWithin, useHover} from "react-aria";
 import {useNavigate} from "react-router-dom";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
@@ -8,9 +8,8 @@ import {ContentView} from "~/client/content/content_view";
 import {Box} from "~/client/design/box";
 import {IconButton} from "~/client/design/icon_button";
 import {MenuButton} from "~/client/design/menu_button";
-import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants";
+import {useSpaceContext} from "~/client/spaces/space_context";
 import {RemLength} from "~/shared/design/spacing";
-import {createTimeout} from "~/shared/helpers/async/timeout";
 import {MessageInterface} from "~/shared/models/message_interface";
 import {truncateClassName} from "~/shared/styles/styles";
 
@@ -35,6 +34,8 @@ export function MessageView({
     previousMessage: MessageInterface | null;
     nextMessage: MessageInterface | null;
 }) {
+    const {currentAccount} = useSpaceContext();
+
     const shouldMergeWithPreviousMessage =
         previousMessage &&
         previousMessage.author.id === message.author.id &&
@@ -54,27 +55,8 @@ export function MessageView({
     });
     const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
 
-    // Putting a delay on showing actions after a hover makes it feel more
-    // deliberate. You don't get flashing actions whenever you move your mouse.
-    const [isShowingActionsFromHover, setIsShowingActionsFromHover] = useState(false);
-
-    useEffect(() => {
-        if (!isHovered) {
-            setIsShowingActionsFromHover(false);
-            return;
-        }
-
-        const timeout = createTimeout(() => {
-            setIsShowingActionsFromHover(true);
-        }, perceivedAsInstantLimitMs);
-
-        return () => {
-            timeout.clear();
-        };
-    }, [isHovered]);
-
     const isShowingActions =
-        isShowingActionsFromHover || (isFocusWithinActions && isFocusVisible) || isMoreMenuOpen;
+        isHovered || (isFocusWithinActions && isFocusVisible) || isMoreMenuOpen;
 
     return (
         <Box>
@@ -116,13 +98,7 @@ export function MessageView({
                     alignSelf="center"
                     paddingLeft="3"
                     display="flex"
-                    style={{
-                        opacity: isShowingActions ? "1" : "0",
-                        transition:
-                            isFocusWithinActions && isFocusVisible
-                                ? undefined
-                                : "opacity 100ms ease-in",
-                    }}
+                    style={{opacity: isShowingActions ? "1" : "0"}}
                     {...focusWithinActionsProps}
                 >
                     <IconButton
@@ -132,27 +108,33 @@ export function MessageView({
                     >
                         <ArrowArcLeft />
                     </IconButton>
-                    <MenuButton
-                        actions={[
-                            {
-                                label: "Edit",
-                                onPress: () => {},
-                            },
-                            {
-                                label: "Delete",
-                                onPress: () => {},
-                            },
-                        ]}
-                        onStateChange={state => setIsMoreMenuOpen(state.isExpanded)}
-                    >
-                        <IconButton
-                            description="More"
-                            size="sm"
-                            withoutTooltip={isHovered && !isShowingActions}
+                    {currentAccount.id === message.author.id && (
+                        <MenuButton
+                            actions={[
+                                {
+                                    label: "Edit",
+                                    onPress: () => {
+                                        // TODO(calebmer): Implement!
+                                    },
+                                },
+                                {
+                                    label: "Delete",
+                                    onPress: () => {
+                                        // TODO(calebmer): Implement!
+                                    },
+                                },
+                            ]}
+                            onStateChange={state => setIsMoreMenuOpen(state.isExpanded)}
                         >
-                            <DotsThree />
-                        </IconButton>
-                    </MenuButton>
+                            <IconButton
+                                description="More"
+                                size="sm"
+                                withoutTooltip={isHovered && !isShowingActions}
+                            >
+                                <DotsThree />
+                            </IconButton>
+                        </MenuButton>
+                    )}
                 </Box>
             </Box>
         </Box>
