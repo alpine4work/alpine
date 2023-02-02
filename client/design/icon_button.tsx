@@ -51,7 +51,14 @@ function IconButton(
     },
     foreignRef: Ref<HTMLButtonElement>,
 ) {
-    const {description, variant = "quiet", size = "base", children, withoutTooltip = false} = props;
+    const {
+        description,
+        variant = "quiet",
+        size = "base",
+        children,
+        isDisabled = false,
+        withoutTooltip = false,
+    } = props;
     const localRef = useRef<HTMLButtonElement>(null);
     const {buttonProps, isPressed} = useButton({...props, "aria-label": description}, localRef);
     const {hoverProps, isHovered} = useHover({});
@@ -88,7 +95,11 @@ function IconButton(
     )[size];
 
     return (
-        <Tooltip placement="bottom-start" content={description} isDisabled={withoutTooltip}>
+        <Tooltip
+            placement="bottom-start"
+            content={description}
+            isDisabled={isDisabled || withoutTooltip}
+        >
             <FocusRing>
                 <button
                     {...mergeProps(buttonProps, hoverProps)}

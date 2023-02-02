@@ -121,11 +121,7 @@ export function MessageView({
                     style={{opacity: isShowingActions ? "1" : "0"}}
                     {...focusWithinActionsProps}
                 >
-                    <IconButton
-                        description="Reply"
-                        size="sm"
-                        withoutTooltip={isHovered && !isShowingActions}
-                    >
+                    <IconButton description="Reply" size="sm" isDisabled={!isShowingActions}>
                         <ArrowArcLeft />
                     </IconButton>
                     {currentAccount.id === message.author.id && (
@@ -146,11 +142,7 @@ export function MessageView({
                             ]}
                             onStateChange={state => setIsMoreMenuOpen(state.isExpanded)}
                         >
-                            <IconButton
-                                description="More"
-                                size="sm"
-                                withoutTooltip={isHovered && !isShowingActions}
-                            >
+                            <IconButton description="More" size="sm" isDisabled={!isShowingActions}>
                                 <DotsThree />
                             </IconButton>
                         </MenuButton>
