@@ -1,6 +1,6 @@
 import classNames from "classnames";
 import {Node, Slice} from "prosemirror-model";
-import {EditorState, Transaction} from "prosemirror-state";
+import {AllSelection, EditorState, Selection, TextSelection, Transaction} from "prosemirror-state";
 import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
 import {
     FocusEvent,
@@ -80,6 +80,10 @@ function unwrap(state: ContentEditorState<Node>): EditorState {
 export type ContentEditorRef = {
     focus(): void;
     blur(): void;
+    /**
+     * Select all content in the editor.
+     */
+    selectAll(): void;
 };
 
 const ContentEditorForwardRef = forwardRef(ContentEditorWrapper) as <Content extends Node>(
@@ -269,10 +273,16 @@ function ContentEditor<Content extends Node>(
         editorRef,
         () => ({
             focus: () => {
-                (viewRef.current?.dom as HTMLDivElement).focus();
+                const view = assertExists(viewRef.current);
+                (view.dom as HTMLDivElement).focus();
             },
             blur: () => {
-                (viewRef.current?.dom as HTMLDivElement).blur();
+                const view = assertExists(viewRef.current);
+                (view.dom as HTMLDivElement).blur();
+            },
+            selectAll: () => {
+                const view = assertExists(viewRef.current);
+                view.dispatch(view.state.tr.setSelection(new AllSelection(view.state.doc)));
             },
         }),
         [],
@@ -683,8 +693,7 @@ function ContentEditor<Content extends Node>(
                 state.doc,
                 createSelectionDecorations(
                     state.doc,
-                    state.selection.from,
-                    state.selection.to,
+                    state.selection,
                     colorSchemeVars["grey-selection"],
                 ),
             );
@@ -785,17 +794,22 @@ function ContentEditor<Content extends Node>(
 
         for (const phantomSelection of phantomSelections) {
             if (phantomSelection.anchor !== phantomSelection.head) {
-                const from = Math.min(phantomSelection.anchor, phantomSelection.head);
-                const to = Math.max(phantomSelection.anchor, phantomSelection.head);
+                decorations.push(state => {
+                    const from = Math.min(
+                        Math.min(phantomSelection.anchor, phantomSelection.head),
+                        state.doc.nodeSize - 2,
+                    );
+                    const to = Math.min(
+                        Math.max(phantomSelection.anchor, phantomSelection.head),
+                        state.doc.nodeSize - 2,
+                    );
 
-                decorations.push(state =>
-                    createSelectionDecorations(
+                    return createSelectionDecorations(
                         state.doc,
-                        from,
-                        to,
+                        TextSelection.between(state.doc.resolve(from), state.doc.resolve(to)),
                         colorSchemeVars[`${phantomSelection.color}-selection`],
-                    ),
-                );
+                    );
+                });
             }
         }
 
@@ -944,14 +958,15 @@ function handleLinkPaste(view: EditorView, event: ClipboardEvent): boolean {
  * - Selection adds some extra space at the end of selected paragraphs to show
  *   that you are selecting a newline.
  */
-function createSelectionDecorations(doc: Node, from: number, to: number, color: string) {
-    // Make sure our range is in bounds. The editor state may have changed since
-    // this decoration was created.
-    from = Math.min(from, doc.nodeSize - 2);
-    to = Math.min(to, doc.nodeSize - 2);
+function createSelectionDecorations(doc: Node, selection: Selection, color: string) {
+    // Convert non-text selections into text selections. So the `from` and `to`
+    // point to positions in text.
+    if (!(selection instanceof TextSelection)) {
+        selection = TextSelection.between(selection.$from, selection.$to);
+    }
 
     const decorations = [
-        Decoration.inline(from, to, {
+        Decoration.inline(selection.from, selection.to, {
             class: inlineElementPaddingToLineHeightClassName,
             style: `background-color:${color}`,
         }),
@@ -959,11 +974,13 @@ function createSelectionDecorations(doc: Node, from: number, to: number, color: 
 
     // Add newline indicators to the end of selected paragraphs and headers like
     // browser selection styles.
-    doc.nodesBetween(from, to, (node, pos) => {
+    //
+    // Particularly important to show we've selected an empty paragraph or header.
+    doc.nodesBetween(selection.from, selection.to, (node, pos) => {
         if (!node.inlineContent) return;
 
         const newlineIndicatorPos = pos + node.content.size + 1;
-        if (newlineIndicatorPos >= to) return;
+        if (newlineIndicatorPos >= selection.to) return;
 
         decorations.push(
             Decoration.widget(newlineIndicatorPos, () => {
