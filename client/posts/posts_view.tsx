@@ -1,7 +1,6 @@
 import {useCallback, useEffect, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
-import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {Spacer} from "~/client/design/spacer";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useMessageEditing} from "~/client/messaging/message_editing";
@@ -454,78 +453,71 @@ export function PostsView({
                                                     display: "flex",
                                                     justifyContent: "center",
                                                     alignItems: "flex-end",
-                                                    // Render over `<Overlay>`s at `zIndex` 50 (see
-                                                    // `<OverlayScopeContextProvider>`).
-                                                    //
-                                                    // We render a `<OverlayScopeContextProvider>` below so that our overlays
-                                                    // display on top of everything.
-                                                    zIndex: "70",
+                                                    zIndex: "20",
                                                 }}
                                             >
-                                                <OverlayScopeContextProvider>
-                                                    <div
-                                                        ref={ref}
+                                                <div
+                                                    ref={ref}
+                                                    style={{
+                                                        position: "sticky",
+                                                        bottom: `-${spacing[padding]}`,
+                                                    }}
+                                                    className={sprinkles({
+                                                        width: "full",
+                                                        maxWidth: "160",
+                                                        overflowX: "hidden",
+                                                        marginX: "auto",
+                                                        pointerEvents: "auto",
+                                                        display: "flex",
+                                                        paddingBottom: padding,
+                                                    })}
+                                                >
+                                                    <Box
+                                                        flexShrink="0"
+                                                        alignSelf="stretch"
+                                                        width="5"
                                                         style={{
-                                                            position: "sticky",
-                                                            bottom: `-${spacing[padding]}`,
+                                                            // Allow full-width top border to be visible until it slides under.
+                                                            paddingTop: 1,
                                                         }}
-                                                        className={sprinkles({
-                                                            width: "full",
-                                                            maxWidth: "160",
-                                                            overflowX: "hidden",
-                                                            marginX: "auto",
-                                                            pointerEvents: "auto",
-                                                            display: "flex",
-                                                            paddingBottom: padding,
-                                                        })}
                                                     >
                                                         <Box
-                                                            flexShrink="0"
-                                                            alignSelf="stretch"
-                                                            width="5"
-                                                            style={{
-                                                                // Allow full-width top border to be visible until it slides under.
-                                                                paddingTop: 1,
-                                                            }}
-                                                        >
-                                                            <Box
-                                                                width="full"
-                                                                height="full"
-                                                                backgroundColor="grey-0"
-                                                                borderBottomLeftRadius="md"
-                                                            />
-                                                        </Box>
-                                                        <Box
-                                                            flexGrow="1"
-                                                            overflowX="hidden"
-                                                            borderTop="grey-5"
+                                                            width="full"
+                                                            height="full"
                                                             backgroundColor="grey-0"
-                                                            style={{
-                                                                // Remove one pixel from top padding for border.
-                                                                paddingTop: `calc(${spacing["3"]} - 1px)`,
-                                                                paddingBottom: spacing["3"],
-                                                            }}
-                                                        >
-                                                            {inputNode}
-                                                        </Box>
+                                                            borderBottomLeftRadius="md"
+                                                        />
+                                                    </Box>
+                                                    <Box
+                                                        flexGrow="1"
+                                                        overflowX="hidden"
+                                                        borderTop="grey-5"
+                                                        backgroundColor="grey-0"
+                                                        style={{
+                                                            // Remove one pixel from top padding for border.
+                                                            paddingTop: `calc(${spacing["3"]} - 1px)`,
+                                                            paddingBottom: spacing["3"],
+                                                        }}
+                                                    >
+                                                        {inputNode}
+                                                    </Box>
+                                                    <Box
+                                                        flexShrink="0"
+                                                        alignSelf="stretch"
+                                                        width="5"
+                                                        style={{
+                                                            // Allow full-width top border to be visible until it slides under.
+                                                            paddingTop: 1,
+                                                        }}
+                                                    >
                                                         <Box
-                                                            flexShrink="0"
-                                                            alignSelf="stretch"
-                                                            width="5"
-                                                            style={{
-                                                                // Allow full-width top border to be visible until it slides under.
-                                                                paddingTop: 1,
-                                                            }}
-                                                        >
-                                                            <Box
-                                                                width="full"
-                                                                height="full"
-                                                                backgroundColor="grey-0"
-                                                                borderBottomRightRadius="md"
-                                                            />
-                                                        </Box>
-                                                    </div>
-                                                </OverlayScopeContextProvider>
+                                                            width="full"
+                                                            height="full"
+                                                            backgroundColor="grey-0"
+                                                            borderBottomRightRadius="md"
+                                                        />
+                                                    </Box>
+                                                </div>
                                             </div>
                                             <Box
                                                 // Render a white backdrop below the entire post so that when the user is jump
@@ -566,10 +558,7 @@ export function PostsView({
                                                     pointerEvents: "none",
                                                     display: "flex",
                                                     alignItems: "flex-end",
-                                                    // Render over `<Overlay>`s at `zIndex` 50 (see
-                                                    // `<OverlayScopeContextProvider>`) but under our comment input so this border
-                                                    // can scroll beneath it.
-                                                    zIndex: "60",
+                                                    zIndex: "10",
                                                 }}
                                             >
                                                 <div
