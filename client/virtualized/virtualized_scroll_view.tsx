@@ -14,6 +14,7 @@ import {
     useState,
 } from "react";
 import {useRemPx} from "~/client/design/helpers/use_rem_px";
+import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants";
 import {isMobileWebKit} from "~/client/helpers/is_mobile_web_kit";
 import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render";
@@ -823,10 +824,13 @@ function VirtualizedScrollView(
                         zIndex: "0", // Make sure we create a new z-index stacking context
                     }}
                 >
-                    {shouldRenderWithRelativePositioning && bufferedHeightBeforeChildren > 0 && (
-                        <div style={{height: bufferedHeightBeforeChildren}} />
-                    )}
-                    {children}
+                    <OverlayScopeContextProvider>
+                        {shouldRenderWithRelativePositioning &&
+                            bufferedHeightBeforeChildren > 0 && (
+                                <div style={{height: bufferedHeightBeforeChildren}} />
+                            )}
+                        {children}
+                    </OverlayScopeContextProvider>
                 </div>
             </div>
             {pinToScriptElement}

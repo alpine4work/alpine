@@ -328,6 +328,10 @@ const OverlaySinkContext = createContext<{
 
 /**
  * Child `<Overlay>` components will be rendered inside this component.
+ *
+ * Generally you want to render one of these inside every scrollable element.
+ * That way the overlays naturally scroll with the element and can't render
+ * outside the element.
  */
 export function OverlayScopeContextProvider({children}: {children: ReactNode}) {
     const portalRef = useRef<HTMLDivElement>(null);
