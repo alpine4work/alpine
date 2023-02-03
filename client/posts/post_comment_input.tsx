@@ -36,8 +36,8 @@ export function PostCommentInput({
                 flexGrow="1"
                 overflowX="hidden"
                 marginLeft="2"
-                backgroundColor="grey-5"
-                borderRadius="2xl"
+                backgroundColor="grey-bubble"
+                borderRadius="xl"
             >
                 <Box maxHeight="96" overflowX="hidden" overflowY="scroll">
                     <ContentEditor

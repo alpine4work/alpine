@@ -3,6 +3,7 @@ import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
 import {Spacer} from "~/client/design/spacer";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
+import {useMessageEditing} from "~/client/messaging/message_editing";
 import {MessageShimmer} from "~/client/messaging/message_shimmer";
 import {MessageView, messageViewMinHeight} from "~/client/messaging/message_view";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
@@ -234,6 +235,8 @@ export function PostsView({
         };
     }, []);
 
+    const messageEditing = useMessageEditing();
+
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {
             const item = list.getItem(index);
@@ -306,6 +309,7 @@ export function PostsView({
                                 message={item.postComment}
                                 previousMessage={previousComment}
                                 nextMessage={nextComment}
+                                messageEditing={messageEditing}
                             />
                         ) : (
                             <MessageShimmer
@@ -573,7 +577,13 @@ export function PostsView({
                     throw exhaustive(item);
             }
         },
-        [onPostCommentInputFocusChange, list, loadInitialPostComments, onTogglePostComments],
+        [
+            list,
+            onTogglePostComments,
+            loadInitialPostComments,
+            messageEditing,
+            onPostCommentInputFocusChange,
+        ],
     );
 
     return (

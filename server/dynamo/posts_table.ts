@@ -374,6 +374,7 @@ async function createPostCommentModelFromItem(
     item: PostCommentItem,
 ): Promise<PostCommentModel> {
     return new PostCommentModel({
+        postId: item.postId,
         id: item.commentId,
         author: await getAccountOrThrow(context, spaceId, item.authorId),
         createdTime: item.createdTime,

@@ -47,6 +47,7 @@ export class PostModel extends Model(
 export class PostCommentModel
     extends Model(
         Schema.object({
+            postId: Schema.id<PostId>(),
             id: Schema.integer,
             author: AccountModel.schema(),
             createdTime: Schema.date,
@@ -60,5 +61,9 @@ export class PostCommentModel
     // An alias for `parentCommentId` to comply with `MessageInterface`.
     public get parentMessageId() {
         return this.parentCommentId;
+    }
+
+    public getRoomKey(): string {
+        return this.postId;
     }
 }

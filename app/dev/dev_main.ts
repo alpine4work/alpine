@@ -192,6 +192,7 @@ server.listen(port, () => {
 
 Development environment running on ${chalk.underline.bold(`http://localhost:${port}`)}
 
+- Inspect with Chrome at: ${chalk.underline("chrome://inspect")}
 ${
     externalHost
         ? `- Other devices on your network can access: ${chalk.underline(

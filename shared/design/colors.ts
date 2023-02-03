@@ -38,6 +38,12 @@ export const colors = {
     // because `grey-0` does not map to this color.
     "grey-dark": "#0b0b0d",
 
+    // The grey we use for speech bubbles. Between `grey-0` and `grey-5`. We only
+    // use this for the speech bubble background color to help contrast with other
+    // elements using normal colors.
+    "grey-bubble-light": "#f2f2f5",
+    "grey-bubble-dark": "#2b2b2e",
+
     "red-5": "#fcf1e8",
     "red-10": "#ffd4c2",
     "red-20": "#fab29a",

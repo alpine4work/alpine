@@ -16,6 +16,7 @@ export class SimpleChatModel extends Model(
 export class SimpleChatMessageModel
     extends Model(
         Schema.object({
+            simpleChatId: Schema.id<SimpleChatId>(),
             id: Schema.integer,
             author: AccountModel.schema(),
             createdTime: Schema.date,
@@ -24,4 +25,9 @@ export class SimpleChatMessageModel
             contentUpdatedTime: Schema.date.nullable(),
         }),
     )
-    implements MessageInterface {}
+    implements MessageInterface
+{
+    public getRoomKey(): string {
+        return this.simpleChatId;
+    }
+}

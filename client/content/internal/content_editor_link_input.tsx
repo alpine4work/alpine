@@ -76,6 +76,7 @@ export function ContentEditorLinkInput({
             width={url.length > 40 ? "96" : "64"}
             color="grey-0-const"
             backgroundColor="grey-80-const"
+            border={{light: "grey-80-const", dark: "grey-70-const"}}
             borderRadius="sm"
             boxShadow="elevation-20"
             position="relative"

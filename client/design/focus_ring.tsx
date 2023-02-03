@@ -1,4 +1,5 @@
 import {Instance, Rect, createPopper} from "@popperjs/core";
+import {isFocusVisible} from "@react-aria/interactions";
 import {
     ReactElement,
     Ref,
@@ -9,7 +10,6 @@ import {
     useRef,
     useState,
 } from "react";
-import {useFocusVisible} from "react-aria";
 import {Box} from "~/client/design/box";
 import {useElementWithRef} from "~/client/design/helpers/use_element_with_ref";
 import {useLifecycleRef} from "~/client/design/helpers/use_lifecycle_ref";
@@ -33,6 +33,7 @@ export {FocusRingForwardRef as FocusRing};
 function FocusRing(
     {
         offset,
+        isVisibleWhenFocusWithin = false,
         children,
     }: {
         /**
@@ -48,47 +49,55 @@ function FocusRing(
         offset?: Spacing | "border" | "inset";
 
         /**
+         * By default, we only show the focus ring when the direct child is focused.
+         * When turning this prop on if any child is focused we will also show the
+         * focus ring.
+         */
+        isVisibleWhenFocusWithin?: boolean;
+
+        /**
          * The focusable element we draw a ring around.
          */
         children: ReactElement;
     },
     foreignRef: Ref<HTMLElement>,
 ) {
-    const [isFocused, setIsFocused] = useState(false);
+    const [focusState, setFocusState] = useState<
+        {isFocused: false} | {isFocused: true; isFocusVisible: boolean}
+    >({isFocused: false});
     const targetRef = useRef<HTMLElement | null>(null);
 
-    const {isFocusVisible} = useFocusVisible({
-        // When `isTextInput` is true only "Tab" and "Escape" keys put us in visible
-        // focus mode.
-        isTextInput: true,
-    });
+    const targetLifecycleRef = useCallback(
+        (targetElement: HTMLElement) => {
+            targetRef.current = targetElement;
 
-    const targetLifecycleRef = useCallback((targetElement: HTMLElement) => {
-        targetRef.current = targetElement;
+            const handleFocusIn = (event: FocusEvent) => {
+                if (isVisibleWhenFocusWithin || event.target === event.currentTarget) {
+                    setFocusState({isFocused: true, isFocusVisible: isFocusVisible()});
+                }
+            };
 
-        const handleFocus = (event: FocusEvent) => {
-            if (event.target === event.currentTarget) {
-                setIsFocused(true);
-            }
-        };
+            const handleFocusOut = (event: FocusEvent) => {
+                if (isVisibleWhenFocusWithin || event.target === event.currentTarget) {
+                    setFocusState({isFocused: false});
+                }
+            };
 
-        const handleBlur = (event: FocusEvent) => {
-            if (event.target === event.currentTarget) {
-                setIsFocused(false);
-            }
-        };
-
-        targetElement.addEventListener("focus", handleFocus);
-        targetElement.addEventListener("blur", handleBlur);
-        return () => {
-            targetElement.removeEventListener("focus", handleFocus);
-            targetElement.removeEventListener("blur", handleBlur);
-        };
-    }, []);
+            // Use `focusin`/`focusout` instead of `focus`/`blur` because the
+            // former bubbles.
+            targetElement.addEventListener("focusin", handleFocusIn);
+            targetElement.addEventListener("focusout", handleFocusOut);
+            return () => {
+                targetElement.removeEventListener("focusin", handleFocusIn);
+                targetElement.removeEventListener("focusout", handleFocusOut);
+            };
+        },
+        [isVisibleWhenFocusWithin],
+    );
 
     return (
         <Overlay
-            isVisible={isFocused && isFocusVisible}
+            isVisible={focusState.isFocused && focusState.isFocusVisible}
             placement="center"
             preventOverflow={false}
             sameWidth={true}

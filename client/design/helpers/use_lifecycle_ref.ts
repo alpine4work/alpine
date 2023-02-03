@@ -1,4 +1,5 @@
-import {RefCallback, useCallback, useRef} from "react";
+import {Memo, RefCallback, useCallback, useRef} from "react";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 
 /**
  * A convenient helper for defining refs that add event listeners or attributes
@@ -27,22 +28,41 @@ import {RefCallback, useCallback, useRef} from "react";
  * return useElementWithRef(children, ref);
  * ```
  */
-export function useLifecycleRef<T>(ref: (value: T) => (() => void) | undefined): RefCallback<T> {
+export function useLifecycleRef<T>(
+    ref: Memo<(value: T) => (() => void) | undefined>,
+): RefCallback<T> {
     const valueRef = useRef<{
         value: T;
         cleanup: (() => void) | undefined;
+        hasScheduledCleanup: boolean;
     } | null>(null);
 
     return useCallback(
         value => {
-            if (value === valueRef.current?.value) return;
-
-            valueRef.current?.cleanup?.();
-
             if (value !== null) {
-                valueRef.current = {value, cleanup: ref(value)};
+                if (valueRef.current) {
+                    valueRef.current.hasScheduledCleanup = false;
+                    valueRef.current.cleanup?.();
+                }
+                valueRef.current = {
+                    value,
+                    cleanup: ref(value),
+                    hasScheduledCleanup: false,
+                };
             } else {
-                valueRef.current = null;
+                // Wait a microtask before cleaning up. Unless the ref function is called again
+                // before that then we will cleanup immediately.
+                //
+                // React interleaves layout effects with refs. Scheduling ref cleanup for later
+                // means we won't have a non-initialized ref when a layout effect occurs.
+                if (valueRef.current) {
+                    const currentValue = valueRef.current;
+                    currentValue.hasScheduledCleanup = true;
+                    scheduleMicrotask(() => {
+                        if (valueRef.current === currentValue) valueRef.current = null;
+                        if (currentValue.hasScheduledCleanup) currentValue.cleanup?.();
+                    });
+                }
             }
         },
         [ref],

@@ -193,6 +193,8 @@ export function MenuButton({
             //
             // https://www.w3.org/TR/wai-aria-practices-1.2/#keyboard-interaction-13
             function handleKeyDown(event: KeyboardEvent) {
+                if (menuButtonElement.disabled) return;
+
                 switch (event.key) {
                     case "ArrowDown": {
                         event.preventDefault(); // Don’t scroll
@@ -219,6 +221,7 @@ export function MenuButton({
             }
 
             function handlePointerDown(event: MouseEvent) {
+                if (menuButtonElement.disabled) return;
                 if (isRightClick(event)) return;
 
                 setState(oldState => {
@@ -578,6 +581,7 @@ const Menu = forwardRef(function Menu(
                     borderRadius="md"
                     padding="1"
                     backgroundColor={{light: "grey-0", dark: "grey-5"}}
+                    border={{light: "grey-0", dark: "grey-10"}}
                     boxShadow="elevation-20"
                     className={isFadingOut ? overlayAnimateFadeOutClassName : undefined}
                 >
@@ -705,7 +709,13 @@ function MenuButtonInner({
                 paddingY="1"
                 borderRadius="base"
                 color={isDisabled ? "grey-40" : action.isDestructive ? "red-50" : "grey-text"}
-                backgroundColor={isPressed ? "grey-10" : isHovered ? "grey-5" : undefined}
+                backgroundColor={
+                    isPressed
+                        ? {light: "grey-10", dark: "grey-20"}
+                        : isHovered
+                        ? {light: "grey-5", dark: "grey-10"}
+                        : undefined
+                }
                 // When a menu item is disabled, `aria-disabled` is set to true.
                 //
                 // https://www.w3.org/TR/wai-aria-practices-1.2/#menu

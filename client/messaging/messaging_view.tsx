@@ -1,6 +1,7 @@
 import {useCallback, useEffect, useRef, useState} from "react";
 import {Spacer} from "~/client/design/spacer";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
+import {useMessageEditing} from "~/client/messaging/message_editing";
 import {MessageShimmer} from "~/client/messaging/message_shimmer";
 import {
     MessageView,
@@ -174,6 +175,8 @@ export function MessagingView<Message extends MessageInterface>({
         }
     }, [state.isLoading, tryLoadingMore]);
 
+    const messageEditing = useMessageEditing();
+
     return (
         <VirtualizedScrollView
             ref={viewRef}
@@ -203,6 +206,7 @@ export function MessagingView<Message extends MessageInterface>({
                             message={messageResult.message}
                             previousMessage={previousMessage}
                             nextMessage={nextMessage}
+                            messageEditing={messageEditing}
                         />
                     ) : (
                         <MessageShimmer
@@ -230,7 +234,7 @@ export function MessagingView<Message extends MessageInterface>({
                             ),
                     };
                 },
-                [state.list, shimmerRandomSeed],
+                [state.list, messageEditing, shimmerRandomSeed],
             )}
             onRenderedRangeChange={tryLoadingMore}
         />

@@ -1,18 +1,26 @@
 import {differenceInMinutes} from "date-fns";
 import {ArrowArcLeft, DotsThree} from "phosphor-react";
-import {useEffect, useRef, useState} from "react";
-import {useFocusVisible, useFocusWithin} from "react-aria";
+import {MutableRefObject, useEffect, useRef, useState} from "react";
+import {useFocusVisible, useFocusWithin, usePress} from "react-aria";
 import {useNavigate} from "react-router-dom";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
+import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
+import {ContentEditorState} from "~/client/content/content_editor_state";
 import {ContentView} from "~/client/content/content_view";
 import {Box} from "~/client/design/box";
+import {FocusRing} from "~/client/design/focus_ring";
 import {IconButton} from "~/client/design/icon_button";
 import {MenuButton} from "~/client/design/menu_button";
+import {Overlay, OverlayRef} from "~/client/design/overlay";
+import {defaultTooltipOffset} from "~/client/design/tooltip";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
+import {MessageEditing} from "~/client/messaging/message_editing";
 import {useSpaceContext} from "~/client/spaces/space_context";
-import {RemLength} from "~/shared/design/spacing";
+import {MessageContent} from "~/shared/content/message_content_schema";
+import {RemLength, Spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {MessageInterface} from "~/shared/models/message_interface";
-import {truncateClassName} from "~/shared/styles/styles";
+import {colorSchemeVars, sprinkles, truncateClassName} from "~/shared/styles/styles";
 
 export const messageViewMinHeight: RemLength = "2.625rem";
 
@@ -24,17 +32,22 @@ export const messageViewMinHeight: RemLength = "2.625rem";
  */
 export const bufferedMessageViewHeight: RemLength = "4rem";
 
+const messageBubbleMinWidth: Spacing = "7";
+
 const mergeMessageMinuteLimit = 5;
 
 export function MessageView({
     message,
     previousMessage,
     nextMessage,
+    messageEditing,
 }: {
     message: MessageInterface;
     previousMessage: MessageInterface | null;
     nextMessage: MessageInterface | null;
+    messageEditing: MessageEditing;
 }) {
+    const navigate = useNavigate();
     const {currentAccount} = useSpaceContext();
 
     const shouldMergeWithPreviousMessage =
@@ -75,8 +88,16 @@ export function MessageView({
     });
     const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
 
+    const isEditing =
+        messageEditing.state.isEditing &&
+        messageEditing.state.messageRoomKey === message.getRoomKey() &&
+        messageEditing.state.messageId === message.id;
+
     const isShowingActions =
-        isHovered || (isFocusWithinActions && isFocusVisible) || isMoreMenuOpen;
+        !isEditing && (isHovered || (isFocusWithinActions && isFocusVisible) || isMoreMenuOpen);
+
+    const overlayRef = useRef<OverlayRef>(null);
+    const shouldFocusMessageContentEditorRef = useRef(false);
 
     return (
         <Box>
@@ -101,52 +122,222 @@ export function MessageView({
                 <Box flexShrink="0" width="10" display="flex" alignItems="flex-end">
                     {!shouldMergeWithNextMessage && <AccountAvatar account={message.author} />}
                 </Box>
-                <Box
-                    backgroundColor="grey-5"
-                    maxWidth="160"
-                    display="inline-block"
-                    paddingX="1"
-                    paddingY="2"
-                    borderTopLeftRadius={!shouldMergeWithPreviousMessage ? "2xl" : undefined}
-                    borderTopRightRadius="2xl"
-                    borderBottomLeftRadius={!shouldMergeWithNextMessage ? "2xl" : undefined}
-                    borderBottomRightRadius="2xl"
+                <Overlay
+                    ref={overlayRef}
+                    isVisible={isEditing}
+                    placement="bottom-start"
+                    canFlip={false}
+                    preventOverflow={false}
+                    sameWidth={true}
+                    offset={defaultTooltipOffset}
+                    overlay={
+                        <Box>
+                            <Box display="flex" marginX="-3">
+                                <Box flexGrow="1" pointerEvents="none" />
+                                <MessageContentEditorInstructionsOverlay
+                                    messageEditing={messageEditing}
+                                />
+                            </Box>
+                        </Box>
+                    }
                 >
-                    <ContentView content={message.content} onNavigate={useNavigate()} />
-                </Box>
+                    <FocusRing isVisibleWhenFocusWithin={true}>
+                        <Box
+                            backgroundColor={!isEditing ? "grey-bubble" : undefined}
+                            maxWidth="160"
+                            overflow="hidden"
+                            display="inline-block"
+                            paddingX="1"
+                            paddingY="2"
+                            borderTopLeftRadius={!shouldMergeWithPreviousMessage ? "xl" : "base"}
+                            borderTopRightRadius="xl"
+                            borderBottomLeftRadius={!shouldMergeWithNextMessage ? "xl" : "base"}
+                            borderBottomRightRadius="xl"
+                            style={{
+                                boxShadow: isEditing
+                                    ? `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`
+                                    : undefined,
+                            }}
+                        >
+                            {!isEditing ? (
+                                <ContentView
+                                    content={message.content}
+                                    onNavigate={navigate}
+                                    className={sprinkles({minWidth: messageBubbleMinWidth})}
+                                />
+                            ) : (
+                                <MessageContentEditor
+                                    state={messageEditing.state.contentEditorState}
+                                    onChange={state => {
+                                        // Update the overlay position whenever our content state changes.
+                                        // Needs to be in an animation frame to get the correct measurements.
+                                        requestAnimationFrame(() => {
+                                            const overlay = assertExists(overlayRef.current);
+                                            overlay.forceUpdateOverlayPosition();
+                                        });
+
+                                        messageEditing.dispatch({
+                                            type: "ContentEditorStateChange",
+                                            contentEditorState: state,
+                                        });
+                                    }}
+                                    onEscape={() =>
+                                        messageEditing.dispatch({type: "CancelEditing"})
+                                    }
+                                    shouldFocusMessageContentEditorRef={
+                                        shouldFocusMessageContentEditorRef
+                                    }
+                                />
+                            )}
+                        </Box>
+                    </FocusRing>
+                </Overlay>
                 <Box
                     alignSelf="center"
                     paddingLeft="3"
-                    display="flex"
                     style={{opacity: isShowingActions ? "1" : "0"}}
                     {...focusWithinActionsProps}
                 >
-                    <IconButton description="Reply" size="sm" isDisabled={!isShowingActions}>
-                        <ArrowArcLeft />
-                    </IconButton>
-                    {currentAccount.id === message.author.id && (
-                        <MenuButton
-                            actions={[
-                                {
-                                    label: "Edit",
-                                    onPress: () => {
-                                        // TODO(calebmer): Implement!
+                    <Box display="flex" pointerEvents={!isShowingActions ? "none" : undefined}>
+                        <IconButton description="Reply" size="sm" isDisabled={isEditing}>
+                            <ArrowArcLeft />
+                        </IconButton>
+                        {currentAccount.id === message.author.id && (
+                            <MenuButton
+                                actions={[
+                                    {
+                                        label: "Edit",
+                                        onPress: () => {
+                                            shouldFocusMessageContentEditorRef.current = true;
+                                            messageEditing.dispatch({
+                                                type: "StartEditing",
+                                                message,
+                                            });
+                                        },
                                     },
-                                },
-                                {
-                                    label: "Delete",
-                                    onPress: () => {
-                                        // TODO(calebmer): Implement!
+                                    {
+                                        label: "Delete",
+                                        onPress: () => {
+                                            // TODO(calebmer): Implement!
+                                        },
                                     },
-                                },
-                            ]}
-                            onStateChange={state => setIsMoreMenuOpen(state.isExpanded)}
-                        >
-                            <IconButton description="More" size="sm" isDisabled={!isShowingActions}>
-                                <DotsThree />
-                            </IconButton>
-                        </MenuButton>
-                    )}
+                                ]}
+                                onStateChange={state => setIsMoreMenuOpen(state.isExpanded)}
+                            >
+                                <IconButton description="More" size="sm" isDisabled={isEditing}>
+                                    <DotsThree />
+                                </IconButton>
+                            </MenuButton>
+                        )}
+                    </Box>
+                </Box>
+            </Box>
+        </Box>
+    );
+}
+
+function MessageContentEditor({
+    state,
+    onChange,
+    onEscape,
+    shouldFocusMessageContentEditorRef,
+}: {
+    state: ContentEditorState<MessageContent>;
+    onChange: (state: ContentEditorState<MessageContent>) => void;
+    onEscape: () => void;
+    shouldFocusMessageContentEditorRef: MutableRefObject<boolean>;
+}) {
+    const editorRef = useRef<ContentEditorRef>(null);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (!shouldFocusMessageContentEditorRef.current) return;
+        shouldFocusMessageContentEditorRef.current = false;
+
+        const editor = assertExists(editorRef.current);
+        editor.focus();
+        editor.selectAll();
+    });
+
+    return (
+        <ContentEditor
+            ref={editorRef}
+            state={state}
+            onChange={onChange}
+            aria-label="Comment"
+            // With no content the comment bubble will be at its min-width so only render
+            // an en-dash as a placeholder.
+            placeholder={"\u2013"}
+            onNavigate={useNavigate()}
+            className={sprinkles({minWidth: messageBubbleMinWidth})}
+            onEscape={onEscape}
+        />
+    );
+}
+
+function MessageContentEditorInstructionsOverlay({
+    messageEditing,
+}: {
+    messageEditing: MessageEditing;
+}) {
+    const {isPressed: isSavePressed, pressProps: savePressProps} = usePress({
+        onPress: () => {
+            // TODO(calebmer): Implement!
+        },
+    });
+
+    const {isPressed: isCancelPressed, pressProps: cancelPressProps} = usePress({
+        onPress: () => {
+            messageEditing.dispatch({type: "CancelEditing"});
+        },
+    });
+
+    return (
+        <Box
+            flexShrink="0"
+            paddingX="1.5"
+            paddingY="0.5"
+            fontSize="xs"
+            color="grey-0-const"
+            backgroundColor="grey-80-const"
+            border={{light: "grey-80-const", dark: "grey-70-const"}}
+            borderRadius="sm"
+            boxShadow="elevation-20"
+            display="flex"
+            gap="1.5"
+        >
+            <Box>
+                <Box
+                    // NOTE(calebmer): This element is pressable but not focusable. This is
+                    // intentional. There's a keyboard shortcut which we write next to the button
+                    // for keyboard users. We also don't give much visual affordance that this
+                    // button is actually clickable since we expect the primary interaction here
+                    // will be with the keyboard. On hover you get a cursor and that's the only
+                    // indication that this is clickable.
+                    {...savePressProps}
+                    display="inline"
+                    color={isSavePressed ? "grey-10-const" : "grey-0-const"}
+                    style={{cursor: "pointer"}}
+                >
+                    Save
+                </Box>{" "}
+                <Box display="inline" color="grey-20-const">
+                    (enter)
+                </Box>
+            </Box>
+            <Box paddingY="0.5">
+                <Box height="full" borderLeft="grey-70-const" />
+            </Box>
+            <Box>
+                <Box
+                    {...cancelPressProps}
+                    display="inline"
+                    color={isCancelPressed ? "grey-10-const" : "grey-0-const"}
+                    style={{cursor: "pointer"}}
+                >
+                    Cancel
+                </Box>{" "}
+                <Box display="inline" color="grey-20-const">
+                    (esc)
                 </Box>
             </Box>
         </Box>

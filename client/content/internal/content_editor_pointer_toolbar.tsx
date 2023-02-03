@@ -14,9 +14,9 @@ import {
     TextStrikethrough,
 } from "phosphor-react";
 import {Mark} from "prosemirror-model";
-import {Command, EditorState} from "prosemirror-state";
+import {Command, EditorState, TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
-import {ReactNode, RefObject, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {Memo, ReactNode, RefObject, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {FocusScope, mergeProps, useButton} from "react-aria";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker";
 import {ContentEditorHighlightSelector} from "~/client/content/internal/content_editor_highlight_selector";
@@ -71,6 +71,9 @@ export function ContentEditorPointerToolbar({
         interactionModality === "pointer" &&
         // Make sure some characters are selected before showing the selection toolbar.
         state.selection.from !== state.selection.to &&
+        // Only show the pointer toolbar for a text selection. This includes the
+        // `AllSelection`.
+        state.selection instanceof TextSelection &&
         // Don't show the toolbar if the selection overlaps with the title. The title
         // can only be at the beginning of a document so checking whether
         // `selection.from` is in the title is sufficient for detecting overlap.
@@ -274,6 +277,7 @@ function ContentEditorPointerToolbarOverlay({
                         paddingRight="0.5"
                         color="grey-0-const"
                         backgroundColor="grey-80-const"
+                        border={{light: "grey-80-const", dark: "grey-70-const"}}
                         borderRadius="sm"
                         boxShadow="elevation-20"
                         className={
@@ -327,7 +331,7 @@ function ContentEditorPointerToolbarButtons({
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<EditorView | null>;
-    sharedTooltipLifecycleRef: (tooltipRef: TooltipRef) => () => void;
+    sharedTooltipLifecycleRef: Memo<(tooltipRef: TooltipRef) => () => void>;
     isFadingOut: boolean;
     isLinkInputOpen: boolean;
     onLinkInputOpen: () => void;
@@ -546,7 +550,7 @@ function ContentEditorPointerToolbarButton({
     description: string;
     keyboardShortcut: string;
     viewRef: RefObject<EditorView | null>;
-    sharedTooltipLifecycleRef: (tooltipRef: TooltipRef) => () => void;
+    sharedTooltipLifecycleRef: Memo<(tooltipRef: TooltipRef) => () => void>;
     isActive: boolean;
     isTooltipDisabled?: boolean;
     command: Command;
@@ -654,7 +658,7 @@ function ContentEditorPointerToolbarLinkButton({
 }: {
     state: EditorState;
     viewRef: RefObject<EditorView | null>;
-    sharedTooltipLifecycleRef: (tooltipRef: TooltipRef) => () => void;
+    sharedTooltipLifecycleRef: Memo<(tooltipRef: TooltipRef) => () => void>;
     isToolbarFadingOut: boolean;
     activeLinkMark: Mark | null;
     isLinkInputOpen: boolean;
@@ -760,7 +764,7 @@ function ContentEditorPointerToolbarHighlightButton({
     dividerLeft,
 }: {
     viewRef: RefObject<EditorView | null>;
-    sharedTooltipLifecycleRef: (tooltipRef: TooltipRef) => () => void;
+    sharedTooltipLifecycleRef: Memo<(tooltipRef: TooltipRef) => () => void>;
     isToolbarFadingOut: boolean;
     activeHighlightMark: Mark | null;
     dividerRight?: boolean;

@@ -614,17 +614,20 @@ function Tooltip(
                 // Record that we are going to fade out this tooltip soon. If another tooltip
                 // wants to be visible before our timeout finishes we want to skip our
                 // animation.
+                //
+                // For focus changes we only wait one animation frame to see if another tooltip
+                // will pop in. Mouse movements are a little more imprecise.
                 if (
                     getHasActiveTooltipSymbol() &&
                     tooltipSymbolAboutToFadeOutRef.current === null
                 ) {
                     tooltipSymbolAboutToFadeOutRef.current = tooltipSymbol;
-                    setTimeout(() => {
+                    requestAnimationFrame(() => {
                         updateState({
                             isFadingOut: tooltipSymbolAboutToFadeOutRef.current === tooltipSymbol,
                         });
                         tooltipSymbolAboutToFadeOutRef.current = null;
-                    }, perceivedAsInstantLimitMs);
+                    });
                 } else {
                     updateState({isFadingOut: true});
                 }
@@ -706,6 +709,7 @@ function Tooltip(
                             fontSize="2xs"
                             color="grey-0-const"
                             backgroundColor="grey-80-const"
+                            border={{light: "grey-80-const", dark: "grey-70-const"}}
                             borderRadius="sm"
                             boxShadow="elevation-20"
                             className={

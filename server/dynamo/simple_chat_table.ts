@@ -216,6 +216,7 @@ async function createSimpleChatMessageModelFromItem(
     item: SimpleChatMessageItem,
 ): Promise<SimpleChatMessageModel> {
     return new SimpleChatMessageModel({
+        simpleChatId: item.simpleChatId,
         id: item.messageId,
         author: await getAccountOrThrow(context, spaceId, item.authorId),
         createdTime: item.createdTime,

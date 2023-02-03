@@ -38,4 +38,8 @@ export interface MessageInterface {
      * occurred. Will be null if the message was never updated.
      */
     readonly contentUpdatedTime: Date | null;
+    /**
+     * Get a key for the room the message is in.
+     */
+    getRoomKey(): string;
 }
