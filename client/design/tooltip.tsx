@@ -356,10 +356,17 @@ function Tooltip(
             setState((state): TooltipState => {
                 if (!state.isDisabled) return state;
 
-                if ((state.isHovered || state.isFocused) && state.isFadingOut) {
+                if (state.isHovered || state.isFocused) {
+                    if (state.isFadingOut) {
+                        return {
+                            ...state,
+                            isFadingOut: false,
+                            isDisabled: false,
+                        };
+                    }
                     return {
                         ...state,
-                        isFadingOut: false,
+                        isFadingIn: true,
                         isDisabled: false,
                     };
                 }
