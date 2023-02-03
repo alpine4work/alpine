@@ -2,7 +2,7 @@ import {MessageContentSchema} from "~/shared/content/message_content_schema";
 import {PostContentSchema} from "~/shared/content/post_content_schema";
 import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
-import {MessageInterface} from "~/shared/models/message_interface";
+import {MessageInterface, MessagePayloadSchema} from "~/shared/models/message_interface";
 import {Model} from "~/shared/models/model";
 import {Schema} from "~/shared/schema/schema";
 
@@ -48,21 +48,14 @@ export class PostCommentModel
     extends Model(
         Schema.object({
             postId: Schema.id<PostId>(),
-            id: Schema.integer,
+            index: Schema.integer,
             author: AccountModel.schema(),
             createdTime: Schema.date,
-            parentCommentId: Schema.integer.nullable(),
-            content: MessageContentSchema,
-            contentUpdatedTime: Schema.date.nullable(),
+            payload: MessagePayloadSchema,
         }),
     )
     implements MessageInterface
 {
-    // An alias for `parentCommentId` to comply with `MessageInterface`.
-    public get parentMessageId() {
-        return this.parentCommentId;
-    }
-
     public getRoomKey(): string {
         return this.postId;
     }

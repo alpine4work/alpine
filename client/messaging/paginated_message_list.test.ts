@@ -1,71 +1,71 @@
 import {
     PaginatedMessageList,
-    maxMessageId,
-    minMessageId,
+    maxMessageIndex,
+    minMessageIndex,
 } from "~/client/messaging/paginated_message_list";
 import {InternalError} from "~/shared/error/error";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 
 test("can load into an empty list", () => {
     expect(
-        PaginatedMessageList.newForTest([{isLoaded: false, estimatedMessageCount: 100}])
+        PaginatedMessageList.newForTest([{isLoaded: false, messageCount: 100}])
             .loadMessages({
-                afterMessageId: 20,
-                beforeMessageId: 31,
+                afterMessageIndex: 19,
+                beforeMessageIndex: 30,
                 mayHaveMoreMessagesBefore: true,
                 mayHaveMoreMessagesAfter: true,
                 messages: [
-                    {id: 21},
-                    {id: 22},
-                    {id: 23},
-                    {id: 24},
-                    {id: 25},
-                    {id: 26},
-                    {id: 27},
-                    {id: 28},
-                    {id: 29},
-                    {id: 30},
+                    {index: 20},
+                    {index: 21},
+                    {index: 22},
+                    {index: 23},
+                    {index: 24},
+                    {index: 25},
+                    {index: 26},
+                    {index: 27},
+                    {index: 28},
+                    {index: 29},
                 ],
             })
             .getSegmentsForTest(),
     ).toEqual([
-        {isLoaded: false, estimatedMessageCount: 20},
+        {isLoaded: false, messageCount: 20},
         {
             isLoaded: true,
             messages: [
-                {id: 21},
-                {id: 22},
-                {id: 23},
-                {id: 24},
-                {id: 25},
-                {id: 26},
-                {id: 27},
-                {id: 28},
-                {id: 29},
-                {id: 30},
+                {index: 20},
+                {index: 21},
+                {index: 22},
+                {index: 23},
+                {index: 24},
+                {index: 25},
+                {index: 26},
+                {index: 27},
+                {index: 28},
+                {index: 29},
             ],
         },
-        {isLoaded: false, estimatedMessageCount: 70},
+        {isLoaded: false, messageCount: 70},
     ]);
 
     expect(
-        PaginatedMessageList.newForTest([{isLoaded: false, estimatedMessageCount: 100}])
+        PaginatedMessageList.newForTest([{isLoaded: false, messageCount: 101}])
             .loadMessages({
-                afterMessageId: 20,
-                beforeMessageId: 31,
+                afterMessageIndex: 20,
+                beforeMessageIndex: 31,
                 mayHaveMoreMessagesBefore: false,
                 mayHaveMoreMessagesAfter: true,
                 messages: [
-                    {id: 21},
-                    {id: 22},
-                    {id: 23},
-                    {id: 24},
-                    {id: 25},
-                    {id: 26},
-                    {id: 27},
-                    {id: 28},
-                    {id: 29},
-                    {id: 30},
+                    {index: 21},
+                    {index: 22},
+                    {index: 23},
+                    {index: 24},
+                    {index: 25},
+                    {index: 26},
+                    {index: 27},
+                    {index: 28},
+                    {index: 29},
+                    {index: 30},
                 ],
             })
             .getSegmentsForTest(),
@@ -73,79 +73,79 @@ test("can load into an empty list", () => {
         {
             isLoaded: true,
             messages: [
-                {id: 21},
-                {id: 22},
-                {id: 23},
-                {id: 24},
-                {id: 25},
-                {id: 26},
-                {id: 27},
-                {id: 28},
-                {id: 29},
-                {id: 30},
+                {index: 21},
+                {index: 22},
+                {index: 23},
+                {index: 24},
+                {index: 25},
+                {index: 26},
+                {index: 27},
+                {index: 28},
+                {index: 29},
+                {index: 30},
             ],
         },
-        {isLoaded: false, estimatedMessageCount: 70},
+        {isLoaded: false, messageCount: 70},
     ]);
 
     expect(
-        PaginatedMessageList.newForTest([{isLoaded: false, estimatedMessageCount: 100}])
+        PaginatedMessageList.newForTest([{isLoaded: false, messageCount: 100}])
             .loadMessages({
-                afterMessageId: 20,
-                beforeMessageId: 31,
+                afterMessageIndex: 20,
+                beforeMessageIndex: 31,
                 mayHaveMoreMessagesBefore: true,
                 mayHaveMoreMessagesAfter: false,
                 messages: [
-                    {id: 21},
-                    {id: 22},
-                    {id: 23},
-                    {id: 24},
-                    {id: 25},
-                    {id: 26},
-                    {id: 27},
-                    {id: 28},
-                    {id: 29},
-                    {id: 30},
+                    {index: 21},
+                    {index: 22},
+                    {index: 23},
+                    {index: 24},
+                    {index: 25},
+                    {index: 26},
+                    {index: 27},
+                    {index: 28},
+                    {index: 29},
+                    {index: 30},
                 ],
             })
             .getSegmentsForTest(),
     ).toEqual([
-        {isLoaded: false, estimatedMessageCount: 20},
+        {isLoaded: false, messageCount: 21},
         {
             isLoaded: true,
             messages: [
-                {id: 21},
-                {id: 22},
-                {id: 23},
-                {id: 24},
-                {id: 25},
-                {id: 26},
-                {id: 27},
-                {id: 28},
-                {id: 29},
-                {id: 30},
+                {index: 21},
+                {index: 22},
+                {index: 23},
+                {index: 24},
+                {index: 25},
+                {index: 26},
+                {index: 27},
+                {index: 28},
+                {index: 29},
+                {index: 30},
             ],
         },
     ]);
 
     expect(
-        PaginatedMessageList.newForTest([{isLoaded: false, estimatedMessageCount: 100}])
+        PaginatedMessageList.newForTest([{isLoaded: false, messageCount: 100}])
             .loadMessages({
-                afterMessageId: 20,
-                beforeMessageId: 31,
+                afterMessageIndex: 20,
+                beforeMessageIndex: 31,
                 mayHaveMoreMessagesBefore: false,
                 mayHaveMoreMessagesAfter: false,
                 messages: [
-                    {id: 21},
-                    {id: 22},
-                    {id: 23},
-                    {id: 24},
-                    {id: 25},
-                    {id: 26},
-                    {id: 27},
-                    {id: 28},
-                    {id: 29},
-                    {id: 30},
+                    {index: 21},
+                    {index: 22},
+                    {index: 23},
+                    {index: 24},
+                    {index: 25},
+                    {index: 26},
+                    {index: 27},
+                    {index: 28},
+                    {index: 29},
+                    {index: 30},
                 ],
             })
             .getSegmentsForTest(),
@@ -153,16 +153,16 @@ test("can load into an empty list", () => {
         {
             isLoaded: true,
             messages: [
-                {id: 21},
-                {id: 22},
-                {id: 23},
-                {id: 24},
-                {id: 25},
-                {id: 26},
-                {id: 27},
-                {id: 28},
-                {id: 29},
-                {id: 30},
+                {index: 21},
+                {index: 22},
+                {index: 23},
+                {index: 24},
+                {index: 25},
+                {index: 26},
+                {index: 27},
+                {index: 28},
+                {index: 29},
+                {index: 30},
             ],
         },
     ]);
@@ -172,62 +172,62 @@ test("can load into an empty list with no estimated message count", () => {
     expect(
         PaginatedMessageList.newForTest([])
             .loadMessages({
-                afterMessageId: 20,
-                beforeMessageId: 31,
+                afterMessageIndex: 20,
+                beforeMessageIndex: 31,
                 mayHaveMoreMessagesBefore: true,
                 mayHaveMoreMessagesAfter: true,
                 messages: [
-                    {id: 21},
-                    {id: 22},
-                    {id: 23},
-                    {id: 24},
-                    {id: 25},
-                    {id: 26},
-                    {id: 27},
-                    {id: 28},
-                    {id: 29},
-                    {id: 30},
+                    {index: 21},
+                    {index: 22},
+                    {index: 23},
+                    {index: 24},
+                    {index: 25},
+                    {index: 26},
+                    {index: 27},
+                    {index: 28},
+                    {index: 29},
+                    {index: 30},
                 ],
             })
             .getSegmentsForTest(),
     ).toEqual([
-        {isLoaded: false, estimatedMessageCount: 1},
+        {isLoaded: false, messageCount: 1},
         {
             isLoaded: true,
             messages: [
-                {id: 21},
-                {id: 22},
-                {id: 23},
-                {id: 24},
-                {id: 25},
-                {id: 26},
-                {id: 27},
-                {id: 28},
-                {id: 29},
-                {id: 30},
+                {index: 21},
+                {index: 22},
+                {index: 23},
+                {index: 24},
+                {index: 25},
+                {index: 26},
+                {index: 27},
+                {index: 28},
+                {index: 29},
+                {index: 30},
             ],
         },
-        {isLoaded: false, estimatedMessageCount: 1},
+        {isLoaded: false, messageCount: 1},
     ]);
 
     expect(
         PaginatedMessageList.newForTest([])
             .loadMessages({
-                afterMessageId: 20,
-                beforeMessageId: 31,
+                afterMessageIndex: 20,
+                beforeMessageIndex: 31,
                 mayHaveMoreMessagesBefore: false,
                 mayHaveMoreMessagesAfter: true,
                 messages: [
-                    {id: 21},
-                    {id: 22},
-                    {id: 23},
-                    {id: 24},
-                    {id: 25},
-                    {id: 26},
-                    {id: 27},
-                    {id: 28},
-                    {id: 29},
-                    {id: 30},
+                    {index: 21},
+                    {index: 22},
+                    {index: 23},
+                    {index: 24},
+                    {index: 25},
+                    {index: 26},
+                    {index: 27},
+                    {index: 28},
+                    {index: 29},
+                    {index: 30},
                 ],
             })
             .getSegmentsForTest(),
@@ -235,57 +235,57 @@ test("can load into an empty list with no estimated message count", () => {
         {
             isLoaded: true,
             messages: [
-                {id: 21},
-                {id: 22},
-                {id: 23},
-                {id: 24},
-                {id: 25},
-                {id: 26},
-                {id: 27},
-                {id: 28},
-                {id: 29},
-                {id: 30},
+                {index: 21},
+                {index: 22},
+                {index: 23},
+                {index: 24},
+                {index: 25},
+                {index: 26},
+                {index: 27},
+                {index: 28},
+                {index: 29},
+                {index: 30},
             ],
         },
-        {isLoaded: false, estimatedMessageCount: 1},
+        {isLoaded: false, messageCount: 1},
     ]);
 
     expect(
         PaginatedMessageList.newForTest([])
             .loadMessages({
-                afterMessageId: 20,
-                beforeMessageId: 31,
+                afterMessageIndex: 20,
+                beforeMessageIndex: 31,
                 mayHaveMoreMessagesBefore: true,
                 mayHaveMoreMessagesAfter: false,
                 messages: [
-                    {id: 21},
-                    {id: 22},
-                    {id: 23},
-                    {id: 24},
-                    {id: 25},
-                    {id: 26},
-                    {id: 27},
-                    {id: 28},
-                    {id: 29},
-                    {id: 30},
+                    {index: 21},
+                    {index: 22},
+                    {index: 23},
+                    {index: 24},
+                    {index: 25},
+                    {index: 26},
+                    {index: 27},
+                    {index: 28},
+                    {index: 29},
+                    {index: 30},
                 ],
             })
             .getSegmentsForTest(),
     ).toEqual([
-        {isLoaded: false, estimatedMessageCount: 1},
+        {isLoaded: false, messageCount: 1},
         {
             isLoaded: true,
             messages: [
-                {id: 21},
-                {id: 22},
-                {id: 23},
-                {id: 24},
-                {id: 25},
-                {id: 26},
-                {id: 27},
-                {id: 28},
-                {id: 29},
-                {id: 30},
+                {index: 21},
+                {index: 22},
+                {index: 23},
+                {index: 24},
+                {index: 25},
+                {index: 26},
+                {index: 27},
+                {index: 28},
+                {index: 29},
+                {index: 30},
             ],
         },
     ]);
@@ -293,21 +293,21 @@ test("can load into an empty list with no estimated message count", () => {
     expect(
         PaginatedMessageList.newForTest([])
             .loadMessages({
-                afterMessageId: 20,
-                beforeMessageId: 31,
+                afterMessageIndex: 20,
+                beforeMessageIndex: 31,
                 mayHaveMoreMessagesBefore: false,
                 mayHaveMoreMessagesAfter: false,
                 messages: [
-                    {id: 21},
-                    {id: 22},
-                    {id: 23},
-                    {id: 24},
-                    {id: 25},
-                    {id: 26},
-                    {id: 27},
-                    {id: 28},
-                    {id: 29},
-                    {id: 30},
+                    {index: 21},
+                    {index: 22},
+                    {index: 23},
+                    {index: 24},
+                    {index: 25},
+                    {index: 26},
+                    {index: 27},
+                    {index: 28},
+                    {index: 29},
+                    {index: 30},
                 ],
             })
             .getSegmentsForTest(),
@@ -315,16 +315,16 @@ test("can load into an empty list with no estimated message count", () => {
         {
             isLoaded: true,
             messages: [
-                {id: 21},
-                {id: 22},
-                {id: 23},
-                {id: 24},
-                {id: 25},
-                {id: 26},
-                {id: 27},
-                {id: 28},
-                {id: 29},
-                {id: 30},
+                {index: 21},
+                {index: 22},
+                {index: 23},
+                {index: 24},
+                {index: 25},
+                {index: 26},
+                {index: 27},
+                {index: 28},
+                {index: 29},
+                {index: 30},
             ],
         },
     ]);
@@ -333,70 +333,70 @@ test("can load into an empty list with no estimated message count", () => {
 test("can load in the middle of an unloaded segment when there is one loaded segment at the start", () => {
     expect(
         PaginatedMessageList.newForTest([
-            {isLoaded: true, messages: [{id: 1}]},
-            {isLoaded: false, estimatedMessageCount: 100},
+            {isLoaded: true, messages: [{index: 0}]},
+            {isLoaded: false, messageCount: 100},
         ])
             .loadMessages({
-                afterMessageId: 20,
-                beforeMessageId: 31,
+                afterMessageIndex: 20,
+                beforeMessageIndex: 31,
                 mayHaveMoreMessagesBefore: true,
                 mayHaveMoreMessagesAfter: true,
                 messages: [
-                    {id: 21},
-                    {id: 22},
-                    {id: 23},
-                    {id: 24},
-                    {id: 25},
-                    {id: 26},
-                    {id: 27},
-                    {id: 28},
-                    {id: 29},
-                    {id: 30},
+                    {index: 21},
+                    {index: 22},
+                    {index: 23},
+                    {index: 24},
+                    {index: 25},
+                    {index: 26},
+                    {index: 27},
+                    {index: 28},
+                    {index: 29},
+                    {index: 30},
                 ],
             })
             .getSegmentsForTest(),
     ).toEqual([
-        {isLoaded: true, messages: [{id: 1}]},
-        {isLoaded: false, estimatedMessageCount: 19},
+        {isLoaded: true, messages: [{index: 0}]},
+        {isLoaded: false, messageCount: 20},
         {
             isLoaded: true,
             messages: [
-                {id: 21},
-                {id: 22},
-                {id: 23},
-                {id: 24},
-                {id: 25},
-                {id: 26},
-                {id: 27},
-                {id: 28},
-                {id: 29},
-                {id: 30},
+                {index: 21},
+                {index: 22},
+                {index: 23},
+                {index: 24},
+                {index: 25},
+                {index: 26},
+                {index: 27},
+                {index: 28},
+                {index: 29},
+                {index: 30},
             ],
         },
-        {isLoaded: false, estimatedMessageCount: 71},
+        {isLoaded: false, messageCount: 70},
     ]);
 
     expect(
         PaginatedMessageList.newForTest([
-            {isLoaded: true, messages: [{id: 1}]},
-            {isLoaded: false, estimatedMessageCount: 100},
+            {isLoaded: true, messages: [{index: 0}]},
+            {isLoaded: false, messageCount: 100},
         ])
             .loadMessages({
-                afterMessageId: 20,
-                beforeMessageId: 31,
+                afterMessageIndex: 20,
+                beforeMessageIndex: 31,
                 mayHaveMoreMessagesBefore: false,
                 mayHaveMoreMessagesAfter: true,
                 messages: [
-                    {id: 21},
-                    {id: 22},
-                    {id: 23},
-                    {id: 24},
-                    {id: 25},
-                    {id: 26},
-                    {id: 27},
-                    {id: 28},
-                    {id: 29},
-                    {id: 30},
+                    {index: 21},
+                    {index: 22},
+                    {index: 23},
+                    {index: 24},
+                    {index: 25},
+                    {index: 26},
+                    {index: 27},
+                    {index: 28},
+                    {index: 29},
+                    {index: 30},
                 ],
             })
             .getSegmentsForTest(),
@@ -404,86 +404,86 @@ test("can load in the middle of an unloaded segment when there is one loaded seg
         {
             isLoaded: true,
             messages: [
-                {id: 21},
-                {id: 22},
-                {id: 23},
-                {id: 24},
-                {id: 25},
-                {id: 26},
-                {id: 27},
-                {id: 28},
-                {id: 29},
-                {id: 30},
+                {index: 21},
+                {index: 22},
+                {index: 23},
+                {index: 24},
+                {index: 25},
+                {index: 26},
+                {index: 27},
+                {index: 28},
+                {index: 29},
+                {index: 30},
             ],
         },
-        {isLoaded: false, estimatedMessageCount: 71},
+        {isLoaded: false, messageCount: 70},
     ]);
 
     expect(
         PaginatedMessageList.newForTest([
-            {isLoaded: true, messages: [{id: 1}]},
-            {isLoaded: false, estimatedMessageCount: 100},
+            {isLoaded: true, messages: [{index: 0}]},
+            {isLoaded: false, messageCount: 100},
         ])
             .loadMessages({
-                afterMessageId: 20,
-                beforeMessageId: 31,
+                afterMessageIndex: 20,
+                beforeMessageIndex: 31,
                 mayHaveMoreMessagesBefore: true,
                 mayHaveMoreMessagesAfter: false,
                 messages: [
-                    {id: 21},
-                    {id: 22},
-                    {id: 23},
-                    {id: 24},
-                    {id: 25},
-                    {id: 26},
-                    {id: 27},
-                    {id: 28},
-                    {id: 29},
-                    {id: 30},
+                    {index: 21},
+                    {index: 22},
+                    {index: 23},
+                    {index: 24},
+                    {index: 25},
+                    {index: 26},
+                    {index: 27},
+                    {index: 28},
+                    {index: 29},
+                    {index: 30},
                 ],
             })
             .getSegmentsForTest(),
     ).toEqual([
-        {isLoaded: true, messages: [{id: 1}]},
-        {isLoaded: false, estimatedMessageCount: 19},
+        {isLoaded: true, messages: [{index: 0}]},
+        {isLoaded: false, messageCount: 20},
         {
             isLoaded: true,
             messages: [
-                {id: 21},
-                {id: 22},
-                {id: 23},
-                {id: 24},
-                {id: 25},
-                {id: 26},
-                {id: 27},
-                {id: 28},
-                {id: 29},
-                {id: 30},
+                {index: 21},
+                {index: 22},
+                {index: 23},
+                {index: 24},
+                {index: 25},
+                {index: 26},
+                {index: 27},
+                {index: 28},
+                {index: 29},
+                {index: 30},
             ],
         },
     ]);
 
     expect(
         PaginatedMessageList.newForTest([
-            {isLoaded: true, messages: [{id: 1}]},
-            {isLoaded: false, estimatedMessageCount: 100},
+            {isLoaded: true, messages: [{index: 0}]},
+            {isLoaded: false, messageCount: 100},
         ])
             .loadMessages({
-                afterMessageId: 20,
-                beforeMessageId: 31,
+                afterMessageIndex: 20,
+                beforeMessageIndex: 31,
                 mayHaveMoreMessagesBefore: false,
                 mayHaveMoreMessagesAfter: false,
                 messages: [
-                    {id: 21},
-                    {id: 22},
-                    {id: 23},
-                    {id: 24},
-                    {id: 25},
-                    {id: 26},
-                    {id: 27},
-                    {id: 28},
-                    {id: 29},
-                    {id: 30},
+                    {index: 21},
+                    {index: 22},
+                    {index: 23},
+                    {index: 24},
+                    {index: 25},
+                    {index: 26},
+                    {index: 27},
+                    {index: 28},
+                    {index: 29},
+                    {index: 30},
                 ],
             })
             .getSegmentsForTest(),
@@ -491,16 +491,16 @@ test("can load in the middle of an unloaded segment when there is one loaded seg
         {
             isLoaded: true,
             messages: [
-                {id: 21},
-                {id: 22},
-                {id: 23},
-                {id: 24},
-                {id: 25},
-                {id: 26},
-                {id: 27},
-                {id: 28},
-                {id: 29},
-                {id: 30},
+                {index: 21},
+                {index: 22},
+                {index: 23},
+                {index: 24},
+                {index: 25},
+                {index: 26},
+                {index: 27},
+                {index: 28},
+                {index: 29},
+                {index: 30},
             ],
         },
     ]);
@@ -509,70 +509,70 @@ test("can load in the middle of an unloaded segment when there is one loaded seg
 test("can load in the middle of an unloaded segment when there is one loaded segment at the end", () => {
     expect(
         PaginatedMessageList.newForTest([
-            {isLoaded: false, estimatedMessageCount: 100},
-            {isLoaded: true, messages: [{id: 101}]},
+            {isLoaded: false, messageCount: 101},
+            {isLoaded: true, messages: [{index: 101}]},
         ])
             .loadMessages({
-                afterMessageId: 20,
-                beforeMessageId: 31,
+                afterMessageIndex: 19,
+                beforeMessageIndex: 30,
                 mayHaveMoreMessagesBefore: true,
                 mayHaveMoreMessagesAfter: true,
                 messages: [
-                    {id: 21},
-                    {id: 22},
-                    {id: 23},
-                    {id: 24},
-                    {id: 25},
-                    {id: 26},
-                    {id: 27},
-                    {id: 28},
-                    {id: 29},
-                    {id: 30},
+                    {index: 20},
+                    {index: 21},
+                    {index: 22},
+                    {index: 23},
+                    {index: 24},
+                    {index: 25},
+                    {index: 26},
+                    {index: 27},
+                    {index: 28},
+                    {index: 29},
                 ],
             })
             .getSegmentsForTest(),
     ).toEqual([
-        {isLoaded: false, estimatedMessageCount: 20},
+        {isLoaded: false, messageCount: 20},
         {
             isLoaded: true,
             messages: [
-                {id: 21},
-                {id: 22},
-                {id: 23},
-                {id: 24},
-                {id: 25},
-                {id: 26},
-                {id: 27},
-                {id: 28},
-                {id: 29},
-                {id: 30},
+                {index: 20},
+                {index: 21},
+                {index: 22},
+                {index: 23},
+                {index: 24},
+                {index: 25},
+                {index: 26},
+                {index: 27},
+                {index: 28},
+                {index: 29},
             ],
         },
-        {isLoaded: false, estimatedMessageCount: 70},
-        {isLoaded: true, messages: [{id: 101}]},
+        {isLoaded: false, messageCount: 71},
+        {isLoaded: true, messages: [{index: 101}]},
     ]);
 
     expect(
         PaginatedMessageList.newForTest([
-            {isLoaded: false, estimatedMessageCount: 100},
-            {isLoaded: true, messages: [{id: 101}]},
+            {isLoaded: false, messageCount: 101},
+            {isLoaded: true, messages: [{index: 101}]},
         ])
             .loadMessages({
-                afterMessageId: 20,
-                beforeMessageId: 31,
+                afterMessageIndex: 20,
+                beforeMessageIndex: 31,
                 mayHaveMoreMessagesBefore: false,
                 mayHaveMoreMessagesAfter: true,
                 messages: [
-                    {id: 21},
-                    {id: 22},
-                    {id: 23},
-                    {id: 24},
-                    {id: 25},
-                    {id: 26},
-                    {id: 27},
-                    {id: 28},
-                    {id: 29},
-                    {id: 30},
+                    {index: 21},
+                    {index: 22},
+                    {index: 23},
+                    {index: 24},
+                    {index: 25},
+                    {index: 26},
+                    {index: 27},
+                    {index: 28},
+                    {index: 29},
+                    {index: 30},
                 ],
             })
             .getSegmentsForTest(),
@@ -580,86 +580,86 @@ test("can load in the middle of an unloaded segment when there is one loaded seg
         {
             isLoaded: true,
             messages: [
-                {id: 21},
-                {id: 22},
-                {id: 23},
-                {id: 24},
-                {id: 25},
-                {id: 26},
-                {id: 27},
-                {id: 28},
-                {id: 29},
-                {id: 30},
+                {index: 21},
+                {index: 22},
+                {index: 23},
+                {index: 24},
+                {index: 25},
+                {index: 26},
+                {index: 27},
+                {index: 28},
+                {index: 29},
+                {index: 30},
             ],
         },
-        {isLoaded: false, estimatedMessageCount: 70},
-        {isLoaded: true, messages: [{id: 101}]},
+        {isLoaded: false, messageCount: 70},
+        {isLoaded: true, messages: [{index: 101}]},
     ]);
 
     expect(
         PaginatedMessageList.newForTest([
-            {isLoaded: false, estimatedMessageCount: 100},
-            {isLoaded: true, messages: [{id: 101}]},
+            {isLoaded: false, messageCount: 101},
+            {isLoaded: true, messages: [{index: 101}]},
         ])
             .loadMessages({
-                afterMessageId: 20,
-                beforeMessageId: 31,
+                afterMessageIndex: 20,
+                beforeMessageIndex: 31,
                 mayHaveMoreMessagesBefore: true,
                 mayHaveMoreMessagesAfter: false,
                 messages: [
-                    {id: 21},
-                    {id: 22},
-                    {id: 23},
-                    {id: 24},
-                    {id: 25},
-                    {id: 26},
-                    {id: 27},
-                    {id: 28},
-                    {id: 29},
-                    {id: 30},
+                    {index: 21},
+                    {index: 22},
+                    {index: 23},
+                    {index: 24},
+                    {index: 25},
+                    {index: 26},
+                    {index: 27},
+                    {index: 28},
+                    {index: 29},
+                    {index: 30},
                 ],
             })
             .getSegmentsForTest(),
     ).toEqual([
-        {isLoaded: false, estimatedMessageCount: 20},
+        {isLoaded: false, messageCount: 21},
         {
             isLoaded: true,
             messages: [
-                {id: 21},
-                {id: 22},
-                {id: 23},
-                {id: 24},
-                {id: 25},
-                {id: 26},
-                {id: 27},
-                {id: 28},
-                {id: 29},
-                {id: 30},
+                {index: 21},
+                {index: 22},
+                {index: 23},
+                {index: 24},
+                {index: 25},
+                {index: 26},
+                {index: 27},
+                {index: 28},
+                {index: 29},
+                {index: 30},
             ],
         },
     ]);
 
     expect(
         PaginatedMessageList.newForTest([
-            {isLoaded: false, estimatedMessageCount: 100},
-            {isLoaded: true, messages: [{id: 101}]},
+            {isLoaded: false, messageCount: 101},
+            {isLoaded: true, messages: [{index: 101}]},
         ])
             .loadMessages({
-                afterMessageId: 20,
-                beforeMessageId: 31,
+                afterMessageIndex: 20,
+                beforeMessageIndex: 31,
                 mayHaveMoreMessagesBefore: false,
                 mayHaveMoreMessagesAfter: false,
                 messages: [
-                    {id: 21},
-                    {id: 22},
-                    {id: 23},
-                    {id: 24},
-                    {id: 25},
-                    {id: 26},
-                    {id: 27},
-                    {id: 28},
-                    {id: 29},
-                    {id: 30},
+                    {index: 21},
+                    {index: 22},
+                    {index: 23},
+                    {index: 24},
+                    {index: 25},
+                    {index: 26},
+                    {index: 27},
+                    {index: 28},
+                    {index: 29},
+                    {index: 30},
                 ],
             })
             .getSegmentsForTest(),
@@ -667,16 +667,16 @@ test("can load in the middle of an unloaded segment when there is one loaded seg
         {
             isLoaded: true,
             messages: [
-                {id: 21},
-                {id: 22},
-                {id: 23},
-                {id: 24},
-                {id: 25},
-                {id: 26},
-                {id: 27},
-                {id: 28},
-                {id: 29},
-                {id: 30},
+                {index: 21},
+                {index: 22},
+                {index: 23},
+                {index: 24},
+                {index: 25},
+                {index: 26},
+                {index: 27},
+                {index: 28},
+                {index: 29},
+                {index: 30},
             ],
         },
     ]);
@@ -685,634 +685,796 @@ test("can load in the middle of an unloaded segment when there is one loaded seg
 test("can load in the middle of an unloaded segment at the beginning with deleted messages", () => {
     expect(
         PaginatedMessageList.newForTest([
-            {isLoaded: false, estimatedMessageCount: 100},
-            {isLoaded: true, messages: [{id: 101}]},
+            {isLoaded: false, messageCount: 100},
+            {isLoaded: true, messages: [{index: 101}]},
         ])
             .loadMessages({
-                afterMessageId: 20,
-                beforeMessageId: 31,
+                afterMessageIndex: 19,
+                beforeMessageIndex: 30,
                 mayHaveMoreMessagesBefore: true,
                 mayHaveMoreMessagesAfter: true,
-                messages: [{id: 21}, {id: 23}, {id: 25}, {id: 27}, {id: 29}],
+                messages: [{index: 20}, {index: 21}, {index: 23}, {index: 25}, {index: 27}],
             })
             .getSegmentsForTest(),
     ).toEqual([
-        {isLoaded: false, estimatedMessageCount: 21},
+        {isLoaded: false, messageCount: 21},
         {
             isLoaded: true,
-            messages: [{id: 21}, {id: 23}, {id: 25}, {id: 27}, {id: 29}],
+            messages: [{index: 20}, {index: 21}, {index: 23}, {index: 25}, {index: 27}],
         },
-        {isLoaded: false, estimatedMessageCount: 74},
-        {isLoaded: true, messages: [{id: 101}]},
+        {isLoaded: false, messageCount: 74},
+        {isLoaded: true, messages: [{index: 101}]},
     ]);
 });
 
 test("can load in the middle of an unbalanced unloaded segment", () => {
     expect(
         PaginatedMessageList.newForTest([
-            {isLoaded: true, messages: [{id: 1}]},
-            {isLoaded: false, estimatedMessageCount: 70},
-            {isLoaded: true, messages: [{id: 101}]},
+            {isLoaded: true, messages: [{index: 0}]},
+            {isLoaded: false, messageCount: 70},
+            {isLoaded: true, messages: [{index: 100}]},
         ])
             .loadMessages({
-                afterMessageId: 20,
-                beforeMessageId: 31,
+                afterMessageIndex: 20,
+                beforeMessageIndex: 31,
                 mayHaveMoreMessagesBefore: true,
                 mayHaveMoreMessagesAfter: true,
                 messages: [
-                    {id: 21},
-                    {id: 22},
-                    {id: 23},
-                    {id: 24},
-                    {id: 25},
-                    {id: 26},
-                    {id: 27},
-                    {id: 28},
-                    {id: 29},
-                    {id: 30},
+                    {index: 21},
+                    {index: 22},
+                    {index: 23},
+                    {index: 24},
+                    {index: 25},
+                    {index: 26},
+                    {index: 27},
+                    {index: 28},
+                    {index: 29},
+                    {index: 30},
                 ],
             })
             .getSegmentsForTest(),
     ).toEqual([
-        {isLoaded: true, messages: [{id: 1}]},
-        {isLoaded: false, estimatedMessageCount: 13},
+        {isLoaded: true, messages: [{index: 0}]},
+        {isLoaded: false, messageCount: 13},
         {
             isLoaded: true,
             messages: [
-                {id: 21},
-                {id: 22},
-                {id: 23},
-                {id: 24},
-                {id: 25},
-                {id: 26},
-                {id: 27},
-                {id: 28},
-                {id: 29},
-                {id: 30},
+                {index: 21},
+                {index: 22},
+                {index: 23},
+                {index: 24},
+                {index: 25},
+                {index: 26},
+                {index: 27},
+                {index: 28},
+                {index: 29},
+                {index: 30},
             ],
         },
-        {isLoaded: false, estimatedMessageCount: 47},
-        {isLoaded: true, messages: [{id: 101}]},
+        {isLoaded: false, messageCount: 47},
+        {isLoaded: true, messages: [{index: 100}]},
     ]);
 });
 
 test("can load in the middle of an unbalanced unloaded segment with deleted messages", () => {
     expect(
         PaginatedMessageList.newForTest([
-            {isLoaded: true, messages: [{id: 1}]},
-            {isLoaded: false, estimatedMessageCount: 70},
-            {isLoaded: true, messages: [{id: 101}]},
+            {isLoaded: true, messages: [{index: 0}]},
+            {isLoaded: false, messageCount: 70},
+            {isLoaded: true, messages: [{index: 100}]},
         ])
             .loadMessages({
-                afterMessageId: 20,
-                beforeMessageId: 31,
+                afterMessageIndex: 20,
+                beforeMessageIndex: 31,
                 mayHaveMoreMessagesBefore: true,
                 mayHaveMoreMessagesAfter: true,
-                messages: [{id: 21}, {id: 23}, {id: 25}, {id: 27}, {id: 29}],
+                messages: [{index: 21}, {index: 23}, {index: 25}, {index: 27}, {index: 29}],
             })
             .getSegmentsForTest(),
     ).toEqual([
-        {isLoaded: true, messages: [{id: 1}]},
-        {isLoaded: false, estimatedMessageCount: 14},
+        {isLoaded: true, messages: [{index: 0}]},
+        {isLoaded: false, messageCount: 15},
         {
             isLoaded: true,
-            messages: [{id: 21}, {id: 23}, {id: 25}, {id: 27}, {id: 29}],
+            messages: [{index: 21}, {index: 23}, {index: 25}, {index: 27}, {index: 29}],
         },
-        {isLoaded: false, estimatedMessageCount: 51},
-        {isLoaded: true, messages: [{id: 101}]},
+        {isLoaded: false, messageCount: 50},
+        {isLoaded: true, messages: [{index: 100}]},
     ]);
 });
 
 test("when merging will decrease next unloaded segment estimated message count", () => {
     expect(
         PaginatedMessageList.newForTest([
-            {isLoaded: true, messages: [{id: 8}, {id: 9}, {id: 10}]},
-            {isLoaded: false, estimatedMessageCount: 10},
+            {isLoaded: true, messages: [{index: 8}, {index: 9}, {index: 10}]},
+            {isLoaded: false, messageCount: 10},
         ])
             .loadMessages({
-                afterMessageId: 9,
-                beforeMessageId: 14,
+                afterMessageIndex: 9,
+                beforeMessageIndex: 14,
                 mayHaveMoreMessagesBefore: true,
                 mayHaveMoreMessagesAfter: true,
-                messages: [{id: 10}, {id: 11}, {id: 12}, {id: 13}],
+                messages: [{index: 10}, {index: 11}, {index: 12}, {index: 13}],
             })
             .getSegmentsForTest(),
     ).toEqual([
-        {isLoaded: true, messages: [{id: 8}, {id: 9}, {id: 10}, {id: 11}, {id: 12}, {id: 13}]},
-        {isLoaded: false, estimatedMessageCount: 7},
+        {
+            isLoaded: true,
+            messages: [{index: 8}, {index: 9}, {index: 10}, {index: 11}, {index: 12}, {index: 13}],
+        },
+        {isLoaded: false, messageCount: 7},
     ]);
 
     expect(
         PaginatedMessageList.newForTest([
-            {isLoaded: false, estimatedMessageCount: 10},
-            {isLoaded: true, messages: [{id: 8}, {id: 9}, {id: 10}]},
-            {isLoaded: false, estimatedMessageCount: 10},
+            {isLoaded: false, messageCount: 10},
+            {isLoaded: true, messages: [{index: 8}, {index: 9}, {index: 10}]},
+            {isLoaded: false, messageCount: 10},
         ])
             .loadMessages({
-                afterMessageId: 9,
-                beforeMessageId: 14,
+                afterMessageIndex: 9,
+                beforeMessageIndex: 14,
                 mayHaveMoreMessagesBefore: true,
                 mayHaveMoreMessagesAfter: true,
-                messages: [{id: 10}, {id: 11}, {id: 12}, {id: 13}],
+                messages: [{index: 10}, {index: 11}, {index: 12}, {index: 13}],
             })
             .getSegmentsForTest(),
     ).toEqual([
-        {isLoaded: false, estimatedMessageCount: 10},
-        {isLoaded: true, messages: [{id: 8}, {id: 9}, {id: 10}, {id: 11}, {id: 12}, {id: 13}]},
-        {isLoaded: false, estimatedMessageCount: 7},
+        {isLoaded: false, messageCount: 10},
+        {
+            isLoaded: true,
+            messages: [{index: 8}, {index: 9}, {index: 10}, {index: 11}, {index: 12}, {index: 13}],
+        },
+        {isLoaded: false, messageCount: 7},
     ]);
 
     expect(
         PaginatedMessageList.newForTest([
-            {isLoaded: false, estimatedMessageCount: 10},
-            {isLoaded: true, messages: [{id: 8}, {id: 9}, {id: 10}]},
+            {isLoaded: false, messageCount: 10},
+            {isLoaded: true, messages: [{index: 8}, {index: 9}, {index: 10}]},
         ])
             .loadMessages({
-                afterMessageId: 9,
-                beforeMessageId: 14,
+                afterMessageIndex: 9,
+                beforeMessageIndex: 14,
                 mayHaveMoreMessagesBefore: true,
                 mayHaveMoreMessagesAfter: true,
-                messages: [{id: 10}, {id: 11}, {id: 12}, {id: 13}],
+                messages: [{index: 10}, {index: 11}, {index: 12}, {index: 13}],
             })
             .getSegmentsForTest(),
     ).toEqual([
-        {isLoaded: false, estimatedMessageCount: 10},
-        {isLoaded: true, messages: [{id: 8}, {id: 9}, {id: 10}, {id: 11}, {id: 12}, {id: 13}]},
-        {isLoaded: false, estimatedMessageCount: 1},
+        {isLoaded: false, messageCount: 10},
+        {
+            isLoaded: true,
+            messages: [{index: 8}, {index: 9}, {index: 10}, {index: 11}, {index: 12}, {index: 13}],
+        },
+        {isLoaded: false, messageCount: 1},
     ]);
 
     expect(
-        PaginatedMessageList.newForTest([{isLoaded: true, messages: [{id: 8}, {id: 9}, {id: 10}]}])
+        PaginatedMessageList.newForTest([
+            {isLoaded: true, messages: [{index: 8}, {index: 9}, {index: 10}]},
+        ])
             .loadMessages({
-                afterMessageId: 9,
-                beforeMessageId: 14,
+                afterMessageIndex: 9,
+                beforeMessageIndex: 14,
                 mayHaveMoreMessagesBefore: true,
                 mayHaveMoreMessagesAfter: true,
-                messages: [{id: 10}, {id: 11}, {id: 12}, {id: 13}],
+                messages: [{index: 10}, {index: 11}, {index: 12}, {index: 13}],
             })
             .getSegmentsForTest(),
     ).toEqual([
-        {isLoaded: true, messages: [{id: 8}, {id: 9}, {id: 10}, {id: 11}, {id: 12}, {id: 13}]},
-        {isLoaded: false, estimatedMessageCount: 1},
+        {
+            isLoaded: true,
+            messages: [{index: 8}, {index: 9}, {index: 10}, {index: 11}, {index: 12}, {index: 13}],
+        },
+        {isLoaded: false, messageCount: 1},
     ]);
 });
 
 test("when merging will decrease last unloaded segment estimated message count", () => {
     expect(
         PaginatedMessageList.newForTest([
-            {isLoaded: false, estimatedMessageCount: 10},
-            {isLoaded: true, messages: [{id: 8}, {id: 9}, {id: 10}]},
+            {isLoaded: false, messageCount: 10},
+            {isLoaded: true, messages: [{index: 8}, {index: 9}, {index: 10}]},
         ])
             .loadMessages({
-                afterMessageId: 4,
-                beforeMessageId: 9,
+                afterMessageIndex: 4,
+                beforeMessageIndex: 9,
                 mayHaveMoreMessagesBefore: true,
                 mayHaveMoreMessagesAfter: true,
-                messages: [{id: 5}, {id: 6}, {id: 7}, {id: 8}],
+                messages: [{index: 5}, {index: 6}, {index: 7}, {index: 8}],
             })
             .getSegmentsForTest(),
     ).toEqual([
-        {isLoaded: false, estimatedMessageCount: 7},
-        {isLoaded: true, messages: [{id: 5}, {id: 6}, {id: 7}, {id: 8}, {id: 9}, {id: 10}]},
+        {isLoaded: false, messageCount: 7},
+        {
+            isLoaded: true,
+            messages: [{index: 5}, {index: 6}, {index: 7}, {index: 8}, {index: 9}, {index: 10}],
+        },
     ]);
 
     expect(
         PaginatedMessageList.newForTest([
-            {isLoaded: false, estimatedMessageCount: 10},
-            {isLoaded: true, messages: [{id: 8}, {id: 9}, {id: 10}]},
-            {isLoaded: false, estimatedMessageCount: 10},
+            {isLoaded: false, messageCount: 10},
+            {isLoaded: true, messages: [{index: 8}, {index: 9}, {index: 10}]},
+            {isLoaded: false, messageCount: 10},
         ])
             .loadMessages({
-                afterMessageId: 4,
-                beforeMessageId: 9,
+                afterMessageIndex: 4,
+                beforeMessageIndex: 9,
                 mayHaveMoreMessagesBefore: true,
                 mayHaveMoreMessagesAfter: true,
-                messages: [{id: 5}, {id: 6}, {id: 7}, {id: 8}],
+                messages: [{index: 5}, {index: 6}, {index: 7}, {index: 8}],
             })
             .getSegmentsForTest(),
     ).toEqual([
-        {isLoaded: false, estimatedMessageCount: 7},
-        {isLoaded: true, messages: [{id: 5}, {id: 6}, {id: 7}, {id: 8}, {id: 9}, {id: 10}]},
-        {isLoaded: false, estimatedMessageCount: 10},
+        {isLoaded: false, messageCount: 7},
+        {
+            isLoaded: true,
+            messages: [{index: 5}, {index: 6}, {index: 7}, {index: 8}, {index: 9}, {index: 10}],
+        },
+        {isLoaded: false, messageCount: 10},
     ]);
 
     expect(
         PaginatedMessageList.newForTest([
-            {isLoaded: true, messages: [{id: 8}, {id: 9}, {id: 10}]},
-            {isLoaded: false, estimatedMessageCount: 10},
+            {isLoaded: true, messages: [{index: 8}, {index: 9}, {index: 10}]},
+            {isLoaded: false, messageCount: 10},
         ])
             .loadMessages({
-                afterMessageId: 4,
-                beforeMessageId: 9,
+                afterMessageIndex: 4,
+                beforeMessageIndex: 9,
                 mayHaveMoreMessagesBefore: true,
                 mayHaveMoreMessagesAfter: true,
-                messages: [{id: 5}, {id: 6}, {id: 7}, {id: 8}],
+                messages: [{index: 5}, {index: 6}, {index: 7}, {index: 8}],
             })
             .getSegmentsForTest(),
     ).toEqual([
-        {isLoaded: false, estimatedMessageCount: 1},
-        {isLoaded: true, messages: [{id: 5}, {id: 6}, {id: 7}, {id: 8}, {id: 9}, {id: 10}]},
-        {isLoaded: false, estimatedMessageCount: 10},
+        {isLoaded: false, messageCount: 1},
+        {
+            isLoaded: true,
+            messages: [{index: 5}, {index: 6}, {index: 7}, {index: 8}, {index: 9}, {index: 10}],
+        },
+        {isLoaded: false, messageCount: 10},
     ]);
 
     expect(
-        PaginatedMessageList.newForTest([{isLoaded: true, messages: [{id: 8}, {id: 9}, {id: 10}]}])
+        PaginatedMessageList.newForTest([
+            {isLoaded: true, messages: [{index: 8}, {index: 9}, {index: 10}]},
+        ])
             .loadMessages({
-                afterMessageId: 4,
-                beforeMessageId: 9,
+                afterMessageIndex: 4,
+                beforeMessageIndex: 9,
                 mayHaveMoreMessagesBefore: true,
                 mayHaveMoreMessagesAfter: true,
-                messages: [{id: 5}, {id: 6}, {id: 7}, {id: 8}],
+                messages: [{index: 5}, {index: 6}, {index: 7}, {index: 8}],
             })
             .getSegmentsForTest(),
     ).toEqual([
-        {isLoaded: false, estimatedMessageCount: 1},
-        {isLoaded: true, messages: [{id: 5}, {id: 6}, {id: 7}, {id: 8}, {id: 9}, {id: 10}]},
+        {isLoaded: false, messageCount: 1},
+        {
+            isLoaded: true,
+            messages: [{index: 5}, {index: 6}, {index: 7}, {index: 8}, {index: 9}, {index: 10}],
+        },
     ]);
 });
 
 test("when merging will decrease next and last unloaded segment estimated message count", () => {
     expect(
         PaginatedMessageList.newForTest([
-            {isLoaded: false, estimatedMessageCount: 10},
-            {isLoaded: true, messages: [{id: 8}, {id: 9}, {id: 10}]},
-            {isLoaded: false, estimatedMessageCount: 10},
+            {isLoaded: false, messageCount: 10},
+            {isLoaded: true, messages: [{index: 8}, {index: 9}, {index: 10}]},
+            {isLoaded: false, messageCount: 10},
         ])
             .loadMessages({
-                afterMessageId: 4,
-                beforeMessageId: 14,
+                afterMessageIndex: 4,
+                beforeMessageIndex: 14,
                 mayHaveMoreMessagesBefore: true,
                 mayHaveMoreMessagesAfter: true,
                 messages: [
-                    {id: 5},
-                    {id: 6},
-                    {id: 7},
-                    {id: 8},
-                    {id: 9},
-                    {id: 10},
-                    {id: 11},
-                    {id: 12},
-                    {id: 13},
+                    {index: 5},
+                    {index: 6},
+                    {index: 7},
+                    {index: 8},
+                    {index: 9},
+                    {index: 10},
+                    {index: 11},
+                    {index: 12},
+                    {index: 13},
                 ],
             })
             .getSegmentsForTest(),
     ).toEqual([
-        {isLoaded: false, estimatedMessageCount: 7},
+        {isLoaded: false, messageCount: 7},
         {
             isLoaded: true,
             messages: [
-                {id: 5},
-                {id: 6},
-                {id: 7},
-                {id: 8},
-                {id: 9},
-                {id: 10},
-                {id: 11},
-                {id: 12},
-                {id: 13},
+                {index: 5},
+                {index: 6},
+                {index: 7},
+                {index: 8},
+                {index: 9},
+                {index: 10},
+                {index: 11},
+                {index: 12},
+                {index: 13},
             ],
         },
-        {isLoaded: false, estimatedMessageCount: 7},
+        {isLoaded: false, messageCount: 7},
     ]);
 
     expect(
         PaginatedMessageList.newForTest([
-            {isLoaded: true, messages: [{id: 8}, {id: 9}, {id: 10}]},
-            {isLoaded: false, estimatedMessageCount: 10},
+            {isLoaded: true, messages: [{index: 8}, {index: 9}, {index: 10}]},
+            {isLoaded: false, messageCount: 10},
         ])
             .loadMessages({
-                afterMessageId: 4,
-                beforeMessageId: 14,
+                afterMessageIndex: 4,
+                beforeMessageIndex: 14,
                 mayHaveMoreMessagesBefore: true,
                 mayHaveMoreMessagesAfter: true,
                 messages: [
-                    {id: 5},
-                    {id: 6},
-                    {id: 7},
-                    {id: 8},
-                    {id: 9},
-                    {id: 10},
-                    {id: 11},
-                    {id: 12},
-                    {id: 13},
+                    {index: 5},
+                    {index: 6},
+                    {index: 7},
+                    {index: 8},
+                    {index: 9},
+                    {index: 10},
+                    {index: 11},
+                    {index: 12},
+                    {index: 13},
                 ],
             })
             .getSegmentsForTest(),
     ).toEqual([
-        {isLoaded: false, estimatedMessageCount: 1},
+        {isLoaded: false, messageCount: 1},
         {
             isLoaded: true,
             messages: [
-                {id: 5},
-                {id: 6},
-                {id: 7},
-                {id: 8},
-                {id: 9},
-                {id: 10},
-                {id: 11},
-                {id: 12},
-                {id: 13},
+                {index: 5},
+                {index: 6},
+                {index: 7},
+                {index: 8},
+                {index: 9},
+                {index: 10},
+                {index: 11},
+                {index: 12},
+                {index: 13},
             ],
         },
-        {isLoaded: false, estimatedMessageCount: 7},
+        {isLoaded: false, messageCount: 7},
     ]);
 
     expect(
         PaginatedMessageList.newForTest([
-            {isLoaded: false, estimatedMessageCount: 10},
-            {isLoaded: true, messages: [{id: 8}, {id: 9}, {id: 10}]},
+            {isLoaded: false, messageCount: 10},
+            {isLoaded: true, messages: [{index: 8}, {index: 9}, {index: 10}]},
         ])
             .loadMessages({
-                afterMessageId: 4,
-                beforeMessageId: 14,
+                afterMessageIndex: 4,
+                beforeMessageIndex: 14,
                 mayHaveMoreMessagesBefore: true,
                 mayHaveMoreMessagesAfter: true,
                 messages: [
-                    {id: 5},
-                    {id: 6},
-                    {id: 7},
-                    {id: 8},
-                    {id: 9},
-                    {id: 10},
-                    {id: 11},
-                    {id: 12},
-                    {id: 13},
+                    {index: 5},
+                    {index: 6},
+                    {index: 7},
+                    {index: 8},
+                    {index: 9},
+                    {index: 10},
+                    {index: 11},
+                    {index: 12},
+                    {index: 13},
                 ],
             })
             .getSegmentsForTest(),
     ).toEqual([
-        {isLoaded: false, estimatedMessageCount: 7},
+        {isLoaded: false, messageCount: 7},
         {
             isLoaded: true,
             messages: [
-                {id: 5},
-                {id: 6},
-                {id: 7},
-                {id: 8},
-                {id: 9},
-                {id: 10},
-                {id: 11},
-                {id: 12},
-                {id: 13},
+                {index: 5},
+                {index: 6},
+                {index: 7},
+                {index: 8},
+                {index: 9},
+                {index: 10},
+                {index: 11},
+                {index: 12},
+                {index: 13},
             ],
         },
-        {isLoaded: false, estimatedMessageCount: 1},
+        {isLoaded: false, messageCount: 1},
     ]);
 
     expect(
-        PaginatedMessageList.newForTest([{isLoaded: true, messages: [{id: 8}, {id: 9}, {id: 10}]}])
+        PaginatedMessageList.newForTest([
+            {isLoaded: true, messages: [{index: 8}, {index: 9}, {index: 10}]},
+        ])
             .loadMessages({
-                afterMessageId: 4,
-                beforeMessageId: 14,
+                afterMessageIndex: 4,
+                beforeMessageIndex: 14,
                 mayHaveMoreMessagesBefore: true,
                 mayHaveMoreMessagesAfter: true,
                 messages: [
-                    {id: 5},
-                    {id: 6},
-                    {id: 7},
-                    {id: 8},
-                    {id: 9},
-                    {id: 10},
-                    {id: 11},
-                    {id: 12},
-                    {id: 13},
+                    {index: 5},
+                    {index: 6},
+                    {index: 7},
+                    {index: 8},
+                    {index: 9},
+                    {index: 10},
+                    {index: 11},
+                    {index: 12},
+                    {index: 13},
                 ],
             })
             .getSegmentsForTest(),
     ).toEqual([
-        {isLoaded: false, estimatedMessageCount: 1},
+        {isLoaded: false, messageCount: 1},
         {
             isLoaded: true,
             messages: [
-                {id: 5},
-                {id: 6},
-                {id: 7},
-                {id: 8},
-                {id: 9},
-                {id: 10},
-                {id: 11},
-                {id: 12},
-                {id: 13},
+                {index: 5},
+                {index: 6},
+                {index: 7},
+                {index: 8},
+                {index: 9},
+                {index: 10},
+                {index: 11},
+                {index: 12},
+                {index: 13},
             ],
         },
-        {isLoaded: false, estimatedMessageCount: 1},
+        {isLoaded: false, messageCount: 1},
     ]);
 });
 
 test("when merging will decrease next and last unloaded segment estimated message count in an unbalanced way", () => {
     expect(
         PaginatedMessageList.newForTest([
-            {isLoaded: false, estimatedMessageCount: 10},
-            {isLoaded: true, messages: [{id: 8}, {id: 9}, {id: 10}]},
-            {isLoaded: false, estimatedMessageCount: 10},
+            {isLoaded: false, messageCount: 10},
+            {isLoaded: true, messages: [{index: 8}, {index: 9}, {index: 10}]},
+            {isLoaded: false, messageCount: 10},
         ])
             .loadMessages({
-                afterMessageId: 6,
-                beforeMessageId: 14,
+                afterMessageIndex: 6,
+                beforeMessageIndex: 14,
                 mayHaveMoreMessagesBefore: true,
                 mayHaveMoreMessagesAfter: true,
-                messages: [{id: 7}, {id: 8}, {id: 9}, {id: 10}, {id: 11}, {id: 12}, {id: 13}],
+                messages: [
+                    {index: 7},
+                    {index: 8},
+                    {index: 9},
+                    {index: 10},
+                    {index: 11},
+                    {index: 12},
+                    {index: 13},
+                ],
             })
             .getSegmentsForTest(),
     ).toEqual([
-        {isLoaded: false, estimatedMessageCount: 9},
+        {isLoaded: false, messageCount: 9},
         {
             isLoaded: true,
-            messages: [{id: 7}, {id: 8}, {id: 9}, {id: 10}, {id: 11}, {id: 12}, {id: 13}],
+            messages: [
+                {index: 7},
+                {index: 8},
+                {index: 9},
+                {index: 10},
+                {index: 11},
+                {index: 12},
+                {index: 13},
+            ],
         },
-        {isLoaded: false, estimatedMessageCount: 7},
-    ]);
-
-    expect(
-        PaginatedMessageList.newForTest([{isLoaded: true, messages: [{id: 8}, {id: 9}, {id: 10}]}])
-            .loadMessages({
-                afterMessageId: 6,
-                beforeMessageId: 14,
-                mayHaveMoreMessagesBefore: true,
-                mayHaveMoreMessagesAfter: true,
-                messages: [{id: 7}, {id: 8}, {id: 9}, {id: 10}, {id: 11}, {id: 12}, {id: 13}],
-            })
-            .getSegmentsForTest(),
-    ).toEqual([
-        {isLoaded: false, estimatedMessageCount: 1},
-        {
-            isLoaded: true,
-            messages: [{id: 7}, {id: 8}, {id: 9}, {id: 10}, {id: 11}, {id: 12}, {id: 13}],
-        },
-        {isLoaded: false, estimatedMessageCount: 1},
+        {isLoaded: false, messageCount: 7},
     ]);
 
     expect(
         PaginatedMessageList.newForTest([
-            {isLoaded: true, messages: [{id: 8}, {id: 9}, {id: 10}]},
-            {isLoaded: false, estimatedMessageCount: 10},
+            {isLoaded: true, messages: [{index: 8}, {index: 9}, {index: 10}]},
         ])
             .loadMessages({
-                afterMessageId: 6,
-                beforeMessageId: 14,
+                afterMessageIndex: 6,
+                beforeMessageIndex: 14,
                 mayHaveMoreMessagesBefore: true,
                 mayHaveMoreMessagesAfter: true,
-                messages: [{id: 7}, {id: 8}, {id: 9}, {id: 10}, {id: 11}, {id: 12}, {id: 13}],
+                messages: [
+                    {index: 7},
+                    {index: 8},
+                    {index: 9},
+                    {index: 10},
+                    {index: 11},
+                    {index: 12},
+                    {index: 13},
+                ],
             })
             .getSegmentsForTest(),
     ).toEqual([
-        {isLoaded: false, estimatedMessageCount: 1},
+        {isLoaded: false, messageCount: 1},
         {
             isLoaded: true,
-            messages: [{id: 7}, {id: 8}, {id: 9}, {id: 10}, {id: 11}, {id: 12}, {id: 13}],
+            messages: [
+                {index: 7},
+                {index: 8},
+                {index: 9},
+                {index: 10},
+                {index: 11},
+                {index: 12},
+                {index: 13},
+            ],
         },
-        {isLoaded: false, estimatedMessageCount: 7},
+        {isLoaded: false, messageCount: 1},
     ]);
 
     expect(
         PaginatedMessageList.newForTest([
-            {isLoaded: false, estimatedMessageCount: 10},
-            {isLoaded: true, messages: [{id: 8}, {id: 9}, {id: 10}]},
+            {isLoaded: true, messages: [{index: 8}, {index: 9}, {index: 10}]},
+            {isLoaded: false, messageCount: 10},
         ])
             .loadMessages({
-                afterMessageId: 6,
-                beforeMessageId: 14,
+                afterMessageIndex: 6,
+                beforeMessageIndex: 14,
                 mayHaveMoreMessagesBefore: true,
                 mayHaveMoreMessagesAfter: true,
-                messages: [{id: 7}, {id: 8}, {id: 9}, {id: 10}, {id: 11}, {id: 12}, {id: 13}],
+                messages: [
+                    {index: 7},
+                    {index: 8},
+                    {index: 9},
+                    {index: 10},
+                    {index: 11},
+                    {index: 12},
+                    {index: 13},
+                ],
             })
             .getSegmentsForTest(),
     ).toEqual([
-        {isLoaded: false, estimatedMessageCount: 9},
+        {isLoaded: false, messageCount: 1},
         {
             isLoaded: true,
-            messages: [{id: 7}, {id: 8}, {id: 9}, {id: 10}, {id: 11}, {id: 12}, {id: 13}],
+            messages: [
+                {index: 7},
+                {index: 8},
+                {index: 9},
+                {index: 10},
+                {index: 11},
+                {index: 12},
+                {index: 13},
+            ],
         },
-        {isLoaded: false, estimatedMessageCount: 1},
+        {isLoaded: false, messageCount: 7},
     ]);
 
     expect(
         PaginatedMessageList.newForTest([
-            {isLoaded: false, estimatedMessageCount: 10},
-            {isLoaded: true, messages: [{id: 8}, {id: 9}, {id: 10}]},
-            {isLoaded: false, estimatedMessageCount: 10},
+            {isLoaded: false, messageCount: 10},
+            {isLoaded: true, messages: [{index: 8}, {index: 9}, {index: 10}]},
         ])
             .loadMessages({
-                afterMessageId: 4,
-                beforeMessageId: 12,
+                afterMessageIndex: 6,
+                beforeMessageIndex: 14,
                 mayHaveMoreMessagesBefore: true,
                 mayHaveMoreMessagesAfter: true,
-                messages: [{id: 5}, {id: 6}, {id: 7}, {id: 8}, {id: 9}, {id: 10}, {id: 11}],
+                messages: [
+                    {index: 7},
+                    {index: 8},
+                    {index: 9},
+                    {index: 10},
+                    {index: 11},
+                    {index: 12},
+                    {index: 13},
+                ],
             })
             .getSegmentsForTest(),
     ).toEqual([
-        {isLoaded: false, estimatedMessageCount: 7},
+        {isLoaded: false, messageCount: 9},
         {
             isLoaded: true,
-            messages: [{id: 5}, {id: 6}, {id: 7}, {id: 8}, {id: 9}, {id: 10}, {id: 11}],
+            messages: [
+                {index: 7},
+                {index: 8},
+                {index: 9},
+                {index: 10},
+                {index: 11},
+                {index: 12},
+                {index: 13},
+            ],
         },
-        {isLoaded: false, estimatedMessageCount: 9},
-    ]);
-
-    expect(
-        PaginatedMessageList.newForTest([{isLoaded: true, messages: [{id: 8}, {id: 9}, {id: 10}]}])
-            .loadMessages({
-                afterMessageId: 4,
-                beforeMessageId: 12,
-                mayHaveMoreMessagesBefore: true,
-                mayHaveMoreMessagesAfter: true,
-                messages: [{id: 5}, {id: 6}, {id: 7}, {id: 8}, {id: 9}, {id: 10}, {id: 11}],
-            })
-            .getSegmentsForTest(),
-    ).toEqual([
-        {isLoaded: false, estimatedMessageCount: 1},
-        {
-            isLoaded: true,
-            messages: [{id: 5}, {id: 6}, {id: 7}, {id: 8}, {id: 9}, {id: 10}, {id: 11}],
-        },
-        {isLoaded: false, estimatedMessageCount: 1},
+        {isLoaded: false, messageCount: 1},
     ]);
 
     expect(
         PaginatedMessageList.newForTest([
-            {isLoaded: true, messages: [{id: 8}, {id: 9}, {id: 10}]},
-            {isLoaded: false, estimatedMessageCount: 10},
+            {isLoaded: false, messageCount: 10},
+            {isLoaded: true, messages: [{index: 8}, {index: 9}, {index: 10}]},
+            {isLoaded: false, messageCount: 10},
         ])
             .loadMessages({
-                afterMessageId: 4,
-                beforeMessageId: 12,
+                afterMessageIndex: 4,
+                beforeMessageIndex: 12,
                 mayHaveMoreMessagesBefore: true,
                 mayHaveMoreMessagesAfter: true,
-                messages: [{id: 5}, {id: 6}, {id: 7}, {id: 8}, {id: 9}, {id: 10}, {id: 11}],
+                messages: [
+                    {index: 5},
+                    {index: 6},
+                    {index: 7},
+                    {index: 8},
+                    {index: 9},
+                    {index: 10},
+                    {index: 11},
+                ],
             })
             .getSegmentsForTest(),
     ).toEqual([
-        {isLoaded: false, estimatedMessageCount: 1},
+        {isLoaded: false, messageCount: 7},
         {
             isLoaded: true,
-            messages: [{id: 5}, {id: 6}, {id: 7}, {id: 8}, {id: 9}, {id: 10}, {id: 11}],
+            messages: [
+                {index: 5},
+                {index: 6},
+                {index: 7},
+                {index: 8},
+                {index: 9},
+                {index: 10},
+                {index: 11},
+            ],
         },
-        {isLoaded: false, estimatedMessageCount: 9},
+        {isLoaded: false, messageCount: 9},
     ]);
 
     expect(
         PaginatedMessageList.newForTest([
-            {isLoaded: false, estimatedMessageCount: 10},
-            {isLoaded: true, messages: [{id: 8}, {id: 9}, {id: 10}]},
+            {isLoaded: true, messages: [{index: 8}, {index: 9}, {index: 10}]},
         ])
             .loadMessages({
-                afterMessageId: 4,
-                beforeMessageId: 12,
+                afterMessageIndex: 4,
+                beforeMessageIndex: 12,
                 mayHaveMoreMessagesBefore: true,
                 mayHaveMoreMessagesAfter: true,
-                messages: [{id: 5}, {id: 6}, {id: 7}, {id: 8}, {id: 9}, {id: 10}, {id: 11}],
+                messages: [
+                    {index: 5},
+                    {index: 6},
+                    {index: 7},
+                    {index: 8},
+                    {index: 9},
+                    {index: 10},
+                    {index: 11},
+                ],
             })
             .getSegmentsForTest(),
     ).toEqual([
-        {isLoaded: false, estimatedMessageCount: 7},
+        {isLoaded: false, messageCount: 1},
         {
             isLoaded: true,
-            messages: [{id: 5}, {id: 6}, {id: 7}, {id: 8}, {id: 9}, {id: 10}, {id: 11}],
+            messages: [
+                {index: 5},
+                {index: 6},
+                {index: 7},
+                {index: 8},
+                {index: 9},
+                {index: 10},
+                {index: 11},
+            ],
         },
-        {isLoaded: false, estimatedMessageCount: 1},
+        {isLoaded: false, messageCount: 1},
+    ]);
+
+    expect(
+        PaginatedMessageList.newForTest([
+            {isLoaded: true, messages: [{index: 8}, {index: 9}, {index: 10}]},
+            {isLoaded: false, messageCount: 10},
+        ])
+            .loadMessages({
+                afterMessageIndex: 4,
+                beforeMessageIndex: 12,
+                mayHaveMoreMessagesBefore: true,
+                mayHaveMoreMessagesAfter: true,
+                messages: [
+                    {index: 5},
+                    {index: 6},
+                    {index: 7},
+                    {index: 8},
+                    {index: 9},
+                    {index: 10},
+                    {index: 11},
+                ],
+            })
+            .getSegmentsForTest(),
+    ).toEqual([
+        {isLoaded: false, messageCount: 1},
+        {
+            isLoaded: true,
+            messages: [
+                {index: 5},
+                {index: 6},
+                {index: 7},
+                {index: 8},
+                {index: 9},
+                {index: 10},
+                {index: 11},
+            ],
+        },
+        {isLoaded: false, messageCount: 9},
+    ]);
+
+    expect(
+        PaginatedMessageList.newForTest([
+            {isLoaded: false, messageCount: 10},
+            {isLoaded: true, messages: [{index: 8}, {index: 9}, {index: 10}]},
+        ])
+            .loadMessages({
+                afterMessageIndex: 4,
+                beforeMessageIndex: 12,
+                mayHaveMoreMessagesBefore: true,
+                mayHaveMoreMessagesAfter: true,
+                messages: [
+                    {index: 5},
+                    {index: 6},
+                    {index: 7},
+                    {index: 8},
+                    {index: 9},
+                    {index: 10},
+                    {index: 11},
+                ],
+            })
+            .getSegmentsForTest(),
+    ).toEqual([
+        {isLoaded: false, messageCount: 7},
+        {
+            isLoaded: true,
+            messages: [
+                {index: 5},
+                {index: 6},
+                {index: 7},
+                {index: 8},
+                {index: 9},
+                {index: 10},
+                {index: 11},
+            ],
+        },
+        {isLoaded: false, messageCount: 1},
     ]);
 });
 
 test("when merging will decrease estimated message count only by new messages", () => {
     expect(
         PaginatedMessageList.newForTest([
-            {isLoaded: true, messages: [{id: 8}, {id: 9}, {id: 10}]},
-            {isLoaded: false, estimatedMessageCount: 10},
+            {isLoaded: true, messages: [{index: 8}, {index: 9}, {index: 10}]},
+            {isLoaded: false, messageCount: 10},
         ])
             .loadMessages({
-                afterMessageId: 8,
-                beforeMessageId: 14,
+                afterMessageIndex: 8,
+                beforeMessageIndex: 14,
                 mayHaveMoreMessagesBefore: true,
                 mayHaveMoreMessagesAfter: true,
-                messages: [{id: 10}, {id: 12}, {id: 13}],
+                messages: [{index: 10}, {index: 12}, {index: 13}],
             })
             .getSegmentsForTest(),
     ).toEqual([
         {
             isLoaded: true,
-            messages: [{id: 8}, {id: 10}, {id: 12}, {id: 13}],
+            messages: [{index: 8}, {index: 10}, {index: 12}, {index: 13}],
         },
-        {isLoaded: false, estimatedMessageCount: 8},
+        {isLoaded: false, messageCount: 8},
     ]);
 
     expect(
         PaginatedMessageList.newForTest([
-            {isLoaded: false, estimatedMessageCount: 10},
-            {isLoaded: true, messages: [{id: 8}, {id: 9}, {id: 10}]},
+            {isLoaded: false, messageCount: 10},
+            {isLoaded: true, messages: [{index: 8}, {index: 9}, {index: 10}]},
         ])
             .loadMessages({
-                afterMessageId: 4,
-                beforeMessageId: 10,
+                afterMessageIndex: 4,
+                beforeMessageIndex: 10,
                 mayHaveMoreMessagesBefore: true,
                 mayHaveMoreMessagesAfter: true,
-                messages: [{id: 5}, {id: 6}, {id: 8}],
+                messages: [{index: 5}, {index: 6}, {index: 8}],
             })
             .getSegmentsForTest(),
     ).toEqual([
-        {isLoaded: false, estimatedMessageCount: 8},
+        {isLoaded: false, messageCount: 8},
         {
             isLoaded: true,
-            messages: [{id: 5}, {id: 6}, {id: 8}, {id: 10}],
+            messages: [{index: 5}, {index: 6}, {index: 8}, {index: 10}],
         },
     ]);
 });
@@ -1321,8 +1483,8 @@ test("can load nothing into an empty list", () => {
     expect(
         PaginatedMessageList.newForTest([])
             .loadMessages({
-                afterMessageId: 0,
-                beforeMessageId: Number.MAX_SAFE_INTEGER,
+                afterMessageIndex: 0,
+                beforeMessageIndex: Number.MAX_SAFE_INTEGER,
                 mayHaveMoreMessagesBefore: false,
                 mayHaveMoreMessagesAfter: false,
                 messages: [],
@@ -1337,23 +1499,23 @@ test("can load nothing into an empty list", () => {
 // that change.
 type TestSuite = {
     name: string;
-    loadFromStart: <Message extends {id: number}>(
+    loadFromStart: <Message extends {index: number}>(
         list: PaginatedMessageList<Message>,
         options: {
-            afterMessageId: number | null;
+            afterMessageIndex: number | null;
             hasMoreMessagesAfter: boolean;
             messages: ReadonlyArray<Message>;
         },
     ) => PaginatedMessageList<Message>;
-    loadFromEnd: <Message extends {id: number}>(
+    loadFromEnd: <Message extends {index: number}>(
         list: PaginatedMessageList<Message>,
         options: {
-            beforeMessageId: number | null;
+            beforeMessageIndex: number | null;
             hasMoreMessagesBefore: boolean;
             messages: ReadonlyArray<Message>;
         },
     ) => PaginatedMessageList<Message>;
-    getSegments: <Message extends {id: number}>(
+    getSegments: <Message extends {index: number}>(
         list: PaginatedMessageList<Message>,
     ) => ReadonlyArray<{
         messages: ReadonlyArray<Message>;
@@ -1365,23 +1527,23 @@ type TestSuite = {
 const loadFromStartTestSuite: TestSuite = {
     name: "loadFromStart",
     loadFromStart: (list, options) => {
-        const afterMessageId = options.afterMessageId ?? minMessageId - 1;
+        const afterMessageIndex = options.afterMessageIndex ?? minMessageIndex - 1;
         return list.loadMessages({
-            afterMessageId,
-            beforeMessageId:
-                (options.messages[options.messages.length - 1]?.id ?? afterMessageId) + 1,
-            mayHaveMoreMessagesBefore: options.afterMessageId !== null,
+            afterMessageIndex,
+            beforeMessageIndex:
+                (options.messages[options.messages.length - 1]?.index ?? afterMessageIndex) + 1,
+            mayHaveMoreMessagesBefore: options.afterMessageIndex !== null,
             mayHaveMoreMessagesAfter: options.hasMoreMessagesAfter,
             messages: options.messages,
         });
     },
     loadFromEnd: (list, options) => {
-        const beforeMessageId = options.beforeMessageId ?? maxMessageId + 1;
+        const beforeMessageIndex = options.beforeMessageIndex ?? maxMessageIndex + 1;
         return list.loadMessages({
-            afterMessageId: (options.messages[0]?.id ?? beforeMessageId) - 1,
-            beforeMessageId,
+            afterMessageIndex: (options.messages[0]?.index ?? beforeMessageIndex) - 1,
+            beforeMessageIndex,
             mayHaveMoreMessagesBefore: options.hasMoreMessagesBefore,
-            mayHaveMoreMessagesAfter: options.beforeMessageId !== null,
+            mayHaveMoreMessagesAfter: options.beforeMessageIndex !== null,
             messages: options.messages,
         });
     },
@@ -1390,7 +1552,6 @@ const loadFromStartTestSuite: TestSuite = {
         // `getIndexByMessageId()` to make sure they behave correctly.
         for (const {index, message} of list.iterateMessagesForTest()) {
             expect(list.getMessage(index)).toEqual({isLoaded: true, message});
-            expect(list.getIndexByMessageId(message.id)).toEqual(index);
         }
 
         const segments = list.getSegmentsForTest();
@@ -1413,20 +1574,20 @@ const testSuites: Array<TestSuite> = [
         name: "loadFromEnd",
         loadFromStart: (list, options) =>
             loadFromStartTestSuite.loadFromEnd(list, {
-                beforeMessageId:
-                    options.afterMessageId !== null ? 1000 - options.afterMessageId : null,
+                beforeMessageIndex:
+                    options.afterMessageIndex !== null ? 1000 - options.afterMessageIndex : null,
                 hasMoreMessagesBefore: options.hasMoreMessagesAfter,
                 messages: options.messages
-                    .map(message => ({...message, id: 1000 - message.id}))
+                    .map(message => ({...message, index: 1000 - message.index}))
                     .reverse(),
             }),
         loadFromEnd: (list, options) =>
             loadFromStartTestSuite.loadFromStart(list, {
-                afterMessageId:
-                    options.beforeMessageId !== null ? 1000 - options.beforeMessageId : null,
+                afterMessageIndex:
+                    options.beforeMessageIndex !== null ? 1000 - options.beforeMessageIndex : null,
                 hasMoreMessagesAfter: options.hasMoreMessagesBefore,
                 messages: options.messages
-                    .map(message => ({...message, id: 1000 - message.id}))
+                    .map(message => ({...message, index: 1000 - message.index}))
                     .reverse(),
             }),
         getSegments: list =>
@@ -1434,7 +1595,7 @@ const testSuites: Array<TestSuite> = [
                 .getSegments(list)
                 .map(segment => ({
                     messages: segment.messages
-                        .map(message => ({...message, id: 1000 - message.id}))
+                        .map(message => ({...message, index: 1000 - message.index}))
                         .reverse(),
                     mayHaveMoreMessagesAfter: segment.mayHaveMoreMessagesBefore,
                     mayHaveMoreMessagesBefore: segment.mayHaveMoreMessagesAfter,
@@ -1456,9 +1617,9 @@ for (const {name, loadFromStart, loadFromEnd, getSegments} of testSuites) {
 
             expect(() =>
                 loadFromStart(list, {
-                    afterMessageId: null,
+                    afterMessageIndex: null,
                     hasMoreMessagesAfter: true,
-                    messages: [{id: 1}, {id: 3}, {id: 2}],
+                    messages: [{index: 0}, {index: 2}, {index: 1}],
                 }),
             ).toThrow(InternalError);
         });
@@ -1468,25 +1629,25 @@ for (const {name, loadFromStart, loadFromEnd, getSegments} of testSuites) {
 
             expect(() =>
                 loadFromStart(list, {
-                    afterMessageId: 2,
+                    afterMessageIndex: 2,
                     hasMoreMessagesAfter: true,
-                    messages: [{id: 2}, {id: 3}, {id: 4}],
+                    messages: [{index: 2}, {index: 3}, {index: 4}],
                 }),
             ).toThrow(InternalError);
 
             expect(() =>
                 loadFromStart(list, {
-                    afterMessageId: 3,
+                    afterMessageIndex: 3,
                     hasMoreMessagesAfter: true,
-                    messages: [{id: 2}, {id: 3}, {id: 4}],
+                    messages: [{index: 2}, {index: 3}, {index: 4}],
                 }),
             ).toThrow(InternalError);
 
             expect(() =>
                 loadFromStart(list, {
-                    afterMessageId: 5,
+                    afterMessageIndex: 5,
                     hasMoreMessagesAfter: true,
-                    messages: [{id: 2}, {id: 3}, {id: 4}],
+                    messages: [{index: 2}, {index: 3}, {index: 4}],
                 }),
             ).toThrow(InternalError);
         });
@@ -1495,50 +1656,57 @@ for (const {name, loadFromStart, loadFromEnd, getSegments} of testSuites) {
             let list = PaginatedMessageList.new(8);
 
             list = loadFromStart(list, {
-                afterMessageId: null,
+                afterMessageIndex: null,
                 hasMoreMessagesAfter: true,
-                messages: [{id: 1}, {id: 2}, {id: 3}],
+                messages: [{index: 0}, {index: 1}, {index: 2}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 1}, {id: 2}, {id: 3}],
+                    messages: [{index: 0}, {index: 1}, {index: 2}],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: true,
                 },
             ]);
 
             list = loadFromStart(list, {
-                afterMessageId: 3,
+                afterMessageIndex: 2,
                 hasMoreMessagesAfter: true,
-                messages: [{id: 4}, {id: 5}, {id: 6}],
-            });
-
-            expect(getSegments(list)).toEqual([
-                {
-                    messages: [{id: 1}, {id: 2}, {id: 3}, {id: 4}, {id: 5}, {id: 6}],
-                    mayHaveMoreMessagesBefore: false,
-                    mayHaveMoreMessagesAfter: true,
-                },
-            ]);
-
-            list = loadFromStart(list, {
-                afterMessageId: 6,
-                hasMoreMessagesAfter: false,
-                messages: [{id: 7}, {id: 8}],
+                messages: [{index: 3}, {index: 4}, {index: 5}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
                     messages: [
-                        {id: 1},
-                        {id: 2},
-                        {id: 3},
-                        {id: 4},
-                        {id: 5},
-                        {id: 6},
-                        {id: 7},
-                        {id: 8},
+                        {index: 0},
+                        {index: 1},
+                        {index: 2},
+                        {index: 3},
+                        {index: 4},
+                        {index: 5},
+                    ],
+                    mayHaveMoreMessagesBefore: false,
+                    mayHaveMoreMessagesAfter: true,
+                },
+            ]);
+
+            list = loadFromStart(list, {
+                afterMessageIndex: 5,
+                hasMoreMessagesAfter: false,
+                messages: [{index: 6}, {index: 7}],
+            });
+
+            expect(getSegments(list)).toEqual([
+                {
+                    messages: [
+                        {index: 0},
+                        {index: 1},
+                        {index: 2},
+                        {index: 3},
+                        {index: 4},
+                        {index: 5},
+                        {index: 6},
+                        {index: 7},
                     ],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: false,
@@ -1550,42 +1718,56 @@ for (const {name, loadFromStart, loadFromEnd, getSegments} of testSuites) {
             let list = PaginatedMessageList.new(8);
 
             list = loadFromStart(list, {
-                afterMessageId: null,
+                afterMessageIndex: null,
                 hasMoreMessagesAfter: true,
-                messages: [{id: 1}, {id: 2}, {id: 3}],
+                messages: [{index: 0}, {index: 1}, {index: 2}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 1}, {id: 2}, {id: 3}],
+                    messages: [{index: 0}, {index: 1}, {index: 2}],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: true,
                 },
             ]);
 
             list = loadFromStart(list, {
-                afterMessageId: 3,
+                afterMessageIndex: 2,
                 hasMoreMessagesAfter: true,
-                messages: [{id: 4}, {id: 5}, {id: 6}],
+                messages: [{index: 3}, {index: 4}, {index: 5}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 1}, {id: 2}, {id: 3}, {id: 4}, {id: 5}, {id: 6}],
+                    messages: [
+                        {index: 0},
+                        {index: 1},
+                        {index: 2},
+                        {index: 3},
+                        {index: 4},
+                        {index: 5},
+                    ],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: true,
                 },
             ]);
 
             list = loadFromStart(list, {
-                afterMessageId: 6,
+                afterMessageIndex: 5,
                 hasMoreMessagesAfter: false,
                 messages: [],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 1}, {id: 2}, {id: 3}, {id: 4}, {id: 5}, {id: 6}],
+                    messages: [
+                        {index: 0},
+                        {index: 1},
+                        {index: 2},
+                        {index: 3},
+                        {index: 4},
+                        {index: 5},
+                    ],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: false,
                 },
@@ -1593,24 +1775,24 @@ for (const {name, loadFromStart, loadFromEnd, getSegments} of testSuites) {
         });
 
         test("can load and replace existing messages", () => {
-            let list = PaginatedMessageList.new<{id: number; test: number}>(8);
+            let list = PaginatedMessageList.new<{index: number; test: number}>(8);
 
             list = loadFromStart(list, {
-                afterMessageId: null,
+                afterMessageIndex: null,
                 hasMoreMessagesAfter: true,
                 messages: [
-                    {id: 1, test: 1},
-                    {id: 2, test: 1},
-                    {id: 3, test: 1},
+                    {index: 0, test: 1},
+                    {index: 1, test: 1},
+                    {index: 2, test: 1},
                 ],
             });
 
             expect(getSegments(list)).toEqual([
                 {
                     messages: [
-                        {id: 1, test: 1},
-                        {id: 2, test: 1},
-                        {id: 3, test: 1},
+                        {index: 0, test: 1},
+                        {index: 1, test: 1},
+                        {index: 2, test: 1},
                     ],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: true,
@@ -1618,24 +1800,24 @@ for (const {name, loadFromStart, loadFromEnd, getSegments} of testSuites) {
             ]);
 
             list = loadFromStart(list, {
-                afterMessageId: 3,
+                afterMessageIndex: 2,
                 hasMoreMessagesAfter: true,
                 messages: [
-                    {id: 4, test: 1},
-                    {id: 5, test: 1},
-                    {id: 6, test: 1},
+                    {index: 3, test: 1},
+                    {index: 4, test: 1},
+                    {index: 5, test: 1},
                 ],
             });
 
             expect(getSegments(list)).toEqual([
                 {
                     messages: [
-                        {id: 1, test: 1},
-                        {id: 2, test: 1},
-                        {id: 3, test: 1},
-                        {id: 4, test: 1},
-                        {id: 5, test: 1},
-                        {id: 6, test: 1},
+                        {index: 0, test: 1},
+                        {index: 1, test: 1},
+                        {index: 2, test: 1},
+                        {index: 3, test: 1},
+                        {index: 4, test: 1},
+                        {index: 5, test: 1},
                     ],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: true,
@@ -1643,24 +1825,24 @@ for (const {name, loadFromStart, loadFromEnd, getSegments} of testSuites) {
             ]);
 
             list = loadFromStart(list, {
-                afterMessageId: 3,
+                afterMessageIndex: 2,
                 hasMoreMessagesAfter: true,
                 messages: [
-                    {id: 4, test: 2},
-                    {id: 5, test: 2},
-                    {id: 6, test: 2},
+                    {index: 3, test: 2},
+                    {index: 4, test: 2},
+                    {index: 5, test: 2},
                 ],
             });
 
             expect(getSegments(list)).toEqual([
                 {
                     messages: [
-                        {id: 1, test: 1},
-                        {id: 2, test: 1},
-                        {id: 3, test: 1},
-                        {id: 4, test: 2},
-                        {id: 5, test: 2},
-                        {id: 6, test: 2},
+                        {index: 0, test: 1},
+                        {index: 1, test: 1},
+                        {index: 2, test: 1},
+                        {index: 3, test: 2},
+                        {index: 4, test: 2},
+                        {index: 5, test: 2},
                     ],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: true,
@@ -1669,24 +1851,24 @@ for (const {name, loadFromStart, loadFromEnd, getSegments} of testSuites) {
         });
 
         test("can load and delete existing messages at start", () => {
-            let list = PaginatedMessageList.new<{id: number; test: number}>(8);
+            let list = PaginatedMessageList.new<{index: number; test: number}>(8);
 
             list = loadFromStart(list, {
-                afterMessageId: null,
+                afterMessageIndex: null,
                 hasMoreMessagesAfter: true,
                 messages: [
-                    {id: 1, test: 1},
-                    {id: 2, test: 1},
-                    {id: 3, test: 1},
+                    {index: 0, test: 1},
+                    {index: 1, test: 1},
+                    {index: 2, test: 1},
                 ],
             });
 
             expect(getSegments(list)).toEqual([
                 {
                     messages: [
-                        {id: 1, test: 1},
-                        {id: 2, test: 1},
-                        {id: 3, test: 1},
+                        {index: 0, test: 1},
+                        {index: 1, test: 1},
+                        {index: 2, test: 1},
                     ],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: true,
@@ -1694,24 +1876,24 @@ for (const {name, loadFromStart, loadFromEnd, getSegments} of testSuites) {
             ]);
 
             list = loadFromStart(list, {
-                afterMessageId: 3,
+                afterMessageIndex: 2,
                 hasMoreMessagesAfter: true,
                 messages: [
-                    {id: 4, test: 1},
-                    {id: 5, test: 1},
-                    {id: 6, test: 1},
+                    {index: 3, test: 1},
+                    {index: 4, test: 1},
+                    {index: 5, test: 1},
                 ],
             });
 
             expect(getSegments(list)).toEqual([
                 {
                     messages: [
-                        {id: 1, test: 1},
-                        {id: 2, test: 1},
-                        {id: 3, test: 1},
-                        {id: 4, test: 1},
-                        {id: 5, test: 1},
-                        {id: 6, test: 1},
+                        {index: 0, test: 1},
+                        {index: 1, test: 1},
+                        {index: 2, test: 1},
+                        {index: 3, test: 1},
+                        {index: 4, test: 1},
+                        {index: 5, test: 1},
                     ],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: true,
@@ -1719,22 +1901,22 @@ for (const {name, loadFromStart, loadFromEnd, getSegments} of testSuites) {
             ]);
 
             list = loadFromStart(list, {
-                afterMessageId: 3,
+                afterMessageIndex: 2,
                 hasMoreMessagesAfter: true,
                 messages: [
-                    {id: 5, test: 2},
-                    {id: 6, test: 2},
+                    {index: 3, test: 2},
+                    {index: 5, test: 2},
                 ],
             });
 
             expect(getSegments(list)).toEqual([
                 {
                     messages: [
-                        {id: 1, test: 1},
-                        {id: 2, test: 1},
-                        {id: 3, test: 1},
-                        {id: 5, test: 2},
-                        {id: 6, test: 2},
+                        {index: 0, test: 1},
+                        {index: 1, test: 1},
+                        {index: 2, test: 1},
+                        {index: 3, test: 2},
+                        {index: 5, test: 2},
                     ],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: true,
@@ -1743,24 +1925,24 @@ for (const {name, loadFromStart, loadFromEnd, getSegments} of testSuites) {
         });
 
         test("can load and delete existing messages at middle", () => {
-            let list = PaginatedMessageList.new<{id: number; test: number}>(8);
+            let list = PaginatedMessageList.new<{index: number; test: number}>(8);
 
             list = loadFromStart(list, {
-                afterMessageId: null,
+                afterMessageIndex: null,
                 hasMoreMessagesAfter: true,
                 messages: [
-                    {id: 1, test: 1},
-                    {id: 2, test: 1},
-                    {id: 3, test: 1},
+                    {index: 0, test: 1},
+                    {index: 1, test: 1},
+                    {index: 2, test: 1},
                 ],
             });
 
             expect(getSegments(list)).toEqual([
                 {
                     messages: [
-                        {id: 1, test: 1},
-                        {id: 2, test: 1},
-                        {id: 3, test: 1},
+                        {index: 0, test: 1},
+                        {index: 1, test: 1},
+                        {index: 2, test: 1},
                     ],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: true,
@@ -1768,24 +1950,24 @@ for (const {name, loadFromStart, loadFromEnd, getSegments} of testSuites) {
             ]);
 
             list = loadFromStart(list, {
-                afterMessageId: 3,
+                afterMessageIndex: 2,
                 hasMoreMessagesAfter: true,
                 messages: [
-                    {id: 4, test: 1},
-                    {id: 5, test: 1},
-                    {id: 6, test: 1},
+                    {index: 3, test: 1},
+                    {index: 4, test: 1},
+                    {index: 5, test: 1},
                 ],
             });
 
             expect(getSegments(list)).toEqual([
                 {
                     messages: [
-                        {id: 1, test: 1},
-                        {id: 2, test: 1},
-                        {id: 3, test: 1},
-                        {id: 4, test: 1},
-                        {id: 5, test: 1},
-                        {id: 6, test: 1},
+                        {index: 0, test: 1},
+                        {index: 1, test: 1},
+                        {index: 2, test: 1},
+                        {index: 3, test: 1},
+                        {index: 4, test: 1},
+                        {index: 5, test: 1},
                     ],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: true,
@@ -1793,22 +1975,22 @@ for (const {name, loadFromStart, loadFromEnd, getSegments} of testSuites) {
             ]);
 
             list = loadFromStart(list, {
-                afterMessageId: 3,
+                afterMessageIndex: 2,
                 hasMoreMessagesAfter: true,
                 messages: [
-                    {id: 4, test: 2},
-                    {id: 6, test: 2},
+                    {index: 3, test: 2},
+                    {index: 5, test: 2},
                 ],
             });
 
             expect(getSegments(list)).toEqual([
                 {
                     messages: [
-                        {id: 1, test: 1},
-                        {id: 2, test: 1},
-                        {id: 3, test: 1},
-                        {id: 4, test: 2},
-                        {id: 6, test: 2},
+                        {index: 0, test: 1},
+                        {index: 1, test: 1},
+                        {index: 2, test: 1},
+                        {index: 3, test: 2},
+                        {index: 5, test: 2},
                     ],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: true,
@@ -1817,24 +1999,24 @@ for (const {name, loadFromStart, loadFromEnd, getSegments} of testSuites) {
         });
 
         test("can load and not delete existing messages at end", () => {
-            let list = PaginatedMessageList.new<{id: number; test: number}>(8);
+            let list = PaginatedMessageList.new<{index: number; test: number}>(8);
 
             list = loadFromStart(list, {
-                afterMessageId: null,
+                afterMessageIndex: null,
                 hasMoreMessagesAfter: true,
                 messages: [
-                    {id: 1, test: 1},
-                    {id: 2, test: 1},
-                    {id: 3, test: 1},
+                    {index: 0, test: 1},
+                    {index: 1, test: 1},
+                    {index: 2, test: 1},
                 ],
             });
 
             expect(getSegments(list)).toEqual([
                 {
                     messages: [
-                        {id: 1, test: 1},
-                        {id: 2, test: 1},
-                        {id: 3, test: 1},
+                        {index: 0, test: 1},
+                        {index: 1, test: 1},
+                        {index: 2, test: 1},
                     ],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: true,
@@ -1842,24 +2024,24 @@ for (const {name, loadFromStart, loadFromEnd, getSegments} of testSuites) {
             ]);
 
             list = loadFromStart(list, {
-                afterMessageId: 3,
+                afterMessageIndex: 2,
                 hasMoreMessagesAfter: true,
                 messages: [
-                    {id: 4, test: 1},
-                    {id: 5, test: 1},
-                    {id: 6, test: 1},
+                    {index: 3, test: 1},
+                    {index: 4, test: 1},
+                    {index: 5, test: 1},
                 ],
             });
 
             expect(getSegments(list)).toEqual([
                 {
                     messages: [
-                        {id: 1, test: 1},
-                        {id: 2, test: 1},
-                        {id: 3, test: 1},
-                        {id: 4, test: 1},
-                        {id: 5, test: 1},
-                        {id: 6, test: 1},
+                        {index: 0, test: 1},
+                        {index: 1, test: 1},
+                        {index: 2, test: 1},
+                        {index: 3, test: 1},
+                        {index: 4, test: 1},
+                        {index: 5, test: 1},
                     ],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: true,
@@ -1867,23 +2049,23 @@ for (const {name, loadFromStart, loadFromEnd, getSegments} of testSuites) {
             ]);
 
             list = loadFromStart(list, {
-                afterMessageId: 3,
+                afterMessageIndex: 2,
                 hasMoreMessagesAfter: true,
                 messages: [
-                    {id: 4, test: 2},
-                    {id: 5, test: 2},
+                    {index: 3, test: 2},
+                    {index: 4, test: 2},
                 ],
             });
 
             expect(getSegments(list)).toEqual([
                 {
                     messages: [
-                        {id: 1, test: 1},
-                        {id: 2, test: 1},
-                        {id: 3, test: 1},
-                        {id: 4, test: 2},
-                        {id: 5, test: 2},
-                        {id: 6, test: 1},
+                        {index: 0, test: 1},
+                        {index: 1, test: 1},
+                        {index: 2, test: 1},
+                        {index: 3, test: 2},
+                        {index: 4, test: 2},
+                        {index: 5, test: 1},
                     ],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: true,
@@ -1895,42 +2077,56 @@ for (const {name, loadFromStart, loadFromEnd, getSegments} of testSuites) {
             let list = PaginatedMessageList.new(8);
 
             list = loadFromStart(list, {
-                afterMessageId: null,
+                afterMessageIndex: null,
                 hasMoreMessagesAfter: true,
-                messages: [{id: 1}, {id: 2}, {id: 3}],
+                messages: [{index: 0}, {index: 1}, {index: 2}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 1}, {id: 2}, {id: 3}],
+                    messages: [{index: 0}, {index: 1}, {index: 2}],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: true,
                 },
             ]);
 
             list = loadFromStart(list, {
-                afterMessageId: 3,
+                afterMessageIndex: 2,
                 hasMoreMessagesAfter: false,
-                messages: [{id: 4}, {id: 5}, {id: 6}],
+                messages: [{index: 3}, {index: 4}, {index: 5}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 1}, {id: 2}, {id: 3}, {id: 4}, {id: 5}, {id: 6}],
+                    messages: [
+                        {index: 0},
+                        {index: 1},
+                        {index: 2},
+                        {index: 3},
+                        {index: 4},
+                        {index: 5},
+                    ],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: false,
                 },
             ]);
 
             list = loadFromStart(list, {
-                afterMessageId: 3,
+                afterMessageIndex: 2,
                 hasMoreMessagesAfter: true,
-                messages: [{id: 4}, {id: 5}],
+                messages: [{index: 3}, {index: 4}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 1}, {id: 2}, {id: 3}, {id: 4}, {id: 5}, {id: 6}],
+                    messages: [
+                        {index: 0},
+                        {index: 1},
+                        {index: 2},
+                        {index: 3},
+                        {index: 4},
+                        {index: 5},
+                    ],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: false,
                 },
@@ -1941,50 +2137,57 @@ for (const {name, loadFromStart, loadFromEnd, getSegments} of testSuites) {
             let list = PaginatedMessageList.new(18);
 
             list = loadFromStart(list, {
-                afterMessageId: 10,
+                afterMessageIndex: 10,
                 hasMoreMessagesAfter: true,
-                messages: [{id: 11}, {id: 12}, {id: 13}],
+                messages: [{index: 11}, {index: 12}, {index: 13}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 11}, {id: 12}, {id: 13}],
+                    messages: [{index: 11}, {index: 12}, {index: 13}],
                     mayHaveMoreMessagesBefore: true,
                     mayHaveMoreMessagesAfter: true,
                 },
             ]);
 
             list = loadFromStart(list, {
-                afterMessageId: 13,
+                afterMessageIndex: 13,
                 hasMoreMessagesAfter: true,
-                messages: [{id: 14}, {id: 15}, {id: 16}],
-            });
-
-            expect(getSegments(list)).toEqual([
-                {
-                    messages: [{id: 11}, {id: 12}, {id: 13}, {id: 14}, {id: 15}, {id: 16}],
-                    mayHaveMoreMessagesBefore: true,
-                    mayHaveMoreMessagesAfter: true,
-                },
-            ]);
-
-            list = loadFromStart(list, {
-                afterMessageId: 16,
-                hasMoreMessagesAfter: false,
-                messages: [{id: 17}, {id: 18}],
+                messages: [{index: 14}, {index: 15}, {index: 16}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
                     messages: [
-                        {id: 11},
-                        {id: 12},
-                        {id: 13},
-                        {id: 14},
-                        {id: 15},
-                        {id: 16},
-                        {id: 17},
-                        {id: 18},
+                        {index: 11},
+                        {index: 12},
+                        {index: 13},
+                        {index: 14},
+                        {index: 15},
+                        {index: 16},
+                    ],
+                    mayHaveMoreMessagesBefore: true,
+                    mayHaveMoreMessagesAfter: true,
+                },
+            ]);
+
+            list = loadFromStart(list, {
+                afterMessageIndex: 16,
+                hasMoreMessagesAfter: false,
+                messages: [{index: 17}, {index: 18}],
+            });
+
+            expect(getSegments(list)).toEqual([
+                {
+                    messages: [
+                        {index: 11},
+                        {index: 12},
+                        {index: 13},
+                        {index: 14},
+                        {index: 15},
+                        {index: 16},
+                        {index: 17},
+                        {index: 18},
                     ],
                     mayHaveMoreMessagesBefore: true,
                     mayHaveMoreMessagesAfter: false,
@@ -1996,50 +2199,34 @@ for (const {name, loadFromStart, loadFromEnd, getSegments} of testSuites) {
             let list = PaginatedMessageList.new(16);
 
             list = loadFromStart(list, {
-                afterMessageId: 10,
+                afterMessageIndex: 10,
                 hasMoreMessagesAfter: true,
-                messages: [{id: 11}, {id: 12}, {id: 13}],
+                messages: [{index: 11}, {index: 12}, {index: 13}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 11}, {id: 12}, {id: 13}],
+                    messages: [{index: 11}, {index: 12}, {index: 13}],
                     mayHaveMoreMessagesBefore: true,
                     mayHaveMoreMessagesAfter: true,
                 },
             ]);
 
             list = loadFromStart(list, {
-                afterMessageId: 13,
+                afterMessageIndex: 13,
                 hasMoreMessagesAfter: false,
-                messages: [{id: 14}, {id: 15}, {id: 16}],
-            });
-
-            expect(getSegments(list)).toEqual([
-                {
-                    messages: [{id: 11}, {id: 12}, {id: 13}, {id: 14}, {id: 15}, {id: 16}],
-                    mayHaveMoreMessagesBefore: true,
-                    mayHaveMoreMessagesAfter: false,
-                },
-            ]);
-
-            list = loadFromStart(list, {
-                afterMessageId: 8,
-                hasMoreMessagesAfter: true,
-                messages: [{id: 9}, {id: 10}, {id: 11}, {id: 12}],
+                messages: [{index: 14}, {index: 15}, {index: 16}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
                     messages: [
-                        {id: 9},
-                        {id: 10},
-                        {id: 11},
-                        {id: 12},
-                        {id: 13},
-                        {id: 14},
-                        {id: 15},
-                        {id: 16},
+                        {index: 11},
+                        {index: 12},
+                        {index: 13},
+                        {index: 14},
+                        {index: 15},
+                        {index: 16},
                     ],
                     mayHaveMoreMessagesBefore: true,
                     mayHaveMoreMessagesAfter: false,
@@ -2047,25 +2234,48 @@ for (const {name, loadFromStart, loadFromEnd, getSegments} of testSuites) {
             ]);
 
             list = loadFromStart(list, {
-                afterMessageId: null,
+                afterMessageIndex: 8,
                 hasMoreMessagesAfter: true,
-                messages: [{id: 1}, {id: 2}, {id: 3}, {id: 9}],
+                messages: [{index: 9}, {index: 10}, {index: 11}, {index: 12}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
                     messages: [
-                        {id: 1},
-                        {id: 2},
-                        {id: 3},
-                        {id: 9},
-                        {id: 10},
-                        {id: 11},
-                        {id: 12},
-                        {id: 13},
-                        {id: 14},
-                        {id: 15},
-                        {id: 16},
+                        {index: 9},
+                        {index: 10},
+                        {index: 11},
+                        {index: 12},
+                        {index: 13},
+                        {index: 14},
+                        {index: 15},
+                        {index: 16},
+                    ],
+                    mayHaveMoreMessagesBefore: true,
+                    mayHaveMoreMessagesAfter: false,
+                },
+            ]);
+
+            list = loadFromStart(list, {
+                afterMessageIndex: null,
+                hasMoreMessagesAfter: true,
+                messages: [{index: 0}, {index: 1}, {index: 2}, {index: 9}],
+            });
+
+            expect(getSegments(list)).toEqual([
+                {
+                    messages: [
+                        {index: 0},
+                        {index: 1},
+                        {index: 2},
+                        {index: 9},
+                        {index: 10},
+                        {index: 11},
+                        {index: 12},
+                        {index: 13},
+                        {index: 14},
+                        {index: 15},
+                        {index: 16},
                     ],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: false,
@@ -2077,61 +2287,61 @@ for (const {name, loadFromStart, loadFromEnd, getSegments} of testSuites) {
             let list = PaginatedMessageList.new(40);
 
             list = loadFromStart(list, {
-                afterMessageId: 30,
+                afterMessageIndex: 30,
                 hasMoreMessagesAfter: true,
-                messages: [{id: 31}, {id: 32}, {id: 33}],
+                messages: [{index: 31}, {index: 32}, {index: 33}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 31}, {id: 32}, {id: 33}],
+                    messages: [{index: 31}, {index: 32}, {index: 33}],
                     mayHaveMoreMessagesBefore: true,
                     mayHaveMoreMessagesAfter: true,
                 },
             ]);
 
             list = loadFromStart(list, {
-                afterMessageId: 20,
+                afterMessageIndex: 20,
                 hasMoreMessagesAfter: false,
-                messages: [{id: 21}, {id: 22}, {id: 23}],
+                messages: [{index: 21}, {index: 22}, {index: 23}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 21}, {id: 22}, {id: 23}],
+                    messages: [{index: 21}, {index: 22}, {index: 23}],
                     mayHaveMoreMessagesBefore: true,
                     mayHaveMoreMessagesAfter: false,
                 },
             ]);
 
             list = loadFromStart(list, {
-                afterMessageId: 10,
+                afterMessageIndex: 10,
                 hasMoreMessagesAfter: true,
-                messages: [{id: 11}, {id: 12}, {id: 13}],
+                messages: [{index: 11}, {index: 12}, {index: 13}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 11}, {id: 12}, {id: 13}],
+                    messages: [{index: 11}, {index: 12}, {index: 13}],
                     mayHaveMoreMessagesBefore: true,
                     mayHaveMoreMessagesAfter: true,
                 },
                 {
-                    messages: [{id: 21}, {id: 22}, {id: 23}],
+                    messages: [{index: 21}, {index: 22}, {index: 23}],
                     mayHaveMoreMessagesBefore: true,
                     mayHaveMoreMessagesAfter: false,
                 },
             ]);
 
             list = loadFromStart(list, {
-                afterMessageId: null,
+                afterMessageIndex: null,
                 hasMoreMessagesAfter: false,
-                messages: [{id: 1}, {id: 2}, {id: 3}],
+                messages: [{index: 0}, {index: 1}, {index: 2}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 1}, {id: 2}, {id: 3}],
+                    messages: [{index: 0}, {index: 1}, {index: 2}],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: false,
                 },
@@ -2142,47 +2352,47 @@ for (const {name, loadFromStart, loadFromEnd, getSegments} of testSuites) {
             let list = PaginatedMessageList.new(30);
 
             list = loadFromStart(list, {
-                afterMessageId: 10,
+                afterMessageIndex: 10,
                 hasMoreMessagesAfter: true,
-                messages: [{id: 11}, {id: 12}, {id: 13}],
+                messages: [{index: 11}, {index: 12}, {index: 13}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 11}, {id: 12}, {id: 13}],
+                    messages: [{index: 11}, {index: 12}, {index: 13}],
                     mayHaveMoreMessagesBefore: true,
                     mayHaveMoreMessagesAfter: true,
                 },
             ]);
 
             list = loadFromStart(list, {
-                afterMessageId: 20,
+                afterMessageIndex: 20,
                 hasMoreMessagesAfter: true,
-                messages: [{id: 21}, {id: 22}, {id: 23}],
+                messages: [{index: 21}, {index: 22}, {index: 23}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 11}, {id: 12}, {id: 13}],
+                    messages: [{index: 11}, {index: 12}, {index: 13}],
                     mayHaveMoreMessagesBefore: true,
                     mayHaveMoreMessagesAfter: true,
                 },
                 {
-                    messages: [{id: 21}, {id: 22}, {id: 23}],
+                    messages: [{index: 21}, {index: 22}, {index: 23}],
                     mayHaveMoreMessagesBefore: true,
                     mayHaveMoreMessagesAfter: true,
                 },
             ]);
 
             list = loadFromStart(list, {
-                afterMessageId: 11,
+                afterMessageIndex: 11,
                 hasMoreMessagesAfter: false,
-                messages: [{id: 12}],
+                messages: [{index: 12}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 11}, {id: 12}],
+                    messages: [{index: 11}, {index: 12}],
                     mayHaveMoreMessagesBefore: true,
                     mayHaveMoreMessagesAfter: false,
                 },
@@ -2193,33 +2403,33 @@ for (const {name, loadFromStart, loadFromEnd, getSegments} of testSuites) {
             let list = PaginatedMessageList.new(9);
 
             list = loadFromStart(list, {
-                afterMessageId: null,
+                afterMessageIndex: null,
                 hasMoreMessagesAfter: true,
-                messages: [{id: 1}, {id: 2}, {id: 3}],
+                messages: [{index: 0}, {index: 1}, {index: 2}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 1}, {id: 2}, {id: 3}],
+                    messages: [{index: 0}, {index: 1}, {index: 2}],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: true,
                 },
             ]);
 
             list = loadFromStart(list, {
-                afterMessageId: 6,
+                afterMessageIndex: 5,
                 hasMoreMessagesAfter: false,
-                messages: [{id: 7}, {id: 8}, {id: 9}],
+                messages: [{index: 6}, {index: 7}, {index: 8}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 1}, {id: 2}, {id: 3}],
+                    messages: [{index: 0}, {index: 1}, {index: 2}],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: true,
                 },
                 {
-                    messages: [{id: 7}, {id: 8}, {id: 9}],
+                    messages: [{index: 6}, {index: 7}, {index: 8}],
                     mayHaveMoreMessagesBefore: true,
                     mayHaveMoreMessagesAfter: false,
                 },
@@ -2230,56 +2440,56 @@ for (const {name, loadFromStart, loadFromEnd, getSegments} of testSuites) {
             let list = PaginatedMessageList.new(9);
 
             list = loadFromStart(list, {
-                afterMessageId: null,
+                afterMessageIndex: null,
                 hasMoreMessagesAfter: true,
-                messages: [{id: 1}, {id: 2}, {id: 3}],
+                messages: [{index: 0}, {index: 1}, {index: 2}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 1}, {id: 2}, {id: 3}],
+                    messages: [{index: 0}, {index: 1}, {index: 2}],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: true,
                 },
             ]);
 
             list = loadFromStart(list, {
-                afterMessageId: 6,
+                afterMessageIndex: 5,
                 hasMoreMessagesAfter: false,
-                messages: [{id: 7}, {id: 8}, {id: 9}],
+                messages: [{index: 6}, {index: 7}, {index: 8}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 1}, {id: 2}, {id: 3}],
+                    messages: [{index: 0}, {index: 1}, {index: 2}],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: true,
                 },
                 {
-                    messages: [{id: 7}, {id: 8}, {id: 9}],
+                    messages: [{index: 6}, {index: 7}, {index: 8}],
                     mayHaveMoreMessagesBefore: true,
                     mayHaveMoreMessagesAfter: false,
                 },
             ]);
 
             list = loadFromStart(list, {
-                afterMessageId: 3,
+                afterMessageIndex: 2,
                 hasMoreMessagesAfter: true,
-                messages: [{id: 4}, {id: 5}, {id: 6}],
+                messages: [{index: 3}, {index: 4}, {index: 5}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
                     messages: [
-                        {id: 1},
-                        {id: 2},
-                        {id: 3},
-                        {id: 4},
-                        {id: 5},
-                        {id: 6},
-                        {id: 7},
-                        {id: 8},
-                        {id: 9},
+                        {index: 0},
+                        {index: 1},
+                        {index: 2},
+                        {index: 3},
+                        {index: 4},
+                        {index: 5},
+                        {index: 6},
+                        {index: 7},
+                        {index: 8},
                     ],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: false,
@@ -2291,85 +2501,85 @@ for (const {name, loadFromStart, loadFromEnd, getSegments} of testSuites) {
             let list = PaginatedMessageList.new(15);
 
             list = loadFromStart(list, {
-                afterMessageId: null,
+                afterMessageIndex: null,
                 hasMoreMessagesAfter: true,
-                messages: [{id: 1}, {id: 2}, {id: 3}],
+                messages: [{index: 0}, {index: 1}, {index: 2}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 1}, {id: 2}, {id: 3}],
+                    messages: [{index: 0}, {index: 1}, {index: 2}],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: true,
                 },
             ]);
 
             list = loadFromStart(list, {
-                afterMessageId: 6,
+                afterMessageIndex: 5,
                 hasMoreMessagesAfter: true,
-                messages: [{id: 7}, {id: 8}, {id: 9}],
+                messages: [{index: 6}, {index: 7}, {index: 8}],
             });
 
             list = loadFromStart(list, {
-                afterMessageId: 12,
+                afterMessageIndex: 11,
                 hasMoreMessagesAfter: false,
-                messages: [{id: 13}, {id: 14}, {id: 15}],
+                messages: [{index: 12}, {index: 13}, {index: 14}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 1}, {id: 2}, {id: 3}],
+                    messages: [{index: 0}, {index: 1}, {index: 2}],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: true,
                 },
                 {
-                    messages: [{id: 7}, {id: 8}, {id: 9}],
+                    messages: [{index: 6}, {index: 7}, {index: 8}],
                     mayHaveMoreMessagesBefore: true,
                     mayHaveMoreMessagesAfter: true,
                 },
                 {
-                    messages: [{id: 13}, {id: 14}, {id: 15}],
+                    messages: [{index: 12}, {index: 13}, {index: 14}],
                     mayHaveMoreMessagesBefore: true,
                     mayHaveMoreMessagesAfter: false,
                 },
             ]);
 
             list = loadFromStart(list, {
-                afterMessageId: 2,
+                afterMessageIndex: 1,
                 hasMoreMessagesAfter: true,
                 messages: [
-                    {id: 3},
-                    {id: 4},
-                    {id: 5},
-                    {id: 6},
-                    {id: 7},
-                    {id: 8},
-                    {id: 9},
-                    {id: 10},
-                    {id: 11},
-                    {id: 12},
-                    {id: 13},
+                    {index: 2},
+                    {index: 3},
+                    {index: 4},
+                    {index: 5},
+                    {index: 6},
+                    {index: 7},
+                    {index: 8},
+                    {index: 9},
+                    {index: 10},
+                    {index: 11},
+                    {index: 12},
                 ],
             });
 
             expect(getSegments(list)).toEqual([
                 {
                     messages: [
-                        {id: 1},
-                        {id: 2},
-                        {id: 3},
-                        {id: 4},
-                        {id: 5},
-                        {id: 6},
-                        {id: 7},
-                        {id: 8},
-                        {id: 9},
-                        {id: 10},
-                        {id: 11},
-                        {id: 12},
-                        {id: 13},
-                        {id: 14},
-                        {id: 15},
+                        {index: 0},
+                        {index: 1},
+                        {index: 2},
+                        {index: 3},
+                        {index: 4},
+                        {index: 5},
+                        {index: 6},
+                        {index: 7},
+                        {index: 8},
+                        {index: 9},
+                        {index: 10},
+                        {index: 11},
+                        {index: 12},
+                        {index: 13},
+                        {index: 14},
                     ],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: false,
@@ -2381,52 +2591,52 @@ for (const {name, loadFromStart, loadFromEnd, getSegments} of testSuites) {
             let list = PaginatedMessageList.new(9);
 
             list = loadFromStart(list, {
-                afterMessageId: null,
+                afterMessageIndex: null,
                 hasMoreMessagesAfter: true,
-                messages: [{id: 1}, {id: 2}, {id: 3}],
+                messages: [{index: 0}, {index: 1}, {index: 2}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 1}, {id: 2}, {id: 3}],
+                    messages: [{index: 0}, {index: 1}, {index: 2}],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: true,
                 },
             ]);
 
             list = loadFromStart(list, {
-                afterMessageId: 6,
+                afterMessageIndex: 5,
                 hasMoreMessagesAfter: false,
-                messages: [{id: 7}, {id: 8}, {id: 9}],
+                messages: [{index: 6}, {index: 7}, {index: 8}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 1}, {id: 2}, {id: 3}],
+                    messages: [{index: 0}, {index: 1}, {index: 2}],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: true,
                 },
                 {
-                    messages: [{id: 7}, {id: 8}, {id: 9}],
+                    messages: [{index: 6}, {index: 7}, {index: 8}],
                     mayHaveMoreMessagesBefore: true,
                     mayHaveMoreMessagesAfter: false,
                 },
             ]);
 
             list = loadFromStart(list, {
-                afterMessageId: 3,
+                afterMessageIndex: 2,
                 hasMoreMessagesAfter: true,
-                messages: [{id: 4}, {id: 5}],
+                messages: [{index: 3}, {index: 4}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 1}, {id: 2}, {id: 3}, {id: 4}, {id: 5}],
+                    messages: [{index: 0}, {index: 1}, {index: 2}, {index: 3}, {index: 4}],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: true,
                 },
                 {
-                    messages: [{id: 7}, {id: 8}, {id: 9}],
+                    messages: [{index: 6}, {index: 7}, {index: 8}],
                     mayHaveMoreMessagesBefore: true,
                     mayHaveMoreMessagesAfter: false,
                 },
@@ -2437,52 +2647,52 @@ for (const {name, loadFromStart, loadFromEnd, getSegments} of testSuites) {
             let list = PaginatedMessageList.new(9);
 
             list = loadFromStart(list, {
-                afterMessageId: null,
+                afterMessageIndex: null,
                 hasMoreMessagesAfter: true,
-                messages: [{id: 1}, {id: 2}, {id: 3}],
+                messages: [{index: 0}, {index: 1}, {index: 2}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 1}, {id: 2}, {id: 3}],
+                    messages: [{index: 0}, {index: 1}, {index: 2}],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: true,
                 },
             ]);
 
             list = loadFromStart(list, {
-                afterMessageId: 6,
+                afterMessageIndex: 5,
                 hasMoreMessagesAfter: false,
-                messages: [{id: 7}, {id: 8}, {id: 9}],
+                messages: [{index: 6}, {index: 7}, {index: 8}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 1}, {id: 2}, {id: 3}],
+                    messages: [{index: 0}, {index: 1}, {index: 2}],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: true,
                 },
                 {
-                    messages: [{id: 7}, {id: 8}, {id: 9}],
+                    messages: [{index: 6}, {index: 7}, {index: 8}],
                     mayHaveMoreMessagesBefore: true,
                     mayHaveMoreMessagesAfter: false,
                 },
             ]);
 
             list = loadFromStart(list, {
-                afterMessageId: 4,
+                afterMessageIndex: 3,
                 hasMoreMessagesAfter: true,
-                messages: [{id: 5}, {id: 6}],
+                messages: [{index: 4}, {index: 5}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 1}, {id: 2}, {id: 3}],
+                    messages: [{index: 0}, {index: 1}, {index: 2}],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: true,
                 },
                 {
-                    messages: [{id: 5}, {id: 6}, {id: 7}, {id: 8}, {id: 9}],
+                    messages: [{index: 4}, {index: 5}, {index: 6}, {index: 7}, {index: 8}],
                     mayHaveMoreMessagesBefore: true,
                     mayHaveMoreMessagesAfter: false,
                 },
@@ -2493,56 +2703,56 @@ for (const {name, loadFromStart, loadFromEnd, getSegments} of testSuites) {
             let list = PaginatedMessageList.new(9);
 
             list = loadFromStart(list, {
-                afterMessageId: null,
+                afterMessageIndex: null,
                 hasMoreMessagesAfter: true,
-                messages: [{id: 1}, {id: 2}, {id: 3}],
+                messages: [{index: 0}, {index: 1}, {index: 2}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 1}, {id: 2}, {id: 3}],
+                    messages: [{index: 0}, {index: 1}, {index: 2}],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: true,
                 },
             ]);
 
             list = loadFromEnd(list, {
-                beforeMessageId: null,
+                beforeMessageIndex: null,
                 hasMoreMessagesBefore: true,
-                messages: [{id: 7}, {id: 8}, {id: 9}],
+                messages: [{index: 6}, {index: 7}, {index: 8}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 1}, {id: 2}, {id: 3}],
+                    messages: [{index: 0}, {index: 1}, {index: 2}],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: true,
                 },
                 {
-                    messages: [{id: 7}, {id: 8}, {id: 9}],
+                    messages: [{index: 6}, {index: 7}, {index: 8}],
                     mayHaveMoreMessagesBefore: true,
                     mayHaveMoreMessagesAfter: false,
                 },
             ]);
 
             list = loadFromStart(list, {
-                afterMessageId: 3,
+                afterMessageIndex: 2,
                 hasMoreMessagesAfter: true,
-                messages: [{id: 4}, {id: 5}, {id: 6}],
+                messages: [{index: 3}, {index: 4}, {index: 5}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
                     messages: [
-                        {id: 1},
-                        {id: 2},
-                        {id: 3},
-                        {id: 4},
-                        {id: 5},
-                        {id: 6},
-                        {id: 7},
-                        {id: 8},
-                        {id: 9},
+                        {index: 0},
+                        {index: 1},
+                        {index: 2},
+                        {index: 3},
+                        {index: 4},
+                        {index: 5},
+                        {index: 6},
+                        {index: 7},
+                        {index: 8},
                     ],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: false,
@@ -2554,56 +2764,56 @@ for (const {name, loadFromStart, loadFromEnd, getSegments} of testSuites) {
             let list = PaginatedMessageList.new(9);
 
             list = loadFromStart(list, {
-                afterMessageId: null,
+                afterMessageIndex: null,
                 hasMoreMessagesAfter: true,
-                messages: [{id: 1}, {id: 2}, {id: 3}],
+                messages: [{index: 0}, {index: 1}, {index: 2}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 1}, {id: 2}, {id: 3}],
+                    messages: [{index: 0}, {index: 1}, {index: 2}],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: true,
                 },
             ]);
 
             list = loadFromEnd(list, {
-                beforeMessageId: null,
+                beforeMessageIndex: null,
                 hasMoreMessagesBefore: true,
-                messages: [{id: 7}, {id: 8}, {id: 9}],
+                messages: [{index: 6}, {index: 7}, {index: 8}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 1}, {id: 2}, {id: 3}],
+                    messages: [{index: 0}, {index: 1}, {index: 2}],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: true,
                 },
                 {
-                    messages: [{id: 7}, {id: 8}, {id: 9}],
+                    messages: [{index: 6}, {index: 7}, {index: 8}],
                     mayHaveMoreMessagesBefore: true,
                     mayHaveMoreMessagesAfter: false,
                 },
             ]);
 
             list = loadFromEnd(list, {
-                beforeMessageId: 7,
+                beforeMessageIndex: 6,
                 hasMoreMessagesBefore: true,
-                messages: [{id: 4}, {id: 5}, {id: 6}],
+                messages: [{index: 3}, {index: 4}, {index: 5}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
                     messages: [
-                        {id: 1},
-                        {id: 2},
-                        {id: 3},
-                        {id: 4},
-                        {id: 5},
-                        {id: 6},
-                        {id: 7},
-                        {id: 8},
-                        {id: 9},
+                        {index: 0},
+                        {index: 1},
+                        {index: 2},
+                        {index: 3},
+                        {index: 4},
+                        {index: 5},
+                        {index: 6},
+                        {index: 7},
+                        {index: 8},
                     ],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: false,
@@ -2615,33 +2825,33 @@ for (const {name, loadFromStart, loadFromEnd, getSegments} of testSuites) {
             let list = PaginatedMessageList.new(9);
 
             list = loadFromStart(list, {
-                afterMessageId: null,
+                afterMessageIndex: null,
                 hasMoreMessagesAfter: false,
-                messages: [{id: 1}, {id: 2}, {id: 3}],
+                messages: [{index: 0}, {index: 1}, {index: 2}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 1}, {id: 2}, {id: 3}],
+                    messages: [{index: 0}, {index: 1}, {index: 2}],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: false,
                 },
             ]);
 
             list = loadFromEnd(list, {
-                beforeMessageId: null,
+                beforeMessageIndex: null,
                 hasMoreMessagesBefore: true,
-                messages: [{id: 7}, {id: 8}, {id: 9}],
+                messages: [{index: 6}, {index: 7}, {index: 8}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 1}, {id: 2}, {id: 3}],
+                    messages: [{index: 0}, {index: 1}, {index: 2}],
                     mayHaveMoreMessagesBefore: false,
                     mayHaveMoreMessagesAfter: true,
                 },
                 {
-                    messages: [{id: 7}, {id: 8}, {id: 9}],
+                    messages: [{index: 6}, {index: 7}, {index: 8}],
                     mayHaveMoreMessagesBefore: true,
                     mayHaveMoreMessagesAfter: false,
                 },
@@ -2652,33 +2862,33 @@ for (const {name, loadFromStart, loadFromEnd, getSegments} of testSuites) {
             let list = PaginatedMessageList.new(9);
 
             list = loadFromStart(list, {
-                afterMessageId: 1,
+                afterMessageIndex: 0,
                 hasMoreMessagesAfter: false,
-                messages: [{id: 2}, {id: 3}],
+                messages: [{index: 1}, {index: 2}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 2}, {id: 3}],
+                    messages: [{index: 1}, {index: 2}],
                     mayHaveMoreMessagesBefore: true,
                     mayHaveMoreMessagesAfter: false,
                 },
             ]);
 
             list = loadFromEnd(list, {
-                beforeMessageId: null,
+                beforeMessageIndex: null,
                 hasMoreMessagesBefore: true,
-                messages: [{id: 7}, {id: 8}, {id: 9}],
+                messages: [{index: 6}, {index: 7}, {index: 8}],
             });
 
             expect(getSegments(list)).toEqual([
                 {
-                    messages: [{id: 2}, {id: 3}],
+                    messages: [{index: 1}, {index: 2}],
                     mayHaveMoreMessagesBefore: true,
                     mayHaveMoreMessagesAfter: true,
                 },
                 {
-                    messages: [{id: 7}, {id: 8}, {id: 9}],
+                    messages: [{index: 6}, {index: 7}, {index: 8}],
                     mayHaveMoreMessagesBefore: true,
                     mayHaveMoreMessagesAfter: false,
                 },

@@ -4,11 +4,11 @@ import {RequestContext} from "~/server/dynamo/context/request_context";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry_dynamo_condition_check_errors";
-import {MessageContent, MessageContentSchema} from "~/shared/content/message_content_schema";
+import {MessageContent} from "~/shared/content/message_content_schema";
 import {PostContent, PostContentSchema} from "~/shared/content/post_content_schema";
 import {
     DataLossError,
-    InternalError,
+    FailedPreconditionError,
     NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error";
@@ -21,6 +21,7 @@ import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable";
 import {generateId} from "~/shared/id/id";
 import {AccountId, ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
+import {MessagePayloadSchema} from "~/shared/models/message_interface";
 import {PostCommentModel, PostModel} from "~/shared/models/post_model";
 import {Schema} from "~/shared/schema/schema";
 
@@ -61,9 +62,9 @@ const PostsTable = DynamoTableSchema.new({
                          */
                         commentsSummary: Schema.object({
                             /**
-                             * The ID of the next comment.
+                             * The index of the next comment.
                              */
-                            nextCommentId: Schema.integer.min(1),
+                            nextCommentIndex: Schema.integer.min(0),
 
                             /**
                              * All the accounts which have commented on the post and the number of comments
@@ -77,9 +78,6 @@ const PostsTable = DynamoTableSchema.new({
                                 Schema.id<AccountId>(),
                                 Schema.integer.min(1),
                             ),
-                        }).default({
-                            nextCommentId: 1,
-                            commentCountByAuthorId: new Map(),
                         }),
                     }),
                 },
@@ -89,14 +87,12 @@ const PostsTable = DynamoTableSchema.new({
                  */
                 Comments: {
                     sortKeyAttributes: {
-                        commentId: DynamoKeyAttributeSchema.integer,
+                        commentIndex: DynamoKeyAttributeSchema.integer,
                     },
                     attributes: Schema.object({
                         authorId: Schema.id<AccountId>(),
                         createdTime: Schema.date,
-                        parentCommentId: Schema.integer.nullable(),
-                        content: MessageContentSchema,
-                        contentUpdatedTime: Schema.date.nullable(),
+                        payload: MessagePayloadSchema,
                     }),
                 },
             },
@@ -131,7 +127,7 @@ export async function createPost(
         authorId: context.auth.getAccountId(),
         content,
         commentsSummary: {
-            nextCommentId: 1,
+            nextCommentIndex: 0,
             commentCountByAuthorId: new Map(),
         },
     };
@@ -256,15 +252,15 @@ export async function createPostComment(
     context: RequestContext,
     {
         postId,
-        parentCommentId,
+        parentCommentIndex,
         content,
     }: {
         postId: PostId;
-        parentCommentId: number | null;
+        parentCommentIndex: number | null;
         content: MessageContent;
     },
 ): Promise<{
-    id: number;
+    index: number;
     createdTime: Date;
 }> {
     return retryDynamoConditionCheckErrors(async () => {
@@ -292,7 +288,7 @@ export async function createPostComment(
                 return postItem;
             },
             async () => {
-                if (typeof parentCommentId !== "number") return;
+                if (typeof parentCommentIndex !== "number") return;
 
                 const parentCommentItem = await PostsTable.getPartialItem(
                     context,
@@ -300,7 +296,7 @@ export async function createPostComment(
                         partitionType: "Post",
                         sortRangeType: "Comments",
                         postId,
-                        commentId: parentCommentId,
+                        commentIndex: parentCommentIndex,
                     },
                     {
                         attributes: [],
@@ -310,7 +306,7 @@ export async function createPostComment(
             },
         );
 
-        const commentId = postItem.commentsSummary.nextCommentId;
+        const commentIndex = postItem.commentsSummary.nextCommentIndex;
         const createdTime = new Date();
         const authorId = context.auth.getAccountId();
 
@@ -322,18 +318,21 @@ export async function createPostComment(
                 partitionType: "Post",
                 sortRangeType: "Comments",
                 postId,
-                commentId,
+                commentIndex,
                 authorId,
                 createdTime,
-                parentCommentId,
-                content,
-                contentUpdatedTime: null,
+                payload: {
+                    type: "Content",
+                    parentMessageIndex: parentCommentIndex,
+                    content,
+                    contentUpdatedTime: null,
+                },
             }),
             PostsTable.transactionDirectlyUpdateItemAttribute(
                 {partitionType: "Post", sortRangeType: "Attributes", postId},
                 "commentsSummary",
                 {
-                    nextCommentId: postItem.commentsSummary.nextCommentId + 1,
+                    nextCommentIndex: postItem.commentsSummary.nextCommentIndex + 1,
                     commentCountByAuthorId: newCommentCountByAuthorId,
                 },
                 {updateLockVersion: postItem.updateLockVersion},
@@ -341,7 +340,7 @@ export async function createPostComment(
         ]);
 
         return {
-            id: commentId,
+            index: commentIndex,
             createdTime,
         };
     });
@@ -352,7 +351,7 @@ export async function createPostComment(
  */
 export async function getPostComment(
     context: RequestContext,
-    {postId, commentId}: {postId: PostId; commentId: number},
+    {postId, commentIndex}: {postId: PostId; commentIndex: number},
 ): Promise<PostCommentModel | null> {
     const [{spaceId}, item] = await runAllPromises([
         authorizePostAccess(context, postId),
@@ -360,7 +359,7 @@ export async function getPostComment(
             partitionType: "Post",
             sortRangeType: "Comments",
             postId,
-            commentId,
+            commentIndex,
         }),
     ]);
 
@@ -375,12 +374,10 @@ async function createPostCommentModelFromItem(
 ): Promise<PostCommentModel> {
     return new PostCommentModel({
         postId: item.postId,
-        id: item.commentId,
+        index: item.commentIndex,
         author: await getAccountOrThrow(context, spaceId, item.authorId),
         createdTime: item.createdTime,
-        parentCommentId: item.parentCommentId,
-        content: item.content,
-        contentUpdatedTime: item.contentUpdatedTime,
+        payload: item.payload,
     });
 }
 
@@ -389,7 +386,15 @@ async function createPostCommentModelFromItem(
  */
 export function updatePostCommentContent(
     context: RequestContext,
-    {postId, commentId, content}: {postId: PostId; commentId: number; content: MessageContent},
+    {
+        postId,
+        commentIndex,
+        content,
+    }: {
+        postId: PostId;
+        commentIndex: number;
+        content: MessageContent;
+    },
 ): Promise<{
     contentUpdatedTime: Date;
 }> {
@@ -400,7 +405,7 @@ export function updatePostCommentContent(
                 partitionType: "Post",
                 sortRangeType: "Comments",
                 postId,
-                commentId,
+                commentIndex,
             }),
         ]);
 
@@ -409,8 +414,18 @@ export function updatePostCommentContent(
         if (item.authorId !== context.auth.getAccountId())
             throw new PermissionDeniedError("Can only update post comments you authored");
 
+        if (item.payload.type !== "Content")
+            throw new FailedPreconditionError("Can not update comments with a non-content payload");
+
         const contentUpdatedTime = new Date();
-        await PostsTable.directlyUpdateItem(context, {...item, content, contentUpdatedTime});
+        await PostsTable.directlyUpdateItem(context, {
+            ...item,
+            payload: {
+                ...item.payload,
+                content,
+                contentUpdatedTime,
+            },
+        });
 
         return {contentUpdatedTime};
     });
@@ -421,7 +436,7 @@ export function updatePostCommentContent(
  */
 export function deletePostComment(
     context: RequestContext,
-    {postId, commentId}: {postId: PostId; commentId: number},
+    {postId, commentIndex}: {postId: PostId; commentIndex: number},
 ): Promise<void> {
     return retryDynamoConditionCheckErrors(async () => {
         const [postItem, postCommentItem] = await runAllPromises([
@@ -434,7 +449,7 @@ export function deletePostComment(
                 partitionType: "Post",
                 sortRangeType: "Comments",
                 postId,
-                commentId,
+                commentIndex,
             }),
         ]);
 
@@ -446,34 +461,14 @@ export function deletePostComment(
         if (postCommentItem.authorId !== context.auth.getAccountId())
             throw new PermissionDeniedError("Can only delete post comments you authored");
 
-        const newCommentCountByAuthorId = new Map(postItem.commentsSummary.commentCountByAuthorId);
+        if (postCommentItem.payload.type !== "Content")
+            throw new FailedPreconditionError("Can not delete comments with a non-content payload");
 
-        const oldCommentCount = newCommentCountByAuthorId.get(postCommentItem.authorId) ?? 0;
-        if (oldCommentCount <= 0)
-            throw new InternalError(
-                "Can not decrement comment count for account with a comment count of zero",
-            );
-
-        // If the account has deleted all their comments, then remove them from the
-        // map entirely.
-        if (oldCommentCount === 1) {
-            newCommentCountByAuthorId.delete(postCommentItem.authorId);
-        } else {
-            newCommentCountByAuthorId.set(postCommentItem.authorId, oldCommentCount - 1);
-        }
-
-        await DynamoTableSchema.executeTransaction(context, [
-            PostsTable.transactionDeleteItem(postCommentItem),
-            PostsTable.transactionDirectlyUpdateItemAttribute(
-                {partitionType: "Post", sortRangeType: "Attributes", postId},
-                "commentsSummary",
-                {
-                    nextCommentId: postItem.commentsSummary.nextCommentId,
-                    commentCountByAuthorId: newCommentCountByAuthorId,
-                },
-                {updateLockVersion: postItem.updateLockVersion},
-            ),
-        ]);
+        const deletedTime = new Date();
+        await PostsTable.directlyUpdateItem(context, {
+            ...postCommentItem,
+            payload: {type: "Deleted", deletedTime},
+        });
     });
 }
 
@@ -507,7 +502,7 @@ export async function getPostAndCommentsFromStart(
             partitionType: "Post",
             sortRangeType: "Comments",
             postId,
-            commentId: Number.MAX_SAFE_INTEGER,
+            commentIndex: Number.MAX_SAFE_INTEGER,
         },
         // Add two to the limit:
         //
@@ -581,13 +576,13 @@ export async function getPostCommentsFromStart(
     {
         postId,
         limit,
-        afterCommentId,
-        beforeCommentId,
+        afterCommentIndex,
+        beforeCommentIndex,
     }: {
         postId: PostId;
         limit: number;
-        afterCommentId: number | null;
-        beforeCommentId: number | null;
+        afterCommentIndex: number | null;
+        beforeCommentIndex: number | null;
     },
 ): Promise<{
     hasMoreCommentsAfter: boolean;
@@ -600,14 +595,16 @@ export async function getPostCommentsFromStart(
             partitionType: "Post",
             sortRangeType: "Comments",
             postId,
-            commentId: typeof afterCommentId === "number" ? afterCommentId + 1 : 1,
+            commentIndex: typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
         },
         endKey: {
             partitionType: "Post",
             sortRangeType: "Comments",
             postId,
-            commentId:
-                typeof beforeCommentId === "number" ? beforeCommentId - 1 : Number.MAX_SAFE_INTEGER,
+            commentIndex:
+                typeof beforeCommentIndex === "number"
+                    ? beforeCommentIndex - 1
+                    : Number.MAX_SAFE_INTEGER,
         },
         // Add one to the limit so we can determine whether there are more
         // comments after.
@@ -642,13 +639,13 @@ export async function getPostCommentsFromEnd(
     {
         postId,
         limit,
-        afterCommentId,
-        beforeCommentId,
+        afterCommentIndex,
+        beforeCommentIndex,
     }: {
         postId: PostId;
         limit: number;
-        afterCommentId: number | null;
-        beforeCommentId: number | null;
+        afterCommentIndex: number | null;
+        beforeCommentIndex: number | null;
     },
 ): Promise<{
     hasMoreCommentsBefore: boolean;
@@ -656,7 +653,7 @@ export async function getPostCommentsFromEnd(
 }> {
     // Base case: If we are loading before the first comment ID we know there are
     // no comments.
-    if (beforeCommentId === 1) {
+    if (beforeCommentIndex === 0) {
         return {comments: [], hasMoreCommentsBefore: false};
     }
 
@@ -667,14 +664,16 @@ export async function getPostCommentsFromEnd(
             partitionType: "Post",
             sortRangeType: "Comments",
             postId,
-            commentId: typeof afterCommentId === "number" ? afterCommentId + 1 : 1,
+            commentIndex: typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
         },
         endKey: {
             partitionType: "Post",
             sortRangeType: "Comments",
             postId,
-            commentId:
-                typeof beforeCommentId === "number" ? beforeCommentId - 1 : Number.MAX_SAFE_INTEGER,
+            commentIndex:
+                typeof beforeCommentIndex === "number"
+                    ? beforeCommentIndex - 1
+                    : Number.MAX_SAFE_INTEGER,
         },
         // Add one to the limit so we can determine whether there are more
         // comments after.

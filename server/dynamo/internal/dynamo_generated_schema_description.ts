@@ -588,7 +588,7 @@ export const dynamoGeneratedSchemaDescription: {
                                         "valueSchema": {
                                             "type": "Object",
                                             "propertySchemaByKey": {
-                                                "nextCommentId": {
+                                                "nextCommentIndex": {
                                                     "valueSchema": {
                                                         "type": "Integer"
                                                     },
@@ -608,7 +608,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                 }
                                             }
                                         },
-                                        "optional": true
+                                        "optional": false
                                     },
                                     "updateLockVersion": {
                                         "valueSchema": {
@@ -622,7 +622,7 @@ export const dynamoGeneratedSchemaDescription: {
                         "Comments": {
                             "orderKey": "a1",
                             "sortKeyAttributeByKey": {
-                                "commentId": {
+                                "commentIndex": {
                                     "type": "Integer"
                                 }
                             },
@@ -641,26 +641,64 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
-                                    "parentCommentId": {
+                                    "payload": {
                                         "valueSchema": {
-                                            "type": "Nullable",
-                                            "schema": {
-                                                "type": "Integer"
-                                            }
-                                        },
-                                        "optional": false
-                                    },
-                                    "content": {
-                                        "valueSchema": {
-                                            "type": "Unknown"
-                                        },
-                                        "optional": false
-                                    },
-                                    "contentUpdatedTime": {
-                                        "valueSchema": {
-                                            "type": "Nullable",
-                                            "schema": {
-                                                "type": "Date"
+                                            "type": "Union",
+                                            "variantSchemaByType": {
+                                                "Content": {
+                                                    "type": "Object",
+                                                    "propertySchemaByKey": {
+                                                        "type": {
+                                                            "valueSchema": {
+                                                                "type": "Value",
+                                                                "value": "Content"
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "parentMessageIndex": {
+                                                            "valueSchema": {
+                                                                "type": "Nullable",
+                                                                "schema": {
+                                                                    "type": "Integer"
+                                                                }
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "content": {
+                                                            "valueSchema": {
+                                                                "type": "Unknown"
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "contentUpdatedTime": {
+                                                            "valueSchema": {
+                                                                "type": "Nullable",
+                                                                "schema": {
+                                                                    "type": "Date"
+                                                                }
+                                                            },
+                                                            "optional": false
+                                                        }
+                                                    }
+                                                },
+                                                "Deleted": {
+                                                    "type": "Object",
+                                                    "propertySchemaByKey": {
+                                                        "type": {
+                                                            "valueSchema": {
+                                                                "type": "Value",
+                                                                "value": "Deleted"
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "deletedTime": {
+                                                            "valueSchema": {
+                                                                "type": "Date"
+                                                            },
+                                                            "optional": false
+                                                        }
+                                                    }
+                                                }
                                             }
                                         },
                                         "optional": false
@@ -704,7 +742,7 @@ export const dynamoGeneratedSchemaDescription: {
                                         "valueSchema": {
                                             "type": "Object",
                                             "propertySchemaByKey": {
-                                                "nextMessageId": {
+                                                "nextMessageIndex": {
                                                     "valueSchema": {
                                                         "type": "Integer"
                                                     },
@@ -718,7 +756,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                 }
                                             }
                                         },
-                                        "optional": true
+                                        "optional": false
                                     },
                                     "updateLockVersion": {
                                         "valueSchema": {
@@ -732,7 +770,7 @@ export const dynamoGeneratedSchemaDescription: {
                         "Messages": {
                             "orderKey": "a1",
                             "sortKeyAttributeByKey": {
-                                "messageId": {
+                                "messageIndex": {
                                     "type": "Integer"
                                 }
                             },
@@ -751,26 +789,64 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
-                                    "parentMessageId": {
+                                    "payload": {
                                         "valueSchema": {
-                                            "type": "Nullable",
-                                            "schema": {
-                                                "type": "Integer"
-                                            }
-                                        },
-                                        "optional": false
-                                    },
-                                    "content": {
-                                        "valueSchema": {
-                                            "type": "Unknown"
-                                        },
-                                        "optional": false
-                                    },
-                                    "contentUpdatedTime": {
-                                        "valueSchema": {
-                                            "type": "Nullable",
-                                            "schema": {
-                                                "type": "Date"
+                                            "type": "Union",
+                                            "variantSchemaByType": {
+                                                "Content": {
+                                                    "type": "Object",
+                                                    "propertySchemaByKey": {
+                                                        "type": {
+                                                            "valueSchema": {
+                                                                "type": "Value",
+                                                                "value": "Content"
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "parentMessageIndex": {
+                                                            "valueSchema": {
+                                                                "type": "Nullable",
+                                                                "schema": {
+                                                                    "type": "Integer"
+                                                                }
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "content": {
+                                                            "valueSchema": {
+                                                                "type": "Unknown"
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "contentUpdatedTime": {
+                                                            "valueSchema": {
+                                                                "type": "Nullable",
+                                                                "schema": {
+                                                                    "type": "Date"
+                                                                }
+                                                            },
+                                                            "optional": false
+                                                        }
+                                                    }
+                                                },
+                                                "Deleted": {
+                                                    "type": "Object",
+                                                    "propertySchemaByKey": {
+                                                        "type": {
+                                                            "valueSchema": {
+                                                                "type": "Value",
+                                                                "value": "Deleted"
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "deletedTime": {
+                                                            "valueSchema": {
+                                                                "type": "Date"
+                                                            },
+                                                            "optional": false
+                                                        }
+                                                    }
+                                                }
                                             }
                                         },
                                         "optional": false

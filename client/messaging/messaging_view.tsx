@@ -10,8 +10,8 @@ import {
 } from "~/client/messaging/message_view";
 import {
     PaginatedMessageList,
-    maxMessageId,
-    minMessageId,
+    maxMessageIndex,
+    minMessageIndex,
 } from "~/client/messaging/paginated_message_list";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages";
 import {
@@ -53,16 +53,16 @@ export function MessagingView<Message extends MessageInterface>({
     shimmerRandomSeed: string;
     onLoadFromStart: (options: {
         limit: number;
-        afterMessageId: number | null;
-        beforeMessageId: number | null;
+        afterMessageIndex: number | null;
+        beforeMessageIndex: number | null;
     }) => Promise<{
         messages: ReadonlyArray<Message>;
         hasMoreMessagesAfter: boolean;
     }>;
     onLoadFromEnd: (options: {
         limit: number;
-        afterMessageId: number | null;
-        beforeMessageId: number | null;
+        afterMessageIndex: number | null;
+        beforeMessageIndex: number | null;
     }) => Promise<{
         messages: ReadonlyArray<Message>;
         hasMoreMessagesBefore: boolean;
@@ -84,12 +84,12 @@ export function MessagingView<Message extends MessageInterface>({
                         list: PaginatedMessageList.new<Message>(
                             initialState.totalMessageCount,
                         ).loadMessages({
-                            afterMessageId: minMessageId - 1,
-                            beforeMessageId:
+                            afterMessageIndex: minMessageIndex - 1,
+                            beforeMessageIndex:
                                 initialState.messages.length > 0
-                                    ? initialState.messages[initialState.messages.length - 1]!.id +
-                                      1
-                                    : maxMessageId + 1,
+                                    ? initialState.messages[initialState.messages.length - 1]!
+                                          .index + 1
+                                    : maxMessageIndex + 1,
                             mayHaveMoreMessagesBefore: false,
                             mayHaveMoreMessagesAfter: initialState.hasMoreMessagesAfter,
                             messages: initialState.messages,
@@ -104,11 +104,11 @@ export function MessagingView<Message extends MessageInterface>({
                         list: PaginatedMessageList.new<Message>(
                             initialState.totalMessageCount,
                         ).loadMessages({
-                            afterMessageId:
+                            afterMessageIndex:
                                 initialState.messages.length > 0
-                                    ? initialState.messages[0]!.id - 1
-                                    : minMessageId - 1,
-                            beforeMessageId: maxMessageId + 1,
+                                    ? initialState.messages[0]!.index - 1
+                                    : minMessageIndex - 1,
+                            beforeMessageIndex: maxMessageIndex + 1,
                             mayHaveMoreMessagesBefore: initialState.hasMoreMessagesBefore,
                             mayHaveMoreMessagesAfter: false,
                             messages: initialState.messages,
@@ -182,7 +182,7 @@ export function MessagingView<Message extends MessageInterface>({
             ref={viewRef}
             pinTo={state.pinTo}
             bufferedItemHeight={bufferedMessageViewHeight}
-            itemCount={state.list.getEstimatedMessageCount()}
+            itemCount={state.list.getMessageCount()}
             renderItem={useCallback(
                 index => {
                     const messageResult = state.list.getMessage(index);
@@ -190,7 +190,7 @@ export function MessagingView<Message extends MessageInterface>({
                     const previousMessageResult =
                         index > 0 ? state.list.getMessage(index - 1) : null;
                     const nextMessageResult =
-                        index < state.list.getEstimatedMessageCount() - 1
+                        index < state.list.getMessageCount() - 1
                             ? state.list.getMessage(index + 1)
                             : null;
 
@@ -221,7 +221,7 @@ export function MessagingView<Message extends MessageInterface>({
                     return {
                         minHeight: messageViewMinHeight,
                         key: messageResult.isLoaded
-                            ? `MessageView:${messageResult.message.id}`
+                            ? `MessageView:${messageResult.message.index}`
                             : `MessageShimmer:${index}`,
                         node:
                             index === 0 ? (

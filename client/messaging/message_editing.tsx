@@ -2,7 +2,7 @@ import {useMemo, useReducer} from "react";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {MessageContent} from "~/shared/content/message_content_schema";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {MessageInterface} from "~/shared/models/message_interface";
+import {MessageWithContentPayloadInterface} from "~/shared/models/message_interface";
 
 export type MessageEditingState =
     | {
@@ -11,14 +11,14 @@ export type MessageEditingState =
     | {
           readonly isEditing: true;
           readonly messageRoomKey: string;
-          readonly messageId: number;
+          readonly messageIndex: number;
           readonly contentEditorState: ContentEditorState<MessageContent>;
       };
 
 export type MessageEditingAction =
     | {
           readonly type: "StartEditing";
-          readonly message: MessageInterface;
+          readonly message: MessageWithContentPayloadInterface;
       }
     | {
           readonly type: "CancelEditing";
@@ -34,8 +34,8 @@ function reduce(state: MessageEditingState, action: MessageEditingAction): Messa
             return {
                 isEditing: true,
                 messageRoomKey: action.message.getRoomKey(),
-                messageId: action.message.id,
-                contentEditorState: ContentEditorState.create(action.message.content),
+                messageIndex: action.message.index,
+                contentEditorState: ContentEditorState.create(action.message.payload.content),
             };
         }
         case "CancelEditing": {

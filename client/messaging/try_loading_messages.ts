@@ -1,6 +1,6 @@
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
 import {messageViewMinHeight} from "~/client/messaging/message_view";
-import {PaginatedMessageList, minMessageId} from "~/client/messaging/paginated_message_list";
+import {PaginatedMessageList, minMessageIndex} from "~/client/messaging/paginated_message_list";
 import {convertRemLengthToPx} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -27,16 +27,16 @@ export function tryLoadingMessages<Message extends MessageInterface>({
     range: {startIndex: number; endIndex: number};
     onLoadFromStart: (options: {
         limit: number;
-        afterMessageId: number | null;
-        beforeMessageId: number | null;
+        afterMessageIndex: number | null;
+        beforeMessageIndex: number | null;
     }) => Promise<{
         messages: ReadonlyArray<Message>;
         hasMoreMessagesAfter: boolean;
     }>;
     onLoadFromEnd: (options: {
         limit: number;
-        afterMessageId: number | null;
-        beforeMessageId: number | null;
+        afterMessageIndex: number | null;
+        beforeMessageIndex: number | null;
     }) => Promise<{
         messages: ReadonlyArray<Message>;
         hasMoreMessagesBefore: boolean;
@@ -85,17 +85,17 @@ export function tryLoadingMessages<Message extends MessageInterface>({
     );
 
     const loadFromStart = ({
-        afterMessageId,
-        beforeMessageId,
+        afterMessageIndex,
+        beforeMessageIndex,
         limit,
     }: {
-        afterMessageId: number;
-        beforeMessageId: number | null;
+        afterMessageIndex: number;
+        beforeMessageIndex: number | null;
         limit: number;
     }) => {
         onLoadFromStart({
-            afterMessageId,
-            beforeMessageId,
+            afterMessageIndex,
+            beforeMessageIndex,
             limit,
         }).then(
             result => {
@@ -104,8 +104,8 @@ export function tryLoadingMessages<Message extends MessageInterface>({
                     value: {
                         updateMessages: messages =>
                             messages.loadMessagesFromStart({
-                                afterMessageId,
-                                beforeMessageId,
+                                afterMessageIndex,
+                                beforeMessageIndex,
                                 limit,
                                 hasMoreMessagesAfter: result.hasMoreMessagesAfter,
                                 messages: result.messages,
@@ -123,34 +123,34 @@ export function tryLoadingMessages<Message extends MessageInterface>({
     };
 
     if (startMessage.isLoaded && !endMessage.isLoaded) {
-        const afterMessageId = assertExists(
+        const afterMessageIndex = assertExists(
             messages.getLastLoadedMessageBefore(range.endIndex),
             "Start message is loaded so there should be a loaded message after our end index",
-        ).message.id;
+        ).index;
 
-        const beforeMessageId =
-            messages.getFirstLoadedMessageAfter(range.endIndex)?.message.id ?? null;
+        const beforeMessageIndex =
+            messages.getFirstLoadedMessageAfter(range.endIndex)?.index ?? null;
 
         loadFromStart({
-            afterMessageId,
-            beforeMessageId,
+            afterMessageIndex,
+            beforeMessageIndex,
             limit,
         });
         return {isLoading: true, wasJump: false};
     }
 
     if (!startMessage.isLoaded && endMessage.isLoaded) {
-        const afterMessageId =
-            messages.getLastLoadedMessageBefore(range.startIndex)?.message.id ?? null;
+        const afterMessageIndex =
+            messages.getLastLoadedMessageBefore(range.startIndex)?.index ?? null;
 
-        const beforeMessageId = assertExists(
+        const beforeMessageIndex = assertExists(
             messages.getFirstLoadedMessageAfter(range.startIndex),
             "End message is loaded so there should be a loaded message after our start index",
-        ).message.id;
+        ).index;
 
         onLoadFromEnd({
-            afterMessageId,
-            beforeMessageId,
+            afterMessageIndex,
+            beforeMessageIndex,
             limit,
         }).then(
             result => {
@@ -159,8 +159,8 @@ export function tryLoadingMessages<Message extends MessageInterface>({
                     value: {
                         updateMessages: messages =>
                             messages.loadMessagesFromEnd({
-                                afterMessageId,
-                                beforeMessageId,
+                                afterMessageIndex,
+                                beforeMessageIndex,
                                 limit,
                                 hasMoreMessagesBefore: result.hasMoreMessagesBefore,
                                 messages: result.messages,
@@ -188,15 +188,15 @@ export function tryLoadingMessages<Message extends MessageInterface>({
     const messageBeforeUnloadedSegment = messages.getLastLoadedMessageBefore(range.startIndex);
     const messageAfterUnloadedSegment = messages.getFirstLoadedMessageAfter(range.endIndex);
 
-    const unloadedSegmentStartMessageId =
-        messageBeforeUnloadedSegment?.message.id ?? minMessageId - 1;
-    const unloadedSegmentEndMessageId =
-        messageAfterUnloadedSegment?.message.id ??
-        Math.max(messages.getEstimatedMessageCount() + 1, unloadedSegmentStartMessageId + 1);
+    const unloadedSegmentStartMessageIndex =
+        messageBeforeUnloadedSegment?.index ?? minMessageIndex - 1;
+    const unloadedSegmentEndMessageIndex =
+        messageAfterUnloadedSegment?.index ??
+        Math.max(messages.getMessageCount() + 1, unloadedSegmentStartMessageIndex + 1);
 
     const unloadedSegmentStartIndex = messageBeforeUnloadedSegment?.index ?? 0;
     const unloadedSegmentEndIndex =
-        messageAfterUnloadedSegment?.index ?? messages.getEstimatedMessageCount() - 1;
+        messageAfterUnloadedSegment?.index ?? messages.getMessageCount() - 1;
 
     const rangeStartFraction =
         (range.startIndex - unloadedSegmentStartIndex) /
@@ -204,17 +204,18 @@ export function tryLoadingMessages<Message extends MessageInterface>({
 
     // Pick a message `id` to start loading data from taking advantage of the fact
     // that messages are mostly dense.
-    const afterMessageId = Math.min(
-        Math.max(0, unloadedSegmentEndMessageId - jumpLimit),
+    const afterMessageIndex = Math.min(
+        Math.max(0, unloadedSegmentEndMessageIndex - jumpLimit),
         Math.round(
-            unloadedSegmentStartMessageId +
-                (unloadedSegmentEndMessageId - unloadedSegmentStartMessageId) * rangeStartFraction,
+            unloadedSegmentStartMessageIndex +
+                (unloadedSegmentEndMessageIndex - unloadedSegmentStartMessageIndex) *
+                    rangeStartFraction,
         ),
     );
 
     loadFromStart({
-        afterMessageId,
-        beforeMessageId: messageAfterUnloadedSegment?.message.id ?? null,
+        afterMessageIndex,
+        beforeMessageIndex: messageAfterUnloadedSegment?.index ?? null,
         limit: jumpLimit,
     });
     return {isLoading: true, wasJump: true};

@@ -120,13 +120,13 @@ export function PostsView({
                     startIndex: renderedPostCommentRangeStartIndex,
                     endIndex: renderedPostCommentRangeEndIndex,
                 },
-                onLoadFromStart: async ({afterMessageId, beforeMessageId, limit}) => {
+                onLoadFromStart: async ({afterMessageIndex, beforeMessageIndex, limit}) => {
                     const {hasMoreCommentsAfter, comments} = await getPostCommentsFromStart(
                         context,
                         {
                             postId: item.post.id,
-                            afterCommentId: afterMessageId,
-                            beforeCommentId: beforeMessageId,
+                            afterCommentIndex: afterMessageIndex,
+                            beforeCommentIndex: beforeMessageIndex,
                             limit,
                         },
                     );
@@ -135,13 +135,13 @@ export function PostsView({
                         messages: comments,
                     };
                 },
-                onLoadFromEnd: async ({afterMessageId, beforeMessageId, limit}) => {
+                onLoadFromEnd: async ({afterMessageIndex, beforeMessageIndex, limit}) => {
                     const {hasMoreCommentsBefore, comments} = await getPostCommentsFromEnd(
                         context,
                         {
                             postId: item.post.id,
-                            afterCommentId: afterMessageId,
-                            beforeCommentId: beforeMessageId,
+                            afterCommentIndex: afterMessageIndex,
+                            beforeCommentIndex: beforeMessageIndex,
                             limit,
                         },
                     );
@@ -193,15 +193,15 @@ export function PostsView({
 
                 const {hasMoreCommentsAfter, comments} = await getPostCommentsFromStart(context, {
                     postId: item.post.id,
-                    afterCommentId: null,
-                    beforeCommentId: null,
+                    afterCommentIndex: null,
+                    beforeCommentIndex: null,
                     limit,
                 });
 
                 onUpdatePostComments(item.postOrderKey, postComments =>
                     postComments.loadMessagesFromStart({
-                        afterMessageId: null,
-                        beforeMessageId: null,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
                         limit,
                         hasMoreMessagesAfter: hasMoreCommentsAfter,
                         messages: comments,
@@ -325,7 +325,7 @@ export function PostsView({
                     return {
                         key:
                             item.type === "LoadedPostComment"
-                                ? `LoadedPostComment:${item.post.id}:${item.postComment.id}`
+                                ? `LoadedPostComment:${item.post.id}:${item.postComment.index}`
                                 : `UnloadedPostComment:${item.post.id}:${item.postCommentIndex}`,
                         minHeight: messageViewMinHeight,
                         node: (

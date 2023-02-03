@@ -8,7 +8,7 @@ export const createSimpleChatMessage = defineRpc({
     name: "createSimpleChatMessage",
     input: {
         simpleChatId: Schema.id<SimpleChatId>(),
-        parentMessageId: Schema.integer.nullable(),
+        parentMessageIndex: Schema.integer.nullable(),
         content: MessageContentSchema,
     },
     output: {},
@@ -19,8 +19,8 @@ export const getSimpleChatMessagesFromStart = defineRpc({
     input: {
         simpleChatId: Schema.id<SimpleChatId>(),
         limit: Schema.integer,
-        afterMessageId: Schema.integer.nullable(),
-        beforeMessageId: Schema.integer.nullable(),
+        afterMessageIndex: Schema.integer.nullable(),
+        beforeMessageIndex: Schema.integer.nullable(),
     },
     output: {
         hasMoreMessagesAfter: Schema.boolean,
@@ -33,8 +33,8 @@ export const getSimpleChatMessagesFromEnd = defineRpc({
     input: {
         simpleChatId: Schema.id<SimpleChatId>(),
         limit: Schema.integer,
-        afterMessageId: Schema.integer.nullable(),
-        beforeMessageId: Schema.integer.nullable(),
+        afterMessageIndex: Schema.integer.nullable(),
+        beforeMessageIndex: Schema.integer.nullable(),
     },
     output: {
         hasMoreMessagesBefore: Schema.boolean,

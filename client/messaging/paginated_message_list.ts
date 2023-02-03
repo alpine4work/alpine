@@ -1,18 +1,17 @@
-import binarySearch from "binary-search";
 import {OutOfRangeError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {Lazy} from "~/shared/helpers/control/lazy";
 import {LazyMap} from "~/shared/helpers/control/lazy_map";
 
 /**
- * The smallest possible message ID.
+ * The smallest possible message index.
  */
-export const minMessageId = 1;
+export const minMessageIndex = 0;
 
 /**
- * The largest possible message ID.
+ * The largest possible message index.
  */
-export const maxMessageId = Number.MAX_SAFE_INTEGER - 1;
+export const maxMessageIndex = Number.MAX_SAFE_INTEGER;
 
 /**
  * Immutable object for keeping track of a partially loaded list of messages.
@@ -22,25 +21,25 @@ export const maxMessageId = Number.MAX_SAFE_INTEGER - 1;
  * Takes advantage of the fact that message IDs are dense to predict how big
  * the gap is between message ranges.
  */
-export class PaginatedMessageList<Message extends {readonly id: number}> {
+export class PaginatedMessageList<Message extends {readonly index: number}> {
     private readonly _segments: ReadonlyArray<PaginatedMessageListSegment<Message>>;
 
     private constructor(segments: ReadonlyArray<PaginatedMessageListSegment<Message>>) {
         // Validate that our segments are well-formed:
         //
-        // 1. Messages should be in ascending order by ID
-        // 2. Segments should be in ascending order by message ID
+        // 1. Messages should be in ascending order by index
+        // 2. Segments should be in ascending order by message index
         // 3. You can not have adjacent loaded segments and you can not have adjacent
         //    unloaded segments
         // 4. A loaded or unloaded segment must have at least one message
-        let lastMessageId: number | null = null;
+        let lastMessageIndex: number | null = null;
         for (let segmentIndex = 0; segmentIndex < segments.length; segmentIndex++) {
             const segment = segments[segmentIndex]!;
             const previousSegment = segmentIndex > 0 ? segments[segmentIndex - 1]! : null;
 
             if (!segment.isLoaded) {
                 assert(
-                    segment.estimatedMessageCount > 0,
+                    segment.messageCount > 0,
                     "Unloaded segment has an estimated message count of zero",
                 );
                 assert(
@@ -60,24 +59,24 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
                 if (process.env.NODE_ENV !== "production") {
                     for (const message of segment.messages) {
                         assert(
-                            lastMessageId === null || lastMessageId < message.id,
+                            lastMessageIndex === null || lastMessageIndex < message.index,
                             "Messages must be in ascending order by `id`",
                         );
-                        lastMessageId = message.id;
+                        lastMessageIndex = message.index;
                     }
                 } else {
-                    const startMessageId = segment.messages[0]!.id;
-                    const endMessageId = segment.messages[segment.messages.length - 1]!.id;
+                    const startMessageIndex = segment.messages[0]!.index;
+                    const endMessageIndex = segment.messages[segment.messages.length - 1]!.index;
 
                     assert(
-                        lastMessageId === null || lastMessageId < startMessageId,
+                        lastMessageIndex === null || lastMessageIndex < startMessageIndex,
                         "Messages must be in ascending order by `id`",
                     );
                     assert(
-                        startMessageId <= endMessageId,
+                        startMessageIndex <= endMessageIndex,
                         "Messages must be in ascending order by `id`",
                     );
-                    lastMessageId = endMessageId;
+                    lastMessageIndex = endMessageIndex;
                 }
             }
         }
@@ -88,15 +87,17 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
     /**
      * Create a new empty list.
      */
-    public static new<Message extends {readonly id: number}>(
+    public static new<Message extends {readonly index: number}>(
         estimatedMessageCount: number,
     ): PaginatedMessageList<Message> {
         return new PaginatedMessageList(
-            estimatedMessageCount > 0 ? [{isLoaded: false, estimatedMessageCount}] : [],
+            estimatedMessageCount > 0
+                ? [{isLoaded: false, messageCount: estimatedMessageCount}]
+                : [],
         );
     }
 
-    public static newForTest<Message extends {readonly id: number}>(
+    public static newForTest<Message extends {readonly index: number}>(
         segments: ReadonlyArray<PaginatedMessageListSegment<Message>>,
     ) {
         assert(typeof jest !== "undefined");
@@ -124,33 +125,33 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
                 }
                 messageCount += segment.messages.length;
             } else {
-                messageCount += segment.estimatedMessageCount;
+                messageCount += segment.messageCount;
             }
         }
     }
 
     /**
-     * Get the total estimated message count for this list.
+     * Get the number of messages count in this list.
      *
      * O(segments) the first time you call this function and then it is cached
      * after that.
      */
-    public getEstimatedMessageCount(): number {
-        return this._estimatedMessageCount.get();
+    public getMessageCount(): number {
+        return this._messageCount.get();
     }
 
-    private readonly _estimatedMessageCount = new Lazy(() => {
-        let estimatedMessageCount = 0;
+    private readonly _messageCount = new Lazy(() => {
+        let messageCount = 0;
 
         for (const segment of this._segments) {
             if (segment.isLoaded) {
-                estimatedMessageCount += segment.messages.length;
+                messageCount += segment.messages.length;
             } else {
-                estimatedMessageCount += segment.estimatedMessageCount;
+                messageCount += segment.messageCount;
             }
         }
 
-        return estimatedMessageCount;
+        return messageCount;
     });
 
     /**
@@ -181,51 +182,16 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
                     index -= segment.messages.length;
                 }
             } else {
-                if (index < segment.estimatedMessageCount) {
+                if (index < segment.messageCount) {
                     return {isLoaded: false};
                 } else {
-                    index -= segment.estimatedMessageCount;
+                    index -= segment.messageCount;
                 }
             }
         }
 
         throw new OutOfRangeError("Index out of bounds");
     });
-
-    /**
-     * Get the index for a given message ID in the list. If the message ID is not
-     * found in the list we return null.
-     */
-    public getIndexByMessageId(messageId: number): number | null {
-        let messageCount = 0;
-        for (const segment of this._segments) {
-            if (segment.isLoaded) {
-                const segmentStartMessageId = segment.messages[0]!.id;
-                const segmentEndMessageId = segment.messages[segment.messages.length - 1]!.id;
-
-                // If the message is within this segment then search through the messages of
-                // the segment to find the specific index.
-                if (segmentStartMessageId <= messageId && messageId <= segmentEndMessageId) {
-                    const index = binarySearch(
-                        segment.messages,
-                        messageId,
-                        (message, messageId) => message.id - messageId,
-                    );
-                    if (index < 0) return null;
-                    return messageCount + index;
-                }
-
-                // All future segments will not include the `messageId` so abort.
-                if (messageId < segmentStartMessageId) return null;
-
-                messageCount += segment.messages.length;
-            } else {
-                messageCount += segment.estimatedMessageCount;
-            }
-        }
-
-        return null;
-    }
 
     /**
      * Get the first loaded message after the provided index. If there is no loaded
@@ -241,8 +207,8 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
      *
      * O(segments) time. This method is not cached.
      */
-    public getFirstLoadedMessageAfter(index: number): {index: number; message: Message} | null {
-        if (index < 0 || index > this.getEstimatedMessageCount() - 1)
+    public getFirstLoadedMessageAfter(index: number): Message | null {
+        if (index < 0 || index > this.getMessageCount() - 1)
             throw new OutOfRangeError("Index out of bounds");
 
         // We want to find the message before, not the `index` message precisely.
@@ -252,22 +218,24 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
         for (const segment of this._segments) {
             if (segment.isLoaded) {
                 if (index < segment.messages.length) {
-                    return {
-                        index: messageCount + index,
-                        message: segment.messages[index]!,
-                    };
+                    const message = segment.messages[index]!;
+                    assert(
+                        message.index === messageCount + index,
+                        "Index of the message in the list should be the same as the `index` property of the message itself",
+                    );
+                    return message;
                 } else {
                     index -= segment.messages.length;
                 }
                 messageCount += segment.messages.length;
             } else {
-                if (index < segment.estimatedMessageCount) {
+                if (index < segment.messageCount) {
                     // Return the first message in the next loaded segment.
                     index = 0;
                 } else {
-                    index -= segment.estimatedMessageCount;
+                    index -= segment.messageCount;
                 }
-                messageCount += segment.estimatedMessageCount;
+                messageCount += segment.messageCount;
             }
         }
 
@@ -288,8 +256,8 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
      *
      * O(segments) time. This method is not cached.
      */
-    public getLastLoadedMessageBefore(index: number): {index: number; message: Message} | null {
-        if (index < 0 || index > this.getEstimatedMessageCount() - 1)
+    public getLastLoadedMessageBefore(index: number): Message | null {
+        if (index < 0 || index > this.getMessageCount() - 1)
             throw new OutOfRangeError("Index out of bounds");
 
         if (index === 0) return null;
@@ -298,30 +266,33 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
         index -= 1;
 
         let messageCount = 0;
-        let lastMessage: {index: number; message: Message} | null = null;
+        let lastMessage: Message | null = null;
         for (const segment of this._segments) {
             if (segment.isLoaded) {
                 if (index < segment.messages.length) {
-                    return {
-                        index: messageCount + index,
-                        message: segment.messages[index]!,
-                    };
+                    const message = segment.messages[index]!;
+                    assert(
+                        message.index === messageCount + index,
+                        "Index of the message in the list should be the same as the `index` property of the message itself",
+                    );
+                    return message;
                 } else {
                     index -= segment.messages.length;
-                    lastMessage = {
-                        index: messageCount + segment.messages.length - 1,
-                        message: segment.messages[segment.messages.length - 1]!,
-                    };
+                    lastMessage = segment.messages[segment.messages.length - 1]!;
+                    assert(
+                        lastMessage.index === messageCount + segment.messages.length - 1,
+                        "Index of the message in the list should be the same as the `index` property of the message itself",
+                    );
                 }
                 messageCount += segment.messages.length;
             } else {
-                if (index < segment.estimatedMessageCount) {
+                if (index < segment.messageCount) {
                     // Return the last message in the previously loaded segment.
                     return lastMessage;
                 } else {
-                    index -= segment.estimatedMessageCount;
+                    index -= segment.messageCount;
                 }
-                messageCount += segment.estimatedMessageCount;
+                messageCount += segment.messageCount;
             }
         }
 
@@ -333,30 +304,30 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
      * loaded list or replacing a range of messages that already exists.
      */
     public loadMessages({
-        afterMessageId,
-        beforeMessageId,
+        afterMessageIndex,
+        beforeMessageIndex,
         mayHaveMoreMessagesBefore,
         mayHaveMoreMessagesAfter,
         messages,
     }: {
         /**
-         * All loaded messages IDs come after this ID. Must be less than the first
-         * message ID.
+         * All loaded messages indexes come after this index. Must be less than the
+         * first message index in `messages`.
          *
          * We assume the provided `messages` list is all the messages between this and
-         * `beforeMessageId` IDs. If you are loading messages that had a limit applied,
-         * you should set this to +1 the ID of the message at the limit.
+         * `beforeMessageIndex`. If you are loading messages that had a limit applied,
+         * you should set this to -1 the index of the message at the limit.
          */
-        afterMessageId: number;
+        afterMessageIndex: number;
         /**
-         * All loaded messages IDs come before this ID. Must be greater than the last
-         * message ID.
+         * All loaded messages indexes come before this index. Must be greater than the
+         * last message index in `messages`.
          *
          * We assume the provided `messages` list is all the messages between this and
-         * `afterMessageId` IDs. If you are loading messages that had a limit applied,
-         * you should set this to +1 the ID of the message at the limit.
+         * `afterMessageIndex`. If you are loading messages that had a limit applied,
+         * you should set this to +1 the index of the message at the limit.
          */
-        beforeMessageId: number;
+        beforeMessageIndex: number;
         /**
          * May there be more messages before the ones we loaded? If true there may be
          * messages but also maybe not. If false then there are definitely no more
@@ -374,27 +345,59 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
          */
         messages: ReadonlyArray<Message>;
     }) {
+        // NOTE(calebmer): So when I wrote this function (and this class) messages
+        // could be deleted and completely removed from a list. That meant:
+        //
+        // - Message counts were only estimations.
+        // - While the message index was still an incrementing sequence, you
+        //   could have gaps.
+        // - Instead of calling the message identifier `message.index` it was
+        //   called `message.id` since I didn't want to use the word "index" for a
+        //   key which semantically may have gaps.
+        //
+        // This function and class can probably be simplified with the knowledge that
+        // message indexes must be densely packed and can never be deleted.
+        //
+        // The naming of variables in this function may also be a little more
+        // complicated than I'd like since originally message indexes were called
+        // message IDs making them easy to differentiate by name vs segment indexes and
+        // an index in the total list.
+        //
+        // For example, when we load messages in an unloaded range we use fractions to
+        // determine how many unloaded messages go above our loaded messages and how
+        // many unloaded messages go below our loaded messages. This was designed to be
+        // an approximate estimation since there was no way of knowing if any messages
+        // in the unloaded range were deleted. Now that we know messages can't be
+        // deleted we could compute a precise number of unloaded comments instead of
+        // approximating. Likewise the business with `mayHaveMoreMessagesBefore` and
+        // `mayHaveMoreMessagesAfter` maybe could be simplified given we don't need
+        // these flags from the server and instead can know this purely on the client.
+        //
+        // I suspect this function will keep working now that messages can't be deleted
+        // since it's a superset of the original functionality but maybe someday you'll
+        // find weird bugs that could be solved by simplifying this class.
+
         // Validate the messages we are loading.
-        let lastMessageId = afterMessageId;
+        let lastMessageIndex = afterMessageIndex;
         for (let index = 0; index < messages.length; index++) {
             const message = messages[index]!;
             assert(
-                lastMessageId < message.id,
+                lastMessageIndex < message.index,
                 index === 0
-                    ? "`afterMessageId` must be before the first message `id`"
-                    : "Newly loaded messages must be in ascending order by `id`",
+                    ? "`afterMessageIndex` must be before the first message `index`"
+                    : "Newly loaded messages must be in ascending order by `index`",
             );
             assert(
-                minMessageId <= message.id && message.id <= maxMessageId,
-                "Message `id` is out of bounds",
+                minMessageIndex <= message.index && message.index <= maxMessageIndex,
+                "Message `index` is out of bounds",
             );
-            lastMessageId = message.id;
+            lastMessageIndex = message.index;
         }
         assert(
-            lastMessageId < beforeMessageId,
+            lastMessageIndex < beforeMessageIndex,
             messages.length > 0
-                ? "`beforeMessageId` must be after the last message `id`"
-                : "`beforeMessageId` must be after `lastMessageId`",
+                ? "`beforeMessageIndex` must be after the last message `index`"
+                : "`beforeMessageIndex` must be after `lastMessageIndex`",
         );
 
         // There are two ways this function may update update the list:
@@ -419,9 +422,9 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
             assert(loadedSegments.length > 0);
             const firstLoadedSegment = loadedSegments[0]!;
             const lastLoadedSegment = loadedSegments[loadedSegments.length - 1]!;
-            const loadedSegmentsStartMessageId = firstLoadedSegment.messages[0]!.id;
-            const loadedSegmentsEndMessageId =
-                lastLoadedSegment.messages[lastLoadedSegment.messages.length - 1]!.id;
+            const loadedSegmentsStartMessageIndex = firstLoadedSegment.messages[0]!.index;
+            const loadedSegmentsEndMessageIndex =
+                lastLoadedSegment.messages[lastLoadedSegment.messages.length - 1]!.index;
 
             const segmentMessages = [];
 
@@ -430,7 +433,7 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
             let newMessageCountBeforeLoadedSegments = 0;
             let newMessageCountAfterLoadedSegments = 0;
 
-            const newMessageIds = new Set<number>();
+            const newMessageIndexes = new Set<number>();
 
             // This message should be called once at the position we want to insert our
             // messages into `segmentMessages`.
@@ -440,11 +443,11 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
                 hasInsertedNewMessages = true;
 
                 for (const message of messages) {
-                    newMessageIds.add(message.id);
+                    newMessageIndexes.add(message.index);
 
-                    if (message.id < loadedSegmentsStartMessageId)
+                    if (message.index < loadedSegmentsStartMessageIndex)
                         newMessageCountBeforeLoadedSegments++;
-                    if (loadedSegmentsEndMessageId < message.id)
+                    if (loadedSegmentsEndMessageIndex < message.index)
                         newMessageCountAfterLoadedSegments++;
 
                     segmentMessages.push(message);
@@ -456,15 +459,16 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
                 for (const message of segment.messages) {
                     // Insert new messages before the first existing message that could be after our
                     // new messages.
-                    if (afterMessageId < message.id && !hasInsertedNewMessages) {
+                    if (afterMessageIndex < message.index && !hasInsertedNewMessages) {
                         insertNewMessages();
                     }
 
-                    // If this message is outside our newly loaded message range (`afterMessageId`
-                    // to `beforeMessageId`) then add it to the new merged segment's messages.
+                    // If this message is outside our newly loaded message range
+                    // (`afterMessageIndex` to `beforeMessageIndex`) then add it to the new merged
+                    // segment's messages.
                     if (
-                        (mayHaveMoreMessagesBefore && message.id <= afterMessageId) ||
-                        (mayHaveMoreMessagesAfter && beforeMessageId <= message.id)
+                        (mayHaveMoreMessagesBefore && message.index <= afterMessageIndex) ||
+                        (mayHaveMoreMessagesAfter && beforeMessageIndex <= message.index)
                     ) {
                         segmentMessages.push(message);
                     }
@@ -488,9 +492,9 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
                 if (newMessageCountBeforeLoadedSegments > 0) {
                     newSegments.push({
                         isLoaded: false,
-                        estimatedMessageCount: Math.max(
+                        messageCount: Math.max(
                             1,
-                            (previousUnloadedSegment?.estimatedMessageCount ?? 0) -
+                            (previousUnloadedSegment?.messageCount ?? 0) -
                                 newMessageCountBeforeLoadedSegments,
                         ),
                     });
@@ -512,9 +516,9 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
                 if (newMessageCountAfterLoadedSegments > 0) {
                     newSegments.push({
                         isLoaded: false,
-                        estimatedMessageCount: Math.max(
+                        messageCount: Math.max(
                             1,
-                            (nextUnloadedSegment?.estimatedMessageCount ?? 0) -
+                            (nextUnloadedSegment?.messageCount ?? 0) -
                                 newMessageCountAfterLoadedSegments,
                         ),
                     });
@@ -540,20 +544,20 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
             // the end is the start `id` plus the estimated message count. This leverages
             // the fact that message list `id`s are mostly dense. However deleted messages
             // might mean this is an underestimation of the unloaded segment's end.
-            const unloadedSegmentStartMessageId = previousLoadedSegment
-                ? previousLoadedSegment.messages[previousLoadedSegment.messages.length - 1]!.id
-                : minMessageId - 1;
-            const unloadedSegmentEndMessageId = nextLoadedSegment
-                ? nextLoadedSegment.messages[0]!.id
+            const unloadedSegmentStartMessageIndex = previousLoadedSegment
+                ? previousLoadedSegment.messages[previousLoadedSegment.messages.length - 1]!.index
+                : minMessageIndex - 1;
+            const unloadedSegmentEndMessageIndex = nextLoadedSegment
+                ? nextLoadedSegment.messages[0]!.index
                 : unloadedSegment
                 ? Math.max(
-                      unloadedSegmentStartMessageId + unloadedSegment.estimatedMessageCount,
-                      beforeMessageId + 1,
+                      unloadedSegmentStartMessageIndex + unloadedSegment.messageCount,
+                      beforeMessageIndex + 1,
                   )
-                : maxMessageId + 1;
+                : maxMessageIndex + 1;
 
-            assert(unloadedSegmentStartMessageId <= afterMessageId);
-            assert(beforeMessageId <= unloadedSegmentEndMessageId);
+            assert(unloadedSegmentStartMessageIndex <= afterMessageIndex);
+            assert(beforeMessageIndex <= unloadedSegmentEndMessageIndex);
 
             // We split the unloaded segment into two and insert a loaded segment in the
             // middle. Each of the split unloaded segments must have a message count of at
@@ -567,30 +571,30 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
             // most of the time have 20 messages in between them unless a message was
             // deleted which is uncommon.
 
-            const estimatedMessageCount = unloadedSegment?.estimatedMessageCount ?? 0;
+            const estimatedMessageCount = unloadedSegment?.messageCount ?? 0;
             const remainingEstimatedMessageCount = Math.max(
                 0,
                 estimatedMessageCount - messages.length,
             );
 
-            const messageIdFraction1 =
-                (afterMessageId - unloadedSegmentStartMessageId) /
-                (unloadedSegmentEndMessageId - unloadedSegmentStartMessageId);
-            const messageIdFraction2 =
-                (unloadedSegmentEndMessageId - beforeMessageId) /
-                (unloadedSegmentEndMessageId - unloadedSegmentStartMessageId);
+            const messageIndexFraction1 =
+                (afterMessageIndex - unloadedSegmentStartMessageIndex) /
+                (unloadedSegmentEndMessageIndex - unloadedSegmentStartMessageIndex);
+            const messageIndexFraction2 =
+                (unloadedSegmentEndMessageIndex - beforeMessageIndex) /
+                (unloadedSegmentEndMessageIndex - unloadedSegmentStartMessageIndex);
 
             const estimatedBeforeMessageCount = Math.max(
                 1,
                 Math.round(
-                    (messageIdFraction1 / (messageIdFraction1 + messageIdFraction2)) *
+                    (messageIndexFraction1 / (messageIndexFraction1 + messageIndexFraction2)) *
                         remainingEstimatedMessageCount,
                 ),
             );
             const estimatedAfterMessageCount = Math.max(
                 1,
                 Math.round(
-                    (messageIdFraction2 / (messageIdFraction1 + messageIdFraction2)) *
+                    (messageIndexFraction2 / (messageIndexFraction1 + messageIndexFraction2)) *
                         remainingEstimatedMessageCount,
                 ),
             );
@@ -610,7 +614,7 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
                     // Add the first half of the split unloaded segment.
                     newSegments.push({
                         isLoaded: false,
-                        estimatedMessageCount: estimatedBeforeMessageCount,
+                        messageCount: estimatedBeforeMessageCount,
                     });
                 }
 
@@ -624,14 +628,14 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
                     // Add the second half of the split unloaded segment.
                     newSegments.push({
                         isLoaded: false,
-                        estimatedMessageCount: estimatedAfterMessageCount,
+                        messageCount: estimatedAfterMessageCount,
                     });
                 }
             } else {
                 if (mayHaveMoreMessagesBefore || mayHaveMoreMessagesAfter) {
                     newSegments.push({
                         isLoaded: false,
-                        estimatedMessageCount:
+                        messageCount:
                             (mayHaveMoreMessagesBefore ? estimatedBeforeMessageCount : 0) +
                             (mayHaveMoreMessagesAfter ? estimatedAfterMessageCount : 0),
                     });
@@ -651,8 +655,8 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
         for (let segmentIndex = 0; segmentIndex < this._segments.length; segmentIndex++) {
             const segment = this._segments[segmentIndex]!;
             if (!segment.isLoaded) continue;
-            const segmentStartMessageId = segment.messages[0]!.id;
-            const segmentEndMessageId = segment.messages[segment.messages.length - 1]!.id;
+            const segmentStartMessageIndex = segment.messages[0]!.index;
+            const segmentEndMessageIndex = segment.messages[segment.messages.length - 1]!.index;
 
             // If we are at this point it means our newly loaded messages did not overlap
             // with any previous segment. If this condition is true then that means our
@@ -660,7 +664,7 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
             // means we should insert a new segment here.
             //
             // Figure out what our adjacent segments are and insert...
-            if (beforeMessageId < segmentStartMessageId) {
+            if (beforeMessageIndex < segmentStartMessageIndex) {
                 if (segmentIndex >= 2) {
                     const previousLoadedSegment = this._segments[segmentIndex - 2]!;
                     assert(previousLoadedSegment.isLoaded);
@@ -697,10 +701,10 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
             // merge those segments together with our new messages.
             if (
                 areRangesOverlapping(
-                    afterMessageId,
-                    beforeMessageId,
-                    segmentStartMessageId,
-                    segmentEndMessageId,
+                    afterMessageIndex,
+                    beforeMessageIndex,
+                    segmentStartMessageIndex,
+                    segmentEndMessageIndex,
                 )
             ) {
                 // Find our contiguous series of loaded segments that overlap with our newly
@@ -714,15 +718,16 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
                 ) {
                     const segment = this._segments[otherSegmentIndex]!;
                     if (!segment.isLoaded) continue;
-                    const segmentStartMessageId = segment.messages[0]!.id;
-                    const segmentEndMessageId = segment.messages[segment.messages.length - 1]!.id;
+                    const segmentStartMessageIndex = segment.messages[0]!.index;
+                    const segmentEndMessageIndex =
+                        segment.messages[segment.messages.length - 1]!.index;
 
                     if (
                         areRangesOverlapping(
-                            afterMessageId,
-                            beforeMessageId,
-                            segmentStartMessageId,
-                            segmentEndMessageId,
+                            afterMessageIndex,
+                            beforeMessageIndex,
+                            segmentStartMessageIndex,
+                            segmentEndMessageIndex,
                         )
                     ) {
                         loadedSegmentsToMerge.push(segment);
@@ -829,14 +834,14 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
      * options.
      */
     public loadMessagesFromStart({
-        afterMessageId,
-        beforeMessageId,
+        afterMessageIndex,
+        beforeMessageIndex,
         limit,
         hasMoreMessagesAfter,
         messages,
     }: {
-        afterMessageId: number | null;
-        beforeMessageId: number | null;
+        afterMessageIndex: number | null;
+        beforeMessageIndex: number | null;
         limit: number;
         hasMoreMessagesAfter: boolean;
         messages: ReadonlyArray<Message>;
@@ -844,16 +849,16 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
         const hasExceededLimit = messages.length >= limit;
 
         return this.loadMessages({
-            afterMessageId: afterMessageId ?? minMessageId - 1,
-            // If we exceeded the limit, we don't want to use the actual `afterMessageId`
+            afterMessageIndex: afterMessageIndex ?? minMessageIndex - 1,
+            // If we exceeded the limit, we don't want to use the actual `afterMessageIndex`
             // because our list will think the messages between our first message `id` and
-            // `afterMessageId` were deleted.
-            beforeMessageId: hasExceededLimit
-                ? messages[messages.length - 1]!.id + 1
-                : beforeMessageId ?? maxMessageId + 1,
+            // `afterMessageIndex` were deleted.
+            beforeMessageIndex: hasExceededLimit
+                ? messages[messages.length - 1]!.index + 1
+                : beforeMessageIndex ?? maxMessageIndex + 1,
             mayHaveMoreMessagesBefore:
-                afterMessageId !== null ? afterMessageId >= minMessageId : false,
-            mayHaveMoreMessagesAfter: beforeMessageId !== null || hasMoreMessagesAfter,
+                afterMessageIndex !== null ? afterMessageIndex >= minMessageIndex : false,
+            mayHaveMoreMessagesAfter: beforeMessageIndex !== null || hasMoreMessagesAfter,
             messages,
         });
     }
@@ -865,14 +870,14 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
      * options.
      */
     public loadMessagesFromEnd({
-        afterMessageId,
-        beforeMessageId,
+        afterMessageIndex,
+        beforeMessageIndex,
         limit,
         hasMoreMessagesBefore,
         messages,
     }: {
-        afterMessageId: number | null;
-        beforeMessageId: number | null;
+        afterMessageIndex: number | null;
+        beforeMessageIndex: number | null;
         limit: number;
         hasMoreMessagesBefore: boolean;
         messages: ReadonlyArray<Message>;
@@ -880,15 +885,15 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
         const hasExceededLimit = messages.length >= limit;
 
         return this.loadMessages({
-            // If we exceeded the limit, we don't want to use the actual `beforeMessageId`
+            // If we exceeded the limit, we don't want to use the actual `beforeMessageIndex`
             // because our list will think the messages between our last message `id` and
-            // `beforeMessageId` were deleted.
-            afterMessageId: hasExceededLimit
-                ? messages[0]!.id - 1
-                : afterMessageId ?? minMessageId - 1,
-            beforeMessageId: beforeMessageId ?? maxMessageId + 1,
-            mayHaveMoreMessagesBefore: afterMessageId !== null || hasMoreMessagesBefore,
-            mayHaveMoreMessagesAfter: beforeMessageId !== null,
+            // `beforeMessageIndex` were deleted.
+            afterMessageIndex: hasExceededLimit
+                ? messages[0]!.index - 1
+                : afterMessageIndex ?? minMessageIndex - 1,
+            beforeMessageIndex: beforeMessageIndex ?? maxMessageIndex + 1,
+            mayHaveMoreMessagesBefore: afterMessageIndex !== null || hasMoreMessagesBefore,
+            mayHaveMoreMessagesAfter: beforeMessageIndex !== null,
             messages,
         });
     }
@@ -899,16 +904,16 @@ export class PaginatedMessageList<Message extends {readonly id: number}> {
  * or unloaded messages. We should never have two adjacent unloaded segments or
  * two adjacent loaded segments.
  */
-export type PaginatedMessageListSegment<Message extends {readonly id: number}> =
+export type PaginatedMessageListSegment<Message extends {readonly index: number}> =
     | PaginatedMessageListUnloadedSegment
     | PaginatedMessageListLoadedSegment<Message>;
 
 type PaginatedMessageListUnloadedSegment = {
     readonly isLoaded: false;
-    readonly estimatedMessageCount: number;
+    readonly messageCount: number;
 };
 
-type PaginatedMessageListLoadedSegment<Message extends {readonly id: number}> = {
+type PaginatedMessageListLoadedSegment<Message extends {readonly index: number}> = {
     readonly isLoaded: true;
     readonly messages: ReadonlyArray<Message>;
 };

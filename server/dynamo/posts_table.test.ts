@@ -128,7 +128,7 @@ test("can get the comment authors on a post", async () => {
 
     await createPostComment(context.request(session1), {
         postId: post.id,
-        parentCommentId: null,
+        parentCommentIndex: null,
         content: testMessageContent,
     });
 
@@ -138,13 +138,13 @@ test("can get the comment authors on a post", async () => {
 
     await createPostComment(context.request(session2), {
         postId: post.id,
-        parentCommentId: null,
+        parentCommentIndex: null,
         content: testMessageContent,
     });
 
     await createPostComment(context.request(session3), {
         postId: post.id,
-        parentCommentId: null,
+        parentCommentIndex: null,
         content: testMessageContent,
     });
 
@@ -154,31 +154,31 @@ test("can get the comment authors on a post", async () => {
 
     await createPostComment(context.request(session4), {
         postId: post.id,
-        parentCommentId: null,
+        parentCommentIndex: null,
         content: testMessageContent,
     });
 
     await createPostComment(context.request(session5), {
         postId: post.id,
-        parentCommentId: null,
+        parentCommentIndex: null,
         content: testMessageContent,
     });
 
     await createPostComment(context.request(session6), {
         postId: post.id,
-        parentCommentId: null,
+        parentCommentIndex: null,
         content: testMessageContent,
     });
 
     await createPostComment(context.request(session7), {
         postId: post.id,
-        parentCommentId: null,
+        parentCommentIndex: null,
         content: testMessageContent,
     });
 
     await createPostComment(context.request(session8), {
         postId: post.id,
-        parentCommentId: null,
+        parentCommentIndex: null,
         content: testMessageContent,
     });
 
@@ -197,7 +197,7 @@ test("can get the comment authors on a post", async () => {
 
     await deletePostComment(context.request(session3), {
         postId: post.id,
-        commentId: 3,
+        commentIndex: 2,
     });
 
     expect(
@@ -205,6 +205,7 @@ test("can get the comment authors on a post", async () => {
     ).toEqual([
         session1.account,
         session2.account,
+        session3.account,
         session4.account,
         session5.account,
         session6.account,
@@ -217,9 +218,9 @@ test("can get the comment authors on a post", async () => {
     ).toEqual([
         session1.account,
         session2.account,
+        session3.account,
         session4.account,
         session5.account,
-        session6.account,
     ]);
 });
 
@@ -240,7 +241,7 @@ test("can not get the comment authors in another space", async () => {
 
     await createPostComment(context.request(session2), {
         postId: post.id,
-        parentCommentId: null,
+        parentCommentIndex: null,
         content: testMessageContent,
     });
 
@@ -280,40 +281,48 @@ testMessageImplementation<PostId>(context, {
     getMissingRoomKey() {
         return generateId();
     },
-    async createMessage(context, {roomKey: postId, parentMessageId: parentCommentId, content}) {
+    async createMessage(
+        context,
+        {roomKey: postId, parentMessageIndex: parentCommentIndex, content},
+    ) {
         const comment = await createPostComment(context, {
             postId,
-            parentCommentId,
+            parentCommentIndex,
             content,
         });
 
         return {
-            id: comment.id,
+            index: comment.index,
             createdTime: comment.createdTime,
         };
     },
-    async getMessage(context, {roomKey: postId, messageId: commentId}) {
-        return getPostComment(context, {postId, commentId});
+    async getMessage(context, {roomKey: postId, messageIndex: commentIndex}) {
+        return getPostComment(context, {postId, commentIndex});
     },
-    async updateMessageContent(context, {roomKey: postId, messageId: commentId, content}) {
+    async updateMessageContent(context, {roomKey: postId, messageIndex: commentIndex, content}) {
         return updatePostCommentContent(context, {
             postId,
-            commentId,
+            commentIndex,
             content,
         });
     },
-    async deleteMessage(context, {roomKey: postId, messageId: commentId}) {
-        return deletePostComment(context, {postId, commentId});
+    async deleteMessage(context, {roomKey: postId, messageIndex: commentIndex}) {
+        return deletePostComment(context, {postId, commentIndex});
     },
     async getMessagesFromStart(
         context,
-        {roomKey: postId, limit, afterMessageId: afterCommentId, beforeMessageId: beforeCommentId},
+        {
+            roomKey: postId,
+            limit,
+            afterMessageIndex: afterCommentIndex,
+            beforeMessageIndex: beforeCommentIndex,
+        },
     ) {
         const {comments, hasMoreCommentsAfter} = await getPostCommentsFromStart(context, {
             postId,
             limit,
-            afterCommentId,
-            beforeCommentId,
+            afterCommentIndex,
+            beforeCommentIndex,
         });
         return {
             messages: comments,
@@ -322,13 +331,18 @@ testMessageImplementation<PostId>(context, {
     },
     async getMessagesFromEnd(
         context,
-        {roomKey: postId, limit, afterMessageId: afterCommentId, beforeMessageId: beforeCommentId},
+        {
+            roomKey: postId,
+            limit,
+            afterMessageIndex: afterCommentIndex,
+            beforeMessageIndex: beforeCommentIndex,
+        },
     ) {
         const {comments, hasMoreCommentsBefore} = await getPostCommentsFromEnd(context, {
             postId,
             limit,
-            afterCommentId,
-            beforeCommentId,
+            afterCommentIndex,
+            beforeCommentIndex,
         });
         return {
             messages: comments,

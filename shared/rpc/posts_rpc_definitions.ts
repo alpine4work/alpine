@@ -25,7 +25,7 @@ export const createPostComment = defineRpc({
     name: "createPostComment",
     input: {
         postId: Schema.id<PostId>(),
-        parentCommentId: Schema.integer.nullable(),
+        parentCommentIndex: Schema.integer.nullable(),
         content: MessageContentSchema,
     },
     output: {},
@@ -47,8 +47,8 @@ export const getPostCommentsFromStart = defineRpc({
     input: {
         postId: Schema.id<PostId>(),
         limit: Schema.integer,
-        afterCommentId: Schema.integer.nullable(),
-        beforeCommentId: Schema.integer.nullable(),
+        afterCommentIndex: Schema.integer.nullable(),
+        beforeCommentIndex: Schema.integer.nullable(),
     },
     output: {
         hasMoreCommentsAfter: Schema.boolean,
@@ -61,8 +61,8 @@ export const getPostCommentsFromEnd = defineRpc({
     input: {
         postId: Schema.id<PostId>(),
         limit: Schema.integer,
-        afterCommentId: Schema.integer.nullable(),
-        beforeCommentId: Schema.integer.nullable(),
+        afterCommentIndex: Schema.integer.nullable(),
+        beforeCommentIndex: Schema.integer.nullable(),
     },
     output: {
         hasMoreCommentsBefore: Schema.boolean,

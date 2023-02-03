@@ -108,7 +108,7 @@ export class PaginatedPostList {
                     count +
                     assertExists(
                         this._postByOrderKey.get(postOrderKey),
-                    ).postComments.getEstimatedMessageCount() +
+                    ).postComments.getMessageCount() +
                     1,
                 0,
             )
@@ -159,7 +159,7 @@ export class PaginatedPostList {
                     postContentItemIndex +
                     // The next post index is past any comments if the comment section is open
                     (this._openPostCommentPostOrderKeys.has(postOrderKey)
-                        ? postComments.getEstimatedMessageCount() +
+                        ? postComments.getMessageCount() +
                           // Add one for the post comment input index
                           1
                         : 0) +
@@ -204,7 +204,7 @@ export class PaginatedPostList {
                 postContentItemIndex +
                 // The next post index is past any comments if the comment section is open
                 (this._openPostCommentPostOrderKeys.has(postOrderKey)
-                    ? postComments.getEstimatedMessageCount() +
+                    ? postComments.getMessageCount() +
                       // Add one for the post comment input index
                       1
                     : 0) +
@@ -243,7 +243,7 @@ export class PaginatedPostList {
             arePostCommentsOpen,
             postContentItemIndex,
             postCommentInputItemIndex: arePostCommentsOpen
-                ? postContentItemIndex + postComments.getEstimatedMessageCount() + 1
+                ? postContentItemIndex + postComments.getMessageCount() + 1
                 : null,
         };
     }
@@ -265,16 +265,16 @@ export class PaginatedPostList {
                 arePostCommentsOpen,
                 postContentItemIndex,
                 postCommentInputItemIndex: arePostCommentsOpen
-                    ? postContentItemIndex + postComments.getEstimatedMessageCount() + 1
+                    ? postContentItemIndex + postComments.getMessageCount() + 1
                     : null,
             };
         }
 
         if (arePostCommentsOpen) {
             const postCommentIndex = index - (postContentItemIndex + 1);
-            const postCommentCount = postComments.getEstimatedMessageCount();
+            const postCommentCount = postComments.getMessageCount();
             const postCommentInputItemIndex =
-                postContentItemIndex + postComments.getEstimatedMessageCount() + 1;
+                postContentItemIndex + postComments.getMessageCount() + 1;
 
             if (0 <= postCommentIndex && postCommentIndex < postCommentCount) {
                 const postComment = postComments.getMessage(postCommentIndex);

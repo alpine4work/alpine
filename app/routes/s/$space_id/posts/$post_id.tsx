@@ -56,8 +56,8 @@ export default function PostRoute() {
             arePostCommentsOpen: true,
             insertInitialPostComments: list =>
                 list.loadMessagesFromStart({
-                    afterMessageId: null,
-                    beforeMessageId: null,
+                    afterMessageIndex: null,
+                    beforeMessageIndex: null,
                     limit: postCommentLimit,
                     hasMoreMessagesAfter: hasMorePostCommentsAfter,
                     messages: postComments,

@@ -59,7 +59,7 @@ export function PostCommentInput({
                                 try {
                                     await createPostComment(context, {
                                         postId: post.id,
-                                        parentCommentId: null,
+                                        parentCommentIndex: null,
                                         content: state.getContent(),
                                     });
                                     setState(ContentEditorState.create(emptyMessageContent));

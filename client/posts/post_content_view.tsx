@@ -49,7 +49,7 @@ export function PostContentView({
                 marginX="5"
                 borderTop="grey-5"
                 borderBottom={
-                    arePostCommentsOpen && postComments.getEstimatedMessageCount() > 0
+                    arePostCommentsOpen && postComments.getMessageCount() > 0
                         ? "grey-5"
                         : "transparent"
                 }
@@ -124,7 +124,7 @@ function PostCommentsToggleButton({
                     //    loaded. If other comments onscreen are unloaded then we fallback to
                     //    shimmers kicking off data loading.
                     if (
-                        postComments.getEstimatedMessageCount() === 0 ||
+                        postComments.getMessageCount() === 0 ||
                         postComments.getMessage(0).isLoaded
                     ) {
                         onTogglePostComments();

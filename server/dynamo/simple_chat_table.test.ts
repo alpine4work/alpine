@@ -29,7 +29,7 @@ testMessageImplementation<SimpleChatId>(context, {
             simpleChatId,
             spaceId,
             messagesSummary: {
-                nextMessageId: 1,
+                nextMessageIndex: 0,
                 messageCount: 0,
             },
         });
@@ -53,51 +53,51 @@ testMessageImplementation<SimpleChatId>(context, {
     getMissingRoomKey() {
         return generateId();
     },
-    async createMessage(context, {roomKey: simpleChatId, parentMessageId, content}) {
+    async createMessage(context, {roomKey: simpleChatId, parentMessageIndex, content}) {
         const message = await createSimpleChatMessage(context, {
             simpleChatId,
-            parentMessageId,
+            parentMessageIndex,
             content,
         });
 
         return {
-            id: message.id,
+            index: message.index,
             createdTime: message.createdTime,
         };
     },
-    async getMessage(context, {roomKey: simpleChatId, messageId}) {
-        return getSimpleChatMessage(context, {simpleChatId, messageId});
+    async getMessage(context, {roomKey: simpleChatId, messageIndex}) {
+        return getSimpleChatMessage(context, {simpleChatId, messageIndex});
     },
-    async updateMessageContent(context, {roomKey: simpleChatId, messageId, content}) {
+    async updateMessageContent(context, {roomKey: simpleChatId, messageIndex, content}) {
         return updateSimpleChatMessageContent(context, {
             simpleChatId,
-            messageId,
+            messageIndex,
             content,
         });
     },
-    async deleteMessage(context, {roomKey: simpleChatId, messageId}) {
-        return deleteSimpleChatMessage(context, {simpleChatId, messageId});
+    async deleteMessage(context, {roomKey: simpleChatId, messageIndex}) {
+        return deleteSimpleChatMessage(context, {simpleChatId, messageIndex});
     },
     async getMessagesFromStart(
         context,
-        {roomKey: simpleChatId, limit, afterMessageId, beforeMessageId},
+        {roomKey: simpleChatId, limit, afterMessageIndex, beforeMessageIndex},
     ) {
         return await getSimpleChatMessagesFromStart(context, {
             simpleChatId,
             limit,
-            afterMessageId,
-            beforeMessageId,
+            afterMessageIndex,
+            beforeMessageIndex,
         });
     },
     async getMessagesFromEnd(
         context,
-        {roomKey: simpleChatId, limit, afterMessageId, beforeMessageId},
+        {roomKey: simpleChatId, limit, afterMessageIndex, beforeMessageIndex},
     ) {
         return getSimpleChatMessagesFromEnd(context, {
             simpleChatId,
             limit,
-            afterMessageId,
-            beforeMessageId,
+            afterMessageIndex,
+            beforeMessageIndex,
         });
     },
 });

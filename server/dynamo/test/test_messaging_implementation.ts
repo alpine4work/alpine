@@ -7,7 +7,13 @@ import {
     assertMessageContent,
     MessageContentProsemirrorSchema as schema,
 } from "~/shared/content/message_content_schema";
-import {InternalError, NotFoundError, PermissionDeniedError} from "~/shared/error/error";
+import {
+    FailedPreconditionError,
+    InternalError,
+    NotFoundError,
+    PermissionDeniedError,
+} from "~/shared/error/error";
+import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {SpaceId} from "~/shared/id/types/id_types";
 import {MessageInterface} from "~/shared/models/message_interface";
 
@@ -68,11 +74,11 @@ export type MessagingImplementation<RoomKey> = {
         context: RequestContext,
         options: {
             roomKey: RoomKey;
-            parentMessageId: number | null;
+            parentMessageIndex: number | null;
             content: MessageContent;
         },
     ) => Promise<{
-        id: number;
+        index: number;
         createdTime: Date;
     }>;
 
@@ -83,7 +89,7 @@ export type MessagingImplementation<RoomKey> = {
         context: RequestContext,
         options: {
             roomKey: RoomKey;
-            messageId: number;
+            messageIndex: number;
         },
     ) => Promise<MessageInterface | null>;
 
@@ -97,7 +103,7 @@ export type MessagingImplementation<RoomKey> = {
         context: RequestContext,
         options: {
             roomKey: RoomKey;
-            messageId: number;
+            messageIndex: number;
             content: MessageContent;
         },
     ) => Promise<{
@@ -111,7 +117,7 @@ export type MessagingImplementation<RoomKey> = {
         context: RequestContext,
         options: {
             roomKey: RoomKey;
-            messageId: number;
+            messageIndex: number;
         },
     ) => Promise<void>;
 
@@ -124,8 +130,8 @@ export type MessagingImplementation<RoomKey> = {
         options: {
             roomKey: RoomKey;
             limit: number;
-            afterMessageId: number | null;
-            beforeMessageId: number | null;
+            afterMessageIndex: number | null;
+            beforeMessageIndex: number | null;
         },
     ): Promise<{
         messages: Array<MessageInterface>;
@@ -141,8 +147,8 @@ export type MessagingImplementation<RoomKey> = {
         options: {
             roomKey: RoomKey;
             limit: number;
-            afterMessageId: number | null;
-            beforeMessageId: number | null;
+            afterMessageIndex: number | null;
+            beforeMessageIndex: number | null;
         },
     ): Promise<{
         messages: Array<MessageInterface>;
@@ -206,12 +212,24 @@ export function testMessageImplementation<RoomKey>(
     function massageMessage(message: MessageInterface | null) {
         if (!message) return null;
 
-        return {
-            author: message.author,
-            parentMessageId: message.parentMessageId,
-            content: message.content,
-            hasContentUpdated: message.contentUpdatedTime !== null,
-        };
+        switch (message.payload.type) {
+            case "Content": {
+                return {
+                    author: message.author,
+                    parentMessageIndex: message.payload.parentMessageIndex,
+                    content: message.payload.content,
+                    hasContentUpdated: message.payload.contentUpdatedTime !== null,
+                };
+            }
+            case "Deleted": {
+                return {
+                    author: message.author,
+                    isDeleted: true,
+                };
+            }
+            default:
+                throw exhaustive(message.payload);
+        }
     }
 
     function massageMessages(result: {messages: Array<MessageInterface>}) {
@@ -255,21 +273,93 @@ export function testMessageImplementation<RoomKey>(
 
             const message = await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
+
+            expect(message.index).toEqual(0);
 
             expect(
                 massageMessage(
                     await getMessage(context.request(session1), {
                         roomKey: room.key,
-                        messageId: message.id,
+                        messageIndex: message.index,
                     }),
                 ),
             ).toEqual({
                 author: session1.account,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
+                hasContentUpdated: false,
+            });
+        });
+
+        test("can create multiple messages", async () => {
+            const room = await createRoom(context.request(session1), space.id);
+
+            const message1 = await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            expect(message1.index).toEqual(0);
+
+            expect(
+                massageMessage(
+                    await getMessage(context.request(session1), {
+                        roomKey: room.key,
+                        messageIndex: message1.index,
+                    }),
+                ),
+            ).toEqual({
+                author: session1.account,
+                parentMessageIndex: null,
+                content: content1,
+                hasContentUpdated: false,
+            });
+
+            const message2 = await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+            });
+
+            expect(message2.index).toEqual(1);
+
+            expect(
+                massageMessage(
+                    await getMessage(context.request(session1), {
+                        roomKey: room.key,
+                        messageIndex: message2.index,
+                    }),
+                ),
+            ).toEqual({
+                author: session1.account,
+                parentMessageIndex: null,
+                content: content2,
+                hasContentUpdated: false,
+            });
+
+            const message3 = await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content3,
+            });
+
+            expect(message3.index).toEqual(2);
+
+            expect(
+                massageMessage(
+                    await getMessage(context.request(session1), {
+                        roomKey: room.key,
+                        messageIndex: message3.index,
+                    }),
+                ),
+            ).toEqual({
+                author: session1.account,
+                parentMessageIndex: null,
+                content: content3,
                 hasContentUpdated: false,
             });
         });
@@ -279,7 +369,7 @@ export function testMessageImplementation<RoomKey>(
 
             const message = await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
@@ -287,12 +377,12 @@ export function testMessageImplementation<RoomKey>(
                 massageMessage(
                     await getMessage(context.request(session1), {
                         roomKey: room.key,
-                        messageId: message.id,
+                        messageIndex: message.index,
                     }),
                 ),
             ).toEqual({
                 author: session2.account,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
                 hasContentUpdated: false,
             });
@@ -302,7 +392,7 @@ export function testMessageImplementation<RoomKey>(
             await expect(
                 createMessage(context.request(session1), {
                     roomKey: getMissingRoomKey(),
-                    parentMessageId: null,
+                    parentMessageIndex: null,
                     content: content1,
                 }),
             ).rejects.toThrow(NotFoundError);
@@ -314,7 +404,7 @@ export function testMessageImplementation<RoomKey>(
             await expect(
                 createMessage(context.request(otherSession), {
                     roomKey: room.key,
-                    parentMessageId: null,
+                    parentMessageIndex: null,
                     content: content1,
                 }),
             ).rejects.toThrow(new PermissionDeniedError("Account does not have access to space"));
@@ -325,12 +415,12 @@ export function testMessageImplementation<RoomKey>(
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
             expect(
-                await getMessage(context.request(session1), {roomKey: room.key, messageId: 42}),
+                await getMessage(context.request(session1), {roomKey: room.key, messageIndex: 42}),
             ).toEqual(null);
         });
 
@@ -339,14 +429,14 @@ export function testMessageImplementation<RoomKey>(
 
             const message = await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
             await expect(
                 getMessage(context.request(otherSession), {
                     roomKey: room.key,
-                    messageId: message.id,
+                    messageIndex: message.index,
                 }),
             ).rejects.toEqual(new PermissionDeniedError("Account does not have access to space"));
         });
@@ -356,25 +446,25 @@ export function testMessageImplementation<RoomKey>(
 
             const message1 = await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
             const message2 = await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: message1.id,
+                parentMessageIndex: message1.index,
                 content: content2,
             });
 
             const message3 = await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: message2.id,
+                parentMessageIndex: message2.index,
                 content: content3,
             });
 
             const message4 = await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: message2.id,
+                parentMessageIndex: message2.index,
                 content: content4,
             });
 
@@ -382,12 +472,12 @@ export function testMessageImplementation<RoomKey>(
                 massageMessage(
                     await getMessage(context.request(session1), {
                         roomKey: room.key,
-                        messageId: message1.id,
+                        messageIndex: message1.index,
                     }),
                 ),
             ).toEqual({
                 author: session1.account,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
                 hasContentUpdated: false,
             });
@@ -396,12 +486,12 @@ export function testMessageImplementation<RoomKey>(
                 massageMessage(
                     await getMessage(context.request(session1), {
                         roomKey: room.key,
-                        messageId: message2.id,
+                        messageIndex: message2.index,
                     }),
                 ),
             ).toEqual({
                 author: session1.account,
-                parentMessageId: message1.id,
+                parentMessageIndex: message1.index,
                 content: content2,
                 hasContentUpdated: false,
             });
@@ -410,12 +500,12 @@ export function testMessageImplementation<RoomKey>(
                 massageMessage(
                     await getMessage(context.request(session1), {
                         roomKey: room.key,
-                        messageId: message3.id,
+                        messageIndex: message3.index,
                     }),
                 ),
             ).toEqual({
                 author: session1.account,
-                parentMessageId: message2.id,
+                parentMessageIndex: message2.index,
                 content: content3,
                 hasContentUpdated: false,
             });
@@ -424,12 +514,12 @@ export function testMessageImplementation<RoomKey>(
                 massageMessage(
                     await getMessage(context.request(session1), {
                         roomKey: room.key,
-                        messageId: message4.id,
+                        messageIndex: message4.index,
                     }),
                 ),
             ).toEqual({
                 author: session1.account,
-                parentMessageId: message2.id,
+                parentMessageIndex: message2.index,
                 content: content4,
                 hasContentUpdated: false,
             });
@@ -441,7 +531,7 @@ export function testMessageImplementation<RoomKey>(
             await expect(
                 createMessage(context.request(session1), {
                     roomKey: room.key,
-                    parentMessageId: 42,
+                    parentMessageIndex: 42,
                     content: content1,
                 }),
             ).rejects.toThrow(NotFoundError);
@@ -454,7 +544,7 @@ export function testMessageImplementation<RoomKey>(
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
@@ -462,7 +552,7 @@ export function testMessageImplementation<RoomKey>(
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content2,
             });
 
@@ -470,7 +560,7 @@ export function testMessageImplementation<RoomKey>(
 
             const message = await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content3,
             });
 
@@ -478,18 +568,18 @@ export function testMessageImplementation<RoomKey>(
 
             await deleteMessage(context.request(session1), {
                 roomKey: room.key,
-                messageId: message.id,
-            });
-
-            expect((await getRoom(context.request(session1), room.key))?.messageCount).toEqual(2);
-
-            await createMessage(context.request(session1), {
-                roomKey: room.key,
-                parentMessageId: null,
-                content: content4,
+                messageIndex: message.index,
             });
 
             expect((await getRoom(context.request(session1), room.key))?.messageCount).toEqual(3);
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content4,
+            });
+
+            expect((await getRoom(context.request(session1), room.key))?.messageCount).toEqual(4);
         });
 
         test("can update message with different content", async () => {
@@ -497,7 +587,7 @@ export function testMessageImplementation<RoomKey>(
 
             const message = await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
@@ -505,19 +595,19 @@ export function testMessageImplementation<RoomKey>(
                 massageMessage(
                     await getMessage(context.request(session1), {
                         roomKey: room.key,
-                        messageId: message.id,
+                        messageIndex: message.index,
                     }),
                 ),
             ).toEqual({
                 author: session1.account,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
                 hasContentUpdated: false,
             });
 
             await updateMessageContent(context.request(session1), {
                 roomKey: room.key,
-                messageId: message.id,
+                messageIndex: message.index,
                 content: content2,
             });
 
@@ -525,12 +615,12 @@ export function testMessageImplementation<RoomKey>(
                 massageMessage(
                     await getMessage(context.request(session1), {
                         roomKey: room.key,
-                        messageId: message.id,
+                        messageIndex: message.index,
                     }),
                 ),
             ).toEqual({
                 author: session1.account,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content2,
                 hasContentUpdated: true,
             });
@@ -540,7 +630,7 @@ export function testMessageImplementation<RoomKey>(
             await expect(
                 updateMessageContent(context.request(session2), {
                     roomKey: getMissingRoomKey(),
-                    messageId: 42,
+                    messageIndex: 42,
                     content: content2,
                 }),
             ).rejects.toThrow(NotFoundError);
@@ -552,7 +642,7 @@ export function testMessageImplementation<RoomKey>(
             await expect(
                 updateMessageContent(context.request(session2), {
                     roomKey: room.key,
-                    messageId: 42,
+                    messageIndex: 42,
                     content: content2,
                 }),
             ).rejects.toThrow(NotFoundError);
@@ -563,7 +653,7 @@ export function testMessageImplementation<RoomKey>(
 
             const message = await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
@@ -571,12 +661,12 @@ export function testMessageImplementation<RoomKey>(
                 massageMessage(
                     await getMessage(context.request(session1), {
                         roomKey: room.key,
-                        messageId: message.id,
+                        messageIndex: message.index,
                     }),
                 ),
             ).toEqual({
                 author: session1.account,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
                 hasContentUpdated: false,
             });
@@ -584,7 +674,7 @@ export function testMessageImplementation<RoomKey>(
             await expect(
                 updateMessageContent(context.request(session2), {
                     roomKey: room.key,
-                    messageId: message.id,
+                    messageIndex: message.index,
                     content: content2,
                 }),
             ).rejects.toThrow(PermissionDeniedError);
@@ -593,12 +683,12 @@ export function testMessageImplementation<RoomKey>(
                 massageMessage(
                     await getMessage(context.request(session1), {
                         roomKey: room.key,
-                        messageId: message.id,
+                        messageIndex: message.index,
                     }),
                 ),
             ).toEqual({
                 author: session1.account,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
                 hasContentUpdated: false,
             });
@@ -609,7 +699,7 @@ export function testMessageImplementation<RoomKey>(
 
             const message = await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
@@ -617,12 +707,12 @@ export function testMessageImplementation<RoomKey>(
                 massageMessage(
                     await getMessage(context.request(session1), {
                         roomKey: room.key,
-                        messageId: message.id,
+                        messageIndex: message.index,
                     }),
                 ),
             ).toEqual({
                 author: session1.account,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
                 hasContentUpdated: false,
             });
@@ -630,7 +720,7 @@ export function testMessageImplementation<RoomKey>(
             await expect(
                 updateMessageContent(context.request(otherSession), {
                     roomKey: room.key,
-                    messageId: message.id,
+                    messageIndex: message.index,
                     content: content2,
                 }),
             ).rejects.toThrow(new PermissionDeniedError("Account does not have access to space"));
@@ -639,12 +729,12 @@ export function testMessageImplementation<RoomKey>(
                 massageMessage(
                     await getMessage(context.request(session1), {
                         roomKey: room.key,
-                        messageId: message.id,
+                        messageIndex: message.index,
                     }),
                 ),
             ).toEqual({
                 author: session1.account,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
                 hasContentUpdated: false,
             });
@@ -655,7 +745,7 @@ export function testMessageImplementation<RoomKey>(
 
             const message = await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
@@ -663,36 +753,39 @@ export function testMessageImplementation<RoomKey>(
                 massageMessage(
                     await getMessage(context.request(session1), {
                         roomKey: room.key,
-                        messageId: message.id,
+                        messageIndex: message.index,
                     }),
                 ),
             ).toEqual({
                 author: session1.account,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
                 hasContentUpdated: false,
             });
 
             await deleteMessage(context.request(session1), {
                 roomKey: room.key,
-                messageId: message.id,
+                messageIndex: message.index,
             });
 
             expect(
                 massageMessage(
                     await getMessage(context.request(session1), {
                         roomKey: room.key,
-                        messageId: message.id,
+                        messageIndex: message.index,
                     }),
                 ),
-            ).toEqual(null);
+            ).toEqual({
+                author: session1.account,
+                isDeleted: true,
+            });
         });
 
         test("can not delete message on room that doesn't exist", async () => {
             await expect(
                 deleteMessage(context.request(session2), {
                     roomKey: getMissingRoomKey(),
-                    messageId: 42,
+                    messageIndex: 42,
                 }),
             ).rejects.toThrow(NotFoundError);
         });
@@ -703,7 +796,7 @@ export function testMessageImplementation<RoomKey>(
             await expect(
                 deleteMessage(context.request(session2), {
                     roomKey: room.key,
-                    messageId: 42,
+                    messageIndex: 42,
                 }),
             ).rejects.toThrow(NotFoundError);
         });
@@ -713,7 +806,7 @@ export function testMessageImplementation<RoomKey>(
 
             const message = await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
@@ -721,12 +814,12 @@ export function testMessageImplementation<RoomKey>(
                 massageMessage(
                     await getMessage(context.request(session1), {
                         roomKey: room.key,
-                        messageId: message.id,
+                        messageIndex: message.index,
                     }),
                 ),
             ).toEqual({
                 author: session1.account,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
                 hasContentUpdated: false,
             });
@@ -734,7 +827,7 @@ export function testMessageImplementation<RoomKey>(
             await expect(
                 deleteMessage(context.request(session2), {
                     roomKey: room.key,
-                    messageId: message.id,
+                    messageIndex: message.index,
                 }),
             ).rejects.toThrow(PermissionDeniedError);
 
@@ -742,12 +835,12 @@ export function testMessageImplementation<RoomKey>(
                 massageMessage(
                     await getMessage(context.request(session1), {
                         roomKey: room.key,
-                        messageId: message.id,
+                        messageIndex: message.index,
                     }),
                 ),
             ).toEqual({
                 author: session1.account,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
                 hasContentUpdated: false,
             });
@@ -758,7 +851,7 @@ export function testMessageImplementation<RoomKey>(
 
             const message = await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
@@ -766,12 +859,12 @@ export function testMessageImplementation<RoomKey>(
                 massageMessage(
                     await getMessage(context.request(session1), {
                         roomKey: room.key,
-                        messageId: message.id,
+                        messageIndex: message.index,
                     }),
                 ),
             ).toEqual({
                 author: session1.account,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
                 hasContentUpdated: false,
             });
@@ -779,7 +872,7 @@ export function testMessageImplementation<RoomKey>(
             await expect(
                 deleteMessage(context.request(otherSession), {
                     roomKey: room.key,
-                    messageId: message.id,
+                    messageIndex: message.index,
                 }),
             ).rejects.toThrow(new PermissionDeniedError("Account does not have access to space"));
 
@@ -787,15 +880,112 @@ export function testMessageImplementation<RoomKey>(
                 massageMessage(
                     await getMessage(context.request(session1), {
                         roomKey: room.key,
-                        messageId: message.id,
+                        messageIndex: message.index,
                     }),
                 ),
             ).toEqual({
                 author: session1.account,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
                 hasContentUpdated: false,
             });
+        });
+
+        test("can not delete a message twice", async () => {
+            const room = await createRoom(context.request(session1), space.id);
+
+            const message = await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            expect(
+                massageMessage(
+                    await getMessage(context.request(session1), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    }),
+                ),
+            ).toEqual({
+                author: session1.account,
+                parentMessageIndex: null,
+                content: content1,
+                hasContentUpdated: false,
+            });
+
+            await deleteMessage(context.request(session1), {
+                roomKey: room.key,
+                messageIndex: message.index,
+            });
+
+            expect(
+                massageMessage(
+                    await getMessage(context.request(session1), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    }),
+                ),
+            ).toEqual({
+                author: session1.account,
+                isDeleted: true,
+            });
+
+            await expect(
+                deleteMessage(context.request(session1), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                }),
+            ).rejects.toThrow(FailedPreconditionError);
+        });
+
+        test("can not update a deleted message", async () => {
+            const room = await createRoom(context.request(session1), space.id);
+
+            const message = await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            expect(
+                massageMessage(
+                    await getMessage(context.request(session1), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    }),
+                ),
+            ).toEqual({
+                author: session1.account,
+                parentMessageIndex: null,
+                content: content1,
+                hasContentUpdated: false,
+            });
+
+            await deleteMessage(context.request(session1), {
+                roomKey: room.key,
+                messageIndex: message.index,
+            });
+
+            expect(
+                massageMessage(
+                    await getMessage(context.request(session1), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    }),
+                ),
+            ).toEqual({
+                author: session1.account,
+                isDeleted: true,
+            });
+
+            await expect(
+                updateMessageContent(context.request(session1), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    content: content2,
+                }),
+            ).rejects.toThrow(FailedPreconditionError);
         });
 
         test("can get messages from start", async () => {
@@ -803,49 +993,49 @@ export function testMessageImplementation<RoomKey>(
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
             await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content2,
             });
 
             await createMessage(context.request(session3), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content3,
             });
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content3,
             });
 
             await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
             await createMessage(context.request(session3), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content2,
             });
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content4,
             });
 
             await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content4,
             });
 
@@ -854,57 +1044,57 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromStart(context.request(session1), {
                         roomKey: room.key,
                         limit: 100,
-                        afterMessageId: null,
-                        beforeMessageId: null,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -918,49 +1108,49 @@ export function testMessageImplementation<RoomKey>(
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
             await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content2,
             });
 
             await createMessage(context.request(session3), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content3,
             });
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content3,
             });
 
             await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
             await createMessage(context.request(session3), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content2,
             });
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content4,
             });
 
             await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content4,
             });
 
@@ -968,8 +1158,8 @@ export function testMessageImplementation<RoomKey>(
                 getMessagesFromStart(context.request(session1), {
                     roomKey: room.key,
                     limit: 100,
-                    afterMessageId: 10,
-                    beforeMessageId: 5,
+                    afterMessageIndex: 10,
+                    beforeMessageIndex: 5,
                 }),
             ).rejects.toThrow(InternalError);
         });
@@ -982,8 +1172,8 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromStart(context.request(session1), {
                         roomKey: room.key,
                         limit: 100,
-                        afterMessageId: null,
-                        beforeMessageId: null,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
                     }),
                 ),
             ).toEqual({
@@ -997,8 +1187,8 @@ export function testMessageImplementation<RoomKey>(
                 getMessagesFromStart(context.request(session1), {
                     roomKey: getMissingRoomKey(),
                     limit: 100,
-                    afterMessageId: null,
-                    beforeMessageId: null,
+                    afterMessageIndex: null,
+                    beforeMessageIndex: null,
                 }),
             ).rejects.toThrow(NotFoundError);
         });
@@ -1010,8 +1200,8 @@ export function testMessageImplementation<RoomKey>(
                 getMessagesFromStart(context.request(otherSession), {
                     roomKey: room.key,
                     limit: 100,
-                    afterMessageId: null,
-                    beforeMessageId: null,
+                    afterMessageIndex: null,
+                    beforeMessageIndex: null,
                 }),
             ).rejects.toThrow(new PermissionDeniedError("Account does not have access to space"));
         });
@@ -1021,49 +1211,49 @@ export function testMessageImplementation<RoomKey>(
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
             await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content2,
             });
 
             await createMessage(context.request(session3), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content3,
             });
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content3,
             });
 
             await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
             await createMessage(context.request(session3), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content2,
             });
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content4,
             });
 
             await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content4,
             });
 
@@ -1072,27 +1262,27 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromStart(context.request(session1), {
                         roomKey: room.key,
                         limit: 3,
-                        afterMessageId: null,
-                        beforeMessageId: null,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -1105,39 +1295,39 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromStart(context.request(session1), {
                         roomKey: room.key,
                         limit: 5,
-                        afterMessageId: null,
-                        beforeMessageId: null,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -1150,51 +1340,51 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromStart(context.request(session1), {
                         roomKey: room.key,
                         limit: 7,
-                        afterMessageId: null,
-                        beforeMessageId: null,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -1207,57 +1397,57 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromStart(context.request(session1), {
                         roomKey: room.key,
                         limit: 8,
-                        afterMessageId: null,
-                        beforeMessageId: null,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -1271,49 +1461,49 @@ export function testMessageImplementation<RoomKey>(
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
             const message2 = await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content2,
             });
 
             await createMessage(context.request(session3), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content3,
             });
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content3,
             });
 
             const message5 = await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
             await createMessage(context.request(session3), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content2,
             });
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content4,
             });
 
             const message8 = await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content4,
             });
 
@@ -1322,45 +1512,45 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromStart(context.request(session1), {
                         roomKey: room.key,
                         limit: 100,
-                        afterMessageId: message2.id,
-                        beforeMessageId: null,
+                        afterMessageIndex: message2.index,
+                        beforeMessageIndex: null,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -1373,27 +1563,27 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromStart(context.request(session1), {
                         roomKey: room.key,
                         limit: 100,
-                        afterMessageId: message5.id,
-                        beforeMessageId: null,
+                        afterMessageIndex: message5.index,
+                        beforeMessageIndex: null,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -1406,8 +1596,8 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromStart(context.request(session1), {
                         roomKey: room.key,
                         limit: 100,
-                        afterMessageId: message8.id,
-                        beforeMessageId: null,
+                        afterMessageIndex: message8.index,
+                        beforeMessageIndex: null,
                     }),
                 ),
             ).toEqual({
@@ -1421,49 +1611,49 @@ export function testMessageImplementation<RoomKey>(
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
             const message2 = await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content2,
             });
 
             await createMessage(context.request(session3), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content3,
             });
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content3,
             });
 
             const message5 = await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
             await createMessage(context.request(session3), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content2,
             });
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content4,
             });
 
             const message8 = await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content4,
             });
 
@@ -1472,15 +1662,15 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromStart(context.request(session1), {
                         roomKey: room.key,
                         limit: 100,
-                        afterMessageId: null,
-                        beforeMessageId: message2.id,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: message2.index,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -1493,33 +1683,33 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromStart(context.request(session1), {
                         roomKey: room.key,
                         limit: 100,
-                        afterMessageId: null,
-                        beforeMessageId: message5.id,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: message5.index,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -1532,51 +1722,51 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromStart(context.request(session1), {
                         roomKey: room.key,
                         limit: 100,
-                        afterMessageId: null,
-                        beforeMessageId: message8.id,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: message8.index,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -1590,49 +1780,49 @@ export function testMessageImplementation<RoomKey>(
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
             const message2 = await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content2,
             });
 
             await createMessage(context.request(session3), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content3,
             });
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content3,
             });
 
             const message5 = await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
             await createMessage(context.request(session3), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content2,
             });
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content4,
             });
 
             const message8 = await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content4,
             });
 
@@ -1641,27 +1831,27 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromStart(context.request(session1), {
                         roomKey: room.key,
                         limit: 3,
-                        afterMessageId: message2.id,
-                        beforeMessageId: null,
+                        afterMessageIndex: message2.index,
+                        beforeMessageIndex: null,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -1674,21 +1864,21 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromStart(context.request(session1), {
                         roomKey: room.key,
                         limit: 2,
-                        afterMessageId: message5.id,
-                        beforeMessageId: null,
+                        afterMessageIndex: message5.index,
+                        beforeMessageIndex: null,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -1701,27 +1891,27 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromStart(context.request(session1), {
                         roomKey: room.key,
                         limit: 3,
-                        afterMessageId: message5.id,
-                        beforeMessageId: null,
+                        afterMessageIndex: message5.index,
+                        beforeMessageIndex: null,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -1734,8 +1924,8 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromStart(context.request(session1), {
                         roomKey: room.key,
                         limit: 4,
-                        afterMessageId: message8.id,
-                        beforeMessageId: null,
+                        afterMessageIndex: message8.index,
+                        beforeMessageIndex: null,
                     }),
                 ),
             ).toEqual({
@@ -1749,49 +1939,49 @@ export function testMessageImplementation<RoomKey>(
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
             await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content2,
             });
 
             await createMessage(context.request(session3), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content3,
             });
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content3,
             });
 
             const message5 = await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
             await createMessage(context.request(session3), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content2,
             });
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content4,
             });
 
             await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content4,
             });
 
@@ -1800,27 +1990,27 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromStart(context.request(session1), {
                         roomKey: room.key,
                         limit: 3,
-                        afterMessageId: null,
-                        beforeMessageId: message5.id,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: message5.index,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -1833,33 +2023,33 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromStart(context.request(session1), {
                         roomKey: room.key,
                         limit: 5,
-                        afterMessageId: null,
-                        beforeMessageId: message5.id,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: message5.index,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -1873,49 +2063,49 @@ export function testMessageImplementation<RoomKey>(
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
             const message2 = await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content2,
             });
 
             await createMessage(context.request(session3), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content3,
             });
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content3,
             });
 
             await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
             await createMessage(context.request(session3), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content2,
             });
 
             const message7 = await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content4,
             });
 
             await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content4,
             });
 
@@ -1924,27 +2114,27 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromStart(context.request(session1), {
                         roomKey: room.key,
                         limit: 3,
-                        afterMessageId: message2.id,
-                        beforeMessageId: message7.id,
+                        afterMessageIndex: message2.index,
+                        beforeMessageIndex: message7.index,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -1957,33 +2147,33 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromStart(context.request(session1), {
                         roomKey: room.key,
                         limit: 4,
-                        afterMessageId: message2.id,
-                        beforeMessageId: message7.id,
+                        afterMessageIndex: message2.index,
+                        beforeMessageIndex: message7.index,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -1996,33 +2186,33 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromStart(context.request(session1), {
                         roomKey: room.key,
                         limit: 5,
-                        afterMessageId: message2.id,
-                        beforeMessageId: message7.id,
+                        afterMessageIndex: message2.index,
+                        beforeMessageIndex: message7.index,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -2036,49 +2226,49 @@ export function testMessageImplementation<RoomKey>(
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
             await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content2,
             });
 
             await createMessage(context.request(session3), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content3,
             });
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content3,
             });
 
             await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
             await createMessage(context.request(session3), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content2,
             });
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content4,
             });
 
             await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content4,
             });
 
@@ -2087,57 +2277,57 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromEnd(context.request(session1), {
                         roomKey: room.key,
                         limit: 100,
-                        afterMessageId: null,
-                        beforeMessageId: null,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -2151,49 +2341,49 @@ export function testMessageImplementation<RoomKey>(
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
             await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content2,
             });
 
             await createMessage(context.request(session3), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content3,
             });
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content3,
             });
 
             await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
             await createMessage(context.request(session3), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content2,
             });
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content4,
             });
 
             await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content4,
             });
 
@@ -2201,8 +2391,8 @@ export function testMessageImplementation<RoomKey>(
                 getMessagesFromEnd(context.request(session1), {
                     roomKey: room.key,
                     limit: 100,
-                    afterMessageId: 10,
-                    beforeMessageId: 5,
+                    afterMessageIndex: 10,
+                    beforeMessageIndex: 5,
                 }),
             ).rejects.toThrow(InternalError);
         });
@@ -2215,8 +2405,8 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromEnd(context.request(session1), {
                         roomKey: room.key,
                         limit: 100,
-                        afterMessageId: null,
-                        beforeMessageId: null,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
                     }),
                 ),
             ).toEqual({
@@ -2230,8 +2420,8 @@ export function testMessageImplementation<RoomKey>(
                 getMessagesFromEnd(context.request(session1), {
                     roomKey: getMissingRoomKey(),
                     limit: 100,
-                    afterMessageId: null,
-                    beforeMessageId: null,
+                    afterMessageIndex: null,
+                    beforeMessageIndex: null,
                 }),
             ).rejects.toThrow(NotFoundError);
         });
@@ -2243,8 +2433,8 @@ export function testMessageImplementation<RoomKey>(
                 getMessagesFromEnd(context.request(otherSession), {
                     roomKey: room.key,
                     limit: 100,
-                    afterMessageId: null,
-                    beforeMessageId: null,
+                    afterMessageIndex: null,
+                    beforeMessageIndex: null,
                 }),
             ).rejects.toThrow(new PermissionDeniedError("Account does not have access to space"));
         });
@@ -2254,49 +2444,49 @@ export function testMessageImplementation<RoomKey>(
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
             await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content2,
             });
 
             await createMessage(context.request(session3), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content3,
             });
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content3,
             });
 
             await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
             await createMessage(context.request(session3), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content2,
             });
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content4,
             });
 
             await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content4,
             });
 
@@ -2305,27 +2495,27 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromEnd(context.request(session1), {
                         roomKey: room.key,
                         limit: 3,
-                        afterMessageId: null,
-                        beforeMessageId: null,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -2338,39 +2528,39 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromEnd(context.request(session1), {
                         roomKey: room.key,
                         limit: 5,
-                        afterMessageId: null,
-                        beforeMessageId: null,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -2383,51 +2573,51 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromEnd(context.request(session1), {
                         roomKey: room.key,
                         limit: 7,
-                        afterMessageId: null,
-                        beforeMessageId: null,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -2440,57 +2630,57 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromEnd(context.request(session1), {
                         roomKey: room.key,
                         limit: 8,
-                        afterMessageId: null,
-                        beforeMessageId: null,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -2504,49 +2694,49 @@ export function testMessageImplementation<RoomKey>(
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
             const message2 = await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content2,
             });
 
             await createMessage(context.request(session3), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content3,
             });
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content3,
             });
 
             const message5 = await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
             await createMessage(context.request(session3), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content2,
             });
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content4,
             });
 
             const message8 = await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content4,
             });
 
@@ -2555,15 +2745,15 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromEnd(context.request(session1), {
                         roomKey: room.key,
                         limit: 100,
-                        afterMessageId: null,
-                        beforeMessageId: message2.id,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: message2.index,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -2576,33 +2766,33 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromEnd(context.request(session1), {
                         roomKey: room.key,
                         limit: 100,
-                        afterMessageId: null,
-                        beforeMessageId: message5.id,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: message5.index,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -2615,51 +2805,51 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromEnd(context.request(session1), {
                         roomKey: room.key,
                         limit: 100,
-                        afterMessageId: null,
-                        beforeMessageId: message8.id,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: message8.index,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -2673,49 +2863,49 @@ export function testMessageImplementation<RoomKey>(
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
             const message2 = await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content2,
             });
 
             await createMessage(context.request(session3), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content3,
             });
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content3,
             });
 
             const message5 = await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
             await createMessage(context.request(session3), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content2,
             });
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content4,
             });
 
             const message8 = await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content4,
             });
 
@@ -2724,45 +2914,45 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromEnd(context.request(session1), {
                         roomKey: room.key,
                         limit: 100,
-                        afterMessageId: message2.id,
-                        beforeMessageId: null,
+                        afterMessageIndex: message2.index,
+                        beforeMessageIndex: null,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -2775,27 +2965,27 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromEnd(context.request(session1), {
                         roomKey: room.key,
                         limit: 100,
-                        afterMessageId: message5.id,
-                        beforeMessageId: null,
+                        afterMessageIndex: message5.index,
+                        beforeMessageIndex: null,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -2808,8 +2998,8 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromEnd(context.request(session1), {
                         roomKey: room.key,
                         limit: 100,
-                        afterMessageId: message8.id,
-                        beforeMessageId: null,
+                        afterMessageIndex: message8.index,
+                        beforeMessageIndex: null,
                     }),
                 ),
             ).toEqual({
@@ -2823,49 +3013,49 @@ export function testMessageImplementation<RoomKey>(
 
             const message1 = await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
             await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content2,
             });
 
             await createMessage(context.request(session3), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content3,
             });
 
             const message4 = await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content3,
             });
 
             await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
             const message6 = await createMessage(context.request(session3), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content2,
             });
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content4,
             });
 
             await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content4,
             });
 
@@ -2874,27 +3064,27 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromEnd(context.request(session1), {
                         roomKey: room.key,
                         limit: 3,
-                        afterMessageId: null,
-                        beforeMessageId: message6.id,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: message6.index,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -2907,21 +3097,21 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromEnd(context.request(session1), {
                         roomKey: room.key,
                         limit: 2,
-                        afterMessageId: null,
-                        beforeMessageId: message4.id,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: message4.index,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -2934,27 +3124,27 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromEnd(context.request(session1), {
                         roomKey: room.key,
                         limit: 3,
-                        afterMessageId: null,
-                        beforeMessageId: message4.id,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: message4.index,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -2967,8 +3157,8 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromEnd(context.request(session1), {
                         roomKey: room.key,
                         limit: 4,
-                        afterMessageId: null,
-                        beforeMessageId: message1.id,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: message1.index,
                     }),
                 ),
             ).toEqual({
@@ -2982,49 +3172,49 @@ export function testMessageImplementation<RoomKey>(
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
             await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content2,
             });
 
             await createMessage(context.request(session3), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content3,
             });
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content3,
             });
 
             const message5 = await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
             await createMessage(context.request(session3), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content2,
             });
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content4,
             });
 
             await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content4,
             });
 
@@ -3033,21 +3223,21 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromEnd(context.request(session1), {
                         roomKey: room.key,
                         limit: 2,
-                        afterMessageId: message5.id,
-                        beforeMessageId: null,
+                        afterMessageIndex: message5.index,
+                        beforeMessageIndex: null,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -3060,27 +3250,27 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromEnd(context.request(session1), {
                         roomKey: room.key,
                         limit: 4,
-                        afterMessageId: message5.id,
-                        beforeMessageId: null,
+                        afterMessageIndex: message5.index,
+                        beforeMessageIndex: null,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -3094,49 +3284,49 @@ export function testMessageImplementation<RoomKey>(
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
             const message2 = await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content2,
             });
 
             await createMessage(context.request(session3), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content3,
             });
 
             await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content3,
             });
 
             await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content1,
             });
 
             await createMessage(context.request(session3), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content2,
             });
 
             const message7 = await createMessage(context.request(session1), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content4,
             });
 
             await createMessage(context.request(session2), {
                 roomKey: room.key,
-                parentMessageId: null,
+                parentMessageIndex: null,
                 content: content4,
             });
 
@@ -3145,27 +3335,27 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromEnd(context.request(session1), {
                         roomKey: room.key,
                         limit: 3,
-                        afterMessageId: message2.id,
-                        beforeMessageId: message7.id,
+                        afterMessageIndex: message2.index,
+                        beforeMessageIndex: message7.index,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -3178,33 +3368,33 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromEnd(context.request(session1), {
                         roomKey: room.key,
                         limit: 4,
-                        afterMessageId: message2.id,
-                        beforeMessageId: message7.id,
+                        afterMessageIndex: message2.index,
+                        beforeMessageIndex: message7.index,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -3217,34 +3407,288 @@ export function testMessageImplementation<RoomKey>(
                     await getMessagesFromEnd(context.request(session1), {
                         roomKey: room.key,
                         limit: 5,
-                        afterMessageId: message2.id,
-                        beforeMessageId: message7.id,
+                        afterMessageIndex: message2.index,
+                        beforeMessageIndex: message7.index,
                     }),
                 ),
             ).toEqual({
                 messages: [
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session1.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
                         author: session2.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
                         author: session3.account,
-                        parentMessageId: null,
+                        parentMessageIndex: null,
                         content: content2,
+                        hasContentUpdated: false,
+                    },
+                ],
+                hasMoreMessagesBefore: false,
+            });
+        });
+
+        test("can get messages from start in a room with deleted and update messages", async () => {
+            const room = await createRoom(context.request(session1), space.id);
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            const message2 = await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+            });
+
+            await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content3,
+            });
+
+            const message4 = await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content3,
+            });
+
+            const message5 = await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+            });
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content4,
+            });
+
+            await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content4,
+            });
+
+            await deleteMessage(context.request(session2), {
+                roomKey: room.key,
+                messageIndex: message2.index,
+            });
+
+            await deleteMessage(context.request(session1), {
+                roomKey: room.key,
+                messageIndex: message4.index,
+            });
+
+            await updateMessageContent(context.request(session2), {
+                roomKey: room.key,
+                messageIndex: message5.index,
+                content: content2,
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromStart(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 100,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
+                    }),
+                ),
+            ).toEqual({
+                messages: [
+                    {
+                        author: session1.account,
+                        parentMessageIndex: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        isDeleted: true,
+                    },
+                    {
+                        author: session3.account,
+                        parentMessageIndex: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session1.account,
+                        isDeleted: true,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageIndex: null,
+                        content: content2,
+                        hasContentUpdated: true,
+                    },
+                    {
+                        author: session3.account,
+                        parentMessageIndex: null,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session1.account,
+                        parentMessageIndex: null,
+                        content: content4,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageIndex: null,
+                        content: content4,
+                        hasContentUpdated: false,
+                    },
+                ],
+                hasMoreMessagesAfter: false,
+            });
+        });
+
+        test("can get messages from end in a room with deleted and update messages", async () => {
+            const room = await createRoom(context.request(session1), space.id);
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            const message2 = await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+            });
+
+            await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content3,
+            });
+
+            const message4 = await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content3,
+            });
+
+            const message5 = await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+            });
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content4,
+            });
+
+            await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content4,
+            });
+
+            await deleteMessage(context.request(session2), {
+                roomKey: room.key,
+                messageIndex: message2.index,
+            });
+
+            await deleteMessage(context.request(session1), {
+                roomKey: room.key,
+                messageIndex: message4.index,
+            });
+
+            await updateMessageContent(context.request(session2), {
+                roomKey: room.key,
+                messageIndex: message5.index,
+                content: content2,
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromEnd(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 100,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
+                    }),
+                ),
+            ).toEqual({
+                messages: [
+                    {
+                        author: session1.account,
+                        parentMessageIndex: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        isDeleted: true,
+                    },
+                    {
+                        author: session3.account,
+                        parentMessageIndex: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session1.account,
+                        isDeleted: true,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageIndex: null,
+                        content: content2,
+                        hasContentUpdated: true,
+                    },
+                    {
+                        author: session3.account,
+                        parentMessageIndex: null,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session1.account,
+                        parentMessageIndex: null,
+                        content: content4,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageIndex: null,
+                        content: content4,
                         hasContentUpdated: false,
                     },
                 ],

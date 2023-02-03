@@ -19,7 +19,10 @@ import {useSpaceContext} from "~/client/spaces/space_context";
 import {MessageContent} from "~/shared/content/message_content_schema";
 import {RemLength, Spacing, addRemLengths, spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {MessageInterface} from "~/shared/models/message_interface";
+import {
+    MessageInterface,
+    MessageWithContentPayloadInterface,
+} from "~/shared/models/message_interface";
 import {colorSchemeVars, sprinkles} from "~/shared/styles/styles";
 
 export const messageViewMinHeight: RemLength = "2.125rem";
@@ -47,16 +50,13 @@ export function MessageView({
     nextMessage: MessageInterface | null;
     messageEditing: MessageEditing;
 }) {
-    const navigate = useNavigate();
-    const {currentAccount} = useSpaceContext();
-
-    const shouldMergeWithPreviousMessage =
-        previousMessage &&
+    const shouldMergeWithPreviousMessage: boolean =
+        !!previousMessage &&
         previousMessage.author.id === message.author.id &&
         Math.abs(differenceInMinutes(message.createdTime, previousMessage.createdTime)) <
             mergeMessageMinuteLimit;
-    const shouldMergeWithNextMessage =
-        nextMessage &&
+    const shouldMergeWithNextMessage: boolean =
+        !!nextMessage &&
         nextMessage.author.id === message.author.id &&
         Math.abs(differenceInMinutes(nextMessage.createdTime, message.createdTime)) <
             mergeMessageMinuteLimit;
@@ -80,24 +80,6 @@ export function MessageView({
             hoverElement.removeEventListener("pointerleave", handlePointerLeave);
         };
     }, []);
-
-    const {isFocusVisible} = useFocusVisible({});
-    const [isFocusWithinActions, setIsFocusWithinActions] = useState(false);
-    const {focusWithinProps: focusWithinActionsProps} = useFocusWithin({
-        onFocusWithinChange: setIsFocusWithinActions,
-    });
-    const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
-
-    const isEditing =
-        messageEditing.state.isEditing &&
-        messageEditing.state.messageRoomKey === message.getRoomKey() &&
-        messageEditing.state.messageId === message.id;
-
-    const isShowingActions =
-        !isEditing && (isHovered || (isFocusWithinActions && isFocusVisible) || isMoreMenuOpen);
-
-    const overlayRef = useRef<OverlayRef>(null);
-    const shouldFocusMessageContentEditorRef = useRef(false);
 
     return (
         <Box>
@@ -133,117 +115,164 @@ export function MessageView({
                         )}
                     </Box>
                 </Box>
-                <Overlay
-                    ref={overlayRef}
-                    isVisible={isEditing}
-                    placement="bottom-start"
-                    canFlip={false}
-                    preventOverflow={false}
-                    sameWidth={true}
-                    offset={defaultTooltipOffset}
-                    overlay={
-                        <Box>
-                            <Box display="flex" marginX="-3">
-                                <Box flexGrow="1" pointerEvents="none" />
-                                <MessageContentEditorInstructionsOverlay
-                                    messageEditing={messageEditing}
-                                />
-                            </Box>
-                        </Box>
-                    }
-                >
-                    <FocusRing isVisibleWhenFocusWithin={true}>
-                        <Box
-                            backgroundColor={!isEditing ? "grey-bubble" : undefined}
-                            maxWidth="160"
-                            overflow="hidden"
-                            display="inline-block"
-                            paddingX="0.5"
-                            paddingY="1.5"
-                            borderTopLeftRadius={!shouldMergeWithPreviousMessage ? "xl" : "base"}
-                            borderTopRightRadius="xl"
-                            borderBottomLeftRadius={!shouldMergeWithNextMessage ? "xl" : "base"}
-                            borderBottomRightRadius="xl"
-                            style={{
-                                boxShadow: isEditing
-                                    ? `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`
-                                    : undefined,
-                            }}
-                        >
-                            {!isEditing ? (
-                                <ContentView
-                                    content={message.content}
-                                    onNavigate={navigate}
-                                    className={sprinkles({minWidth: messageBubbleMinWidth})}
-                                />
-                            ) : (
-                                <MessageContentEditor
-                                    state={messageEditing.state.contentEditorState}
-                                    onChange={state => {
-                                        // Update the overlay position whenever our content state changes.
-                                        // Needs to be in an animation frame to get the correct measurements.
-                                        requestAnimationFrame(() => {
-                                            const overlay = assertExists(overlayRef.current);
-                                            overlay.forceUpdateOverlayPosition();
-                                        });
-
-                                        messageEditing.dispatch({
-                                            type: "ContentEditorStateChange",
-                                            contentEditorState: state,
-                                        });
-                                    }}
-                                    onEscape={() =>
-                                        messageEditing.dispatch({type: "CancelEditing"})
-                                    }
-                                    shouldFocusMessageContentEditorRef={
-                                        shouldFocusMessageContentEditorRef
-                                    }
-                                />
-                            )}
-                        </Box>
-                    </FocusRing>
-                </Overlay>
-                <Box
-                    alignSelf="center"
-                    paddingLeft="3"
-                    style={{opacity: isShowingActions ? "1" : "0"}}
-                    {...focusWithinActionsProps}
-                >
-                    <Box display="flex" pointerEvents={!isShowingActions ? "none" : undefined}>
-                        <IconButton description="Reply" size="sm" isDisabled={isEditing}>
-                            <ArrowArcLeft />
-                        </IconButton>
-                        {currentAccount.id === message.author.id && (
-                            <MenuButton
-                                actions={[
-                                    {
-                                        label: "Edit",
-                                        onPress: () => {
-                                            shouldFocusMessageContentEditorRef.current = true;
-                                            messageEditing.dispatch({
-                                                type: "StartEditing",
-                                                message,
-                                            });
-                                        },
-                                    },
-                                    {
-                                        label: "Delete",
-                                        onPress: () => {
-                                            // TODO(calebmer): Implement!
-                                        },
-                                    },
-                                ]}
-                                onStateChange={state => setIsMoreMenuOpen(state.isExpanded)}
-                            >
-                                <IconButton description="More" size="sm" isDisabled={isEditing}>
-                                    <DotsThree />
-                                </IconButton>
-                            </MenuButton>
-                        )}
-                    </Box>
-                </Box>
+                {message.payload.type === "Content" ? (
+                    <MessageWithContentPayloadView
+                        message={message as MessageWithContentPayloadInterface}
+                        shouldMergeWithPreviousMessage={shouldMergeWithNextMessage}
+                        shouldMergeWithNextMessage={shouldMergeWithNextMessage}
+                        messageEditing={messageEditing}
+                        isHovered={isHovered}
+                    />
+                ) : null}
             </Box>
         </Box>
+    );
+}
+
+function MessageWithContentPayloadView({
+    message,
+    shouldMergeWithPreviousMessage,
+    shouldMergeWithNextMessage,
+    messageEditing,
+    isHovered,
+}: {
+    message: MessageWithContentPayloadInterface;
+    shouldMergeWithPreviousMessage: boolean;
+    shouldMergeWithNextMessage: boolean;
+    messageEditing: MessageEditing;
+    isHovered: boolean;
+}) {
+    const navigate = useNavigate();
+    const {currentAccount} = useSpaceContext();
+    const overlayRef = useRef<OverlayRef>(null);
+
+    const {isFocusVisible} = useFocusVisible({});
+    const [isFocusWithinActions, setIsFocusWithinActions] = useState(false);
+    const {focusWithinProps: focusWithinActionsProps} = useFocusWithin({
+        onFocusWithinChange: setIsFocusWithinActions,
+    });
+    const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+
+    const isEditing =
+        messageEditing.state.isEditing &&
+        messageEditing.state.messageRoomKey === message.getRoomKey() &&
+        messageEditing.state.messageIndex === message.index;
+
+    const isShowingActions =
+        !isEditing && (isHovered || (isFocusWithinActions && isFocusVisible) || isMoreMenuOpen);
+
+    const shouldFocusMessageContentEditorRef = useRef(false);
+
+    return (
+        <>
+            <Overlay
+                ref={overlayRef}
+                isVisible={isEditing}
+                placement="bottom-start"
+                canFlip={false}
+                preventOverflow={false}
+                sameWidth={true}
+                offset={defaultTooltipOffset}
+                overlay={
+                    <Box>
+                        <Box display="flex" marginX="-3">
+                            <Box flexGrow="1" pointerEvents="none" />
+                            <MessageContentEditorInstructionsOverlay
+                                messageEditing={messageEditing}
+                            />
+                        </Box>
+                    </Box>
+                }
+            >
+                <FocusRing isVisibleWhenFocusWithin={true}>
+                    <Box
+                        backgroundColor={!isEditing ? "grey-bubble" : undefined}
+                        maxWidth="160"
+                        overflow="hidden"
+                        display="inline-block"
+                        paddingX="0.5"
+                        paddingY="1.5"
+                        borderTopLeftRadius={!shouldMergeWithPreviousMessage ? "xl" : "base"}
+                        borderTopRightRadius="xl"
+                        borderBottomLeftRadius={!shouldMergeWithNextMessage ? "xl" : "base"}
+                        borderBottomRightRadius="xl"
+                        style={{
+                            boxShadow: isEditing
+                                ? `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`
+                                : undefined,
+                        }}
+                    >
+                        {!isEditing ? (
+                            <ContentView
+                                content={message.payload.content}
+                                onNavigate={navigate}
+                                className={sprinkles({minWidth: messageBubbleMinWidth})}
+                            />
+                        ) : (
+                            <MessageContentEditor
+                                state={messageEditing.state.contentEditorState}
+                                onChange={state => {
+                                    // Update the overlay position whenever our content state changes.
+                                    // Needs to be in an animation frame to get the correct measurements.
+                                    requestAnimationFrame(() => {
+                                        const overlay = assertExists(overlayRef.current);
+                                        overlay.forceUpdateOverlayPosition();
+                                    });
+
+                                    messageEditing.dispatch({
+                                        type: "ContentEditorStateChange",
+                                        contentEditorState: state,
+                                    });
+                                }}
+                                onEscape={() => messageEditing.dispatch({type: "CancelEditing"})}
+                                shouldFocusMessageContentEditorRef={
+                                    shouldFocusMessageContentEditorRef
+                                }
+                            />
+                        )}
+                    </Box>
+                </FocusRing>
+            </Overlay>
+            <Box
+                alignSelf="center"
+                paddingLeft="3"
+                style={{opacity: isShowingActions ? "1" : "0"}}
+                {...focusWithinActionsProps}
+            >
+                <Box display="flex" pointerEvents={!isShowingActions ? "none" : undefined}>
+                    <IconButton description="Reply" size="sm" isDisabled={isEditing}>
+                        <ArrowArcLeft />
+                    </IconButton>
+                    {currentAccount.id === message.author.id && (
+                        <MenuButton
+                            actions={[
+                                {
+                                    label: "Edit",
+                                    onPress: () => {
+                                        shouldFocusMessageContentEditorRef.current = true;
+                                        messageEditing.dispatch({
+                                            type: "StartEditing",
+                                            message,
+                                        });
+                                    },
+                                },
+                                {
+                                    label: "Delete",
+                                    onPress: () => {
+                                        // TODO(calebmer): Implement!
+                                    },
+                                },
+                            ]}
+                            onStateChange={state => setIsMoreMenuOpen(state.isExpanded)}
+                        >
+                            <IconButton description="More" size="sm" isDisabled={isEditing}>
+                                <DotsThree />
+                            </IconButton>
+                        </MenuButton>
+                    )}
+                </Box>
+            </Box>
+        </>
     );
 }
 

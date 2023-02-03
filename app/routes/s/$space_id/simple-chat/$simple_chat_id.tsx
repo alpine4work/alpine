@@ -42,8 +42,8 @@ export async function loader({params, context}: LoaderArgs) {
         {
             simpleChatId: simpleChat.id,
             limit: getInitialLoadMessageCount(context.loader.clientInfo),
-            beforeMessageId: null,
-            afterMessageId: null,
+            beforeMessageIndex: null,
+            afterMessageIndex: null,
         },
     );
 
@@ -74,20 +74,20 @@ export default function SimpleChatRoute() {
                         ],
                     )}
                     shimmerRandomSeed={simpleChat.id}
-                    onLoadFromStart={({limit, afterMessageId, beforeMessageId}) => {
+                    onLoadFromStart={({limit, afterMessageIndex, beforeMessageIndex}) => {
                         return getSimpleChatMessagesFromStart(context, {
                             simpleChatId: simpleChat.id,
                             limit,
-                            afterMessageId,
-                            beforeMessageId,
+                            afterMessageIndex,
+                            beforeMessageIndex,
                         });
                     }}
-                    onLoadFromEnd={({limit, afterMessageId, beforeMessageId}) => {
+                    onLoadFromEnd={({limit, afterMessageIndex, beforeMessageIndex}) => {
                         return getSimpleChatMessagesFromEnd(context, {
                             simpleChatId: simpleChat.id,
                             limit,
-                            afterMessageId,
-                            beforeMessageId,
+                            afterMessageIndex,
+                            beforeMessageIndex,
                         });
                     }}
                 />
@@ -118,7 +118,7 @@ export default function SimpleChatRoute() {
                             try {
                                 await createSimpleChatMessage(context, {
                                     simpleChatId: simpleChat.id,
-                                    parentMessageId: null,
+                                    parentMessageIndex: null,
                                     content: state.getContent(),
                                 });
                                 setState(ContentEditorState.create(emptyMessageContent));

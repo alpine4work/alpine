@@ -76,7 +76,7 @@ export function MessageShimmer<Message extends MessageInterface>({
 
     const shouldMergeWithNextMessage =
         !nextMessage &&
-        index < messages.getEstimatedMessageCount() - 1 &&
+        index < messages.getMessageCount() - 1 &&
         stableRandom.randomFloat("size", index, 1) < shouldMergeMessageShimmerProbability;
     const shouldMergeWithPreviousMessage =
         !previousMessage &&

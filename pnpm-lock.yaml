@@ -126,7 +126,6 @@ specifiers:
   aws4fetch: ^1.0.17
   axe-core: 4.4.3
   bcrypt: ^5.1.0
-  binary-search: ^1.3.6
   browserify-zlib: 0.1.4
   byte-base64: ^1.1.0
   chalk: '4'
@@ -265,7 +264,6 @@ dependencies:
   aws4fetch: 1.0.17
   axe-core: 4.4.3
   bcrypt: 5.1.0
-  binary-search: 1.3.6
   browserify-zlib: 0.1.4_lhhf4zowvg4ngxldsy5aala7hu
   byte-base64: 1.1.0
   chalk: 4.1.2
@@ -6474,10 +6472,6 @@ packages:
   /binary-extensions/2.2.0:
     resolution: {integrity: sha512-jDctJ/IVQbZoJykoeHbhXpOlNBqGNcwXJKJog42E5HDPUwQTSdjCHdihjj0DlnheQ7blbT6dHOafNAiS8ooQKA==}
     engines: {node: '>=8'}
-    dev: false
-
-  /binary-search/1.3.6:
-    resolution: {integrity: sha512-nbE1WxOTTrUWIfsfZ4aHGYu5DOuNkbxGokjV6Z2kxfJK3uaAb8zNK1muzOeipoLHZjInT4Br88BHpzevc681xA==}
     dev: false
 
   /bindings/1.5.0:

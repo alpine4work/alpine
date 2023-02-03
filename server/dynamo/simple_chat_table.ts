@@ -6,12 +6,13 @@ import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attr
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry_dynamo_condition_check_errors";
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
-import {MessageContent, MessageContentSchema} from "~/shared/content/message_content_schema";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error";
+import {MessageContent} from "~/shared/content/message_content_schema";
+import {FailedPreconditionError, NotFoundError, PermissionDeniedError} from "~/shared/error/error";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array";
 import {AccountId, SimpleChatId, SpaceId} from "~/shared/id/types/id_types";
+import {MessagePayloadSchema} from "~/shared/models/message_interface";
 import {SimpleChatMessageModel, SimpleChatModel} from "~/shared/models/simple_chat_model";
 import {Schema} from "~/shared/schema/schema";
 
@@ -31,24 +32,19 @@ const SimpleChatTable = DynamoTableSchema.new({
                         spaceId: Schema.id<SpaceId>(),
 
                         messagesSummary: Schema.object({
-                            nextMessageId: Schema.integer.min(1),
+                            nextMessageIndex: Schema.integer.min(0),
                             messageCount: Schema.integer.min(0),
-                        }).default({
-                            nextMessageId: 1,
-                            messageCount: 0,
                         }),
                     }),
                 },
                 Messages: {
                     sortKeyAttributes: {
-                        messageId: DynamoKeyAttributeSchema.integer,
+                        messageIndex: DynamoKeyAttributeSchema.integer,
                     },
                     attributes: Schema.object({
                         authorId: Schema.id<AccountId>(),
                         createdTime: Schema.date,
-                        parentMessageId: Schema.integer.nullable(),
-                        content: MessageContentSchema,
-                        contentUpdatedTime: Schema.date.nullable(),
+                        payload: MessagePayloadSchema,
                     }),
                 },
             },
@@ -77,7 +73,7 @@ export async function seedTestSimpleChats(context: DynamoContext) {
         simpleChatId: testSimpleChatId,
         spaceId: defaultSpaceId,
         messagesSummary: {
-            nextMessageId: 1,
+            nextMessageIndex: 0,
             messageCount: 0,
         },
     });
@@ -107,15 +103,15 @@ export async function createSimpleChatMessage(
     context: RequestContext,
     {
         simpleChatId,
-        parentMessageId,
+        parentMessageIndex,
         content,
     }: {
         simpleChatId: SimpleChatId;
-        parentMessageId: number | null;
+        parentMessageIndex: number | null;
         content: MessageContent;
     },
 ): Promise<{
-    id: number;
+    index: number;
     createdTime: Date;
 }> {
     return retryDynamoConditionCheckErrors(async () => {
@@ -138,7 +134,7 @@ export async function createSimpleChatMessage(
                 return simpleChatItem;
             },
             async () => {
-                if (typeof parentMessageId !== "number") return;
+                if (typeof parentMessageIndex !== "number") return;
 
                 const parentMessageItem = await SimpleChatTable.getPartialItem(
                     context,
@@ -146,7 +142,7 @@ export async function createSimpleChatMessage(
                         partitionType: "SimpleChat",
                         sortRangeType: "Messages",
                         simpleChatId,
-                        messageId: parentMessageId,
+                        messageIndex: parentMessageIndex,
                     },
                     {
                         attributes: [],
@@ -157,7 +153,7 @@ export async function createSimpleChatMessage(
             },
         );
 
-        const messageId = simpleChatItem.messagesSummary.nextMessageId;
+        const messageIndex = simpleChatItem.messagesSummary.nextMessageIndex;
         const createdTime = new Date();
         const authorId = context.auth.getAccountId();
 
@@ -166,18 +162,21 @@ export async function createSimpleChatMessage(
                 partitionType: "SimpleChat",
                 sortRangeType: "Messages",
                 simpleChatId,
-                messageId,
+                messageIndex,
                 authorId,
                 createdTime,
-                parentMessageId,
-                content,
-                contentUpdatedTime: null,
+                payload: {
+                    type: "Content",
+                    parentMessageIndex,
+                    content,
+                    contentUpdatedTime: null,
+                },
             }),
             SimpleChatTable.transactionDirectlyUpdateItemAttribute(
                 {partitionType: "SimpleChat", sortRangeType: "Attributes", simpleChatId},
                 "messagesSummary",
                 {
-                    nextMessageId: simpleChatItem.messagesSummary.nextMessageId + 1,
+                    nextMessageIndex: simpleChatItem.messagesSummary.nextMessageIndex + 1,
                     messageCount: simpleChatItem.messagesSummary.messageCount + 1,
                 },
                 {updateLockVersion: simpleChatItem.updateLockVersion},
@@ -185,7 +184,7 @@ export async function createSimpleChatMessage(
         ]);
 
         return {
-            id: messageId,
+            index: messageIndex,
             createdTime,
         };
     });
@@ -193,7 +192,7 @@ export async function createSimpleChatMessage(
 
 export async function getSimpleChatMessage(
     context: RequestContext,
-    {simpleChatId, messageId}: {simpleChatId: SimpleChatId; messageId: number},
+    {simpleChatId, messageIndex}: {simpleChatId: SimpleChatId; messageIndex: number},
 ): Promise<SimpleChatMessageModel | null> {
     const [simpleChat, item] = await runAllPromises([
         getSimpleChat(context, simpleChatId),
@@ -201,7 +200,7 @@ export async function getSimpleChatMessage(
             partitionType: "SimpleChat",
             sortRangeType: "Messages",
             simpleChatId,
-            messageId,
+            messageIndex,
         }),
     ]);
     if (!simpleChat) throw new NotFoundError("Simple chat not found");
@@ -217,12 +216,10 @@ async function createSimpleChatMessageModelFromItem(
 ): Promise<SimpleChatMessageModel> {
     return new SimpleChatMessageModel({
         simpleChatId: item.simpleChatId,
-        id: item.messageId,
+        index: item.messageIndex,
         author: await getAccountOrThrow(context, spaceId, item.authorId),
         createdTime: item.createdTime,
-        parentMessageId: item.parentMessageId,
-        content: item.content,
-        contentUpdatedTime: item.contentUpdatedTime,
+        payload: item.payload,
     });
 }
 
@@ -230,9 +227,13 @@ export function updateSimpleChatMessageContent(
     context: RequestContext,
     {
         simpleChatId,
-        messageId,
+        messageIndex,
         content,
-    }: {simpleChatId: SimpleChatId; messageId: number; content: MessageContent},
+    }: {
+        simpleChatId: SimpleChatId;
+        messageIndex: number;
+        content: MessageContent;
+    },
 ): Promise<{
     contentUpdatedTime: Date;
 }> {
@@ -243,7 +244,7 @@ export function updateSimpleChatMessageContent(
                 partitionType: "SimpleChat",
                 sortRangeType: "Messages",
                 simpleChatId,
-                messageId,
+                messageIndex,
             }),
         ]);
         if (!simpleChat) throw new NotFoundError("Simple chat not found");
@@ -253,8 +254,18 @@ export function updateSimpleChatMessageContent(
         if (item.authorId !== context.auth.getAccountId())
             throw new PermissionDeniedError("Can only update simple chat messages you authored");
 
+        if (item.payload.type !== "Content")
+            throw new FailedPreconditionError("Can not update comments with a non-content payload");
+
         const contentUpdatedTime = new Date();
-        await SimpleChatTable.directlyUpdateItem(context, {...item, content, contentUpdatedTime});
+        await SimpleChatTable.directlyUpdateItem(context, {
+            ...item,
+            payload: {
+                ...item.payload,
+                content,
+                contentUpdatedTime,
+            },
+        });
 
         return {contentUpdatedTime};
     });
@@ -262,7 +273,7 @@ export function updateSimpleChatMessageContent(
 
 export function deleteSimpleChatMessage(
     context: RequestContext,
-    {simpleChatId, messageId}: {simpleChatId: SimpleChatId; messageId: number},
+    {simpleChatId, messageIndex}: {simpleChatId: SimpleChatId; messageIndex: number},
 ): Promise<void> {
     return retryDynamoConditionCheckErrors(async () => {
         const [simpleChatItem, messageItem] = await runAllPromises([
@@ -275,7 +286,7 @@ export function deleteSimpleChatMessage(
                 partitionType: "SimpleChat",
                 sortRangeType: "Messages",
                 simpleChatId,
-                messageId,
+                messageIndex,
             }),
         ]);
 
@@ -287,18 +298,14 @@ export function deleteSimpleChatMessage(
         if (messageItem.authorId !== context.auth.getAccountId())
             throw new PermissionDeniedError("Can only delete simple chat messages you authored");
 
-        await DynamoTableSchema.executeTransaction(context, [
-            SimpleChatTable.transactionDeleteItem(messageItem),
-            SimpleChatTable.transactionDirectlyUpdateItemAttribute(
-                {partitionType: "SimpleChat", sortRangeType: "Attributes", simpleChatId},
-                "messagesSummary",
-                {
-                    nextMessageId: simpleChatItem.messagesSummary.nextMessageId,
-                    messageCount: simpleChatItem.messagesSummary.messageCount - 1,
-                },
-                {updateLockVersion: simpleChatItem.updateLockVersion},
-            ),
-        ]);
+        if (messageItem.payload.type !== "Content")
+            throw new FailedPreconditionError("Can not delete comments with a non-content payload");
+
+        const deletedTime = new Date();
+        await SimpleChatTable.directlyUpdateItem(context, {
+            ...messageItem,
+            payload: {type: "Deleted", deletedTime},
+        });
     });
 }
 
@@ -307,13 +314,13 @@ export async function getSimpleChatMessagesFromStart(
     {
         simpleChatId,
         limit,
-        afterMessageId,
-        beforeMessageId,
+        afterMessageIndex,
+        beforeMessageIndex,
     }: {
         simpleChatId: SimpleChatId;
         limit: number;
-        afterMessageId: number | null;
-        beforeMessageId: number | null;
+        afterMessageIndex: number | null;
+        beforeMessageIndex: number | null;
     },
 ): Promise<{
     hasMoreMessagesAfter: boolean;
@@ -326,14 +333,16 @@ export async function getSimpleChatMessagesFromStart(
             partitionType: "SimpleChat",
             sortRangeType: "Messages",
             simpleChatId,
-            messageId: typeof afterMessageId === "number" ? afterMessageId + 1 : 1,
+            messageIndex: typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0,
         },
         endKey: {
             partitionType: "SimpleChat",
             sortRangeType: "Messages",
             simpleChatId,
-            messageId:
-                typeof beforeMessageId === "number" ? beforeMessageId - 1 : Number.MAX_SAFE_INTEGER,
+            messageIndex:
+                typeof beforeMessageIndex === "number"
+                    ? beforeMessageIndex - 1
+                    : Number.MAX_SAFE_INTEGER,
         },
         // Add one to the limit so we can determine whether there are more
         // messages after.
@@ -366,13 +375,13 @@ export async function getSimpleChatMessagesFromEnd(
     {
         simpleChatId,
         limit,
-        afterMessageId,
-        beforeMessageId,
+        afterMessageIndex,
+        beforeMessageIndex,
     }: {
         simpleChatId: SimpleChatId;
         limit: number;
-        afterMessageId: number | null;
-        beforeMessageId: number | null;
+        afterMessageIndex: number | null;
+        beforeMessageIndex: number | null;
     },
 ): Promise<{
     hasMoreMessagesBefore: boolean;
@@ -380,7 +389,7 @@ export async function getSimpleChatMessagesFromEnd(
 }> {
     // Base case: If we are loading before the first message ID we know there are
     // no messages.
-    if (beforeMessageId === 1) {
+    if (beforeMessageIndex === 0) {
         return {messages: [], hasMoreMessagesBefore: false};
     }
 
@@ -391,14 +400,16 @@ export async function getSimpleChatMessagesFromEnd(
             partitionType: "SimpleChat",
             sortRangeType: "Messages",
             simpleChatId,
-            messageId: typeof afterMessageId === "number" ? afterMessageId + 1 : 1,
+            messageIndex: typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0,
         },
         endKey: {
             partitionType: "SimpleChat",
             sortRangeType: "Messages",
             simpleChatId,
-            messageId:
-                typeof beforeMessageId === "number" ? beforeMessageId - 1 : Number.MAX_SAFE_INTEGER,
+            messageIndex:
+                typeof beforeMessageIndex === "number"
+                    ? beforeMessageIndex - 1
+                    : Number.MAX_SAFE_INTEGER,
         },
         // Add one to the limit so we can determine whether there are more
         // messages after.
