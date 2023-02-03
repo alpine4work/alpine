@@ -8,7 +8,7 @@ export function AccountAvatar({
     size = "8",
 }: {
     account: AccountModel;
-    size?: "6" | "8" | "10";
+    size?: "6" | "7" | "8" | "10";
 }) {
     const {firstInitial, lastInitial} = useMemo(() => {
         assert(account.name.length > 0);
@@ -39,7 +39,7 @@ export function AccountAvatar({
             position="relative"
             zIndex="0"
         >
-            <Box fontSize="xs" style={{transform: `scale(${parseInt(size, 10) / 8})`}}>
+            <Box fontSize="75" style={{transform: `scale(${parseInt(size, 10) / 8})`}}>
                 {firstInitial.toUpperCase()}
                 {lastInitial?.toUpperCase()}
             </Box>

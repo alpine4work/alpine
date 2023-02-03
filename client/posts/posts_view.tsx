@@ -377,7 +377,7 @@ export function PostsView({
 
                     return {
                         key: `PostCommentInput:${item.post.id}`,
-                        minHeight: addRemLengths(spacing["16"], spacing[padding]),
+                        minHeight: addRemLengths("3.5rem", spacing[padding]),
                         withManualLayout: true,
                         stayCompletelyVisibleAfterResize: true,
                         render: ({

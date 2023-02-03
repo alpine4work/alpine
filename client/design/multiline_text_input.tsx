@@ -52,7 +52,7 @@ export function MultilineTextInput({
     const id = useId();
 
     return (
-        <Box fontSize="xs">
+        <Box fontSize="75">
             <label
                 className={sprinkles({
                     display: "inline-block",

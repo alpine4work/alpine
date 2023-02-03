@@ -17,12 +17,12 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {MessageEditing} from "~/client/messaging/message_editing";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {MessageContent} from "~/shared/content/message_content_schema";
-import {RemLength, Spacing} from "~/shared/design/spacing";
+import {RemLength, Spacing, addRemLengths, spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {MessageInterface} from "~/shared/models/message_interface";
-import {colorSchemeVars, sprinkles, truncateClassName} from "~/shared/styles/styles";
+import {colorSchemeVars, sprinkles} from "~/shared/styles/styles";
 
-export const messageViewMinHeight: RemLength = "2.625rem";
+export const messageViewMinHeight: RemLength = "2.125rem";
 
 /**
  * The buffered height we use for virtualized message views.
@@ -32,7 +32,7 @@ export const messageViewMinHeight: RemLength = "2.625rem";
  */
 export const bufferedMessageViewHeight: RemLength = "4rem";
 
-const messageBubbleMinWidth: Spacing = "7";
+const messageBubbleMinWidth: Spacing = "6";
 
 const mergeMessageMinuteLimit = 5;
 
@@ -103,12 +103,19 @@ export function MessageView({
         <Box>
             {!shouldMergeWithPreviousMessage && (
                 <Box
-                    fontSize="xs"
+                    fontSize="50"
+                    fontStyle="truncate"
                     paddingY="0.5"
-                    paddingLeft="16"
-                    paddingRight="2"
+                    paddingRight="3"
                     color="grey-50"
-                    className={truncateClassName}
+                    style={{
+                        paddingLeft: addRemLengths(
+                            spacing["3"],
+                            spacing["7"],
+                            spacing["2"],
+                            spacing["1.5"],
+                        ),
+                    }}
                 >
                     {message.author.name}
                 </Box>
@@ -119,8 +126,12 @@ export function MessageView({
                 paddingX="3"
                 paddingBottom={!shouldMergeWithNextMessage ? "3" : "0.5"}
             >
-                <Box flexShrink="0" width="10" display="flex" alignItems="flex-end">
-                    {!shouldMergeWithNextMessage && <AccountAvatar account={message.author} />}
+                <Box flexShrink="0" paddingRight="2">
+                    <Box width="7" height="full" display="flex" alignItems="flex-end">
+                        {!shouldMergeWithNextMessage && (
+                            <AccountAvatar account={message.author} size="7" />
+                        )}
+                    </Box>
                 </Box>
                 <Overlay
                     ref={overlayRef}
@@ -147,8 +158,8 @@ export function MessageView({
                             maxWidth="160"
                             overflow="hidden"
                             display="inline-block"
-                            paddingX="1"
-                            paddingY="2"
+                            paddingX="0.5"
+                            paddingY="1.5"
                             borderTopLeftRadius={!shouldMergeWithPreviousMessage ? "xl" : "base"}
                             borderTopRightRadius="xl"
                             borderBottomLeftRadius={!shouldMergeWithNextMessage ? "xl" : "base"}
@@ -296,7 +307,7 @@ function MessageContentEditorInstructionsOverlay({
             flexShrink="0"
             paddingX="1.5"
             paddingY="0.5"
-            fontSize="xs"
+            fontSize="75"
             color="grey-0-const"
             backgroundColor="grey-80-const"
             border={{light: "grey-80-const", dark: "grey-70-const"}}

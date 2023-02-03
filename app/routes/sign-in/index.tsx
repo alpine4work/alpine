@@ -92,7 +92,7 @@ export default function SignInPage() {
                     <h1
                         className={sprinkles({
                             fontStyle: "bold",
-                            fontSize: "display-sm",
+                            fontSize: "700",
                         })}
                     >
                         Sign in

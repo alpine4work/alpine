@@ -87,8 +87,11 @@ export function parseRemLengthNumber(remLength: RemLength): number {
 /**
  * Add two `RemLength`s together.
  */
-export function addRemLengths(remLength1: RemLength, remLength2: RemLength): RemLength {
-    return `${parseRemLengthNumber(remLength1) + parseRemLengthNumber(remLength2)}rem`;
+export function addRemLengths(...remLengths: Array<RemLength>): RemLength {
+    return `${remLengths.reduce(
+        (totalRemLength, remLength) => totalRemLength + parseRemLengthNumber(remLength),
+        0,
+    )}rem`;
 }
 
 /**

@@ -91,11 +91,6 @@ export function dummyDocumentContent() {
                 content: [
                     {
                         type: "text",
-                        marks: [
-                            {
-                                type: "bold",
-                            },
-                        ],
                         text: "Chapter I. Bourgeois and Proletarians",
                     },
                 ],

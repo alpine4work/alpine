@@ -8,12 +8,7 @@ import {useMergedRefs} from "~/client/design/helpers/use_merged_refs";
 import {uninterruptedThoughtLimitMs} from "~/client/design/timing_constants";
 import {Spacing, spacing} from "~/shared/design/spacing";
 import {createTimeout} from "~/shared/helpers/async/timeout";
-import {
-    Sprinkles,
-    spinAnimationClassName,
-    sprinkles,
-    truncateClassName,
-} from "~/shared/styles/styles";
+import {Sprinkles, spinAnimationClassName, sprinkles} from "~/shared/styles/styles";
 
 const ButtonForwardRef = forwardRef(Button);
 export {ButtonForwardRef as Button};
@@ -137,9 +132,7 @@ function Button(
     }, [isPending]);
 
     const labelChild = (
-        <span className={classNames(sprinkles({display: "block"}), truncateClassName)}>
-            {children}
-        </span>
+        <span className={sprinkles({display: "block", fontStyle: "truncate"})}>{children}</span>
     );
 
     const iconSize: Spacing = "3";
@@ -192,7 +185,7 @@ function Button(
                     minWidth: variant !== "quiet" ? "16" : undefined,
                     width: fullWidth ? "full" : undefined,
                     paddingX,
-                    fontSize: "xs",
+                    fontSize: "75",
                     borderRadius: "base",
                     // You may notice our button doesn't have a pointer cursor. See:
                     // https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b

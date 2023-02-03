@@ -88,7 +88,7 @@ export function AccountAvatarPile({
                                 boxShadow: `0px 0px 0px 2px ${colorSchemeVars["grey-0"]}`,
                             }}
                             backgroundColor="grey-10"
-                            fontSize="2xs"
+                            fontSize="50"
                             color="grey-70"
                             display="flex"
                             justifyContent="center"

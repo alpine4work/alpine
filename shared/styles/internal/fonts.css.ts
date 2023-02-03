@@ -6,7 +6,10 @@
  * [2]: https://github.com/tonsky/FiraCode
  */
 
-import {fontFace, style} from "@vanilla-extract/css";
+import {assignVars, createGlobalTheme, fontFace, globalStyle} from "@vanilla-extract/css";
+import {mobilePlatformMediaQuery} from "~/shared/design/spacing";
+import {assert} from "~/shared/helpers/control/assert";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
 
 // TODO(calebmer): Now that I've bought Untitled UI, give their premium font
 // recommendations a look to see if we can do better than Inter.
@@ -100,88 +103,273 @@ export const fontStyles = {
         fontStyle: "normal",
         fontFeatureSettings: '"calt" off',
     },
-};
-
-/**
- * The font scale for our product.
- *
- * To determine letter spacing we use Inter's [dynamic metrics][1] for the font
- * size on desktop machines. We should consider:
- *
- * - Whether we should use different letter spacing at mobile scale.
- * - Whether other fonts should have different letter spacing.
- *
- * [1]: https://rsms.me/inter/dynmetrics
- */
-export const fontSizes = {
-    "2xs": {
-        fontSize: "0.625rem",
-        lineHeight: "1rem",
-        letterSpacing: "0.01em",
+    // Styles that truncates text to a single line and shows ellipsis for
+    // truncated characters.
+    truncate: {
+        fontFamily: interFontFamily,
+        fontWeight: 400,
+        fontStyle: "normal",
+        fontFeatureSettings: '"calt" off',
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
     },
-    xs: {
-        fontSize: "0.75rem",
-        lineHeight: "1.125rem",
-        letterSpacing: "0em",
+    "truncate-semi-bold": {
+        fontFamily: interFontFamily,
+        fontWeight: 500,
+        fontStyle: "normal",
+        fontFeatureSettings: '"calt" off',
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
     },
-    sm: {
-        fontSize: "0.875rem",
-        lineHeight: "1.25rem",
-        letterSpacing: "-0.006em",
-    },
-    md: {
-        fontSize: "1rem",
-        lineHeight: "1.5rem",
-        letterSpacing: "-0.011em",
-    },
-    lg: {
-        fontSize: "1.125rem",
-        lineHeight: "1.75rem",
-        letterSpacing: "-0.014em",
-    },
-    xl: {
-        fontSize: "1.25rem",
-        lineHeight: "1.875rem",
-        letterSpacing: "-0.017em",
-    },
-    "display-xs": {
-        fontSize: "1.5rem",
-        lineHeight: "2rem",
-        letterSpacing: "-0.019em",
-    },
-    "display-sm": {
-        fontSize: "1.875rem",
-        lineHeight: "2.375rem",
-        letterSpacing: "-0.021em",
-    },
-    "display-md": {
-        fontSize: "2.25rem",
-        lineHeight: "2.75rem",
-        letterSpacing: "-0.022em",
-    },
-    "display-lg": {
-        fontSize: "3rem",
-        lineHeight: "3.75rem",
-        letterSpacing: "-0.022em",
-    },
-    "display-xl": {
-        fontSize: "3.75rem",
-        lineHeight: "4.5rem",
-        letterSpacing: "-0.022em",
-    },
-    "display-2xl": {
-        fontSize: "4.5rem",
-        lineHeight: "5.625rem",
-        letterSpacing: "-0.022em",
+    "truncate-bold": {
+        fontFamily: interFontFamily,
+        fontWeight: 600,
+        fontStyle: "normal",
+        fontFeatureSettings: '"calt" off',
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
     },
 } as const;
 
+export const fontSizesByPlatform = {
+    "50": {
+        desktop: {
+            fontSize: 11,
+            letterSpacing: "0.005em",
+            lineHeight: "0.875rem",
+        },
+        mobile: {
+            fontSize: 13,
+            letterSpacing: "-0.0025em",
+            lineHeight: "0.875rem",
+        },
+    },
+    "75": {
+        desktop: {
+            fontSize: 12,
+            letterSpacing: "0em",
+            lineHeight: "1rem",
+        },
+        mobile: {
+            fontSize: 15,
+            letterSpacing: "-0.009em",
+            lineHeight: "1rem",
+        },
+    },
+    "100": {
+        desktop: {
+            fontSize: 14,
+            letterSpacing: "-0.006em",
+            lineHeight: "1.125rem",
+        },
+        mobile: {
+            fontSize: 17,
+            letterSpacing: "-0.013em",
+            lineHeight: "1.125rem",
+        },
+    },
+    "200": {
+        desktop: {
+            fontSize: 16,
+            letterSpacing: "-0.011em",
+            lineHeight: "1.25rem",
+        },
+        mobile: {
+            fontSize: 19,
+            letterSpacing: "-0.016em",
+            lineHeight: "1.25rem",
+        },
+    },
+    "300": {
+        desktop: {
+            fontSize: 18,
+            letterSpacing: "-0.014em",
+            lineHeight: "1.5rem",
+        },
+        mobile: {
+            fontSize: 22,
+            letterSpacing: "-0.018em",
+            lineHeight: "1.5rem",
+        },
+    },
+    "400": {
+        desktop: {
+            fontSize: 20,
+            letterSpacing: "-0.017em",
+            lineHeight: "1.625rem",
+        },
+        mobile: {
+            fontSize: 24,
+            letterSpacing: "-0.019em",
+            lineHeight: "1.625rem",
+        },
+    },
+    "500": {
+        desktop: {
+            fontSize: 22,
+            letterSpacing: "-0.018em",
+            lineHeight: "1.75rem",
+        },
+        mobile: {
+            fontSize: 27,
+            letterSpacing: "-0.021em",
+            lineHeight: "1.75rem",
+        },
+    },
+    "600": {
+        desktop: {
+            fontSize: 25,
+            letterSpacing: "-0.02em",
+            lineHeight: "2rem",
+        },
+        mobile: {
+            fontSize: 31,
+            letterSpacing: "-0.021em",
+            lineHeight: "2rem",
+        },
+    },
+    "700": {
+        desktop: {
+            fontSize: 28,
+            letterSpacing: "-0.021em",
+            lineHeight: "2.25rem",
+        },
+        mobile: {
+            fontSize: 34,
+            letterSpacing: "-0.022em",
+            lineHeight: "2.25rem",
+        },
+    },
+    "800": {
+        desktop: {
+            fontSize: 32,
+            letterSpacing: "-0.022em",
+            lineHeight: "2.625rem",
+        },
+        mobile: {
+            fontSize: 39,
+            letterSpacing: "-0.022em",
+            lineHeight: "2.625rem",
+        },
+    },
+    "900": {
+        desktop: {
+            fontSize: 36,
+            letterSpacing: "-0.022em",
+            lineHeight: "2.875rem",
+        },
+        mobile: {
+            fontSize: 44,
+            letterSpacing: "-0.022em",
+            lineHeight: "2.875rem",
+        },
+    },
+    "1000": {
+        desktop: {
+            fontSize: 40,
+            letterSpacing: "-0.022em",
+            lineHeight: "3.25rem",
+        },
+        mobile: {
+            fontSize: 49,
+            letterSpacing: "-0.022em",
+            lineHeight: "3.25rem",
+        },
+    },
+    "1100": {
+        desktop: {
+            fontSize: 45,
+            letterSpacing: "-0.022em",
+            lineHeight: "3.625rem",
+        },
+        mobile: {
+            fontSize: 55,
+            letterSpacing: "-0.022em",
+            lineHeight: "3.625rem",
+        },
+    },
+    "1200": {
+        desktop: {
+            fontSize: 50,
+            letterSpacing: "-0.022em",
+            lineHeight: "4.125rem",
+        },
+        mobile: {
+            fontSize: 62,
+            letterSpacing: "-0.022em",
+            lineHeight: "4.125rem",
+        },
+    },
+    "1300": {
+        desktop: {
+            fontSize: 60,
+            letterSpacing: "-0.022em",
+            lineHeight: "4.875rem",
+        },
+        mobile: {
+            fontSize: 70,
+            letterSpacing: "-0.022em",
+            lineHeight: "4.875rem",
+        },
+    },
+} as const;
+
+const fontSizeVars = createGlobalTheme(":root", {
+    font: mapObjectValues(fontSizesByPlatform, ({desktop, mobile}) => {
+        assert(desktop.lineHeight === mobile.lineHeight);
+        return {
+            fontSize: `${desktop.fontSize}px`,
+            letterSpacing: desktop.letterSpacing,
+        };
+    }),
+});
+
+globalStyle(":root", {
+    "@media": {
+        [mobilePlatformMediaQuery]: {
+            vars: assignVars(fontSizeVars, {
+                font: mapObjectValues(fontSizesByPlatform, ({desktop, mobile}) => {
+                    assert(desktop.lineHeight === mobile.lineHeight);
+                    return {
+                        fontSize: `${mobile.fontSize}px`,
+                        letterSpacing: mobile.letterSpacing,
+                    };
+                }),
+            }),
+        },
+    },
+});
+
 /**
- * Class that truncates text to a single line and shows ellipsis for
- * truncated characters.
+ * The font scale for our product. A couple details on how this is constructed:
+ *
+ * - The mobile font size is 1.25x the desktop font size rounded.
+ * - Mobile font sizes are carefully aligned with the [Apple HIG][1] font sizes
+ *   to make sure typography feels correct on mobile.
+ * - Letter spacing is computed with [Inter's dynamic metric][2] tracking
+ *   formula.
+ * - Line heights must be the same REM value on desktop and mobile so that our
+ *   layouts don't shift.
+ * - Line heights are ~1.3x the font size. This is the default line height for
+ *   UI components and headings. Body text should have a line height of 1.5x
+ *   the font size.
+ *
+ * We've taken inspiration from [Adobe Spectrum][3], [Apple HIG][1], and
+ * [Untitled UI][4] for this font scale.
+ *
+ * [1]: https://developer.apple.com/design/human-interface-guidelines/foundations/typography
+ * [2]: https://rsms.me/inter/dynmetrics
+ * [3]: https://spectrum.adobe.com/page/typography
+ * [4]: https://www.untitledui.com
  */
-export const truncateClassName = style({
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
+export const fontSizes = mapObjectValues(fontSizesByPlatform, ({desktop, mobile}, fontSizeName) => {
+    assert(desktop.lineHeight === mobile.lineHeight);
+    return {
+        fontSize: fontSizeVars.font[fontSizeName].fontSize,
+        letterSpacing: fontSizeVars.font[fontSizeName].letterSpacing,
+        lineHeight: desktop.lineHeight,
+    };
 });

@@ -30,7 +30,7 @@ import {inputPlaceholderColor} from "~/shared/styles/internal/input_placeholder_
 //   auto-capitalization on and off.
 
 const paragraphMargin = spacing["2"];
-const headerTopMargin = spacing["8"];
+const headerTopMargin = "1.5em";
 
 export const docClassName = style({
     minHeight: "100%",
@@ -66,62 +66,76 @@ const blockStyles = {
 export const desktopTitlePaddingTop = spacing["24"];
 export const mobileTitlePaddingTop = spacing["12"];
 
+export const titleFontSize = fontSizes["800"];
+
 export const titleClassName = style({
     ...blockStyles,
     ...fontStyles.bold,
-    ...fontSizes["display-md"],
+    ...titleFontSize,
     paddingTop: desktopTitlePaddingTop,
     // Make sure this node always takes up space even if it is empty. Important
     // when we are rendering placeholders in `<ContentView>`.
-    minHeight: `calc(${fontSizes["display-md"].lineHeight} + ${desktopTitlePaddingTop})`,
+    minHeight: `calc(${titleFontSize.lineHeight} + ${desktopTitlePaddingTop})`,
     marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
     "@media": {
         [mobilePlatformMediaQuery]: {
             paddingTop: mobileTitlePaddingTop,
-            minHeight: `calc(${fontSizes["display-md"].lineHeight} + ${mobileTitlePaddingTop})`,
+            minHeight: `calc(${titleFontSize.lineHeight} + ${mobileTitlePaddingTop})`,
         },
     },
 });
 
+export const paragraphFontSize = {
+    ...fontSizes["100"],
+    // We use a 1.5x line height for paragraph content.
+    lineHeight: "1.25rem",
+};
+
 export const paragraphClassName = style({
     ...blockStyles,
     ...fontStyles.normal,
-    ...fontSizes.md,
+    ...paragraphFontSize,
     // Make sure this node always takes up space even if it is empty. Important
     // when we are rendering placeholders in `<ContentView>`.
-    minHeight: fontSizes.md.lineHeight,
+    minHeight: "1.25rem",
     marginTop: paragraphMargin,
     marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
 });
 
+export const headingLevel1FontSize = fontSizes["500"];
+
 export const headingLevel1ClassName = style({
     ...blockStyles,
     ...fontStyles.bold,
-    ...fontSizes["display-sm"],
+    ...headingLevel1FontSize,
     marginTop: headerTopMargin,
     marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
 });
+
+export const headingLevel2FontSize = fontSizes["400"];
 
 export const headingLevel2ClassName = style({
     ...blockStyles,
     ...fontStyles.bold,
-    ...fontSizes.xl,
+    ...headingLevel2FontSize,
     marginTop: headerTopMargin,
     marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
 });
 
+export const headingLevel3FontSize = fontSizes["300"];
+
 export const headingLevel3ClassName = style({
     ...blockStyles,
     ...fontStyles.bold,
-    ...fontSizes.lg,
+    ...headingLevel3FontSize,
     marginTop: headerTopMargin,
     marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
@@ -201,7 +215,7 @@ export const orderedListItemClassName = style({
             left: `calc(${blockPaddingX} + (${listItemIndentationVar} * ${listItemIndentation}) + ${spacing["6"]})`,
             textAlign: "right",
             transform: "translateX(-100%)",
-            ...fontSizes.md,
+            ...paragraphFontSize,
             fontVariantNumeric: "tabular-nums",
         },
     },

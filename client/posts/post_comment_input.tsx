@@ -29,9 +29,7 @@ export function PostCommentInput({
 
     return (
         <Box flexGrow="1" overflowX="hidden" display="flex">
-            <Box marginY="1">
-                <AccountAvatar account={currentAccount} size="8" />
-            </Box>
+            <AccountAvatar account={currentAccount} size="7" />
             <Box
                 flexGrow="1"
                 overflowX="hidden"
@@ -50,8 +48,8 @@ export function PostCommentInput({
                         aria-label="Comment"
                         placeholder="Write a comment…"
                         className={sprinkles({
-                            paddingY: "2",
-                            paddingX: "1.5",
+                            paddingX: "0.5",
+                            paddingY: "1.5",
                         })}
                         onEnter={() => {
                             if (isContentEmpty(state.getContent())) return;

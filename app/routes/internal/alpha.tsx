@@ -81,7 +81,7 @@ export default function AlphaManagementPage() {
             >
                 <h1
                     className={sprinkles({
-                        fontSize: "xl",
+                        fontSize: "400",
                         fontStyle: "bold",
                     })}
                 >
@@ -132,7 +132,7 @@ export default function AlphaManagementPage() {
                 <Box borderTop="grey-10" />
                 <Spacer space="12" />
                 <Box>
-                    <Box fontSize="lg" fontStyle="bold">
+                    <Box fontSize="300" fontStyle="bold">
                         Access Requests
                     </Box>
                     <Spacer space="3" />
@@ -171,7 +171,7 @@ function AlphaAccessRequest({
     return (
         <Box padding="3" borderRadius="base" border="grey-10">
             <Box marginBottom="3" paddingBottom="3" borderBottom="grey-10" display="flex" gap="2">
-                <Box flexGrow="1" fontStyle="bold" fontSize="lg" userSelect="text">
+                <Box flexGrow="1" fontStyle="bold" fontSize="300" userSelect="text">
                     {request.emailAddress}
                 </Box>
                 <Button

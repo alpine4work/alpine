@@ -17,23 +17,23 @@ export function ErrorBodyRenderer({title, error}: {title: string; error: unknown
                     justifyContent="center"
                     alignItems="center"
                     style={{
-                        fontSize: fontSizes.xl.fontSize,
-                        height: fontSizes.xl.lineHeight,
+                        fontSize: fontSizes["400"].fontSize,
+                        height: fontSizes["400"].lineHeight,
                     }}
                 >
-                    <Warning weight="fill" size={fontSizes.xl.fontSize} />
+                    <Warning weight="fill" size={fontSizes["400"].fontSize} />
                 </Box>
                 <h1
                     className={sprinkles({
                         flexGrow: "1",
-                        fontSize: "xl",
+                        fontSize: "400",
                         fontStyle: "semi-bold",
                     })}
                 >
                     {title}
                 </h1>
             </Box>
-            <ErrorDisplayMessageRenderer error={error} size="md" />
+            <ErrorDisplayMessageRenderer error={error} fontSize="200" />
         </>
     );
 }

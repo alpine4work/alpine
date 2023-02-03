@@ -1,12 +1,16 @@
 import {globalStyle, style} from "@vanilla-extract/css";
 import {
     headingLevel1ClassName,
+    headingLevel1FontSize,
     headingLevel2ClassName,
+    headingLevel2FontSize,
     headingLevel3ClassName,
+    headingLevel3FontSize,
     linkClassName,
+    paragraphFontSize,
     titleClassName,
+    titleFontSize,
 } from "~/shared/styles/internal/content_schema.css";
-import {fontSizes} from "~/shared/styles/internal/fonts.css";
 
 export const containerClassName = style({
     height: "100%",
@@ -53,24 +57,24 @@ const inlineElementActualHeight = `${24 / 20}em`;
  * on Chrome for MacOS. Hopefully it works elsewhere?
  */
 export const inlineElementPaddingToLineHeightClassName = style({
-    paddingTop: `calc((${fontSizes.md.lineHeight} - ${inlineElementActualHeight}) / 2)`,
-    paddingBottom: `calc((${fontSizes.md.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+    paddingTop: `calc((${paragraphFontSize.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+    paddingBottom: `calc((${paragraphFontSize.lineHeight} - ${inlineElementActualHeight}) / 2)`,
     selectors: {
         [`${titleClassName} &`]: {
-            paddingTop: `calc((${fontSizes["display-md"].lineHeight} - ${inlineElementActualHeight}) / 2)`,
-            paddingBottom: `calc((${fontSizes["display-md"].lineHeight} - ${inlineElementActualHeight}) / 2)`,
+            paddingTop: `calc((${titleFontSize.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+            paddingBottom: `calc((${titleFontSize.lineHeight} - ${inlineElementActualHeight}) / 2)`,
         },
         [`${headingLevel1ClassName} &`]: {
-            paddingTop: `calc((${fontSizes["display-sm"].lineHeight} - ${inlineElementActualHeight}) / 2)`,
-            paddingBottom: `calc((${fontSizes["display-sm"].lineHeight} - ${inlineElementActualHeight}) / 2)`,
+            paddingTop: `calc((${headingLevel1FontSize.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+            paddingBottom: `calc((${headingLevel1FontSize.lineHeight} - ${inlineElementActualHeight}) / 2)`,
         },
         [`${headingLevel2ClassName} &`]: {
-            paddingTop: `calc((${fontSizes.xl.lineHeight} - ${inlineElementActualHeight}) / 2)`,
-            paddingBottom: `calc((${fontSizes.xl.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+            paddingTop: `calc((${headingLevel2FontSize.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+            paddingBottom: `calc((${headingLevel2FontSize.lineHeight} - ${inlineElementActualHeight}) / 2)`,
         },
         [`${headingLevel3ClassName} &`]: {
-            paddingTop: `calc((${fontSizes.lg.lineHeight} - ${inlineElementActualHeight}) / 2)`,
-            paddingBottom: `calc((${fontSizes.lg.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+            paddingTop: `calc((${headingLevel3FontSize.lineHeight} - ${inlineElementActualHeight}) / 2)`,
+            paddingBottom: `calc((${headingLevel3FontSize.lineHeight} - ${inlineElementActualHeight}) / 2)`,
         },
     },
 });

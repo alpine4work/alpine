@@ -73,18 +73,11 @@ export function InlineAlert({
                     <X />
                 </IconButton>
             </Box>
-            <Box display="flex" gap="1.5" paddingBottom="2">
-                <Box
-                    flexShrink="0"
-                    color={color}
-                    height="6"
-                    display="flex"
-                    justifyContent="center"
-                    alignItems="center"
-                >
+            <Box display="flex" alignItems="center" gap="1.5" paddingBottom="2">
+                <Box flexShrink="0" color={color}>
                     <IconComponent weight="fill" size={spacing["4"]} />
                 </Box>
-                <Box flexGrow="1" fontSize="md" fontStyle="semi-bold">
+                <Box flexGrow="1" fontSize="200" fontStyle="semi-bold">
                     {title}
                 </Box>
             </Box>

@@ -477,6 +477,7 @@ function Tooltip(
                 // If there is a visible tooltip that will fade out soon, cancel the fade out
                 // and immediately show our tooltip.
                 const isFadingIn = tooltipSymbolAboutToFadeOutRef.current === null;
+                tooltipSymbolAboutToFadeOutRef.current?.immediatelyHide();
                 tooltipSymbolAboutToFadeOutRef.current = null;
 
                 setState((state): TooltipState => {
@@ -538,13 +539,19 @@ function Tooltip(
                     getHasActiveTooltipSymbol() &&
                     tooltipSymbolAboutToFadeOutRef.current === null
                 ) {
-                    tooltipSymbolAboutToFadeOutRef.current = tooltipSymbol;
-                    setTimeout(() => {
-                        updateState({
-                            isFadingOut: tooltipSymbolAboutToFadeOutRef.current === tooltipSymbol,
-                        });
+                    const timeout = createTimeout(() => {
+                        updateState({isFadingOut: true});
                         tooltipSymbolAboutToFadeOutRef.current = null;
                     }, perceivedAsInstantLimitMs);
+
+                    tooltipSymbolAboutToFadeOutRef.current = {
+                        tooltipSymbol,
+                        immediatelyHide: () => {
+                            timeout.clear();
+                            tooltipSymbolAboutToFadeOutRef.current = null;
+                            updateState({isFadingOut: false});
+                        },
+                    };
                 } else {
                     updateState({isFadingOut: true});
                 }
@@ -557,6 +564,7 @@ function Tooltip(
                     // If there is a visible tooltip that will fade out soon, cancel the fade out
                     // and immediately show our tooltip.
                     const isFadingIn = tooltipSymbolAboutToFadeOutRef.current === null;
+                    tooltipSymbolAboutToFadeOutRef.current?.immediatelyHide();
                     tooltipSymbolAboutToFadeOutRef.current = null;
 
                     setState((state): TooltipState => {
@@ -621,13 +629,19 @@ function Tooltip(
                     getHasActiveTooltipSymbol() &&
                     tooltipSymbolAboutToFadeOutRef.current === null
                 ) {
-                    tooltipSymbolAboutToFadeOutRef.current = tooltipSymbol;
-                    requestAnimationFrame(() => {
-                        updateState({
-                            isFadingOut: tooltipSymbolAboutToFadeOutRef.current === tooltipSymbol,
-                        });
+                    const animationFrameId = requestAnimationFrame(() => {
+                        updateState({isFadingOut: true});
                         tooltipSymbolAboutToFadeOutRef.current = null;
                     });
+
+                    tooltipSymbolAboutToFadeOutRef.current = {
+                        tooltipSymbol,
+                        immediatelyHide: () => {
+                            cancelAnimationFrame(animationFrameId);
+                            tooltipSymbolAboutToFadeOutRef.current = null;
+                            updateState({isFadingOut: false});
+                        },
+                    };
                 } else {
                     updateState({isFadingOut: true});
                 }
@@ -706,7 +720,7 @@ function Tooltip(
                         <Box
                             paddingX="1.5"
                             paddingY="0.5"
-                            fontSize="2xs"
+                            fontSize="50"
                             color="grey-0-const"
                             backgroundColor="grey-80-const"
                             border={{light: "grey-80-const", dark: "grey-70-const"}}
@@ -766,7 +780,10 @@ export function useShouldDisableTooltips(shouldDisableTooltips: boolean = true) 
 const TooltipCoordinationActiveSymbolContext = createContext<symbol | null>(null);
 
 type TooltipCoordinationContext = {
-    readonly tooltipSymbolAboutToFadeOutRef: MutableRefObject<symbol | null>;
+    readonly tooltipSymbolAboutToFadeOutRef: MutableRefObject<{
+        readonly tooltipSymbol: symbol;
+        readonly immediatelyHide: () => void;
+    } | null>;
     readonly addHoveredAndAddFocusedTooltipSymbol: (symbol: symbol) => void;
     readonly addHoveredAndDeleteFocusedTooltipSymbol: (symbol: symbol) => void;
     readonly deleteHoveredAndAddFocusedTooltipSymbol: (symbol: symbol) => void;
@@ -871,7 +888,10 @@ export function TooltipCoordinationContextProvider({children}: {children: ReactN
         }
     }, [hasActiveTooltipSymbol, state.hoveredTooltipsStatus]);
 
-    const tooltipSymbolAboutToFadeOutRef = useRef<symbol | null>(null);
+    const tooltipSymbolAboutToFadeOutRef = useRef<{
+        readonly tooltipSymbol: symbol;
+        readonly immediatelyHide: () => void;
+    } | null>(null);
 
     const context = useMemo((): TooltipCoordinationContext => {
         const addHoveredTooltipSymbolUpdater = (

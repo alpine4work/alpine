@@ -10,7 +10,7 @@ import {emptyPostContent} from "~/shared/content/post_content_schema";
 import {parseRemLengthNumber} from "~/shared/design/spacing";
 import {ChannelId} from "~/shared/id/types/id_types";
 import {createPost} from "~/shared/rpc/posts_rpc_definitions";
-import {fontSizes, sprinkles, truncateClassName} from "~/shared/styles/styles";
+import {fontSizes, sprinkles} from "~/shared/styles/styles";
 
 export function PostCreator({channelId}: {channelId: ChannelId}) {
     const context = useAppContext();
@@ -31,15 +31,15 @@ export function PostCreator({channelId}: {channelId: ChannelId}) {
                         backgroundColor="grey-30-const"
                         borderRadius="full"
                         style={{
-                            width: `${parseRemLengthNumber(fontSizes.sm.lineHeight) * 2}rem`,
-                            height: `${parseRemLengthNumber(fontSizes.sm.lineHeight) * 2}rem`,
+                            width: `${parseRemLengthNumber(fontSizes["100"].lineHeight) * 2}rem`,
+                            height: `${parseRemLengthNumber(fontSizes["100"].lineHeight) * 2}rem`,
                         }}
                     />
                     <Box flexGrow="1" paddingLeft="3" paddingRight="4" overflow="hidden">
-                        <Box fontSize="sm" fontStyle="semi-bold" className={truncateClassName}>
+                        <Box fontSize="100" fontStyle="truncate-semi-bold">
                             Caleb Meredith
                         </Box>
-                        <Box fontSize="sm" color="grey-50" className={truncateClassName}>
+                        <Box fontSize="100" fontStyle="truncate" color="grey-50">
                             New post
                         </Box>
                     </Box>

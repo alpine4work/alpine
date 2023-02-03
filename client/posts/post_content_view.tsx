@@ -13,7 +13,6 @@ import {PaginatedMessageList} from "~/client/messaging/paginated_message_list";
 import {wait} from "~/shared/helpers/async/wait";
 import {PostCommentModel, PostModel} from "~/shared/models/post_model";
 import {getPostCommentAuthors} from "~/shared/rpc/posts_rpc_definitions";
-import {truncateClassName} from "~/shared/styles/styles";
 
 export const postContentViewMinHeight = "10.75rem";
 
@@ -33,12 +32,12 @@ export function PostContentView({
     return (
         <Box style={{minHeight: postContentViewMinHeight}}>
             <Box paddingTop="5" paddingX="5" display="flex" alignItems="center">
-                <AccountAvatar account={post.author} size="10" />
+                <AccountAvatar account={post.author} size="8" />
                 <Box flexGrow="1" paddingLeft="3" paddingRight="4" overflow="hidden">
-                    <Box fontSize="sm" fontStyle="semi-bold" className={truncateClassName}>
+                    <Box fontSize="100" fontStyle="truncate-semi-bold">
                         {post.author.name}
                     </Box>
-                    <Box fontSize="xs" color="grey-50" className={truncateClassName}>
+                    <Box fontSize="75" fontStyle="truncate" color="grey-50">
                         <PrettyAbsoluteDate date={post.createdTime} />
                     </Box>
                 </Box>

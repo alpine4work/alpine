@@ -1,19 +1,9 @@
-import {
-    Mjml,
-    MjmlBody,
-    MjmlColumn,
-    MjmlFont,
-    MjmlHead,
-    MjmlSection,
-    MjmlTitle,
-    MjmlText as MjmlUnstyledText,
-} from "mjml-react";
-import {ReactNode} from "react";
-import {Color, colors} from "~/shared/design/colors";
-import {convertRemLengthToPx, remPxByPlatform} from "~/shared/design/spacing";
+import {Mjml, MjmlBody, MjmlColumn, MjmlFont, MjmlHead, MjmlSection, MjmlTitle} from "mjml-react";
+import {EmailText} from "~/server/emails/internal/helpers/email_text";
+import {colors} from "~/shared/design/colors";
 import {defaultThemeColor} from "~/shared/design/theme_colors";
 import {interleaveArray} from "~/shared/helpers/array/interleave_array";
-import {fontSizes, fontStyles} from "~/shared/styles/styles";
+import {fontStyles} from "~/shared/styles/styles";
 
 /**
  * Very basic email only sent to internal users. This design isn't high enough
@@ -45,23 +35,23 @@ export function RequestedAlphaAccessEmailTemplate({
             <MjmlBody>
                 <MjmlSection>
                     <MjmlColumn>
-                        <MjmlText>
+                        <EmailText>
                             New alpha access request from{" "}
                             <strong style={{fontWeight: fontStyles.bold.fontWeight}}>{name}</strong>{" "}
                             ({emailAddress}).
-                        </MjmlText>
+                        </EmailText>
                         {message.length === 0 ? (
-                            <MjmlText>They did not include a message.</MjmlText>
+                            <EmailText>They did not include a message.</EmailText>
                         ) : (
-                            <MjmlText>
+                            <EmailText>
                                 They included the message: "
                                 {interleaveArray(message.split(/[\n\r]/g), index => (
                                     <br key={index} />
                                 ))}
                                 "
-                            </MjmlText>
+                            </EmailText>
                         )}
-                        <MjmlText>
+                        <EmailText>
                             To approve the request, visit the{" "}
                             <a
                                 // TODO(calebmer): Should use localhost in development?
@@ -73,43 +63,10 @@ export function RequestedAlphaAccessEmailTemplate({
                                 alpha control panel
                             </a>
                             .
-                        </MjmlText>
+                        </EmailText>
                     </MjmlColumn>
                 </MjmlSection>
             </MjmlBody>
         </Mjml>
-    );
-}
-
-function MjmlText({
-    children,
-    color = "grey-dark",
-    fontSize: size = "md",
-    fontStyle: style = "normal",
-    margin = true,
-    letterSpacingOverride,
-}: {
-    children?: ReactNode;
-    color?: Color;
-    fontSize?: keyof typeof fontSizes;
-    fontStyle?: "normal" | "semi-bold" | "bold";
-    margin?: boolean;
-    letterSpacingOverride?: string;
-}) {
-    return (
-        <MjmlUnstyledText
-            fontFamily="Inter, Arial"
-            color={colors[color]}
-            fontSize={convertRemLengthToPx(fontSizes[size].fontSize, remPxByPlatform.desktop)}
-            letterSpacing={letterSpacingOverride ?? fontSizes[size].letterSpacing}
-            lineHeight={`${convertRemLengthToPx(
-                fontSizes[size].lineHeight,
-                remPxByPlatform.desktop,
-            )}px`}
-            fontStyle={fontStyles[style].fontStyle}
-            fontWeight={fontStyles[style].fontWeight}
-        >
-            {children}
-        </MjmlUnstyledText>
     );
 }

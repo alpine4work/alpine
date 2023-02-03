@@ -1,5 +1,4 @@
 import {Link, ShouldReloadFunction, useParams} from "@remix-run/react";
-import classNames from "classnames";
 import {Code, Desktop, DeviceMobileCamera, EnvelopeSimple, IconContext} from "phosphor-react";
 import {ReactNode, useRef} from "react";
 import {useButton} from "react-aria";
@@ -17,7 +16,7 @@ import {spacing} from "~/shared/design/spacing";
 import {ErrorSchema} from "~/shared/error/error_schema";
 import {captureResult} from "~/shared/helpers/control/capture_result";
 import {Schema} from "~/shared/schema/schema";
-import {sprinkles, truncateClassName} from "~/shared/styles/styles";
+import {sprinkles} from "~/shared/styles/styles";
 
 export function meta() {
     return {
@@ -117,7 +116,7 @@ export default function EmailPreviewPage() {
                         zIndex: "20",
                         flexShrink: "0",
                         fontStyle: "semi-bold",
-                        fontSize: "md",
+                        fontSize: "200",
                         height: "12",
                         display: "flex",
                         gap: "2",
@@ -134,20 +133,16 @@ export default function EmailPreviewPage() {
                         <FocusRing key={emailPreviewLink.slug} offset="inset">
                             <Link
                                 to={`/internal/emails/preview/${emailPreviewLink.slug}${viewSearchParam}`}
-                                className={classNames(
-                                    truncateClassName,
-                                    sprinkles({
-                                        display: "block",
-                                        width: "full",
-                                        paddingY: "2",
-                                        paddingX: "3",
-                                        backgroundColor:
-                                            activeSlug === emailPreviewLink.slug
-                                                ? "grey-5"
-                                                : undefined,
-                                        borderBottom: "grey-5",
-                                    }),
-                                )}
+                                className={sprinkles({
+                                    display: "block",
+                                    width: "full",
+                                    fontStyle: "truncate",
+                                    paddingY: "2",
+                                    paddingX: "3",
+                                    backgroundColor:
+                                        activeSlug === emailPreviewLink.slug ? "grey-5" : undefined,
+                                    borderBottom: "grey-5",
+                                })}
                             >
                                 {emailPreviewLink.title}
                             </Link>
@@ -175,7 +170,7 @@ export default function EmailPreviewPage() {
                     borderBottom="grey-10"
                 >
                     {emailPreviewResult.ok && (
-                        <Box fontStyle="semi-bold" fontSize="md">
+                        <Box fontStyle="semi-bold" fontSize="200">
                             {emailPreviewResult.value.htmlTitle}
                         </Box>
                     )}

@@ -82,7 +82,7 @@ export function TextInput({
 
     return (
         <Box
-            fontSize="xs"
+            fontSize="75"
             className={classNames(
                 layout === "inline" &&
                     sprinkles({

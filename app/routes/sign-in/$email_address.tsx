@@ -165,7 +165,7 @@ export default function SignInEmailCodePage() {
                     <h1
                         className={sprinkles({
                             fontStyle: "bold",
-                            fontSize: "display-sm",
+                            fontSize: "700",
                         })}
                     >
                         Sign in
@@ -208,9 +208,9 @@ export default function SignInEmailCodePage() {
                                 width: "full",
                                 paddingY: "1",
                                 backgroundColor: "transparent",
-                                fontSize: "display-sm",
                             })}
                             style={{
+                                fontSize: "1.875rem",
                                 lineHeight: 1.5,
                                 letterSpacing: "1.15rem",
                                 paddingLeft: "0.49rem",
