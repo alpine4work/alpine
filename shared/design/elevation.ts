@@ -3,11 +3,11 @@
  */
 export const elevation = {
     "elevation-5": {
-        light: "0px 1px 2px 0px rgb(18 18 20 / 0.05), 0 0 0 1px rgb(0 0 0 / 0.05)",
+        light: "0px 1px 2px 0px rgb(18 18 20 / 0.05), 0 0 0 1px rgb(0 0 0 / 0.04)",
         dark: "0px 1px 2px 0px rgb(0 0 0 / 0.15)",
     },
     "elevation-10": {
-        light: "0px 1px 3px 0px rgb(18 18 20 / 0.1), 0px 1px 2px 0px rgb(18 18 20 / 0.06), 0 0 0 1px rgb(0 0 0 / 0.05)",
+        light: "0px 1px 3px 0px rgb(18 18 20 / 0.1), 0px 1px 2px 0px rgb(18 18 20 / 0.06), 0 0 0 1px rgb(0 0 0 / 0.04)",
         dark: "0px 1px 3px 0px rgb(0 0 0 / 0.3), 0px 1px 2px 0px rgb(0 0 0 / 0.18)",
     },
     "elevation-20": {
