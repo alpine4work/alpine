@@ -23,7 +23,9 @@ import {
     MessageInterface,
     MessageWithContentPayloadInterface,
 } from "~/shared/models/message_interface";
-import {colorSchemeVars, sprinkles} from "~/shared/styles/styles";
+import {colorSchemeVars, contentSchemaStyles, sprinkles} from "~/shared/styles/styles";
+
+const {paragraphFontSize} = contentSchemaStyles;
 
 export const messageViewMinHeight: RemLength = "2.125rem";
 
@@ -40,12 +42,16 @@ const messageBubbleMinWidth: Spacing = "6";
 const mergeMessageMinuteLimit = 5;
 
 export function MessageView({
+    label = "message",
+    startOfSentenceLabel = label.slice(0).toUpperCase() + label.slice(1),
     message,
     previousMessage,
     nextMessage,
     messageEditing,
     onDeleteMessage,
 }: {
+    label?: string;
+    startOfSentenceLabel?: string;
     message: MessageInterface;
     previousMessage: MessageInterface | null;
     nextMessage: MessageInterface | null;
@@ -119,6 +125,8 @@ export function MessageView({
                 </Box>
                 {message.payload.type === "Content" ? (
                     <MessageWithContentPayloadView
+                        label={label}
+                        startOfSentenceLabel={startOfSentenceLabel}
                         message={message as MessageWithContentPayloadInterface}
                         shouldMergeWithPreviousMessage={shouldMergeWithNextMessage}
                         shouldMergeWithNextMessage={shouldMergeWithNextMessage}
@@ -126,13 +134,21 @@ export function MessageView({
                         isHovered={isHovered}
                         onDeleteMessage={onDeleteMessage}
                     />
-                ) : null}
+                ) : (
+                    <MessageWithDeletedPayloadView
+                        label={label}
+                        shouldMergeWithPreviousMessage={shouldMergeWithPreviousMessage}
+                        shouldMergeWithNextMessage={shouldMergeWithNextMessage}
+                    />
+                )}
             </Box>
         </Box>
     );
 }
 
 function MessageWithContentPayloadView({
+    label,
+    startOfSentenceLabel,
     message,
     shouldMergeWithPreviousMessage,
     shouldMergeWithNextMessage,
@@ -140,6 +156,8 @@ function MessageWithContentPayloadView({
     isHovered,
     onDeleteMessage,
 }: {
+    label: string;
+    startOfSentenceLabel: string;
     message: MessageWithContentPayloadInterface;
     shouldMergeWithPreviousMessage: boolean;
     shouldMergeWithNextMessage: boolean;
@@ -215,6 +233,7 @@ function MessageWithContentPayloadView({
                             />
                         ) : (
                             <MessageContentEditor
+                                startOfSentenceLabel={startOfSentenceLabel}
                                 state={messageEditing.state.contentEditorState}
                                 onChange={state => {
                                     // Update the overlay position whenever our content state changes.
@@ -263,7 +282,7 @@ function MessageWithContentPayloadView({
                                 },
                                 {
                                     label: "Delete",
-                                    pressErrorTitle: "Couldn’t delete comment",
+                                    pressErrorTitle: `Couldn’t delete ${label}`,
                                     // TODO(calebmer): Add a modal confirmation screen.
                                     onPress: onDeleteMessage,
                                 },
@@ -281,12 +300,43 @@ function MessageWithContentPayloadView({
     );
 }
 
+function MessageWithDeletedPayloadView({
+    label,
+    shouldMergeWithPreviousMessage,
+    shouldMergeWithNextMessage,
+}: {
+    label: string;
+    shouldMergeWithPreviousMessage: boolean;
+    shouldMergeWithNextMessage: boolean;
+}) {
+    return (
+        <Box
+            paddingX="0.5"
+            paddingY="1.5"
+            borderTopLeftRadius={!shouldMergeWithPreviousMessage ? "xl" : "base"}
+            borderTopRightRadius="xl"
+            borderBottomLeftRadius={!shouldMergeWithNextMessage ? "xl" : "base"}
+            borderBottomRightRadius="xl"
+            userSelect="text"
+            style={{
+                boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
+            }}
+        >
+            <Box paddingX="2" color="grey-30" style={paragraphFontSize}>
+                {`Deleted ${label}`}
+            </Box>
+        </Box>
+    );
+}
+
 function MessageContentEditor({
+    startOfSentenceLabel,
     state,
     onChange,
     onEscape,
     shouldFocusMessageContentEditorRef,
 }: {
+    startOfSentenceLabel: string;
     state: ContentEditorState<MessageContent>;
     onChange: (state: ContentEditorState<MessageContent>) => void;
     onEscape: () => void;
@@ -308,8 +358,8 @@ function MessageContentEditor({
             ref={editorRef}
             state={state}
             onChange={onChange}
-            aria-label="Comment"
-            // With no content the comment bubble will be at its min-width so only render
+            aria-label={startOfSentenceLabel}
+            // With no content the message bubble will be at its min-width so only render
             // an en-dash as a placeholder.
             placeholder={"\u2013"}
             onNavigate={useNavigate()}

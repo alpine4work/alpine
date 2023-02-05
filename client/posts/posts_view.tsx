@@ -310,6 +310,7 @@ export function PostsView({
                     const node =
                         item.type === "LoadedPostComment" ? (
                             <MessageView
+                                label="comment"
                                 message={item.postComment}
                                 previousMessage={previousComment}
                                 nextMessage={nextComment}
