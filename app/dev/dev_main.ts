@@ -30,6 +30,13 @@ const dynamoLocalPort = parseInt(assertExists(env.DYNAMO_LOCAL_PORT), 10);
  *                                Miniflare                                   *
 \* ========================================================================== */
 
+// NOTE(calebmer): [V8 and Node.js have a memory leak][1] with `vm` where
+// modules are never garbage collected. This means during development we get
+// the occasional memory leak. The only way to fix this until V8 fixes the
+// underlying memory leak is to occasionally restart the dev process. Maybe we
+// will automate this at some point...
+//
+// [1]: https://github.com/nodejs/node/issues/33439
 const miniflare = new Miniflare({
     scriptPath: path.join(runfilesPath, "cyberworlds/app/build/server.js"),
     compatibilityDate: "2022-07-12",
