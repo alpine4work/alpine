@@ -837,7 +837,7 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
     }, [presenceStates]);
 
     useDevConsoleTool(
-        "DocumentContentEditor",
+        "documentContentEditor",
         useCallback(
             () => ({
                 prosemirrorSchema: DocumentContentProsemirrorSchema,

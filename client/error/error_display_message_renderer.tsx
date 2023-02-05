@@ -10,14 +10,25 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol";
 import {contentSchemaStyles} from "~/shared/styles/styles";
 
-const defaultErrorDisplayMessage = errorDisplayMessage`An unexpected error occurred. Please try again. If the problem continues, let us know at ${errorDisplayMessage.supportLink}.`;
+const defaultErrorDisplayMessage = errorDisplayMessage`An unexpected error occurred. Please try again. If the problem continues, let us know at ${errorDisplayMessage.supportLink}`;
 
 export function ErrorDisplayMessageRenderer({
     error,
     fontSize = "100",
+    prefixMessage,
+    isSingleLine,
 }: {
     error: unknown;
-    fontSize?: "100" | "200";
+    fontSize?: "75" | "100" | "200";
+    /**
+     * A message to put in front of the error display message.
+     */
+    prefixMessage?: string;
+    /**
+     * Should we render the error display message as a single sentence? Effects the
+     * error code which will be rendered on the same line as the message.
+     */
+    isSingleLine?: boolean;
 }) {
     const context = useAppContext();
     const displayMessage = error instanceof ErrorBase ? error.displayMessage : null;
@@ -38,7 +49,14 @@ export function ErrorDisplayMessageRenderer({
     }
 
     return (
-        <Box color="grey-80" fontStyle="normal" fontSize={fontSize} style={{lineHeight: 1.5}}>
+        <Box
+            color="grey-text"
+            fontStyle="normal"
+            fontSize={fontSize}
+            style={{lineHeight: 1.5}}
+            userSelect="text"
+        >
+            {prefixMessage && `${prefixMessage} `}
             {(displayMessage ?? defaultErrorDisplayMessage).map((displayMessageSegment, index) => {
                 switch (displayMessageSegment.type) {
                     case "Text":
@@ -70,23 +88,35 @@ export function ErrorDisplayMessageRenderer({
                 }
             })}
             {!displayMessage && (
-                <Box
-                    paddingTop="2"
-                    color="grey-40"
-                    fontSize={{"100": "50" as const, "200": "75" as const}[fontSize]}
-                    style={{
-                        // HACK(calebmer): This text uses an inaccessible color. We are ok with this
-                        // since the content is meant for developers, not for end users. In fact, end
-                        // users should ignore this text! But we want the text to be included in error
-                        // message screenshots.
-                        //
-                        // By setting a background image Axe ignores the inaccessible text color
-                        // because it can't figure out the background color.
-                        backgroundImage: "linear-gradient(rgb(0 0 0 / 0), rgb(0 0 0 / 0))",
-                    }}
-                >
-                    Error code: {error instanceof ErrorBase ? error.code : ErrorCode.Unknown}
-                </Box>
+                <>
+                    {isSingleLine && " "}
+                    <Box
+                        display={isSingleLine ? "inline" : "block"}
+                        paddingTop="2"
+                        color="grey-40"
+                        fontSize={
+                            {
+                                "75": "50" as const,
+                                "100": "50" as const,
+                                "200": "75" as const,
+                            }[fontSize]
+                        }
+                        style={{
+                            // HACK(calebmer): This text uses an inaccessible color. We are ok with this
+                            // since the content is meant for developers, not for end users. In fact, end
+                            // users should ignore this text! But we want the text to be included in error
+                            // message screenshots.
+                            //
+                            // By setting a background image Axe ignores the inaccessible text color
+                            // because it can't figure out the background color.
+                            backgroundImage: "linear-gradient(rgb(0 0 0 / 0), rgb(0 0 0 / 0))",
+                        }}
+                    >
+                        {isSingleLine && "("}Error code:{" "}
+                        {error instanceof ErrorBase ? error.code : ErrorCode.Unknown}
+                        {isSingleLine && ")"}
+                    </Box>
+                </>
             )}
         </Box>
     );

@@ -20,3 +20,4 @@ export * from "~/shared/styles/internal/fonts.css";
 export * from "~/shared/styles/internal/input_placeholder_color.css";
 export * from "~/shared/styles/internal/overlay_animated.css";
 export * from "~/shared/styles/internal/sprinkles.css";
+export * as toastStyles from "~/shared/styles/internal/toast.css";

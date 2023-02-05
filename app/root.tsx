@@ -20,6 +20,7 @@ import {
     getColorSchemeWithoutListening,
 } from "~/client/design/color_scheme";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
+import {ToastContextProvider} from "~/client/design/toast";
 import {TooltipCoordinationContextProvider} from "~/client/design/tooltip";
 import {ErrorBodyRenderer} from "~/client/error/error_body_renderer";
 import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use_is_initial_app_render";
@@ -134,7 +135,7 @@ export default function Root({error}: {error?: unknown}) {
         if (!caught) return undefined;
         if (caught.status === 404)
             return new NotFoundError("Route not found", {
-                displayMessage: errorDisplayMessage`The page you opened could not be found. If you got here from a broken link let us know at ${errorDisplayMessage.supportLink}.`,
+                displayMessage: errorDisplayMessage`The page you opened could not be found. If you got here from a broken link let us know at ${errorDisplayMessage.supportLink}`,
             });
         return new UnknownError(
             quote`Response thrown with status ${caught.status} ${caught.statusText}`,
@@ -162,7 +163,7 @@ export default function Root({error}: {error?: unknown}) {
                     <AppInitialRenderContextProvider>
                         <OverlayScopeContextProvider>
                             <TooltipCoordinationContextProvider>
-                                {children}
+                                <ToastContextProvider>{children}</ToastContextProvider>
                             </TooltipCoordinationContextProvider>
                         </OverlayScopeContextProvider>
                     </AppInitialRenderContextProvider>

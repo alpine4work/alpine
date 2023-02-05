@@ -21,7 +21,14 @@ export function ErrorBodyRenderer({title, error}: {title: string; error: unknown
                         height: fontSizes["400"].lineHeight,
                     }}
                 >
-                    <Warning weight="fill" size={fontSizes["400"].fontSize} />
+                    <div
+                        style={{
+                            width: fontSizes["400"].fontSize,
+                            height: fontSizes["400"].fontSize,
+                        }}
+                    >
+                        <Warning weight="fill" size="100%" />
+                    </div>
                 </Box>
                 <h1
                     className={sprinkles({

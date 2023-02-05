@@ -12,7 +12,7 @@ import {Sprinkles, sprinkles} from "~/shared/styles/styles";
 const IconButtonForwardRef = forwardRef(IconButton);
 export {IconButtonForwardRef as IconButton};
 
-type IconButtonVariant = "accent" | "quiet";
+type IconButtonVariant = "accent" | "quiet" | "quiet-on-grey-5-dark-background";
 
 type IconButtonSize = "base" | "sm" | "xs";
 
@@ -70,6 +70,14 @@ function IconButton(
         },
         quiet: {
             backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
+            color: isPressed ? "grey-90" : "grey-70",
+        },
+        "quiet-on-grey-5-dark-background": {
+            backgroundColor: isPressed
+                ? {light: "grey-10", dark: "grey-20"}
+                : isHovered
+                ? {light: "grey-5", dark: "grey-10"}
+                : undefined,
             color: isPressed ? "grey-90" : "grey-70",
         },
     };

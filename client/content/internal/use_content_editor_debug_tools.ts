@@ -12,7 +12,7 @@ import {assert} from "~/shared/helpers/control/assert";
  */
 export function useContentEditorDebugTools(viewRef: RefObject<EditorView>) {
     useDevConsoleTool(
-        "ContentEditor",
+        "contentEditor",
         useCallback(() => {
             assert(viewRef.current);
             const view = viewRef.current;
