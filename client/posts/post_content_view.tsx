@@ -14,7 +14,7 @@ import {wait} from "~/shared/helpers/async/wait";
 import {PostCommentModel, PostModel} from "~/shared/models/post_model";
 import {getPostCommentAuthors} from "~/shared/rpc/posts_rpc_definitions";
 
-export const postContentViewMinHeight = "10.75rem";
+export const postContentViewMinHeight = "10.125rem";
 
 export function PostContentView({
     post,
