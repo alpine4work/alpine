@@ -106,6 +106,13 @@ export default function Root({error}: {error?: unknown}) {
     // If there are any unhandled browser errors then report them with our tracer.
     // We put uncaught error handling here because we want it to include propagated
     // data from loaders.
+    //
+    // TODO(calebmer): Unhandled errors should display a blocking modal. Generally
+    // you should prefer display errors (like a button press error) with a toast
+    // since it's lightweight and lets the user try again. We automatically do this
+    // in `<Button>` components. If there's an unhandled error, though, show that
+    // with a blocking modal since we don't know whether we're left in a good state
+    // or not.
     useEffect(() => {
         const handleError = (event: ErrorEvent) => {
             context.tracer.getRoot().logUncaughtException("Uncaught error", event.error);

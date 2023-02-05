@@ -24,7 +24,10 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {clamp} from "~/shared/helpers/number/clamp";
 import {colorSchemeVars, sprinkles, toastStyles} from "~/shared/styles/styles";
 
-const defaultErrorToastDurationSeconds = 10;
+// Error toasts should be visible long enough for the user to read but short
+// enough so that the user can try again. Or if the user is already trying
+// again we can show a queued error message.
+const defaultErrorToastDurationSeconds = 5;
 
 /**
  * Toasts display brief, temporary notifications. They're meant to be noticed
@@ -165,8 +168,8 @@ export function ToastContextProvider({children}: {children?: ReactNode}) {
     const dismiss = useCallback(() => dispatch({type: "DismissActiveToast"}), []);
 
     return (
-        <>
-            <ToastContext.Provider value={dispatch}>{children}</ToastContext.Provider>
+        <ToastContext.Provider value={dispatch}>
+            {children}
             <Box pointerEvents="none" position="absolute" inset="0" zIndex="60">
                 {state.activeToast && (
                     <Box
@@ -193,7 +196,7 @@ export function ToastContextProvider({children}: {children?: ReactNode}) {
                     </Box>
                 )}
             </Box>
-        </>
+        </ToastContext.Provider>
     );
 }
 
@@ -281,7 +284,8 @@ function ToastView({
                 <ErrorDisplayMessageRenderer
                     error={toast.error}
                     fontSize="75"
-                    prefixMessage={toast.title}
+                    // Add punctuation to the title since it was written standalone.
+                    prefixMessage={`${toast.title}.`}
                     isSingleLine={true}
                 />
             </Box>

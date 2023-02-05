@@ -19,6 +19,7 @@ export default function CreateDocumentRoute() {
     return (
         <Box padding="7" display="flex" flexDirection="column" gap="5" alignItems="center">
             <Button
+                pressErrorTitle="Couldn’t create document"
                 onPress={async () => {
                     const documentId = generateId<DocumentId>();
 
@@ -34,6 +35,7 @@ export default function CreateDocumentRoute() {
                 Create empty document
             </Button>
             <Button
+                pressErrorTitle="Couldn’t create document"
                 onPress={async () => {
                     const documentId = generateId<DocumentId>();
 

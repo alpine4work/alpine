@@ -1,8 +1,10 @@
+import {PressEvent} from "@react-types/shared";
 import {IconContext} from "phosphor-react";
 import {Ref, forwardRef, useRef} from "react";
 import {AriaButtonProps, mergeProps, useButton, useHover} from "react-aria";
 import {FocusRing} from "~/client/design/focus_ring";
 import {useMergedRefs} from "~/client/design/helpers/use_merged_refs";
+import {useShowToast} from "~/client/design/toast";
 import {Tooltip} from "~/client/design/tooltip";
 import {spacing} from "~/shared/design/spacing";
 import {Sprinkles, sprinkles} from "~/shared/styles/styles";
@@ -33,6 +35,12 @@ function IconButton(
         description: string;
 
         /**
+         * When the user presses a button we fire this event. Use it to perform
+         * an action in response to the button press.
+         */
+        onPress?: (event: PressEvent) => void;
+
+        /**
          * Which styles should we apply to the variant?
          */
         variant?: IconButtonVariant;
@@ -53,6 +61,7 @@ function IconButton(
 ) {
     const {
         description,
+        onPress,
         variant = "quiet",
         size = "base",
         children,
@@ -60,7 +69,29 @@ function IconButton(
         withoutTooltip = false,
     } = props;
     const localRef = useRef<HTMLButtonElement>(null);
-    const {buttonProps, isPressed} = useButton({...props, "aria-label": description}, localRef);
+    const showToast = useShowToast();
+
+    const {buttonProps, isPressed} = useButton(
+        {
+            ...props,
+            "aria-label": description,
+            onPress: event => {
+                const defaultPressErrorTitle = "The button you pressed didn’t work";
+
+                try {
+                    onPress?.(event);
+                } catch (error) {
+                    showToast({
+                        type: "Error",
+                        title: defaultPressErrorTitle,
+                        error,
+                    });
+                    return;
+                }
+            },
+        },
+        localRef,
+    );
     const {hoverProps, isHovered} = useHover({});
 
     const stylesByVariant: {[K in IconButtonVariant]: Sprinkles} = {

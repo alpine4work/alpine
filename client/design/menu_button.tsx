@@ -24,6 +24,7 @@ import {useLifecycleRef} from "~/client/design/helpers/use_lifecycle_ref";
 import {useMergedRefs} from "~/client/design/helpers/use_merged_refs";
 import {Overlay, OverlayPlacement} from "~/client/design/overlay";
 import {uninterruptedThoughtLimitMs} from "~/client/design/timing_constants";
+import {useShowToast} from "~/client/design/toast";
 import {
     Tooltip,
     TooltipCoordinationContextProvider,
@@ -72,8 +73,26 @@ export type MenuAction = {
     /**
      * When the user chooses this action through either the keyboard or mouse we
      * will call this handler.
+     *
+     * If a promise is returned we will show a loading spinner while waiting for
+     * the promise to resolve. If you return a promise you must pass in a
+     * `pressErrorTitle` property to communicate to the user what failed after
+     * the press.
      */
-    readonly onPress: () => void;
+    readonly onPress: () => void | Promise<void>;
+
+    /**
+     * If an error occurs while running `onPress` we will report the error to the user with
+     * this title. It is the "what happened" part of an error message according to [Adobe
+     * Spectrum's][1] error content guidelines.
+     *
+     * So for example it this is a delete comment action say "Couldn’t delete comment".
+     *
+     * Required when the `onPress` event returns a promise.
+     *
+     * [1]: https://spectrum.adobe.com/page/writing-for-errors
+     */
+    readonly pressErrorTitle?: string;
 };
 
 type MenuButtonState =
@@ -633,10 +652,9 @@ const MenuItem = forwardRef(function MenuItem(
                     <MenuButtonInner
                         innerRef={ref}
                         action={action}
-                        parentPlacement={parentPlacement}
                         isFadingOut={isFadingOut}
                         onClose={onClose}
-                        skipHoverDelay={skipHoverDelay}
+                        skipTooltipHoverDelay={skipHoverDelay}
                     />
                 )}
             </Tooltip>
@@ -646,7 +664,6 @@ const MenuItem = forwardRef(function MenuItem(
             <MenuButtonInner
                 innerRef={ref}
                 action={action}
-                parentPlacement={parentPlacement}
                 isFadingOut={isFadingOut}
                 onClose={onClose}
             />
@@ -657,23 +674,24 @@ const MenuItem = forwardRef(function MenuItem(
 function MenuButtonInner({
     innerRef,
     action,
-    parentPlacement,
     isFadingOut,
     onClose,
-    skipHoverDelay,
+    skipTooltipHoverDelay,
 }: {
     innerRef: Ref<HTMLDivElement>;
     action: MenuAction;
-    parentPlacement: OverlayPlacement;
     isFadingOut: boolean;
     onClose: () => void;
-    skipHoverDelay?: () => void;
+    skipTooltipHoverDelay?: () => void;
 }) {
+    const showToast = useShowToast();
     const menuItemId = useId();
-    const isDisabled = action.disabledReason !== undefined;
+    const [isPending, setIsPending] = useState(false);
+    const isVisuallyDisabled = action.disabledReason !== undefined;
+    const isDisabled = isVisuallyDisabled || isPending;
 
     const {isHovered, hoverProps} = useHover({
-        isDisabled,
+        isDisabled: isVisuallyDisabled,
         // When the mouse hovers over a menu item, we focus it so if the user
         // then uses the keyboard (presses enter or an arrow key) we navigate
         // using the hovered menu item.
@@ -682,13 +700,60 @@ function MenuButtonInner({
     });
 
     const {isPressed, pressProps} = usePress({
-        isDisabled: isFadingOut,
+        // We want visually disabled buttons to be pressable so they can show their
+        // tooltip with the reason for why they are disabled.
+        isDisabled: (isDisabled && !isVisuallyDisabled) || isFadingOut,
         onPress: () => {
-            if (isDisabled) {
-                skipHoverDelay?.();
-            } else {
+            if (isVisuallyDisabled) {
+                skipTooltipHoverDelay?.();
+                return;
+            }
+
+            if (isDisabled) return;
+
+            const defaultPressErrorTitle = "The menu option you pressed didn’t work";
+            const {pressErrorTitle} = action;
+
+            let promise;
+            try {
+                promise = action.onPress();
+            } catch (error) {
+                showToast({
+                    type: "Error",
+                    title: pressErrorTitle ?? defaultPressErrorTitle,
+                    error,
+                });
+                return;
+            }
+
+            // If the press returns a promise:
+            //
+            // - Only close the menu if the action succeeds
+            // - Show a loading spinner after a short delay
+            // - Show a toast if there was an error
+            if (!(promise instanceof Promise)) {
                 onClose();
-                action.onPress();
+            } else {
+                setIsPending(true);
+
+                assert(
+                    pressErrorTitle,
+                    "If `onPress` returns a promise then the `pressErrorTitle` prop is required",
+                );
+
+                promise.then(
+                    () => {
+                        onClose();
+                    },
+                    error => {
+                        setIsPending(false);
+                        showToast({
+                            type: "Error",
+                            title: pressErrorTitle,
+                            error,
+                        });
+                    },
+                );
             }
         },
     });
@@ -708,7 +773,9 @@ function MenuButtonInner({
                 paddingX="2"
                 paddingY="1"
                 borderRadius="base"
-                color={isDisabled ? "grey-40" : action.isDestructive ? "red-50" : "grey-text"}
+                color={
+                    isVisuallyDisabled ? "grey-40" : action.isDestructive ? "red-50" : "grey-text"
+                }
                 backgroundColor={
                     isPressed
                         ? {light: "grey-10", dark: "grey-20"}

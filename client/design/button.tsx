@@ -6,8 +6,10 @@ import {AriaButtonProps, mergeProps, useButton, useHover} from "react-aria";
 import {FocusRing} from "~/client/design/focus_ring";
 import {useMergedRefs} from "~/client/design/helpers/use_merged_refs";
 import {uninterruptedThoughtLimitMs} from "~/client/design/timing_constants";
+import {useShowToast} from "~/client/design/toast";
 import {Spacing, spacing} from "~/shared/design/spacing";
 import {createTimeout} from "~/shared/helpers/async/timeout";
+import {assert} from "~/shared/helpers/control/assert";
 import {Sprinkles, spinAnimationClassName, sprinkles} from "~/shared/styles/styles";
 
 const ButtonForwardRef = forwardRef(Button);
@@ -29,7 +31,20 @@ function Button(
          * If a promise is returned then the button is put into a pending state until
          * the promise resolves.
          */
-        onPress?: (event: PressEvent) => Promise<void> | void;
+        onPress?: (event: PressEvent) => void | Promise<void>;
+
+        /**
+         * If an error occurs while running `onPress` we will report the error to the user with
+         * this title. It is the "what happened" part of an error message according to [Adobe
+         * Spectrum's][1] error content guidelines.
+         *
+         * So for example it this is a delete comment action say "Couldn’t delete comment".
+         *
+         * Optional if the `onPress` event does not return a promise.
+         *
+         * [1]: https://spectrum.adobe.com/page/writing-for-errors
+         */
+        pressErrorTitle?: string;
 
         /**
          * Which styles should we apply to the variant?
@@ -84,8 +99,10 @@ function Button(
         fullWidth = false,
         shouldSubmitForm = false,
         onPress,
+        pressErrorTitle,
         paddingX = "3",
     } = props;
+    const showToast = useShowToast();
     const localRef = useRef<HTMLButtonElement>(null);
 
     const [isPendingFromPress, setIsPendingFromPress] = useState(false);
@@ -99,13 +116,46 @@ function Button(
             isDisabled: isDisabled || isPending,
             type: shouldSubmitForm ? "submit" : undefined,
             onPress: event => {
-                const promise = onPress?.(event);
+                const defaultPressErrorTitle = "The button you pressed didn’t work";
 
+                let promise;
+                try {
+                    promise = onPress?.(event);
+                } catch (error) {
+                    showToast({
+                        type: "Error",
+                        title: pressErrorTitle ?? defaultPressErrorTitle,
+                        error,
+                    });
+                    return;
+                }
+
+                // If the press returns a promise:
+                //
+                // - Only close the menu if the action succeeds
+                // - Show a loading spinner after a short delay
+                // - Show a toast if there was an error
                 if (promise instanceof Promise) {
                     setIsPendingFromPress(true);
-                    promise.finally(() => {
-                        setIsPendingFromPress(false);
-                    });
+
+                    assert(
+                        pressErrorTitle,
+                        "If `onPress` returns a promise then the `pressErrorTitle` prop is required",
+                    );
+
+                    promise.then(
+                        () => {
+                            setIsPendingFromPress(false);
+                        },
+                        error => {
+                            setIsPendingFromPress(false);
+                            showToast({
+                                type: "Error",
+                                title: pressErrorTitle,
+                                error,
+                            });
+                        },
+                    );
                 }
             },
         },

@@ -109,6 +109,7 @@ function PostCommentsToggleButton({
                     />
                 }
                 iconPlacement="end"
+                pressErrorTitle="Couldn’t open comments"
                 onPress={async () => {
                     if (arePostCommentsOpen) {
                         onTogglePostComments();

@@ -12,6 +12,7 @@ import {FocusRing} from "~/client/design/focus_ring";
 import {IconButton} from "~/client/design/icon_button";
 import {MenuButton} from "~/client/design/menu_button";
 import {Overlay, OverlayRef} from "~/client/design/overlay";
+import {useShowToast} from "~/client/design/toast";
 import {defaultTooltipOffset} from "~/client/design/tooltip";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {MessageEditing} from "~/client/messaging/message_editing";
@@ -143,6 +144,7 @@ function MessageWithContentPayloadView({
     isHovered: boolean;
 }) {
     const navigate = useNavigate();
+    const showToast = useShowToast();
     const {currentAccount} = useSpaceContext();
     const overlayRef = useRef<OverlayRef>(null);
 
@@ -259,7 +261,7 @@ function MessageWithContentPayloadView({
                                 {
                                     label: "Delete",
                                     onPress: () => {
-                                        // TODO(calebmer): Implement!
+                                        throw new Error("test");
                                     },
                                 },
                             ]}

@@ -58,6 +58,7 @@ export function PostCreator({channelId}: {channelId: ChannelId}) {
                         <Button
                             variant="accent"
                             isDisabled={isContentEmpty(state.getContent())}
+                            pressErrorTitle="Couldn’t create post"
                             onPress={async () => {
                                 const {post} = await createPost(context, {
                                     channelId,
