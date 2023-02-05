@@ -166,7 +166,7 @@ function Button(
 
     // We wait a bit before showing our pending spinner. Some actions are very fast so we
     // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
-    const [shouldShowPendingSpinner, setShouldShowPendingSpinner] = useState(false);
+    const [_shouldShowPendingSpinner, setShouldShowPendingSpinner] = useState(false);
     useEffect(() => {
         if (!isPending) {
             setShouldShowPendingSpinner(false);
@@ -180,6 +180,9 @@ function Button(
             timeout.clear();
         };
     }, [isPending]);
+
+    // Only show the pending spinner if we are actually pending.
+    const shouldShowPendingSpinner = _shouldShowPendingSpinner && isPending;
 
     const labelChild = (
         <span className={sprinkles({display: "block", fontStyle: "truncate"})}>{children}</span>

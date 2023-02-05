@@ -7,9 +7,11 @@ import {
     useCallback,
     useContext,
     useEffect,
+    useLayoutEffect,
     useMemo,
     useReducer,
     useRef,
+    useState,
 } from "react";
 import {Box} from "~/client/design/box";
 import {IconButton} from "~/client/design/icon_button";
@@ -20,6 +22,7 @@ import {spacing} from "~/shared/design/spacing";
 import {InternalError, InvalidArgumentError} from "~/shared/error/error";
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {cast} from "~/shared/helpers/control/cast";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {clamp} from "~/shared/helpers/number/clamp";
 import {colorSchemeVars, sprinkles, toastStyles} from "~/shared/styles/styles";
@@ -27,7 +30,12 @@ import {colorSchemeVars, sprinkles, toastStyles} from "~/shared/styles/styles";
 // Error toasts should be visible long enough for the user to read but short
 // enough so that the user can try again. Or if the user is already trying
 // again we can show a queued error message.
-const defaultErrorToastDurationSeconds = 5;
+//
+// For accessibility it's recommended to have a [minimum time of 6
+// seconds][1].
+//
+// [1]: https://sheribyrnehaber.medium.com/designing-toast-messages-for-accessibility-fb610ac364be
+const defaultErrorToastDurationSeconds = 6;
 
 /**
  * Toasts display brief, temporary notifications. They're meant to be noticed
@@ -244,6 +252,19 @@ function ToastView({
         return () => timeout.clear();
     }, [expirationTime, onDismiss, startTime]);
 
+    // Right now the only toast type we have is the error toast type. A couple
+    // things we should change for other toast types:
+    //
+    // - Different expiration times
+    // - No error icon (different icon or no icon)
+    // - Don't use `role="alert"` and instead use `role="status"`
+    cast<"Error">(toast.type);
+
+    const [isInitialRender, setIsInitialRender] = useState(true);
+    useLayoutEffect(() => {
+        setIsInitialRender(false);
+    }, []);
+
     return (
         <Box
             position="relative"
@@ -280,14 +301,23 @@ function ToastView({
                     />
                 </Box>
             </Box>
-            <Box flexGrow="1">
-                <ErrorDisplayMessageRenderer
-                    error={toast.error}
-                    fontSize="75"
-                    // Add punctuation to the title since it was written standalone.
-                    prefixMessage={`${toast.title}.`}
-                    isSingleLine={true}
-                />
+            <Box flexGrow="1" role="alert">
+                {!isInitialRender && (
+                    // [According to MDN][1], live regions (`role="alert"`, `role="status"`,
+                    // `aria-live="assertive"`, `aria-live="polite"`) only notify users of assistive
+                    // technology when the element updates. Not when it is added to the DOM. So we
+                    // initially render without content then the element immediately re-renders with
+                    // the alert content.
+                    //
+                    // [1]: https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/alert_role
+                    <ErrorDisplayMessageRenderer
+                        error={toast.error}
+                        fontSize="75"
+                        // Add punctuation to the title since it was written standalone.
+                        prefixMessage={`${toast.title}.`}
+                        isSingleLine={true}
+                    />
+                )}
             </Box>
         </Box>
     );

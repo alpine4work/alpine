@@ -1,4 +1,5 @@
 import {setInteractionModality} from "@react-aria/interactions";
+import {SpinnerGap} from "phosphor-react";
 import React, {
     ReactElement,
     Ref,
@@ -32,7 +33,7 @@ import {
     useShouldDisableTooltips,
 } from "~/client/design/tooltip";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {Spacing} from "~/shared/design/spacing";
+import {Spacing, spacing} from "~/shared/design/spacing";
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -41,6 +42,7 @@ import {
     overlayAnimateContainerClassName,
     overlayAnimateFadeOutClassName,
     overlayFadeOutAnimationDurationMs,
+    spinAnimationClassName,
 } from "~/shared/styles/styles";
 
 // TODO(calebmer): Implement the mobile action sheet version of our menu
@@ -686,9 +688,12 @@ function MenuButtonInner({
 }) {
     const showToast = useShowToast();
     const menuItemId = useId();
-    const [isPending, setIsPending] = useState(false);
+    const [pendingState, setPendingState] = useState<
+        | {isPending: false; shouldShowPendingSpinner: false}
+        | {isPending: true; shouldShowPendingSpinner: boolean}
+    >({isPending: false, shouldShowPendingSpinner: false});
     const isVisuallyDisabled = action.disabledReason !== undefined;
-    const isDisabled = isVisuallyDisabled || isPending;
+    const isDisabled = isVisuallyDisabled || pendingState.isPending;
 
     const {isHovered, hoverProps} = useHover({
         isDisabled: isVisuallyDisabled,
@@ -734,7 +739,7 @@ function MenuButtonInner({
             if (!(promise instanceof Promise)) {
                 onClose();
             } else {
-                setIsPending(true);
+                setPendingState({isPending: true, shouldShowPendingSpinner: false});
 
                 assert(
                     pressErrorTitle,
@@ -746,7 +751,7 @@ function MenuButtonInner({
                         onClose();
                     },
                     error => {
-                        setIsPending(false);
+                        setPendingState({isPending: false, shouldShowPendingSpinner: false});
                         showToast({
                             type: "Error",
                             title: pressErrorTitle,
@@ -757,6 +762,20 @@ function MenuButtonInner({
             }
         },
     });
+
+    // We wait a bit before showing our pending spinner. Some actions are very fast so we
+    // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
+    useEffect(() => {
+        if (!pendingState.isPending || pendingState.shouldShowPendingSpinner) return;
+
+        const timeout = createTimeout(() => {
+            setPendingState({isPending: true, shouldShowPendingSpinner: true});
+        }, uninterruptedThoughtLimitMs);
+
+        return () => {
+            timeout.clear();
+        };
+    }, [pendingState]);
 
     return (
         <FocusRing offset="0">
@@ -787,8 +806,15 @@ function MenuButtonInner({
                 //
                 // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
                 aria-disabled={isDisabled ? true : undefined}
+                display="flex"
+                justifyContent="space-between"
             >
-                {action.label}
+                <Box fontStyle="truncate">{action.label}</Box>
+                {pendingState.shouldShowPendingSpinner && (
+                    <Box paddingLeft="2">
+                        <SpinnerGap className={spinAnimationClassName} size={spacing["4"]} />
+                    </Box>
+                )}
             </Box>
         </FocusRing>
     );

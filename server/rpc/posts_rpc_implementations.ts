@@ -1,6 +1,7 @@
 import {
     createPost,
     createPostComment,
+    deletePostComment,
     getPostCommentAuthors,
     getPostCommentsFromEnd,
     getPostCommentsFromStart,
@@ -15,6 +16,11 @@ implementRpc(definition.createPost, async (context, input) => {
 
 implementRpc(definition.createPostComment, async (context, input) => {
     await createPostComment(await context.auth.authenticate(), input);
+    return {};
+});
+
+implementRpc(definition.deletePostComment, async (context, input) => {
+    await deletePostComment(await context.auth.authenticate(), input);
     return {};
 });
 

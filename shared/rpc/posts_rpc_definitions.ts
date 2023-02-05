@@ -31,6 +31,15 @@ export const createPostComment = defineRpc({
     output: {},
 });
 
+export const deletePostComment = defineRpc({
+    name: "deletePostComment",
+    input: {
+        postId: Schema.id<PostId>(),
+        commentIndex: Schema.integer,
+    },
+    output: {},
+});
+
 export const getPostCommentAuthors = defineRpc({
     name: "getPostCommentAuthors",
     input: {

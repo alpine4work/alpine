@@ -28,7 +28,11 @@ import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlap
 import {OrderKey} from "~/shared/helpers/sort/order_key";
 import {PostId} from "~/shared/id/types/id_types";
 import {PostCommentModel} from "~/shared/models/post_model";
-import {getPostCommentsFromEnd, getPostCommentsFromStart} from "~/shared/rpc/posts_rpc_definitions";
+import {
+    deletePostComment,
+    getPostCommentsFromEnd,
+    getPostCommentsFromStart,
+} from "~/shared/rpc/posts_rpc_definitions";
 import {sprinkles} from "~/shared/styles/styles";
 
 const padding: Spacing = "4";
@@ -310,6 +314,12 @@ export function PostsView({
                                 previousMessage={previousComment}
                                 nextMessage={nextComment}
                                 messageEditing={messageEditing}
+                                onDeleteMessage={async () => {
+                                    await deletePostComment(context, {
+                                        postId: item.post.id,
+                                        commentIndex: item.postCommentIndex,
+                                    });
+                                }}
                             />
                         ) : (
                             <MessageShimmer
@@ -591,6 +601,7 @@ export function PostsView({
             onTogglePostComments,
             loadInitialPostComments,
             messageEditing,
+            context,
             onPostCommentInputFocusChange,
         ],
     );

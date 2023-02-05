@@ -12,7 +12,6 @@ import {FocusRing} from "~/client/design/focus_ring";
 import {IconButton} from "~/client/design/icon_button";
 import {MenuButton} from "~/client/design/menu_button";
 import {Overlay, OverlayRef} from "~/client/design/overlay";
-import {useShowToast} from "~/client/design/toast";
 import {defaultTooltipOffset} from "~/client/design/tooltip";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {MessageEditing} from "~/client/messaging/message_editing";
@@ -45,11 +44,13 @@ export function MessageView({
     previousMessage,
     nextMessage,
     messageEditing,
+    onDeleteMessage,
 }: {
     message: MessageInterface;
     previousMessage: MessageInterface | null;
     nextMessage: MessageInterface | null;
     messageEditing: MessageEditing;
+    onDeleteMessage: () => Promise<void>;
 }) {
     const shouldMergeWithPreviousMessage: boolean =
         !!previousMessage &&
@@ -123,6 +124,7 @@ export function MessageView({
                         shouldMergeWithNextMessage={shouldMergeWithNextMessage}
                         messageEditing={messageEditing}
                         isHovered={isHovered}
+                        onDeleteMessage={onDeleteMessage}
                     />
                 ) : null}
             </Box>
@@ -136,15 +138,16 @@ function MessageWithContentPayloadView({
     shouldMergeWithNextMessage,
     messageEditing,
     isHovered,
+    onDeleteMessage,
 }: {
     message: MessageWithContentPayloadInterface;
     shouldMergeWithPreviousMessage: boolean;
     shouldMergeWithNextMessage: boolean;
     messageEditing: MessageEditing;
     isHovered: boolean;
+    onDeleteMessage: () => Promise<void>;
 }) {
     const navigate = useNavigate();
-    const showToast = useShowToast();
     const {currentAccount} = useSpaceContext();
     const overlayRef = useRef<OverlayRef>(null);
 
@@ -260,9 +263,9 @@ function MessageWithContentPayloadView({
                                 },
                                 {
                                     label: "Delete",
-                                    onPress: () => {
-                                        throw new Error("test");
-                                    },
+                                    pressErrorTitle: "Couldn’t delete comment",
+                                    // TODO(calebmer): Add a modal confirmation screen.
+                                    onPress: onDeleteMessage,
                                 },
                             ]}
                             onStateChange={state => setIsMoreMenuOpen(state.isExpanded)}
