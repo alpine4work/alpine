@@ -15,7 +15,7 @@ import {Sprinkles, spinAnimationClassName, sprinkles} from "~/shared/styles/styl
 const ButtonForwardRef = forwardRef(Button);
 export {ButtonForwardRef as Button};
 
-type ButtonVariant = "accent" | "quiet";
+type ButtonVariant = "accent" | "quiet" | "destructive";
 
 function Button(
     props: Omit<AriaButtonProps<"button">, "onPress"> & {
@@ -202,13 +202,17 @@ function Button(
     ) : null;
 
     const stylesByVariant: {[K in ButtonVariant]: Sprinkles} = {
+        quiet: {
+            backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
+            color: "grey-text",
+        },
         accent: {
             backgroundColor: "theme-40-const",
             color: "grey-0-const",
         },
-        quiet: {
-            backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
-            color: "grey-text",
+        destructive: {
+            backgroundColor: "red-50",
+            color: "grey-0-const",
         },
     };
 
@@ -248,7 +252,7 @@ function Button(
                     flexShrink: "0",
                 })}
             >
-                {isPressed && variant === "accent" && (
+                {isPressed && variant !== "quiet" && (
                     // For accent buttons, instead of choosing a darker background color shade when
                     // pressed we add a black overlay at a lowered opacity. We accomplish this with
                     // an overlay element since such a color is not in our color scheme.

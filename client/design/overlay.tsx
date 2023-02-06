@@ -323,6 +323,7 @@ function Overlay(
 }
 
 const OverlaySinkContext = createContext<{
+    rootPortalElement: HTMLDivElement | null;
     portalElement: HTMLDivElement | null;
 } | null>(null);
 
@@ -334,6 +335,7 @@ const OverlaySinkContext = createContext<{
  * outside the element.
  */
 export function OverlayScopeContextProvider({children}: {children: ReactNode}) {
+    const parentOverlaySink = useContext(OverlaySinkContext);
     const portalRef = useRef<HTMLDivElement>(null);
     const [portalElement, setPortalElement] = useState<HTMLDivElement | null>(null);
 
@@ -343,7 +345,15 @@ export function OverlayScopeContextProvider({children}: {children: ReactNode}) {
     }, []);
 
     return (
-        <OverlaySinkContext.Provider value={useMemo(() => ({portalElement}), [portalElement])}>
+        <OverlaySinkContext.Provider
+            value={useMemo(
+                () => ({
+                    rootPortalElement: parentOverlaySink?.rootPortalElement ?? portalElement,
+                    portalElement,
+                }),
+                [parentOverlaySink?.rootPortalElement, portalElement],
+            )}
+        >
             {children}
             <Box
                 ref={portalRef}
@@ -351,9 +361,26 @@ export function OverlayScopeContextProvider({children}: {children: ReactNode}) {
                 top="0"
                 left="0"
                 right="0"
+                // The root portal element has a height of 0 because when you use it in a
+                // nested scroll view we don't want the overlay height to extend from the top
+                // to the bottom of the nested scroll view.
                 height="0"
+                // Render above anything on the page.
                 zIndex="50"
             />
         </OverlaySinkContext.Provider>
     );
+}
+
+/**
+ * Get the overlay portal element at the root of our app. We may have nested
+ * portal overlay elements in, for instance, scroll views so overlays move with
+ * the scroll view and can't escape.
+ *
+ * This allows you to portal into the root overlay element.
+ */
+export function useOverlayRootPortalElement() {
+    const overlaySink = useContext(OverlaySinkContext);
+    assert(overlaySink, "Expected a parent `<OverlayScopeContextProvider>` component");
+    return overlaySink.rootPortalElement;
 }

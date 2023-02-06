@@ -11,6 +11,7 @@ import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
 import {IconButton} from "~/client/design/icon_button";
 import {MenuButton} from "~/client/design/menu_button";
+import {ModalDialog} from "~/client/design/modal_dialog";
 import {Overlay, OverlayRef} from "~/client/design/overlay";
 import {defaultTooltipOffset} from "~/client/design/tooltip";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
@@ -128,7 +129,7 @@ export function MessageView({
                         label={label}
                         startOfSentenceLabel={startOfSentenceLabel}
                         message={message as MessageWithContentPayloadInterface}
-                        shouldMergeWithPreviousMessage={shouldMergeWithNextMessage}
+                        shouldMergeWithPreviousMessage={shouldMergeWithPreviousMessage}
                         shouldMergeWithNextMessage={shouldMergeWithNextMessage}
                         messageEditing={messageEditing}
                         isHovered={isHovered}
@@ -175,6 +176,7 @@ function MessageWithContentPayloadView({
         onFocusWithinChange: setIsFocusWithinActions,
     });
     const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+    const [showDeleteConfirmationDialog, setShowDeleteConfirmationDialog] = useState(false);
 
     const isEditing =
         messageEditing.state.isEditing &&
@@ -283,8 +285,9 @@ function MessageWithContentPayloadView({
                                 {
                                     label: "Delete",
                                     pressErrorTitle: `Couldn’t delete ${label}`,
-                                    // TODO(calebmer): Add a modal confirmation screen.
-                                    onPress: onDeleteMessage,
+                                    onPress: () => {
+                                        setShowDeleteConfirmationDialog(true);
+                                    },
                                 },
                             ]}
                             onStateChange={state => setIsMoreMenuOpen(state.isExpanded)}
@@ -296,7 +299,36 @@ function MessageWithContentPayloadView({
                     )}
                 </Box>
             </Box>
+            {showDeleteConfirmationDialog && (
+                <MessageDeleteConfirmationDialog
+                    label={label}
+                    onClose={() => setShowDeleteConfirmationDialog(false)}
+                    onDeleteMessage={onDeleteMessage}
+                />
+            )}
         </>
+    );
+}
+
+function MessageDeleteConfirmationDialog({
+    label,
+    onClose,
+    onDeleteMessage,
+}: {
+    label: string;
+    onClose: () => void;
+    onDeleteMessage: () => Promise<void>;
+}) {
+    return (
+        <ModalDialog
+            title={`Delete ${label}`}
+            description={`Others may have already seen the ${label}. Everyone will still be able to see that you sent a ${label} and the time you sent it, but they will not be able to see what was in the ${label}.`}
+            onClose={onClose}
+            isPrimaryButtonDestructive={true}
+            primaryButtonLabel="Delete"
+            primaryButtonPressErrorTitle={`Couldn’t delete ${label}`}
+            onPrimaryButtonPress={onDeleteMessage}
+        />
     );
 }
 
@@ -313,6 +345,8 @@ function MessageWithDeletedPayloadView({
         <Box
             paddingX="0.5"
             paddingY="1.5"
+            display="flex"
+            alignItems="center"
             borderTopLeftRadius={!shouldMergeWithPreviousMessage ? "xl" : "base"}
             borderTopRightRadius="xl"
             borderBottomLeftRadius={!shouldMergeWithNextMessage ? "xl" : "base"}
@@ -322,7 +356,12 @@ function MessageWithDeletedPayloadView({
                 boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
             }}
         >
-            <Box paddingX="2" color="grey-30" style={paragraphFontSize}>
+            <Box
+                paddingX="2"
+                color="grey-40"
+                fontSize="75"
+                style={{lineHeight: paragraphFontSize.lineHeight}}
+            >
                 {`Deleted ${label}`}
             </Box>
         </Box>
