@@ -1,7 +1,7 @@
 import {keyframes} from "@vanilla-extract/css";
 import {spacing} from "~/shared/design/spacing";
 
-export const modalUnderlayOpacity = 0.6;
+export const modalUnderlayOpacity = 0.5;
 
 const modalUnderlayFadeInKeyframes = keyframes({
     from: {opacity: 0},
@@ -18,7 +18,15 @@ const modalContentFadeInKeyframes = keyframes({
     to: {opacity: 1},
 });
 
-export const modalUnderlayFadeInAnimation = `${modalUnderlayFadeInKeyframes} 280ms ease-out both`;
+// We follow an animation principle of: respond to direct user interaction
+// immediately, respond to indirect user interaction with animation. We
+// consider a modal to be a result of an indirect interaction. The user's
+// cursor is likely not near the center of the screen where the modal
+// buttons are.
+//
+// Because the modal takes over the entire screen and is spatially disconnected
+// from the element which spawned it, we use a slightly longer animation.
+export const modalUnderlayFadeInAnimation = `${modalUnderlayFadeInKeyframes} 240ms ease-out both`;
 
 export const modalOverlayFadeInAnimation = `${modalOverlayFadeInKeyframes} 144ms ease-out 32ms both`;
 
