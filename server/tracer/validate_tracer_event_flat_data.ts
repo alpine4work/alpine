@@ -1,11 +1,7 @@
 import {TracerEventFlatDataSchema} from "~/server/tracer/tracer_event_data_schema";
 import {InvalidArgumentError} from "~/shared/error/error";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object";
-import {
-    SchemaDeserializationError,
-    SchemaSerializedValue,
-    withSchemaDeserializationStackFrame,
-} from "~/shared/schema/schema";
+import {SchemaSerializedValue, withSchemaDeserializationStackFrame} from "~/shared/schema/schema";
 import {TracerEventFlatData} from "~/shared/tracer/helpers/build_tracer_event_flat_data";
 
 /**
@@ -26,8 +22,11 @@ export function validateTracerEventFlatData(
 
         withSchemaDeserializationStackFrame({type: "ObjectProperty", key}, () => {
             const deserializedValue = schema.deserialize(value);
+
+            // The event data is invalid if the deserializer transforms it. For example
+            // trimming whitespace.
             if (value !== deserializedValue)
-                throw new SchemaDeserializationError(
+                throw new InvalidArgumentError(
                     "Original event attribute value does not match deserialized value",
                 );
         });

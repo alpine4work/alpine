@@ -13,9 +13,9 @@ import {TracerRoot} from "~/shared/tracer/tracer_root";
 import {TracerEventData, TracerEventFullData} from "~/shared/tracer/types/tracer_event_data";
 
 export type TracerSpanPropagationContext = {
-    traceId: TraceId;
-    parentId: TraceSpanId;
-    data: TracerEventFlatData;
+    readonly traceId: TraceId;
+    readonly parentId: TraceSpanId;
+    readonly data: TracerEventFlatData;
 };
 
 /**

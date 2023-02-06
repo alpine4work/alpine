@@ -14,7 +14,7 @@ import {colors} from "~/shared/design/colors";
 import {formatCssLinearGradient, generateEasedGradient} from "~/shared/design/gradient";
 import {themeColors} from "~/shared/design/theme_colors";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {easeInOutSin} from "~/shared/helpers/easing";
+import {easeInOutSin} from "~/shared/design/easing";
 import {Vector2} from "~/shared/helpers/geometry/vector2";
 import {Schema} from "~/shared/schema/schema";
 import {contentSchemaStyles, documentBlobsStyles, sprinkles} from "~/shared/styles/styles";

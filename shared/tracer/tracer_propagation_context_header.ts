@@ -1,6 +1,6 @@
 import {TracerSpan} from "~/shared/tracer/tracer_span";
 
-export const tracerPropagationContextHeaderName = "cyberworlds-tracer-context";
+export const tracerPropagationContextHeaderName = "cyberworlds-tracer-propagation-context";
 
 /**
  * Adds the tracer HTTP propagation header to a request.

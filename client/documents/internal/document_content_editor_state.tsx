@@ -29,10 +29,10 @@ import {
     useState,
 } from "react";
 import {unstable_ImmediatePriority, unstable_runWithPriority} from "scheduler";
+import {useWebSocket} from "~/client/cloudflare/use_web_socket";
 import {ContentEditorPhantomSelection} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {useDevConsoleTool} from "~/client/dev/dev_console";
-import {useWebSocket} from "~/client/helpers/use_web_socket";
 import {
     DocumentContent,
     DocumentContentProsemirrorSchema,

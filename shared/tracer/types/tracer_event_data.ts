@@ -8,6 +8,7 @@ import {
     TraceId,
     TraceSpanId,
     WebSocketConnectionId,
+    WebSocketMessageId,
 } from "~/shared/id/types/id_types";
 import type {TracerEventHttpHeaderName} from "~/shared/tracer/helpers/tracer_event_http_header_names";
 
@@ -472,8 +473,9 @@ export type TracerEventData = {
         /**
          * What is the type of the message we're processing?
          *
-         * Will be `Ping` or `Pong` for ping/pong messages and will be the `type`
-         * property of the message object for actual messages.
+         * This will be the most descriptive type of the message. So if we have a
+         * `Message` envelope this will be the type of the message inside. Otherwise it
+         * will be a system type like `Ping`, `Pong`, or `AcknowledgeMessage`.
          */
         readonly messageType?: string;
     };

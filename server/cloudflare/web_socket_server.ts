@@ -2,17 +2,25 @@ import {Session} from "~/server/dynamo/accounts_table";
 import {AuthenticatedAuthContextModule} from "~/server/dynamo/context/auth_context_module";
 import {ProcessContext} from "~/server/dynamo/context/process_context";
 import {RequestContext} from "~/server/dynamo/context/request_context";
+import {validateTracerEventFlatDataForPropagation} from "~/server/tracer/validate_tracer_event_flat_data";
+import {webSocketExpirationTimeoutMs} from "~/shared/cloudflare/web_socket_expiration_timeout_ms";
+import {
+    WebSocketMessageFromClient,
+    WebSocketMessageFromServer,
+    createWebSocketMessageFromClientSchema,
+    createWebSocketMessageFromServerSchema,
+} from "~/shared/cloudflare/web_socket_schema";
 import {CacheContextModule} from "~/shared/context/cache_context_module";
 import {TracerContextModule} from "~/shared/context/tracer_context_module";
 import {FailedPreconditionError, InvalidArgumentError, NotFoundError} from "~/shared/error/error";
 import {isSystemError} from "~/shared/error/is_system_error_code";
 import {Interval, createInterval} from "~/shared/helpers/async/interval";
 import {assert} from "~/shared/helpers/control/assert";
+import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
-import {expirationTimeoutMs} from "~/shared/helpers/web_socket_shared";
 import {generateId} from "~/shared/id/id";
 import {SessionId, WebSocketConnectionId} from "~/shared/id/types/id_types";
-import {UnionSchema} from "~/shared/schema/schema";
+import {Schema, UnionSchema} from "~/shared/schema/schema";
 import {TracerSpan} from "~/shared/tracer/tracer_span";
 
 export interface WebSocketServerConnectionBase<MessageFromClient extends {type: string}> {
@@ -36,8 +44,12 @@ export class WebSocketServer<
     private readonly _processContext: ProcessContext;
     // NOTE(calebmer): Force schemas to be union schemas so the protocol can evolve
     // in the future.
-    private readonly _messageFromClientSchema: UnionSchema<MessageFromClient>;
-    private readonly _messageFromServerSchema: UnionSchema<MessageFromServer>;
+    private readonly _messageFromClientSchema: Schema<
+        WebSocketMessageFromClient<MessageFromClient>
+    >;
+    private readonly _messageFromServerSchema: Schema<
+        WebSocketMessageFromServer<MessageFromServer>
+    >;
     private readonly _createConnection: (connection: {
         request: Request;
         connectionId: WebSocketConnectionId;
@@ -48,7 +60,7 @@ export class WebSocketServer<
 
     private readonly _connections = new Map<
         WebSocketConnectionId,
-        WebSocketServerConnectionWrapper<MessageFromClient, Connection>
+        WebSocketServerConnectionWrapper<MessageFromClient, MessageFromServer, Connection>
     >();
     private _expirationInterval: Interval | null = null;
 
@@ -65,8 +77,10 @@ export class WebSocketServer<
         }) => Connection,
     ) {
         this._processContext = processContext;
-        this._messageFromClientSchema = messageFromClientSchema;
-        this._messageFromServerSchema = messageFromServerSchema;
+        this._messageFromClientSchema =
+            createWebSocketMessageFromClientSchema(messageFromClientSchema);
+        this._messageFromServerSchema =
+            createWebSocketMessageFromServerSchema(messageFromServerSchema);
         this._createConnection = createConnection;
     }
 
@@ -84,9 +98,12 @@ export class WebSocketServer<
         const response = new Response(null, {status: 101, webSocket: clientSocket});
 
         const sendMessage = (context: ProcessContext, message: MessageFromServer) => {
-            const serializedMessage = this._messageFromServerSchema.serialize(message);
+            const serializedMessage = this._messageFromServerSchema.serialize({
+                type: "Message",
+                message,
+            });
             const serializedMessageString = JSON.stringify(serializedMessage);
-            connection.sendRawMessage(context, message.type, serializedMessageString);
+            connection.dangerouslySendRawMessage(context, message.type, serializedMessageString);
         };
 
         const sendMessageToOthers = (context: ProcessContext, message: MessageFromServer) => {
@@ -102,12 +119,19 @@ export class WebSocketServer<
             context = context.clone({tracer: new TracerContextModule(span)});
 
             try {
-                const serializedMessage = this._messageFromServerSchema.serialize(message);
+                const serializedMessage = this._messageFromServerSchema.serialize({
+                    type: "Message",
+                    message,
+                });
                 const serializedMessageString = JSON.stringify(serializedMessage);
 
                 for (const otherConnection of this._connections.values()) {
                     if (otherConnection.id === connection.id) continue;
-                    otherConnection.sendRawMessage(context, message.type, serializedMessageString);
+                    otherConnection.dangerouslySendRawMessage(
+                        context,
+                        message.type,
+                        serializedMessageString,
+                    );
                 }
 
                 finishSpan();
@@ -143,6 +167,7 @@ export class WebSocketServer<
             processContext: connectionProcessContext,
             socket: serverSocket,
             messageFromClientSchema: this._messageFromClientSchema,
+            messageFromServerSchema: this._messageFromServerSchema,
             connection: actualConnection,
             sessionId: requestContext.auth.getSessionId(),
         });
@@ -167,7 +192,7 @@ export class WebSocketServer<
                 // time for a given request. Whenever our interval runs, increment the time by
                 // the interval time.
                 // https://developers.cloudflare.com/workers/learning/security-model
-                currentTimeMs += expirationTimeoutMs / 2;
+                currentTimeMs += webSocketExpirationTimeoutMs / 2;
 
                 void this._processContext.tracer.withSpan(
                     "Expiring idle WebSocket connections",
@@ -186,7 +211,7 @@ export class WebSocketServer<
                         }
                     },
                 );
-            }, expirationTimeoutMs / 2);
+            }, webSocketExpirationTimeoutMs / 2);
         }
 
         serverSocket.addEventListener("close", () => {
@@ -218,7 +243,11 @@ export class WebSocketServer<
      */
     private _handleConnectionClose(
         context: ProcessContext,
-        connection: WebSocketServerConnectionWrapper<MessageFromClient, Connection>,
+        connection: WebSocketServerConnectionWrapper<
+            MessageFromClient,
+            MessageFromServer,
+            Connection
+        >,
     ) {
         const existingConnection = this._connections.get(connection.id);
         if (existingConnection && existingConnection === connection) {
@@ -261,11 +290,18 @@ export class WebSocketServer<
         context = context.clone({tracer: new TracerContextModule(span)});
 
         try {
-            const serializedMessage = this._messageFromServerSchema.serialize(message);
+            const serializedMessage = this._messageFromServerSchema.serialize({
+                type: "Message",
+                message,
+            });
             const serializedMessageString = JSON.stringify(serializedMessage);
 
             for (const connection of this._connections.values()) {
-                connection.sendRawMessage(context, message.type, serializedMessageString);
+                connection.dangerouslySendRawMessage(
+                    context,
+                    message.type,
+                    serializedMessageString,
+                );
             }
 
             finishSpan();
@@ -304,12 +340,18 @@ export class WebSocketServer<
 
 class WebSocketServerConnectionWrapper<
     MessageFromClient extends {type: string},
+    MessageFromServer extends {type: string},
     Connection extends WebSocketServerConnectionBase<MessageFromClient>,
 > {
     public readonly id: WebSocketConnectionId;
     private readonly _processContext: ProcessContext;
     private readonly _socket: WebSocket;
-    private readonly _messageFromClientSchema: UnionSchema<MessageFromClient>;
+    private readonly _messageFromClientSchema: Schema<
+        WebSocketMessageFromClient<MessageFromClient>
+    >;
+    private readonly _messageFromServerSchema: Schema<
+        WebSocketMessageFromServer<MessageFromServer>
+    >;
     public readonly connection: Connection;
     private readonly _sessionId: SessionId;
     private _lastMessageTimeMs: number = Date.now();
@@ -319,13 +361,15 @@ class WebSocketServerConnectionWrapper<
         processContext,
         socket,
         messageFromClientSchema,
+        messageFromServerSchema,
         connection,
         sessionId,
     }: {
         id: WebSocketConnectionId;
         processContext: ProcessContext;
         socket: WebSocket;
-        messageFromClientSchema: UnionSchema<MessageFromClient>;
+        messageFromClientSchema: Schema<WebSocketMessageFromClient<MessageFromClient>>;
+        messageFromServerSchema: Schema<WebSocketMessageFromServer<MessageFromServer>>;
         connection: Connection;
         sessionId: SessionId;
     }) {
@@ -333,88 +377,126 @@ class WebSocketServerConnectionWrapper<
         this._processContext = processContext;
         this._socket = socket;
         this._messageFromClientSchema = messageFromClientSchema;
+        this._messageFromServerSchema = messageFromServerSchema;
         this.connection = connection;
         this._sessionId = sessionId;
 
         this._socket.addEventListener("message", event => {
             this._processContext.process.waitUntil(async () => {
-                await this._processContext.tracer.withSpan(
-                    "Received message from WebSocket connection",
-                    async (context, span) => {
+                this._lastMessageTimeMs = Date.now();
+
+                let message: WebSocketMessageFromClient<MessageFromClient>;
+                try {
+                    const serializedMessage = JSON.parse(event.data);
+                    message = this._messageFromClientSchema.deserialize(serializedMessage);
+                } catch (error) {
+                    this._processContext.tracer
+                        .getRoot()
+                        .logUncaughtException("Invalid message from WebSocket connection", error);
+                    return;
+                }
+
+                const spanName = "Received message from WebSocket connection";
+                let span: TracerSpan;
+                let finishSpan: () => void;
+                try {
+                    validateTracerEventFlatDataForPropagation(message.tracerContext.data);
+
+                    ({span, finishSpan} = this._processContext.tracer
+                        .getRoot()
+                        .startSpanFromPropagationContext(spanName, {
+                            traceId: message.tracerContext.traceId,
+                            parentId: message.tracerContext.parentId,
+                            data: message.tracerContext.data,
+                        }));
+                } catch (error) {
+                    this._processContext.tracer
+                        .getRoot()
+                        .logUncaughtException("Invalid trace propagation context", error);
+
+                    ({span, finishSpan} = this._processContext.tracer
+                        .getRoot()
+                        .startSpan(spanName));
+                }
+
+                await this._processContext.with(
+                    {tracer: new TracerContextModule(span)},
+                    async context => {
                         try {
                             span.addData({
                                 webSocket: {
                                     connectionId: this.id,
+                                    messageType:
+                                        message.type === "Message"
+                                            ? message.message.type
+                                            : message.type,
                                 },
                             });
 
-                            const getSession = async () => {
-                                // TODO(calebmer): Can we at least give this some kind of TTL in-memory cache??
-                                const session = await Session.get(context, this._sessionId);
-                                if (!session)
-                                    throw new NotFoundError(
-                                        "Session was revoked after the connection began",
-                                    );
+                            // TODO(calebmer): Can we at least give this some kind of TTL in-memory cache??
+                            const session = await Session.get(context, this._sessionId);
+                            if (!session)
+                                throw new NotFoundError(
+                                    "Session was revoked after the connection began",
+                                );
 
-                                return session;
-                            };
+                            switch (message.type) {
+                                // In response to a ping event, we want to send "pong" to the client so it
+                                // knows we are alive and didn't silently disconnect.
+                                case "Ping": {
+                                    this.sendMessage(context, {type: "Pong"});
+                                    break;
+                                }
+                                // In response to a pong event, we update the last message time for this
+                                // connection and that's it. Pong events only let us know the client is
+                                // still alive.
+                                case "Pong": {
+                                    break;
+                                }
+                                case "Message": {
+                                    try {
+                                        const actualMessage = message.message;
 
-                            this._lastMessageTimeMs = Date.now();
+                                        await context.with(
+                                            {
+                                                cache: new CacheContextModule(),
+                                                auth: new AuthenticatedAuthContextModule(session),
+                                            },
+                                            async (context: RequestContext) => {
+                                                await this.connection.handleMessage(
+                                                    context,
+                                                    actualMessage,
+                                                    span,
+                                                );
+                                            },
+                                        );
+                                        this.sendMessage(context, {
+                                            type: "AcknowledgeMessage",
+                                            messageId: message.messageId,
+                                            result: {ok: true},
+                                        });
+                                    } catch (error) {
+                                        span.addException(error);
 
-                            // In response to a pong event, we update the last message time for this
-                            // connection and that's it. Pong events only let us know the client is
-                            // still alive.
-                            if (event.data === "pong") {
-                                span.addData({webSocket: {messageType: "pong"}});
-
-                                // Will throw if the session is expired.
-                                await getSession();
-                                return;
+                                        this.sendMessage(context, {
+                                            type: "AcknowledgeMessage",
+                                            messageId: message.messageId,
+                                            result: {ok: false, error},
+                                        });
+                                    }
+                                    break;
+                                }
+                                default:
+                                    throw exhaustive(message);
                             }
-
-                            // In response to a ping event, we want to send "pong" to the client so it
-                            // knows we are alive and didn't silently disconnect.
-                            if (event.data === "ping") {
-                                span.addData({webSocket: {messageType: "ping"}});
-
-                                // Will throw if the session is expired.
-                                await getSession();
-
-                                this.sendRawMessage(context, "pong", "pong");
-                                return;
-                            }
-
-                            let serializedMessage;
-                            try {
-                                serializedMessage = JSON.parse(event.data);
-                            } catch (error) {
-                                // Classify JSON parse errors
-                                throw new InvalidArgumentError((error as any).message, {
-                                    cause: error,
-                                });
-                            }
-
-                            const message =
-                                this._messageFromClientSchema.deserialize(serializedMessage);
-                            span.addData({webSocket: {messageType: message.type}});
-
-                            const session = await getSession();
-
-                            await context.with(
-                                {
-                                    cache: new CacheContextModule(),
-                                    auth: new AuthenticatedAuthContextModule(session),
-                                },
-                                async (context: RequestContext) => {
-                                    await this.connection.handleMessage(context, message, span);
-                                },
-                            );
                         } catch (error) {
                             span.addException(error);
 
                             // If we got an unexpected error while handling the message close the socket
                             // connection.
                             this.close(context, isSystemError(error) ? 1011 : 1008);
+                        } finally {
+                            finishSpan();
                         }
                     },
                 );
@@ -434,7 +516,7 @@ class WebSocketServerConnectionWrapper<
 
         // If we haven't gotten a message from the client in a while, close it. Maybe
         // the client's power went out and it silently went away without telling us.
-        if (currentTimeMs - this._lastMessageTimeMs >= expirationTimeoutMs) {
+        if (currentTimeMs - this._lastMessageTimeMs >= webSocketExpirationTimeoutMs) {
             this.close(context, 1002, "WebSocket connection expired due to inactivity");
             return;
         }
@@ -442,8 +524,8 @@ class WebSocketServerConnectionWrapper<
         // If we are halfway to our expiration time send a ping message. The client
         // should immediately send back a pong message updating which updates the last
         // message time and prevents the client from expiring.
-        if (currentTimeMs - this._lastMessageTimeMs >= expirationTimeoutMs / 2) {
-            this.sendRawMessage(context, "ping", "ping");
+        if (currentTimeMs - this._lastMessageTimeMs >= webSocketExpirationTimeoutMs / 2) {
+            this.sendMessage(context, {type: "Ping"});
             return;
         }
     }
@@ -452,7 +534,31 @@ class WebSocketServerConnectionWrapper<
      * Send a message over our WebSocket connection. Throws an error if the
      * connection is closed!
      */
-    public sendRawMessage(context: ProcessContext, messageType: string, message: string) {
+    public sendMessage(
+        context: ProcessContext,
+        message: WebSocketMessageFromServer<MessageFromServer>,
+    ) {
+        const serializedMessage = this._messageFromServerSchema.serialize(message);
+
+        this.dangerouslySendRawMessage(
+            context,
+            message.type === "Message" ? message.message.type : message.type,
+            JSON.stringify(serializedMessage),
+        );
+    }
+
+    /**
+     * Send a message over our WebSocket connection. Throws an error if the
+     * connection is closed!
+     *
+     * Dangerous since you must guarantee the message is well-formed as this only
+     * takes a string.
+     */
+    public dangerouslySendRawMessage(
+        context: ProcessContext,
+        messageType: string,
+        message: string,
+    ) {
         if (this.isClosed())
             throw new FailedPreconditionError("Can not send message to closed WebSocket");
 

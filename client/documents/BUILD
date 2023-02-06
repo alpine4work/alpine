@@ -13,6 +13,7 @@ ts_project(
         "//:node_modules/prosemirror-state",
         "//:node_modules/prosemirror-transform",
         "//:node_modules/scheduler",
+        "//client/cloudflare",
         "//client/content",
         "//client/dev",
         "//client/helpers",

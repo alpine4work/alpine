@@ -26,6 +26,7 @@ export type DocumentId = NominalIdType<"Document">;
 export type ChannelId = NominalIdType<"Channel">;
 export type PostId = NominalIdType<"Post">;
 export type WebSocketConnectionId = NominalIdType<"WebSocketConnection">;
+export type WebSocketMessageId = NominalIdType<"WebSocketMessage">;
 export type ContentEditorClientId = NominalIdType<"ContentEditorClient">;
 export type DocumentCollaborationMessageId = NominalIdType<"DocumentCollaborationMessage">;
 
