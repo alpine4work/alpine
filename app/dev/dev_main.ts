@@ -47,6 +47,7 @@ const miniflare = new Miniflare({
     bindings: env,
     durableObjects: {
         DocumentCollaborationDurableObjectNamespace: "DocumentCollaborationDurableObject",
+        PostRealtimeDurableObjectNamespace: "PostRealtimeDurableObject",
     },
     globals: {
         __writeDevTracerEvent: writeDevTracerEvent,

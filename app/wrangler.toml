@@ -19,6 +19,14 @@ globs = ["**/*.js"]
 name = "DocumentCollaborationDurableObjectNamespace"
 class_name = "DocumentCollaborationDurableObject"
 
+[[durable_objects.bindings]]
+name = "PostRealtimeDurableObjectNamespace"
+class_name = "PostRealtimeDurableObject"
+
 [[migrations]]
 tag = "v1"
 new_classes = ["DocumentCollaborationDurableObject"]
+
+[[migrations]]
+tag = "v2"
+new_classes = ["PostRealtimeDurableObject"]

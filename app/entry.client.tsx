@@ -1,5 +1,5 @@
 import {RemixBrowser} from "@remix-run/react";
-import React from "react";
+import React, {startTransition} from "react";
 import ReactDom, {hydrateRoot} from "react-dom/client";
 import {AppContext, AppContextProvider} from "~/client/context/app_context";
 import {ReactContextModule} from "~/client/context/react_context_module";
@@ -37,17 +37,20 @@ const context: AppContext = Context.new({
     }),
 });
 
-hydrateRoot(
-    document,
-    <AppContextProvider value={context}>
-        <RemixBrowser />
-    </AppContextProvider>,
-    {
-        onRecoverableError: error => {
-            tracer.logUncaughtException("Recoverable React error", error);
+// Don't block the browser's main thread with the initial render.
+startTransition(() => {
+    hydrateRoot(
+        document,
+        <AppContextProvider value={context}>
+            <RemixBrowser />
+        </AppContextProvider>,
+        {
+            onRecoverableError: error => {
+                tracer.logUncaughtException("Recoverable React error", error);
+            },
         },
-    },
-);
+    );
+});
 
 attachDevConsole();
 

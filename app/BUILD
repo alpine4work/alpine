@@ -46,6 +46,7 @@ ts_project(
         "//server/documents",
         "//server/dynamo",
         "//server/emails",
+        "//server/posts",
         "//server/remix",
         "//server/rpc",
         "//server/tracer",

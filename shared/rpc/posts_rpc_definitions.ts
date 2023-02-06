@@ -1,4 +1,3 @@
-import {MessageContentSchema} from "~/shared/content/message_content_schema";
 import {PostContentSchema} from "~/shared/content/post_content_schema";
 import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
@@ -19,37 +18,6 @@ export const createPost = defineRpc({
             createdTime: Schema.date,
         }),
     },
-});
-
-export const createPostComment = defineRpc({
-    name: "createPostComment",
-    input: {
-        postId: Schema.id<PostId>(),
-        parentCommentIndex: Schema.integer.nullable(),
-        content: MessageContentSchema,
-    },
-    output: {},
-});
-
-export const updatePostCommentContent = defineRpc({
-    name: "updatePostCommentContent",
-    input: {
-        postId: Schema.id<PostId>(),
-        commentIndex: Schema.integer,
-        content: MessageContentSchema,
-    },
-    output: {
-        contentUpdatedTime: Schema.date,
-    },
-});
-
-export const deletePostComment = defineRpc({
-    name: "deletePostComment",
-    input: {
-        postId: Schema.id<PostId>(),
-        commentIndex: Schema.integer,
-    },
-    output: {},
 });
 
 export const getPostCommentAuthors = defineRpc({

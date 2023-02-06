@@ -25,12 +25,12 @@ import {ProcessContextModule} from "~/shared/context/process_context_module";
 import {TracerContextModule} from "~/shared/context/tracer_context_module";
 import {InternalError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {DocumentId} from "~/shared/id/types/id_types";
 import {ClientInfoSchema} from "~/shared/remix/client_info";
 import {Schema} from "~/shared/schema/schema";
 
 type AppWorkerEnv = {
     DocumentCollaborationDurableObjectNamespace: DurableObjectNamespace;
+    PostRealtimeDurableObjectNamespace: DurableObjectNamespace;
     DEV_SERVER_PORT?: string;
     DYNAMO_LOCAL_PORT?: string;
     SESSION_COOKIE_SECRET?: string;
@@ -185,7 +185,7 @@ async function handleFetch(
             const path = url.pathname.slice("/durable-objects/".length).split("/");
             switch (path[0]) {
                 case "documents": {
-                    const documentId = Schema.id<DocumentId>().deserialize(path[1] ?? null);
+                    const documentId = Schema.id().deserialize(path[1] ?? null);
                     const pathname = `/${path.slice(2).join("/")}`;
 
                     return fetchFromDurableObjectStub({
@@ -195,6 +195,20 @@ async function handleFetch(
                         request,
                         pathname,
                         idName: documentId,
+                        span,
+                    });
+                }
+                case "posts": {
+                    const postId = Schema.id().deserialize(path[1] ?? null);
+                    const pathname = `/${path.slice(2).join("/")}`;
+
+                    return fetchFromDurableObjectStub({
+                        durableObjectNamespace: env.PostRealtimeDurableObjectNamespace,
+                        sessionCookieSecret: resources.sessionCookieSecret,
+                        sessionCookieStorage: resources.sessionCookieStorage,
+                        request,
+                        pathname,
+                        idName: postId,
                         span,
                     });
                 }
@@ -284,6 +298,5 @@ async function handleFetch(
 
 export default {fetch: handleFetch};
 
-// Export the durable object so Cloudflare can pick it up. in the future, we
-// should maybe use separate bundles for each durable object.
 export {DocumentCollaborationDurableObject} from "~/server/documents/document_collaboration_durable_object";
+export {PostRealtimeDurableObject} from "~/server/posts/post_realtime_durable_object";

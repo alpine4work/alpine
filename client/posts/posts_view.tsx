@@ -15,6 +15,7 @@ import {
 } from "~/client/posts/paginated_post_list";
 import {PostCommentInput} from "~/client/posts/post_comment_input";
 import {PostContentView, postContentViewMinHeight} from "~/client/posts/post_content_view";
+import {PostRealtimeActions} from "~/client/posts/use_post_realtime";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {
     VirtualizedScrollView,
@@ -22,18 +23,14 @@ import {
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view";
 import {RemLength, Spacing, addRemLengths, spacing} from "~/shared/design/spacing";
+import {InternalError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping";
 import {OrderKey} from "~/shared/helpers/sort/order_key";
 import {PostId} from "~/shared/id/types/id_types";
 import {PostCommentModel} from "~/shared/models/post_model";
-import {
-    deletePostComment,
-    getPostCommentsFromEnd,
-    getPostCommentsFromStart,
-    updatePostCommentContent,
-} from "~/shared/rpc/posts_rpc_definitions";
+import {getPostCommentsFromEnd, getPostCommentsFromStart} from "~/shared/rpc/posts_rpc_definitions";
 import {sprinkles} from "~/shared/styles/styles";
 
 const padding: Spacing = "4";
@@ -240,10 +237,14 @@ export function PostsView({
         };
     }, []);
 
+    const actionsByPostIdRef = useRef(new Map<PostId, PostRealtimeActions>());
+
     const messageEditing = useMessageEditing<PostId>({
         onUpdateMessageContent: async ({roomKey, messageIndex, content}) => {
-            await updatePostCommentContent(context, {
-                postId: roomKey,
+            const actions = actionsByPostIdRef.current.get(roomKey);
+            if (!actions) throw new InternalError("Post realtime hook isn't mounted");
+
+            await actions.updatePostCommentContent({
                 commentIndex: messageIndex,
                 content,
             });
@@ -325,8 +326,11 @@ export function PostsView({
                                 nextMessage={nextComment}
                                 messageEditing={messageEditing}
                                 onDeleteMessage={async () => {
-                                    await deletePostComment(context, {
-                                        postId: item.post.id,
+                                    const actions = actionsByPostIdRef.current.get(item.post.id);
+                                    if (!actions)
+                                        throw new InternalError("Post realtime hook isn't mounted");
+
+                                    await actions.deletePostComment({
                                         commentIndex: item.postCommentIndex,
                                     });
                                 }}
@@ -391,6 +395,13 @@ export function PostsView({
                             post={item.post}
                             onFocus={() => onPostCommentInputFocusChange(item.post.id, true)}
                             onBlur={() => onPostCommentInputFocusChange(item.post.id, false)}
+                            actionsRef={actions => {
+                                if (actions) {
+                                    actionsByPostIdRef.current.set(item.post.id, actions);
+                                } else {
+                                    actionsByPostIdRef.current.delete(item.post.id);
+                                }
+                            }}
                         />
                     );
 
@@ -413,132 +424,132 @@ export function PostsView({
 
                             return (
                                 <>
-                                    <div
-                                        style={
-                                            shouldRenderWithRelativePositioning
-                                                ? {position: "relative"}
-                                                : {
-                                                      position: "absolute",
-                                                      top: offset,
-                                                      left: 0,
-                                                      right: 0,
-                                                  }
-                                        }
-                                    >
-                                        <Box
-                                            ref={
-                                                shouldRenderWithRelativePositioning
-                                                    ? ref
-                                                    : undefined
-                                            }
-                                            paddingX={padding}
-                                            paddingBottom={padding}
-                                            style={{height}}
-                                            overflowY="hidden"
+                                    {!shouldRenderWithRelativePositioning && (
+                                        <div
+                                            style={{
+                                                position: "absolute",
+                                                top: offset,
+                                                left: 0,
+                                                right: 0,
+                                            }}
                                         >
                                             <Box
-                                                marginX="auto"
-                                                maxWidth="160"
-                                                height="full"
-                                                backgroundColor="grey-0"
-                                                borderBottomRadius="md"
-                                                boxShadow="elevation-5"
-                                                paddingX="5"
+                                                paddingX={padding}
+                                                paddingBottom={padding}
+                                                style={{height}}
+                                                overflowY="hidden"
                                             >
-                                                {shouldRenderWithRelativePositioning && (
-                                                    <Box
-                                                        borderTop="grey-5"
-                                                        style={{
-                                                            // Remove one pixel from top padding for border.
-                                                            paddingTop: `calc(${spacing["3"]} - 1px)`,
-                                                            paddingBottom: spacing["3"],
-                                                        }}
-                                                    >
-                                                        {inputNode}
-                                                    </Box>
-                                                )}
+                                                <Box
+                                                    marginX="auto"
+                                                    maxWidth="160"
+                                                    height="full"
+                                                    backgroundColor="grey-0"
+                                                    borderBottomRadius="md"
+                                                    boxShadow="elevation-5"
+                                                />
                                             </Box>
-                                        </Box>
+                                        </div>
+                                    )}
+                                    <div
+                                        style={{
+                                            pointerEvents: "none",
+                                            display: "flex",
+                                            justifyContent: "center",
+                                            alignItems: "flex-end",
+                                            zIndex: "20",
+                                            ...(!shouldRenderWithRelativePositioning
+                                                ? {
+                                                      position: "absolute",
+                                                      top: postContentOffsetEnd,
+                                                      left: spacing[padding],
+                                                      right: spacing[padding],
+                                                      height:
+                                                          offset - postContentOffsetEnd + height,
+                                                  }
+                                                : {
+                                                      position: "relative",
+                                                  }),
+                                        }}
+                                    >
+                                        <div
+                                            ref={ref}
+                                            style={{
+                                                ...(!shouldRenderWithRelativePositioning && {
+                                                    position: "sticky",
+                                                    bottom: `-${spacing[padding]}`,
+                                                }),
+                                            }}
+                                            className={sprinkles({
+                                                width: "full",
+                                                overflowX: "hidden",
+                                                paddingBottom: padding,
+                                            })}
+                                        >
+                                            <Box
+                                                display="flex"
+                                                width="full"
+                                                maxWidth="160"
+                                                marginX="auto"
+                                                overflowX="hidden"
+                                                pointerEvents="auto"
+                                                {...(shouldRenderWithRelativePositioning && {
+                                                    // When absolutely positioned we render an element underneath this one at the
+                                                    // end of the post so that while sticky scrolling we don't have double shadows.
+                                                    backgroundColor: "grey-0",
+                                                    borderBottomRadius: "md",
+                                                    boxShadow: "elevation-5",
+                                                })}
+                                            >
+                                                <Box
+                                                    flexShrink="0"
+                                                    alignSelf="stretch"
+                                                    width="5"
+                                                    style={{
+                                                        // Allow full-width top border to be visible until it slides under.
+                                                        paddingTop: 1,
+                                                    }}
+                                                >
+                                                    <Box
+                                                        width="full"
+                                                        height="full"
+                                                        backgroundColor="grey-0"
+                                                        borderBottomLeftRadius="md"
+                                                    />
+                                                </Box>
+                                                <Box
+                                                    flexGrow="1"
+                                                    overflowX="hidden"
+                                                    borderTop="grey-5"
+                                                    backgroundColor="grey-0"
+                                                    style={{
+                                                        // Remove one pixel from top padding for border.
+                                                        paddingTop: `calc(${spacing["3"]} - 1px)`,
+                                                        paddingBottom: spacing["3"],
+                                                    }}
+                                                >
+                                                    {inputNode}
+                                                </Box>
+                                                <Box
+                                                    flexShrink="0"
+                                                    alignSelf="stretch"
+                                                    width="5"
+                                                    style={{
+                                                        // Allow full-width top border to be visible until it slides under.
+                                                        paddingTop: 1,
+                                                    }}
+                                                >
+                                                    <Box
+                                                        width="full"
+                                                        height="full"
+                                                        backgroundColor="grey-0"
+                                                        borderBottomRightRadius="md"
+                                                    />
+                                                </Box>
+                                            </Box>
+                                        </div>
                                     </div>
                                     {!shouldRenderWithRelativePositioning && (
                                         <>
-                                            <div
-                                                style={{
-                                                    position: "absolute",
-                                                    top: postContentOffsetEnd,
-                                                    left: spacing[padding],
-                                                    right: spacing[padding],
-                                                    height: offset - postContentOffsetEnd + height,
-                                                    pointerEvents: "none",
-                                                    display: "flex",
-                                                    justifyContent: "center",
-                                                    alignItems: "flex-end",
-                                                    zIndex: "20",
-                                                }}
-                                            >
-                                                <div
-                                                    ref={ref}
-                                                    style={{
-                                                        position: "sticky",
-                                                        bottom: `-${spacing[padding]}`,
-                                                    }}
-                                                    className={sprinkles({
-                                                        width: "full",
-                                                        maxWidth: "160",
-                                                        overflowX: "hidden",
-                                                        marginX: "auto",
-                                                        pointerEvents: "auto",
-                                                        display: "flex",
-                                                        paddingBottom: padding,
-                                                    })}
-                                                >
-                                                    <Box
-                                                        flexShrink="0"
-                                                        alignSelf="stretch"
-                                                        width="5"
-                                                        style={{
-                                                            // Allow full-width top border to be visible until it slides under.
-                                                            paddingTop: 1,
-                                                        }}
-                                                    >
-                                                        <Box
-                                                            width="full"
-                                                            height="full"
-                                                            backgroundColor="grey-0"
-                                                            borderBottomLeftRadius="md"
-                                                        />
-                                                    </Box>
-                                                    <Box
-                                                        flexGrow="1"
-                                                        overflowX="hidden"
-                                                        borderTop="grey-5"
-                                                        backgroundColor="grey-0"
-                                                        style={{
-                                                            // Remove one pixel from top padding for border.
-                                                            paddingTop: `calc(${spacing["3"]} - 1px)`,
-                                                            paddingBottom: spacing["3"],
-                                                        }}
-                                                    >
-                                                        {inputNode}
-                                                    </Box>
-                                                    <Box
-                                                        flexShrink="0"
-                                                        alignSelf="stretch"
-                                                        width="5"
-                                                        style={{
-                                                            // Allow full-width top border to be visible until it slides under.
-                                                            paddingTop: 1,
-                                                        }}
-                                                    >
-                                                        <Box
-                                                            width="full"
-                                                            height="full"
-                                                            backgroundColor="grey-0"
-                                                            borderBottomRightRadius="md"
-                                                        />
-                                                    </Box>
-                                                </div>
-                                            </div>
                                             <Box
                                                 // Render a white backdrop below the entire post so that when the user is jump
                                                 // scrolling we don't have the pinned comment input and the wash
@@ -611,7 +622,6 @@ export function PostsView({
             onTogglePostComments,
             loadInitialPostComments,
             messageEditing,
-            context,
             onPostCommentInputFocusChange,
         ],
     );

@@ -18,6 +18,7 @@ ts_project(
         "//client/spaces",
         "//shared/helpers",
         "//shared/models",
+        "//shared/posts",
         "//shared/rpc",
     ],
 )
