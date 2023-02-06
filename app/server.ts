@@ -2,12 +2,11 @@ import {AppLoadContext} from "@remix-run/cloudflare";
 import {createRequestHandler, handleAsset} from "@remix-run/cloudflare-workers";
 import * as build from "@remix-run/dev/server-build";
 import {parse as parseCookieHeader} from "cookie";
-import {SignJWT} from "jose";
 import {defaultClientInfo} from "~/client/remix/client_info_context";
 import {createAwsContextModulesFromEnv} from "~/server/aws/create_aws_context_modules_from_env";
+import {fetchFromDurableObjectStub} from "~/server/cloudflare/fetch_from_durable_object_stub";
 import {Session} from "~/server/dynamo/accounts_table";
 import {UnauthenticatedAuthContextModule} from "~/server/dynamo/context/auth_context_module";
-import {unauthenticatedSessionError} from "~/server/dynamo/context/helpers/unauthenticated_session_error";
 import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
 import {seedDynamo} from "~/server/dynamo/seed_dynamo";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base";
@@ -29,7 +28,6 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {DocumentId} from "~/shared/id/types/id_types";
 import {ClientInfoSchema} from "~/shared/remix/client_info";
 import {Schema} from "~/shared/schema/schema";
-import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header";
 
 type AppWorkerEnv = {
     DocumentCollaborationDurableObjectNamespace: DurableObjectNamespace;
@@ -188,38 +186,17 @@ async function handleFetch(
             switch (path[0]) {
                 case "documents": {
                     const documentId = Schema.id<DocumentId>().deserialize(path[1] ?? null);
+                    const pathname = `/${path.slice(2).join("/")}`;
 
-                    const durableObjectId =
-                        env.DocumentCollaborationDurableObjectNamespace.idFromName(documentId);
-                    const durableObjectStub =
-                        env.DocumentCollaborationDurableObjectNamespace.get(durableObjectId);
-
-                    const newUrl = new URL(url);
-                    newUrl.pathname = `/${path.slice(2).join("/")}`;
-                    const newRequest = new Request(newUrl.toString(), event.request);
-                    newRequest.headers.set("cyberworlds-document-id", documentId);
-                    addTracerPropagationContextHeader(newRequest.headers, span);
-
-                    const sessionCookie = await resources.sessionCookieStorage.get(request);
-                    if (!sessionCookie.sessionId) throw unauthenticatedSessionError();
-
-                    // Create a short-lived JWT for sharing the `sessionId` with the durable object.
-                    //
-                    // We use a JWT to ensure that it's our app worker sending the `sessionId`. If
-                    // an attacker got access to the Durable Object URL then they could send a
-                    // request with whatever `sessionId` they have access to! Using a signed JWT
-                    // prevents that.
-                    const authenticationToken = await new SignJWT({
-                        sessionId: sessionCookie.sessionId,
-                    })
-                        .setProtectedHeader({alg: "HS256"})
-                        .setIssuedAt()
-                        .setExpirationTime("2m")
-                        .sign(new TextEncoder().encode(resources.sessionCookieSecret));
-
-                    newRequest.headers.set("authorization", `bearer ${authenticationToken}`);
-
-                    return durableObjectStub.fetch(newRequest);
+                    return fetchFromDurableObjectStub({
+                        durableObjectNamespace: env.DocumentCollaborationDurableObjectNamespace,
+                        sessionCookieSecret: resources.sessionCookieSecret,
+                        sessionCookieStorage: resources.sessionCookieStorage,
+                        request,
+                        pathname,
+                        idName: documentId,
+                        span,
+                    });
                 }
                 default:
                     return new Response("Durable object not found", {status: 404});
