@@ -22,9 +22,9 @@ export class SimpleChatMessageModel
             payload: MessagePayloadSchema,
         }),
     )
-    implements MessageInterface
+    implements MessageInterface<SimpleChatId>
 {
-    public getRoomKey(): string {
+    public getRoomKey() {
         return this.simpleChatId;
     }
 }

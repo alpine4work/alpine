@@ -1,34 +1,57 @@
-import {useMemo, useReducer} from "react";
+import {MutableRefObject, useEffect, useMemo, useReducer} from "react";
 import {ContentEditorState} from "~/client/content/content_editor_state";
+import {useShowToast} from "~/client/design/toast";
+import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {MessageContent} from "~/shared/content/message_content_schema";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {omitObject} from "~/shared/helpers/object/omit_object";
 import {MessageWithContentPayloadInterface} from "~/shared/models/message_interface";
 
-export type MessageEditingState =
+export type MessageEditingState<RoomKey extends string> =
     | {
           readonly isEditing: false;
       }
-    | {
+    | ({
           readonly isEditing: true;
-          readonly messageRoomKey: string;
+          readonly messageRoomKey: RoomKey;
           readonly messageIndex: number;
           readonly contentEditorState: ContentEditorState<MessageContent>;
-      };
+      } & (
+          | {
+                readonly isSaving: false;
+            }
+          | {
+                readonly isSaving: true;
+                readonly isAwaitingSaveRef: MutableRefObject<boolean>;
+                readonly messageNoun: string;
+            }
+      ));
 
-export type MessageEditingAction =
+export type MessageEditingAction<RoomKey extends string> =
     | {
           readonly type: "StartEditing";
-          readonly message: MessageWithContentPayloadInterface;
+          readonly message: MessageWithContentPayloadInterface<RoomKey>;
+      }
+    | {
+          readonly type: "ContentEditorStateChange";
+          readonly contentEditorState: ContentEditorState<MessageContent>;
       }
     | {
           readonly type: "CancelEditing";
       }
     | {
-          readonly type: "ContentEditorStateChange";
-          readonly contentEditorState: ContentEditorState<MessageContent>;
+          readonly type: "SaveEditedContent";
+          readonly messageNoun: string;
+      }
+    | {
+          readonly type: "FinishedSavingContent";
+          readonly shouldCancelEditing: boolean;
       };
 
-function reduce(state: MessageEditingState, action: MessageEditingAction): MessageEditingState {
+function reduce<RoomKey extends string>(
+    state: MessageEditingState<RoomKey>,
+    action: MessageEditingAction<RoomKey>,
+): MessageEditingState<RoomKey> {
     switch (action.type) {
         case "StartEditing": {
             return {
@@ -36,6 +59,15 @@ function reduce(state: MessageEditingState, action: MessageEditingAction): Messa
                 messageRoomKey: action.message.getRoomKey(),
                 messageIndex: action.message.index,
                 contentEditorState: ContentEditorState.create(action.message.payload.content),
+                isSaving: false,
+            };
+        }
+        case "ContentEditorStateChange": {
+            if (!state.isEditing || state.isSaving) return state;
+
+            return {
+                ...state,
+                contentEditorState: action.contentEditorState,
             };
         }
         case "CancelEditing": {
@@ -43,22 +75,38 @@ function reduce(state: MessageEditingState, action: MessageEditingAction): Messa
                 isEditing: false,
             };
         }
-        case "ContentEditorStateChange": {
-            if (!state.isEditing) return state;
+        case "SaveEditedContent": {
+            if (!state.isEditing || state.isSaving) return state;
 
             return {
                 ...state,
-                contentEditorState: action.contentEditorState,
+                isSaving: true,
+                isAwaitingSaveRef: {current: false},
+                messageNoun: action.messageNoun,
             };
+        }
+        case "FinishedSavingContent": {
+            if (!state.isEditing || !state.isSaving) return state;
+
+            if (action.shouldCancelEditing) {
+                return {
+                    isEditing: false,
+                };
+            } else {
+                return {
+                    ...omitObject(state, ["isAwaitingSaveRef", "messageNoun"]),
+                    isSaving: false,
+                };
+            }
         }
         default:
             throw exhaustive(action);
     }
 }
 
-export type MessageEditing = {
-    readonly state: MessageEditingState;
-    readonly dispatch: (action: MessageEditingAction) => void;
+export type MessageEditing<RoomKey extends string> = {
+    readonly state: MessageEditingState<RoomKey>;
+    readonly dispatch: (action: MessageEditingAction<RoomKey>) => void;
 };
 
 /**
@@ -69,7 +117,52 @@ export type MessageEditing = {
  * - We don't want to lose editing state if the message is unmounted by the
  *   virtualized list.
  */
-export function useMessageEditing(): MessageEditing {
-    const [state, dispatch] = useReducer(reduce, {isEditing: false});
+export function useMessageEditing<RoomKey extends string>({
+    onUpdateMessageContent: _onUpdateMessageContent,
+}: {
+    onUpdateMessageContent: (options: {
+        roomKey: RoomKey;
+        messageIndex: number;
+        content: MessageContent;
+    }) => Promise<void>;
+}): MessageEditing<RoomKey> {
+    const showToast = useShowToast();
+
+    const [state, dispatch] = useReducer<
+        (
+            state: MessageEditingState<RoomKey>,
+            action: MessageEditingAction<RoomKey>,
+        ) => MessageEditingState<RoomKey>
+    >(reduce, {isEditing: false});
+
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    const onUpdateMessageContent = useEvent(_onUpdateMessageContent);
+
+    useEffect(() => {
+        if (!state.isEditing || !state.isSaving) return;
+
+        if (state.isAwaitingSaveRef.current) return;
+        state.isAwaitingSaveRef.current = true;
+
+        onUpdateMessageContent({
+            roomKey: state.messageRoomKey,
+            messageIndex: state.messageIndex,
+            content: state.contentEditorState.getContent(),
+        }).then(
+            () => {
+                dispatch({type: "FinishedSavingContent", shouldCancelEditing: true});
+            },
+            error => {
+                showToast({
+                    type: "Error",
+                    title: `Couldn’t update ${state.messageNoun}`,
+                    error,
+                });
+
+                dispatch({type: "FinishedSavingContent", shouldCancelEditing: false});
+            },
+        );
+    }, [onUpdateMessageContent, showToast, state]);
+
     return useMemo(() => ({state, dispatch}), [state]);
 }

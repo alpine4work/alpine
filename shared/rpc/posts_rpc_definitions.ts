@@ -31,6 +31,18 @@ export const createPostComment = defineRpc({
     output: {},
 });
 
+export const updatePostCommentContent = defineRpc({
+    name: "updatePostCommentContent",
+    input: {
+        postId: Schema.id<PostId>(),
+        commentIndex: Schema.integer,
+        content: MessageContentSchema,
+    },
+    output: {
+        contentUpdatedTime: Schema.date,
+    },
+});
+
 export const deletePostComment = defineRpc({
     name: "deletePostComment",
     input: {

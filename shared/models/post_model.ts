@@ -1,4 +1,3 @@
-import {MessageContentSchema} from "~/shared/content/message_content_schema";
 import {PostContentSchema} from "~/shared/content/post_content_schema";
 import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
@@ -54,9 +53,9 @@ export class PostCommentModel
             payload: MessagePayloadSchema,
         }),
     )
-    implements MessageInterface
+    implements MessageInterface<PostId>
 {
-    public getRoomKey(): string {
+    public getRoomKey() {
         return this.postId;
     }
 }

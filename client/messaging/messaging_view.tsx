@@ -19,6 +19,7 @@ import {
     VirtualizedScrollViewRef,
     getInitialVirtualizedScrollViewRenderedItemCount,
 } from "~/client/virtualized/virtualized_scroll_view";
+import {UnimplementedError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {MessageInterface} from "~/shared/models/message_interface";
@@ -175,7 +176,11 @@ export function MessagingView<Message extends MessageInterface>({
         }
     }, [state.isLoading, tryLoadingMore]);
 
-    const messageEditing = useMessageEditing();
+    const messageEditing = useMessageEditing({
+        onUpdateMessageContent: () => {
+            throw new UnimplementedError("TODO");
+        },
+    });
 
     return (
         <VirtualizedScrollView

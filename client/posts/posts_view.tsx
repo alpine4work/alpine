@@ -32,6 +32,7 @@ import {
     deletePostComment,
     getPostCommentsFromEnd,
     getPostCommentsFromStart,
+    updatePostCommentContent,
 } from "~/shared/rpc/posts_rpc_definitions";
 import {sprinkles} from "~/shared/styles/styles";
 
@@ -239,7 +240,15 @@ export function PostsView({
         };
     }, []);
 
-    const messageEditing = useMessageEditing();
+    const messageEditing = useMessageEditing<PostId>({
+        onUpdateMessageContent: async ({roomKey, messageIndex, content}) => {
+            await updatePostCommentContent(context, {
+                postId: roomKey,
+                commentIndex: messageIndex,
+                content,
+            });
+        },
+    });
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {
@@ -310,7 +319,7 @@ export function PostsView({
                     const node =
                         item.type === "LoadedPostComment" ? (
                             <MessageView
-                                label="comment"
+                                messageNoun="comment"
                                 message={item.postComment}
                                 previousMessage={previousComment}
                                 nextMessage={nextComment}

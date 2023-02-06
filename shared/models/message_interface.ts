@@ -5,7 +5,7 @@ import {Schema, SchemaType} from "~/shared/schema/schema";
 /**
  * The interface for a message to be rendered by our messaging UI.
  */
-export interface MessageInterface {
+export interface MessageInterface<RoomKey extends string = string> {
     /**
      * Message indexes are positive integers that are unique within a room and are
      * incremented sequentially.
@@ -37,10 +37,11 @@ export interface MessageInterface {
     /**
      * Get a key for the room the message is in.
      */
-    getRoomKey(): string;
+    getRoomKey(): RoomKey;
 }
 
-export interface MessageWithContentPayloadInterface extends MessageInterface {
+export interface MessageWithContentPayloadInterface<RoomKey extends string = string>
+    extends MessageInterface<RoomKey> {
     readonly payload: MessageContentPayload;
 }
 
