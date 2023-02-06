@@ -392,11 +392,11 @@ class WebSocketServerConnectionWrapper<
                 } catch (error) {
                     this._processContext.tracer
                         .getRoot()
-                        .logUncaughtException("Invalid message from WebSocket connection", error);
+                        .logUncaughtException("Invalid WebSocket message", error);
                     return;
                 }
 
-                const spanName = "Received message from WebSocket connection";
+                const spanName = "Received WebSocket message";
                 let span: TracerSpan;
                 let finishSpan: () => void;
                 try {
@@ -445,12 +445,6 @@ class WebSocketServerConnectionWrapper<
                                 // knows we are alive and didn't silently disconnect.
                                 case "Ping": {
                                     this.sendMessage(context, {type: "Pong"});
-                                    break;
-                                }
-                                // In response to a pong event, we update the last message time for this
-                                // connection and that's it. Pong events only let us know the client is
-                                // still alive.
-                                case "Pong": {
                                     break;
                                 }
                                 case "Message": {
@@ -518,14 +512,6 @@ class WebSocketServerConnectionWrapper<
         // the client's power went out and it silently went away without telling us.
         if (currentTimeMs - this._lastMessageTimeMs >= webSocketExpirationTimeoutMs) {
             this.close(context, 1002, "WebSocket connection expired due to inactivity");
-            return;
-        }
-
-        // If we are halfway to our expiration time send a ping message. The client
-        // should immediately send back a pong message updating which updates the last
-        // message time and prevents the client from expiring.
-        if (currentTimeMs - this._lastMessageTimeMs >= webSocketExpirationTimeoutMs / 2) {
-            this.sendMessage(context, {type: "Ping"});
             return;
         }
     }

@@ -14,7 +14,6 @@ import {assert} from "~/shared/helpers/control/assert";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {quote} from "~/shared/helpers/string/quote";
-import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit";
 import {generateId} from "~/shared/id/id";
 import {WebSocketMessageId} from "~/shared/id/types/id_types";
 import {Schema, SchemaDeserializationError, UnionSchema} from "~/shared/schema/schema";
@@ -157,7 +156,7 @@ export class WebSocketClient<
      * the socket connects.
      */
     public sendMessage(message: MessageFromClient): Promise<void> {
-        return this._context.tracer.withSpan("Send WebSocket message", async (context, span) => {
+        return this._context.tracer.withSpan("Sent WebSocket message", async (context, span) => {
             const messageId = generateId<WebSocketMessageId>();
 
             span.addData({webSocket: {messageType: message.type}});
@@ -219,8 +218,23 @@ export class WebSocketClient<
 
         const sendPing = () => {
             if (this._state.type === "connected" && this._state.socket === socket) {
-                if (pongPromiseResolver === null) pongPromiseResolver = createPromiseResolver();
-                sendMessage({type: "Ping"}, pongPromiseResolver);
+                void this._context.tracer.withSpan(
+                    "Sent WebSocket message",
+                    async (context, span) => {
+                        span.addData({webSocket: {messageType: "Ping"}});
+
+                        if (pongPromiseResolver === null)
+                            pongPromiseResolver = createPromiseResolver();
+
+                        const serializedMessage = this._messageFromClientSchema.serialize({
+                            type: "Ping",
+                            tracerContext: span.getPropagationContext(),
+                        });
+                        socket.send(JSON.stringify(serializedMessage));
+
+                        return pongPromiseResolver.promise;
+                    },
+                );
             }
         };
 
@@ -366,12 +380,6 @@ export class WebSocketClient<
                     }
                     break;
                 }
-                case "Ping": {
-                    const promiseResolver = createPromiseResolver();
-                    sendMessage({type: "Pong"}, promiseResolver);
-                    promiseResolver.resolve();
-                    break;
-                }
                 case "Pong": {
                     pingTimeout?.clear();
                     pingTimeout = createTimeout(sendPing, webSocketExpirationTimeoutMs / 2);
@@ -384,30 +392,5 @@ export class WebSocketClient<
                     throw exhaustive(message);
             }
         });
-
-        const sendMessage = (
-            message: DistributiveOmit<
-                WebSocketMessageFromClient<MessageFromClient>,
-                "tracerContext"
-            >,
-            promiseResolver: PromiseResolver<void>,
-        ) => {
-            void this._context.tracer.withSpan("Send WebSocket message", async (context, span) => {
-                span.addData({
-                    webSocket: {
-                        messageType:
-                            message.type === "Message" ? message.message.type : message.type,
-                    },
-                });
-
-                const serializedMessage = this._messageFromClientSchema.serialize({
-                    ...message,
-                    tracerContext: span.getPropagationContext(),
-                });
-                socket.send(JSON.stringify(serializedMessage));
-
-                return promiseResolver.promise;
-            });
-        };
     }
 }

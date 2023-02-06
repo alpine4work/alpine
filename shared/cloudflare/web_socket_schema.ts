@@ -19,10 +19,6 @@ export type WebSocketMessageFromClient<Message extends {type: string}> =
     | {
           readonly type: "Ping";
           readonly tracerContext: TracerSpanPropagationContext;
-      }
-    | {
-          readonly type: "Pong";
-          readonly tracerContext: TracerSpanPropagationContext;
       };
 
 const TracerPropagationContextSchema = Schema.object({
@@ -45,10 +41,6 @@ export function createWebSocketMessageFromClientSchema<Message extends {type: st
             type: Schema.value("Ping"),
             tracerContext: TracerPropagationContextSchema,
         }),
-        Pong: Schema.object({
-            type: Schema.value("Pong"),
-            tracerContext: TracerPropagationContextSchema,
-        }),
     });
 }
 
@@ -66,9 +58,6 @@ export type WebSocketMessageFromServer<Message extends {type: string}> =
           readonly type: "AcknowledgeMessage";
           readonly messageId: WebSocketMessageId;
           readonly result: {readonly ok: true} | {readonly ok: false; readonly error: unknown};
-      }
-    | {
-          readonly type: "Ping";
       }
     | {
           readonly type: "Pong";
@@ -89,9 +78,6 @@ export function createWebSocketMessageFromServerSchema<Message extends {type: st
                 Schema.object({ok: Schema.value(true)}),
                 Schema.object({ok: Schema.value(false), error: ErrorSchema}),
             ),
-        }),
-        Ping: Schema.object({
-            type: Schema.value("Ping"),
         }),
         Pong: Schema.object({
             type: Schema.value("Pong"),
