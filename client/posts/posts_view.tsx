@@ -537,13 +537,13 @@ export function PostsView({
                                                 position="absolute"
                                                 left={padding}
                                                 right={padding}
-                                                width="full"
                                                 maxWidth="160"
                                                 marginX="auto"
                                                 backgroundColor="grey-0"
                                                 zIndex="-10"
                                                 borderTopRadius="md"
                                                 style={{
+                                                    width: `calc(100% - ${spacing[padding]} * 2)`,
                                                     top:
                                                         item.postContentItemIndex === 0
                                                             ? `calc(${
