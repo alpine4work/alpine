@@ -623,7 +623,7 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
             sendMessage({
                 type: "BackfillRequest",
                 version: versionRef.current,
-            });
+            }).catch(error => setErrorState({hasError: true, error}));
         }
 
         // NOTE(calebmer): Be careful about what you put into this dependency array! We
@@ -653,7 +653,7 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
                           }
                         : null,
                 },
-            });
+            }).catch(error => setErrorState({hasError: true, error}));
 
             state.pendingSendableSteps.shouldSendToServerRef.current = false;
             state.ourPresenceState.shouldSendToServerRef.current = false;
@@ -670,7 +670,7 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
                           ),
                       }
                     : null,
-            });
+            }).catch(error => setErrorState({hasError: true, error}));
 
             state.ourPresenceState.shouldSendToServerRef.current = false;
         }
@@ -695,7 +695,7 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
             sendMessage({
                 type: "UpdateOurPresenceState",
                 state: null,
-            });
+            }).catch(error => setErrorState({hasError: true, error}));
         }, cursorDisappearTimeoutMs);
 
         return () => {

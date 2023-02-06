@@ -8,7 +8,6 @@ import {
     TraceId,
     TraceSpanId,
     WebSocketConnectionId,
-    WebSocketMessageId,
 } from "~/shared/id/types/id_types";
 import type {TracerEventHttpHeaderName} from "~/shared/tracer/helpers/tracer_event_http_header_names";
 

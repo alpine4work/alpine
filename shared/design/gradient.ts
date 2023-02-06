@@ -1,6 +1,6 @@
 import {interpolateHcl} from "d3-interpolate";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length";
 import {Easing} from "~/shared/design/easing";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length";
 import {invLerp} from "~/shared/helpers/number/inv_lerp";
 
 type ColorString = string;

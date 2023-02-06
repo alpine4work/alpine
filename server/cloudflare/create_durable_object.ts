@@ -60,7 +60,12 @@ export function createDurableObject<
         idName: string;
         destroy: () => void;
     }) => Promise<DurableObject>;
-}) {
+}): {
+    new (state: DurableObjectState, env: DurableObjectEnv): {
+        fetch(request: Request): Promise<Response>;
+        alarm?(): Promise<void>;
+    };
+} {
     return class DurableObjectWrapper {
         private readonly _state: DurableObjectState;
         private readonly _sessionCookieSecret: string;

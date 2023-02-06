@@ -11,6 +11,8 @@ ts_project(
         "//server/aws",
         "//server/dynamo",
         "//server/remix",
+        "//server/tracer",
+        "//shared/cloudflare",
         "//shared/context",
         "//shared/error",
         "//shared/helpers",
