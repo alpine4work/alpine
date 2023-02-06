@@ -25,8 +25,8 @@ export interface WebSocketServerConnectionBase<MessageFromClient extends {type: 
 }
 
 /**
- * A helper for communicating over WebSockets. See `WebSocketClient` for the
- * client side of this helper.
+ * A helper for communicating over WebSockets in a Durable Object. See
+ * `WebSocketClient` for the client side of this class.
  */
 export class WebSocketServer<
     MessageFromClient extends {type: string},
