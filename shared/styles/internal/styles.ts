@@ -18,6 +18,7 @@ export * as contentSchemaStyles from "~/shared/styles/internal/content_schema.cs
 export * as documentBlobsStyles from "~/shared/styles/internal/document_blobs.css";
 export * from "~/shared/styles/internal/fonts.css";
 export * from "~/shared/styles/internal/input_placeholder_color.css";
+export * as modalDialogStyles from "~/shared/styles/internal/modal_dialog.css";
 export * from "~/shared/styles/internal/overlay_animated.css";
 export * from "~/shared/styles/internal/sprinkles.css";
 export * as toastStyles from "~/shared/styles/internal/toast.css";

@@ -1,13 +1,15 @@
 import {X} from "phosphor-react";
-import {useEffect, useId, useRef} from "react";
+import {useEffect, useId, useRef, useState} from "react";
 import {FocusScope} from "react-aria";
 import {createPortal} from "react-dom";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
 import {IconButton} from "~/client/design/icon_button";
 import {OverlayScopeContextProvider, useOverlayRootPortalElement} from "~/client/design/overlay";
+import {useEvent} from "~/client/helpers/lifecycle/use_event";
+import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles";
+import {contentSchemaStyles, modalDialogStyles, sprinkles} from "~/shared/styles/styles";
 
 /**
  * Present information to the user, blocking their experience, and ask them to
@@ -32,7 +34,7 @@ export function ModalDialog({
     primaryButtonPressErrorTitle,
     onPrimaryButtonPress,
     isPrimaryButtonDestructive,
-    onClose,
+    onClose: _onActuallyClose,
 }: {
     title: string;
     description: string;
@@ -46,6 +48,7 @@ export function ModalDialog({
     const titleId = useId();
     const descriptionId = useId();
     const primaryButtonRef = useRef<HTMLButtonElement>(null);
+    const [isFadingOut, setIsFadingOut] = useState(false);
 
     // Immediately focus the primary button.
     useEffect(() => {
@@ -55,17 +58,36 @@ export function ModalDialog({
         primaryButtonElement.focus();
     }, [portalElement]);
 
+    const onActuallyClose = useEvent(_onActuallyClose);
+    useEffect(() => {
+        if (!isFadingOut) return;
+        const timeout = createTimeout(onActuallyClose, modalDialogStyles.modalFadeOutDuration);
+        return () => timeout.clear();
+    }, [isFadingOut, onActuallyClose]);
+
+    const onClose = () => setIsFadingOut(true);
+
     if (!portalElement) return null;
 
     return createPortal(
-        <Box position="fixed" inset="0" display="flex" justifyContent="center" alignItems="center">
+        <Box
+            position="fixed"
+            inset="0"
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
+            style={{animation: isFadingOut ? modalDialogStyles.modalFadeOutAnimation : undefined}}
+        >
             <OverlayScopeContextProvider>
                 <Box
                     position="absolute"
                     inset="0"
                     zIndex="-10"
                     backgroundColor="grey-dark"
-                    style={{opacity: 0.6}}
+                    style={{
+                        opacity: modalDialogStyles.modalUnderlayOpacity,
+                        animation: modalDialogStyles.modalUnderlayFadeInAnimation,
+                    }}
                     // If the underlay is clicked, we close the modal. This element is not
                     // focusable or keyboard accessible. You can hit the "Escape" key as a shortcut
                     // to close the modal.
@@ -89,66 +111,78 @@ export function ModalDialog({
                             zIndex: "0",
                             maxWidth: "128",
                             width: "full",
-                            padding: "7",
+                            paddingX: "7",
+                            paddingTop: "7",
                             paddingBottom: "5",
                             margin: "3",
                             backgroundColor: "grey-0",
                             boxShadow: "elevation-40",
                             borderRadius: "md",
                         })}
+                        style={{
+                            animation: modalDialogStyles.modalOverlayFadeInAnimation,
+                        }}
                     >
-                        <h2
-                            id={titleId}
-                            className={sprinkles({
-                                fontStyle: "semi-bold",
-                                fontSize: "300",
-                                paddingBottom: "2",
-                                // Make sure our heading doesn't collide with the close button.
-                                paddingRight: "6",
-                                borderBottom: "grey-5",
-                                userSelect: "text",
-                            })}
-                        >
-                            {title}
-                        </h2>
                         <Box
-                            id={descriptionId}
-                            userSelect="text"
-                            paddingTop="4"
-                            paddingBottom="6"
-                            style={contentSchemaStyles.paragraphFontSize}
+                            style={{
+                                animation: isFadingOut
+                                    ? modalDialogStyles.modalContentFadeOutAnimation
+                                    : modalDialogStyles.modalContentFadeInAnimation,
+                            }}
                         >
-                            {description}
-                        </Box>
-                        <Box display="flex" justifyContent="flex-end" gap="2">
-                            <Button onPress={onClose}>Cancel</Button>
-                            <Button
-                                ref={primaryButtonRef}
-                                variant={isPrimaryButtonDestructive ? "destructive" : "accent"}
-                                pressErrorTitle={primaryButtonPressErrorTitle}
-                                onPress={() => {
-                                    const promise = onPrimaryButtonPress();
-                                    if (promise instanceof Promise) {
-                                        return promise.then(onClose, error => {
-                                            throw error;
-                                        });
-                                    } else {
-                                        onClose();
-                                    }
-                                }}
+                            <h2
+                                id={titleId}
+                                className={sprinkles({
+                                    fontStyle: "semi-bold",
+                                    fontSize: "300",
+                                    paddingBottom: "2",
+                                    // Make sure our heading doesn't collide with the close button.
+                                    paddingRight: "6",
+                                    borderBottom: "grey-5",
+                                    userSelect: "text",
+                                })}
                             >
-                                {primaryButtonLabel}
-                            </Button>
-                        </Box>
-                        <Box position="absolute" top="2" right="2">
-                            <IconButton
-                                size="xs"
-                                description="Close"
-                                onPress={onClose}
-                                withoutTooltip={true}
+                                {title}
+                            </h2>
+                            <Box
+                                id={descriptionId}
+                                userSelect="text"
+                                paddingTop="4"
+                                paddingBottom="6"
+                                style={contentSchemaStyles.paragraphFontSize}
                             >
-                                <X />
-                            </IconButton>
+                                {description}
+                            </Box>
+                            <Box display="flex" justifyContent="flex-end" gap="2">
+                                <Button onPress={onClose}>Cancel</Button>
+                                <Button
+                                    ref={primaryButtonRef}
+                                    variant={isPrimaryButtonDestructive ? "destructive" : "accent"}
+                                    pressErrorTitle={primaryButtonPressErrorTitle}
+                                    onPress={() => {
+                                        const promise = onPrimaryButtonPress();
+                                        if (promise instanceof Promise) {
+                                            return promise.then(onClose, error => {
+                                                throw error;
+                                            });
+                                        } else {
+                                            onClose();
+                                        }
+                                    }}
+                                >
+                                    {primaryButtonLabel}
+                                </Button>
+                            </Box>
+                            <Box position="absolute" top="2" right="2">
+                                <IconButton
+                                    size="xs"
+                                    description="Close"
+                                    onPress={onClose}
+                                    withoutTooltip={true}
+                                >
+                                    <X />
+                                </IconButton>
+                            </Box>
                         </Box>
                     </section>
                 </FocusScope>
