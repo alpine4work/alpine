@@ -1,5 +1,5 @@
+import {ErrorDisplayMessageRenderer} from "~/client/design/error_display_message_renderer";
 import {InlineAlert} from "~/client/design/inline_alert";
-import {ErrorDisplayMessageRenderer} from "~/client/error/error_display_message_renderer";
 
 /**
  * Renders an error message inline with some other content.

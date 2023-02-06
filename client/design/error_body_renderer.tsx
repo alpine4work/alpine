@@ -1,6 +1,6 @@
 import {Warning} from "phosphor-react";
 import {Box} from "~/client/design/box";
-import {ErrorDisplayMessageRenderer} from "~/client/error/error_display_message_renderer";
+import {ErrorDisplayMessageRenderer} from "~/client/design/error_display_message_renderer";
 import {fontSizes, sprinkles} from "~/shared/styles/styles";
 
 /**

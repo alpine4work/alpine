@@ -22,7 +22,7 @@ import {
 import {UnimplementedError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {MessageInterface} from "~/shared/models/message_interface";
+import {MessageInterface, MessageRoomKeyType} from "~/shared/models/message_interface";
 import {ClientInfo} from "~/shared/remix/client_info";
 
 /**
@@ -176,7 +176,7 @@ export function MessagingView<Message extends MessageInterface>({
         }
     }, [state.isLoading, tryLoadingMore]);
 
-    const messageEditing = useMessageEditing({
+    const messageEditing = useMessageEditing<MessageRoomKeyType<Message>>({
         onUpdateMessageContent: () => {
             throw new UnimplementedError("TODO");
         },
@@ -212,6 +212,9 @@ export function MessagingView<Message extends MessageInterface>({
                             previousMessage={previousMessage}
                             nextMessage={nextMessage}
                             messageEditing={messageEditing}
+                            onDeleteMessage={() => {
+                                throw new UnimplementedError("TODO");
+                            }}
                         />
                     ) : (
                         <MessageShimmer

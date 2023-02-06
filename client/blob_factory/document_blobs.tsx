@@ -6,8 +6,8 @@ import {
     drawBlobFactoryToCanvas,
     getInterpolatedThemeColor,
 } from "~/client/blob_factory/internal/draw_blob_factory";
-import {useColorScheme} from "~/client/design/color_scheme";
 import {useDevConsoleSettingsObject} from "~/client/dev/dev_console";
+import {useColorScheme} from "~/client/helpers/color_scheme";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer";
 import {colors} from "~/shared/design/colors";

@@ -35,7 +35,6 @@ ts_project(
         "//client/design",
         "//client/dev",
         "//client/documents",
-        "//client/error",
         "//client/helpers",
         "//client/messaging",
         "//client/posts",

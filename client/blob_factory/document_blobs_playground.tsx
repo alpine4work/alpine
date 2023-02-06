@@ -8,8 +8,8 @@ import {
 import {ContentEditor} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {Box} from "~/client/design/box";
-import {ColorSchemeToggleButton} from "~/client/design/color_scheme_toggle_button";
 import {IconButton} from "~/client/design/icon_button";
+import {ColorSchemeToggleButton} from "~/client/design/playground/color_scheme_toggle_button";
 import {TextInput} from "~/client/design/text_input";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer";

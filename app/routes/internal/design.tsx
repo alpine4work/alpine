@@ -1,5 +1,5 @@
 import {Box} from "~/client/design/box";
-import {ColorSchemeToggleButton} from "~/client/design/color_scheme_toggle_button";
+import {ColorSchemeToggleButton} from "~/client/design/playground/color_scheme_toggle_button";
 import {DesignPlaygroundTooltipPage} from "~/client/design/playground/design_playground_tooltip_page";
 import {sprinkles} from "~/shared/styles/styles";
 

@@ -15,14 +15,14 @@ import prosemirrorStylesHref from "prosemirror-view/style/prosemirror.css";
 import {useContext, useEffect, useMemo} from "react";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
-import {
-    InitializeColorSchemeScript,
-    getColorSchemeWithoutListening,
-} from "~/client/design/color_scheme";
+import {ErrorBodyRenderer} from "~/client/design/error_body_renderer";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {ToastContextProvider} from "~/client/design/toast";
 import {TooltipCoordinationContextProvider} from "~/client/design/tooltip";
-import {ErrorBodyRenderer} from "~/client/error/error_body_renderer";
+import {
+    InitializeColorSchemeScript,
+    getColorSchemeWithoutListening,
+} from "~/client/helpers/color_scheme";
 import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useStableValue} from "~/client/helpers/use_stable_value";
 import {ClientInfoContextProvider, defaultClientInfo} from "~/client/remix/client_info_context";

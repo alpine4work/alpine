@@ -22,9 +22,9 @@ import {MessageContent} from "~/shared/content/message_content_schema";
 import {RemLength, Spacing, addRemLengths, spacing} from "~/shared/design/spacing";
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {PostId} from "~/shared/id/types/id_types";
 import {
     MessageInterface,
+    MessageRoomKeyType,
     MessageWithContentPayloadInterface,
 } from "~/shared/models/message_interface";
 import {
@@ -50,7 +50,7 @@ const messageBubbleMinWidth: Spacing = "6";
 
 const mergeMessageMinuteLimit = 5;
 
-export function MessageView({
+export function MessageView<Message extends MessageInterface>({
     messageNoun = "message",
     messageStartOfSentenceNoun = messageNoun.slice(0).toUpperCase() + messageNoun.slice(1),
     message,
@@ -61,10 +61,10 @@ export function MessageView({
 }: {
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
-    message: MessageInterface;
-    previousMessage: MessageInterface | null;
-    nextMessage: MessageInterface | null;
-    messageEditing: MessageEditing<PostId>;
+    message: Message;
+    previousMessage: Message | null;
+    nextMessage: Message | null;
+    messageEditing: MessageEditing<MessageRoomKeyType<Message>>;
     onDeleteMessage: () => Promise<void>;
 }) {
     const shouldMergeWithPreviousMessage: boolean =
@@ -136,7 +136,11 @@ export function MessageView({
                     <MessageWithContentPayloadView
                         messageNoun={messageNoun}
                         messageStartOfSentenceNoun={messageStartOfSentenceNoun}
-                        message={message as MessageWithContentPayloadInterface<PostId>}
+                        message={
+                            message as unknown as MessageWithContentPayloadInterface<
+                                MessageRoomKeyType<Message>
+                            >
+                        }
                         shouldMergeWithPreviousMessage={shouldMergeWithPreviousMessage}
                         shouldMergeWithNextMessage={shouldMergeWithNextMessage}
                         messageEditing={messageEditing}
@@ -155,7 +159,7 @@ export function MessageView({
     );
 }
 
-function MessageWithContentPayloadView({
+function MessageWithContentPayloadView<Message extends MessageInterface>({
     messageNoun,
     messageStartOfSentenceNoun,
     message,
@@ -167,10 +171,10 @@ function MessageWithContentPayloadView({
 }: {
     messageNoun: string;
     messageStartOfSentenceNoun: string;
-    message: MessageWithContentPayloadInterface<PostId>;
+    message: MessageWithContentPayloadInterface<MessageRoomKeyType<Message>>;
     shouldMergeWithPreviousMessage: boolean;
     shouldMergeWithNextMessage: boolean;
-    messageEditing: MessageEditing<PostId>;
+    messageEditing: MessageEditing<MessageRoomKeyType<Message>>;
     isHovered: boolean;
     onDeleteMessage: () => Promise<void>;
 }) {
@@ -432,12 +436,12 @@ function MessageContentEditor({
     );
 }
 
-function MessageContentEditorInstructionsOverlay({
+function MessageContentEditorInstructionsOverlay<RoomKey extends string>({
     messageNoun,
     messageEditing,
 }: {
     messageNoun: string;
-    messageEditing: MessageEditing<PostId>;
+    messageEditing: MessageEditing<RoomKey>;
 }) {
     const isSaving = messageEditing.state.isEditing && messageEditing.state.isSaving;
 

@@ -4,7 +4,7 @@ import {
     getColorSchemeWithoutListening,
     setColorScheme,
     toggleColorScheme,
-} from "~/client/design/color_scheme";
+} from "~/client/helpers/color_scheme";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";

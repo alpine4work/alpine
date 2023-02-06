@@ -7,7 +7,7 @@
  */
 
 import {assignVars, createGlobalTheme, fontFace, globalStyle} from "@vanilla-extract/css";
-import {mobilePlatformMediaQuery} from "~/shared/design/spacing";
+import {RemLength, mobilePlatformMediaQuery} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
 
@@ -365,7 +365,13 @@ globalStyle(":root", {
  * [3]: https://spectrum.adobe.com/page/typography
  * [4]: https://www.untitledui.com
  */
-export const fontSizes = mapObjectValues(fontSizesByPlatform, ({desktop, mobile}, fontSizeName) => {
+export const fontSizes: {
+    [K in keyof typeof fontSizesByPlatform]: {
+        fontSize: string;
+        letterSpacing: string;
+        lineHeight: RemLength;
+    };
+} = mapObjectValues(fontSizesByPlatform, ({desktop, mobile}, fontSizeName) => {
     assert(desktop.lineHeight === mobile.lineHeight);
     return {
         fontSize: fontSizeVars.font[fontSizeName].fontSize,

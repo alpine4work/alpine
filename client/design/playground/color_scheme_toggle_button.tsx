@@ -1,6 +1,6 @@
 import {Moon, Sun} from "phosphor-react";
-import {toggleColorScheme, useColorScheme} from "~/client/design/color_scheme";
 import {IconButton} from "~/client/design/icon_button";
+import {toggleColorScheme, useColorScheme} from "~/client/helpers/color_scheme";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {
     hiddenIfDarkColorSchemeClassName,

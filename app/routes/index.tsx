@@ -5,12 +5,12 @@ import {redirectToAuthenticatedHome} from "~/app/helpers/redirect_to_authenticat
 import {DocumentBlobFactory, useDocumentBlobSettings} from "~/client/blob_factory/document_blobs";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
+import {ErrorInlineAlert} from "~/client/design/error_inline_alert";
 import {FocusRing} from "~/client/design/focus_ring";
 import {InlineAlert} from "~/client/design/inline_alert";
 import {MultilineTextInput} from "~/client/design/multiline_text_input";
 import {Spacer} from "~/client/design/spacer";
 import {TextInput} from "~/client/design/text_input";
-import {ErrorInlineAlert} from "~/client/error/error_inline_alert";
 import {useActionDataWithSchema} from "~/client/remix/use_action_data_with_schema";
 import {requestAlphaAccess} from "~/server/dynamo/alpha_access_table";
 import {validateEmailAddress} from "~/server/emails/email_address";

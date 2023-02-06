@@ -2,6 +2,9 @@ import {MessageContentSchema} from "~/shared/content/message_content_schema";
 import {AccountModel} from "~/shared/models/account_model";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 
+export type MessageRoomKeyType<Message extends MessageInterface<string>> =
+    Message extends MessageInterface<infer RoomKey> ? RoomKey : never;
+
 /**
  * The interface for a message to be rendered by our messaging UI.
  */

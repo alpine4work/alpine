@@ -9,7 +9,7 @@ ts_project(
     deps = [
         "//:node_modules/@types/react",
         "//:node_modules/react",
-        "//client/design",
+        "//client/helpers",
         "//shared/helpers",
         "//shared/id",
         "//shared/schema",

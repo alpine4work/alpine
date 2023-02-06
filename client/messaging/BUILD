@@ -12,6 +12,7 @@ ts_project(
         "//:node_modules/react",
         "//client/accounts",
         "//client/content",
+        "//client/spaces",
         "//client/virtualized",
         "//shared/helpers",
         "//shared/models",

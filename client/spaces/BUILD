@@ -10,5 +10,6 @@ ts_project(
         "//:node_modules/@types/react",
         "//:node_modules/react",
         "//shared/helpers",
+        "//shared/models",
     ],
 )

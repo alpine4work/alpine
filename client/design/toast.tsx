@@ -14,10 +14,10 @@ import {
     useState,
 } from "react";
 import {Box} from "~/client/design/box";
+import {ErrorDisplayMessageRenderer} from "~/client/design/error_display_message_renderer";
 import {IconButton} from "~/client/design/icon_button";
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants";
 import {useDevConsoleTool} from "~/client/dev/dev_console";
-import {ErrorDisplayMessageRenderer} from "~/client/error/error_display_message_renderer";
 import {spacing} from "~/shared/design/spacing";
 import {InternalError, InvalidArgumentError} from "~/shared/error/error";
 import {createTimeout} from "~/shared/helpers/async/timeout";
