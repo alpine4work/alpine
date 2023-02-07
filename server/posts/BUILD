@@ -8,11 +8,13 @@ ts_project(
         "//server:__subpackages__",
     ],
     deps = [
+        "//server/cloudflare",
         "//server/dynamo",
         "//shared/error",
         "//shared/helpers",
         "//shared/id",
         "//shared/models",
+        "//shared/posts",
         "//shared/schema",
     ],
 )

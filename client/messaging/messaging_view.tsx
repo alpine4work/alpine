@@ -164,6 +164,8 @@ export function MessagingView<Message extends MessageInterface>({
                             previousMessage={previousMessage}
                             nextMessage={nextMessage}
                             messageEditing={messageEditing}
+                            // TODO(calebmer): Implement this properly
+                            disableExpensiveFeaturesDuringScroll={false}
                             onDeleteMessage={() => {
                                 throw new UnimplementedError("TODO");
                             }}

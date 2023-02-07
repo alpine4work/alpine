@@ -4,19 +4,19 @@ import {createTestContext} from "~/server/dynamo/test/create_test_context";
 import {createTestSession} from "~/server/dynamo/test/create_test_session";
 import {createTestSpace} from "~/server/dynamo/test/create_test_space";
 import {
+    PostRealtimeDurableObjectConnection,
     postRealtimeBackfillCommentsBeforeFlushTestCheckpoint,
     postRealtimeCreateCommentBeforeSendTestCheckpoint,
-    PostRealtimeDurableObjectConnection,
 } from "~/server/posts/post_realtime_durable_object_connection";
 import {
-    assertMessageContent,
     MessageContentProsemirrorSchema,
+    assertMessageContent,
 } from "~/shared/content/message_content_schema";
 import {
     PostContentProsemirrorSchema,
     assertPostContent,
 } from "~/shared/content/post_content_schema";
-import {PostCommentModel} from "~/shared/models/post_model";
+import {UnimplementedError} from "~/shared/error/error";
 import {PostRealtimeMessageFromServer} from "~/shared/posts/post_realtime_schema";
 
 const context = createTestContext();
@@ -55,6 +55,10 @@ const content3 = assertMessageContent(
     ]),
 );
 
+function unimplemented() {
+    throw new UnimplementedError("Unimplemented");
+}
+
 test("will backfill comments when requested", async () => {
     const channel = await createChannel(context.request(session1), {
         spaceId: space.id,
@@ -89,6 +93,7 @@ test("will backfill comments when requested", async () => {
     const connection1 = new PostRealtimeDurableObjectConnection({
         postId: post.id,
         sendMessage: (context, message) => connection1Messages.push(message),
+        sendMessageToAll: unimplemented,
         iterateOtherConnections: () => [],
     });
 
@@ -254,6 +259,7 @@ test("will send comments from other connections", async () => {
         new PostRealtimeDurableObjectConnection({
             postId: post.id,
             sendMessage: (context, message) => connection1Messages.push(message),
+            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection2, connection3],
         });
 
@@ -261,6 +267,7 @@ test("will send comments from other connections", async () => {
         new PostRealtimeDurableObjectConnection({
             postId: post.id,
             sendMessage: (context, message) => connection2Messages.push(message),
+            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection1, connection3],
         });
 
@@ -268,6 +275,7 @@ test("will send comments from other connections", async () => {
         new PostRealtimeDurableObjectConnection({
             postId: post.id,
             sendMessage: (context, message) => connection3Messages.push(message),
+            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection1, connection2],
         });
 
@@ -470,6 +478,7 @@ test("will send comments from other connections when those comments are added du
         new PostRealtimeDurableObjectConnection({
             postId: post.id,
             sendMessage: (context, message) => connection1Messages.push(message),
+            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection2, connection3],
         });
 
@@ -477,6 +486,7 @@ test("will send comments from other connections when those comments are added du
         new PostRealtimeDurableObjectConnection({
             postId: post.id,
             sendMessage: (context, message) => connection2Messages.push(message),
+            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection1, connection3],
         });
 
@@ -484,6 +494,7 @@ test("will send comments from other connections when those comments are added du
         new PostRealtimeDurableObjectConnection({
             postId: post.id,
             sendMessage: (context, message) => connection3Messages.push(message),
+            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection1, connection2],
         });
 
@@ -700,6 +711,7 @@ test("will send comments our connection when those comments are added during bac
         new PostRealtimeDurableObjectConnection({
             postId: post.id,
             sendMessage: (context, message) => connection1Messages.push(message),
+            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection2, connection3],
         });
 
@@ -707,6 +719,7 @@ test("will send comments our connection when those comments are added during bac
         new PostRealtimeDurableObjectConnection({
             postId: post.id,
             sendMessage: (context, message) => connection2Messages.push(message),
+            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection1, connection3],
         });
 
@@ -714,6 +727,7 @@ test("will send comments our connection when those comments are added during bac
         new PostRealtimeDurableObjectConnection({
             postId: post.id,
             sendMessage: (context, message) => connection3Messages.push(message),
+            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection1, connection2],
         });
 
@@ -864,6 +878,7 @@ test("will send comments from other connections in order", async () => {
         new PostRealtimeDurableObjectConnection({
             postId: post.id,
             sendMessage: (context, message) => connection1Messages.push(message),
+            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection2, connection3],
         });
 
@@ -871,6 +886,7 @@ test("will send comments from other connections in order", async () => {
         new PostRealtimeDurableObjectConnection({
             postId: post.id,
             sendMessage: (context, message) => connection2Messages.push(message),
+            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection1, connection3],
         });
 
@@ -878,6 +894,7 @@ test("will send comments from other connections in order", async () => {
         new PostRealtimeDurableObjectConnection({
             postId: post.id,
             sendMessage: (context, message) => connection3Messages.push(message),
+            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection1, connection2],
         });
 
@@ -1046,6 +1063,7 @@ test("will send comments from other connections in order even if it is wacky", a
         new PostRealtimeDurableObjectConnection({
             postId: post.id,
             sendMessage: (context, message) => connection1Messages.push(message),
+            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection2, connection3],
         });
 
@@ -1053,6 +1071,7 @@ test("will send comments from other connections in order even if it is wacky", a
         new PostRealtimeDurableObjectConnection({
             postId: post.id,
             sendMessage: (context, message) => connection2Messages.push(message),
+            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection1, connection3],
         });
 
@@ -1060,6 +1079,7 @@ test("will send comments from other connections in order even if it is wacky", a
         new PostRealtimeDurableObjectConnection({
             postId: post.id,
             sendMessage: (context, message) => connection3Messages.push(message),
+            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection1, connection2],
         });
 
@@ -1243,6 +1263,7 @@ test("will ignore new messages if they are part of the backfill", async () => {
         new PostRealtimeDurableObjectConnection({
             postId: post.id,
             sendMessage: (context, message) => connection1Messages.push(message),
+            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection2],
         });
 
@@ -1250,6 +1271,7 @@ test("will ignore new messages if they are part of the backfill", async () => {
         new PostRealtimeDurableObjectConnection({
             postId: post.id,
             sendMessage: (context, message) => connection2Messages.push(message),
+            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection1],
         });
 
@@ -1366,6 +1388,7 @@ test("will ignore new messages if they are queued but part of the backfill", asy
         new PostRealtimeDurableObjectConnection({
             postId: post.id,
             sendMessage: (context, message) => connection1Messages.push(message),
+            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection2],
         });
 
@@ -1373,6 +1396,7 @@ test("will ignore new messages if they are queued but part of the backfill", asy
         new PostRealtimeDurableObjectConnection({
             postId: post.id,
             sendMessage: (context, message) => connection2Messages.push(message),
+            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection1],
         });
 

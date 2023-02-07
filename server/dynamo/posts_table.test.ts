@@ -307,7 +307,7 @@ testMessagingImplementation<PostId>(context, {
         });
     },
     async deleteMessage(context, {roomKey: postId, messageIndex: commentIndex}) {
-        return deletePostComment(context, {postId, commentIndex});
+        await deletePostComment(context, {postId, commentIndex});
     },
     async getMessagesFromStart(
         context,
