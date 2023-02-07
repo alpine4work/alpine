@@ -25,10 +25,7 @@ import {sprinkles} from "~/shared/styles/styles";
 
 const schema = Schema.object({
     simpleChat: SimpleChatModel.schema(),
-    simpleChatMessagesResult: Schema.object({
-        hasMoreMessagesBefore: Schema.boolean,
-        messages: Schema.array(SimpleChatMessageModel.schema()),
-    }),
+    simpleChatMessages: Schema.array(SimpleChatMessageModel.schema()),
 });
 
 export async function loader({params, context}: LoaderArgs) {
@@ -37,22 +34,19 @@ export async function loader({params, context}: LoaderArgs) {
     const simpleChat = await getSimpleChat(await context.auth.authenticate(), simpleChatId);
     if (!simpleChat) throw new NotFoundError("Simple chat not found");
 
-    const simpleChatMessagesResult = await getSimpleChatMessagesFromEnd(
-        await context.auth.authenticate(),
-        {
-            simpleChatId: simpleChat.id,
-            limit: getInitialLoadMessageCount(context.loader.clientInfo),
-            beforeMessageIndex: null,
-            afterMessageIndex: null,
-        },
-    );
+    const {messages} = await getSimpleChatMessagesFromEnd(await context.auth.authenticate(), {
+        simpleChatId: simpleChat.id,
+        limit: getInitialLoadMessageCount(context.loader.clientInfo),
+        beforeMessageIndex: null,
+        afterMessageIndex: null,
+    });
 
-    return jsonWithSchema(schema, {simpleChat, simpleChatMessagesResult});
+    return jsonWithSchema(schema, {simpleChat, simpleChatMessages: messages});
 }
 
 export default function SimpleChatRoute() {
     const context = useAppContext();
-    const {simpleChat, simpleChatMessagesResult} = useLoaderDataWithSchema(schema);
+    const {simpleChat, simpleChatMessages} = useLoaderDataWithSchema(schema);
     const [state, setState] = useState(ContentEditorState.create(emptyMessageContent));
     const [isSaving, setIsSaving] = useState(false);
 
@@ -62,16 +56,11 @@ export default function SimpleChatRoute() {
                 <MessagingView
                     initialState={useMemo(
                         () => ({
-                            from: "End",
-                            totalMessageCount: simpleChat.messageCount,
-                            hasMoreMessagesBefore: simpleChatMessagesResult.hasMoreMessagesBefore,
-                            messages: simpleChatMessagesResult.messages,
+                            pinTo: "bottom",
+                            messageCount: simpleChat.messageCount,
+                            messages: simpleChatMessages,
                         }),
-                        [
-                            simpleChat.messageCount,
-                            simpleChatMessagesResult.hasMoreMessagesBefore,
-                            simpleChatMessagesResult.messages,
-                        ],
+                        [simpleChat.messageCount, simpleChatMessages],
                     )}
                     shimmerRandomSeed={simpleChat.id}
                     onLoadFromStart={({limit, afterMessageIndex, beforeMessageIndex}) => {

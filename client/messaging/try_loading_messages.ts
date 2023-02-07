@@ -1,6 +1,6 @@
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
+import {MessageList} from "~/client/messaging/message_list";
 import {messageViewMinHeight} from "~/client/messaging/message_view";
-import {PaginatedMessageList, minMessageIndex} from "~/client/messaging/paginated_message_list";
 import {convertRemLengthToPx} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -23,30 +23,29 @@ export function tryLoadingMessages<Message extends MessageInterface>({
     onFinishLoadingMessages,
 }: {
     viewHeight: number;
-    messages: PaginatedMessageList<Message>;
+    messages: MessageList<Message>;
     range: {startIndex: number; endIndex: number};
     onLoadFromStart: (options: {
         limit: number;
         afterMessageIndex: number | null;
         beforeMessageIndex: number | null;
     }) => Promise<{
+        messageCount: number;
         messages: ReadonlyArray<Message>;
-        hasMoreMessagesAfter: boolean;
     }>;
     onLoadFromEnd: (options: {
         limit: number;
         afterMessageIndex: number | null;
         beforeMessageIndex: number | null;
     }) => Promise<{
+        messageCount: number;
         messages: ReadonlyArray<Message>;
-        hasMoreMessagesBefore: boolean;
     }>;
     onFinishLoadingMessages: (
         result: Result<
             {
-                updateMessages: (
-                    messages: PaginatedMessageList<Message>,
-                ) => PaginatedMessageList<Message>;
+                messageCount: number;
+                messages: ReadonlyArray<Message>;
             },
             unknown
         >,
@@ -101,16 +100,7 @@ export function tryLoadingMessages<Message extends MessageInterface>({
             result => {
                 onFinishLoadingMessages({
                     ok: true,
-                    value: {
-                        updateMessages: messages =>
-                            messages.loadMessagesFromStart({
-                                afterMessageIndex,
-                                beforeMessageIndex,
-                                limit,
-                                hasMoreMessagesAfter: result.hasMoreMessagesAfter,
-                                messages: result.messages,
-                            }),
-                    },
+                    value: result,
                 });
             },
             error => {
@@ -156,16 +146,7 @@ export function tryLoadingMessages<Message extends MessageInterface>({
             result => {
                 onFinishLoadingMessages({
                     ok: true,
-                    value: {
-                        updateMessages: messages =>
-                            messages.loadMessagesFromEnd({
-                                afterMessageIndex,
-                                beforeMessageIndex,
-                                limit,
-                                hasMoreMessagesBefore: result.hasMoreMessagesBefore,
-                                messages: result.messages,
-                            }),
-                    },
+                    value: result,
                 });
             },
             error => {
@@ -188,8 +169,7 @@ export function tryLoadingMessages<Message extends MessageInterface>({
     const messageBeforeUnloadedSegment = messages.getLastLoadedMessageBefore(range.startIndex);
     const messageAfterUnloadedSegment = messages.getFirstLoadedMessageAfter(range.endIndex);
 
-    const unloadedSegmentStartMessageIndex =
-        messageBeforeUnloadedSegment?.index ?? minMessageIndex - 1;
+    const unloadedSegmentStartMessageIndex = messageBeforeUnloadedSegment?.index ?? -1;
     const unloadedSegmentEndMessageIndex =
         messageAfterUnloadedSegment?.index ??
         Math.max(messages.getMessageCount() + 1, unloadedSegmentStartMessageIndex + 1);

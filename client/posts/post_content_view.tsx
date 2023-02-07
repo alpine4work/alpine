@@ -9,7 +9,7 @@ import {Button} from "~/client/design/button";
 import {PrettyAbsoluteDate} from "~/client/design/pretty_absolute_date";
 import {PrettyNumber} from "~/client/design/pretty_number";
 import {uninterruptedThoughtLimitMs} from "~/client/design/timing_constants";
-import {PaginatedMessageList} from "~/client/messaging/paginated_message_list";
+import {MessageList} from "~/client/messaging/message_list";
 import {wait} from "~/shared/helpers/async/wait";
 import {PostCommentModel, PostModel} from "~/shared/models/post_model";
 import {getPostCommentAuthors} from "~/shared/rpc/posts_rpc_definitions";
@@ -24,7 +24,7 @@ export function PostContentView({
     onLoadInitialPostComments,
 }: {
     post: PostModel;
-    postComments: PaginatedMessageList<PostCommentModel>;
+    postComments: MessageList<PostCommentModel>;
     arePostCommentsOpen: boolean;
     onTogglePostComments: () => void;
     onLoadInitialPostComments: () => Promise<void>;
@@ -78,7 +78,7 @@ function PostCommentsToggleButton({
     onLoadInitialPostComments,
 }: {
     post: PostModel;
-    postComments: PaginatedMessageList<PostCommentModel>;
+    postComments: MessageList<PostCommentModel>;
     arePostCommentsOpen: boolean;
     onTogglePostComments: () => void;
     onLoadInitialPostComments: () => Promise<void>;

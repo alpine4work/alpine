@@ -15,8 +15,6 @@ import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
 
 const schema = Schema.object({
     post: PostModel.schema(),
-    postCommentLimit: Schema.integer,
-    hasMorePostCommentsAfter: Schema.boolean,
     postComments: Schema.array(PostCommentModel.schema()),
 });
 
@@ -31,7 +29,7 @@ export async function loader({params, context}: LoaderArgs) {
     });
     if (!postResult) throw new NotFoundError("Post not found");
 
-    const {post, hasMorePostCommentsAfter, postComments} = postResult;
+    const {post, postComments} = postResult;
 
     const propagateEventData: TracerEventData = {
         context: {
@@ -40,28 +38,16 @@ export async function loader({params, context}: LoaderArgs) {
         },
     };
 
-    return jsonWithSchema(
-        schema,
-        {post, postCommentLimit, hasMorePostCommentsAfter, postComments},
-        {propagateEventData},
-    );
+    return jsonWithSchema(schema, {post, postComments}, {propagateEventData});
 }
 
 export default function PostRoute() {
-    const {post, postCommentLimit, hasMorePostCommentsAfter, postComments} =
-        useLoaderDataWithSchema(schema);
+    const {post, postComments} = useLoaderDataWithSchema(schema);
 
     const [list, setList] = useState(() =>
         PaginatedPostList.empty.insertAtEnd(post, {
             arePostCommentsOpen: true,
-            insertInitialPostComments: list =>
-                list.loadMessagesFromStart({
-                    afterMessageIndex: null,
-                    beforeMessageIndex: null,
-                    limit: postCommentLimit,
-                    hasMoreMessagesAfter: hasMorePostCommentsAfter,
-                    messages: postComments,
-                }),
+            initialPostComments: postComments,
         }),
     );
 

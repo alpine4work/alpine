@@ -121,6 +121,9 @@ class PostRealtimeDurableObjectConnection {
         // TODO(calebmer): Backfilling??
 
         switch (message.type) {
+            case "BackfillComments": {
+                break;
+            }
             case "CreatePostComment": {
                 const {index, createdTime} = await createPostComment(context, {
                     ...message,

@@ -4,10 +4,10 @@ import {Box} from "~/client/design/box";
 import {Spacer} from "~/client/design/spacer";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useMessageEditing} from "~/client/messaging/message_editing";
+import {MessageList} from "~/client/messaging/message_list";
 import {MessageShimmer} from "~/client/messaging/message_shimmer";
 import {MessageView, messageViewMinHeight} from "~/client/messaging/message_view";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
-import {PaginatedMessageList} from "~/client/messaging/paginated_message_list";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages";
 import {
     PaginatedPostList,
@@ -50,9 +50,7 @@ export function PostsView({
     onTogglePostComments: (index: number) => void;
     onUpdatePostComments: (
         postOrderKey: OrderKey,
-        update: (
-            postComments: PaginatedMessageList<PostCommentModel>,
-        ) => PaginatedMessageList<PostCommentModel>,
+        update: (postComments: MessageList<PostCommentModel>) => MessageList<PostCommentModel>,
     ) => void;
 }) {
     const context = useAppContext();
@@ -122,39 +120,37 @@ export function PostsView({
                     endIndex: renderedPostCommentRangeEndIndex,
                 },
                 onLoadFromStart: async ({afterMessageIndex, beforeMessageIndex, limit}) => {
-                    const {hasMoreCommentsAfter, comments} = await getPostCommentsFromStart(
-                        context,
-                        {
-                            postId: item.post.id,
-                            afterCommentIndex: afterMessageIndex,
-                            beforeCommentIndex: beforeMessageIndex,
-                            limit,
-                        },
-                    );
+                    const {commentCount, comments} = await getPostCommentsFromStart(context, {
+                        postId: item.post.id,
+                        afterCommentIndex: afterMessageIndex,
+                        beforeCommentIndex: beforeMessageIndex,
+                        limit,
+                    });
                     return {
-                        hasMoreMessagesAfter: hasMoreCommentsAfter,
+                        messageCount: commentCount,
                         messages: comments,
                     };
                 },
                 onLoadFromEnd: async ({afterMessageIndex, beforeMessageIndex, limit}) => {
-                    const {hasMoreCommentsBefore, comments} = await getPostCommentsFromEnd(
-                        context,
-                        {
-                            postId: item.post.id,
-                            afterCommentIndex: afterMessageIndex,
-                            beforeCommentIndex: beforeMessageIndex,
-                            limit,
-                        },
-                    );
+                    const {commentCount, comments} = await getPostCommentsFromEnd(context, {
+                        postId: item.post.id,
+                        afterCommentIndex: afterMessageIndex,
+                        beforeCommentIndex: beforeMessageIndex,
+                        limit,
+                    });
                     return {
-                        hasMoreMessagesBefore: hasMoreCommentsBefore,
+                        messageCount: commentCount,
                         messages: comments,
                     };
                 },
                 onFinishLoadingMessages: result => {
                     isLoadingRef.current = false;
                     if (result.ok) {
-                        onUpdatePostComments(item.postOrderKey, result.value.updateMessages);
+                        onUpdatePostComments(item.postOrderKey, postComments =>
+                            postComments
+                                .increaseMessageCount(result.value.messageCount)
+                                .setMessages(result.value.messages),
+                        );
                     } else {
                         setErrorState({hasError: true, error: result.error});
                     }
@@ -192,7 +188,7 @@ export function PostsView({
             try {
                 const limit = getInitialLoadMessageCount(clientInfo);
 
-                const {hasMoreCommentsAfter, comments} = await getPostCommentsFromStart(context, {
+                const {comments} = await getPostCommentsFromStart(context, {
                     postId: item.post.id,
                     afterCommentIndex: null,
                     beforeCommentIndex: null,
@@ -200,13 +196,7 @@ export function PostsView({
                 });
 
                 onUpdatePostComments(item.postOrderKey, postComments =>
-                    postComments.loadMessagesFromStart({
-                        afterMessageIndex: null,
-                        beforeMessageIndex: null,
-                        limit,
-                        hasMoreMessagesAfter: hasMoreCommentsAfter,
-                        messages: comments,
-                    }),
+                    postComments.setMessages(comments),
                 );
 
                 isLoadingRef.current = false;
@@ -402,6 +392,7 @@ export function PostsView({
                                     actionsByPostIdRef.current.delete(item.post.id);
                                 }
                             }}
+                            postComments={item.postComments}
                             onUpdatePostComments={update =>
                                 onUpdatePostComments(item.postOrderKey, update)
                             }

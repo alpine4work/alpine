@@ -5,6 +5,10 @@ import {Schema, SchemaType} from "~/shared/schema/schema";
 export type PostRealtimeMessageFromClient = SchemaType<typeof PostRealtimeMessageFromClientSchema>;
 
 export const PostRealtimeMessageFromClientSchema = Schema.union({
+    BackfillComments: Schema.object({
+        type: Schema.value("BackfillComments"),
+        commentCount: Schema.integer,
+    }),
     CreatePostComment: Schema.object({
         type: Schema.value("CreatePostComment"),
         parentCommentIndex: Schema.integer.nullable(),

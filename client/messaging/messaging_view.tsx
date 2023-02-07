@@ -2,17 +2,13 @@ import {useCallback, useEffect, useRef, useState} from "react";
 import {Spacer} from "~/client/design/spacer";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useMessageEditing} from "~/client/messaging/message_editing";
+import {MessageList} from "~/client/messaging/message_list";
 import {MessageShimmer} from "~/client/messaging/message_shimmer";
 import {
     MessageView,
     bufferedMessageViewHeight,
     messageViewMinHeight,
 } from "~/client/messaging/message_view";
-import {
-    PaginatedMessageList,
-    maxMessageIndex,
-    minMessageIndex,
-} from "~/client/messaging/paginated_message_list";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages";
 import {
     VirtualizedScrollView,
@@ -21,7 +17,6 @@ import {
 } from "~/client/virtualized/virtualized_scroll_view";
 import {UnimplementedError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {MessageInterface, MessageRoomKeyType} from "~/shared/models/message_interface";
 import {ClientInfo} from "~/shared/remix/client_info";
 
@@ -38,35 +33,27 @@ export function MessagingView<Message extends MessageInterface>({
     onLoadFromStart,
     onLoadFromEnd,
 }: {
-    initialState:
-        | {
-              readonly from: "Start";
-              readonly totalMessageCount: number;
-              readonly hasMoreMessagesAfter: boolean;
-              readonly messages: ReadonlyArray<Message>;
-          }
-        | {
-              readonly from: "End";
-              readonly totalMessageCount: number;
-              readonly hasMoreMessagesBefore: boolean;
-              readonly messages: ReadonlyArray<Message>;
-          };
+    initialState: {
+        readonly pinTo: "top" | "bottom";
+        readonly messageCount: number;
+        readonly messages: ReadonlyArray<Message>;
+    };
     shimmerRandomSeed: string;
     onLoadFromStart: (options: {
         limit: number;
         afterMessageIndex: number | null;
         beforeMessageIndex: number | null;
     }) => Promise<{
+        messageCount: number;
         messages: ReadonlyArray<Message>;
-        hasMoreMessagesAfter: boolean;
     }>;
     onLoadFromEnd: (options: {
         limit: number;
         afterMessageIndex: number | null;
         beforeMessageIndex: number | null;
     }) => Promise<{
+        messageCount: number;
         messages: ReadonlyArray<Message>;
-        hasMoreMessagesBefore: boolean;
     }>;
 }) {
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
@@ -74,54 +61,17 @@ export function MessagingView<Message extends MessageInterface>({
     const [state, setState] = useState(
         (): {
             pinTo: "top" | "bottom";
-            list: PaginatedMessageList<Message>;
+            list: MessageList<Message>;
             isLoading: boolean;
             errorState: {hasError: false} | {hasError: true; error: unknown};
-        } => {
-            switch (initialState.from) {
-                case "Start": {
-                    return {
-                        pinTo: "top",
-                        list: PaginatedMessageList.new<Message>(
-                            initialState.totalMessageCount,
-                        ).loadMessages({
-                            afterMessageIndex: minMessageIndex - 1,
-                            beforeMessageIndex:
-                                initialState.messages.length > 0
-                                    ? initialState.messages[initialState.messages.length - 1]!
-                                          .index + 1
-                                    : maxMessageIndex + 1,
-                            mayHaveMoreMessagesBefore: false,
-                            mayHaveMoreMessagesAfter: initialState.hasMoreMessagesAfter,
-                            messages: initialState.messages,
-                        }),
-                        isLoading: false,
-                        errorState: {hasError: false},
-                    };
-                }
-                case "End": {
-                    return {
-                        pinTo: "bottom",
-                        list: PaginatedMessageList.new<Message>(
-                            initialState.totalMessageCount,
-                        ).loadMessages({
-                            afterMessageIndex:
-                                initialState.messages.length > 0
-                                    ? initialState.messages[0]!.index - 1
-                                    : minMessageIndex - 1,
-                            beforeMessageIndex: maxMessageIndex + 1,
-                            mayHaveMoreMessagesBefore: initialState.hasMoreMessagesBefore,
-                            mayHaveMoreMessagesAfter: false,
-                            messages: initialState.messages,
-                        }),
-                        isLoading: false,
-                        errorState: {hasError: false},
-                    };
-                }
-                default:
-                    throw exhaustive(initialState);
-            }
-        },
+        } => ({
+            pinTo: initialState.pinTo,
+            list: MessageList.new<Message>(initialState.messageCount).setMessages(
+                initialState.messages,
+            ),
+            isLoading: false,
+            errorState: {hasError: false},
+        }),
     );
 
     // Escalate network errors to component errors.
@@ -146,7 +96,9 @@ export function MessagingView<Message extends MessageInterface>({
                     setState(state => ({
                         ...state,
                         isLoading: false,
-                        list: result.value.updateMessages(state.list),
+                        list: state.list
+                            .increaseMessageCount(result.value.messageCount)
+                            .setMessages(result.value.messages),
                     }));
                 } else {
                     setState(state => ({

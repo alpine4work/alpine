@@ -13,7 +13,7 @@ import {
 import {createTestContext} from "~/server/dynamo/test/create_test_context";
 import {createTestSession} from "~/server/dynamo/test/create_test_session";
 import {createTestSpace} from "~/server/dynamo/test/create_test_space";
-import {testMessageImplementation} from "~/server/dynamo/test/test_messaging_implementation";
+import {testMessagingImplementation} from "~/server/dynamo/test/test_messaging_implementation";
 import {
     assertMessageContent,
     MessageContentProsemirrorSchema as messageSchema,
@@ -250,7 +250,7 @@ test("can not get the comment authors in another space", async () => {
     ).rejects.toThrow(PermissionDeniedError);
 });
 
-testMessageImplementation<PostId>(context, {
+testMessagingImplementation<PostId>(context, {
     async createRoom(context, spaceId) {
         const channel = await createChannel(context, {
             spaceId,
@@ -318,15 +318,15 @@ testMessageImplementation<PostId>(context, {
             beforeMessageIndex: beforeCommentIndex,
         },
     ) {
-        const {comments, hasMoreCommentsAfter} = await getPostCommentsFromStart(context, {
+        const {commentCount, comments} = await getPostCommentsFromStart(context, {
             postId,
             limit,
             afterCommentIndex,
             beforeCommentIndex,
         });
         return {
+            messageCount: commentCount,
             messages: comments,
-            hasMoreMessagesAfter: hasMoreCommentsAfter,
         };
     },
     async getMessagesFromEnd(
@@ -338,15 +338,15 @@ testMessageImplementation<PostId>(context, {
             beforeMessageIndex: beforeCommentIndex,
         },
     ) {
-        const {comments, hasMoreCommentsBefore} = await getPostCommentsFromEnd(context, {
+        const {commentCount, comments} = await getPostCommentsFromEnd(context, {
             postId,
             limit,
             afterCommentIndex,
             beforeCommentIndex,
         });
         return {
+            messageCount: commentCount,
             messages: comments,
-            hasMoreMessagesBefore: hasMoreCommentsBefore,
         };
     },
 });

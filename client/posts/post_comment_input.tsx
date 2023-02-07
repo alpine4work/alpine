@@ -5,7 +5,7 @@ import {ContentEditor} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {Box} from "~/client/design/box";
 import {useShowToast} from "~/client/design/toast";
-import {PaginatedMessageList} from "~/client/messaging/paginated_message_list";
+import {MessageList} from "~/client/messaging/message_list";
 import {PostRealtimeActions, usePostRealtime} from "~/client/posts/use_post_realtime";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {isContentEmpty} from "~/shared/content/is_content_empty";
@@ -19,16 +19,16 @@ export function PostCommentInput({
     actionsRef,
     onFocus,
     onBlur,
+    postComments,
     onUpdatePostComments,
 }: {
     post: PostModel;
     actionsRef: Ref<PostRealtimeActions>;
     onFocus: (event: FocusEvent<HTMLDivElement>) => void;
     onBlur: (event: FocusEvent<HTMLDivElement>) => void;
+    postComments: MessageList<PostCommentModel>;
     onUpdatePostComments: (
-        update: (
-            postComments: PaginatedMessageList<PostCommentModel>,
-        ) => PaginatedMessageList<PostCommentModel>,
+        update: (postComments: MessageList<PostCommentModel>) => MessageList<PostCommentModel>,
     ) => void;
 }) {
     const showToast = useShowToast();
@@ -42,6 +42,7 @@ export function PostCommentInput({
     const {actions} = usePostRealtime({
         postId: post.id,
         actionsRef,
+        postComments,
         onUpdatePostComments,
     });
 

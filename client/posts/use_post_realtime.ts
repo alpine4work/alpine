@@ -1,6 +1,6 @@
-import {Ref, useImperativeHandle, useMemo} from "react";
+import {Ref, useEffect, useImperativeHandle, useMemo, useState} from "react";
 import {useWebSocket} from "~/client/cloudflare/use_web_socket";
-import {PaginatedMessageList} from "~/client/messaging/paginated_message_list";
+import {MessageList} from "~/client/messaging/message_list";
 import {MessageContent} from "~/shared/content/message_content_schema";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {PostId} from "~/shared/id/types/id_types";
@@ -26,17 +26,23 @@ export type PostRealtimeActions = {
 export function usePostRealtime({
     postId,
     actionsRef,
+    postComments,
     onUpdatePostComments,
 }: {
     postId: PostId;
     actionsRef: Ref<PostRealtimeActions>;
+    postComments: MessageList<PostCommentModel>;
     onUpdatePostComments: (
-        update: (
-            postComments: PaginatedMessageList<PostCommentModel>,
-        ) => PaginatedMessageList<PostCommentModel>,
+        update: (postComments: MessageList<PostCommentModel>) => MessageList<PostCommentModel>,
     ) => void;
 }) {
-    const {sendMessage} = useWebSocket(
+    const [errorState, setErrorState] = useState<
+        {hasError: false} | {hasError: true; error: unknown}
+    >({hasError: false});
+
+    if (errorState.hasError) throw errorState.error;
+
+    const {isConnected, sendMessage} = useWebSocket(
         PostRealtimeMessageFromClientSchema,
         PostRealtimeMessageFromServerSchema,
         `/durable-objects/posts/${postId}`,
@@ -44,7 +50,7 @@ export function usePostRealtime({
             // TODO(calebmer): Message ordering?
             switch (message.type) {
                 case "CreatedPostComment": {
-                    onUpdatePostComments(postComments => postComments.addMessage(message.comment));
+                    onUpdatePostComments(postComments => postComments.setMessage(message.comment));
                     break;
                 }
                 case "UpdatedPostCommentContent": {

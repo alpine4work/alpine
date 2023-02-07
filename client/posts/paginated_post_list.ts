@@ -1,5 +1,5 @@
 import createTree, {Tree} from "functional-red-black-tree";
-import {PaginatedMessageList} from "~/client/messaging/paginated_message_list";
+import {MessageList} from "~/client/messaging/message_list";
 import {InternalError, OutOfRangeError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
@@ -37,7 +37,7 @@ export class PaginatedPostList {
         OrderKey,
         {
             readonly post: PostModel;
-            readonly postComments: PaginatedMessageList<PostCommentModel>;
+            readonly postComments: MessageList<PostCommentModel>;
         }
     >;
 
@@ -74,7 +74,7 @@ export class PaginatedPostList {
             OrderKey,
             {
                 readonly post: PostModel;
-                readonly postComments: PaginatedMessageList<PostCommentModel>;
+                readonly postComments: MessageList<PostCommentModel>;
             }
         >;
         openPostCommentPostOrderKeys: ImmutableSet<OrderKey>;
@@ -123,7 +123,7 @@ export class PaginatedPostList {
         postContentItemIndex: number;
         postOrderKey: OrderKey;
         post: PostModel;
-        postComments: PaginatedMessageList<PostCommentModel>;
+        postComments: MessageList<PostCommentModel>;
     } {
         if (index < 0 || !Number.isSafeInteger(index))
             throw new OutOfRangeError("Index should be a positive integer");
@@ -303,6 +303,7 @@ export class PaginatedPostList {
                     type: "PostCommentInput",
                     postOrderKey,
                     post,
+                    postComments,
                     postContentItemIndex,
                 };
             }
@@ -318,12 +319,10 @@ export class PaginatedPostList {
         post: PostModel,
         {
             arePostCommentsOpen = false,
-            insertInitialPostComments,
+            initialPostComments,
         }: {
             arePostCommentsOpen?: boolean;
-            insertInitialPostComments?: (
-                postComments: PaginatedMessageList<PostCommentModel>,
-            ) => PaginatedMessageList<PostCommentModel>;
+            initialPostComments?: ReadonlyArray<PostCommentModel>;
         } = {},
     ): PaginatedPostList {
         const postOrderKey = generateOrderKeyBetween(
@@ -331,8 +330,8 @@ export class PaginatedPostList {
             this._postByOrderKey.getFirstEntry()?.[0] ?? null,
         );
 
-        let postComments = PaginatedMessageList.new<PostCommentModel>(post.commentCount);
-        if (insertInitialPostComments) postComments = insertInitialPostComments(postComments);
+        let postComments = MessageList.new<PostCommentModel>(post.commentCount);
+        if (initialPostComments) postComments = postComments.setMessages(initialPostComments);
 
         const postByOrderKey = this._postByOrderKey.set(postOrderKey, {
             post,
@@ -359,12 +358,10 @@ export class PaginatedPostList {
         post: PostModel,
         {
             arePostCommentsOpen = false,
-            insertInitialPostComments,
+            initialPostComments,
         }: {
             arePostCommentsOpen?: boolean;
-            insertInitialPostComments?: (
-                postComments: PaginatedMessageList<PostCommentModel>,
-            ) => PaginatedMessageList<PostCommentModel>;
+            initialPostComments?: ReadonlyArray<PostCommentModel>;
         } = {},
     ): PaginatedPostList {
         const postOrderKey = generateOrderKeyBetween(
@@ -372,8 +369,8 @@ export class PaginatedPostList {
             null,
         );
 
-        let postComments = PaginatedMessageList.new<PostCommentModel>(post.commentCount);
-        if (insertInitialPostComments) postComments = insertInitialPostComments(postComments);
+        let postComments = MessageList.new<PostCommentModel>(post.commentCount);
+        if (initialPostComments) postComments = postComments.setMessages(initialPostComments);
 
         const postByOrderKey = this._postByOrderKey.set(postOrderKey, {
             post,
@@ -440,9 +437,7 @@ export class PaginatedPostList {
      */
     public updatePostComments(
         postOrderKey: OrderKey,
-        update: (
-            postComments: PaginatedMessageList<PostCommentModel>,
-        ) => PaginatedMessageList<PostCommentModel>,
+        update: (postComments: MessageList<PostCommentModel>) => MessageList<PostCommentModel>,
     ): PaginatedPostList {
         const postByOrderKey = this._postByOrderKey.update(postOrderKey, post => {
             if (!post) throw new InternalError("Post not found for order key");
@@ -482,7 +477,7 @@ export type PaginatedPostListPostContentItem = {
     readonly type: "PostContent";
     readonly postOrderKey: OrderKey;
     readonly post: PostModel;
-    readonly postComments: PaginatedMessageList<PostCommentModel>;
+    readonly postComments: MessageList<PostCommentModel>;
     readonly arePostCommentsOpen: boolean;
     /**
      * The index of the `PostContent` item for this comment input in the full
@@ -502,9 +497,9 @@ export type PaginatedPostListPostContentItem = {
 export type PaginatedPostListLoadedPostCommentItem = {
     readonly type: "LoadedPostComment";
     readonly post: PostModel;
-    readonly postComments: PaginatedMessageList<PostCommentModel>;
+    readonly postComments: MessageList<PostCommentModel>;
     /**
-     * The index the loaded post comment is at in the `PaginatedMessageList`. The
+     * The index the loaded post comment is at in the `MessageList`. The
      * post index may move but this will stay stable.
      */
     readonly postCommentIndex: number;
@@ -522,9 +517,9 @@ export type PaginatedPostListLoadedPostCommentItem = {
 export type PaginatedPostListUnloadedPostCommentItem = {
     readonly type: "UnloadedPostComment";
     readonly post: PostModel;
-    readonly postComments: PaginatedMessageList<PostCommentModel>;
+    readonly postComments: MessageList<PostCommentModel>;
     /**
-     * The index the unloaded post comment is at in the `PaginatedMessageList`. The
+     * The index the unloaded post comment is at in the `MessageList`. The
      * post index may move but this will stay stable.
      */
     readonly postCommentIndex: number;
@@ -542,6 +537,7 @@ export type PaginatedPostListPostCommentInputItem = {
     readonly type: "PostCommentInput";
     readonly postOrderKey: OrderKey;
     readonly post: PostModel;
+    readonly postComments: MessageList<PostCommentModel>;
     /**
      * The index of the `PostContent` item for this comment input in the full
      * `PaginatedPostList`.

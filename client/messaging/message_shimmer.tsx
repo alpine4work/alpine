@@ -1,7 +1,7 @@
 import {useRef} from "react";
 import {Box} from "~/client/design/box";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {PaginatedMessageList} from "~/client/messaging/paginated_message_list";
+import {MessageList} from "~/client/messaging/message_list";
 import {Spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {StableRandom} from "~/shared/helpers/number/stable_random";
@@ -64,7 +64,7 @@ export function MessageShimmer<Message extends MessageInterface>({
     index: number;
     previousMessage: Message | null;
     nextMessage: Message | null;
-    messages: PaginatedMessageList<Message>;
+    messages: MessageList<Message>;
 }) {
     const shimmerRef = useRef<HTMLDivElement>(null);
     const stableRandom = new StableRandom(randomSeed);

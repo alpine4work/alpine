@@ -40,7 +40,7 @@ export const getPostCommentsFromStart = defineRpc({
         beforeCommentIndex: Schema.integer.nullable(),
     },
     output: {
-        hasMoreCommentsAfter: Schema.boolean,
+        commentCount: Schema.integer,
         comments: Schema.array(PostCommentModel.schema()),
     },
 });
@@ -54,7 +54,7 @@ export const getPostCommentsFromEnd = defineRpc({
         beforeCommentIndex: Schema.integer.nullable(),
     },
     output: {
-        hasMoreCommentsBefore: Schema.boolean,
+        commentCount: Schema.integer,
         comments: Schema.array(PostCommentModel.schema()),
     },
 });

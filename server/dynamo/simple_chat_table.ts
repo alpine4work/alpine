@@ -323,7 +323,7 @@ export async function getSimpleChatMessagesFromStart(
         beforeMessageIndex: number | null;
     },
 ): Promise<{
-    hasMoreMessagesAfter: boolean;
+    messageCount: number;
     messages: Array<SimpleChatMessageModel>;
 }> {
     // Start querying before authorization so our query runs in parallel
@@ -344,30 +344,25 @@ export async function getSimpleChatMessagesFromStart(
                     ? beforeMessageIndex - 1
                     : Number.MAX_SAFE_INTEGER,
         },
-        // Add one to the limit so we can determine whether there are more
-        // messages after.
-        limit: limit + 1,
+        limit,
     });
 
     const simpleChat = await getSimpleChat(context, simpleChatId);
     if (!simpleChat) throw new NotFoundError("Simple chat not found");
 
-    const queriedMessages = await parallelMapAsyncIterableToArray(
-        queryIterable,
-        async (item, index) => {
-            // For items outside our limit, don't create a message model. We will
-            // throw these away.
-            if (index >= limit) return null;
-
-            return createSimpleChatMessageModelFromItem(context, simpleChat.spaceId, item);
-        },
+    const messages = await parallelMapAsyncIterableToArray(queryIterable, item =>
+        createSimpleChatMessageModelFromItem(context, simpleChat.spaceId, item),
     );
 
-    // Drop any queried messages outside of our limit.
-    const messages = queriedMessages.slice(0, limit) as Array<SimpleChatMessageModel>;
-    const hasMoreMessagesAfter = queriedMessages.length > limit;
-
-    return {messages, hasMoreMessagesAfter};
+    return {
+        // Make sure `messageCount` is consistent with `messages` in case of eventual
+        // consistency race conditions.
+        messageCount: Math.max(
+            simpleChat.messageCount,
+            messages.length > 0 ? messages[messages.length - 1]!.index + 1 : 0,
+        ),
+        messages,
+    };
 }
 
 export async function getSimpleChatMessagesFromEnd(
@@ -384,58 +379,54 @@ export async function getSimpleChatMessagesFromEnd(
         beforeMessageIndex: number | null;
     },
 ): Promise<{
-    hasMoreMessagesBefore: boolean;
+    messageCount: number;
     messages: Array<SimpleChatMessageModel>;
 }> {
-    // Base case: If we are loading before the first message ID we know there are
-    // no messages.
-    if (beforeMessageIndex === 0) {
-        return {messages: [], hasMoreMessagesBefore: false};
-    }
-
     // Start querying before authorization so our query runs in parallel
     // with authorization.
-    const queryIterable = SimpleChatTable.query(context, {
-        startKey: {
-            partitionType: "SimpleChat",
-            sortRangeType: "Messages",
-            simpleChatId,
-            messageIndex: typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0,
-        },
-        endKey: {
-            partitionType: "SimpleChat",
-            sortRangeType: "Messages",
-            simpleChatId,
-            messageIndex:
-                typeof beforeMessageIndex === "number"
-                    ? beforeMessageIndex - 1
-                    : Number.MAX_SAFE_INTEGER,
-        },
-        // Add one to the limit so we can determine whether there are more
-        // messages after.
-        limit: limit + 1,
-        // Scan backwards from `endKey` to `startKey` so we can get messages at the end
-        // instead of start.
-        descending: true,
-    });
+    const queryIterable =
+        typeof beforeMessageIndex !== "number" || beforeMessageIndex > 0
+            ? SimpleChatTable.query(context, {
+                  startKey: {
+                      partitionType: "SimpleChat",
+                      sortRangeType: "Messages",
+                      simpleChatId,
+                      messageIndex:
+                          typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0,
+                  },
+                  endKey: {
+                      partitionType: "SimpleChat",
+                      sortRangeType: "Messages",
+                      simpleChatId,
+                      messageIndex:
+                          typeof beforeMessageIndex === "number"
+                              ? beforeMessageIndex - 1
+                              : Number.MAX_SAFE_INTEGER,
+                  },
+                  limit,
+                  // Scan backwards from `endKey` to `startKey` so we can get messages at the end
+                  // instead of start.
+                  descending: true,
+              })
+            : (async function* () {})();
 
     const simpleChat = await getSimpleChat(context, simpleChatId);
     if (!simpleChat) throw new NotFoundError("Simple chat not found");
 
-    const queriedMessages = await parallelMapAsyncIterableToArray(
-        queryIterable,
-        async (item, index) => {
-            // For items outside our limit, don't create a message model. We will
-            // throw these away.
-            if (index >= limit) return null;
-
-            return createSimpleChatMessageModelFromItem(context, simpleChat.spaceId, item);
-        },
+    const messages = await parallelMapAsyncIterableToArray(queryIterable, item =>
+        createSimpleChatMessageModelFromItem(context, simpleChat.spaceId, item),
     );
 
-    // Drop any queried messages outside of our limit.
-    const messages = queriedMessages.slice(0, limit).reverse() as Array<SimpleChatMessageModel>;
-    const hasMoreMessagesBefore = queriedMessages.length > limit;
+    // We queried in descending order so put comments back in the right order.
+    messages.reverse();
 
-    return {messages, hasMoreMessagesBefore};
+    return {
+        // Make sure `messageCount` is consistent with `messages` in case of eventual
+        // consistency race conditions.
+        messageCount: Math.max(
+            simpleChat.messageCount,
+            messages.length > 0 ? messages[messages.length - 1]!.index + 1 : 0,
+        ),
+        messages,
+    };
 }

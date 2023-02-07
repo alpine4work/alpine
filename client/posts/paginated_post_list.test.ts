@@ -1,4 +1,4 @@
-import {PaginatedMessageList} from "~/client/messaging/paginated_message_list";
+import {MessageList} from "~/client/messaging/message_list";
 import {PaginatedPostList, PaginatedPostListItem} from "~/client/posts/paginated_post_list";
 import {
     assertPostContent,
@@ -971,7 +971,7 @@ test("can update the post comments list", () => {
         {type: "PostContent", post: post5, arePostCommentsOpen: false},
     ]);
 
-    list = list.updatePostComments("a2" as OrderKey, () => PaginatedMessageList.new(3));
+    list = list.updatePostComments("a2" as OrderKey, () => MessageList.new(3));
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post1, arePostCommentsOpen: false},
@@ -985,7 +985,7 @@ test("can update the post comments list", () => {
         {type: "PostContent", post: post5, arePostCommentsOpen: false},
     ]);
 
-    list = list.updatePostComments("a2" as OrderKey, () => PaginatedMessageList.new(7));
+    list = list.updatePostComments("a2" as OrderKey, () => MessageList.new(7));
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post1, arePostCommentsOpen: false},

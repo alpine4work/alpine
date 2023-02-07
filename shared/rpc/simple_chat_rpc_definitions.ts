@@ -23,7 +23,7 @@ export const getSimpleChatMessagesFromStart = defineRpc({
         beforeMessageIndex: Schema.integer.nullable(),
     },
     output: {
-        hasMoreMessagesAfter: Schema.boolean,
+        messageCount: Schema.integer,
         messages: Schema.array(SimpleChatMessageModel.schema()),
     },
 });
@@ -37,7 +37,7 @@ export const getSimpleChatMessagesFromEnd = defineRpc({
         beforeMessageIndex: Schema.integer.nullable(),
     },
     output: {
-        hasMoreMessagesBefore: Schema.boolean,
+        messageCount: Schema.integer,
         messages: Schema.array(SimpleChatMessageModel.schema()),
     },
 });

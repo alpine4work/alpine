@@ -487,7 +487,6 @@ export async function getPostAndCommentsFromStart(
     },
 ): Promise<{
     post: PostModel;
-    hasMorePostCommentsAfter: boolean;
     postComments: Array<PostCommentModel>;
 } | null> {
     // Start querying before authorization so our query runs in parallel
@@ -504,18 +503,14 @@ export async function getPostAndCommentsFromStart(
             postId,
             commentIndex: Number.MAX_SAFE_INTEGER,
         },
-        // Add two to the limit:
-        //
-        // - One for the post attributes item.
-        // - One so we can determine whether there are more comments after.
-        limit: postCommentLimit + 2,
+        // Add one to the limit for the post attributes item.
+        limit: postCommentLimit + 1,
     });
 
     let state: {
         spaceId: SpaceId;
         postPromise: Promise<PostModel>;
         postCommentPromises: Array<Promise<PostCommentModel>>;
-        hasMorePostCommentsAfter: boolean;
     } | null = null;
 
     for await (const item of queryIterable) {
@@ -529,20 +524,12 @@ export async function getPostAndCommentsFromStart(
                     spaceId: item.spaceId,
                     postPromise: createPostModelFromItem(context, item),
                     postCommentPromises: [],
-                    hasMorePostCommentsAfter: false,
                 };
                 break;
             }
             case "Comments": {
                 if (state === null)
                     throw new DataLossError("Found post comment item but no post attributes item");
-
-                // For items outside our limit, we don't return them and instead mark that
-                // there are more post comments.
-                if (state.postCommentPromises.length >= postCommentLimit) {
-                    state.hasMorePostCommentsAfter = true;
-                    break;
-                }
 
                 state.postCommentPromises.push(
                     createPostCommentModelFromItem(context, state.spaceId, item),
@@ -561,9 +548,16 @@ export async function getPostAndCommentsFromStart(
         runAllPromises(state.postCommentPromises),
     ]);
 
+    const lastPostCommentIndex =
+        postComments.length > 0 ? postComments[postComments.length - 1]!.index : -1;
+
     return {
-        post,
-        hasMorePostCommentsAfter: state.hasMorePostCommentsAfter,
+        post:
+            // Make sure `commentCount` is consistent with `comments` in case of eventual
+            // consistency race conditions.
+            post.commentCount < lastPostCommentIndex + 1
+                ? post.clone({commentCount: lastPostCommentIndex + 1})
+                : post,
         postComments,
     };
 }
@@ -585,7 +579,7 @@ export async function getPostCommentsFromStart(
         beforeCommentIndex: number | null;
     },
 ): Promise<{
-    hasMoreCommentsAfter: boolean;
+    commentCount: number;
     comments: Array<PostCommentModel>;
 }> {
     // Start querying before authorization so our query runs in parallel
@@ -606,29 +600,43 @@ export async function getPostCommentsFromStart(
                     ? beforeCommentIndex - 1
                     : Number.MAX_SAFE_INTEGER,
         },
-        // Add one to the limit so we can determine whether there are more
-        // comments after.
-        limit: limit + 1,
+        limit,
     });
 
-    const {spaceId} = await authorizePostAccess(context, postId);
-
-    const queriedComments = await parallelMapAsyncIterableToArray(
-        queryIterable,
-        async (item, index) => {
-            // For items outside our limit, don't create a post comment model. We will
-            // throw these away.
-            if (index >= limit) return null;
-
-            return createPostCommentModelFromItem(context, spaceId, item);
+    const postItem = await PostsTable.getPartialItem(
+        context,
+        {
+            partitionType: "Post",
+            sortRangeType: "Attributes",
+            postId,
+        },
+        {
+            attributes: ["spaceId", "channelId", "commentsSummary"],
         },
     );
+    if (!postItem) throw new NotFoundError("Post not found");
 
-    // Drop any queried comments outside of our limit.
-    const comments = queriedComments.slice(0, limit) as Array<PostCommentModel>;
-    const hasMoreCommentsAfter = queriedComments.length > limit;
+    await authorizeChannelAccess(context, postItem.channelId);
 
-    return {comments, hasMoreCommentsAfter};
+    const comments = await parallelMapAsyncIterableToArray(queryIterable, item =>
+        createPostCommentModelFromItem(context, postItem.spaceId, item),
+    );
+
+    const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
+
+    return {
+        commentCount: Math.max(
+            reduceIterable(
+                postItem.commentsSummary.commentCountByAuthorId.values(),
+                (commentCount, authorCommentCount) => commentCount + authorCommentCount,
+                0,
+            ),
+            // Make sure `commentCount` is consistent with `comments` in case of eventual
+            // consistency race conditions.
+            lastCommentIndex + 1,
+        ),
+        comments,
+    };
 }
 
 /**
@@ -648,57 +656,72 @@ export async function getPostCommentsFromEnd(
         beforeCommentIndex: number | null;
     },
 ): Promise<{
-    hasMoreCommentsBefore: boolean;
+    commentCount: number;
     comments: Array<PostCommentModel>;
 }> {
-    // Base case: If we are loading before the first comment ID we know there are
-    // no comments.
-    if (beforeCommentIndex === 0) {
-        return {comments: [], hasMoreCommentsBefore: false};
-    }
-
     // Start querying before authorization so our query runs in parallel
     // with authorization.
-    const queryIterable = PostsTable.query(context, {
-        startKey: {
+    const queryIterable =
+        typeof beforeCommentIndex !== "number" || beforeCommentIndex > 0
+            ? PostsTable.query(context, {
+                  startKey: {
+                      partitionType: "Post",
+                      sortRangeType: "Comments",
+                      postId,
+                      commentIndex:
+                          typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+                  },
+                  endKey: {
+                      partitionType: "Post",
+                      sortRangeType: "Comments",
+                      postId,
+                      commentIndex:
+                          typeof beforeCommentIndex === "number"
+                              ? beforeCommentIndex - 1
+                              : Number.MAX_SAFE_INTEGER,
+                  },
+                  limit,
+                  // Scan backwards from `endKey` to `startKey` so we can get comments at the end
+                  // instead of start.
+                  descending: true,
+              })
+            : (async function* () {})();
+
+    const postItem = await PostsTable.getPartialItem(
+        context,
+        {
             partitionType: "Post",
-            sortRangeType: "Comments",
+            sortRangeType: "Attributes",
             postId,
-            commentIndex: typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
         },
-        endKey: {
-            partitionType: "Post",
-            sortRangeType: "Comments",
-            postId,
-            commentIndex:
-                typeof beforeCommentIndex === "number"
-                    ? beforeCommentIndex - 1
-                    : Number.MAX_SAFE_INTEGER,
-        },
-        // Add one to the limit so we can determine whether there are more
-        // comments after.
-        limit: limit + 1,
-        // Scan backwards from `endKey` to `startKey` so we can get comments at the end
-        // instead of start.
-        descending: true,
-    });
-
-    const {spaceId} = await authorizePostAccess(context, postId);
-
-    const queriedComments = await parallelMapAsyncIterableToArray(
-        queryIterable,
-        async (item, index) => {
-            // For items outside our limit, don't create a post comment model. We will
-            // throw these away.
-            if (index >= limit) return null;
-
-            return createPostCommentModelFromItem(context, spaceId, item);
+        {
+            attributes: ["spaceId", "channelId", "commentsSummary"],
         },
     );
+    if (!postItem) throw new NotFoundError("Post not found");
 
-    // Drop any queried comments outside of our limit.
-    const comments = queriedComments.slice(0, limit).reverse() as Array<PostCommentModel>;
-    const hasMoreCommentsBefore = queriedComments.length > limit;
+    await authorizeChannelAccess(context, postItem.channelId);
 
-    return {comments, hasMoreCommentsBefore};
+    const comments = await parallelMapAsyncIterableToArray(queryIterable, item =>
+        createPostCommentModelFromItem(context, postItem.spaceId, item),
+    );
+
+    // We queried in descending order so put comments back in the right order.
+    comments.reverse();
+
+    const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
+
+    return {
+        commentCount: Math.max(
+            reduceIterable(
+                postItem.commentsSummary.commentCountByAuthorId.values(),
+                (commentCount, authorCommentCount) => commentCount + authorCommentCount,
+                0,
+            ),
+            // Make sure `commentCount` is consistent with `comments` in case of eventual
+            // consistency race conditions.
+            lastCommentIndex + 1,
+        ),
+        comments,
+    };
 }

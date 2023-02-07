@@ -134,8 +134,8 @@ export type MessagingImplementation<RoomKey> = {
             beforeMessageIndex: number | null;
         },
     ): Promise<{
+        messageCount: number;
         messages: Array<MessageInterface>;
-        hasMoreMessagesAfter: boolean;
     }>;
 
     /**
@@ -151,8 +151,8 @@ export type MessagingImplementation<RoomKey> = {
             beforeMessageIndex: number | null;
         },
     ): Promise<{
+        messageCount: number;
         messages: Array<MessageInterface>;
-        hasMoreMessagesBefore: boolean;
     }>;
 };
 
@@ -175,7 +175,7 @@ export type RoomInterface<RoomKey> = {
     readonly messageCount: number;
 };
 
-export function testMessageImplementation<RoomKey>(
+export function testMessagingImplementation<RoomKey>(
     context: TestContext,
     {
         createRoom,
@@ -1049,6 +1049,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session1.account,
@@ -1099,7 +1100,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesAfter: false,
             });
         });
 
@@ -1177,8 +1177,125 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 0,
                 messages: [],
-                hasMoreMessagesAfter: false,
+            });
+        });
+
+        test("can see new messages as they are added when loading from start", async () => {
+            const room = await createRoom(context.request(session1), space.id);
+
+            expect(
+                massageMessages(
+                    await getMessagesFromStart(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 100,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 0,
+                messages: [],
+            });
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromStart(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 100,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 1,
+                messages: [
+                    {
+                        author: session1.account,
+                        parentMessageIndex: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                ],
+            });
+
+            await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromStart(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 100,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 2,
+                messages: [
+                    {
+                        author: session1.account,
+                        parentMessageIndex: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageIndex: null,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                ],
+            });
+
+            await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content3,
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromStart(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 100,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 3,
+                messages: [
+                    {
+                        author: session1.account,
+                        parentMessageIndex: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageIndex: null,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session3.account,
+                        parentMessageIndex: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                ],
             });
         });
 
@@ -1267,6 +1384,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session1.account,
@@ -1287,7 +1405,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesAfter: true,
             });
 
             expect(
@@ -1300,6 +1417,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session1.account,
@@ -1332,7 +1450,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesAfter: true,
             });
 
             expect(
@@ -1345,6 +1462,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session1.account,
@@ -1389,7 +1507,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesAfter: true,
             });
 
             expect(
@@ -1402,6 +1519,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session1.account,
@@ -1452,7 +1570,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesAfter: false,
             });
         });
 
@@ -1517,6 +1634,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session3.account,
@@ -1555,7 +1673,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesAfter: false,
             });
 
             expect(
@@ -1568,6 +1685,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session3.account,
@@ -1588,7 +1706,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesAfter: false,
             });
 
             expect(
@@ -1601,8 +1718,8 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [],
-                hasMoreMessagesAfter: false,
             });
         });
 
@@ -1667,6 +1784,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session1.account,
@@ -1675,7 +1793,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesAfter: false,
             });
 
             expect(
@@ -1688,6 +1805,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session1.account,
@@ -1714,7 +1832,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesAfter: false,
             });
 
             expect(
@@ -1727,6 +1844,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session1.account,
@@ -1771,7 +1889,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesAfter: false,
             });
         });
 
@@ -1836,6 +1953,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session3.account,
@@ -1856,7 +1974,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesAfter: true,
             });
 
             expect(
@@ -1869,6 +1986,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session3.account,
@@ -1883,7 +2001,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesAfter: true,
             });
 
             expect(
@@ -1896,6 +2013,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session3.account,
@@ -1916,7 +2034,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesAfter: false,
             });
 
             expect(
@@ -1928,10 +2045,7 @@ export function testMessageImplementation<RoomKey>(
                         beforeMessageIndex: null,
                     }),
                 ),
-            ).toEqual({
-                messages: [],
-                hasMoreMessagesAfter: false,
-            });
+            ).toEqual({messageCount: 8, messages: []});
         });
 
         test("can get messages from start with limit and before cursor", async () => {
@@ -1995,6 +2109,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session1.account,
@@ -2015,7 +2130,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesAfter: true,
             });
 
             expect(
@@ -2028,6 +2142,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session1.account,
@@ -2054,7 +2169,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesAfter: false,
             });
         });
 
@@ -2119,6 +2233,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session3.account,
@@ -2139,7 +2254,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesAfter: true,
             });
 
             expect(
@@ -2152,6 +2266,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session3.account,
@@ -2178,7 +2293,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesAfter: false,
             });
 
             expect(
@@ -2191,6 +2305,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session3.account,
@@ -2217,7 +2332,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesAfter: false,
             });
         });
 
@@ -2282,6 +2396,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session1.account,
@@ -2332,7 +2447,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesBefore: false,
             });
         });
 
@@ -2410,8 +2524,125 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 0,
                 messages: [],
-                hasMoreMessagesBefore: false,
+            });
+        });
+
+        test("can see new messages as they are added when loading from end", async () => {
+            const room = await createRoom(context.request(session1), space.id);
+
+            expect(
+                massageMessages(
+                    await getMessagesFromEnd(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 100,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 0,
+                messages: [],
+            });
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromEnd(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 100,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 1,
+                messages: [
+                    {
+                        author: session1.account,
+                        parentMessageIndex: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                ],
+            });
+
+            await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromEnd(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 100,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 2,
+                messages: [
+                    {
+                        author: session1.account,
+                        parentMessageIndex: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageIndex: null,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                ],
+            });
+
+            await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content3,
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromEnd(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 100,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 3,
+                messages: [
+                    {
+                        author: session1.account,
+                        parentMessageIndex: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageIndex: null,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session3.account,
+                        parentMessageIndex: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                ],
             });
         });
 
@@ -2500,6 +2731,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session3.account,
@@ -2520,7 +2752,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesBefore: true,
             });
 
             expect(
@@ -2533,6 +2764,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session1.account,
@@ -2565,7 +2797,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesBefore: true,
             });
 
             expect(
@@ -2578,6 +2809,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session2.account,
@@ -2622,7 +2854,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesBefore: true,
             });
 
             expect(
@@ -2635,6 +2866,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session1.account,
@@ -2685,7 +2917,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesBefore: false,
             });
         });
 
@@ -2750,6 +2981,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session1.account,
@@ -2758,7 +2990,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesBefore: false,
             });
 
             expect(
@@ -2771,6 +3002,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session1.account,
@@ -2797,7 +3029,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesBefore: false,
             });
 
             expect(
@@ -2810,6 +3041,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session1.account,
@@ -2854,7 +3086,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesBefore: false,
             });
         });
 
@@ -2919,6 +3150,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session3.account,
@@ -2957,7 +3189,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesBefore: false,
             });
 
             expect(
@@ -2970,6 +3201,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session3.account,
@@ -2990,7 +3222,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesBefore: false,
             });
 
             expect(
@@ -3002,10 +3233,7 @@ export function testMessageImplementation<RoomKey>(
                         beforeMessageIndex: null,
                     }),
                 ),
-            ).toEqual({
-                messages: [],
-                hasMoreMessagesBefore: false,
-            });
+            ).toEqual({messageCount: 8, messages: []});
         });
 
         test("can get messages from end with limit and before cursor", async () => {
@@ -3069,6 +3297,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session3.account,
@@ -3089,7 +3318,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesBefore: true,
             });
 
             expect(
@@ -3102,6 +3330,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session2.account,
@@ -3116,7 +3345,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesBefore: true,
             });
 
             expect(
@@ -3129,6 +3357,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session1.account,
@@ -3149,7 +3378,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesBefore: false,
             });
 
             expect(
@@ -3161,10 +3389,7 @@ export function testMessageImplementation<RoomKey>(
                         beforeMessageIndex: message1.index,
                     }),
                 ),
-            ).toEqual({
-                messages: [],
-                hasMoreMessagesBefore: false,
-            });
+            ).toEqual({messageCount: 8, messages: []});
         });
 
         test("can get messages from end with limit and after cursor", async () => {
@@ -3228,6 +3453,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session1.account,
@@ -3242,7 +3468,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesBefore: true,
             });
 
             expect(
@@ -3255,6 +3480,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session3.account,
@@ -3275,7 +3501,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesBefore: false,
             });
         });
 
@@ -3340,6 +3565,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session1.account,
@@ -3360,7 +3586,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesBefore: true,
             });
 
             expect(
@@ -3373,6 +3598,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session3.account,
@@ -3399,7 +3625,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesBefore: false,
             });
 
             expect(
@@ -3412,6 +3637,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session3.account,
@@ -3438,7 +3664,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesBefore: false,
             });
         });
 
@@ -3519,6 +3744,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session1.account,
@@ -3565,7 +3791,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesAfter: false,
             });
         });
 
@@ -3646,6 +3871,7 @@ export function testMessageImplementation<RoomKey>(
                     }),
                 ),
             ).toEqual({
+                messageCount: 8,
                 messages: [
                     {
                         author: session1.account,
@@ -3692,7 +3918,6 @@ export function testMessageImplementation<RoomKey>(
                         hasContentUpdated: false,
                     },
                 ],
-                hasMoreMessagesBefore: false,
             });
         });
     });

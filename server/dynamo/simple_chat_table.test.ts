@@ -10,14 +10,14 @@ import {
 } from "~/server/dynamo/simple_chat_table";
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
 import {createTestContext} from "~/server/dynamo/test/create_test_context";
-import {testMessageImplementation} from "~/server/dynamo/test/test_messaging_implementation";
+import {testMessagingImplementation} from "~/server/dynamo/test/test_messaging_implementation";
 import {generateId} from "~/shared/id/id";
 import {SimpleChatId} from "~/shared/id/types/id_types";
 
 const context = createTestContext();
 const SimpleChatTable = getSimpleChatTableForTest();
 
-testMessageImplementation<SimpleChatId>(context, {
+testMessagingImplementation<SimpleChatId>(context, {
     async createRoom(context, spaceId) {
         await authorizeSpaceAccess(context, spaceId);
 
