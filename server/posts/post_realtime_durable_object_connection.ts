@@ -28,6 +28,10 @@ export class PostRealtimeDurableObjectConnection {
         context: ProcessContext,
         message: PostRealtimeMessageFromServer,
     ) => void;
+    private readonly _sendMessageToAll: (
+        context: ProcessContext,
+        message: PostRealtimeMessageFromServer,
+    ) => void;
     private readonly _iterateOtherConnections: () => Iterable<PostRealtimeDurableObjectConnection>;
 
     /**
@@ -45,14 +49,17 @@ export class PostRealtimeDurableObjectConnection {
     constructor({
         postId,
         sendMessage,
+        sendMessageToAll,
         iterateOtherConnections,
     }: {
         postId: PostId;
         sendMessage: (context: ProcessContext, message: PostRealtimeMessageFromServer) => void;
+        sendMessageToAll: (context: ProcessContext, message: PostRealtimeMessageFromServer) => void;
         iterateOtherConnections: () => Iterable<PostRealtimeDurableObjectConnection>;
     }) {
         this._postId = postId;
         this._sendMessage = sendMessage;
+        this._sendMessageToAll = sendMessageToAll;
         this._iterateOtherConnections = iterateOtherConnections;
     }
 
@@ -187,16 +194,29 @@ export class PostRealtimeDurableObjectConnection {
                 break;
             }
             case "UpdatePostCommentContent": {
-                await updatePostCommentContent(context, {
+                const {contentUpdatedTime} = await updatePostCommentContent(context, {
                     ...message,
                     postId: this._postId,
+                });
+
+                this._sendMessageToAll(context, {
+                    type: "UpdatedPostCommentContent",
+                    commentIndex: message.commentIndex,
+                    content: message.content,
+                    contentUpdatedTime,
                 });
                 break;
             }
             case "DeletePostComment": {
-                await deletePostComment(context, {
+                const {deletedTime} = await deletePostComment(context, {
                     ...message,
                     postId: this._postId,
+                });
+
+                this._sendMessageToAll(context, {
+                    type: "DeletedPostComment",
+                    commentIndex: message.commentIndex,
+                    deletedTime,
                 });
                 break;
             }

@@ -137,4 +137,19 @@ export class MessageList<Message extends MessageInterface> {
     public setMessage(message: Message): MessageList<Message> {
         return this.setMessages([message]);
     }
+
+    /**
+     * Updates a message at the specified index in the list. If the message at that
+     * index is not loaded or out of bounds then this function does nothing.
+     */
+    public updateMessage(
+        messageIndex: number,
+        update: (message: Message) => Message,
+    ): MessageList<Message> {
+        const iterator = this._messages.find(messageIndex);
+        if (!iterator.value) return this;
+        const newMessage = update(iterator.value);
+        if (newMessage === iterator.value) return this;
+        return new MessageList(this._messageCount, iterator.update(newMessage));
+    }
 }

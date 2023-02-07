@@ -13,6 +13,7 @@ import {
     NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error";
+import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {SpaceId} from "~/shared/id/types/id_types";
 import {MessageInterface} from "~/shared/models/message_interface";
@@ -3919,6 +3920,122 @@ export function testMessagingImplementation<RoomKey>(
                     },
                 ],
             });
+        });
+
+        test("if time hasn't moved forward updating a message will set it to +1ms of the last update time", async () => {
+            const originalDateNow = Date.now;
+            const mockTime = 1675809808692;
+            Date.now = () => mockTime;
+
+            try {
+                const room = await createRoom(context.request(session1), space.id);
+
+                const message = await createMessage(context.request(session1), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: content1,
+                });
+
+                await updateMessageContent(context.request(session1), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    content: content2,
+                });
+
+                {
+                    const updatedMessage = await getMessage(context.request(session1), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    });
+                    assert(updatedMessage?.payload.type === "Content");
+                    expect(updatedMessage.payload.contentUpdatedTime).toEqual(new Date(mockTime));
+                }
+
+                await updateMessageContent(context.request(session1), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    content: content3,
+                });
+
+                {
+                    const updatedMessage = await getMessage(context.request(session1), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    });
+                    assert(updatedMessage?.payload.type === "Content");
+                    expect(updatedMessage.payload.contentUpdatedTime).toEqual(
+                        new Date(mockTime + 1),
+                    );
+                }
+
+                Date.now = () => mockTime - 1000 * 60;
+
+                await updateMessageContent(context.request(session1), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    content: content3,
+                });
+
+                {
+                    const updatedMessage = await getMessage(context.request(session1), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    });
+                    assert(updatedMessage?.payload.type === "Content");
+                    expect(updatedMessage.payload.contentUpdatedTime).toEqual(
+                        new Date(mockTime + 2),
+                    );
+                }
+            } finally {
+                Date.now = originalDateNow;
+            }
+        });
+
+        test("if time hasn't moved forward deleting a message will set it to +1ms of the last update time", async () => {
+            const originalDateNow = Date.now;
+            const mockTime = 1675809808692;
+            Date.now = () => mockTime;
+
+            try {
+                const room = await createRoom(context.request(session1), space.id);
+
+                const message = await createMessage(context.request(session1), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: content1,
+                });
+
+                await updateMessageContent(context.request(session1), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    content: content2,
+                });
+
+                {
+                    const updatedMessage = await getMessage(context.request(session1), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    });
+                    assert(updatedMessage?.payload.type === "Content");
+                    expect(updatedMessage.payload.contentUpdatedTime).toEqual(new Date(mockTime));
+                }
+
+                await deleteMessage(context.request(session1), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                });
+
+                {
+                    const updatedMessage = await getMessage(context.request(session1), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    });
+                    assert(updatedMessage?.payload.type === "Deleted");
+                    expect(updatedMessage.payload.deletedTime).toEqual(new Date(mockTime + 1));
+                }
+            } finally {
+                Date.now = originalDateNow;
+            }
         });
     });
 }

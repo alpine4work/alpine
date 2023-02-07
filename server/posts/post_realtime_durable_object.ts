@@ -69,6 +69,8 @@ class PostRealtimeDurableObject {
                 new PostRealtimeDurableObjectConnection({
                     postId,
                     sendMessage,
+                    sendMessageToAll: (context, message) =>
+                        this._webSocketServer.sendMessageToAll(context, message),
                     iterateOtherConnections,
                 }),
         );

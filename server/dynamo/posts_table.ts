@@ -417,7 +417,12 @@ export function updatePostCommentContent(
         if (item.payload.type !== "Content")
             throw new FailedPreconditionError("Can not update comments with a non-content payload");
 
-        const contentUpdatedTime = new Date();
+        const contentUpdatedTime = new Date(
+            item.payload.contentUpdatedTime
+                ? Math.max(item.payload.contentUpdatedTime.getTime() + 1, Date.now())
+                : Date.now(),
+        );
+
         await PostsTable.directlyUpdateItem(context, {
             ...item,
             payload: {
@@ -437,7 +442,7 @@ export function updatePostCommentContent(
 export function deletePostComment(
     context: RequestContext,
     {postId, commentIndex}: {postId: PostId; commentIndex: number},
-): Promise<void> {
+): Promise<{deletedTime: Date}> {
     return retryDynamoConditionCheckErrors(async () => {
         const [postItem, postCommentItem] = await runAllPromises([
             PostsTable.getItem(context, {
@@ -464,11 +469,18 @@ export function deletePostComment(
         if (postCommentItem.payload.type !== "Content")
             throw new FailedPreconditionError("Can not delete comments with a non-content payload");
 
-        const deletedTime = new Date();
+        const deletedTime = new Date(
+            postCommentItem.payload.contentUpdatedTime
+                ? Math.max(postCommentItem.payload.contentUpdatedTime.getTime() + 1, Date.now())
+                : Date.now(),
+        );
+
         await PostsTable.directlyUpdateItem(context, {
             ...postCommentItem,
             payload: {type: "Deleted", deletedTime},
         });
+
+        return {deletedTime};
     });
 }
 

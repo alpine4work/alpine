@@ -64,11 +64,45 @@ export function usePostRealtime({
                     break;
                 }
                 case "UpdatedPostCommentContent": {
-                    // TODO(calebmer): Implement!
+                    onUpdatePostComments(postComments =>
+                        postComments.updateMessage(message.commentIndex, comment => {
+                            // Do nothing if the comment is deleted or the comment was updated at a later
+                            // time then our message. There are no ordering guarantees for
+                            // `UpdatedPostCommentContent`! So we have to enforce ordering with
+                            // `contentUpdatedTime`.
+                            if (
+                                comment.payload.type !== "Content" ||
+                                (comment.payload.contentUpdatedTime !== null &&
+                                    message.contentUpdatedTime.getTime() <
+                                        comment.payload.contentUpdatedTime.getTime())
+                            ) {
+                                return comment;
+                            }
+
+                            return comment.clone({
+                                payload: {
+                                    ...comment.payload,
+                                    content: message.content,
+                                    contentUpdatedTime: message.contentUpdatedTime,
+                                },
+                            });
+                        }),
+                    );
                     break;
                 }
                 case "DeletedPostComment": {
-                    // TODO(calebmer): Implement!
+                    onUpdatePostComments(postComments =>
+                        postComments.updateMessage(message.commentIndex, comment => {
+                            if (comment.payload.type !== "Content") return comment;
+
+                            return comment.clone({
+                                payload: {
+                                    type: "Deleted",
+                                    deletedTime: message.deletedTime,
+                                },
+                            });
+                        }),
+                    );
                     break;
                 }
                 default:

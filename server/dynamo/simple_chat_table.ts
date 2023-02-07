@@ -257,7 +257,12 @@ export function updateSimpleChatMessageContent(
         if (item.payload.type !== "Content")
             throw new FailedPreconditionError("Can not update comments with a non-content payload");
 
-        const contentUpdatedTime = new Date();
+        const contentUpdatedTime = new Date(
+            item.payload.contentUpdatedTime
+                ? Math.max(item.payload.contentUpdatedTime.getTime() + 1, Date.now())
+                : Date.now(),
+        );
+
         await SimpleChatTable.directlyUpdateItem(context, {
             ...item,
             payload: {
@@ -301,7 +306,12 @@ export function deleteSimpleChatMessage(
         if (messageItem.payload.type !== "Content")
             throw new FailedPreconditionError("Can not delete comments with a non-content payload");
 
-        const deletedTime = new Date();
+        const deletedTime = new Date(
+            messageItem.payload.contentUpdatedTime
+                ? Math.max(messageItem.payload.contentUpdatedTime.getTime() + 1, Date.now())
+                : Date.now(),
+        );
+
         await SimpleChatTable.directlyUpdateItem(context, {
             ...messageItem,
             payload: {type: "Deleted", deletedTime},
