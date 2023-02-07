@@ -5,7 +5,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
  * If the user pressed an element outside of the returned ref then we call the
  * provided callback.
  */
-export function useOutsidePress(onOutsidePress: () => void): RefCallback<HTMLElement> {
+export function useOutsidePress(onOutsidePress: (event: Event) => void): RefCallback<HTMLElement> {
     const ref = useRef<HTMLElement | null>(null);
 
     const onOutsidePressRef = useRef(onOutsidePress);
@@ -20,7 +20,7 @@ export function useOutsidePress(onOutsidePress: () => void): RefCallback<HTMLEle
             if (!ref.current) return;
 
             if (event.target instanceof Node && !ref.current.contains(event.target)) {
-                onOutsidePressRef.current();
+                onOutsidePressRef.current(event);
             }
         };
 

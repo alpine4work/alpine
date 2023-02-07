@@ -23,6 +23,7 @@ import {setElementAttributesWithCleanup} from "~/client/design/helpers/set_eleme
 import {useElementWithRef} from "~/client/design/helpers/use_element_with_ref";
 import {useLifecycleRef} from "~/client/design/helpers/use_lifecycle_ref";
 import {useMergedRefs} from "~/client/design/helpers/use_merged_refs";
+import {useOutsidePress} from "~/client/design/helpers/use_outside_press";
 import {Overlay, OverlayPlacement} from "~/client/design/overlay";
 import {uninterruptedThoughtLimitMs} from "~/client/design/timing_constants";
 import {useShowToast} from "~/client/design/toast";
@@ -320,25 +321,18 @@ export function MenuButton({
 
     // Close the menu if there’s a click somewhere else in the document outside
     // the menu or menu button.
-    useEffect(() => {
+    const outsidePressRef = useOutsidePress(event => {
         if (!state.isExpanded) return;
 
-        function handleDocumentMouseDown(event: MouseEvent) {
-            const menuButtonElement = menuButtonRef.current;
-            const menuElement = menuRef.current;
-            const targetElement = event.target as Element;
+        const menuButtonElement = menuButtonRef.current;
+        const menuElement = menuRef.current;
+        const targetElement = event.target as Element;
 
-            if (menuButtonElement?.contains(targetElement)) return;
-            if (menuElement?.contains(targetElement)) return;
+        if (menuButtonElement?.contains(targetElement)) return;
+        if (menuElement?.contains(targetElement)) return;
 
-            setState({isExpanded: false, isFadingOut: true});
-        }
-
-        document.addEventListener("mousedown", handleDocumentMouseDown);
-        return () => {
-            document.removeEventListener("mousedown", handleDocumentMouseDown);
-        };
-    }, [state.isExpanded]);
+        setState({isExpanded: false, isFadingOut: true});
+    });
 
     const isVisible = state.isExpanded || state.isFadingOut;
 
@@ -360,7 +354,7 @@ export function MenuButton({
             offset={offset}
             overlay={
                 <Menu
-                    ref={menuRef}
+                    ref={useMergedRefs<HTMLDivElement>(menuRef, outsidePressRef)}
                     actions={actions}
                     placement={placement}
                     isFadingOut={!state.isExpanded && state.isFadingOut}
