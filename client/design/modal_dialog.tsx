@@ -6,6 +6,7 @@ import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
 import {IconButton} from "~/client/design/icon_button";
 import {OverlayScopeContextProvider, useOverlayRootPortalElement} from "~/client/design/overlay";
+import {uninterruptedThoughtLimitMs} from "~/client/design/timing_constants";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -34,7 +35,7 @@ export function ModalDialog({
     primaryButtonPressErrorTitle,
     onPrimaryButtonPress,
     isPrimaryButtonDestructive,
-    onClose: _onActuallyClose,
+    onClose: _onCloseWithoutAnimation,
 }: {
     title: string;
     description: string;
@@ -58,14 +59,17 @@ export function ModalDialog({
         primaryButtonElement.focus();
     }, [portalElement]);
 
-    const onActuallyClose = useEvent(_onActuallyClose);
+    const onCloseWithoutAnimation = useEvent(_onCloseWithoutAnimation);
     useEffect(() => {
         if (!isFadingOut) return;
-        const timeout = createTimeout(onActuallyClose, modalDialogStyles.modalFadeOutDuration);
+        const timeout = createTimeout(
+            onCloseWithoutAnimation,
+            modalDialogStyles.modalFadeOutDuration,
+        );
         return () => timeout.clear();
-    }, [isFadingOut, onActuallyClose]);
+    }, [isFadingOut, onCloseWithoutAnimation]);
 
-    const onClose = () => setIsFadingOut(true);
+    const onCloseWithAnimation = () => setIsFadingOut(true);
 
     if (!portalElement) return null;
 
@@ -91,7 +95,7 @@ export function ModalDialog({
                     // If the underlay is clicked, we close the modal. This element is not
                     // focusable or keyboard accessible. You can hit the "Escape" key as a shortcut
                     // to close the modal.
-                    onClick={onClose}
+                    onClick={onCloseWithAnimation}
                 />
                 <FocusScope restoreFocus contain>
                     <section
@@ -103,7 +107,7 @@ export function ModalDialog({
                             if (event.key === "Escape") {
                                 event.stopPropagation();
                                 event.preventDefault();
-                                onClose();
+                                onCloseWithoutAnimation();
                             }
                         }}
                         className={sprinkles({
@@ -155,7 +159,7 @@ export function ModalDialog({
                                 {description}
                             </Box>
                             <Box display="flex" justifyContent="flex-end" gap="2">
-                                <Button onPress={onClose}>Cancel</Button>
+                                <Button onPress={onCloseWithoutAnimation}>Cancel</Button>
                                 <Button
                                     ref={primaryButtonRef}
                                     variant={isPrimaryButtonDestructive ? "destructive" : "accent"}
@@ -163,11 +167,31 @@ export function ModalDialog({
                                     onPress={() => {
                                         const promise = onPrimaryButtonPress();
                                         if (promise instanceof Promise) {
-                                            return promise.then(onClose, error => {
-                                                throw error;
-                                            });
+                                            const promiseStartTime = new Date();
+
+                                            return promise.then(
+                                                () => {
+                                                    // Our animation principle is to respond to user input immediately
+                                                    // without animation.
+                                                    //
+                                                    // If the button had to go into a loading state we consider the click long
+                                                    // enough ago that it is no longer a direct action.
+                                                    if (
+                                                        new Date().getTime() -
+                                                            promiseStartTime.getTime() >
+                                                        uninterruptedThoughtLimitMs
+                                                    ) {
+                                                        onCloseWithAnimation();
+                                                    } else {
+                                                        onCloseWithoutAnimation();
+                                                    }
+                                                },
+                                                error => {
+                                                    throw error;
+                                                },
+                                            );
                                         } else {
-                                            onClose();
+                                            onCloseWithoutAnimation();
                                         }
                                     }}
                                 >
@@ -178,7 +202,9 @@ export function ModalDialog({
                                 <IconButton
                                     size="xs"
                                     description="Close"
-                                    onPress={onClose}
+                                    // Our animation principle is to respond to user input immediately
+                                    // without animation.
+                                    onPress={onCloseWithoutAnimation}
                                     withoutTooltip={true}
                                 >
                                     <X />
