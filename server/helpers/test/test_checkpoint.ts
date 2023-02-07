@@ -21,7 +21,7 @@ export class TestCheckpoint<
         // settled yet and clear our checkpoint map so we don't have a memory leak.
         if (typeof jest !== "undefined") {
             afterEach(() => {
-                for (const promiseResolver1 of this._promiseResolverByKey.values()) {
+                for (const [, promiseResolver1] of this._promiseResolverByKey) {
                     if (!promiseResolver1.isSettled()) {
                         promiseResolver1.reject(new CancelledError("Test finished"));
                     } else {

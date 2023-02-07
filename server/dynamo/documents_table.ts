@@ -559,15 +559,6 @@ export class DocumentContentCacheForUpdate {
                 // If we read a past version of the document that might be because we're using
                 // DynamoDB eventual consistency and we can't yet read the latest write. So try
                 // to load the document one more time but with strong consistency instead.
-                //
-                // NOTE(calebmer, 2022-12-28): At the time of writing, `defaultReadConsistency`
-                // is always `Eventual`. I added the property because I think in the future we
-                // may want some blocks of code to run with strong consistency by default? I
-                // don't know yet...I need more experience to figure out what the right way to
-                // think about DynamoDB read consistency. It's unfortunate that in local
-                // development everything is strongly consistent. Maybe worth adding some kind
-                // of chaos code to randomly return inconsistent data in development once in
-                // a while.
                 if (context.dynamo.defaultReadConsistency === "Eventual") {
                     _attributes = await DocumentsTable.getItem(
                         context,

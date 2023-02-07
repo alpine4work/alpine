@@ -1,7 +1,9 @@
 import Cookies from "js-cookie";
 import {ReactNode, createContext, useContext, useEffect, useState} from "react";
 import {InternalError} from "~/shared/error/error";
+import {assert} from "~/shared/helpers/control/assert";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
+import {Lazy} from "~/shared/helpers/control/lazy";
 import {defaultTimeZone, getCurrentTimeZone} from "~/shared/helpers/date/time_zone";
 import {ClientInfo} from "~/shared/remix/client_info";
 
@@ -35,12 +37,18 @@ export const defaultClientInfo: ClientInfo = {
     timeZone: defaultTimeZone,
 };
 
-function getClientInfo(): ClientInfo {
-    return {
-        screenWidth: window.screen.width,
-        screenHeight: window.screen.height,
-        timeZone: getCurrentTimeZone(),
-    };
+const clientInfo = new Lazy(() => ({
+    screenWidth: window.screen.width,
+    screenHeight: window.screen.height,
+    timeZone: getCurrentTimeZone(),
+}));
+
+/**
+ * Get the current client info without listening for changes.
+ */
+export function getClientInfoWithoutListening(): ClientInfo {
+    assert(typeof window !== "undefined");
+    return clientInfo.get();
 }
 
 const ClientInfoContext = createContext<ClientInfo | null>(null);
@@ -78,7 +86,7 @@ export function ClientInfoContextProvider({
     const [clientInfo, setClientInfo] = useState(initialClientInfo);
 
     useEffect(() => {
-        const actualClientInfo = getClientInfo();
+        const actualClientInfo = getClientInfoWithoutListening();
 
         setClientInfo(clientInfo => {
             if (isDeepEqual(clientInfo, actualClientInfo)) return clientInfo;

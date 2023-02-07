@@ -5,9 +5,10 @@ import {Schema, SchemaType} from "~/shared/schema/schema";
 export type PostRealtimeMessageFromClient = SchemaType<typeof PostRealtimeMessageFromClientSchema>;
 
 export const PostRealtimeMessageFromClientSchema = Schema.union({
-    BackfillComments: Schema.object({
-        type: Schema.value("BackfillComments"),
-        commentCount: Schema.integer,
+    BackfillPostCommentsRequest: Schema.object({
+        type: Schema.value("BackfillPostCommentsRequest"),
+        currentCommentCount: Schema.integer,
+        backfillCommentLimit: Schema.integer,
     }),
     CreatePostComment: Schema.object({
         type: Schema.value("CreatePostComment"),
@@ -28,8 +29,13 @@ export const PostRealtimeMessageFromClientSchema = Schema.union({
 export type PostRealtimeMessageFromServer = SchemaType<typeof PostRealtimeMessageFromServerSchema>;
 
 export const PostRealtimeMessageFromServerSchema = Schema.union({
-    CreatedPostComment: Schema.object({
-        type: Schema.value("CreatedPostComment"),
+    BackfillPostCommentsResponse: Schema.object({
+        type: Schema.value("BackfillPostCommentsResponse"),
+        commentCount: Schema.integer,
+        newComments: Schema.array(PostCommentModel.schema()),
+    }),
+    NewPostComment: Schema.object({
+        type: Schema.value("NewPostComment"),
         comment: PostCommentModel.schema(),
     }),
     UpdatedPostCommentContent: Schema.object({

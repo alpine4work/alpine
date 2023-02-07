@@ -1,6 +1,9 @@
-import {Ref, useEffect, useImperativeHandle, useMemo, useState} from "react";
+import {Ref, useEffect, useImperativeHandle, useMemo, useRef, useState} from "react";
 import {useWebSocket} from "~/client/cloudflare/use_web_socket";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {MessageList} from "~/client/messaging/message_list";
+import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
+import {getClientInfoWithoutListening} from "~/client/remix/client_info_context";
 import {MessageContent} from "~/shared/content/message_content_schema";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {PostId} from "~/shared/id/types/id_types";
@@ -47,9 +50,16 @@ export function usePostRealtime({
         PostRealtimeMessageFromServerSchema,
         `/durable-objects/posts/${postId}`,
         message => {
-            // TODO(calebmer): Message ordering?
             switch (message.type) {
-                case "CreatedPostComment": {
+                case "BackfillPostCommentsResponse": {
+                    onUpdatePostComments(postComments =>
+                        postComments
+                            .increaseMessageCount(message.commentCount)
+                            .setMessages(message.newComments),
+                    );
+                    break;
+                }
+                case "NewPostComment": {
                     onUpdatePostComments(postComments => postComments.setMessage(message.comment));
                     break;
                 }
@@ -66,6 +76,24 @@ export function usePostRealtime({
             }
         },
     );
+
+    const postCommentsRef = useRef(postComments);
+    useLayoutEffectWithoutServerSideWarning(() => {
+        postCommentsRef.current = postComments;
+    });
+
+    // Whenever we connect to the WebSocket, request a comment backfill. If the
+    // visits another browser tab this will disconnect the WebSocket then when the
+    // user returns to this browser tab we will send another backfill.
+    useEffect(() => {
+        if (isConnected) {
+            sendMessage({
+                type: "BackfillPostCommentsRequest",
+                currentCommentCount: postCommentsRef.current.getMessageCount(),
+                backfillCommentLimit: getInitialLoadMessageCount(getClientInfoWithoutListening()),
+            }).catch(error => setErrorState({hasError: true, error}));
+        }
+    }, [isConnected, sendMessage]);
 
     const actions = useMemo((): PostRealtimeActions => {
         return {
