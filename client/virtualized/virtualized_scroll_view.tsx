@@ -7,6 +7,7 @@ import {
     RefObject,
     cloneElement,
     forwardRef,
+    startTransition,
     useEffect,
     useImperativeHandle,
     useMemo,
@@ -140,6 +141,7 @@ export type VirtualizedScrollViewItem =
               height: number;
               shouldRenderWithRelativePositioning: boolean;
               getIndexPosition: (index: number) => {offset: number; height: number};
+              isScrolling: boolean;
           }) => ReactElement;
       });
 
@@ -160,6 +162,7 @@ export {VirtualizedScrollViewForwardRef as VirtualizedScrollView};
 
 type VirtualizedScrollViewActualState = {
     readonly state: VirtualizedScrollViewState;
+    readonly isScrolling: boolean;
     readonly isJumpScrolling: boolean;
     /**
      * Well, this is annoying.
@@ -371,7 +374,7 @@ function VirtualizedScrollView(
         [_bufferedItemHeight, remPx],
     );
 
-    const [originalState, setState] = useState<VirtualizedScrollViewActualState>(() => {
+    const [actualState, setState] = useState<VirtualizedScrollViewActualState>(() => {
         if (pinTo === "top") {
             return {
                 state: VirtualizedScrollViewState.initializeFromTop({
@@ -380,6 +383,7 @@ function VirtualizedScrollView(
                     itemCount,
                     getItem: getItemWithoutRender,
                 }),
+                isScrolling: false,
                 isJumpScrolling: false,
                 contentHeightBeforeScrollForMobileWebKitPinToBottom: null,
             };
@@ -391,13 +395,14 @@ function VirtualizedScrollView(
                     itemCount,
                     getItem: getItemWithoutRender,
                 }),
+                isScrolling: false,
                 isJumpScrolling: false,
                 contentHeightBeforeScrollForMobileWebKitPinToBottom: null,
             };
         }
     });
-    let {state} = originalState;
-    const {contentHeightBeforeScrollForMobileWebKitPinToBottom} = originalState;
+    let {state} = actualState;
+    const {contentHeightBeforeScrollForMobileWebKitPinToBottom} = actualState;
 
     // Update the buffered item height in our state based on our props if
     // necessary.
@@ -502,13 +507,13 @@ function VirtualizedScrollView(
 
                                 // NOTE(calebmer): We can't update the rendered range inline here because we
                                 // will have captured stale `itemCount` and `renderItem` props.
-                                setState(previousState => {
-                                    const newState = previousState.state.setItemHeight(
+                                setState(actualState => {
+                                    const newState = actualState.state.setItemHeight(
                                         item.key,
                                         height,
                                     );
-                                    if (newState === previousState.state) return previousState;
-                                    return {...previousState, state: newState};
+                                    if (newState === actualState.state) return actualState;
+                                    return {...actualState, state: newState};
                                 });
                             };
 
@@ -538,6 +543,7 @@ function VirtualizedScrollView(
                             height,
                             shouldRenderWithRelativePositioning,
                             getIndexPosition,
+                            isScrolling: actualState.isScrolling,
                         });
                         return cloneElement(element, {key: item.key});
                     } else {
@@ -570,8 +576,7 @@ function VirtualizedScrollView(
 
     const hasHandledScrollThisAnimationFrameRef = useRef(false);
     const lastScrollTopRef = useRef<number | null>(null);
-    const jumpScrollDebounceTimeoutRef = useRef<Timeout | null>(null);
-    const scrollForMobileWebkitPinToBottomTimeoutRef = useRef<Timeout | null>(null);
+    const scrollDebounceTimeoutRef = useRef<Timeout | null>(null);
 
     const handleScroll = () => {
         // Only handle scroll events once per animation frame.
@@ -596,40 +601,10 @@ function VirtualizedScrollView(
             lastScrollTopRef.current !== null &&
             Math.abs(lastScrollTopRef.current - scrollTop) > clientHeight / 2;
 
-        if (isJumpScrolling) {
-            jumpScrollDebounceTimeoutRef.current?.clear();
-            jumpScrollDebounceTimeoutRef.current = createTimeout(() => {
-                const {scrollTop} = assertExists(scrollRef.current);
-
-                setState(previousState => {
-                    if (!previousState.isJumpScrolling) return previousState;
-
-                    // Sometimes React tries to eagerly compute the next state. Then will rebase
-                    // during render.
-                    //
-                    // If the `itemCount` changed we need to wait for React to render before
-                    // calling `updateRenderedRange()` or else it will throw. So if we detect an
-                    // incorrect item count then React is probably trying to eagerly evaluate this
-                    // state update. Return a new state value to trigger a re-render and React
-                    // should properly apply state updates from there.
-                    if (itemCount !== previousState.state.getItemCount()) {
-                        return {...previousState, isJumpScrolling: false};
-                    }
-
-                    return updateVirtualizedScrollViewActualStateRenderedRange(previousState, {
-                        pinTo,
-                        itemCount,
-                        getItemWithoutRender,
-                        scrollTop,
-                    });
-                });
-            }, perceivedAsInstantLimitMs);
-        }
-
-        setState(previousState => {
-            if (previousState.isJumpScrolling || isJumpScrolling) {
-                if (previousState.isJumpScrolling) return previousState;
-                return {...previousState, isJumpScrolling: true};
+        setState(actualState => {
+            if (actualState.isJumpScrolling || isJumpScrolling) {
+                if (actualState.isJumpScrolling) return actualState;
+                return {...actualState, isJumpScrolling: true};
             } else {
                 // Sometimes React tries to eagerly compute the next state. Then will rebase
                 // during render.
@@ -639,31 +614,62 @@ function VirtualizedScrollView(
                 // incorrect item count then React is probably trying to eagerly evaluate this
                 // state update. Return a new state value to trigger a re-render and React
                 // should properly apply state updates from there.
-                if (itemCount !== previousState.state.getItemCount()) {
-                    return {...previousState};
+                if (itemCount !== actualState.state.getItemCount()) {
+                    return {...actualState};
                 }
 
-                return updateVirtualizedScrollViewActualStateRenderedRange(previousState, {
-                    pinTo,
-                    itemCount,
-                    getItemWithoutRender,
-                    scrollTop,
-                });
+                return {
+                    ...updateVirtualizedScrollViewActualStateRenderedRange(actualState, {
+                        pinTo,
+                        itemCount,
+                        getItemWithoutRender,
+                        scrollTop,
+                    }),
+                    isScrolling: true,
+                };
             }
         });
 
-        // If this is mobile WebKit, detect when the user has stopped scrolling and
-        // reset the before content height. This should update our rendered element's
-        // content height.
-        if (isMobileWebKit && pinTo === "bottom") {
-            scrollForMobileWebkitPinToBottomTimeoutRef.current?.clear();
-            scrollForMobileWebkitPinToBottomTimeoutRef.current = createTimeout(() => {
-                setState(previousState => ({
-                    ...previousState,
-                    contentHeightBeforeScrollForMobileWebKitPinToBottom: null,
-                }));
-            }, perceivedAsInstantLimitMs);
-        }
+        scrollDebounceTimeoutRef.current?.clear();
+        scrollDebounceTimeoutRef.current = createTimeout(() => {
+            // Transition this render because if it's a jump scroll or if items change
+            // based on `isScrolling` the render may be expensive and it will be useful to
+            // time slice.
+            startTransition(() => {
+                setState(actualState => {
+                    actualState = {
+                        ...actualState,
+                        isScrolling: false,
+                        // Reset the content height on mobile WebKit once the user is done scrolling.
+                        // This should update our rendered element's content height.
+                        contentHeightBeforeScrollForMobileWebKitPinToBottom: null,
+                    };
+
+                    // If we were jump scrolling we need to update the rendered range at the end of
+                    // the scroll.
+                    if (!actualState.isJumpScrolling) return actualState;
+
+                    // Sometimes React tries to eagerly compute the next state. Then will rebase
+                    // during render.
+                    //
+                    // If the `itemCount` changed we need to wait for React to render before
+                    // calling `updateRenderedRange()` or else it will throw. So if we detect an
+                    // incorrect item count then React is probably trying to eagerly evaluate this
+                    // state update. Return a new state value to trigger a re-render and React
+                    // should properly apply state updates from there.
+                    if (itemCount !== actualState.state.getItemCount()) {
+                        return {...actualState, isJumpScrolling: false};
+                    }
+
+                    return updateVirtualizedScrollViewActualStateRenderedRange(actualState, {
+                        pinTo,
+                        itemCount,
+                        getItemWithoutRender,
+                        scrollTop,
+                    });
+                });
+            });
+        }, perceivedAsInstantLimitMs);
 
         // Finally, update the scroll top so we know what the last value was.
         lastScrollTopRef.current = scrollTop;
@@ -703,18 +709,16 @@ function VirtualizedScrollView(
             newState = newState.setItemHeight(key, height);
         }
 
-        if (originalState.isJumpScrolling) {
+        if (actualState.isJumpScrolling) {
             setState(
-                originalState.state !== newState
-                    ? {...originalState, state: newState}
-                    : originalState,
+                actualState.state !== newState ? {...actualState, state: newState} : actualState,
             );
         } else {
             setState(
                 updateVirtualizedScrollViewActualStateRenderedRange(
-                    originalState.state !== newState
-                        ? {...originalState, state: newState}
-                        : originalState,
+                    actualState.state !== newState
+                        ? {...actualState, state: newState}
+                        : actualState,
                     {
                         pinTo,
                         itemCount,
@@ -724,7 +728,7 @@ function VirtualizedScrollView(
                 ),
             );
         }
-    }, [getItemWithoutRender, itemCount, originalState, pinTo, state]);
+    }, [getItemWithoutRender, itemCount, actualState, pinTo, state]);
 
     const previousContentHeightRef = useRef(contentHeight);
     const previousContentHeightBeforeScrollForMobileWebKitPinToBottomRef = useRef(
@@ -839,7 +843,7 @@ function VirtualizedScrollView(
 }
 
 function updateVirtualizedScrollViewActualStateRenderedRange(
-    previousState: VirtualizedScrollViewActualState,
+    actualState: VirtualizedScrollViewActualState,
     {
         pinTo,
         itemCount,
@@ -852,26 +856,27 @@ function updateVirtualizedScrollViewActualStateRenderedRange(
         scrollTop: number;
     },
 ): VirtualizedScrollViewActualState {
-    const state = previousState.state.updateRenderedRange({
+    const state = actualState.state.updateRenderedRange({
         scrollOffset:
             scrollTop -
-            (previousState.contentHeightBeforeScrollForMobileWebKitPinToBottom !== null
-                ? previousState.contentHeightBeforeScrollForMobileWebKitPinToBottom -
-                  previousState.state.getContentHeight()
+            (actualState.contentHeightBeforeScrollForMobileWebKitPinToBottom !== null
+                ? actualState.contentHeightBeforeScrollForMobileWebKitPinToBottom -
+                  actualState.state.getContentHeight()
                 : 0),
         itemCount,
         getItem: getItemWithoutRender,
     });
 
     // If nothing changed then don't bother re-rendering the component.
-    if (previousState.state === state && !previousState.isJumpScrolling) return previousState;
+    if (actualState.state === state && !actualState.isJumpScrolling) return actualState;
 
     return {
         state,
+        isScrolling: actualState.isScrolling,
         isJumpScrolling: false,
         contentHeightBeforeScrollForMobileWebKitPinToBottom:
-            previousState.contentHeightBeforeScrollForMobileWebKitPinToBottom ??
-            (isMobileWebKit && pinTo === "bottom" ? previousState.state.getContentHeight() : null),
+            actualState.contentHeightBeforeScrollForMobileWebKitPinToBottom ??
+            (isMobileWebKit && pinTo === "bottom" ? actualState.state.getContentHeight() : null),
     };
 }
 

@@ -1,12 +1,12 @@
+import classNames from "classnames";
 import {useRef} from "react";
-import {Box} from "~/client/design/box";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {MessageList} from "~/client/messaging/message_list";
 import {Spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {StableRandom} from "~/shared/helpers/number/stable_random";
 import {MessageInterface} from "~/shared/models/message_interface";
-import {pulseAnimationClassName} from "~/shared/styles/styles";
+import {pulseAnimationClassName, sprinkles} from "~/shared/styles/styles";
 
 // We repeat sizes to make them appear more frequently when randomly selecting
 // a size.
@@ -53,6 +53,20 @@ const messageShimmerSizes: Array<{
 
 const shouldMergeMessageShimmerProbability = 0.5;
 
+// NOTE(calebmer): You are not allowed to use the `<Box>` component in this
+// file. It is critical for scroll performance that this component renders
+// fast. Manually use the `sprinkles()` function instead. This reduces the
+// number of fibers React needs to render. One day we'd like to introduce
+// transformations that automatically inline `<Box>` components and
+// `sprinkles()` functions at which point using `<Box>` would not make a
+// performance difference.
+//
+// Assign a variable to null so you get a TypeScript error if you try to
+// use `<Box>`.
+//
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const Box = null;
+
 export function MessageShimmer<Message extends MessageInterface>({
     randomSeed,
     index,
@@ -94,54 +108,74 @@ export function MessageShimmer<Message extends MessageInterface>({
     }, []);
 
     return (
-        <Box
+        <div
             ref={shimmerRef}
-            display="flex"
-            paddingX="3"
-            paddingBottom={!shouldMergeWithNextMessage ? "3" : "0.5"}
-            className={pulseAnimationClassName}
+            className={classNames(
+                pulseAnimationClassName,
+                sprinkles({
+                    display: "flex",
+                    paddingX: "3",
+                    paddingBottom: !shouldMergeWithNextMessage ? "3" : "0.5",
+                }),
+            )}
         >
-            <Box flexShrink="0" width="10" display="flex" alignItems="flex-end">
+            <div
+                className={sprinkles({
+                    flexShrink: "0",
+                    width: "10",
+                    display: "flex",
+                    alignItems: "flex-end",
+                })}
+            >
                 {!shouldMergeWithNextMessage && (
-                    <Box
-                        flexShrink="0"
-                        width="8"
-                        height="8"
-                        backgroundColor="grey-10"
-                        borderRadius="full"
-                        display="flex"
-                        justifyContent="center"
-                        alignItems="center"
+                    <div
+                        className={sprinkles({
+                            flexShrink: "0",
+                            width: "8",
+                            height: "8",
+                            backgroundColor: "grey-10",
+                            borderRadius: "full",
+                            display: "flex",
+                            justifyContent: "center",
+                            alignItems: "center",
+                        })}
                     />
                 )}
-            </Box>
-            <Box flexGrow="1">
+            </div>
+            <div className={sprinkles({flexGrow: "1"})}>
                 {!shouldMergeWithPreviousMessage && (
-                    <Box paddingY="0.5" paddingLeft="2">
-                        <Box style={{height: 18}} display="flex" alignItems="center">
-                            <Box
-                                height="2"
-                                width="16"
-                                backgroundColor="grey-5"
-                                borderRadius="full"
+                    <div className={sprinkles({paddingY: "0.5", paddingLeft: "2"})}>
+                        <div
+                            style={{height: 18}}
+                            className={sprinkles({display: "flex", alignItems: "center"})}
+                        >
+                            <div
+                                className={sprinkles({
+                                    height: "2",
+                                    width: "16",
+                                    backgroundColor: "grey-5",
+                                    borderRadius: "full",
+                                })}
                             />
-                        </Box>
-                    </Box>
+                        </div>
+                    </div>
                 )}
-                <Box
-                    paddingY="2"
-                    paddingX="2"
-                    backgroundColor="grey-5"
-                    width="full"
-                    maxWidth={messageSize.width}
-                    borderTopLeftRadius={!shouldMergeWithPreviousMessage ? "xl" : "base"}
-                    borderTopRightRadius="xl"
-                    borderBottomLeftRadius={!shouldMergeWithNextMessage ? "xl" : "base"}
-                    borderBottomRightRadius="xl"
+                <div
+                    className={sprinkles({
+                        paddingY: "2",
+                        paddingX: "2",
+                        backgroundColor: "grey-5",
+                        width: "full",
+                        maxWidth: messageSize.width,
+                        borderTopLeftRadius: !shouldMergeWithPreviousMessage ? "xl" : "base",
+                        borderTopRightRadius: "xl",
+                        borderBottomLeftRadius: !shouldMergeWithNextMessage ? "xl" : "base",
+                        borderBottomRightRadius: "xl",
+                    })}
                 >
                     <div style={{height: `${messageSize.heightLines * 1.5}rem`}} />
-                </Box>
-            </Box>
-        </Box>
+                </div>
+            </div>
+        </div>
     );
 }

@@ -116,6 +116,7 @@ export function ModalDialog({
                             paddingBottom: "5",
                             margin: "3",
                             backgroundColor: "grey-0",
+                            border: {dark: "grey-5"},
                             boxShadow: "elevation-40",
                             borderRadius: "md",
                         })}

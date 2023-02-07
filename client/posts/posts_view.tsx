@@ -1,6 +1,5 @@
-import {useCallback, useEffect, useRef, useState} from "react";
+import {ReactElement, useCallback, useEffect, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context";
-import {Box} from "~/client/design/box";
 import {Spacer} from "~/client/design/spacer";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useMessageEditing} from "~/client/messaging/message_editing";
@@ -40,6 +39,20 @@ const padding: Spacing = "4";
  * height of a single post.
  */
 const bufferedPostViewHeight = addRemLengths(postContentViewMinHeight, spacing[padding]);
+
+// NOTE(calebmer): You are not allowed to use the `<Box>` component in this
+// file. It is critical for scroll performance that this component renders
+// fast. Manually use the `sprinkles()` function instead. This reduces the
+// number of fibers React needs to render. One day we'd like to introduce
+// transformations that automatically inline `<Box>` components and
+// `sprinkles()` functions at which point using `<Box>` would not make a
+// performance difference.
+//
+// Assign a variable to null so you get a TypeScript error if you try to
+// use `<Box>`.
+//
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const Box = null;
 
 export function PostsView({
     list,
@@ -262,16 +275,18 @@ export function PostsView({
                         node: (
                             <>
                                 {index === 0 && <Spacer space={padding} />}
-                                <Box paddingX={padding}>
-                                    <Box
-                                        marginX="auto"
-                                        maxWidth="160"
-                                        backgroundColor="grey-0"
-                                        borderTopRadius="md"
-                                        borderBottomRadius={
-                                            !item.arePostCommentsOpen ? "md" : undefined
-                                        }
-                                        boxShadow="elevation-5"
+                                <div className={sprinkles({paddingX: padding})}>
+                                    <div
+                                        className={sprinkles({
+                                            marginX: "auto",
+                                            maxWidth: "160",
+                                            backgroundColor: "grey-0",
+                                            borderTopRadius: "md",
+                                            borderBottomRadius: !item.arePostCommentsOpen
+                                                ? "md"
+                                                : undefined,
+                                            boxShadow: "elevation-5",
+                                        })}
                                     >
                                         <PostContentView
                                             post={item.post}
@@ -282,8 +297,8 @@ export function PostsView({
                                                 loadInitialPostComments(item)
                                             }
                                         />
-                                    </Box>
-                                </Box>
+                                    </div>
+                                </div>
                                 {!item.arePostCommentsOpen && <Spacer space={padding} />}
                             </>
                         ),
@@ -307,33 +322,88 @@ export function PostsView({
                     const nextComment =
                         nextItem?.type === "LoadedPostComment" ? nextItem.postComment : null;
 
-                    const node =
-                        item.type === "LoadedPostComment" ? (
-                            <MessageView
-                                messageNoun="comment"
-                                message={item.postComment}
-                                previousMessage={previousComment}
-                                nextMessage={nextComment}
-                                messageEditing={messageEditing}
-                                onDeleteMessage={async () => {
-                                    const actions = actionsByPostIdRef.current.get(item.post.id);
-                                    if (!actions)
-                                        throw new InternalError("Post realtime hook isn't mounted");
+                    const actuallyRender = (
+                        disableExpensiveFeaturesDuringScroll: boolean,
+                    ): ReactElement => {
+                        const messageNode =
+                            item.type === "LoadedPostComment" ? (
+                                <MessageView
+                                    messageNoun="comment"
+                                    message={item.postComment}
+                                    previousMessage={previousComment}
+                                    nextMessage={nextComment}
+                                    messageEditing={messageEditing}
+                                    onDeleteMessage={async () => {
+                                        const actions = actionsByPostIdRef.current.get(
+                                            item.post.id,
+                                        );
+                                        if (!actions)
+                                            throw new InternalError(
+                                                "Post realtime hook isn't mounted",
+                                            );
 
-                                    await actions.deletePostComment({
-                                        commentIndex: item.postCommentIndex,
-                                    });
-                                }}
-                            />
-                        ) : (
-                            <MessageShimmer
-                                randomSeed={item.post.id}
-                                index={item.postCommentIndex}
-                                previousMessage={previousComment}
-                                nextMessage={nextComment}
-                                messages={item.postComments}
-                            />
+                                        await actions.deletePostComment({
+                                            commentIndex: item.postCommentIndex,
+                                        });
+                                    }}
+                                    disableExpensiveFeaturesDuringScroll={
+                                        disableExpensiveFeaturesDuringScroll
+                                    }
+                                />
+                            ) : (
+                                <MessageShimmer
+                                    randomSeed={item.post.id}
+                                    index={item.postCommentIndex}
+                                    previousMessage={previousComment}
+                                    nextMessage={nextComment}
+                                    messages={item.postComments}
+                                />
+                            );
+
+                        return (
+                            <div className={sprinkles({paddingX: padding, overflowY: "hidden"})}>
+                                <div
+                                    className={sprinkles({
+                                        marginX: "auto",
+                                        maxWidth: "160",
+                                        backgroundColor: "grey-0",
+                                        boxShadow: "elevation-5",
+                                        paddingX: "2",
+                                    })}
+                                >
+                                    {item.postCommentIndex === 0 ? (
+                                        <>
+                                            <Spacer space="3" />
+                                            {messageNode}
+                                        </>
+                                    ) : (
+                                        messageNode
+                                    )}
+                                </div>
+                            </div>
                         );
+                    };
+
+                    // It's important to reuse nodes across renders because then React won't try to
+                    // re-render the component.
+                    let nodeWithExpensiveFeaturesDisabled: ReactElement | null = null;
+                    let nodeWithoutExpensiveFeaturesDisabled: ReactElement | null = null;
+
+                    const render = (isScrolling: boolean) => {
+                        // If we already rendered the node without expensive features disabled, don't
+                        // render a new version since that will cause a frame drop right at the start
+                        // of the scroll as React re-renders every message.
+                        if (nodeWithoutExpensiveFeaturesDisabled !== null)
+                            return nodeWithoutExpensiveFeaturesDisabled;
+
+                        if (isScrolling) {
+                            nodeWithExpensiveFeaturesDisabled ??= actuallyRender(true);
+                            return nodeWithExpensiveFeaturesDisabled;
+                        } else {
+                            nodeWithoutExpensiveFeaturesDisabled ??= actuallyRender(false);
+                            return nodeWithoutExpensiveFeaturesDisabled;
+                        }
+                    };
 
                     return {
                         key:
@@ -341,27 +411,31 @@ export function PostsView({
                                 ? `LoadedPostComment:${item.post.id}:${item.postComment.index}`
                                 : `UnloadedPostComment:${item.post.id}:${item.postCommentIndex}`,
                         minHeight: messageViewMinHeight,
-                        node: (
-                            <Box paddingX={padding} overflowY="hidden">
-                                <Box
-                                    marginX="auto"
-                                    maxWidth="160"
-                                    backgroundColor="grey-0"
-                                    boxShadow="elevation-5"
-                                    paddingX="2"
-                                >
-                                    {item.postCommentIndex === 0 ? (
-                                        <>
-                                            <Spacer space="3" />
-                                            {node}
-                                        </>
-                                    ) : (
-                                        node
-                                    )}
-                                </Box>
-                            </Box>
-                        ),
                         renderAdditionalItemIndexes: [item.postCommentInputItemIndex],
+                        withManualLayout: true,
+                        render: ({
+                            ref,
+                            shouldRenderWithRelativePositioning,
+                            offset,
+                            isScrolling,
+                        }) => (
+                            <div
+                                ref={ref}
+                                style={{
+                                    minHeight: messageViewMinHeight,
+                                    ...(shouldRenderWithRelativePositioning
+                                        ? {position: "relative"}
+                                        : {
+                                              position: "absolute",
+                                              top: offset,
+                                              left: 0,
+                                              right: 0,
+                                          }),
+                                }}
+                            >
+                                {render(isScrolling)}
+                            </div>
+                        ),
                     };
                 }
 
@@ -427,21 +501,25 @@ export function PostsView({
                                                 right: 0,
                                             }}
                                         >
-                                            <Box
-                                                paddingX={padding}
-                                                paddingBottom={padding}
+                                            <div
+                                                className={sprinkles({
+                                                    paddingX: padding,
+                                                    paddingBottom: padding,
+                                                    overflowY: "hidden",
+                                                })}
                                                 style={{height}}
-                                                overflowY="hidden"
                                             >
-                                                <Box
-                                                    marginX="auto"
-                                                    maxWidth="160"
-                                                    height="full"
-                                                    backgroundColor="grey-0"
-                                                    borderBottomRadius="md"
-                                                    boxShadow="elevation-5"
+                                                <div
+                                                    className={sprinkles({
+                                                        marginX: "auto",
+                                                        maxWidth: "160",
+                                                        height: "full",
+                                                        backgroundColor: "grey-0",
+                                                        borderBottomRadius: "md",
+                                                        boxShadow: "elevation-5",
+                                                    })}
                                                 />
-                                            </Box>
+                                            </div>
                                         </div>
                                     )}
                                     <div
@@ -479,42 +557,50 @@ export function PostsView({
                                                 paddingBottom: padding,
                                             })}
                                         >
-                                            <Box
-                                                display="flex"
-                                                width="full"
-                                                maxWidth="160"
-                                                marginX="auto"
-                                                overflowX="hidden"
-                                                pointerEvents="auto"
-                                                {...(shouldRenderWithRelativePositioning && {
-                                                    // When absolutely positioned we render an element underneath this one at the
-                                                    // end of the post so that while sticky scrolling we don't have double shadows.
-                                                    backgroundColor: "grey-0",
-                                                    borderBottomRadius: "md",
-                                                    boxShadow: "elevation-5",
+                                            <div
+                                                className={sprinkles({
+                                                    display: "flex",
+                                                    width: "full",
+                                                    maxWidth: "160",
+                                                    marginX: "auto",
+                                                    overflowX: "hidden",
+                                                    pointerEvents: "auto",
+                                                    ...(shouldRenderWithRelativePositioning && {
+                                                        // When absolutely positioned we render an element underneath this one at the
+                                                        // end of the post so that while sticky scrolling we don't have double shadows.
+                                                        backgroundColor: "grey-0",
+                                                        borderBottomRadius: "md",
+                                                        boxShadow: "elevation-5",
+                                                    }),
                                                 })}
                                             >
-                                                <Box
-                                                    flexShrink="0"
-                                                    alignSelf="stretch"
-                                                    width="5"
+                                                <div
+                                                    className={sprinkles({
+                                                        flexShrink: "0",
+                                                        alignSelf: "stretch",
+                                                        width: "5",
+                                                    })}
                                                     style={{
                                                         // Allow full-width top border to be visible until it slides under.
                                                         paddingTop: 1,
                                                     }}
                                                 >
-                                                    <Box
-                                                        width="full"
-                                                        height="full"
-                                                        backgroundColor="grey-0"
-                                                        borderBottomLeftRadius="md"
+                                                    <div
+                                                        className={sprinkles({
+                                                            width: "full",
+                                                            height: "full",
+                                                            backgroundColor: "grey-0",
+                                                            borderBottomLeftRadius: "md",
+                                                        })}
                                                     />
-                                                </Box>
-                                                <Box
-                                                    flexGrow="1"
-                                                    overflowX="hidden"
-                                                    borderTop="grey-5"
-                                                    backgroundColor="grey-0"
+                                                </div>
+                                                <div
+                                                    className={sprinkles({
+                                                        flexGrow: "1",
+                                                        overflowX: "hidden",
+                                                        borderTop: "grey-5",
+                                                        backgroundColor: "grey-0",
+                                                    })}
                                                     style={{
                                                         // Remove one pixel from top padding for border.
                                                         paddingTop: `calc(${spacing["3"]} - 1px)`,
@@ -522,40 +608,46 @@ export function PostsView({
                                                     }}
                                                 >
                                                     {inputNode}
-                                                </Box>
-                                                <Box
-                                                    flexShrink="0"
-                                                    alignSelf="stretch"
-                                                    width="5"
+                                                </div>
+                                                <div
+                                                    className={sprinkles({
+                                                        flexShrink: "0",
+                                                        alignSelf: "stretch",
+                                                        width: "5",
+                                                    })}
                                                     style={{
                                                         // Allow full-width top border to be visible until it slides under.
                                                         paddingTop: 1,
                                                     }}
                                                 >
-                                                    <Box
-                                                        width="full"
-                                                        height="full"
-                                                        backgroundColor="grey-0"
-                                                        borderBottomRightRadius="md"
+                                                    <div
+                                                        className={sprinkles({
+                                                            width: "full",
+                                                            height: "full",
+                                                            backgroundColor: "grey-0",
+                                                            borderBottomRightRadius: "md",
+                                                        })}
                                                     />
-                                                </Box>
-                                            </Box>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                     {!shouldRenderWithRelativePositioning && (
                                         <>
-                                            <Box
+                                            <div
                                                 // Render a white backdrop below the entire post so that when the user is jump
                                                 // scrolling we don't have the pinned comment input and the wash
                                                 // background color.
-                                                position="absolute"
-                                                left={padding}
-                                                right={padding}
-                                                maxWidth="160"
-                                                marginX="auto"
-                                                backgroundColor="grey-0"
-                                                zIndex="-10"
-                                                borderTopRadius="md"
+                                                className={sprinkles({
+                                                    position: "absolute",
+                                                    left: padding,
+                                                    right: padding,
+                                                    maxWidth: "160",
+                                                    marginX: "auto",
+                                                    backgroundColor: "grey-0",
+                                                    zIndex: "-10",
+                                                    borderTopRadius: "md",
+                                                })}
                                                 style={{
                                                     width: `calc(100% - ${spacing[padding]} * 2)`,
                                                     top:
