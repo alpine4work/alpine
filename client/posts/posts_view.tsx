@@ -170,7 +170,7 @@ export function PostsView({
             });
 
             if (result.isLoading) {
-                isLoadingRef.current = false;
+                isLoadingRef.current = true;
                 // If we started loading some comments, don't try to load comments from any
                 // other posts. We only want to send one load request at a time.
                 break;
