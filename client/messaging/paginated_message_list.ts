@@ -897,6 +897,29 @@ export class PaginatedMessageList<Message extends {readonly index: number}> {
             messages,
         });
     }
+
+    /**
+     * Adds a message to the end of the list.
+     */
+    public addMessage(message: Message): PaginatedMessageList<Message> {
+        const lastSegment =
+            this._segments.length > 0 ? this._segments[this._segments.length - 1] : null;
+
+        if (!lastSegment || !lastSegment.isLoaded) {
+            return new PaginatedMessageList([
+                ...this._segments,
+                {isLoaded: true, messages: [message]},
+            ]);
+        }
+
+        return new PaginatedMessageList([
+            ...this._segments.slice(0, -1),
+            {
+                ...lastSegment,
+                messages: [...lastSegment.messages, message],
+            },
+        ]);
+    }
 }
 
 /**

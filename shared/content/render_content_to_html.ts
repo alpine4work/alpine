@@ -23,7 +23,7 @@ const {
  * custom node renderers as `<ContentEditor>` so you get the same HTML as you
  * saw in the editor.
  */
-export function renderContentToHtml(topNode: Node, options?: {placeholder?: string}) {
+export function renderContentToHtml(topNode: Node, options?: {placeholder?: string}): string {
     const fragmentHtml = renderContentFragmentToHtml(topNode, options);
     return `<div class="${docClassName}">${fragmentHtml}</div>`;
 }
@@ -40,8 +40,11 @@ export function renderContentToHtml(topNode: Node, options?: {placeholder?: stri
 export function renderContentFragmentToHtml(
     topNode: Node,
     {placeholder}: {placeholder?: string} = {},
-) {
+): string {
     assert(topNode.type.schema.topNodeType === topNode.type);
+
+    const isTitleEmpty = isContentTitleEmpty(topNode);
+    const isBodyEmpty = isContentBodyEmpty(topNode);
 
     const orderedListItemNumberByNode = new Map<Node, number>();
 
@@ -80,9 +83,6 @@ export function renderContentFragmentToHtml(
             orderedListItemNumberByNode.set(childNode, listItemNumber);
         });
     };
-
-    const isTitleEmpty = isContentTitleEmpty(topNode);
-    const isBodyEmpty = isContentBodyEmpty(topNode);
 
     return serializeProsemirrorFragmentToHtml(topNode.content, {
         startPos: 1,

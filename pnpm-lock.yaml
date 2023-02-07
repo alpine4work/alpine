@@ -35,7 +35,7 @@ patchedDependencies:
     hash: xpcjvkay5ny465bt5thmejpcwe
     path: admin/patches/@remix-run__dev@1.7.5.patch
   '@miniflare/http-server@2.11.0':
-    hash: m2yyjeke34aaiqlhdp32rpsrre
+    hash: vdz6h5bfdemv3otlv4kyugwj6u
     path: admin/patches/@miniflare__http-server@2.11.0.patch
   '@remix-run/server-runtime@1.7.5':
     hash: czxhikmhicrxddslnvwyip3rii
@@ -211,7 +211,7 @@ dependencies:
   '@bazel/worker': 5.7.1
   '@cloudflare/workers-types': 3.18.0
   '@juggle/resize-observer': 3.4.0
-  '@miniflare/http-server': 2.11.0_m2yyjeke34aaiqlhdp32rpsrre
+  '@miniflare/http-server': 2.11.0_vdz6h5bfdemv3otlv4kyugwj6u
   '@miniflare/runner-vm': 2.11.0_4sqfyt26snkgfwger7zzuolyhm
   '@miniflare/web-sockets': 2.11.0
   '@popperjs/core': 2.11.6
@@ -3645,7 +3645,7 @@ packages:
       - utf-8-validate
     dev: false
 
-  /@miniflare/http-server/2.11.0_m2yyjeke34aaiqlhdp32rpsrre:
+  /@miniflare/http-server/2.11.0_vdz6h5bfdemv3otlv4kyugwj6u:
     resolution: {integrity: sha512-sMLcrDFzqqAvnQmAUH0hRTo8sBjW79VZYfnIH5FAGSGcKX6kdAGs9RStdYZ4CftQCBAEQScX0KBsMx5FwJRe9Q==}
     engines: {node: '>=16.13'}
     dependencies:
@@ -11326,7 +11326,7 @@ packages:
       '@miniflare/d1': 2.11.0
       '@miniflare/durable-objects': 2.11.0
       '@miniflare/html-rewriter': 2.11.0
-      '@miniflare/http-server': 2.11.0_m2yyjeke34aaiqlhdp32rpsrre
+      '@miniflare/http-server': 2.11.0_vdz6h5bfdemv3otlv4kyugwj6u
       '@miniflare/kv': 2.11.0
       '@miniflare/queues': 2.11.0
       '@miniflare/r2': 2.11.0

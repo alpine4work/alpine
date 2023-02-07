@@ -19,6 +19,7 @@ import {
     InvalidArgumentError,
     NotFoundError,
 } from "~/shared/error/error";
+import {isSystemError} from "~/shared/error/is_system_error_code";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise";
 import {SessionId} from "~/shared/id/types/id_types";
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema";
@@ -105,78 +106,86 @@ export function createDurableObject<
         public fetch(request: Request): Promise<Response> {
             const url = new URL(request.url);
 
-            return traceFetchResponse(this._tracer, request, url, (span, request) => {
-                return this._context.with<
-                    Omit<
-                        UnauthenticatedRequestContextModules,
-                        Exclude<keyof ProcessContextModules, "tracer">
-                    >,
-                    Response
-                >(
-                    {
-                        // Replace the tracer context module with one that uses our span for
-                        // this request.
-                        tracer: new TracerContextModule(span),
-                        cache: new CacheContextModule(),
+            return traceFetchResponse(this._tracer, request, url, async (span, request) => {
+                try {
+                    const response = await this._context.with<
+                        Omit<
+                            UnauthenticatedRequestContextModules,
+                            Exclude<keyof ProcessContextModules, "tracer">
+                        >,
+                        Response
+                    >(
+                        {
+                            // Replace the tracer context module with one that uses our span for
+                            // this request.
+                            tracer: new TracerContextModule(span),
+                            cache: new CacheContextModule(),
 
-                        auth: new UnauthenticatedAuthContextModule(async context => {
-                            const authorizationHeader = request.headers.get("authorization");
-                            if (!authorizationHeader) return null;
-                            const authorizationHeaderMatch =
-                                authorizationHeader.match(/^bearer (.+)$/i);
+                            auth: new UnauthenticatedAuthContextModule(async context => {
+                                const authorizationHeader = request.headers.get("authorization");
+                                if (!authorizationHeader) return null;
+                                const authorizationHeaderMatch =
+                                    authorizationHeader.match(/^bearer (.+)$/i);
 
-                            if (!authorizationHeaderMatch)
+                                if (!authorizationHeaderMatch)
+                                    throw new InvalidArgumentError(
+                                        'Expected "Authorization" header to have "Bearer" authentication scheme',
+                                    );
+
+                                const authenticationToken = authorizationHeaderMatch[1] ?? "";
+
+                                const {sessionId} = await this._verifyAuthenticationToken(
+                                    authenticationToken,
+                                );
+
+                                const session = await Session.get(context, sessionId);
+                                if (!session)
+                                    throw new NotFoundError(
+                                        'Could not find session from "Authorization" header',
+                                    );
+
+                                return session;
+                            }),
+                        },
+                        async _requestContext => {
+                            const requestContext: RequestContext =
+                                await _requestContext.auth.authenticate();
+
+                            const idName = request.headers.get("cyberworlds-id-name");
+                            if (idName === null)
                                 throw new InvalidArgumentError(
-                                    'Expected "Authorization" header to have "Bearer" authentication scheme',
+                                    "Expected Durable Object ID name to be included in header",
                                 );
 
-                            const authenticationToken = authorizationHeaderMatch[1] ?? "";
-
-                            const {sessionId} = await this._verifyAuthenticationToken(
-                                authenticationToken,
-                            );
-
-                            const session = await Session.get(context, sessionId);
-                            if (!session)
-                                throw new NotFoundError(
-                                    'Could not find session from "Authorization" header',
-                                );
-
-                            return session;
-                        }),
-                    },
-                    async _requestContext => {
-                        const requestContext: RequestContext =
-                            await _requestContext.auth.authenticate();
-
-                        const idName = request.headers.get("cyberworlds-id-name");
-                        if (idName === null)
-                            throw new InvalidArgumentError(
-                                "Expected Durable Object ID name to be included in header",
-                            );
-
-                        if (this._object === null) {
-                            this._object = {
-                                idName,
-                                promise: initialize({
-                                    processContext: this._context,
-                                    initializeRequestContext: requestContext,
+                            if (this._object === null) {
+                                this._object = {
                                     idName,
-                                    destroy: () => (this._object = null),
-                                }),
-                            };
-                        }
+                                    promise: initialize({
+                                        processContext: this._context,
+                                        initializeRequestContext: requestContext,
+                                        idName,
+                                        destroy: () => (this._object = null),
+                                    }),
+                                };
+                            }
 
-                        if (idName !== this._object.idName)
-                            throw new FailedPreconditionError(
-                                "Durable Object ID name in header does not match the ID name we initialized with",
-                            );
+                            if (idName !== this._object.idName)
+                                throw new FailedPreconditionError(
+                                    "Durable Object ID name in header does not match the ID name we initialized with",
+                                );
 
-                        const object = await this._object.promise;
+                            const object = await this._object.promise;
 
-                        return object.fetch(requestContext, request);
-                    },
-                );
+                            return object.fetch(requestContext, request);
+                        },
+                    );
+                    return response;
+                } catch (error) {
+                    span.addException(error);
+                    const status = isSystemError(error) ? 500 : 400;
+                    const response = new Response(null, {status});
+                    return response;
+                }
             });
         }
 

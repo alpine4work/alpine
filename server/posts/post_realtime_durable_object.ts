@@ -10,6 +10,7 @@ import {
 } from "~/server/dynamo/posts_table";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {PostId, SpaceId} from "~/shared/id/types/id_types";
+import {PostCommentModel} from "~/shared/models/post_model";
 import {
     PostRealtimeMessageFromClient,
     PostRealtimeMessageFromClientSchema,
@@ -72,7 +73,12 @@ class PostRealtimeDurableObject {
             this._context,
             PostRealtimeMessageFromClientSchema,
             PostRealtimeMessageFromServerSchema,
-            ({}) => new PostRealtimeDurableObjectConnection({postId}),
+            ({}) =>
+                new PostRealtimeDurableObjectConnection({
+                    postId,
+                    sendMessageToAll: (context, message) =>
+                        this._webSocketServer.sendMessageToAll(context, message),
+                }),
         );
     }
 
@@ -91,20 +97,50 @@ export {PostRealtimeDurableObjectWrapper as PostRealtimeDurableObject};
 
 class PostRealtimeDurableObjectConnection {
     private readonly _postId: PostId;
+    private readonly _sendMessageToAll: (
+        context: ProcessContext,
+        message: PostRealtimeMessageFromServer,
+    ) => void;
 
-    constructor({postId}: {postId: PostId}) {
+    constructor({
+        postId,
+        sendMessageToAll,
+    }: {
+        postId: PostId;
+        sendMessageToAll: (context: ProcessContext, message: PostRealtimeMessageFromServer) => void;
+    }) {
         this._postId = postId;
+        this._sendMessageToAll = sendMessageToAll;
     }
 
     public async handleMessage(
         context: RequestContext,
         message: PostRealtimeMessageFromClient,
     ): Promise<void> {
+        // TODO(calebmer): Message ordering??
+        // TODO(calebmer): Backfilling??
+
         switch (message.type) {
             case "CreatePostComment": {
-                await createPostComment(context, {
+                const {index, createdTime} = await createPostComment(context, {
                     ...message,
                     postId: this._postId,
+                });
+
+                this._sendMessageToAll(context, {
+                    type: "CreatedPostComment",
+                    comment: new PostCommentModel({
+                        postId: this._postId,
+                        index,
+                        createdTime,
+                        author: await context.auth.getAccount(),
+                        payload: {
+                            type: "Content",
+                            parentMessageIndex: message.parentCommentIndex,
+                            content: message.content,
+                            contentUpdatedTime: null,
+                        },
+                    }),
                 });
                 break;
             }

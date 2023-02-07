@@ -7,6 +7,7 @@ import {
     createWebSocketMessageFromServerSchema,
 } from "~/shared/cloudflare/web_socket_schema";
 import {InternalError, UnavailableError, UnknownError} from "~/shared/error/error";
+import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {createInterval} from "~/shared/helpers/async/interval";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
@@ -286,7 +287,9 @@ export class WebSocketClient<
             // do not resubmit messages when reopening the WebSocket.
             for (const promiseResolver of this._acknowledgementPromiseResolverByMessageId.values()) {
                 promiseResolver.reject(
-                    new UnavailableError("WebSocket closed before acknowledging message"),
+                    new UnavailableError("WebSocket closed before acknowledging message", {
+                        displayMessage: errorDisplayMessage`Your connection to our servers was ended unexpectedly. Please try again.`,
+                    }),
                 );
             }
             this._acknowledgementPromiseResolverByMessageId.clear();

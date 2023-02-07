@@ -81,10 +81,10 @@ type ToastAction =
           readonly toast: Toast;
       }
     | {
-          readonly type: "DismissActiveToast";
+          readonly type: "StartDismissActiveToastAnimation";
       }
     | {
-          readonly type: "FinishDismissActiveToastOutAnimation";
+          readonly type: "ActuallyDismissActiveToast";
       };
 
 function reduce(state: ToastState, action: ToastAction): ToastState {
@@ -107,7 +107,7 @@ function reduce(state: ToastState, action: ToastAction): ToastState {
                 };
             }
         }
-        case "DismissActiveToast": {
+        case "StartDismissActiveToastAnimation": {
             if (!state.activeToast) return state;
 
             return {
@@ -118,7 +118,7 @@ function reduce(state: ToastState, action: ToastAction): ToastState {
                 toastQueue: state.toastQueue,
             };
         }
-        case "FinishDismissActiveToastOutAnimation": {
+        case "ActuallyDismissActiveToast": {
             if (!state.activeToast) return state;
 
             if (state.toastQueue[0]) {
@@ -155,7 +155,7 @@ export function ToastContextProvider({children}: {children?: ReactNode}) {
         if (!state.activeToast || !state.activeToast.isAnimatingOut) return;
 
         const timeout = createTimeout(() => {
-            dispatch({type: "FinishDismissActiveToastOutAnimation"});
+            dispatch({type: "ActuallyDismissActiveToast"});
         }, toastStyles.toastAnimateOutDuration + perceivedAsInstantLimitMs);
 
         return () => timeout.clear();
@@ -173,7 +173,13 @@ export function ToastContextProvider({children}: {children?: ReactNode}) {
             }),
     }));
 
-    const dismiss = useCallback(() => dispatch({type: "DismissActiveToast"}), []);
+    const dismiss = useCallback(({withoutAnimation = false}: {withoutAnimation?: boolean} = {}) => {
+        if (withoutAnimation) {
+            dispatch({type: "ActuallyDismissActiveToast"});
+        } else {
+            dispatch({type: "StartDismissActiveToastAnimation"});
+        }
+    }, []);
 
     return (
         <ToastContext.Provider value={dispatch}>
@@ -234,7 +240,7 @@ function ToastView({
     toast: Toast;
     startTime: Date;
     durationSeconds: number;
-    onDismiss: Memo<() => void>;
+    onDismiss: Memo<(options?: {withoutAnimation?: boolean}) => void>;
 }) {
     const expirationTime = useMemo(
         () => addSeconds(startTime, durationSeconds),
@@ -282,7 +288,7 @@ function ToastView({
                     variant="quiet-on-grey-5-dark-background"
                     size="xs"
                     description="Dismiss alert"
-                    onPress={onDismiss}
+                    onPress={() => onDismiss({withoutAnimation: true})}
                     withoutTooltip={true}
                 >
                     <X />

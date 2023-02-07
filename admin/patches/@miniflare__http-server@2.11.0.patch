@@ -1,24 +1,20 @@
-diff --git a/dist/src/index.d.ts b/dist/src/index.d.ts
-index 5a5a36c395a13803be6a1d8ece221ae2bfd24265..4060708c9a56005370756ae0229111f28a7856ef 100644
---- a/dist/src/index.d.ts
-+++ b/dist/src/index.d.ts
-@@ -110,4 +110,11 @@ export declare interface RequestMeta {
- 
- export declare function startServer<Plugins extends HTTPPluginSignatures>(mf: MiniflareCore<Plugins>, options?: http.ServerOptions & https.ServerOptions): Promise<http.Server | https.Server>;
- 
-+// NOTE(calebmer): We manually connect the HTTP and WebSocket servers so we
-+// need this function.
-+export declare function writeResponse(
-+    response: Response,
-+    res: http.ServerResponse,  
-+): Promise<void>;
-+
- export { }
 diff --git a/dist/src/index.js b/dist/src/index.js
-index 08378e7404d3de090a884c878b0ed1dd93795b81..a93306f48e4677b029f2a3791959c09761e0fe98 100644
+index 08378e7404d3de090a884c878b0ed1dd93795b81..b79b0ee4b0378d8c66abf55295dbc7141e81fd58 100644
 --- a/dist/src/index.js
 +++ b/dist/src/index.js
-@@ -681,6 +681,9 @@ async function startServer(mf, options) {
+@@ -39,7 +39,10 @@ __export(exports, {
+   createRequestListener: () => createRequestListener,
+   createServer: () => createServer,
+   getAccessibleHosts: () => getAccessibleHosts,
+-  startServer: () => startServer
++  startServer: () => startServer,
++  // NOTE(calebmer): We manually connect the HTTP and WebSocket servers so we
++  // need this function.
++  writeResponse: () => writeResponse
+ });
+ var import_assert = __toModule(require("assert"));
+ var import_http = __toModule(require("http"));
+@@ -681,6 +684,9 @@ async function startServer(mf, options) {
    createRequestListener,
    createServer,
    getAccessibleHosts,

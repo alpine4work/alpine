@@ -402,6 +402,9 @@ export function PostsView({
                                     actionsByPostIdRef.current.delete(item.post.id);
                                 }
                             }}
+                            onUpdatePostComments={update =>
+                                onUpdatePostComments(item.postOrderKey, update)
+                            }
                         />
                     );
 
@@ -622,6 +625,7 @@ export function PostsView({
             onTogglePostComments,
             loadInitialPostComments,
             messageEditing,
+            onUpdatePostComments,
             onPostCommentInputFocusChange,
         ],
     );

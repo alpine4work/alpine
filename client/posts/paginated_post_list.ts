@@ -301,6 +301,7 @@ export class PaginatedPostList {
             if (index === postContentItemIndex + postCommentCount + 1) {
                 return {
                     type: "PostCommentInput",
+                    postOrderKey,
                     post,
                     postContentItemIndex,
                 };
@@ -539,6 +540,7 @@ export type PaginatedPostListUnloadedPostCommentItem = {
  */
 export type PaginatedPostListPostCommentInputItem = {
     readonly type: "PostCommentInput";
+    readonly postOrderKey: OrderKey;
     readonly post: PostModel;
     /**
      * The index of the `PostContent` item for this comment input in the full
