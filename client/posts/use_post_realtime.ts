@@ -54,7 +54,7 @@ export function usePostRealtime({
                 case "BackfillPostCommentsResponse": {
                     onUpdatePostComments(postComments =>
                         postComments
-                            .increaseMessageCount(message.commentCount)
+                            .setMessageCount(message.commentCount)
                             .setMessages(message.newComments),
                     );
                     break;

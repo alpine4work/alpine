@@ -68,11 +68,6 @@ export class MessageList<Message extends MessageInterface> {
      *   unloaded segment (or null if there is none).
      */
     public getFirstLoadedMessageAfter(index: number): Message | null {
-        if (!Number.isSafeInteger(index))
-            throw new InvalidArgumentError("Message index is not an integer");
-        if (index < 0 || index >= this._messageCount)
-            throw new OutOfRangeError("Message index out of bounds");
-
         const iterator = this._messages.gt(index);
         if (!iterator.value) return null;
         assert(iterator.value.index !== index);
@@ -92,11 +87,6 @@ export class MessageList<Message extends MessageInterface> {
      *   the unloaded segment (or null if there is none).
      */
     public getLastLoadedMessageBefore(index: number): Message | null {
-        if (!Number.isSafeInteger(index))
-            throw new InvalidArgumentError("Message index is not an integer");
-        if (index < 0 || index >= this._messageCount)
-            throw new OutOfRangeError("Message index out of bounds");
-
         const iterator = this._messages.lt(index);
         if (!iterator.value) return null;
         assert(iterator.value.index !== index);
@@ -107,7 +97,7 @@ export class MessageList<Message extends MessageInterface> {
      * Increase message count for this list. If the message count is less than the
      * current message count we won't change anything.
      */
-    public increaseMessageCount(messageCount: number): MessageList<Message> {
+    public setMessageCount(messageCount: number): MessageList<Message> {
         assert(Number.isSafeInteger(messageCount), "Message count is not an integer");
         assert(messageCount >= 0, "Message count should be positive");
 

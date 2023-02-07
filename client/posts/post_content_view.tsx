@@ -10,6 +10,8 @@ import {PrettyAbsoluteDate} from "~/client/design/pretty_absolute_date";
 import {PrettyNumber} from "~/client/design/pretty_number";
 import {uninterruptedThoughtLimitMs} from "~/client/design/timing_constants";
 import {MessageList} from "~/client/messaging/message_list";
+import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
+import {getClientInfoWithoutListening} from "~/client/remix/client_info_context";
 import {wait} from "~/shared/helpers/async/wait";
 import {PostCommentModel, PostModel} from "~/shared/models/post_model";
 import {getPostCommentAuthors} from "~/shared/rpc/posts_rpc_definitions";
@@ -116,17 +118,32 @@ function PostCommentsToggleButton({
                         return;
                     }
 
+                    const initialLoadMessageCount = getInitialLoadMessageCount(
+                        getClientInfoWithoutListening(),
+                    );
+
+                    let areAllInitialMessagesLoaded = true;
+                    for (
+                        let index = 0;
+                        index < Math.min(postComments.getMessageCount(), initialLoadMessageCount);
+                        index++
+                    ) {
+                        if (!postComments.getMessage(index).isLoaded) {
+                            areAllInitialMessagesLoaded = false;
+                            break;
+                        }
+                    }
+
                     // Open comments immediately if:
                     //
-                    // 1. There are no comments. There may be an async race condition where a
-                    //    comment was added after the server gave us an estimated message count so
-                    //    we'll still need to backfill comments.
-                    // 2. Comments are already loaded. We only check that the first comment is
-                    //    loaded. If other comments onscreen are unloaded then we fallback to
-                    //    shimmers kicking off data loading.
+                    // 1. There are more comments then our initial load request would fetch; AND
+                    // 2. All of those comments are loaded.
+                    //
+                    // We want to load comments again when we have less than the initial load count
+                    // because maybe some users added comments while the comment section was closed?
                     if (
-                        postComments.getMessageCount() === 0 ||
-                        postComments.getMessage(0).isLoaded
+                        postComments.getMessageCount() >= initialLoadMessageCount &&
+                        areAllInitialMessagesLoaded
                     ) {
                         onTogglePostComments();
                         return;

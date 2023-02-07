@@ -97,7 +97,7 @@ export function MessagingView<Message extends MessageInterface>({
                         ...state,
                         isLoading: false,
                         list: state.list
-                            .increaseMessageCount(result.value.messageCount)
+                            .setMessageCount(result.value.messageCount)
                             .setMessages(result.value.messages),
                     }));
                 } else {

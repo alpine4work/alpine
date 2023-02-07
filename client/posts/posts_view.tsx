@@ -15,7 +15,7 @@ import {
 import {PostCommentInput} from "~/client/posts/post_comment_input";
 import {PostContentView, postContentViewMinHeight} from "~/client/posts/post_content_view";
 import {PostRealtimeActions} from "~/client/posts/use_post_realtime";
-import {useClientInfo} from "~/client/remix/client_info_context";
+import {getClientInfoWithoutListening} from "~/client/remix/client_info_context";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
@@ -67,7 +67,6 @@ export function PostsView({
     ) => void;
 }) {
     const context = useAppContext();
-    const clientInfo = useClientInfo();
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
     const onTogglePostComments = useEvent(_onTogglePostComments);
@@ -161,7 +160,7 @@ export function PostsView({
                     if (result.ok) {
                         onUpdatePostComments(item.postOrderKey, postComments =>
                             postComments
-                                .increaseMessageCount(result.value.messageCount)
+                                .setMessageCount(result.value.messageCount)
                                 .setMessages(result.value.messages),
                         );
                     } else {
@@ -199,18 +198,27 @@ export function PostsView({
             isLoadingRef.current = true;
 
             try {
-                const limit = getInitialLoadMessageCount(clientInfo);
+                const limit = getInitialLoadMessageCount(getClientInfoWithoutListening());
 
-                const {comments} = await getPostCommentsFromStart(context, {
-                    postId: item.post.id,
-                    afterCommentIndex: null,
-                    beforeCommentIndex: null,
-                    limit,
-                });
+                // If we already have some loaded messages then we are trying to finish the
+                // initial loaded message list by starting at our last loaded message.
+                const lastLoadedMessage = item.postComments.getLastLoadedMessageBefore(limit);
 
-                onUpdatePostComments(item.postOrderKey, postComments =>
-                    postComments.setMessages(comments),
-                );
+                if (lastLoadedMessage === null || lastLoadedMessage.index < limit - 1) {
+                    const {commentCount, comments} = await getPostCommentsFromStart(context, {
+                        postId: item.post.id,
+                        afterCommentIndex: lastLoadedMessage?.index ?? null,
+                        beforeCommentIndex: null,
+                        limit:
+                            lastLoadedMessage !== null
+                                ? limit - (lastLoadedMessage.index + 1)
+                                : limit,
+                    });
+
+                    onUpdatePostComments(item.postOrderKey, postComments =>
+                        postComments.setMessageCount(commentCount).setMessages(comments),
+                    );
+                }
 
                 isLoadingRef.current = false;
             } catch (error) {
