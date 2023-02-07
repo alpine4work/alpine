@@ -159,7 +159,7 @@ function PostCommentsToggleButton({
                     await postCommentsPromise;
                 }}
             >
-                <PrettyNumber number={post.commentCount} label="comment" />
+                <PrettyNumber number={postComments.getMessageCount()} label="comment" />
             </Button>
         </Box>
     );
