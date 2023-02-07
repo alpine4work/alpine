@@ -599,7 +599,7 @@ function VirtualizedScrollView(
         // scroll ends.
         const isJumpScrolling =
             lastScrollTopRef.current !== null &&
-            Math.abs(lastScrollTopRef.current - scrollTop) > clientHeight / 2;
+            Math.abs(lastScrollTopRef.current - scrollTop) > clientHeight * 2;
 
         setState(actualState => {
             if (actualState.isJumpScrolling || isJumpScrolling) {
