@@ -64,6 +64,9 @@ export function tryLoadingMessages<Message extends MessageInterface>({
     const endMessage = messages.getMessage(range.endIndex);
 
     // Everything rendered is loaded. Yay! Proceed if we need to load some data.
+    //
+    // TODO(calebmer): If there are some unloaded messages in the middle of the
+    // range we should load those.
     if (startMessage.isLoaded && endMessage.isLoaded) return {isLoading: false};
 
     // The limit of items we will load is two views worth of messages. This gives
