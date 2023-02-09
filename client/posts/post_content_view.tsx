@@ -15,6 +15,7 @@ import {getClientInfoWithoutListening} from "~/client/remix/client_info_context"
 import {wait} from "~/shared/helpers/async/wait";
 import {PostCommentModel, PostModel} from "~/shared/models/post_model";
 import {getPostCommentAuthors} from "~/shared/rpc/posts_rpc_definitions";
+import {sprinkles} from "~/shared/styles/styles";
 
 export const postContentViewMinHeight = "10.125rem";
 
@@ -44,9 +45,11 @@ export function PostContentView({
                     </Box>
                 </Box>
             </Box>
-            <Box paddingX="3" paddingY="5">
-                <ContentView content={post.content} onNavigate={useNavigate()} />
-            </Box>
+            <ContentView
+                content={post.content}
+                onNavigate={useNavigate()}
+                className={sprinkles({paddingX: "3", paddingY: "5"})}
+            />
             <Box
                 marginX="5"
                 borderTop="grey-5"

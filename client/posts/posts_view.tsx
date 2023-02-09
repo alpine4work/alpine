@@ -8,10 +8,7 @@ import {MessageShimmer} from "~/client/messaging/message_shimmer";
 import {MessageView, messageViewMinHeight} from "~/client/messaging/message_view";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages";
-import {
-    PaginatedPostList,
-    PaginatedPostListPostContentItem,
-} from "~/client/posts/paginated_post_list";
+import {PostList, PostListPostContentItem} from "~/client/posts/post_list";
 import {PostCommentInput} from "~/client/posts/post_comment_input";
 import {PostContentView, postContentViewMinHeight} from "~/client/posts/post_content_view";
 import {PostRealtimeActions} from "~/client/posts/use_post_realtime";
@@ -59,7 +56,7 @@ export function PostsView({
     onTogglePostComments: _onTogglePostComments,
     onUpdatePostComments: _onUpdatePostComments,
 }: {
-    list: PaginatedPostList;
+    list: PostList;
     onTogglePostComments: (index: number) => void;
     onUpdatePostComments: (
         postOrderKey: OrderKey,
@@ -192,7 +189,7 @@ export function PostsView({
 
     const loadInitialPostComments = useEvent(
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
-        async (item: PaginatedPostListPostContentItem): Promise<void> => {
+        async (item: PostListPostContentItem): Promise<void> => {
             // If we're already loading, don't try to load more comments.
             if (isLoadingRef.current) return;
             isLoadingRef.current = true;

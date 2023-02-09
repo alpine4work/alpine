@@ -1,5 +1,5 @@
 import {MessageList} from "~/client/messaging/message_list";
-import {PaginatedPostList, PaginatedPostListItem} from "~/client/posts/paginated_post_list";
+import {PostList, PostListItem} from "~/client/posts/post_list";
 import {
     assertPostContent,
     PostContentProsemirrorSchema as schema,
@@ -43,10 +43,10 @@ const testContent5 = assertPostContent(
  * Get all items in the list as an array. Accesses the items in random order to
  * exercise our caching logic.
  */
-function getItems(list: PaginatedPostList) {
+function getItems(list: PostList) {
     const indexOrder = shuffleArray(createArrayWithLength(list.getItemCount(), index => index));
 
-    const items: Array<PaginatedPostListItem | null> = createArrayWithLength(
+    const items: Array<PostListItem | null> = createArrayWithLength(
         list.getItemCount(),
         () => null,
     );
@@ -68,11 +68,11 @@ function getItems(list: PaginatedPostList) {
 }
 
 test("an empty list is empty", () => {
-    expect(getItems(PaginatedPostList.empty)).toEqual([]);
+    expect(getItems(PostList.empty)).toEqual([]);
 });
 
 test("can insert some posts into the end", () => {
-    let list = PaginatedPostList.empty;
+    let list = PostList.empty;
 
     const post1 = new PostModel({
         id: generateId(),
@@ -176,7 +176,7 @@ test("can insert some posts into the end", () => {
 });
 
 test("can insert some posts into the start", () => {
-    let list = PaginatedPostList.empty;
+    let list = PostList.empty;
 
     const post1 = new PostModel({
         id: generateId(),
@@ -280,7 +280,7 @@ test("can insert some posts into the start", () => {
 });
 
 test("can insert some posts into the end and others at the start", () => {
-    let list = PaginatedPostList.empty;
+    let list = PostList.empty;
 
     const post1 = new PostModel({
         id: generateId(),
@@ -384,7 +384,7 @@ test("can insert some posts into the end and others at the start", () => {
 });
 
 test("can toggle the comments for a post open", () => {
-    let list = PaginatedPostList.empty;
+    let list = PostList.empty;
 
     const post1 = new PostModel({
         id: generateId(),
@@ -645,7 +645,7 @@ test("can toggle the comments for a post open", () => {
 });
 
 test("can insert some posts into the end with already open comments", () => {
-    let list = PaginatedPostList.empty;
+    let list = PostList.empty;
 
     const post1 = new PostModel({
         id: generateId(),
@@ -767,7 +767,7 @@ test("can insert some posts into the end with already open comments", () => {
 });
 
 test("can insert some posts into the start with already open comments", () => {
-    let list = PaginatedPostList.empty;
+    let list = PostList.empty;
 
     const post1 = new PostModel({
         id: generateId(),
@@ -889,7 +889,7 @@ test("can insert some posts into the start with already open comments", () => {
 });
 
 test("can update the post comments list", () => {
-    let list = PaginatedPostList.empty;
+    let list = PostList.empty;
 
     const post1 = new PostModel({
         id: generateId(),

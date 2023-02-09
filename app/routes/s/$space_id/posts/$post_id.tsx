@@ -1,6 +1,6 @@
 import {useState} from "react";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
-import {PaginatedPostList} from "~/client/posts/paginated_post_list";
+import {PostList} from "~/client/posts/post_list";
 import {PostsView} from "~/client/posts/posts_view";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {getPostAndCommentsFromStart} from "~/server/dynamo/forum_table";
@@ -45,7 +45,7 @@ export default function PostRoute() {
     const {post, postComments} = useLoaderDataWithSchema(schema);
 
     const [list, setList] = useState(() =>
-        PaginatedPostList.empty.insertAtEnd(post, {
+        PostList.empty.insertAtEnd(post, {
             arePostCommentsOpen: true,
             initialPostComments: postComments,
         }),

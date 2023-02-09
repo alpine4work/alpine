@@ -5,6 +5,7 @@ import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schem
 import {getChannel} from "~/server/dynamo/forum_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
+import {Spacing} from "~/shared/design/spacing";
 import {NotFoundError} from "~/shared/error/error";
 import {ChannelId} from "~/shared/id/types/id_types";
 import {ChannelModel} from "~/shared/models/channel_model";
@@ -12,9 +13,11 @@ import {Schema} from "~/shared/schema/schema";
 import {sprinkles} from "~/shared/styles/styles";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
 
-const schema = Schema.object({
+const LoaderSchema = Schema.object({
     channel: ChannelModel.schema(),
 });
+
+const padding: Spacing = "4";
 
 export async function loader({params, context}: LoaderArgs) {
     const channelId = Schema.id<ChannelId>().deserialize(params.channel_id ?? null);
@@ -26,26 +29,29 @@ export async function loader({params, context}: LoaderArgs) {
         context: {channelId},
     };
 
-    return jsonWithSchema(schema, {channel}, {propagateEventData});
+    return jsonWithSchema(LoaderSchema, {channel}, {propagateEventData});
 }
 
 export default function ChannelRoute() {
-    const {channel} = useLoaderDataWithSchema(schema);
+    const {channel} = useLoaderDataWithSchema(LoaderSchema);
 
     return (
-        <main
-            className={sprinkles({
-                height: "full",
-                display: "flex",
-                justifyContent: "center",
-                backgroundColor: {light: "grey-5", dark: "grey-0"},
-            })}
-        >
-            <Box maxWidth="160" width="full" padding="4">
-                <h1>{channel.name}</h1>
-                <Spacer space="6" />
-                <PostCreator channelId={channel.id} />
-            </Box>
+        <main className={sprinkles({height: "full"})}>
+            <h1>{channel.name}</h1>
+            <Spacer space="6" />
+            <div className={sprinkles({paddingX: padding})}>
+                <div
+                    className={sprinkles({
+                        marginX: "auto",
+                        maxWidth: "160",
+                        backgroundColor: "grey-0",
+                        borderRadius: "md",
+                        boxShadow: "elevation-5",
+                    })}
+                >
+                    <PostCreator channelId={channel.id} />
+                </div>
+            </div>
         </main>
     );
 }

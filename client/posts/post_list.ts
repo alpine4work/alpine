@@ -18,7 +18,7 @@ import {PostCommentModel, PostModel} from "~/shared/models/post_model";
  * Keeping track of which posts are open/closed and how that affects comment
  * indexing is a little complex. This class manages that complexity.
  */
-export class PaginatedPostList {
+export class PostList {
     /**
      * Our list of posts. But this is a map not a list you may say. Yes! It is a
      * map keyed by an `OrderKey`. This allows us to efficiently insert items at
@@ -88,7 +88,7 @@ export class PaginatedPostList {
     /**
      * An empty post list.
      */
-    public static empty = new PaginatedPostList({
+    public static empty = new PostList({
         postByOrderKey: ImmutableMap.empty(),
         openPostCommentPostOrderKeys: ImmutableSet.empty(),
         postOrderKeyByPostContentIndex: createTree(),
@@ -231,7 +231,7 @@ export class PaginatedPostList {
      * of. Will throw an error if the index is out of bounds. Every index in this
      * list is associated to a post.
      */
-    public getPostContentItem(index: number): PaginatedPostListPostContentItem {
+    public getPostContentItem(index: number): PostListPostContentItem {
         const {postContentItemIndex, postOrderKey, post, postComments} = this._getPost(index);
         const arePostCommentsOpen = this._openPostCommentPostOrderKeys.has(postOrderKey);
 
@@ -252,7 +252,7 @@ export class PaginatedPostList {
      * Get the item at the provided index. Throws an error if the index is out
      * of bounds.
      */
-    public getItem(index: number): PaginatedPostListItem {
+    public getItem(index: number): PostListItem {
         const {postContentItemIndex, postOrderKey, post, postComments} = this._getPost(index);
         const arePostCommentsOpen = this._openPostCommentPostOrderKeys.has(postOrderKey);
 
@@ -324,7 +324,7 @@ export class PaginatedPostList {
             arePostCommentsOpen?: boolean;
             initialPostComments?: ReadonlyArray<PostCommentModel>;
         } = {},
-    ): PaginatedPostList {
+    ): PostList {
         const postOrderKey = generateOrderKeyBetween(
             null,
             this._postByOrderKey.getFirstEntry()?.[0] ?? null,
@@ -342,7 +342,7 @@ export class PaginatedPostList {
             ? this._openPostCommentPostOrderKeys.add(postOrderKey)
             : this._openPostCommentPostOrderKeys;
 
-        return new PaginatedPostList({
+        return new PostList({
             postByOrderKey,
             openPostCommentPostOrderKeys,
             // We have to throw away the entire cache for post content indexes because
@@ -363,7 +363,7 @@ export class PaginatedPostList {
             arePostCommentsOpen?: boolean;
             initialPostComments?: ReadonlyArray<PostCommentModel>;
         } = {},
-    ): PaginatedPostList {
+    ): PostList {
         const postOrderKey = generateOrderKeyBetween(
             this._postByOrderKey.getLastEntry()?.[0] ?? null,
             null,
@@ -381,7 +381,7 @@ export class PaginatedPostList {
             ? this._openPostCommentPostOrderKeys.add(postOrderKey)
             : this._openPostCommentPostOrderKeys;
 
-        return new PaginatedPostList({
+        return new PostList({
             postByOrderKey,
             openPostCommentPostOrderKeys,
             // We can keep the existing cache for post content indexes because inserting at
@@ -394,7 +394,7 @@ export class PaginatedPostList {
      * Toggle the post's comment section as open or closed. The index must point to
      * the post's content. Otherwise we will throw.
      */
-    public togglePostComments(index: number): PaginatedPostList {
+    public togglePostComments(index: number): PostList {
         const item = this.getItem(index);
 
         if (item.type !== "PostContent")
@@ -424,7 +424,7 @@ export class PaginatedPostList {
             return leftTree.insert(index, postOrderKey);
         })();
 
-        return new PaginatedPostList({
+        return new PostList({
             postByOrderKey: this._postByOrderKey,
             openPostCommentPostOrderKeys,
             postOrderKeyByPostContentIndex,
@@ -438,7 +438,7 @@ export class PaginatedPostList {
     public updatePostComments(
         postOrderKey: OrderKey,
         update: (postComments: MessageList<PostCommentModel>) => MessageList<PostCommentModel>,
-    ): PaginatedPostList {
+    ): PostList {
         const postByOrderKey = this._postByOrderKey.update(postOrderKey, post => {
             if (!post) throw new InternalError("Post not found for order key");
 
@@ -450,7 +450,7 @@ export class PaginatedPostList {
             };
         });
 
-        return new PaginatedPostList({
+        return new PostList({
             postByOrderKey,
             openPostCommentPostOrderKeys: this._openPostCommentPostOrderKeys,
             // We don't know what index our post was out so we have to clear the entire
@@ -464,16 +464,16 @@ export class PaginatedPostList {
 /**
  * An individual item in a paginated post list.
  */
-export type PaginatedPostListItem =
-    | PaginatedPostListPostContentItem
-    | PaginatedPostListLoadedPostCommentItem
-    | PaginatedPostListUnloadedPostCommentItem
-    | PaginatedPostListPostCommentInputItem;
+export type PostListItem =
+    | PostListPostContentItem
+    | PostListLoadedPostCommentItem
+    | PostListUnloadedPostCommentItem
+    | PostListPostCommentInputItem;
 
 /**
  * The first item in a post that renders content.
  */
-export type PaginatedPostListPostContentItem = {
+export type PostListPostContentItem = {
     readonly type: "PostContent";
     readonly postOrderKey: OrderKey;
     readonly post: PostModel;
@@ -481,12 +481,12 @@ export type PaginatedPostListPostContentItem = {
     readonly arePostCommentsOpen: boolean;
     /**
      * The index of the `PostContent` item for this comment input in the full
-     * `PaginatedPostList`.
+     * `PostList`.
      */
     readonly postContentItemIndex: number;
     /**
      * If the comment section is open, this will be the index of the post comment
-     * input in the full `PaginatedPostList`.
+     * input in the full `PostList`.
      */
     readonly postCommentInputItemIndex: number | null;
 };
@@ -494,7 +494,7 @@ export type PaginatedPostListPostContentItem = {
 /**
  * An item in a post that renders a loaded comment.
  */
-export type PaginatedPostListLoadedPostCommentItem = {
+export type PostListLoadedPostCommentItem = {
     readonly type: "LoadedPostComment";
     readonly post: PostModel;
     readonly postComments: MessageList<PostCommentModel>;
@@ -506,7 +506,7 @@ export type PaginatedPostListLoadedPostCommentItem = {
     readonly postComment: PostCommentModel;
     /**
      * If the comment section is open, this will be the index of the post comment
-     * input in the full `PaginatedPostList`.
+     * input in the full `PostList`.
      */
     readonly postCommentInputItemIndex: number;
 };
@@ -514,7 +514,7 @@ export type PaginatedPostListLoadedPostCommentItem = {
 /**
  * An item in a post that renders an unloaded comment shimmer.
  */
-export type PaginatedPostListUnloadedPostCommentItem = {
+export type PostListUnloadedPostCommentItem = {
     readonly type: "UnloadedPostComment";
     readonly post: PostModel;
     readonly postComments: MessageList<PostCommentModel>;
@@ -525,7 +525,7 @@ export type PaginatedPostListUnloadedPostCommentItem = {
     readonly postCommentIndex: number;
     /**
      * If the comment section is open, this will be the index of the post comment
-     * input in the full `PaginatedPostList`.
+     * input in the full `PostList`.
      */
     readonly postCommentInputItemIndex: number;
 };
@@ -533,14 +533,14 @@ export type PaginatedPostListUnloadedPostCommentItem = {
 /**
  * The last item in a post that renders a comment input.
  */
-export type PaginatedPostListPostCommentInputItem = {
+export type PostListPostCommentInputItem = {
     readonly type: "PostCommentInput";
     readonly postOrderKey: OrderKey;
     readonly post: PostModel;
     readonly postComments: MessageList<PostCommentModel>;
     /**
      * The index of the `PostContent` item for this comment input in the full
-     * `PaginatedPostList`.
+     * `PostList`.
      */
     readonly postContentItemIndex: number;
 };

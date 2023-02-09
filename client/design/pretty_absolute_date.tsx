@@ -12,10 +12,12 @@ export function PrettyAbsoluteDate({date}: {date: Date}) {
     const {timeZone} = useClientInfo();
 
     const prettyDate = useMemo(() => {
+        const isCurrentYear = new Date().getFullYear() === date.getFullYear();
+
         const formatter = new Intl.DateTimeFormat("en-US", {
             timeZone,
             calendar: "iso8601",
-            year: "numeric",
+            year: !isCurrentYear ? "numeric" : undefined,
             month: "short",
             day: "numeric",
         });
