@@ -1,7 +1,7 @@
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
-    name = "posts",
+    name = "forum",
     visibility = [
         "//app:__subpackages__",
         "//client:__subpackages__",

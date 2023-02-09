@@ -1,7 +1,7 @@
 import {useState} from "react";
-import {postContentViewMinHeight} from "~/client/posts/post_content_view";
-import {PostList} from "~/client/posts/post_list";
-import {PostsView} from "~/client/posts/posts_view";
+import {postContentViewMinHeight} from "~/client/forum/post_content_view";
+import {PostList} from "~/client/forum/post_list";
+import {PostListView} from "~/client/forum/post_list_view";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view";
 import {getChannel, getChannelPosts} from "~/server/dynamo/forum_table";
@@ -50,15 +50,15 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
 }
 
 export default function ChannelRoute() {
-    const {channelPostsResult} = useLoaderDataWithSchema(LoaderSchema);
+    const {channel, channelPostsResult} = useLoaderDataWithSchema(LoaderSchema);
 
     const [list, setList] = useState(() =>
-        PostList.empty.insertManyAtStart(channelPostsResult.posts),
+        PostList.empty.setChannelHeader({channel}).insertManyAtStart(channelPostsResult.posts),
     );
 
     return (
         <main className={sprinkles({height: "full"})}>
-            <PostsView
+            <PostListView
                 list={list}
                 onTogglePostComments={index => setList(list => list.togglePostComments(index))}
                 onUpdatePostComments={(postId, update) =>

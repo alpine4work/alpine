@@ -12,7 +12,12 @@ import {
     generateOrderKeysBetween,
 } from "~/shared/helpers/sort/order_key";
 import {PostId} from "~/shared/id/types/id_types";
+import {ChannelModel} from "~/shared/models/channel_model";
 import {PostCommentModel, PostModel} from "~/shared/models/post_model";
+
+export type PostListChannelHeader = {
+    readonly channel: ChannelModel;
+};
 
 /**
  * An immutable representation of a list of posts to be rendered by our
@@ -25,6 +30,8 @@ import {PostCommentModel, PostModel} from "~/shared/models/post_model";
  * indexing is a little complex. This class manages that complexity.
  */
 export class PostList {
+    private readonly _channelHeader: PostListChannelHeader | null;
+
     /**
      * Our list of posts. But this is a map not a list you may say. Yes! It is a
      * map keyed by an `OrderKey`. This allows us to efficiently insert items at
@@ -77,11 +84,13 @@ export class PostList {
     private _postOrderKeyByPostContentItemIndex: Tree<number, OrderKey>;
 
     private constructor({
+        channelHeader,
         postByOrderKey,
         orderKeyByPostId,
         openPostCommentPostOrderKeys,
         postOrderKeyByPostContentIndex,
     }: {
+        channelHeader: PostListChannelHeader | null;
         postByOrderKey: ImmutableMap<
             OrderKey,
             {
@@ -93,6 +102,7 @@ export class PostList {
         openPostCommentPostOrderKeys: ImmutableSet<OrderKey>;
         postOrderKeyByPostContentIndex: Tree<number, OrderKey>;
     }) {
+        this._channelHeader = channelHeader;
         this._postByOrderKey = postByOrderKey;
         this._orderKeyByPostId = orderKeyByPostId;
         this._openPostCommentPostOrderKeys = openPostCommentPostOrderKeys;
@@ -103,6 +113,7 @@ export class PostList {
      * An empty post list.
      */
     public static empty = new PostList({
+        channelHeader: null,
         postByOrderKey: ImmutableMap.empty(),
         orderKeyByPostId: ImmutableMap.empty(),
         openPostCommentPostOrderKeys: ImmutableSet.empty(),
@@ -114,6 +125,7 @@ export class PostList {
      */
     public getItemCount() {
         return (
+            (this._channelHeader ? 1 : 0) +
             this._postByOrderKey.size +
             // For all posts with open comments, add the size of the comment sections plus
             // one for the comment input.
@@ -139,7 +151,7 @@ export class PostList {
         postOrderKey: OrderKey;
         post: PostModel;
         postComments: MessageList<PostCommentModel>;
-    } {
+    } | null {
         if (index < 0 || !Number.isSafeInteger(index))
             throw new OutOfRangeError("Index should be a positive integer");
 
@@ -158,7 +170,7 @@ export class PostList {
             const iterator = this._postOrderKeyByPostContentItemIndex.le(index);
             if (!iterator.valid) {
                 startAfterOrderKey = null;
-                nextPostContentItemIndex = 0;
+                nextPostContentItemIndex = this._channelHeader ? 1 : 0;
             } else {
                 const postNode = iterator.node!;
 
@@ -192,6 +204,12 @@ export class PostList {
                     };
                 }
             }
+        }
+
+        // If we are looking for an index before the start of posts, there is no post
+        // for this index but we are still in range.
+        if (index < nextPostContentItemIndex) {
+            return null;
         }
 
         // Iterate through posts to find the post which contains our search index.
@@ -246,8 +264,11 @@ export class PostList {
      * of. Will throw an error if the index is out of bounds. Every index in this
      * list is associated to a post.
      */
-    public getPostContentItem(index: number): PostListPostContentItem {
-        const {postContentItemIndex, postOrderKey, post, postComments} = this._getPost(index);
+    public getPostContentItem(index: number): PostListPostContentItem | null {
+        const postResult = this._getPost(index);
+        if (!postResult) return null;
+
+        const {postContentItemIndex, postOrderKey, post, postComments} = postResult;
         const arePostCommentsOpen = this._openPostCommentPostOrderKeys.has(postOrderKey);
 
         return {
@@ -267,7 +288,17 @@ export class PostList {
      * of bounds.
      */
     public getItem(index: number): PostListItem {
-        const {postContentItemIndex, postOrderKey, post, postComments} = this._getPost(index);
+        if (this._channelHeader && index === 0) {
+            return {
+                type: "ChannelHeader",
+                channelHeader: this._channelHeader,
+            };
+        }
+
+        const {postContentItemIndex, postOrderKey, post, postComments} = assertExists(
+            this._getPost(index),
+            "Expected unsupported non-post indexes to be handled",
+        );
         const arePostCommentsOpen = this._openPostCommentPostOrderKeys.has(postOrderKey);
 
         if (index === postContentItemIndex) {
@@ -325,6 +356,21 @@ export class PostList {
     }
 
     /**
+     * Set the channel header item at the beginning of the post list.
+     */
+    public setChannelHeader(channelHeader: PostListChannelHeader | null): PostList {
+        return new PostList({
+            channelHeader,
+            postByOrderKey: this._postByOrderKey,
+            orderKeyByPostId: this._orderKeyByPostId,
+            openPostCommentPostOrderKeys: this._openPostCommentPostOrderKeys,
+            // We have to throw away the entire cache for post content indexes because
+            // the channel header offsets everything by one.
+            postOrderKeyByPostContentIndex: createTree(),
+        });
+    }
+
+    /**
      * Insert a post into the start of the list.
      */
     public insertAtStart(
@@ -360,6 +406,7 @@ export class PostList {
             : this._openPostCommentPostOrderKeys;
 
         return new PostList({
+            channelHeader: this._channelHeader,
             postByOrderKey,
             orderKeyByPostId,
             openPostCommentPostOrderKeys,
@@ -405,6 +452,7 @@ export class PostList {
             : this._openPostCommentPostOrderKeys;
 
         return new PostList({
+            channelHeader: this._channelHeader,
             postByOrderKey,
             orderKeyByPostId,
             openPostCommentPostOrderKeys,
@@ -443,6 +491,7 @@ export class PostList {
         }
 
         return new PostList({
+            channelHeader: this._channelHeader,
             postByOrderKey,
             orderKeyByPostId,
             openPostCommentPostOrderKeys: this._openPostCommentPostOrderKeys,
@@ -492,6 +541,7 @@ export class PostList {
         })();
 
         return new PostList({
+            channelHeader: this._channelHeader,
             postByOrderKey: this._postByOrderKey,
             orderKeyByPostId: this._orderKeyByPostId,
             openPostCommentPostOrderKeys,
@@ -522,6 +572,7 @@ export class PostList {
         });
 
         return new PostList({
+            channelHeader: this._channelHeader,
             postByOrderKey,
             orderKeyByPostId: this._orderKeyByPostId,
             openPostCommentPostOrderKeys: this._openPostCommentPostOrderKeys,
@@ -537,10 +588,16 @@ export class PostList {
  * An individual item in a paginated post list.
  */
 export type PostListItem =
+    | PostListChannelHeaderItem
     | PostListPostContentItem
     | PostListLoadedPostCommentItem
     | PostListUnloadedPostCommentItem
     | PostListPostCommentInputItem;
+
+export type PostListChannelHeaderItem = {
+    readonly type: "ChannelHeader";
+    readonly channelHeader: PostListChannelHeader;
+};
 
 /**
  * The first item in a post that renders content.

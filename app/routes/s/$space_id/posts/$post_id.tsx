@@ -1,7 +1,7 @@
 import {useState} from "react";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
-import {PostList} from "~/client/posts/post_list";
-import {PostsView} from "~/client/posts/posts_view";
+import {PostList} from "~/client/forum/post_list";
+import {PostListView} from "~/client/forum/post_list_view";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {getPostAndCommentsFromStart} from "~/server/dynamo/forum_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
@@ -53,7 +53,7 @@ export default function PostRoute() {
 
     return (
         <main className={sprinkles({height: "full"})}>
-            <PostsView
+            <PostListView
                 list={list}
                 onTogglePostComments={index => setList(list => list.togglePostComments(index))}
                 onUpdatePostComments={(postId, update) =>

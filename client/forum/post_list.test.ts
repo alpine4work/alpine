@@ -1,5 +1,5 @@
 import {MessageList} from "~/client/messaging/message_list";
-import {PostList, PostListItem} from "~/client/posts/post_list";
+import {PostList, PostListItem} from "~/client/forum/post_list";
 import {
     assertPostContent,
     PostContentProsemirrorSchema as schema,

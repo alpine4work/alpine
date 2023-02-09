@@ -1,6 +1,11 @@
 import {ReactElement, useCallback, useEffect, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context";
 import {Spacer} from "~/client/design/spacer";
+import {ChannelHeaderView, channelHeaderViewMinHeight} from "~/client/forum/channel_header_view";
+import {PostCommentInput} from "~/client/forum/post_comment_input";
+import {PostContentView, postContentViewMinHeight} from "~/client/forum/post_content_view";
+import {PostList, PostListPostContentItem} from "~/client/forum/post_list";
+import {PostRealtimeActions} from "~/client/forum/use_post_realtime";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useMessageEditing} from "~/client/messaging/message_editing";
 import {MessageList} from "~/client/messaging/message_list";
@@ -8,10 +13,6 @@ import {MessageShimmer} from "~/client/messaging/message_shimmer";
 import {MessageView, messageViewMinHeight} from "~/client/messaging/message_view";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages";
-import {PostCommentInput} from "~/client/posts/post_comment_input";
-import {PostContentView, postContentViewMinHeight} from "~/client/posts/post_content_view";
-import {PostList, PostListPostContentItem} from "~/client/posts/post_list";
-import {PostRealtimeActions} from "~/client/posts/use_post_realtime";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context";
 import {
     VirtualizedScrollView,
@@ -28,13 +29,13 @@ import {PostCommentModel} from "~/shared/models/post_model";
 import {getPostCommentsFromEnd, getPostCommentsFromStart} from "~/shared/rpc/posts_rpc_definitions";
 import {sprinkles} from "~/shared/styles/styles";
 
-const padding: Spacing = "5";
+export const postListViewMargin: Spacing = "5";
 
 /**
  * The buffered height of an item in the post view virtualized list is the minimum
  * height of a single post.
  */
-const bufferedPostViewHeight = addRemLengths(postContentViewMinHeight, spacing[padding]);
+const bufferedPostViewHeight = addRemLengths(postContentViewMinHeight, spacing[postListViewMargin]);
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders
@@ -50,7 +51,7 @@ const bufferedPostViewHeight = addRemLengths(postContentViewMinHeight, spacing[p
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const Box = null;
 
-export function PostsView({
+export function PostListView({
     list,
     onTogglePostComments: _onTogglePostComments,
     onUpdatePostComments: _onUpdatePostComments,
@@ -86,6 +87,12 @@ export function PostsView({
         let nextIndex = renderedRange.startIndex;
         while (nextIndex <= renderedRange.startIndex) {
             const item = list.getPostContentItem(nextIndex);
+
+            if (!item) {
+                nextIndex++;
+                continue;
+            }
+
             nextIndex =
                 item.postCommentInputItemIndex !== null
                     ? item.postCommentInputItemIndex + 1
@@ -262,15 +269,22 @@ export function PostsView({
         index => {
             const item = list.getItem(index);
             switch (item.type) {
+                case "ChannelHeader": {
+                    return {
+                        key: "ChannelHeader",
+                        minHeight: channelHeaderViewMinHeight,
+                        node: <ChannelHeaderView channelHeader={item.channelHeader} />,
+                    };
+                }
                 case "PostContent": {
                     let minHeight: RemLength = postContentViewMinHeight;
 
                     if (index === 0) {
-                        minHeight = addRemLengths(minHeight, spacing[padding]);
+                        minHeight = addRemLengths(minHeight, spacing[postListViewMargin]);
                     }
 
                     if (!item.arePostCommentsOpen) {
-                        minHeight = addRemLengths(minHeight, spacing[padding]);
+                        minHeight = addRemLengths(minHeight, spacing[postListViewMargin]);
                     }
 
                     return {
@@ -278,8 +292,8 @@ export function PostsView({
                         minHeight,
                         node: (
                             <>
-                                {index === 0 && <Spacer space={padding} />}
-                                <div className={sprinkles({paddingX: padding})}>
+                                {index === 0 && <Spacer space={postListViewMargin} />}
+                                <div className={sprinkles({paddingX: postListViewMargin})}>
                                     <div
                                         className={sprinkles({
                                             marginX: "auto",
@@ -303,7 +317,7 @@ export function PostsView({
                                         />
                                     </div>
                                 </div>
-                                {!item.arePostCommentsOpen && <Spacer space={padding} />}
+                                {!item.arePostCommentsOpen && <Spacer space={postListViewMargin} />}
                             </>
                         ),
                         renderAdditionalItemIndexes:
@@ -365,7 +379,12 @@ export function PostsView({
                             );
 
                         return (
-                            <div className={sprinkles({paddingX: padding, overflowY: "hidden"})}>
+                            <div
+                                className={sprinkles({
+                                    paddingX: postListViewMargin,
+                                    overflowY: "hidden",
+                                })}
+                            >
                                 <div
                                     className={sprinkles({
                                         marginX: "auto",
@@ -479,7 +498,7 @@ export function PostsView({
 
                     return {
                         key: `PostCommentInput:${item.post.id}`,
-                        minHeight: addRemLengths("3.5rem", spacing[padding]),
+                        minHeight: addRemLengths("3.5rem", spacing[postListViewMargin]),
                         withManualLayout: true,
                         stayCompletelyVisibleAfterResize: true,
                         render: ({
@@ -507,8 +526,8 @@ export function PostsView({
                                         >
                                             <div
                                                 className={sprinkles({
-                                                    paddingX: padding,
-                                                    paddingBottom: padding,
+                                                    paddingX: postListViewMargin,
+                                                    paddingBottom: postListViewMargin,
                                                     overflowY: "hidden",
                                                 })}
                                                 style={{height}}
@@ -537,8 +556,8 @@ export function PostsView({
                                                 ? {
                                                       position: "absolute",
                                                       top: postContentOffsetEnd,
-                                                      left: spacing[padding],
-                                                      right: spacing[padding],
+                                                      left: spacing[postListViewMargin],
+                                                      right: spacing[postListViewMargin],
                                                       height:
                                                           offset - postContentOffsetEnd + height,
                                                   }
@@ -552,13 +571,13 @@ export function PostsView({
                                             style={{
                                                 ...(!shouldRenderWithRelativePositioning && {
                                                     position: "sticky",
-                                                    bottom: `-${spacing[padding]}`,
+                                                    bottom: `-${spacing[postListViewMargin]}`,
                                                 }),
                                             }}
                                             className={sprinkles({
                                                 width: "full",
                                                 overflowX: "hidden",
-                                                paddingBottom: padding,
+                                                paddingBottom: postListViewMargin,
                                             })}
                                         >
                                             <div
@@ -644,8 +663,8 @@ export function PostsView({
                                                 // background color.
                                                 className={sprinkles({
                                                     position: "absolute",
-                                                    left: padding,
-                                                    right: padding,
+                                                    left: postListViewMargin,
+                                                    right: postListViewMargin,
                                                     maxWidth: "160",
                                                     marginX: "auto",
                                                     backgroundColor: "grey-0",
@@ -653,15 +672,17 @@ export function PostsView({
                                                     borderTopRadius: "md",
                                                 })}
                                                 style={{
-                                                    width: `calc(100% - ${spacing[padding]} * 2)`,
+                                                    width: `calc(100% - ${spacing[postListViewMargin]} * 2)`,
                                                     top:
                                                         item.postContentItemIndex === 0
                                                             ? `calc(${
                                                                   postContentOffsetEnd -
-                                                                  postContentPosition.height
-                                                              }px + ${spacing[padding]} + 1px)`
+                                                                  postContentPosition.height +
+                                                                  1
+                                                              }px + ${spacing[postListViewMargin]})`
                                                             : postContentOffsetEnd -
-                                                              postContentPosition.height,
+                                                              postContentPosition.height +
+                                                              1,
                                                     height:
                                                         offset -
                                                         postContentOffsetEnd +
@@ -672,8 +693,8 @@ export function PostsView({
                                                 style={{
                                                     position: "absolute",
                                                     top: postContentOffsetEnd,
-                                                    left: spacing[padding],
-                                                    right: spacing[padding],
+                                                    left: spacing[postListViewMargin],
+                                                    right: spacing[postListViewMargin],
                                                     height:
                                                         offset - postContentOffsetEnd + height + 1,
                                                     pointerEvents: "none",
@@ -685,7 +706,7 @@ export function PostsView({
                                                 <div
                                                     style={{
                                                         position: "sticky",
-                                                        bottom: `-${spacing[padding]}`,
+                                                        bottom: `-${spacing[postListViewMargin]}`,
                                                         height,
                                                     }}
                                                     className={sprinkles({

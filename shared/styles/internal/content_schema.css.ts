@@ -28,6 +28,7 @@ import {inputPlaceholderColor} from "~/shared/styles/internal/input_placeholder_
 // - Strikethrough on h1 feels too thin relative to text
 // - On mobile, does hitting enter to create a new line capitalize? With
 //   auto-capitalization on and off.
+// - Yasmin's suggestions
 
 const paragraphMargin = spacing["2"];
 const headerTopMargin = "1.5em";
