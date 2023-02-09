@@ -1,0 +1,32 @@
+import {unstable_ImmediatePriority, unstable_runWithPriority} from "scheduler";
+
+/**
+ * Run the provided action with immediate React priority. That means React
+ * should render any state changes that happen within synchronously. Use
+ * sparingly as this hurts performance since React can't be interrupted!
+ *
+ * Use this instead of manually calling `unstable_runWithPriority()` from
+ * `scheduler` since it handles some React quirks.
+ */
+export function runWithImmediatePriority(action: () => void) {
+    unstable_runWithPriority(unstable_ImmediatePriority, () => {
+        // HACK(calebmer): In order for React to respect the scheduler priority level
+        // we need to be in a message event (since the scheduler callback uses a
+        // message event). So trick React into thinking we are in a message event by
+        // setting a message event object globally.
+        //
+        // See how the `requestUpdateLane()` function calls `getCurrentEventPriority()`
+        // which calls `getEventPriority()` which then consults the scheduler for
+        // `message` events.
+        //
+        // - https://github.com/facebook/react/blob/9e3b772b8cabbd8cadc7522ebe3dde3279e79d9e/packages/react-reconciler/src/ReactFiberWorkLoop.new.js#L498-L516
+        // - https://github.com/facebook/react/blob/9e3b772b8cabbd8cadc7522ebe3dde3279e79d9e/packages/react-dom/src/events/ReactDOMEventListener.js#L493-L512
+        const lastWindowEvent = window.event;
+        window.event = new MessageEvent("message");
+        try {
+            action();
+        } finally {
+            window.event = lastWindowEvent;
+        }
+    });
+}

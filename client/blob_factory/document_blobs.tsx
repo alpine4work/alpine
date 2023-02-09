@@ -132,9 +132,8 @@ export function DocumentBlobFactory({
     settings: DocumentBlobFactorySettings;
     containerId: string;
 }) {
-    const containerRef = useRef<HTMLDivElement>(null);
     const displayCanvasRef = useRef<HTMLCanvasElement>(null);
-    const containerRect = useResizeObserver(containerRef);
+    const [containerRef, containerRect] = useResizeObserver();
 
     const colorScheme = useColorScheme();
     const [textFill, setTextFill] = useState<{url: string; offsetX: number; size: Vector2} | null>(

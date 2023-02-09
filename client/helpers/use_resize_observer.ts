@@ -1,6 +1,8 @@
-import {RefObject, useState} from "react";
+import {RefCallback, RefObject, useCallback, useState} from "react";
 import {unstable_ImmediatePriority, unstable_runWithPriority} from "scheduler";
+import {useLifecycleRef} from "~/client/design/helpers/use_lifecycle_ref";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
+import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
@@ -8,7 +10,8 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 /**
  * Watch the size of the provided element with a [`ResizeObserver`][1].
  *
- * On the server and on initial mount, the returned size will be null.
+ * On the server and on initial mount, the returned size will be null. If the
+ * element is unmounted then the returned size will also be null.
  *
  * If you want to observe a different element then you need to change the
  * reference of the `ref` object passed in. We will only observe a new element
@@ -16,41 +19,39 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
  *
  * [1]: https://developer.mozilla.org/en-US/docs/Web/API/ResizeObserver
  */
-export function useResizeObserver<T extends HTMLElement>(
-    ref: RefObject<T>,
-): {height: number; width: number} | null {
+export function useResizeObserver(): [
+    RefCallback<HTMLElement>,
+    {height: number; width: number} | null,
+] {
     const [contentRect, setContentRect] = useState<{height: number; width: number} | null>(null);
 
-    // Accept that when server-side rendering there will be a brief flash of
-    // content where we don't have dimensions. If navigating entirely on the client
-    // then we should never render content without dimensions.
-    useLayoutEffectWithoutServerSideWarning(() => {
-        const element = assertExists(ref.current);
-
-        const listener = () => {
-            const newContentRect = {
-                height: element.offsetHeight,
-                width: element.offsetWidth,
+    const ref = useLifecycleRef<HTMLElement>(
+        useCallback(element => {
+            const listener = () => {
+                const newContentRect = {
+                    height: element.offsetHeight,
+                    width: element.offsetWidth,
+                };
+                setContentRect(contentRect => {
+                    return newContentRect.height !== contentRect?.height ||
+                        newContentRect.width !== contentRect.width
+                        ? newContentRect
+                        : contentRect;
+                });
             };
-            setContentRect(contentRect => {
-                return newContentRect.height !== contentRect?.height ||
-                    newContentRect.width !== contentRect.width
-                    ? newContentRect
-                    : contentRect;
-            });
-        };
 
-        // Immediately populate the content rect with our element's dimensions
-        // on mount.
-        listener();
+            // Immediately populate the content rect with our element's dimensions
+            // on mount.
+            listener();
 
-        addResizeListenerForElement(element, listener);
-        return () => {
-            removeResizeListenerForElement(element, listener);
-        };
-    }, [ref]);
+            addResizeListenerForElement(element, listener);
+            return () => {
+                removeResizeListenerForElement(element, listener);
+            };
+        }, []),
+    );
 
-    return contentRect;
+    return [ref, contentRect];
 }
 
 const resizeListenersByElement = new Map<Element, Set<(entry: ResizeObserverEntry) => void>>();
@@ -72,21 +73,7 @@ export function addResizeListenerForElement(
             // Run resize observer listeners with immediate priority. React component
             // updates made in resize listeners should happen in the same browser paint
             // where they were dispatched so the user doesn't see a tear in the UI.
-            unstable_runWithPriority(unstable_ImmediatePriority, () => {
-                // HACK(calebmer): In order for React to respect the scheduler priority level
-                // we need to be in a message event (since the scheduler callback uses a
-                // message event). So trick React into thinking we are in a message event by
-                // setting a message event object globally.
-                //
-                // See how the `requestUpdateLane()` function calls `getCurrentEventPriority()`
-                // which calls `getEventPriority()` which then consults the scheduler for
-                // `message` events.
-                //
-                // - https://github.com/facebook/react/blob/9e3b772b8cabbd8cadc7522ebe3dde3279e79d9e/packages/react-reconciler/src/ReactFiberWorkLoop.new.js#L498-L516
-                // - https://github.com/facebook/react/blob/9e3b772b8cabbd8cadc7522ebe3dde3279e79d9e/packages/react-dom/src/events/ReactDOMEventListener.js#L493-L512
-                const lastWindowEvent = window.event;
-                window.event = new MessageEvent("message");
-
+            runWithImmediatePriority(() => {
                 for (const entry of entries) {
                     lastResizeObserverEntryByElement.set(entry.target, entry);
                     const resizeListeners = resizeListenersByElement.get(entry.target);
@@ -100,8 +87,6 @@ export function addResizeListenerForElement(
                         }
                     }
                 }
-
-                window.event = lastWindowEvent;
             });
         });
     }

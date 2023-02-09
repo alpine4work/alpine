@@ -1,5 +1,5 @@
 import {ArrowClockwise} from "phosphor-react";
-import {useId, useRef, useState} from "react";
+import {useId, useState} from "react";
 import {
     DocumentBlobFactory,
     DocumentBlobFactorySettings,
@@ -63,8 +63,7 @@ const targetWidth = 1200;
 const aspectRatio = 4 / 3;
 function DocumentBlobsPreview({settings}: {settings: DocumentBlobFactorySettings}) {
     const id = useId().replace(/:/g, "_");
-    const containerRef = useRef<HTMLDivElement>(null);
-    const containerRect = useResizeObserver(containerRef);
+    const [containerRef, containerRect] = useResizeObserver();
 
     const editorState = useConstant(() => ContentEditorState.create(documentContent));
 
