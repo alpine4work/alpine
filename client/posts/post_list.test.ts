@@ -7,7 +7,6 @@ import {
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length";
 import {shuffleArray} from "~/shared/helpers/array/shuffle_array";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {OrderKey} from "~/shared/helpers/sort/order_key";
 import {generateId} from "~/shared/id/id";
 import {ChannelId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
@@ -971,7 +970,7 @@ test("can update the post comments list", () => {
         {type: "PostContent", post: post5, arePostCommentsOpen: false},
     ]);
 
-    list = list.updatePostComments("a2" as OrderKey, () => MessageList.new(3));
+    list = list.updatePostComments(post3.id, () => MessageList.new(3));
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post1, arePostCommentsOpen: false},
@@ -985,7 +984,7 @@ test("can update the post comments list", () => {
         {type: "PostContent", post: post5, arePostCommentsOpen: false},
     ]);
 
-    list = list.updatePostComments("a2" as OrderKey, () => MessageList.new(7));
+    list = list.updatePostComments(post3.id, () => MessageList.new(7));
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post1, arePostCommentsOpen: false},

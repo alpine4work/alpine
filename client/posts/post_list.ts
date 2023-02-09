@@ -1,11 +1,17 @@
 import createTree, {Tree} from "functional-red-black-tree";
 import {MessageList} from "~/client/messaging/message_list";
 import {InternalError, OutOfRangeError} from "~/shared/error/error";
+import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
 import {ImmutableSet} from "~/shared/helpers/immutable/immutable_set";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
-import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key";
+import {
+    OrderKey,
+    generateOrderKeyBetween,
+    generateOrderKeysBetween,
+} from "~/shared/helpers/sort/order_key";
+import {PostId} from "~/shared/id/types/id_types";
 import {PostCommentModel, PostModel} from "~/shared/models/post_model";
 
 /**
@@ -42,6 +48,11 @@ export class PostList {
     >;
 
     /**
+     * A map of the order keys for posts.
+     */
+    private readonly _orderKeyByPostId: ImmutableMap<PostId, OrderKey>;
+
+    /**
      * Posts with an open comment section. Keyed by `OrderKey` so that we can find
      * the post in `_postByOrderKey`.
      */
@@ -67,6 +78,7 @@ export class PostList {
 
     private constructor({
         postByOrderKey,
+        orderKeyByPostId,
         openPostCommentPostOrderKeys,
         postOrderKeyByPostContentIndex,
     }: {
@@ -77,10 +89,12 @@ export class PostList {
                 readonly postComments: MessageList<PostCommentModel>;
             }
         >;
+        orderKeyByPostId: ImmutableMap<PostId, OrderKey>;
         openPostCommentPostOrderKeys: ImmutableSet<OrderKey>;
         postOrderKeyByPostContentIndex: Tree<number, OrderKey>;
     }) {
         this._postByOrderKey = postByOrderKey;
+        this._orderKeyByPostId = orderKeyByPostId;
         this._openPostCommentPostOrderKeys = openPostCommentPostOrderKeys;
         this._postOrderKeyByPostContentItemIndex = postOrderKeyByPostContentIndex;
     }
@@ -90,6 +104,7 @@ export class PostList {
      */
     public static empty = new PostList({
         postByOrderKey: ImmutableMap.empty(),
+        orderKeyByPostId: ImmutableMap.empty(),
         openPostCommentPostOrderKeys: ImmutableSet.empty(),
         postOrderKeyByPostContentIndex: createTree(),
     });
@@ -237,7 +252,6 @@ export class PostList {
 
         return {
             type: "PostContent",
-            postOrderKey,
             post,
             postComments,
             arePostCommentsOpen,
@@ -259,7 +273,6 @@ export class PostList {
         if (index === postContentItemIndex) {
             return {
                 type: "PostContent",
-                postOrderKey,
                 post,
                 postComments,
                 arePostCommentsOpen,
@@ -301,7 +314,6 @@ export class PostList {
             if (index === postContentItemIndex + postCommentCount + 1) {
                 return {
                     type: "PostCommentInput",
-                    postOrderKey,
                     post,
                     postComments,
                     postContentItemIndex,
@@ -338,12 +350,18 @@ export class PostList {
             postComments,
         });
 
+        const orderKeyByPostId = this._orderKeyByPostId.update(post.id, lastOrderKey => {
+            assert(!lastOrderKey, "Post already exists in the list");
+            return postOrderKey;
+        });
+
         const openPostCommentPostOrderKeys = arePostCommentsOpen
             ? this._openPostCommentPostOrderKeys.add(postOrderKey)
             : this._openPostCommentPostOrderKeys;
 
         return new PostList({
             postByOrderKey,
+            orderKeyByPostId,
             openPostCommentPostOrderKeys,
             // We have to throw away the entire cache for post content indexes because
             // inserting at the beginning means all indexes after are different.
@@ -377,12 +395,18 @@ export class PostList {
             postComments,
         });
 
+        const orderKeyByPostId = this._orderKeyByPostId.update(post.id, lastOrderKey => {
+            assert(!lastOrderKey, "Post already exists in the list");
+            return postOrderKey;
+        });
+
         const openPostCommentPostOrderKeys = arePostCommentsOpen
             ? this._openPostCommentPostOrderKeys.add(postOrderKey)
             : this._openPostCommentPostOrderKeys;
 
         return new PostList({
             postByOrderKey,
+            orderKeyByPostId,
             openPostCommentPostOrderKeys,
             // We can keep the existing cache for post content indexes because inserting at
             // the end does not change the indexes of items that come before.
@@ -391,9 +415,52 @@ export class PostList {
     }
 
     /**
+     * Insert many posts into the start of the list.
+     */
+    public insertManyAtStart(posts: ReadonlyArray<PostModel>) {
+        const postOrderKeys = generateOrderKeysBetween(
+            null,
+            this._postByOrderKey.getFirstEntry()?.[0] ?? null,
+            posts.length,
+        );
+
+        let postByOrderKey = this._postByOrderKey;
+        let orderKeyByPostId = this._orderKeyByPostId;
+
+        for (let i = 0; i < posts.length; i++) {
+            const post = posts[i]!;
+            const postOrderKey = postOrderKeys[i]!;
+
+            postByOrderKey = postByOrderKey.set(postOrderKey, {
+                post,
+                postComments: MessageList.new(post.commentCount),
+            });
+
+            orderKeyByPostId = orderKeyByPostId.update(post.id, lastOrderKey => {
+                assert(!lastOrderKey, "Post already exists in the list");
+                return postOrderKey;
+            });
+        }
+
+        return new PostList({
+            postByOrderKey,
+            orderKeyByPostId,
+            openPostCommentPostOrderKeys: this._openPostCommentPostOrderKeys,
+            // We have to throw away the entire cache for post content indexes because
+            // inserting at the beginning means all indexes after are different.
+            postOrderKeyByPostContentIndex: createTree(),
+        });
+    }
+
+    /**
      * Toggle the post's comment section as open or closed. The index must point to
      * the post's content. Otherwise we will throw.
      */
+    // NOTE(calebmer): The current implementation needs this to be `index` instead
+    // of `postId` (which it would be ideally). So we can find `index` in our tree
+    // cache and clear everything after it. We should consider using an approach
+    // like `VirtualizedScrollViewState` where we cache item counts on subtrees.
+    // Then we could use `postId` here.
     public togglePostComments(index: number): PostList {
         const item = this.getItem(index);
 
@@ -426,6 +493,7 @@ export class PostList {
 
         return new PostList({
             postByOrderKey: this._postByOrderKey,
+            orderKeyByPostId: this._orderKeyByPostId,
             openPostCommentPostOrderKeys,
             postOrderKeyByPostContentIndex,
         });
@@ -436,9 +504,12 @@ export class PostList {
      * content. Otherwise we will throw.
      */
     public updatePostComments(
-        postOrderKey: OrderKey,
+        postId: PostId,
         update: (postComments: MessageList<PostCommentModel>) => MessageList<PostCommentModel>,
     ): PostList {
+        const postOrderKey = this._orderKeyByPostId.get(postId);
+        if (!postOrderKey) throw new InternalError("Post not found for order key");
+
         const postByOrderKey = this._postByOrderKey.update(postOrderKey, post => {
             if (!post) throw new InternalError("Post not found for order key");
 
@@ -452,6 +523,7 @@ export class PostList {
 
         return new PostList({
             postByOrderKey,
+            orderKeyByPostId: this._orderKeyByPostId,
             openPostCommentPostOrderKeys: this._openPostCommentPostOrderKeys,
             // We don't know what index our post was out so we have to clear the entire
             // index tree. Maybe we should build our index cache like
@@ -475,7 +547,6 @@ export type PostListItem =
  */
 export type PostListPostContentItem = {
     readonly type: "PostContent";
-    readonly postOrderKey: OrderKey;
     readonly post: PostModel;
     readonly postComments: MessageList<PostCommentModel>;
     readonly arePostCommentsOpen: boolean;
@@ -535,7 +606,6 @@ export type PostListUnloadedPostCommentItem = {
  */
 export type PostListPostCommentInputItem = {
     readonly type: "PostCommentInput";
-    readonly postOrderKey: OrderKey;
     readonly post: PostModel;
     readonly postComments: MessageList<PostCommentModel>;
     /**

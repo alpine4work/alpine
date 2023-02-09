@@ -56,8 +56,8 @@ export default function PostRoute() {
             <PostsView
                 list={list}
                 onTogglePostComments={index => setList(list => list.togglePostComments(index))}
-                onUpdatePostComments={(postOrderKey, update) =>
-                    setList(list => list.updatePostComments(postOrderKey, update))
+                onUpdatePostComments={(postId, update) =>
+                    setList(list => list.updatePostComments(postId, update))
                 }
             />
         </main>

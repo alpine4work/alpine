@@ -8,9 +8,9 @@ import {MessageShimmer} from "~/client/messaging/message_shimmer";
 import {MessageView, messageViewMinHeight} from "~/client/messaging/message_view";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages";
-import {PostList, PostListPostContentItem} from "~/client/posts/post_list";
 import {PostCommentInput} from "~/client/posts/post_comment_input";
 import {PostContentView, postContentViewMinHeight} from "~/client/posts/post_content_view";
+import {PostList, PostListPostContentItem} from "~/client/posts/post_list";
 import {PostRealtimeActions} from "~/client/posts/use_post_realtime";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context";
 import {
@@ -23,13 +23,12 @@ import {InternalError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping";
-import {OrderKey} from "~/shared/helpers/sort/order_key";
 import {PostId} from "~/shared/id/types/id_types";
 import {PostCommentModel} from "~/shared/models/post_model";
 import {getPostCommentsFromEnd, getPostCommentsFromStart} from "~/shared/rpc/posts_rpc_definitions";
 import {sprinkles} from "~/shared/styles/styles";
 
-const padding: Spacing = "4";
+const padding: Spacing = "5";
 
 /**
  * The buffered height of an item in the post view virtualized list is the minimum
@@ -59,7 +58,7 @@ export function PostsView({
     list: PostList;
     onTogglePostComments: (index: number) => void;
     onUpdatePostComments: (
-        postOrderKey: OrderKey,
+        postId: PostId,
         update: (postComments: MessageList<PostCommentModel>) => MessageList<PostCommentModel>,
     ) => void;
 }) {
@@ -155,7 +154,7 @@ export function PostsView({
                 onFinishLoadingMessages: result => {
                     isLoadingRef.current = false;
                     if (result.ok) {
-                        onUpdatePostComments(item.postOrderKey, postComments =>
+                        onUpdatePostComments(item.post.id, postComments =>
                             postComments
                                 .setMessageCount(result.value.messageCount)
                                 .setMessages(result.value.messages),
@@ -212,7 +211,7 @@ export function PostsView({
                                 : limit,
                     });
 
-                    onUpdatePostComments(item.postOrderKey, postComments =>
+                    onUpdatePostComments(item.post.id, postComments =>
                         postComments.setMessageCount(commentCount).setMessages(comments),
                     );
                 }
@@ -473,7 +472,7 @@ export function PostsView({
                             }}
                             postComments={item.postComments}
                             onUpdatePostComments={update =>
-                                onUpdatePostComments(item.postOrderKey, update)
+                                onUpdatePostComments(item.post.id, update)
                             }
                         />
                     );

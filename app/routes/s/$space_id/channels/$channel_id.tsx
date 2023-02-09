@@ -1,57 +1,70 @@
-import {Box} from "~/client/design/box";
-import {Spacer} from "~/client/design/spacer";
-import {PostCreator} from "~/client/posts/post_creator";
+import {useState} from "react";
+import {postContentViewMinHeight} from "~/client/posts/post_content_view";
+import {PostList} from "~/client/posts/post_list";
+import {PostsView} from "~/client/posts/posts_view";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
-import {getChannel} from "~/server/dynamo/forum_table";
+import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view";
+import {getChannel, getChannelPosts} from "~/server/dynamo/forum_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
-import {Spacing} from "~/shared/design/spacing";
 import {NotFoundError} from "~/shared/error/error";
 import {ChannelId} from "~/shared/id/types/id_types";
 import {ChannelModel} from "~/shared/models/channel_model";
+import {PostModel} from "~/shared/models/post_model";
 import {Schema} from "~/shared/schema/schema";
 import {sprinkles} from "~/shared/styles/styles";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
 
 const LoaderSchema = Schema.object({
     channel: ChannelModel.schema(),
+    channelPostsResult: Schema.object({
+        hasMorePosts: Schema.boolean,
+        posts: Schema.array(PostModel.schema()),
+    }),
 });
 
-const padding: Spacing = "4";
-
-export async function loader({params, context}: LoaderArgs) {
+export async function loader({params, context: unauthenticatedContext}: LoaderArgs) {
     const channelId = Schema.id<ChannelId>().deserialize(params.channel_id ?? null);
+    const context = await unauthenticatedContext.auth.authenticate();
 
-    const channel = await getChannel(await context.auth.authenticate(), channelId);
+    const channelPromise = getChannel(context, channelId);
+
+    const channelPostsResultPromise = getChannelPosts(context, {
+        channelId,
+        limit: getInitialVirtualizedScrollViewRenderedItemCount(
+            context.loader.clientInfo,
+            postContentViewMinHeight,
+        ),
+    });
+
+    const channel = await channelPromise;
     if (!channel) throw new NotFoundError("Channel not found");
+
+    const channelPostsResult = await channelPostsResultPromise;
 
     const propagateEventData: TracerEventData = {
         context: {channelId},
     };
 
-    return jsonWithSchema(LoaderSchema, {channel}, {propagateEventData});
+    return jsonWithSchema(LoaderSchema, {channel, channelPostsResult}, {propagateEventData});
 }
 
 export default function ChannelRoute() {
-    const {channel} = useLoaderDataWithSchema(LoaderSchema);
+    const {channelPostsResult} = useLoaderDataWithSchema(LoaderSchema);
+
+    const [list, setList] = useState(() =>
+        PostList.empty.insertManyAtStart(channelPostsResult.posts),
+    );
 
     return (
         <main className={sprinkles({height: "full"})}>
-            <h1>{channel.name}</h1>
-            <Spacer space="6" />
-            <div className={sprinkles({paddingX: padding})}>
-                <div
-                    className={sprinkles({
-                        marginX: "auto",
-                        maxWidth: "160",
-                        backgroundColor: "grey-0",
-                        borderRadius: "md",
-                        boxShadow: "elevation-5",
-                    })}
-                >
-                    <PostCreator channelId={channel.id} />
-                </div>
-            </div>
+            <PostsView
+                list={list}
+                onTogglePostComments={index => setList(list => list.togglePostComments(index))}
+                onUpdatePostComments={(postId, update) =>
+                    setList(list => list.updatePostComments(postId, update))
+                }
+            />
         </main>
     );
 }
