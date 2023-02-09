@@ -3,11 +3,7 @@ import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {RequestContext} from "~/server/dynamo/context/request_context";
 import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
-import {
-    DynamoTableItemType,
-    DynamoTableSchema,
-    DynamoTableSchemaGetTypes,
-} from "~/server/dynamo/internal/dynamo_table_schema";
+import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry_dynamo_condition_check_errors";
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
 import {MessageContent} from "~/shared/content/message_content_schema";
@@ -622,10 +618,10 @@ export async function getPostAndCommentsFromStart(
             partitionType: "Post",
             postId,
         },
-        startKey: {
+        startSortKey: {
             sortRangeType: "Attributes",
         },
-        endKey: {
+        endSortKey: {
             sortRangeType: "Comments",
             commentIndex: Number.MAX_SAFE_INTEGER,
         },
@@ -715,11 +711,11 @@ export async function getPostCommentsFromStart(
             partitionType: "Post",
             postId,
         },
-        startKey: {
+        startSortKey: {
             sortRangeType: "Comments",
             commentIndex: typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
         },
-        endKey: {
+        endSortKey: {
             sortRangeType: "Comments",
             commentIndex:
                 typeof beforeCommentIndex === "number"
@@ -794,12 +790,12 @@ export async function getPostCommentsFromEnd(
                       partitionType: "Post",
                       postId,
                   },
-                  startKey: {
+                  startSortKey: {
                       sortRangeType: "Comments",
                       commentIndex:
                           typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
                   },
-                  endKey: {
+                  endSortKey: {
                       sortRangeType: "Comments",
                       commentIndex:
                           typeof beforeCommentIndex === "number"
@@ -807,8 +803,8 @@ export async function getPostCommentsFromEnd(
                               : Number.MAX_SAFE_INTEGER,
                   },
                   limit,
-                  // Scan backwards from `endKey` to `startKey` so we can get comments at the end
-                  // instead of start.
+                  // Scan backwards from `endSortKey` to `startSortKey` so we can get comments
+                  // at the end instead of start.
                   descending: true,
               })
             : (async function* () {})();

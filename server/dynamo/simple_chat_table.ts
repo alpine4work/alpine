@@ -343,11 +343,11 @@ export async function getSimpleChatMessagesFromStart(
             partitionType: "SimpleChat",
             simpleChatId,
         },
-        startKey: {
+        startSortKey: {
             sortRangeType: "Messages",
             messageIndex: typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0,
         },
-        endKey: {
+        endSortKey: {
             sortRangeType: "Messages",
             messageIndex:
                 typeof beforeMessageIndex === "number"
@@ -401,12 +401,12 @@ export async function getSimpleChatMessagesFromEnd(
                       partitionType: "SimpleChat",
                       simpleChatId,
                   },
-                  startKey: {
+                  startSortKey: {
                       sortRangeType: "Messages",
                       messageIndex:
                           typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0,
                   },
-                  endKey: {
+                  endSortKey: {
                       sortRangeType: "Messages",
                       messageIndex:
                           typeof beforeMessageIndex === "number"
@@ -414,8 +414,8 @@ export async function getSimpleChatMessagesFromEnd(
                               : Number.MAX_SAFE_INTEGER,
                   },
                   limit,
-                  // Scan backwards from `endKey` to `startKey` so we can get messages at the end
-                  // instead of start.
+                  // Scan backwards from `endSortKey` to `startSortKey` so we can get messages at
+                  // the end instead of start.
                   descending: true,
               })
             : (async function* () {})();

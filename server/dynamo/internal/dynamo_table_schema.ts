@@ -15,6 +15,7 @@ import {
 import {dynamoGeneratedSchemaDescription} from "~/server/dynamo/internal/dynamo_generated_schema_description";
 import {
     DynamoKeyAttribute,
+    DynamoKeyAttributeSchema,
     dynamoKeySeparator,
 } from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {getDynamoClient} from "~/server/dynamo/internal/get_dynamo_client";
@@ -25,8 +26,11 @@ import {DynamoTableSchemaTypes} from "~/server/dynamo/internal/types/dynamo_tabl
 import {checkSchemaBackwardsCompatibility} from "~/server/schema/check_schema_backwards_compatibility";
 import {DataLossError, InternalError, InvalidArgumentError} from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {assert} from "~/shared/helpers/control/assert";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
+import {iterableEvery} from "~/shared/helpers/iterable/iterable_every";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
 import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order_key";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings";
@@ -38,18 +42,19 @@ import {
     ObjectSchema,
     Schema,
     SchemaDeserializationError,
+    SchemaSerializedObjectValue,
     SchemaSerializedValue,
 } from "~/shared/schema/schema";
 
 export type DynamoTableSchemaGetTypes<Schema extends DynamoTableSchema<any>> =
     Schema extends DynamoTableSchema<infer Types> ? Types : never;
 
-export type DynamoTableKeyType<
+export type DynamoTableItemKeyType<
     Schema extends DynamoTableSchema<any>,
     PartitionType extends string,
     SortRangeType extends string,
 > = MergeObjectIntersection<
-    DynamoTableSchemaGetTypes<Schema>["Key"] & {
+    DynamoTableSchemaGetTypes<Schema>["ItemKey"] & {
         readonly partitionType: PartitionType;
         readonly sortRangeType: SortRangeType;
     }
@@ -70,6 +75,88 @@ const DynamoTableItemSharedAttributesSchema: ObjectSchema<DynamoTableSchemaTypes
     Schema.object({
         updateLockVersion: Schema.integer.min(1).optional(),
     });
+
+type DynamoTableSchemaInitializationState =
+    | {
+          readonly isInitialized: false;
+
+          /**
+           * Indexes may be added before initialization.
+           */
+          readonly indexDescriptions: Array<{
+              overloadByName: {
+                  [name: string]: DynamoTableSchemaTypes.Index.OverloadDescription;
+              };
+          }>;
+
+          /**
+           * Index configs for a specified item type. The item type string is in the form
+           * `${partitionType}#${sortRangeType}`.
+           *
+           * Mutable before initialization.
+           */
+          readonly indexConfigsByItemType: Map<
+              string,
+              Array<{
+                  readonly indexNumber: number;
+                  readonly name: string;
+                  readonly partitionKeyAttributes: DynamoTableSchemaTypes.KeyAttributes.ConfigBase;
+                  readonly sortKeyAttributes: DynamoTableSchemaTypes.KeyAttributes.ConfigBase;
+              }>
+          >;
+      }
+    | {
+          readonly isInitialized: true;
+
+          /**
+           * Index configs for a specified item type. The item type string is in the form
+           * `${partitionType}#${sortRangeType}`.
+           *
+           * Mutable during initialization.
+           */
+          readonly indexConfigsByItemType: ReadonlyMap<
+              string,
+              ReadonlyArray<{
+                  readonly indexNumber: number;
+                  readonly name: string;
+                  readonly partitionKeyAttributes: DynamoTableSchemaTypes.KeyAttributes.ConfigBase;
+                  readonly sortKeyAttributes: DynamoTableSchemaTypes.KeyAttributes.ConfigBase;
+              }>
+          >;
+
+          /**
+           * The description is a JSON object we generate from the config and last
+           * description object committed to the git repo.
+           *
+           * How it's different from `_config`:
+           *
+           * - Contains an `OrderKey` for sort ranges. This `OrderKey` is taken from the
+           *   last schema description that we loaded from the git repo. If no `OrderKey`
+           *   exists in that description for the sort range then we generate a new one.
+           * - Fully serializable to JSON. So does not contain `Schema` objects but
+           *   rather contains a `SchemaSerializedValueDescription`.
+           *
+           * Will be null until the schema has finished initializing.
+           */
+          readonly description: DynamoTableSchemaTypes.Description;
+
+          /**
+           * If our new schema is read incompatible with the old schema then this will
+           * be an error. We will throw the error every time you try to read from the
+           * table.
+           */
+          readonly readCompatibilityError: Error | null;
+
+          /**
+           * If our new schema is write incompatible with the old schema then this will
+           * be an error. We will throw the error every time you try to write to the
+           * table.
+           *
+           * Once you run the command to update our generated schema this
+           * compatibility error should go away.
+           */
+          readonly writeCompatibilityError: Error | null;
+      };
 
 /**
  * Abstraction over DynamoDB tables for defining the type of data that resides
@@ -108,28 +195,14 @@ export class DynamoTableSchema<
     private readonly _config: DynamoTableSchemaTypes.ConfigBase;
 
     /**
-     * The description is a JSON object we generate from the config and last
-     * description object committed to the git repo.
-     *
-     * How it's different from `_config`:
-     *
-     * - Contains an `OrderKey` for sort ranges. This `OrderKey` is taken from the
-     *   last schema description that we loaded from the git repo. If no `OrderKey`
-     *   exists in that description for the sort range then we generate a new one.
-     * - Fully serializable to JSON. So does not contain `Schema` objects but
-     *   rather contains a `SchemaSerializedValueDescription`.
+     * Our DynamoDB table schema initializes a little after construction since we
+     * need to wait for modifications from an `addIndex()` call in the same module.
      */
-    public readonly description: DynamoTableSchemaTypes.Description;
-
-    /**
-     * If our new schema is write incompatible with the old schema then this will
-     * be an error. We will throw the error every time you try to write to the
-     * table.
-     *
-     * Once you run the command to update our generated schema this
-     * compatibility error should go away.
-     */
-    private readonly _writeCompatibilityError: Error | null;
+    private _initializationState: DynamoTableSchemaInitializationState = {
+        isInitialized: false,
+        indexDescriptions: [],
+        indexConfigsByItemType: new Map(),
+    };
 
     public static new<Config extends DynamoTableSchemaTypes.ConfigBase>(
         config: Config,
@@ -155,13 +228,26 @@ export class DynamoTableSchema<
                         "sortRangeType",
                     ]);
 
+                    const assertValidAttributeName = (attributeName: string) => {
+                        assert(isIdentifier(attributeName), "Attribute name must be an identifier");
+                        assert(
+                            !attributeName.startsWith("_"),
+                            "Attribute name must not start with an underscore",
+                        );
+                        assert(
+                            attributeName !== "partitionKey" && attributeName !== "sortKey",
+                            "Attribute may not be a reserved key attribute name",
+                        );
+                        assert(
+                            !/^index\d+(PartitionKey|SortKey)$/.test(attributeName),
+                            "Attribute name may not be a reserved index key attribute name",
+                        );
+                    };
+
                     for (const attributeName of Object.keys(
                         partitionConfig.partitionKeyAttributes,
                     )) {
-                        assert(
-                            isIdentifier(attributeName) && !attributeName.startsWith("_"),
-                            "Attribute name must be an identifier that does not start with an underscore",
-                        );
+                        assertValidAttributeName(attributeName);
 
                         assert(
                             !partitionAttributeNames.has(attributeName),
@@ -180,11 +266,7 @@ export class DynamoTableSchema<
                                 for (const attributeName of Object.keys(
                                     sortRangeConfig.sortKeyAttributes,
                                 )) {
-                                    assert(
-                                        isIdentifier(attributeName) &&
-                                            !attributeName.startsWith("_"),
-                                        "Attribute name must be an identifier that does not start with an underscore",
-                                    );
+                                    assertValidAttributeName(attributeName);
 
                                     assert(
                                         !sortRangeAttributeNames.has(attributeName),
@@ -194,11 +276,7 @@ export class DynamoTableSchema<
                                 }
 
                                 for (const attributeName of sortRangeConfig.attributes.propertySchemaByKey.keys()) {
-                                    assert(
-                                        isIdentifier(attributeName) &&
-                                            !attributeName.startsWith("_"),
-                                        "Attribute name must be an identifier that does not start with an underscore",
-                                    );
+                                    assertValidAttributeName(attributeName);
 
                                     assert(
                                         !sortRangeAttributeNames.has(attributeName),
@@ -222,18 +300,72 @@ export class DynamoTableSchema<
 
         this._config = config;
 
-        const {description, writeCompatibilityError} = getAndCheckDynamoTableSchemaDescriptions(
-            this._config,
+        assert(
+            !allConstructedDynamoTableSchemas.has(this._config.name),
+            "Table names must be unique",
         );
-        this.description = description;
-        this._writeCompatibilityError = writeCompatibilityError;
-
-        assert(!allConstructedDynamoTableSchemas.has(this._config.name));
         allConstructedDynamoTableSchemas.set(this._config.name, this);
+
+        // We need to initialize DynamoDB table schemas at the end of module
+        // initialization because functions like `addIndex()` will extend the table
+        // schema. So we schedule a microtask to finish initialization immediately
+        // after module evaluation.
+        //
+        // You may call `finishInitializingAllDynamoTableSchemas()` to synchronously
+        // initialize schemas.
+        //
+        // After initializing table schemas you may not construct any new
+        // table schemas.
+
+        assert(
+            dynamoTableSchemaInitializationCallbacks !== null,
+            "DynamoDB schemas have already initialized",
+        );
+
+        if (dynamoTableSchemaInitializationCallbacks.length === 0) {
+            scheduleMicrotask(() => {
+                if (dynamoTableSchemaInitializationCallbacks === null) return;
+                const callbacks = dynamoTableSchemaInitializationCallbacks;
+                dynamoTableSchemaInitializationCallbacks = null;
+                for (const callback of callbacks) callback();
+            });
+        }
+
+        dynamoTableSchemaInitializationCallbacks.push(() => {
+            assert(!this._initializationState.isInitialized);
+            const {description, readCompatibilityError, writeCompatibilityError} =
+                getAndCheckDynamoTableSchemaDescriptions(
+                    this._config,
+                    this._initializationState.indexDescriptions,
+                );
+
+            this._initializationState = {
+                isInitialized: true,
+                indexConfigsByItemType: this._initializationState.indexConfigsByItemType,
+                description: description,
+                readCompatibilityError: readCompatibilityError,
+                writeCompatibilityError: writeCompatibilityError,
+            };
+        });
     }
 
     public getName() {
         return this._config.name;
+    }
+
+    /**
+     * Returns the schema description. Will throw if the schema has not
+     * finished initializing. Wait a microtask for it to finish.
+     */
+    public getDescription() {
+        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
+
+        // If our schema is read incompatible with the old schema then always throw an
+        // error when a user tries to observe the description.
+        if (this._initializationState.readCompatibilityError !== null)
+            throw this._initializationState.readCompatibilityError;
+
+        return this._initializationState.description;
     }
 
     private _ensureTablePromise: Promise<void> | null = null;
@@ -242,11 +374,18 @@ export class DynamoTableSchema<
         context: DynamoContext,
         checkWriteCompatibility: boolean,
     ): Promise<DynamoClient> {
+        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
+
+        // If our schema is read incompatible with the old schema then always throw an
+        // error whether we are reading or writing.
+        if (this._initializationState.readCompatibilityError !== null)
+            throw this._initializationState.readCompatibilityError;
+
         // If our schema is write incompatible with the old schema then throw an error.
         // Do not allow writing to this table until the generated schema has been
         // updated.
-        if (checkWriteCompatibility && this._writeCompatibilityError !== null)
-            throw this._writeCompatibilityError;
+        if (checkWriteCompatibility && this._initializationState.writeCompatibilityError !== null)
+            throw this._initializationState.writeCompatibilityError;
 
         const client = getDynamoClient(context);
 
@@ -323,8 +462,10 @@ export class DynamoTableSchema<
     }
 
     private _serializePartitionKey(key: Types["PartitionKey"]): string {
+        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
         const partitionConfig = this._config.partitions[key.partitionType];
-        const partitionDescription = this.description.partitionByType[key.partitionType];
+        const partitionDescription =
+            this._initializationState.description.partitionByType[key.partitionType];
         assert(partitionConfig && partitionDescription, "Invalid partition");
 
         const partitionKeyEntries = [key.partitionType];
@@ -337,7 +478,7 @@ export class DynamoTableSchema<
         return partitionKeyEntries.join(dynamoKeySeparator);
     }
 
-    private _serializeItemKey(key: Types["Key"]): {
+    private _serializeItemKey(key: Types["ItemKey"]): {
         partitionKey: string;
         sortKey: string;
         attributesSchema: DynamoTableSchemaTypes.SortRange.ConfigBase["attributes"];
@@ -349,8 +490,10 @@ export class DynamoTableSchema<
         partitionKey: PartitionKey,
         sortKey: Types["SortKeyMap"][PartitionKey["partitionType"]],
     ) {
+        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
         const partitionConfig = this._config.partitions[partitionKey.partitionType];
-        const partitionDescription = this.description.partitionByType[partitionKey.partitionType];
+        const partitionDescription =
+            this._initializationState.description.partitionByType[partitionKey.partitionType];
         assert(partitionConfig && partitionDescription, "Invalid partition");
         const sortRangeConfig = partitionConfig.sortRanges[sortKey.sortRangeType];
         const sortRangeDescription = partitionDescription.sortRangeByType[sortKey.sortRangeType];
@@ -386,11 +529,11 @@ export class DynamoTableSchema<
      *
      * Also returns the `Schema` object for attributes of the key's sort range.
      */
-    private _deserializeKey(
+    private _deserializeItemKey(
         partitionKey: string,
         sortKey: string,
     ): {
-        key: Types["Key"];
+        key: Types["ItemKey"];
         attributesSchema: DynamoTableSchemaTypes.SortRange.ConfigBase["attributes"];
     } {
         const partitionKeyEntries = partitionKey.split(dynamoKeySeparator);
@@ -401,8 +544,10 @@ export class DynamoTableSchema<
         assert(partitionType, "Invalid partition key");
         assert(sortRangeType, "Invalid sort key");
 
+        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
         const partitionConfig = this._config.partitions[partitionType];
-        const partitionDescription = this.description.partitionByType[partitionType];
+        const partitionDescription =
+            this._initializationState.description.partitionByType[partitionType];
         assert(partitionConfig && partitionDescription, "Invalid partition key");
         const sortRangeConfig = partitionConfig.sortRanges[sortRangeType];
         const sortRangeDescription = partitionDescription.sortRangeByType[sortRangeType];
@@ -441,6 +586,52 @@ export class DynamoTableSchema<
     }
 
     /**
+     * Serializes an item into a representation for saving to DynamoDB.
+     *
+     * Serializes the item's key, attributes, and adds any index attributes.
+     */
+    private _serializeItem<Item extends Types["Item"]>(
+        item: Item,
+    ): {
+        partitionKey: string;
+        sortKey: string;
+        attributesSchema: DynamoTableSchemaTypes.SortRange.ConfigBase["attributes"];
+        serializedItem: SchemaSerializedObjectValue;
+    } {
+        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
+
+        const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(
+            item as Types["ItemKey"],
+        );
+
+        const serializedItem: {[key: string]: SchemaSerializedValue} = {partitionKey, sortKey};
+        attributesSchema.serializeInto(item, serializedItem);
+
+        // Serialize all the index properties for this item.
+        const indexConfigs = this._initializationState.indexConfigsByItemType.get(
+            `${item.partitionType}#${item.sortRangeType}`,
+        );
+        if (indexConfigs) {
+            for (const indexConfig of indexConfigs) {
+                const {partitionKey, sortKey} = serializeDynamoTableSchemaIndexItemKey(
+                    indexConfig,
+                    item,
+                );
+
+                serializedItem[`index${indexConfig.indexNumber}PartitionKey`] = partitionKey;
+                serializedItem[`index${indexConfig.indexNumber}SortKey`] = sortKey;
+            }
+        }
+
+        return {
+            partitionKey,
+            sortKey,
+            attributesSchema,
+            serializedItem,
+        };
+    }
+
+    /**
      * Gets a single item by its key from the database. Returns `null` if the item
      * does not exist.
      *
@@ -451,7 +642,7 @@ export class DynamoTableSchema<
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html
      * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
      */
-    public async getItem<Key extends Types["Key"]>(
+    public async getItem<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         key: Key,
         {
@@ -495,7 +686,7 @@ export class DynamoTableSchema<
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html
      */
     public async getPartialItem<
-        Key extends Types["Key"],
+        Key extends Types["ItemKey"],
         Attributes extends DistributiveKeyOf<Types["Item"]> & string,
     >(
         context: DynamoContext,
@@ -691,7 +882,7 @@ export class DynamoTableSchema<
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html
      * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
      */
-    public async updateItem<Key extends Types["Key"]>(
+    public async updateItem<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         key: Key,
         update: (
@@ -833,12 +1024,8 @@ export class DynamoTableSchema<
         } = {},
     ): Promise<void> {
         const client = await this._getClient(context, true);
-        const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(
-            item as Types["Key"],
-        );
 
-        const serializedItem: {[key: string]: SchemaSerializedValue} = {partitionKey, sortKey};
-        attributesSchema.serializeInto(item, serializedItem);
+        const {partitionKey, sortKey, attributesSchema, serializedItem} = this._serializeItem(item);
 
         if (condition === undefined) {
             return client.putItem(context.tracer.getTracer(), {
@@ -878,7 +1065,7 @@ export class DynamoTableSchema<
      *
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DeleteItem.html
      */
-    public async deleteItem<Key extends Types["Key"]>(
+    public async deleteItem<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         key: Key,
         {
@@ -913,7 +1100,7 @@ export class DynamoTableSchema<
      * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
      * [3]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadWriteCapacityMode.html
      */
-    public async deleteItemIfExists<Key extends Types["Key"]>(
+    public async deleteItemIfExists<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         key: Key,
     ): Promise<void> {
@@ -936,7 +1123,7 @@ export class DynamoTableSchema<
      * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DeleteItem.html
      * [3]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
      */
-    private async _deleteItem<Key extends Types["Key"]>(
+    private async _deleteItem<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         key: Key,
         {
@@ -1129,14 +1316,13 @@ export class DynamoTableSchema<
         // If our schema is write incompatible with the old schema then throw an error.
         // Do not allow writing to this table until the generated schema has been
         // updated.
-        if (this._writeCompatibilityError !== null) throw this._writeCompatibilityError;
+        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
+        if (this._initializationState.readCompatibilityError !== null)
+            throw this._initializationState.readCompatibilityError;
+        if (this._initializationState.writeCompatibilityError !== null)
+            throw this._initializationState.writeCompatibilityError;
 
-        const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(
-            item as Types["Key"],
-        );
-
-        const serializedItem: {[key: string]: SchemaSerializedValue} = {partitionKey, sortKey};
-        attributesSchema.serializeInto(item, serializedItem);
+        const {attributesSchema, serializedItem} = this._serializeItem(item);
 
         if (condition === undefined) {
             return DynamoClient.transactionPutItem({
@@ -1170,7 +1356,7 @@ export class DynamoTableSchema<
      *
      * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      */
-    public transactionDeleteItem<Key extends Types["Key"]>(
+    public transactionDeleteItem<Key extends Types["ItemKey"]>(
         key: Key,
         {
             condition,
@@ -1197,7 +1383,7 @@ export class DynamoTableSchema<
      *
      * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      */
-    public transactionDeleteItemIfExists<Key extends Types["Key"]>(
+    public transactionDeleteItemIfExists<Key extends Types["ItemKey"]>(
         key: Key,
     ): DynamoTransactionEntry {
         return this._transactionDeleteItem(key);
@@ -1210,7 +1396,7 @@ export class DynamoTableSchema<
      *
      * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      */
-    private _transactionDeleteItem<Key extends Types["Key"]>(
+    private _transactionDeleteItem<Key extends Types["ItemKey"]>(
         key: Key,
         {
             condition,
@@ -1221,7 +1407,11 @@ export class DynamoTableSchema<
         // If our schema is write incompatible with the old schema then throw an error.
         // Do not allow writing to this table until the generated schema has been
         // updated.
-        if (this._writeCompatibilityError !== null) throw this._writeCompatibilityError;
+        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
+        if (this._initializationState.readCompatibilityError !== null)
+            throw this._initializationState.readCompatibilityError;
+        if (this._initializationState.writeCompatibilityError !== null)
+            throw this._initializationState.writeCompatibilityError;
 
         const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
 
@@ -1263,7 +1453,7 @@ export class DynamoTableSchema<
      *
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
      */
-    public transactionConditionCheck<Key extends Types["Key"]>(
+    public transactionConditionCheck<Key extends Types["ItemKey"]>(
         key: Key,
         condition?: DynamoCondition<Types["Item"] & Key>,
     ): DynamoTransactionEntry {
@@ -1299,7 +1489,7 @@ export class DynamoTableSchema<
      *
      * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      */
-    public transactionDoesNotExistConditionCheck<Key extends Types["Key"]>(
+    public transactionDoesNotExistConditionCheck<Key extends Types["ItemKey"]>(
         key: Key,
     ): DynamoTransactionEntry {
         const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
@@ -1341,7 +1531,7 @@ export class DynamoTableSchema<
     // retry loop similar to our `updateItem()` function I think would be a
     // good idea for one-off attribute updates.
     public transactionDirectlyUpdateItemAttribute<
-        Key extends Types["Key"],
+        Key extends Types["ItemKey"],
         Attribute extends DistributiveKeyOf<Types["Item"]> & string,
     >(
         key: Key,
@@ -1354,6 +1544,26 @@ export class DynamoTableSchema<
         const propertySchema = attributesSchema.propertySchemaByKey.get(attribute);
         if (!propertySchema)
             throw new InternalError(quote`Attribute ${attribute} not found in item schema`);
+
+        // Disallow updating indexed attributes. If you update an indexed attribute
+        // then we need to update the associated index attribute (e.g.
+        // `indexNPartitionKey` or `indexNSortKey`). It's definitely possible to
+        // implement this but we aren't for now to keep things simple.
+        const indexConfigs = this._initializationState.indexConfigsByItemType.get(
+            `${key.partitionType}#${key.sortRangeType}`,
+        );
+        if (indexConfigs) {
+            for (const indexConfig of indexConfigs) {
+                assert(
+                    indexConfig.partitionKeyAttributes[attribute] === undefined,
+                    "Can not directly update an indexed attribute",
+                );
+                assert(
+                    indexConfig.sortKeyAttributes[attribute] === undefined,
+                    "Can not directly update an indexed attribute",
+                );
+            }
+        }
 
         const serializedKey = propertySchema.serializedKey ?? attribute;
         const serializedObject: {[key: string]: SchemaSerializedValue} = {};
@@ -1407,21 +1617,21 @@ export class DynamoTableSchema<
      */
     public async *query<
         PartitionKey extends Types["PartitionKey"],
-        StartKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
-        EndKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
+        StartSortKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
+        EndSortKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
     >(
         context: DynamoContext,
         {
             partitionKey,
-            startKey,
-            endKey,
+            startSortKey,
+            endSortKey,
             limit,
             descending,
             consistency = context.dynamo.defaultReadConsistency,
         }: {
             partitionKey: PartitionKey;
-            startKey: StartKey;
-            endKey: EndKey;
+            startSortKey: StartSortKey;
+            endSortKey: EndSortKey;
             limit?: number;
             descending?: boolean;
             consistency?: DynamoReadConsistency;
@@ -1430,17 +1640,17 @@ export class DynamoTableSchema<
         MergeObjectIntersection<
             Types["Item"] &
                 PartitionKey & {
-                    readonly sortRangeType: Types["QueryKeyMap"][PartitionKey["partitionType"]][StartKey["sortRangeType"]][EndKey["sortRangeType"]];
+                    readonly sortRangeType: Types["QueryKeyMap"][PartitionKey["partitionType"]][StartSortKey["sortRangeType"]][EndSortKey["sortRangeType"]];
                 }
         >
     > {
         const client = await this._getClient(context, false);
-        const {partitionKey: startPartitionKey, sortKey: startSortKey} =
-            this._serializeSeparatedItemKey(partitionKey, startKey);
-        const {partitionKey: endPartitionKey, sortKey: endSortKey} =
-            this._serializeSeparatedItemKey(partitionKey, endKey);
+        const {partitionKey: serializedStartPartitionKey, sortKey: serializedStartSortKey} =
+            this._serializeSeparatedItemKey(partitionKey, startSortKey);
+        const {partitionKey: serializedEndPartitionKey, sortKey: serializedEndSortKey} =
+            this._serializeSeparatedItemKey(partitionKey, endSortKey);
 
-        if (startPartitionKey !== endPartitionKey)
+        if (serializedStartPartitionKey !== serializedEndPartitionKey)
             throw new InvalidArgumentError(
                 "The partition key of our start key and end key should be the same",
             );
@@ -1449,12 +1659,12 @@ export class DynamoTableSchema<
             tableName: this._config.name,
             partitionKey: {
                 name: "partitionKey",
-                value: startPartitionKey,
+                value: serializedStartPartitionKey,
             },
             sortKey: {
                 name: "sortKey",
-                startValue: startSortKey,
-                endValue: endSortKey,
+                startValue: serializedStartSortKey,
+                endValue: serializedEndSortKey,
             },
             consistency,
             limit,
@@ -1465,7 +1675,7 @@ export class DynamoTableSchema<
             assert(typeof serializedItem.partitionKey === "string");
             assert(typeof serializedItem.sortKey === "string");
 
-            const {key, attributesSchema} = this._deserializeKey(
+            const {key, attributesSchema} = this._deserializeItemKey(
                 serializedItem.partitionKey,
                 serializedItem.sortKey,
             );
@@ -1528,7 +1738,7 @@ export class DynamoTableSchema<
             assert(typeof serializedItem.partitionKey === "string");
             assert(typeof serializedItem.sortKey === "string");
 
-            const {key, attributesSchema} = this._deserializeKey(
+            const {key, attributesSchema} = this._deserializeItemKey(
                 serializedItem.partitionKey,
                 serializedItem.sortKey,
             );
@@ -1579,7 +1789,7 @@ export class DynamoTableSchema<
             assert(typeof serializedItem.partitionKey === "string");
             assert(typeof serializedItem.sortKey === "string");
 
-            const {key, attributesSchema} = this._deserializeKey(
+            const {key, attributesSchema} = this._deserializeItemKey(
                 serializedItem.partitionKey,
                 serializedItem.sortKey,
             );
@@ -1598,6 +1808,296 @@ export class DynamoTableSchema<
 
             yield item;
         }
+    }
+
+    /**
+     * Adds an index to the table. Indexes allow you to build different access
+     * patterns for your data.
+     *
+     * Indexes are implemented with [DynamoDB Global Secondary Indexes][1] and we
+     * [overload][2] many logical indexes into one physical index when possible.
+     *
+     * Some notes on the implementation:
+     *
+     * - Indexing is implemented by copying indexed properties into special
+     *   `index{n}PartitionKey` and `index{n}SortKey` attributes (where `{n}` is
+     *   the physical index number starting at 1) which are lexicographically
+     *   orderable and can be overloaded.
+     *
+     * - You may only create indexes when you introduce a new item type. You may
+     *   not add an index for an existing item type since we will have written data
+     *   to the database without the special index attributes. In the future we'd
+     *   like to provide a migration that backfills the index attribute so you may
+     *   add indexes to existing item types.
+     *
+     * - You can only perform eventually consistent reads against the index. If the
+     *   DynamoDB context has a strong read consistency default then we will throw
+     *   an error.
+     *
+     * - Two indexes on different item types are considered separate logical
+     *   indexes but we put them in the same physical index to save on cost. Two
+     *   indexes on the same item type will be in two different physical indexes.
+     *
+     * - Currently we only support `KEYS_ONLY` index attribute projections for
+     *   cost. An `ALL` attribute projection would replicate the items entirely
+     *   doubling write costs. An `INCLUDE` attribute projection means we couldn't
+     *   overload multiple logical indexes onto one physical index. We may add
+     *   other options for attribute projections in the future.
+     *
+     * - You can index any property on an item as long as it can be serialized with
+     *   a `DynamoKeyAttributeSchema`. Since `DynamoKeyAttributeSchema` supports
+     *   lexicographic serializations of many data types which is important for
+     *   indexing.
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/GSI.html
+     * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-gsi-overloading.html
+     */
+    public addIndex<
+        ItemTypes extends Types["ItemType"],
+        PartitionKeyAttributes extends {
+            [K in keyof (Types["Item"] & ItemTypes)]?: DynamoKeyAttributeSchema<
+                (Types["Item"] & ItemTypes)[K]
+            >;
+        },
+        SortKeyAttributes extends {
+            [K in keyof (Types["Item"] & ItemTypes)]?: DynamoKeyAttributeSchema<
+                (Types["Item"] & ItemTypes)[K]
+            >;
+        },
+    >({
+        name,
+        itemTypes,
+        partitionKeyAttributes,
+        sortKeyAttributes,
+    }: {
+        name: string;
+        itemTypes: ReadonlyArray<ItemTypes>;
+        partitionKeyAttributes: PartitionKeyAttributes;
+        sortKeyAttributes: SortKeyAttributes;
+    }): DynamoTableSchemaIndex<
+        Types["ItemKey"] & ItemTypes,
+        DynamoTableSchemaTypes.KeyAttributes.Type<{
+            [K in keyof PartitionKeyAttributes]: NonNullable<PartitionKeyAttributes[K]>;
+        }>,
+        DynamoTableSchemaTypes.KeyAttributes.Type<{
+            [K in keyof SortKeyAttributes]: NonNullable<SortKeyAttributes[K]>;
+        }>
+    > {
+        assert(
+            !this._initializationState.isInitialized,
+            "Can not add indexes after schema has finished initializing",
+        );
+
+        for (const indexDescription of this._initializationState.indexDescriptions) {
+            for (const indexOverloadName of Object.keys(indexDescription.overloadByName)) {
+                assert(name !== indexOverloadName, "Index names must be unique within a table");
+            }
+        }
+
+        const itemTypeSet = new Set<string>();
+
+        for (const {partitionType, sortRangeType} of itemTypes) {
+            const partitionConfig = this._config.partitions[partitionType];
+            assert(partitionConfig, "Invalid partition");
+            const sortRangeConfig = partitionConfig.sortRanges[sortRangeType];
+            assert(sortRangeConfig, "Invalid sort range");
+
+            const itemType = `${partitionType}#${sortRangeType}`;
+
+            assert(!itemTypeSet.has(itemType), "Item types must be unique");
+            itemTypeSet.add(itemType);
+        }
+
+        const indexOverloadDescription: DynamoTableSchemaTypes.Index.OverloadDescription = {
+            itemTypes,
+            partitionKeyAttributeByKey: mapObjectValues(
+                partitionKeyAttributes,
+                keyAttribute => keyAttribute!.description,
+            ),
+            sortKeyAttributeByKey: mapObjectValues(
+                sortKeyAttributes,
+                keyAttribute => keyAttribute!.description,
+            ),
+        };
+
+        let addedToIndexNumber: number | null = null;
+
+        // We can add our logical index to an existing physical index if the physical
+        // index doesn't have an overload which conflicts with the item types in
+        // this index.
+        for (const [
+            i,
+            targetIndexDescription,
+        ] of this._initializationState.indexDescriptions.entries()) {
+            const targetIndexNumber = i + 1;
+            const targetItemTypeSet = new Set<string>();
+
+            for (const targetIndexOverloadDescription of Object.values(
+                targetIndexDescription.overloadByName,
+            )) {
+                for (const {
+                    partitionType,
+                    sortRangeType,
+                } of targetIndexOverloadDescription.itemTypes) {
+                    targetItemTypeSet.add(`${partitionType}#${sortRangeType}`);
+                }
+            }
+
+            if (iterableEvery(itemTypeSet, itemType => !targetItemTypeSet.has(itemType))) {
+                targetIndexDescription.overloadByName[name] = indexOverloadDescription;
+                addedToIndexNumber = targetIndexNumber;
+                break;
+            }
+        }
+
+        // Create a new physical index if we couldn't overload an existing
+        // physical index.
+        if (addedToIndexNumber === null) {
+            addedToIndexNumber = this._initializationState.indexDescriptions.length + 1;
+            this._initializationState.indexDescriptions.push({
+                overloadByName: {[name]: indexOverloadDescription},
+            });
+        }
+
+        const indexConfig = {
+            indexNumber: addedToIndexNumber,
+            name,
+            partitionKeyAttributes:
+                partitionKeyAttributes as DynamoTableSchemaTypes.KeyAttributes.ConfigBase,
+            sortKeyAttributes: sortKeyAttributes as DynamoTableSchemaTypes.KeyAttributes.ConfigBase,
+        };
+
+        // Store the attributes for the item types in this index so we can easily
+        // serialize those items in the future.
+        for (const itemType of itemTypeSet) {
+            getOrSetDefaultMapValue(
+                this._initializationState.indexConfigsByItemType,
+                itemType,
+                () => [],
+            ).push(indexConfig);
+        }
+
+        const schema = this;
+
+        return {
+            async *query(context, {startSortKey, endSortKey, limit, descending}) {
+                // Error if trying to a query an index with strong consistency. You must design
+                // your code assuming eventually consistent reads when querying an index.
+                if (context.dynamo.defaultReadConsistency !== "Eventual")
+                    throw new InternalError(
+                        "Dynamo only supports eventually consistent queries on indexes",
+                    );
+
+                const client = await schema._getClient(context, false);
+                const {partitionKey: serializedStartPartitionKey, sortKey: serializedStartSortKey} =
+                    serializeDynamoTableSchemaIndexItemKey(indexConfig, startSortKey);
+                const {partitionKey: serializedEndPartitionKey, sortKey: serializedEndSortKey} =
+                    serializeDynamoTableSchemaIndexItemKey(indexConfig, endSortKey);
+
+                if (serializedStartPartitionKey !== serializedEndPartitionKey)
+                    throw new InvalidArgumentError(
+                        "The partition key of our start key and end key should be the same",
+                    );
+
+                const partitionKeyAttributeName = `index${indexConfig.indexNumber}PartitionKey`;
+                const sortKeyAttributeName = `index${indexConfig.indexNumber}SortKey`;
+
+                const iterator = client.query(context.tracer.getTracer(), {
+                    tableName: schema._config.name,
+                    indexName: `Index${indexConfig.indexNumber}`,
+                    partitionKey: {
+                        name: partitionKeyAttributeName,
+                        value: serializedStartPartitionKey,
+                    },
+                    sortKey: {
+                        name: sortKeyAttributeName,
+                        startValue: serializedStartSortKey,
+                        endValue: serializedEndSortKey,
+                    },
+                    consistency: "Eventual",
+                    limit,
+                    descending,
+                });
+
+                for await (const serializedItem of iterator) {
+                    assert(typeof serializedItem.partitionKey === "string");
+                    assert(typeof serializedItem.sortKey === "string");
+
+                    const indexPartitionKey = serializedItem[partitionKeyAttributeName];
+                    const indexSortKey = serializedItem[sortKeyAttributeName];
+                    assert(typeof indexPartitionKey === "string");
+                    assert(typeof indexSortKey === "string");
+
+                    const item: any = {
+                        ...schema._deserializeItemKey(
+                            serializedItem.partitionKey,
+                            serializedItem.sortKey,
+                        ),
+                        ...deserializeDynamoTableSchemaIndexKey(
+                            indexConfig,
+                            indexPartitionKey,
+                            indexSortKey,
+                        ),
+                    };
+
+                    yield item;
+                }
+            },
+
+            async *queryEntirePartition(context, {partitionKey, limit, descending}) {
+                // Error if trying to a query an index with strong consistency. You must design
+                // your code assuming eventually consistent reads when querying an index.
+                if (context.dynamo.defaultReadConsistency !== "Eventual")
+                    throw new InternalError(
+                        "Dynamo only supports eventually consistent queries on indexes",
+                    );
+
+                const client = await schema._getClient(context, false);
+                const serializedPartitionKey = serializeDynamoTableSchemaIndexPartitionKey(
+                    indexConfig,
+                    partitionKey,
+                );
+
+                const partitionKeyAttributeName = `index${indexConfig.indexNumber}PartitionKey`;
+                const sortKeyAttributeName = `index${indexConfig.indexNumber}SortKey`;
+
+                const iterator = client.query(context.tracer.getTracer(), {
+                    tableName: schema._config.name,
+                    indexName: `Index${indexConfig.indexNumber}`,
+                    partitionKey: {
+                        name: partitionKeyAttributeName,
+                        value: serializedPartitionKey,
+                    },
+                    consistency: "Eventual",
+                    limit,
+                    descending,
+                });
+
+                for await (const serializedItem of iterator) {
+                    assert(typeof serializedItem.partitionKey === "string");
+                    assert(typeof serializedItem.sortKey === "string");
+
+                    const indexPartitionKey = serializedItem[partitionKeyAttributeName];
+                    const indexSortKey = serializedItem[sortKeyAttributeName];
+                    assert(typeof indexPartitionKey === "string");
+                    assert(typeof indexSortKey === "string");
+
+                    const item: any = {
+                        ...schema._deserializeItemKey(
+                            serializedItem.partitionKey,
+                            serializedItem.sortKey,
+                        ),
+                        ...deserializeDynamoTableSchemaIndexKey(
+                            indexConfig,
+                            indexPartitionKey,
+                            indexSortKey,
+                        ),
+                    };
+
+                    yield item;
+                }
+            },
+        };
     }
 }
 
@@ -1627,6 +2127,127 @@ export function getAllConstructedDynamoTableSchemas(): Array<
         .map(([, schema]) => schema);
 }
 
+let dynamoTableSchemaInitializationCallbacks: Array<() => void> | null = [];
+
+/**
+ * Finish initializing all our `DynamoTableSchema`s immediately instead of
+ * waiting for a microtask callback.
+ */
+export function finishInitializingAllDynamoTableSchemas() {
+    assert(
+        dynamoTableSchemaInitializationCallbacks !== null,
+        "DynamoDB schemas already initialized",
+    );
+    const callbacks = dynamoTableSchemaInitializationCallbacks;
+    dynamoTableSchemaInitializationCallbacks = null;
+    for (const callback of callbacks) callback();
+}
+
+/**
+ * The type to use for accessing an index on our DynamoDB table.
+ */
+export interface DynamoTableSchemaIndex<ItemKey, IndexPartitionKey, IndexSortKey> {
+    query(
+        context: DynamoContext,
+        options: {
+            partitionKey: IndexPartitionKey;
+            startSortKey: IndexSortKey;
+            endSortKey: IndexSortKey;
+            limit?: number;
+            descending?: boolean;
+        },
+    ): AsyncIterableIterator<MergeObjectIntersection<ItemKey & IndexPartitionKey & IndexSortKey>>;
+
+    queryEntirePartition(
+        context: DynamoContext,
+        options: {
+            partitionKey: IndexPartitionKey;
+            limit?: number;
+            descending?: boolean;
+        },
+    ): AsyncIterableIterator<MergeObjectIntersection<ItemKey & IndexPartitionKey & IndexSortKey>>;
+}
+
+function serializeDynamoTableSchemaIndexPartitionKey(
+    indexConfig: {
+        name: string;
+        partitionKeyAttributes: DynamoTableSchemaTypes.KeyAttributes.ConfigBase;
+        sortKeyAttributes: DynamoTableSchemaTypes.KeyAttributes.ConfigBase;
+    },
+    item: {[key: string]: unknown},
+) {
+    const indexPartitionKeyEntries = [indexConfig.name];
+    for (const [attributeKey, attributeSchema] of Object.entries(
+        indexConfig.partitionKeyAttributes,
+    )) {
+        indexPartitionKeyEntries.push(attributeSchema.serialize(item[attributeKey]));
+    }
+
+    return indexPartitionKeyEntries.join(dynamoKeySeparator);
+}
+
+function serializeDynamoTableSchemaIndexItemKey(
+    indexConfig: {
+        name: string;
+        partitionKeyAttributes: DynamoTableSchemaTypes.KeyAttributes.ConfigBase;
+        sortKeyAttributes: DynamoTableSchemaTypes.KeyAttributes.ConfigBase;
+    },
+    item: {[key: string]: unknown},
+) {
+    const indexPartitionKeyEntries = [indexConfig.name];
+    for (const [attributeKey, attributeSchema] of Object.entries(
+        indexConfig.partitionKeyAttributes,
+    )) {
+        indexPartitionKeyEntries.push(attributeSchema.serialize(item[attributeKey]));
+    }
+
+    const itemSortKeyEntries = [];
+    for (const [attributeKey, attributeSchema] of Object.entries(indexConfig.sortKeyAttributes)) {
+        itemSortKeyEntries.push(attributeSchema.serialize(item[attributeKey]));
+    }
+
+    const partitionKey = indexPartitionKeyEntries.join(dynamoKeySeparator);
+    const sortKey = itemSortKeyEntries.join(dynamoKeySeparator);
+
+    return {partitionKey, sortKey};
+}
+
+function deserializeDynamoTableSchemaIndexKey(
+    indexConfig: {
+        name: string;
+        partitionKeyAttributes: DynamoTableSchemaTypes.KeyAttributes.ConfigBase;
+        sortKeyAttributes: DynamoTableSchemaTypes.KeyAttributes.ConfigBase;
+    },
+    partitionKey: string,
+    sortKey: string,
+) {
+    const partitionKeyEntries = partitionKey.split(dynamoKeySeparator);
+    const sortKeyEntries = sortKey.split(dynamoKeySeparator);
+
+    const indexName = partitionKeyEntries[0];
+    assert(indexName === indexConfig.name, "Invalid index partition key");
+
+    const key: any = {};
+
+    let partitionKeyEntryIndex = 1;
+    for (const [attributeKey, attributeSchema] of Object.entries(
+        indexConfig.partitionKeyAttributes,
+    )) {
+        const partitionKeyEntry = partitionKeyEntries[partitionKeyEntryIndex++];
+        assert(partitionKeyEntry !== undefined, "Invalid index partition key");
+        key[attributeKey] = attributeSchema.deserialize(partitionKeyEntry as DynamoKeyAttribute);
+    }
+
+    let sortKeyEntryIndex = 0;
+    for (const [attributeKey, attributeSchema] of Object.entries(indexConfig.sortKeyAttributes)) {
+        const sortKeyEntry = sortKeyEntries[sortKeyEntryIndex++];
+        assert(sortKeyEntry !== undefined, "Invalid index sort key");
+        key[attributeKey] = attributeSchema.deserialize(sortKeyEntry as DynamoKeyAttribute);
+    }
+
+    return key;
+}
+
 /**
  * Loads the last schema description from the file system, creates the next
  * schema description from the schema config, and checks that the next schema
@@ -1644,9 +2265,13 @@ export function getAllConstructedDynamoTableSchemas(): Array<
  * two existing sort ranges. We will generate an `OrderKey` between the
  * `OrderKey`s of the existing sort ranges.
  */
-function getAndCheckDynamoTableSchemaDescriptions(config: DynamoTableSchemaTypes.ConfigBase): {
+function getAndCheckDynamoTableSchemaDescriptions(
+    config: DynamoTableSchemaTypes.ConfigBase,
+    indexDescriptions: ReadonlyArray<DynamoTableSchemaTypes.Index.Description>,
+): {
     lastDescription: DynamoTableSchemaTypes.Description | null;
     description: DynamoTableSchemaTypes.Description;
+    readCompatibilityError: Error | null;
     writeCompatibilityError: Error | null;
 } {
     const lastDescription = dynamoGeneratedSchemaDescription.tableByName[config.name] ?? null;
@@ -1742,17 +2367,22 @@ function getAndCheckDynamoTableSchemaDescriptions(config: DynamoTableSchemaTypes
                 };
             },
         ),
+        indexes: indexDescriptions,
     };
 
     // If we have a description saved, then verify our new description is backwards
     // compatible with the old description. We will save our new description the
     // first time an item is written to this table.
+    let readCompatibilityError: Error | null = null;
     let writeCompatibilityError: Error | null = null;
     if (lastDescription !== null) {
         try {
             checkDynamoTableSchemaDescriptionBackwardsCompatibility(lastDescription, description);
         } catch (error) {
-            throw InternalError.from(error, "Can not read from table with new schema");
+            readCompatibilityError = InternalError.from(
+                error,
+                "Can not read from table with new schema",
+            );
         }
 
         try {
@@ -1772,6 +2402,7 @@ function getAndCheckDynamoTableSchemaDescriptions(config: DynamoTableSchemaTypes
     return {
         lastDescription,
         description,
+        readCompatibilityError,
         writeCompatibilityError,
     };
 }
@@ -1791,7 +2422,7 @@ function checkDynamoTableSchemaDescriptionBackwardsCompatibility(
         nextDescription.partitionByType,
     )) {
         if (missingPartitionTypes.delete(partitionType)) {
-            checkDynamoTablePartitionSchemaDescriptionBackwardsCompatibility(
+            checkDynamoTableSchemaPartitionDescriptionBackwardsCompatibility(
                 partitionType,
                 lastDescription.partitionByType[partitionType]!,
                 nextPartitionSchemaDescription,
@@ -1801,9 +2432,25 @@ function checkDynamoTableSchemaDescriptionBackwardsCompatibility(
 
     for (const partitionName of missingPartitionTypes)
         throw new InvalidArgumentError(`Partition \`${partitionName}\` is missing`);
+
+    for (let i = 0; i < nextDescription.indexes.length; i++) {
+        const number = i + 1;
+        const nextIndexDescription = nextDescription.indexes[i]!;
+
+        if (i >= lastDescription.indexes.length)
+            throw new InvalidArgumentError(`Index number ${number} is missing`);
+
+        const lastIndexDescription = lastDescription.indexes[i]!;
+
+        checkDynamoTableSchemaIndexDescriptionBackwardsCompatibility(
+            number,
+            nextIndexDescription,
+            lastIndexDescription,
+        );
+    }
 }
 
-function checkDynamoTablePartitionSchemaDescriptionBackwardsCompatibility(
+function checkDynamoTableSchemaPartitionDescriptionBackwardsCompatibility(
     type: string,
     lastDescription: DynamoTableSchemaTypes.Partition.Description,
     nextDescription: DynamoTableSchemaTypes.Partition.Description,
@@ -1822,7 +2469,7 @@ function checkDynamoTablePartitionSchemaDescriptionBackwardsCompatibility(
         nextDescription.sortRangeByType,
     )) {
         if (missingSortRangeTypes.delete(sortRangeType)) {
-            checkDynamoTableSortRangeSchemaDescriptionBackwardsCompatibility(
+            checkDynamoTableSchemaSortRangeDescriptionBackwardsCompatibility(
                 sortRangeType,
                 lastDescription.sortRangeByType[sortRangeType]!,
                 nextSortRangeSchemaDescription,
@@ -1834,7 +2481,7 @@ function checkDynamoTablePartitionSchemaDescriptionBackwardsCompatibility(
         throw new InvalidArgumentError(`Sort range \`${sortRange}\` is missing`);
 }
 
-function checkDynamoTableSortRangeSchemaDescriptionBackwardsCompatibility(
+function checkDynamoTableSchemaSortRangeDescriptionBackwardsCompatibility(
     type: string,
     lastDescription: DynamoTableSchemaTypes.SortRange.Description,
     nextDescription: DynamoTableSchemaTypes.SortRange.Description,
@@ -1854,4 +2501,53 @@ function checkDynamoTableSortRangeSchemaDescriptionBackwardsCompatibility(
         lastDescription.attributesSchema,
         nextDescription.attributesSchema,
     );
+}
+
+function checkDynamoTableSchemaIndexDescriptionBackwardsCompatibility(
+    number: number,
+    lastDescription: DynamoTableSchemaTypes.Index.Description,
+    nextDescription: DynamoTableSchemaTypes.Index.Description,
+): void {
+    const missingOverloadNames = new Set(Object.keys(lastDescription.overloadByName));
+
+    for (const [overloadName, nextOverloadDescription] of Object.entries(
+        nextDescription.overloadByName,
+    )) {
+        if (missingOverloadNames.delete(overloadName)) {
+            checkDynamoTableSchemaIndexOverloadDescriptionBackwardsCompatibility(
+                overloadName,
+                lastDescription.overloadByName[overloadName]!,
+                nextOverloadDescription,
+            );
+        }
+    }
+
+    for (const overloadName of missingOverloadNames)
+        throw new InvalidArgumentError(`Index overload \`${overloadName}\` is missing`);
+}
+
+function checkDynamoTableSchemaIndexOverloadDescriptionBackwardsCompatibility(
+    name: string,
+    lastDescription: DynamoTableSchemaTypes.Index.OverloadDescription,
+    nextDescription: DynamoTableSchemaTypes.Index.OverloadDescription,
+): void {
+    const lastPartitionKeyAttributeDescriptions = Object.values(
+        lastDescription.partitionKeyAttributeByKey,
+    );
+    const nextPartitionKeyAttributeDescriptions = Object.values(
+        nextDescription.partitionKeyAttributeByKey,
+    );
+
+    // Require partition key to always be exactly what was initially configured. No
+    // migrations!
+    if (!isDeepEqual(lastPartitionKeyAttributeDescriptions, nextPartitionKeyAttributeDescriptions))
+        throw new InvalidArgumentError(`Incompatible partition key for index overload \`${name}\``);
+
+    const lastSortKeyAttributeDescriptions = Object.values(lastDescription.sortKeyAttributeByKey);
+    const nextSortKeyAttributeDescriptions = Object.values(nextDescription.sortKeyAttributeByKey);
+
+    // Require partition key to always be exactly what was initially configured. No
+    // migrations!
+    if (!isDeepEqual(lastSortKeyAttributeDescriptions, nextSortKeyAttributeDescriptions))
+        throw new InvalidArgumentError(`Incompatible sort key for index overload \`${name}\``);
 }

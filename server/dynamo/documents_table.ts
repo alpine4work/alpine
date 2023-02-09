@@ -341,10 +341,10 @@ async function getInternalDocument(
             partitionType: "Document",
             documentId: id,
         },
-        startKey: {
+        startSortKey: {
             sortRangeType: "Attributes",
         },
-        endKey: {
+        endSortKey: {
             sortRangeType: "Snapshot",
         },
     })) {
@@ -1344,11 +1344,11 @@ async function updateDocumentSnapshotAfterUpdatingContent(
                     partitionType: "Document",
                     documentId: id,
                 },
-                startKey: {
+                startSortKey: {
                     sortRangeType: "StepTransactionsAfterSnapshot",
                     startVersion: 0,
                 },
-                endKey: {
+                endSortKey: {
                     sortRangeType: "StepTransactionsAfterSnapshot",
                     startVersion: newVersion - 1,
                 },
@@ -1549,13 +1549,13 @@ async function* getDocumentStepTransactionsBetweenValidatedVersionRange(
                     partitionType: "Document",
                     documentId: id,
                 },
-                startKey: {
+                startSortKey: {
                     sortRangeType: "StepTransactionsAfterSnapshot",
                     startVersion:
                         stepTransactionContainingStartVersion.startVersion +
                         stepTransactionContainingStartVersion.steps.length,
                 },
-                endKey: {
+                endSortKey: {
                     sortRangeType: "StepTransactionsAfterSnapshot",
                     startVersion: endVersion - 1,
                 },
@@ -1573,13 +1573,13 @@ async function* getDocumentStepTransactionsBetweenValidatedVersionRange(
                     partitionType: "Document",
                     documentId: id,
                 },
-                startKey: {
+                startSortKey: {
                     sortRangeType: "StepTransactionsBeforeSnapshot",
                     startVersion:
                         stepTransactionContainingStartVersion.startVersion +
                         stepTransactionContainingStartVersion.steps.length,
                 },
-                endKey: {
+                endSortKey: {
                     sortRangeType: "StepTransactionsBeforeSnapshot",
                     startVersion: endVersion - 1,
                 },
@@ -1609,13 +1609,13 @@ async function* getDocumentStepTransactionsBetweenValidatedVersionRange(
                     partitionType: "Document",
                     documentId: id,
                 },
-                startKey: {
+                startSortKey: {
                     sortRangeType: "StepTransactionsAfterSnapshot",
                     startVersion:
                         stepTransactionContainingStartVersion.startVersion +
                         stepTransactionContainingStartVersion.steps.length,
                 },
-                endKey: {
+                endSortKey: {
                     sortRangeType: "StepTransactionsAfterSnapshot",
                     startVersion: endVersion - 1,
                 },
@@ -1701,11 +1701,11 @@ async function getDocumentStepTransactionContainingValidatedVersion(
                     partitionType: "Document",
                     documentId: id,
                 },
-                startKey: {
+                startSortKey: {
                     sortRangeType: "StepTransactionsBeforeSnapshot",
                     startVersion: 0,
                 },
-                endKey: {
+                endSortKey: {
                     sortRangeType: "StepTransactionsBeforeSnapshot",
                     startVersion: version,
                 },
@@ -1749,11 +1749,11 @@ async function getDocumentStepTransactionContainingValidatedVersion(
                     partitionType: "Document",
                     documentId: id,
                 },
-                startKey: {
+                startSortKey: {
                     sortRangeType: "StepTransactionsAfterSnapshot",
                     startVersion: 0,
                 },
-                endKey: {
+                endSortKey: {
                     sortRangeType: "StepTransactionsAfterSnapshot",
                     startVersion: version,
                 },

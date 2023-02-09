@@ -179,7 +179,8 @@ export const dynamoGeneratedSchemaDescription: {
                         }
                     }
                 }
-            }
+            },
+            "indexes": []
         },
         "AlphaAccess": {
             "name": "AlphaAccess",
@@ -311,7 +312,8 @@ export const dynamoGeneratedSchemaDescription: {
                         }
                     }
                 }
-            }
+            },
+            "indexes": []
         },
         "Documents": {
             "name": "Documents",
@@ -489,7 +491,8 @@ export const dynamoGeneratedSchemaDescription: {
                         }
                     }
                 }
-            }
+            },
+            "indexes": []
         },
         "Forum": {
             "name": "Forum",
@@ -709,7 +712,8 @@ export const dynamoGeneratedSchemaDescription: {
                         }
                     }
                 }
-            }
+            },
+            "indexes": []
         },
         "SimpleChat": {
             "name": "SimpleChat",
@@ -857,7 +861,8 @@ export const dynamoGeneratedSchemaDescription: {
                         }
                     }
                 }
-            }
+            },
+            "indexes": []
         },
         "Spaces": {
             "name": "Spaces",
@@ -923,7 +928,8 @@ export const dynamoGeneratedSchemaDescription: {
                         }
                     }
                 }
-            }
+            },
+            "indexes": []
         }
     }
 } as any;

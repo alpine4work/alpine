@@ -4,7 +4,8 @@ async function main() {
     const tableByName: {[key: string]: unknown} = {};
 
     for (const tableSchema of getAllDynamoTableSchemas()) {
-        tableByName[tableSchema.description.name] = tableSchema.description;
+        const description = tableSchema.getDescription();
+        tableByName[description.name] = description;
     }
 
     const description = {tableByName};

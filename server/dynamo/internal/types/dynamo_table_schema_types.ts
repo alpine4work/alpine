@@ -74,6 +74,7 @@ export namespace DynamoTableSchemaTypes {
         readonly partitionByType: {
             readonly [type: string]: Partition.Description;
         };
+        readonly indexes: ReadonlyArray<Index.Description>;
     };
 
     /**
@@ -89,7 +90,8 @@ export namespace DynamoTableSchemaTypes {
     export type Types<Config extends ConfigBase> = {
         PartitionKey: PartitionKeyType<Config>;
         SortKeyMap: SortKeyMapType<Config>;
-        Key: KeyType<Config>;
+        ItemType: ItemTypeType<Config>;
+        ItemKey: ItemKeyType<Config>;
         Item: ItemType<Config>;
         QueryKeyMap: QueryKeyMapType<Config>;
     };
@@ -130,9 +132,38 @@ export namespace DynamoTableSchemaTypes {
     };
 
     /**
+     * The type of items in our table.
+     *
+     * An `ItemKey` is also a valid `ItemType`.
+     *
+     * There is a different type for every sort range in our table. This type
+     * is a union of all types for all sort ranges.
+     *
+     * Excludes attributes from `partitionKeyAttributes` and `sortKeyAttributes`.
+     *
+     * Example:
+     *
+     * ```ts
+     * type ItemType =
+     *     | {partitionType: "A", sortRangeType: "X"}
+     *     | {partitionType: "A", sortRangeType: "Y"}
+     *     | {partitionType: "B", sortRangeType: "X"}
+     *     | {partitionType: "B", sortRangeType: "Y"}
+     *     | {partitionType: "B", sortRangeType: "Z"};
+     * ```
+     */
+    export type ItemTypeType<Config extends ConfigBase> = {
+        [Type in keyof Config["partitions"] & string]: MergeObjectIntersection<
+            {
+                readonly partitionType: Type;
+            } & Partition.ItemTypeType<Config["partitions"][Type]>
+        >;
+    }[keyof Config["partitions"] & string];
+
+    /**
      * The type of key for our type. A key identifies an item in the table.
      *
-     * A `Key` is also a valid `PartitionKey`.
+     * An `ItemKey` is also a valid `PartitionKey`.
      *
      * There is a different key type for every sort range in our table. This type
      * is a union of all key types for all sort ranges.
@@ -146,23 +177,22 @@ export namespace DynamoTableSchemaTypes {
      * Example:
      *
      * ```ts
-     * type Key =
+     * type ItemKey =
      *     | {partitionType: "A", a: number, sortRangeType: "X", x: number}
      *     | {partitionType: "A", a: number, sortRangeType: "Y", y: number}
-     *
      *     | {partitionType: "B", b: number, sortRangeType: "X", x: number}
      *     | {partitionType: "B", b: number, sortRangeType: "Y", y: number}
      *     | {partitionType: "B", b: number, sortRangeType: "Z", z: number};
      * ```
      */
-    export type KeyType<Config extends ConfigBase> = {
-        [Type in keyof Config["partitions"]]: MergeObjectIntersection<
+    export type ItemKeyType<Config extends ConfigBase> = {
+        [Type in keyof Config["partitions"] & string]: MergeObjectIntersection<
             {
                 readonly partitionType: Type;
             } & KeyAttributes.Type<Config["partitions"][Type]["partitionKeyAttributes"]> &
-                Partition.KeyType<Config["partitions"][Type]>
+                Partition.ItemKeyType<Config["partitions"][Type]>
         >;
-    }[keyof Config["partitions"]];
+    }[keyof Config["partitions"] & string];
 
     /**
      * The type of an item in our table.
@@ -178,14 +208,14 @@ export namespace DynamoTableSchemaTypes {
      * that partition.
      */
     export type ItemType<Config extends ConfigBase> = {
-        [Type in keyof Config["partitions"]]: MergeObjectIntersection<
+        [Type in keyof Config["partitions"] & string]: MergeObjectIntersection<
             {
                 readonly partitionType: Type;
             } & KeyAttributes.Type<Config["partitions"][Type]["partitionKeyAttributes"]> &
                 Partition.ItemType<Config["partitions"][Type]> &
                 ItemSharedAttributes
         >;
-    }[keyof Config["partitions"]];
+    }[keyof Config["partitions"] & string];
 
     /**
      * Internal properties shared across all items.
@@ -263,26 +293,32 @@ export namespace DynamoTableSchemaTypes {
         export type SortKeyType<Config extends ConfigBase> = {
             [Type in keyof Config["sortRanges"] & string]: {
                 readonly sortRangeType: Type;
-            } & SortRange.KeyType<Config["sortRanges"][Type]>;
+            } & SortRange.ItemKeyType<Config["sortRanges"][Type]>;
         }[keyof Config["sortRanges"] & string];
 
-        export type KeyType<Config extends ConfigBase> = KeyAttributes.Type<
+        export type ItemTypeType<Config extends ConfigBase> = {
+            [Type in keyof Config["sortRanges"] & string]: {
+                readonly sortRangeType: Type;
+            };
+        }[keyof Config["sortRanges"] & string];
+
+        export type ItemKeyType<Config extends ConfigBase> = KeyAttributes.Type<
             Config["partitionKeyAttributes"]
         > &
             {
-                [Type in keyof Config["sortRanges"]]: {
+                [Type in keyof Config["sortRanges"] & string]: {
                     readonly sortRangeType: Type;
-                } & SortRange.KeyType<Config["sortRanges"][Type]>;
-            }[keyof Config["sortRanges"]];
+                } & SortRange.ItemKeyType<Config["sortRanges"][Type]>;
+            }[keyof Config["sortRanges"] & string];
 
         export type ItemType<Config extends ConfigBase> = KeyAttributes.Type<
             Config["partitionKeyAttributes"]
         > &
             {
-                [Type in keyof Config["sortRanges"]]: {
+                [Type in keyof Config["sortRanges"] & string]: {
                     readonly sortRangeType: Type;
                 } & SortRange.ItemType<Config["sortRanges"][Type]>;
-            }[keyof Config["sortRanges"]];
+            }[keyof Config["sortRanges"] & string];
 
         export type QueryKeyMapType<Config extends ConfigBase, Tuple extends Array<unknown>> = {
             [StartPartitionSortType in keyof Config["sortRanges"] & string]: {
@@ -356,7 +392,7 @@ export namespace DynamoTableSchemaTypes {
             readonly attributesSchema: SchemaSerializedValueDescription;
         };
 
-        export type KeyType<Config extends ConfigBase> = KeyAttributes.Type<
+        export type ItemKeyType<Config extends ConfigBase> = KeyAttributes.Type<
             Config["sortKeyAttributes"]
         >;
 
@@ -364,5 +400,33 @@ export namespace DynamoTableSchemaTypes {
             Config["sortKeyAttributes"]
         > &
             SchemaType<Config["attributes"]>;
+    }
+
+    export namespace Index {
+        /**
+         * Our DynamoDB indexes are [overloaded][1]. Separate logical indexes on
+         * different item types may share the same physical index. A single item type
+         * may not be indexed twice in the same overload.
+         *
+         * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-gsi-overloading.html
+         */
+        export type Description = {
+            readonly overloadByName: {
+                readonly [name: string]: OverloadDescription;
+            };
+        };
+
+        export type OverloadDescription = {
+            readonly itemTypes: ReadonlyArray<{
+                readonly partitionType: string;
+                readonly sortRangeType: string;
+            }>;
+            readonly partitionKeyAttributeByKey: {
+                readonly [key: string]: DynamoKeyAttributeSchemaDescription;
+            };
+            readonly sortKeyAttributeByKey: {
+                readonly [key: string]: DynamoKeyAttributeSchemaDescription;
+            };
+        };
     }
 }

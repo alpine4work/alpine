@@ -403,6 +403,7 @@ export class DynamoClient {
         tracer: TracerBase,
         {
             tableName,
+            indexName,
             partitionKey,
             sortKey,
             consistency = "Eventual",
@@ -410,6 +411,7 @@ export class DynamoClient {
             descending = false,
         }: {
             tableName: string;
+            indexName?: string;
             partitionKey: {
                 name: string;
                 value: SchemaSerializedValue;
@@ -450,6 +452,7 @@ export class DynamoClient {
         do {
             const output = await this._client.Query(tracer, {
                 TableName: tableName,
+                IndexName: indexName,
                 ConsistentRead: consistency === "Strong",
                 // If we have a limit of 100 and we scanned 40 rows in our previous queries,
                 // then our new limit is 60 since we don't want to exceed our initial limit.
