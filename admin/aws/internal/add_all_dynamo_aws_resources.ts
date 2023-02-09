@@ -12,8 +12,9 @@ import {getAllDynamoTableSchemas} from "~/server/dynamo/get_all_dynamo_table_sch
 export async function addAllDynamoAwsResources(scope: Construct) {
     for (const tableSchema of getAllDynamoTableSchemas()) {
         const tableName = tableSchema.getName();
+        const tableDescription = tableSchema.getDescription();
 
-        new cdk.aws_dynamodb.Table(scope, `${tableName}Table`, {
+        const table = new cdk.aws_dynamodb.Table(scope, `${tableName}Table`, {
             tableName,
             partitionKey: {
                 name: "partitionKey",
@@ -33,5 +34,22 @@ export async function addAllDynamoAwsResources(scope: Construct) {
             // https://www.serverless.com/blog/dynamodb-on-demand-serverless
             billingMode: cdk.aws_dynamodb.BillingMode.PAY_PER_REQUEST,
         });
+
+        for (const [i] of tableDescription.indexes.entries()) {
+            const indexNumber = i + 1;
+
+            table.addGlobalSecondaryIndex({
+                indexName: `Index${indexNumber}`,
+                projectionType: cdk.aws_dynamodb.ProjectionType.KEYS_ONLY,
+                partitionKey: {
+                    name: `index${indexNumber}PartitionKey`,
+                    type: cdk.aws_dynamodb.AttributeType.STRING,
+                },
+                sortKey: {
+                    name: `index${indexNumber}SortKey`,
+                    type: cdk.aws_dynamodb.AttributeType.STRING,
+                },
+            });
+        }
     }
 }

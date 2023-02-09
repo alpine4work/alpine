@@ -410,6 +410,8 @@ export class DynamoTableSchema<
      * Ensures that our table exists in DynamoDB.
      */
     private async _ensureTable(context: DynamoContext): Promise<void> {
+        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
+
         const client = getDynamoClient(context);
         const internalClient = client.getInternalClient();
         const tableName = this.getName();
@@ -446,6 +448,20 @@ export class DynamoTableSchema<
                     AttributeName: "sortKey",
                     AttributeType: "S",
                 },
+                ...this._initializationState.description.indexes.flatMap((indexDescription, i) => {
+                    const indexNumber = i + 1;
+
+                    return [
+                        {
+                            AttributeName: `index${indexNumber}PartitionKey`,
+                            AttributeType: "S",
+                        },
+                        {
+                            AttributeName: `index${indexNumber}SortKey`,
+                            AttributeType: "S",
+                        },
+                    ];
+                }),
             ],
             KeySchema: [
                 {
@@ -458,6 +474,29 @@ export class DynamoTableSchema<
                 },
             ],
             BillingMode: "PAY_PER_REQUEST",
+            GlobalSecondaryIndexes:
+                this._initializationState.description.indexes.length > 0
+                    ? this._initializationState.description.indexes.map((indexDescription, i) => {
+                          const indexNumber = i + 1;
+
+                          return {
+                              IndexName: `Index${indexNumber}`,
+                              KeySchema: [
+                                  {
+                                      AttributeName: `index${indexNumber}PartitionKey`,
+                                      KeyType: "HASH",
+                                  },
+                                  {
+                                      AttributeName: `index${indexNumber}SortKey`,
+                                      KeyType: "RANGE",
+                                  },
+                              ],
+                              Projection: {
+                                  ProjectionType: "KEYS_ONLY",
+                              },
+                          };
+                      })
+                    : undefined,
         });
     }
 
@@ -478,15 +517,7 @@ export class DynamoTableSchema<
         return partitionKeyEntries.join(dynamoKeySeparator);
     }
 
-    private _serializeItemKey(key: Types["ItemKey"]): {
-        partitionKey: string;
-        sortKey: string;
-        attributesSchema: DynamoTableSchemaTypes.SortRange.ConfigBase["attributes"];
-    } {
-        return this._serializeSeparatedItemKey(key, key as any);
-    }
-
-    private _serializeSeparatedItemKey<PartitionKey extends Types["PartitionKey"]>(
+    private _serializeSortKey<PartitionKey extends Types["PartitionKey"]>(
         partitionKey: PartitionKey,
         sortKey: Types["SortKeyMap"][PartitionKey["partitionType"]],
     ) {
@@ -499,18 +530,42 @@ export class DynamoTableSchema<
         const sortRangeDescription = partitionDescription.sortRangeByType[sortKey.sortRangeType];
         assert(sortRangeConfig && sortRangeDescription, "Invalid sort range");
 
-        const partitionKeyEntries = [partitionKey.partitionType];
-        for (const [attributeKey, attributeSchema] of Object.entries(
-            partitionConfig.partitionKeyAttributes,
-        )) {
-            partitionKeyEntries.push(attributeSchema.serialize(partitionKey[attributeKey]));
-        }
-
         const sortKeyEntries = [sortRangeDescription.orderKey, sortKey.sortRangeType];
         for (const [attributeKey, attributeSchema] of Object.entries(
             sortRangeConfig.sortKeyAttributes,
         )) {
             sortKeyEntries.push(attributeSchema.serialize(sortKey[attributeKey]));
+        }
+
+        return sortKeyEntries.join(dynamoKeySeparator);
+    }
+
+    private _serializeItemKey(key: Types["ItemKey"]): {
+        partitionKey: string;
+        sortKey: string;
+        attributesSchema: DynamoTableSchemaTypes.SortRange.ConfigBase["attributes"];
+    } {
+        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
+        const partitionConfig = this._config.partitions[key.partitionType];
+        const partitionDescription =
+            this._initializationState.description.partitionByType[key.partitionType];
+        assert(partitionConfig && partitionDescription, "Invalid partition");
+        const sortRangeConfig = partitionConfig.sortRanges[key.sortRangeType];
+        const sortRangeDescription = partitionDescription.sortRangeByType[key.sortRangeType];
+        assert(sortRangeConfig && sortRangeDescription, "Invalid sort range");
+
+        const partitionKeyEntries = [key.partitionType];
+        for (const [attributeKey, attributeSchema] of Object.entries(
+            partitionConfig.partitionKeyAttributes,
+        )) {
+            partitionKeyEntries.push(attributeSchema.serialize(key[attributeKey]));
+        }
+
+        const sortKeyEntries = [sortRangeDescription.orderKey, key.sortRangeType];
+        for (const [attributeKey, attributeSchema] of Object.entries(
+            sortRangeConfig.sortKeyAttributes,
+        )) {
+            sortKeyEntries.push(attributeSchema.serialize(key[attributeKey]));
         }
 
         const serializedPartitionKey = partitionKeyEntries.join(dynamoKeySeparator);
@@ -613,13 +668,14 @@ export class DynamoTableSchema<
         );
         if (indexConfigs) {
             for (const indexConfig of indexConfigs) {
-                const {partitionKey, sortKey} = serializeDynamoTableSchemaIndexItemKey(
+                const indexPartitionKey = serializeDynamoTableSchemaIndexPartitionKey(
                     indexConfig,
                     item,
                 );
+                const indexSortKey = serializeDynamoTableSchemaIndexSortKey(indexConfig, item);
 
-                serializedItem[`index${indexConfig.indexNumber}PartitionKey`] = partitionKey;
-                serializedItem[`index${indexConfig.indexNumber}SortKey`] = sortKey;
+                serializedItem[`index${indexConfig.indexNumber}PartitionKey`] = indexPartitionKey;
+                serializedItem[`index${indexConfig.indexNumber}SortKey`] = indexSortKey;
             }
         }
 
@@ -1625,14 +1681,20 @@ export class DynamoTableSchema<
             partitionKey,
             startSortKey,
             endSortKey,
+            isStartSortKeyExclusive,
+            isEndSortKeyExclusive,
             limit,
             descending,
             consistency = context.dynamo.defaultReadConsistency,
         }: {
             partitionKey: PartitionKey;
-            startSortKey: StartSortKey;
-            endSortKey: EndSortKey;
-            limit?: number;
+            startSortKey?: StartSortKey | undefined;
+            endSortKey?: EndSortKey | undefined;
+            isStartSortKeyExclusive?: boolean;
+            isEndSortKeyExclusive?: boolean;
+            // Required to specify a limit or the `All` string. So if you intentionally
+            // want everything you have to say so.
+            limit: number | "All";
             descending?: boolean;
             consistency?: DynamoReadConsistency;
         },
@@ -1645,83 +1707,14 @@ export class DynamoTableSchema<
         >
     > {
         const client = await this._getClient(context, false);
-        const {partitionKey: serializedStartPartitionKey, sortKey: serializedStartSortKey} =
-            this._serializeSeparatedItemKey(partitionKey, startSortKey);
-        const {partitionKey: serializedEndPartitionKey, sortKey: serializedEndSortKey} =
-            this._serializeSeparatedItemKey(partitionKey, endSortKey);
 
-        if (serializedStartPartitionKey !== serializedEndPartitionKey)
-            throw new InvalidArgumentError(
-                "The partition key of our start key and end key should be the same",
-            );
-
-        const iterator = client.query(context.tracer.getTracer(), {
-            tableName: this._config.name,
-            partitionKey: {
-                name: "partitionKey",
-                value: serializedStartPartitionKey,
-            },
-            sortKey: {
-                name: "sortKey",
-                startValue: serializedStartSortKey,
-                endValue: serializedEndSortKey,
-            },
-            consistency,
-            limit,
-            descending,
-        });
-
-        for await (const serializedItem of iterator) {
-            assert(typeof serializedItem.partitionKey === "string");
-            assert(typeof serializedItem.sortKey === "string");
-
-            const {key, attributesSchema} = this._deserializeItemKey(
-                serializedItem.partitionKey,
-                serializedItem.sortKey,
-            );
-
-            const item: any = key;
-            try {
-                attributesSchema.deserializeInto(serializedItem, item);
-            } catch (error) {
-                // Reclassify deserialization errors from data stored in the database as data
-                // loss errors. It means we have corrupt data stored in the database!
-                if (error instanceof SchemaDeserializationError) {
-                    throw new DataLossError(error.message, {cause: error});
-                }
-                throw error;
-            }
-
-            yield item;
-        }
-    }
-
-    /**
-     * Queries an entire partition in a table. Queries are how you get many
-     * items from the database at once. Queries require you to carefully structure
-     * your table ahead of time so that items that need to be read together are
-     * physically next to each other.
-     *
-     * Corresponds to the [`Query`][1] command.
-     *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Query.html
-     */
-    public async *queryEntirePartition<PartitionKey extends Types["PartitionKey"]>(
-        context: DynamoContext,
-        {
-            partitionKey,
-            limit,
-            descending,
-            consistency = context.dynamo.defaultReadConsistency,
-        }: {
-            partitionKey: PartitionKey;
-            limit?: number;
-            descending?: boolean;
-            consistency?: DynamoReadConsistency;
-        },
-    ): AsyncIterableIterator<MergeObjectIntersection<Types["Item"] & PartitionKey>> {
-        const client = await this._getClient(context, false);
         const serializedPartitionKey = this._serializePartitionKey(partitionKey);
+        const serializedStartSortKey = startSortKey
+            ? this._serializeSortKey(partitionKey, startSortKey)
+            : undefined;
+        const serializedEndSortKey = endSortKey
+            ? this._serializeSortKey(partitionKey, endSortKey)
+            : undefined;
 
         const iterator = client.query(context.tracer.getTracer(), {
             tableName: this._config.name,
@@ -1729,8 +1722,15 @@ export class DynamoTableSchema<
                 name: "partitionKey",
                 value: serializedPartitionKey,
             },
+            sortKey: {
+                name: "sortKey",
+                startValue: serializedStartSortKey,
+                endValue: serializedEndSortKey,
+                isStartExclusive: isStartSortKeyExclusive,
+                isEndExclusive: isEndSortKeyExclusive,
+            },
             consistency,
-            limit,
+            limit: limit !== "All" ? limit : undefined,
             descending,
         });
 
@@ -1980,71 +1980,18 @@ export class DynamoTableSchema<
         const schema = this;
 
         return {
-            async *query(context, {startSortKey, endSortKey, limit, descending}) {
-                // Error if trying to a query an index with strong consistency. You must design
-                // your code assuming eventually consistent reads when querying an index.
-                if (context.dynamo.defaultReadConsistency !== "Eventual")
-                    throw new InternalError(
-                        "Dynamo only supports eventually consistent queries on indexes",
-                    );
-
-                const client = await schema._getClient(context, false);
-                const {partitionKey: serializedStartPartitionKey, sortKey: serializedStartSortKey} =
-                    serializeDynamoTableSchemaIndexItemKey(indexConfig, startSortKey);
-                const {partitionKey: serializedEndPartitionKey, sortKey: serializedEndSortKey} =
-                    serializeDynamoTableSchemaIndexItemKey(indexConfig, endSortKey);
-
-                if (serializedStartPartitionKey !== serializedEndPartitionKey)
-                    throw new InvalidArgumentError(
-                        "The partition key of our start key and end key should be the same",
-                    );
-
-                const partitionKeyAttributeName = `index${indexConfig.indexNumber}PartitionKey`;
-                const sortKeyAttributeName = `index${indexConfig.indexNumber}SortKey`;
-
-                const iterator = client.query(context.tracer.getTracer(), {
-                    tableName: schema._config.name,
-                    indexName: `Index${indexConfig.indexNumber}`,
-                    partitionKey: {
-                        name: partitionKeyAttributeName,
-                        value: serializedStartPartitionKey,
-                    },
-                    sortKey: {
-                        name: sortKeyAttributeName,
-                        startValue: serializedStartSortKey,
-                        endValue: serializedEndSortKey,
-                    },
-                    consistency: "Eventual",
+            async *query(
+                context,
+                {
+                    partitionKey,
+                    startSortKey,
+                    endSortKey,
+                    isStartSortKeyExclusive,
+                    isEndSortKeyExclusive,
                     limit,
                     descending,
-                });
-
-                for await (const serializedItem of iterator) {
-                    assert(typeof serializedItem.partitionKey === "string");
-                    assert(typeof serializedItem.sortKey === "string");
-
-                    const indexPartitionKey = serializedItem[partitionKeyAttributeName];
-                    const indexSortKey = serializedItem[sortKeyAttributeName];
-                    assert(typeof indexPartitionKey === "string");
-                    assert(typeof indexSortKey === "string");
-
-                    const item: any = {
-                        ...schema._deserializeItemKey(
-                            serializedItem.partitionKey,
-                            serializedItem.sortKey,
-                        ),
-                        ...deserializeDynamoTableSchemaIndexKey(
-                            indexConfig,
-                            indexPartitionKey,
-                            indexSortKey,
-                        ),
-                    };
-
-                    yield item;
-                }
-            },
-
-            async *queryEntirePartition(context, {partitionKey, limit, descending}) {
+                },
+            ) {
                 // Error if trying to a query an index with strong consistency. You must design
                 // your code assuming eventually consistent reads when querying an index.
                 if (context.dynamo.defaultReadConsistency !== "Eventual")
@@ -2057,6 +2004,12 @@ export class DynamoTableSchema<
                     indexConfig,
                     partitionKey,
                 );
+                const serializedStartSortKey = startSortKey
+                    ? serializeDynamoTableSchemaIndexSortKey(indexConfig, startSortKey)
+                    : undefined;
+                const serializedEndSortKey = endSortKey
+                    ? serializeDynamoTableSchemaIndexSortKey(indexConfig, endSortKey)
+                    : undefined;
 
                 const partitionKeyAttributeName = `index${indexConfig.indexNumber}PartitionKey`;
                 const sortKeyAttributeName = `index${indexConfig.indexNumber}SortKey`;
@@ -2068,8 +2021,15 @@ export class DynamoTableSchema<
                         name: partitionKeyAttributeName,
                         value: serializedPartitionKey,
                     },
+                    sortKey: {
+                        name: sortKeyAttributeName,
+                        startValue: serializedStartSortKey,
+                        endValue: serializedEndSortKey,
+                        isStartExclusive: isStartSortKeyExclusive,
+                        isEndExclusive: isEndSortKeyExclusive,
+                    },
                     consistency: "Eventual",
-                    limit,
+                    limit: limit !== "All" ? limit : undefined,
                     descending,
                 });
 
@@ -2086,7 +2046,7 @@ export class DynamoTableSchema<
                         ...schema._deserializeItemKey(
                             serializedItem.partitionKey,
                             serializedItem.sortKey,
-                        ),
+                        ).key,
                         ...deserializeDynamoTableSchemaIndexKey(
                             indexConfig,
                             indexPartitionKey,
@@ -2151,18 +2111,13 @@ export interface DynamoTableSchemaIndex<ItemKey, IndexPartitionKey, IndexSortKey
         context: DynamoContext,
         options: {
             partitionKey: IndexPartitionKey;
-            startSortKey: IndexSortKey;
-            endSortKey: IndexSortKey;
-            limit?: number;
-            descending?: boolean;
-        },
-    ): AsyncIterableIterator<MergeObjectIntersection<ItemKey & IndexPartitionKey & IndexSortKey>>;
-
-    queryEntirePartition(
-        context: DynamoContext,
-        options: {
-            partitionKey: IndexPartitionKey;
-            limit?: number;
+            startSortKey?: IndexSortKey;
+            endSortKey?: IndexSortKey;
+            isStartSortKeyExclusive?: boolean;
+            isEndSortKeyExclusive?: boolean;
+            // Required to specify a limit or the `All` string. So if you intentionally
+            // want everything you have to say so.
+            limit: number | "All";
             descending?: boolean;
         },
     ): AsyncIterableIterator<MergeObjectIntersection<ItemKey & IndexPartitionKey & IndexSortKey>>;
@@ -2186,7 +2141,7 @@ function serializeDynamoTableSchemaIndexPartitionKey(
     return indexPartitionKeyEntries.join(dynamoKeySeparator);
 }
 
-function serializeDynamoTableSchemaIndexItemKey(
+function serializeDynamoTableSchemaIndexSortKey(
     indexConfig: {
         name: string;
         partitionKeyAttributes: DynamoTableSchemaTypes.KeyAttributes.ConfigBase;
@@ -2194,22 +2149,12 @@ function serializeDynamoTableSchemaIndexItemKey(
     },
     item: {[key: string]: unknown},
 ) {
-    const indexPartitionKeyEntries = [indexConfig.name];
-    for (const [attributeKey, attributeSchema] of Object.entries(
-        indexConfig.partitionKeyAttributes,
-    )) {
-        indexPartitionKeyEntries.push(attributeSchema.serialize(item[attributeKey]));
-    }
-
     const itemSortKeyEntries = [];
     for (const [attributeKey, attributeSchema] of Object.entries(indexConfig.sortKeyAttributes)) {
         itemSortKeyEntries.push(attributeSchema.serialize(item[attributeKey]));
     }
 
-    const partitionKey = indexPartitionKeyEntries.join(dynamoKeySeparator);
-    const sortKey = itemSortKeyEntries.join(dynamoKeySeparator);
-
-    return {partitionKey, sortKey};
+    return itemSortKeyEntries.join(dynamoKeySeparator);
 }
 
 function deserializeDynamoTableSchemaIndexKey(

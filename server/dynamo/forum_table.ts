@@ -17,6 +17,7 @@ import {
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable";
@@ -123,6 +124,18 @@ const ForumTable = DynamoTableSchema.new({
     },
 });
 
+const ChannelPostsIndex = ForumTable.addIndex({
+    name: "ChannelPosts",
+    itemTypes: [{partitionType: "Post", sortRangeType: "Attributes"}],
+    partitionKeyAttributes: {
+        channelId: DynamoKeyAttributeSchema.id<ChannelId>(),
+    },
+    sortKeyAttributes: {
+        createdTime: DynamoKeyAttributeSchema.date,
+        postId: DynamoKeyAttributeSchema.id<PostId>(),
+    },
+});
+
 type ChannelAttributesItem = DynamoTableItemType<typeof ForumTable, "Channel", "Attributes">;
 type PostAttributesItem = DynamoTableItemType<typeof ForumTable, "Post", "Attributes">;
 type PostCommentItem = DynamoTableItemType<typeof ForumTable, "Post", "Comments">;
@@ -211,6 +224,72 @@ export async function authorizeChannelAccess(
 ): Promise<void> {
     const channelItem = await getChannelItem(context, id);
     if (!channelItem) throw new NotFoundError("Channel not found");
+}
+
+/**
+ * A cursor pointing to a position in a channel's posts for use in pagination.
+ * Needs to contain the `postId` on the off chance that two posts have the same
+ * created time.
+ */
+export type ChannelPostsCursor = {
+    readonly createdTime: Date;
+    readonly postId: PostId;
+};
+
+/**
+ * Get the latest posts in a channel in reverse chronological order. The newest
+ * post will be the first in the array.
+ */
+export async function getChannelPosts(
+    context: RequestContext,
+    {
+        channelId,
+        limit,
+        beforeCursor,
+    }: {
+        channelId: ChannelId;
+        limit: number;
+        beforeCursor?: ChannelPostsCursor;
+    },
+): Promise<{
+    hasMorePosts: boolean;
+    posts: ReadonlyArray<PostModel>;
+}> {
+    await authorizeChannelAccess(context, channelId);
+
+    const queriedPosts = await parallelMapAsyncIterableToArray(
+        ChannelPostsIndex.query(context, {
+            partitionKey: {channelId},
+            endSortKey: beforeCursor ? beforeCursor : undefined,
+            isEndSortKeyExclusive: true,
+            // Get one more post above the limit to determine if there are more posts. We
+            // will throw the extra post away from the result set.
+            limit: limit + 1,
+            descending: true,
+        }),
+        async (item, index) => {
+            if (index >= limit) return null;
+
+            const postItem = await ForumTable.getItem(context, {
+                partitionType: "Post",
+                sortRangeType: "Attributes",
+                postId: item.postId,
+            });
+
+            // A post in the index may have been deleted.
+            if (!postItem) return null;
+
+            return createPostModelFromItem(context, postItem);
+        },
+    );
+
+    const hasMorePosts = queriedPosts.length > limit;
+    const posts = queriedPosts.slice(0, limit).filter(isNonNullable);
+
+    return {
+        hasMorePosts,
+        posts,
+    };
 }
 
 /**

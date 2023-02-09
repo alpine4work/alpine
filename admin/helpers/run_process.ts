@@ -2,7 +2,7 @@ import {spawn} from "child_process";
 import path from "path";
 import {workspacePath} from "~/admin/helpers/workspace_path";
 import {UnknownError} from "~/shared/error/error";
-import {isNotNullishOrFalse} from "~/shared/helpers/control/is_not_nullish_or_false";
+import {isNonNullableOrFalse} from "~/shared/helpers/control/is_non_nullable_or_false";
 import {noop} from "~/shared/helpers/control/noop";
 import {quote} from "~/shared/helpers/string/quote";
 
@@ -50,7 +50,7 @@ export async function runProcess(
         // @ts-expect-error: I suspect this is a TypeScript bug?
         args.flat(Infinity);
 
-    const subprocess = spawn(command, flattenedArgs.filter(isNotNullishOrFalse), {
+    const subprocess = spawn(command, flattenedArgs.filter(isNonNullableOrFalse), {
         cwd,
         env: {...getProcessEnvToPropagate(), ...env},
         stdio: ["ignore", "pipe", "pipe"],

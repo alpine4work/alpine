@@ -713,7 +713,33 @@ export const dynamoGeneratedSchemaDescription: {
                     }
                 }
             },
-            "indexes": []
+            "indexes": [
+                {
+                    "overloadByName": {
+                        "ChannelPosts": {
+                            "itemTypes": [
+                                {
+                                    "partitionType": "Post",
+                                    "sortRangeType": "Attributes"
+                                }
+                            ],
+                            "partitionKeyAttributeByKey": {
+                                "channelId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "sortKeyAttributeByKey": {
+                                "createdTime": {
+                                    "type": "Date"
+                                },
+                                "postId": {
+                                    "type": "Id"
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
         },
         "SimpleChat": {
             "name": "SimpleChat",

@@ -420,30 +420,50 @@ export class DynamoClient {
                 name: string;
                 startValue?: SchemaSerializedValue;
                 endValue?: SchemaSerializedValue;
+                isStartExclusive?: boolean;
+                isEndExclusive?: boolean;
             };
             consistency?: DynamoReadConsistency;
             limit?: number;
             descending?: boolean;
         },
     ): AsyncIterableIterator<SchemaSerializedObjectValue> {
-        const keyConditionExpression = !sortKey
-            ? `${partitionKey.name} = :pkv`
-            : sortKey.startValue !== undefined && sortKey.endValue !== undefined
-            ? `${partitionKey.name} = :pkv and ${sortKey.name} between :skv1 and :skv2`
-            : sortKey.startValue !== undefined
-            ? `${partitionKey.name} = :pkv and ${sortKey.name} >= :skv1`
-            : sortKey.endValue !== undefined
-            ? `${partitionKey.name} = :pkv and ${sortKey.name} <= :skv2`
-            : `${partitionKey.name} = :pkv`;
+        const keyConditionExpressionEntries = [`${partitionKey.name} = :pkv`];
+
+        if (sortKey?.startValue !== undefined && sortKey.endValue !== undefined) {
+            keyConditionExpressionEntries.push(`${sortKey.name} between :skv1 and :skv2`);
+
+            // DynamoDB throws an error when you have two conditions on the same attribute
+            // but that means you have to use `between` for when both start and end is set?
+            // This feels like a silly limitation in DynamoDB.
+            if (sortKey.isStartExclusive || sortKey.isEndExclusive)
+                throw new InternalError(
+                    "Dynamo doesn't support exclusive sort keys in query when you have both a start and end sort key",
+                );
+        } else {
+            if (sortKey?.startValue !== undefined) {
+                if (sortKey.isStartExclusive) {
+                    keyConditionExpressionEntries.push(`${sortKey.name} > :skv1`);
+                } else {
+                    keyConditionExpressionEntries.push(`${sortKey.name} >= :skv1`);
+                }
+            }
+
+            if (sortKey?.endValue !== undefined) {
+                if (sortKey.isEndExclusive) {
+                    keyConditionExpressionEntries.push(`${sortKey.name} < :skv2`);
+                } else {
+                    keyConditionExpressionEntries.push(`${sortKey.name} <= :skv2`);
+                }
+            }
+        }
+
+        const keyConditionExpression = keyConditionExpressionEntries.join(" and ");
 
         const expressionAttributeValues = intoDynamoAttributeValueObject({
             ":pkv": partitionKey.value,
-            ...(sortKey
-                ? {
-                      ":skv1": sortKey.startValue,
-                      ":skv2": sortKey.endValue,
-                  }
-                : {}),
+            ":skv1": sortKey?.startValue,
+            ":skv2": sortKey?.endValue,
         });
 
         let totalScannedCount = 0;

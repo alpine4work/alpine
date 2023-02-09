@@ -219,10 +219,11 @@ export async function getUndecidedAlphaAccessRequests(context: RequestContext) {
 
     const requests = await arrayFromAsyncIterable(
         filterMapAsyncIterableIterator(
-            AlphaAccessTable.queryEntirePartition(context, {
+            AlphaAccessTable.query(context, {
                 partitionKey: {
                     partitionType: "AlphaAccessRequests",
                 },
+                limit: "All",
             }),
             requestItem => {
                 if (requestItem.decision !== null) return null;
@@ -336,10 +337,11 @@ export async function* getAllApprovedAlphaAccessRequestEmailAddresses(
 ): AsyncIterableIterator<EmailAddress> {
     await authorizeInternalAccess(context);
 
-    for await (const request of AlphaAccessTable.queryEntirePartition(context, {
+    for await (const request of AlphaAccessTable.query(context, {
         partitionKey: {
             partitionType: "AlphaAccessRequests",
         },
+        limit: "All",
     })) {
         if (request.decision?.type === "Approved") {
             yield request.emailAddress;
