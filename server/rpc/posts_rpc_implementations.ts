@@ -3,7 +3,7 @@ import {
     getPostCommentAuthors,
     getPostCommentsFromEnd,
     getPostCommentsFromStart,
-} from "~/server/dynamo/posts_table";
+} from "~/server/dynamo/forum_table";
 import {implementRpc} from "~/server/rpc/internal/implement_rpc";
 import * as definition from "~/shared/rpc/posts_rpc_definitions";
 

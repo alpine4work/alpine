@@ -337,39 +337,45 @@ export class DynamoTableSchema<
         return partitionKeyEntries.join(dynamoKeySeparator);
     }
 
-    private _serializeKey(key: Types["Key"]): {
+    private _serializeItemKey(key: Types["Key"]): {
         partitionKey: string;
         sortKey: string;
         attributesSchema: DynamoTableSchemaTypes.SortRange.ConfigBase["attributes"];
     } {
-        const partitionConfig = this._config.partitions[key.partitionType];
-        const partitionDescription = this.description.partitionByType[key.partitionType];
+        return this._serializeSeparatedItemKey(key, key as any);
+    }
+
+    private _serializeSeparatedItemKey<PartitionKey extends Types["PartitionKey"]>(
+        partitionKey: PartitionKey,
+        sortKey: Types["SortKeyMap"][PartitionKey["partitionType"]],
+    ) {
+        const partitionConfig = this._config.partitions[partitionKey.partitionType];
+        const partitionDescription = this.description.partitionByType[partitionKey.partitionType];
         assert(partitionConfig && partitionDescription, "Invalid partition");
-        const sortRangeConfig = partitionConfig.sortRanges[key.sortRangeType];
-        const sortRangeDescription = partitionDescription.sortRangeByType[key.sortRangeType];
+        const sortRangeConfig = partitionConfig.sortRanges[sortKey.sortRangeType];
+        const sortRangeDescription = partitionDescription.sortRangeByType[sortKey.sortRangeType];
         assert(sortRangeConfig && sortRangeDescription, "Invalid sort range");
 
-        const partitionKeyEntries = [key.partitionType];
+        const partitionKeyEntries = [partitionKey.partitionType];
         for (const [attributeKey, attributeSchema] of Object.entries(
             partitionConfig.partitionKeyAttributes,
         )) {
-            partitionKeyEntries.push(attributeSchema.serialize(key[attributeKey]));
+            partitionKeyEntries.push(attributeSchema.serialize(partitionKey[attributeKey]));
         }
 
-        const sortKeyEntries = [sortRangeDescription.orderKey, key.sortRangeType];
+        const sortKeyEntries = [sortRangeDescription.orderKey, sortKey.sortRangeType];
         for (const [attributeKey, attributeSchema] of Object.entries(
             sortRangeConfig.sortKeyAttributes,
         )) {
-            sortKeyEntries.push(attributeSchema.serialize(key[attributeKey]));
+            sortKeyEntries.push(attributeSchema.serialize(sortKey[attributeKey]));
         }
 
-        const partitionKey = partitionKeyEntries.join(dynamoKeySeparator);
-
-        const sortKey = sortKeyEntries.join(dynamoKeySeparator);
+        const serializedPartitionKey = partitionKeyEntries.join(dynamoKeySeparator);
+        const serializedSortKey = sortKeyEntries.join(dynamoKeySeparator);
 
         return {
-            partitionKey,
-            sortKey,
+            partitionKey: serializedPartitionKey,
+            sortKey: serializedSortKey,
             attributesSchema: sortRangeConfig.attributes,
         };
     }
@@ -455,7 +461,7 @@ export class DynamoTableSchema<
         } = {},
     ): Promise<MergeObjectIntersection<Types["Item"] & Key> | null> {
         const client = await this._getClient(context, false);
-        const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
+        const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
 
         const serializedItem = await client.getItem(context.tracer.getTracer(), {
             tableName: this._config.name,
@@ -503,7 +509,7 @@ export class DynamoTableSchema<
         },
     ): Promise<MergeObjectIntersection<Key & Pick<Types["Item"] & Key, Attributes>> | null> {
         const client = await this._getClient(context, false);
-        const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
+        const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
 
         const projectionExpressionEntries = [];
         for (const attribute of attributes) {
@@ -827,7 +833,9 @@ export class DynamoTableSchema<
         } = {},
     ): Promise<void> {
         const client = await this._getClient(context, true);
-        const {partitionKey, sortKey, attributesSchema} = this._serializeKey(item as Types["Key"]);
+        const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(
+            item as Types["Key"],
+        );
 
         const serializedItem: {[key: string]: SchemaSerializedValue} = {partitionKey, sortKey};
         attributesSchema.serializeInto(item, serializedItem);
@@ -938,7 +946,7 @@ export class DynamoTableSchema<
         } = {},
     ): Promise<void> {
         const client = await this._getClient(context, true);
-        const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
+        const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
 
         if (condition === undefined) {
             return client.deleteItem(context.tracer.getTracer(), {
@@ -1123,7 +1131,9 @@ export class DynamoTableSchema<
         // updated.
         if (this._writeCompatibilityError !== null) throw this._writeCompatibilityError;
 
-        const {partitionKey, sortKey, attributesSchema} = this._serializeKey(item as Types["Key"]);
+        const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(
+            item as Types["Key"],
+        );
 
         const serializedItem: {[key: string]: SchemaSerializedValue} = {partitionKey, sortKey};
         attributesSchema.serializeInto(item, serializedItem);
@@ -1213,7 +1223,7 @@ export class DynamoTableSchema<
         // updated.
         if (this._writeCompatibilityError !== null) throw this._writeCompatibilityError;
 
-        const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
+        const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
 
         if (condition === undefined) {
             return DynamoClient.transactionDeleteItem({
@@ -1257,7 +1267,7 @@ export class DynamoTableSchema<
         key: Key,
         condition?: DynamoCondition<Types["Item"] & Key>,
     ): DynamoTransactionEntry {
-        const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
+        const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
 
         const itemExistsCondition = DynamoConditionExpression._unsafeRaw(
             "attribute_exists(partitionKey)",
@@ -1292,7 +1302,7 @@ export class DynamoTableSchema<
     public transactionDoesNotExistConditionCheck<Key extends Types["Key"]>(
         key: Key,
     ): DynamoTransactionEntry {
-        const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
+        const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
 
         const conditionExpression = DynamoConditionExpression._unsafeRaw(
             "attribute_not_exists(partitionKey)",
@@ -1339,7 +1349,7 @@ export class DynamoTableSchema<
         attributeValue: (Types["Item"] & Key)[Attribute],
         {updateLockVersion}: {updateLockVersion: number | undefined},
     ): DynamoTransactionEntry {
-        const {partitionKey, sortKey, attributesSchema} = this._serializeKey(key);
+        const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
 
         const propertySchema = attributesSchema.propertySchemaByKey.get(attribute);
         if (!propertySchema)
@@ -1397,17 +1407,19 @@ export class DynamoTableSchema<
      */
     public async *query<
         PartitionKey extends Types["PartitionKey"],
-        StartKey extends Types["Key"] & PartitionKey,
-        EndKey extends Types["Key"] & PartitionKey,
+        StartKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
+        EndKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
     >(
         context: DynamoContext,
         {
+            partitionKey,
             startKey,
             endKey,
             limit,
             descending,
             consistency = context.dynamo.defaultReadConsistency,
         }: {
+            partitionKey: PartitionKey;
             startKey: StartKey;
             endKey: EndKey;
             limit?: number;
@@ -1424,8 +1436,9 @@ export class DynamoTableSchema<
     > {
         const client = await this._getClient(context, false);
         const {partitionKey: startPartitionKey, sortKey: startSortKey} =
-            this._serializeKey(startKey);
-        const {partitionKey: endPartitionKey, sortKey: endSortKey} = this._serializeKey(endKey);
+            this._serializeSeparatedItemKey(partitionKey, startKey);
+        const {partitionKey: endPartitionKey, sortKey: endSortKey} =
+            this._serializeSeparatedItemKey(partitionKey, endKey);
 
         if (startPartitionKey !== endPartitionKey)
             throw new InvalidArgumentError(

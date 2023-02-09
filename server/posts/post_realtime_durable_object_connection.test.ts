@@ -1,5 +1,5 @@
-import {createChannel} from "~/server/dynamo/channels_table";
-import {createPost, createPostComment} from "~/server/dynamo/posts_table";
+import {createChannel} from "~/server/dynamo/forum_table";
+import {createPost, createPostComment} from "~/server/dynamo/forum_table";
 import {createTestContext} from "~/server/dynamo/test/create_test_context";
 import {createTestSession} from "~/server/dynamo/test/create_test_session";
 import {createTestSpace} from "~/server/dynamo/test/create_test_space";

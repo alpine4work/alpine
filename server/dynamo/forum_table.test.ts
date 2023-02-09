@@ -1,15 +1,16 @@
-import {createChannel} from "~/server/dynamo/channels_table";
 import {
+    createChannel,
     createPost,
     createPostComment,
     deletePostComment,
+    getChannel,
     getPost,
     getPostComment,
     getPostCommentAuthors,
     getPostCommentsFromEnd,
     getPostCommentsFromStart,
     updatePostCommentContent,
-} from "~/server/dynamo/posts_table";
+} from "~/server/dynamo/forum_table";
 import {createTestContext} from "~/server/dynamo/test/create_test_context";
 import {createTestSession} from "~/server/dynamo/test/create_test_session";
 import {createTestSpace} from "~/server/dynamo/test/create_test_space";
@@ -48,6 +49,46 @@ const testMessageContent = assertMessageContent(
         messageSchema.node("paragraph", {}, [messageSchema.text("test")]),
     ]),
 );
+
+test("can not create a channel for a different space", async () => {
+    await expect(
+        createChannel(context.request(session1), {
+            spaceId: otherSpace.id,
+            name: "Test",
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+});
+
+test("can create a channel", async () => {
+    await createChannel(context.request(session1), {
+        spaceId: space.id,
+        name: "Test",
+    });
+});
+
+test("can not get a channel that does not exist", async () => {
+    expect(await getChannel(context.request(otherSession), generateId())).toEqual(null);
+});
+
+test("can not get a channel for a different space", async () => {
+    const channel = await createChannel(context.request(session1), {
+        spaceId: space.id,
+        name: "Test",
+    });
+
+    await expect(getChannel(context.request(otherSession), channel.id)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+});
+
+test("can get a channel", async () => {
+    const channel = await createChannel(context.request(session1), {
+        spaceId: space.id,
+        name: "Test",
+    });
+
+    expect((await getChannel(context.request(session1), channel.id))?.name).toEqual("Test");
+});
 
 test("can not create a post for a different space", async () => {
     const channel = await createChannel(context.request(session1), {

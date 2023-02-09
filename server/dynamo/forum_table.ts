@@ -1,9 +1,15 @@
 import {getAccountOrThrow} from "~/server/dynamo/accounts_table";
-import {authorizeChannelAccess, getChannel} from "~/server/dynamo/channels_table";
+import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {RequestContext} from "~/server/dynamo/context/request_context";
+import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
-import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
+import {
+    DynamoTableItemType,
+    DynamoTableSchema,
+    DynamoTableSchemaGetTypes,
+} from "~/server/dynamo/internal/dynamo_table_schema";
 import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry_dynamo_condition_check_errors";
+import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
 import {MessageContent} from "~/shared/content/message_content_schema";
 import {PostContent, PostContentSchema} from "~/shared/content/post_content_schema";
 import {
@@ -21,13 +27,34 @@ import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable";
 import {generateId} from "~/shared/id/id";
 import {AccountId, ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
+import {ChannelModel} from "~/shared/models/channel_model";
 import {MessagePayloadSchema} from "~/shared/models/message_interface";
 import {PostCommentModel, PostModel} from "~/shared/models/post_model";
+import {LabelStringSchema} from "~/shared/schema/label_string_schema";
 import {Schema} from "~/shared/schema/schema";
 
-const PostsTable = DynamoTableSchema.new({
-    name: "Posts",
+const ForumTable = DynamoTableSchema.new({
+    name: "Forum",
     partitions: {
+        Channel: {
+            partitionKeyAttributes: {
+                channelId: DynamoKeyAttributeSchema.id<ChannelId>(),
+            },
+            sortRanges: {
+                Attributes: {
+                    sortKeyAttributes: {},
+                    attributes: Schema.object({
+                        spaceId: Schema.id<SpaceId>(),
+
+                        /** When was this channel created? */
+                        createdTime: Schema.date,
+
+                        /** The name of this channel. */
+                        name: LabelStringSchema,
+                    }),
+                },
+            },
+        },
         Post: {
             partitionKeyAttributes: {
                 postId: DynamoKeyAttributeSchema.id<PostId>(),
@@ -100,8 +127,95 @@ const PostsTable = DynamoTableSchema.new({
     },
 });
 
-type PostAttributesItem = DynamoTableItemType<typeof PostsTable, "Post", "Attributes">;
-type PostCommentItem = DynamoTableItemType<typeof PostsTable, "Post", "Comments">;
+type ChannelAttributesItem = DynamoTableItemType<typeof ForumTable, "Channel", "Attributes">;
+type PostAttributesItem = DynamoTableItemType<typeof ForumTable, "Post", "Attributes">;
+type PostCommentItem = DynamoTableItemType<typeof ForumTable, "Post", "Comments">;
+
+export async function seedTestChannels(context: DynamoContext) {
+    assert(process.env.NODE_ENV !== "production");
+    const {testChannelId, defaultSpaceId} = getDynamoSeedConstants();
+
+    await ForumTable.createItemIfNoneExists(context, {
+        partitionType: "Channel",
+        sortRangeType: "Attributes",
+        channelId: testChannelId,
+        spaceId: defaultSpaceId,
+        createdTime: new Date(),
+        name: "Test",
+    });
+}
+
+/**
+ * Create a new channel.
+ */
+export async function createChannel(
+    context: RequestContext,
+    {spaceId, name}: {spaceId: SpaceId; name: string},
+): Promise<ChannelModel> {
+    await authorizeSpaceAccess(context, spaceId);
+
+    const channelItem: ChannelAttributesItem = {
+        partitionType: "Channel",
+        sortRangeType: "Attributes",
+        channelId: generateId(),
+        spaceId,
+        createdTime: new Date(),
+        name,
+    };
+
+    await ForumTable.createItem(context, channelItem);
+    return createChannelModelFromItem(channelItem);
+}
+
+async function getChannelItem(
+    context: RequestContext,
+    id: ChannelId,
+): Promise<ChannelAttributesItem | null> {
+    const channelItem = await ForumTable.getItem(context, {
+        partitionType: "Channel",
+        sortRangeType: "Attributes",
+        channelId: id,
+    });
+    if (!channelItem) return null;
+
+    await authorizeSpaceAccess(context, channelItem.spaceId);
+    return channelItem;
+}
+
+/**
+ * Gets the channel object with the provided ID. Returns null if the channel
+ * doesn't exist and throws an error if the channel exists but you don't have
+ * access to the channel.
+ */
+export async function getChannel(
+    context: RequestContext,
+    id: ChannelId,
+): Promise<ChannelModel | null> {
+    const channelItem = await getChannelItem(context, id);
+    if (!channelItem) return null;
+    return createChannelModelFromItem(channelItem);
+}
+
+function createChannelModelFromItem(channelItem: ChannelAttributesItem): ChannelModel {
+    return new ChannelModel({
+        id: channelItem.channelId,
+        spaceId: channelItem.spaceId,
+        createdTime: channelItem.createdTime,
+        name: channelItem.name,
+    });
+}
+
+/**
+ * Authorize that the current user has access to a channel. Implicitly also authorizes
+ * that the current user has access to the space the channel is in.
+ */
+export async function authorizeChannelAccess(
+    context: RequestContext,
+    id: ChannelId,
+): Promise<void> {
+    const channelItem = await getChannelItem(context, id);
+    if (!channelItem) throw new NotFoundError("Channel not found");
+}
 
 /**
  * Create a new post by the current account in the provided channel.
@@ -132,7 +246,7 @@ export async function createPost(
         },
     };
 
-    await PostsTable.createItem(context, postItem);
+    await ForumTable.createItem(context, postItem);
 
     return {
         id: postItem.postId,
@@ -145,7 +259,7 @@ export async function createPost(
  * Gets the post with the provided ID.
  */
 export async function getPost(context: RequestContext, id: PostId): Promise<PostModel | null> {
-    const postItem = await PostsTable.getItem(context, {
+    const postItem = await ForumTable.getItem(context, {
         partitionType: "Post",
         sortRangeType: "Attributes",
         postId: id,
@@ -195,7 +309,7 @@ export async function getPostCommentAuthors(
     context: RequestContext,
     {postId, limit}: {postId: PostId; limit: number},
 ): Promise<Array<AccountModel>> {
-    const postItem = await PostsTable.getPartialItem(
+    const postItem = await ForumTable.getPartialItem(
         context,
         {
             partitionType: "Post",
@@ -227,7 +341,7 @@ export async function authorizePostAccess(
     context: RequestContext,
     id: PostId,
 ): Promise<{spaceId: SpaceId}> {
-    const postItem = await PostsTable.getPartialItem(
+    const postItem = await ForumTable.getPartialItem(
         context,
         {
             partitionType: "Post",
@@ -266,7 +380,7 @@ export async function createPostComment(
     return retryDynamoConditionCheckErrors(async () => {
         const [postItem] = await runAllPromiseThunks(
             async () => {
-                const postItem = await PostsTable.getPartialItem(
+                const postItem = await ForumTable.getPartialItem(
                     context,
                     {
                         partitionType: "Post",
@@ -290,7 +404,7 @@ export async function createPostComment(
             async () => {
                 if (typeof parentCommentIndex !== "number") return;
 
-                const parentCommentItem = await PostsTable.getPartialItem(
+                const parentCommentItem = await ForumTable.getPartialItem(
                     context,
                     {
                         partitionType: "Post",
@@ -314,7 +428,7 @@ export async function createPostComment(
         newCommentCountByAuthorId.set(authorId, (newCommentCountByAuthorId.get(authorId) ?? 0) + 1);
 
         await DynamoTableSchema.executeTransaction(context, [
-            PostsTable.transactionCreateItem({
+            ForumTable.transactionCreateItem({
                 partitionType: "Post",
                 sortRangeType: "Comments",
                 postId,
@@ -328,7 +442,7 @@ export async function createPostComment(
                     contentUpdatedTime: null,
                 },
             }),
-            PostsTable.transactionDirectlyUpdateItemAttribute(
+            ForumTable.transactionDirectlyUpdateItemAttribute(
                 {partitionType: "Post", sortRangeType: "Attributes", postId},
                 "commentsSummary",
                 {
@@ -355,7 +469,7 @@ export async function getPostComment(
 ): Promise<PostCommentModel | null> {
     const [{spaceId}, item] = await runAllPromises([
         authorizePostAccess(context, postId),
-        PostsTable.getItem(context, {
+        ForumTable.getItem(context, {
             partitionType: "Post",
             sortRangeType: "Comments",
             postId,
@@ -401,7 +515,7 @@ export function updatePostCommentContent(
     return retryDynamoConditionCheckErrors(async () => {
         const [, item] = await runAllPromises([
             authorizePostAccess(context, postId),
-            PostsTable.getItem(context, {
+            ForumTable.getItem(context, {
                 partitionType: "Post",
                 sortRangeType: "Comments",
                 postId,
@@ -423,7 +537,7 @@ export function updatePostCommentContent(
                 : Date.now(),
         );
 
-        await PostsTable.directlyUpdateItem(context, {
+        await ForumTable.directlyUpdateItem(context, {
             ...item,
             payload: {
                 ...item.payload,
@@ -445,12 +559,12 @@ export function deletePostComment(
 ): Promise<{deletedTime: Date}> {
     return retryDynamoConditionCheckErrors(async () => {
         const [postItem, postCommentItem] = await runAllPromises([
-            PostsTable.getItem(context, {
+            ForumTable.getItem(context, {
                 partitionType: "Post",
                 sortRangeType: "Attributes",
                 postId,
             }),
-            PostsTable.getItem(context, {
+            ForumTable.getItem(context, {
                 partitionType: "Post",
                 sortRangeType: "Comments",
                 postId,
@@ -475,7 +589,7 @@ export function deletePostComment(
                 : Date.now(),
         );
 
-        await PostsTable.directlyUpdateItem(context, {
+        await ForumTable.directlyUpdateItem(context, {
             ...postCommentItem,
             payload: {type: "Deleted", deletedTime},
         });
@@ -503,16 +617,16 @@ export async function getPostAndCommentsFromStart(
 } | null> {
     // Start querying before authorization so our query runs in parallel
     // with authorization.
-    const queryIterable = PostsTable.query(context, {
-        startKey: {
+    const queryIterable = ForumTable.query(context, {
+        partitionKey: {
             partitionType: "Post",
-            sortRangeType: "Attributes",
             postId,
         },
+        startKey: {
+            sortRangeType: "Attributes",
+        },
         endKey: {
-            partitionType: "Post",
             sortRangeType: "Comments",
-            postId,
             commentIndex: Number.MAX_SAFE_INTEGER,
         },
         // Add one to the limit for the post attributes item.
@@ -596,17 +710,17 @@ export async function getPostCommentsFromStart(
 }> {
     // Start querying before authorization so our query runs in parallel
     // with authorization.
-    const queryIterable = PostsTable.query(context, {
-        startKey: {
+    const queryIterable = ForumTable.query(context, {
+        partitionKey: {
             partitionType: "Post",
-            sortRangeType: "Comments",
             postId,
+        },
+        startKey: {
+            sortRangeType: "Comments",
             commentIndex: typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
         },
         endKey: {
-            partitionType: "Post",
             sortRangeType: "Comments",
-            postId,
             commentIndex:
                 typeof beforeCommentIndex === "number"
                     ? beforeCommentIndex - 1
@@ -615,7 +729,7 @@ export async function getPostCommentsFromStart(
         limit,
     });
 
-    const postItem = await PostsTable.getPartialItem(
+    const postItem = await ForumTable.getPartialItem(
         context,
         {
             partitionType: "Post",
@@ -675,18 +789,18 @@ export async function getPostCommentsFromEnd(
     // with authorization.
     const queryIterable =
         typeof beforeCommentIndex !== "number" || beforeCommentIndex > 0
-            ? PostsTable.query(context, {
-                  startKey: {
+            ? ForumTable.query(context, {
+                  partitionKey: {
                       partitionType: "Post",
-                      sortRangeType: "Comments",
                       postId,
+                  },
+                  startKey: {
+                      sortRangeType: "Comments",
                       commentIndex:
                           typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
                   },
                   endKey: {
-                      partitionType: "Post",
                       sortRangeType: "Comments",
-                      postId,
                       commentIndex:
                           typeof beforeCommentIndex === "number"
                               ? beforeCommentIndex - 1
@@ -699,7 +813,7 @@ export async function getPostCommentsFromEnd(
               })
             : (async function* () {})();
 
-    const postItem = await PostsTable.getPartialItem(
+    const postItem = await ForumTable.getPartialItem(
         context,
         {
             partitionType: "Post",

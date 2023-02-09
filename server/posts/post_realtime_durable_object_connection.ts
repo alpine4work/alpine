@@ -5,7 +5,7 @@ import {
     deletePostComment,
     getPostCommentsFromStart,
     updatePostCommentContent,
-} from "~/server/dynamo/posts_table";
+} from "~/server/dynamo/forum_table";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint";
 import {AsyncSequentialQueue} from "~/shared/helpers/async/async_sequential_queue";
 import {assert} from "~/shared/helpers/control/assert";

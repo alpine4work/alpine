@@ -2,7 +2,7 @@ import {Box} from "~/client/design/box";
 import {Spacer} from "~/client/design/spacer";
 import {PostCreator} from "~/client/posts/post_creator";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
-import {getChannel} from "~/server/dynamo/channels_table";
+import {getChannel} from "~/server/dynamo/forum_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
 import {NotFoundError} from "~/shared/error/error";

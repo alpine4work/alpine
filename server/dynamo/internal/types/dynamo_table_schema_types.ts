@@ -88,6 +88,7 @@ export namespace DynamoTableSchemaTypes {
      */
     export type Types<Config extends ConfigBase> = {
         PartitionKey: PartitionKeyType<Config>;
+        SortKeyMap: SortKeyMapType<Config>;
         Key: KeyType<Config>;
         Item: ItemType<Config>;
         QueryKeyMap: QueryKeyMapType<Config>;
@@ -118,6 +119,15 @@ export namespace DynamoTableSchemaTypes {
             } & KeyAttributes.Type<Config["partitions"][Type]["partitionKeyAttributes"]>
         >;
     }[keyof Config["partitions"]];
+
+    /**
+     * A map of partition type to the sort key type union for that partition.
+     */
+    export type SortKeyMapType<Config extends ConfigBase> = {
+        [PartitionType in keyof Config["partitions"] & string]: Partition.SortKeyType<
+            Config["partitions"][PartitionType]
+        >;
+    };
 
     /**
      * The type of key for our type. A key identifies an item in the table.
@@ -249,6 +259,12 @@ export namespace DynamoTableSchemaTypes {
                 readonly [type: string]: SortRange.Description;
             };
         };
+
+        export type SortKeyType<Config extends ConfigBase> = {
+            [Type in keyof Config["sortRanges"] & string]: {
+                readonly sortRangeType: Type;
+            } & SortRange.KeyType<Config["sortRanges"][Type]>;
+        }[keyof Config["sortRanges"] & string];
 
         export type KeyType<Config extends ConfigBase> = KeyAttributes.Type<
             Config["partitionKeyAttributes"]

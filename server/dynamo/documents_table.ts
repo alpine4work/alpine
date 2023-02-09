@@ -337,14 +337,14 @@ async function getInternalDocument(
     let maybeSnapshot: DocumentSnapshotItem | null = null;
 
     for await (const item of DocumentsTable.query(context, {
-        startKey: {
+        partitionKey: {
             partitionType: "Document",
             documentId: id,
+        },
+        startKey: {
             sortRangeType: "Attributes",
         },
         endKey: {
-            partitionType: "Document",
-            documentId: id,
             sortRangeType: "Snapshot",
         },
     })) {
@@ -1340,15 +1340,15 @@ async function updateDocumentSnapshotAfterUpdatingContent(
         // full document we don't read those steps.
         const stepTransactions = await arrayFromAsyncIterable(
             DocumentsTable.query(context, {
-                startKey: {
+                partitionKey: {
                     partitionType: "Document",
                     documentId: id,
+                },
+                startKey: {
                     sortRangeType: "StepTransactionsAfterSnapshot",
                     startVersion: 0,
                 },
                 endKey: {
-                    partitionType: "Document",
-                    documentId: id,
                     sortRangeType: "StepTransactionsAfterSnapshot",
                     startVersion: newVersion - 1,
                 },
@@ -1545,17 +1545,17 @@ async function* getDocumentStepTransactionsBetweenValidatedVersionRange(
         // snapshot range.
         case "StepTransactionsAfterSnapshot": {
             for await (const stepTransaction of DocumentsTable.query(context, {
-                startKey: {
+                partitionKey: {
                     partitionType: "Document",
                     documentId: id,
+                },
+                startKey: {
                     sortRangeType: "StepTransactionsAfterSnapshot",
                     startVersion:
                         stepTransactionContainingStartVersion.startVersion +
                         stepTransactionContainingStartVersion.steps.length,
                 },
                 endKey: {
-                    partitionType: "Document",
-                    documentId: id,
                     sortRangeType: "StepTransactionsAfterSnapshot",
                     startVersion: endVersion - 1,
                 },
@@ -1569,17 +1569,17 @@ async function* getDocumentStepTransactionsBetweenValidatedVersionRange(
         // range and then determine if we also need to query the after snapshot range.
         case "StepTransactionsBeforeSnapshot": {
             const stepTransactionBeforeSnapshotIterator = DocumentsTable.query(context, {
-                startKey: {
+                partitionKey: {
                     partitionType: "Document",
                     documentId: id,
+                },
+                startKey: {
                     sortRangeType: "StepTransactionsBeforeSnapshot",
                     startVersion:
                         stepTransactionContainingStartVersion.startVersion +
                         stepTransactionContainingStartVersion.steps.length,
                 },
                 endKey: {
-                    partitionType: "Document",
-                    documentId: id,
                     sortRangeType: "StepTransactionsBeforeSnapshot",
                     startVersion: endVersion - 1,
                 },
@@ -1605,17 +1605,17 @@ async function* getDocumentStepTransactionsBetweenValidatedVersionRange(
             }
 
             const stepTransactionAfterSnapshotIterator = DocumentsTable.query(context, {
-                startKey: {
+                partitionKey: {
                     partitionType: "Document",
                     documentId: id,
+                },
+                startKey: {
                     sortRangeType: "StepTransactionsAfterSnapshot",
                     startVersion:
                         stepTransactionContainingStartVersion.startVersion +
                         stepTransactionContainingStartVersion.steps.length,
                 },
                 endKey: {
-                    partitionType: "Document",
-                    documentId: id,
                     sortRangeType: "StepTransactionsAfterSnapshot",
                     startVersion: endVersion - 1,
                 },
@@ -1697,15 +1697,15 @@ async function getDocumentStepTransactionContainingValidatedVersion(
             DocumentsTable.query(context, {
                 limit: 1,
                 descending: true,
-                startKey: {
+                partitionKey: {
                     partitionType: "Document",
                     documentId: id,
+                },
+                startKey: {
                     sortRangeType: "StepTransactionsBeforeSnapshot",
                     startVersion: 0,
                 },
                 endKey: {
-                    partitionType: "Document",
-                    documentId: id,
                     sortRangeType: "StepTransactionsBeforeSnapshot",
                     startVersion: version,
                 },
@@ -1745,15 +1745,15 @@ async function getDocumentStepTransactionContainingValidatedVersion(
             DocumentsTable.query(context, {
                 limit: 1,
                 descending: true,
-                startKey: {
+                partitionKey: {
                     partitionType: "Document",
                     documentId: id,
+                },
+                startKey: {
                     sortRangeType: "StepTransactionsAfterSnapshot",
                     startVersion: 0,
                 },
                 endKey: {
-                    partitionType: "Document",
-                    documentId: id,
                     sortRangeType: "StepTransactionsAfterSnapshot",
                     startVersion: version,
                 },

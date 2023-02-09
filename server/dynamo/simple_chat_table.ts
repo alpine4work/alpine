@@ -339,16 +339,16 @@ export async function getSimpleChatMessagesFromStart(
     // Start querying before authorization so our query runs in parallel
     // with authorization.
     const queryIterable = SimpleChatTable.query(context, {
-        startKey: {
+        partitionKey: {
             partitionType: "SimpleChat",
-            sortRangeType: "Messages",
             simpleChatId,
+        },
+        startKey: {
+            sortRangeType: "Messages",
             messageIndex: typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0,
         },
         endKey: {
-            partitionType: "SimpleChat",
             sortRangeType: "Messages",
-            simpleChatId,
             messageIndex:
                 typeof beforeMessageIndex === "number"
                     ? beforeMessageIndex - 1
@@ -397,17 +397,17 @@ export async function getSimpleChatMessagesFromEnd(
     const queryIterable =
         typeof beforeMessageIndex !== "number" || beforeMessageIndex > 0
             ? SimpleChatTable.query(context, {
-                  startKey: {
+                  partitionKey: {
                       partitionType: "SimpleChat",
-                      sortRangeType: "Messages",
                       simpleChatId,
+                  },
+                  startKey: {
+                      sortRangeType: "Messages",
                       messageIndex:
                           typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0,
                   },
                   endKey: {
-                      partitionType: "SimpleChat",
                       sortRangeType: "Messages",
-                      simpleChatId,
                       messageIndex:
                           typeof beforeMessageIndex === "number"
                               ? beforeMessageIndex - 1

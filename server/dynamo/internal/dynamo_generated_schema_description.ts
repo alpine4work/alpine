@@ -313,53 +313,6 @@ export const dynamoGeneratedSchemaDescription: {
                 }
             }
         },
-        "Channels": {
-            "name": "Channels",
-            "partitionByType": {
-                "Channel": {
-                    "partitionKeyAttributeByKey": {
-                        "channelId": {
-                            "type": "Id"
-                        }
-                    },
-                    "sortRangeByType": {
-                        "Attributes": {
-                            "orderKey": "a0",
-                            "sortKeyAttributeByKey": {},
-                            "attributesSchema": {
-                                "type": "Object",
-                                "propertySchemaByKey": {
-                                    "spaceId": {
-                                        "valueSchema": {
-                                            "type": "Id"
-                                        },
-                                        "optional": false
-                                    },
-                                    "createdTime": {
-                                        "valueSchema": {
-                                            "type": "Date"
-                                        },
-                                        "optional": false
-                                    },
-                                    "name": {
-                                        "valueSchema": {
-                                            "type": "String"
-                                        },
-                                        "optional": false
-                                    },
-                                    "updateLockVersion": {
-                                        "valueSchema": {
-                                            "type": "Integer"
-                                        },
-                                        "optional": true
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "Documents": {
             "name": "Documents",
             "partitionByType": {
@@ -538,9 +491,51 @@ export const dynamoGeneratedSchemaDescription: {
                 }
             }
         },
-        "Posts": {
-            "name": "Posts",
+        "Forum": {
+            "name": "Forum",
             "partitionByType": {
+                "Channel": {
+                    "partitionKeyAttributeByKey": {
+                        "channelId": {
+                            "type": "Id"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "Attributes": {
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {},
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "spaceId": {
+                                        "valueSchema": {
+                                            "type": "Id"
+                                        },
+                                        "optional": false
+                                    },
+                                    "createdTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "name": {
+                                        "valueSchema": {
+                                            "type": "String"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
                 "Post": {
                     "partitionKeyAttributeByKey": {
                         "postId": {

@@ -3,7 +3,7 @@ import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {PaginatedPostList} from "~/client/posts/paginated_post_list";
 import {PostsView} from "~/client/posts/posts_view";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
-import {getPostAndCommentsFromStart} from "~/server/dynamo/posts_table";
+import {getPostAndCommentsFromStart} from "~/server/dynamo/forum_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
 import {NotFoundError} from "~/shared/error/error";
