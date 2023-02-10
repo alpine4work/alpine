@@ -16,7 +16,6 @@ import {Box} from "~/client/design/box";
 import {useOutsidePress} from "~/client/design/helpers/use_outside_press";
 import {OverlayRef} from "~/client/design/overlay";
 import {OverlayAnimated} from "~/client/design/overlay_animated";
-import {uninterruptedThoughtLimitMs} from "~/client/design/timing_constants";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {assert} from "~/shared/helpers/control/assert";
@@ -398,7 +397,7 @@ function ContentEditorPointerLinkFloater({
         if (hasPointerLeftMark && !isHovered) {
             const timeoutId = setTimeout(() => {
                 onClose();
-            }, uninterruptedThoughtLimitMs);
+            }, 1000);
             return () => {
                 clearTimeout(timeoutId);
             };

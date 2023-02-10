@@ -5,7 +5,6 @@ import {
     unstable_cancelCallback,
     unstable_scheduleCallback,
 } from "scheduler";
-import {uninterruptedThoughtLimitMs} from "~/client/design/timing_constants";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error";
@@ -79,7 +78,7 @@ export function createClientTracer() {
                 // Even if there is no ongoing work, wait a bit before flushing events. That
                 // way if many events happen in quick succession they will all be added to
                 // this flush.
-                delay: uninterruptedThoughtLimitMs,
+                delay: 1000,
             },
         );
     }

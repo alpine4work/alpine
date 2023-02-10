@@ -34,7 +34,6 @@ import {Box} from "~/client/design/box";
 import {useOutsidePress} from "~/client/design/helpers/use_outside_press";
 import {Overlay, OverlayRef} from "~/client/design/overlay";
 import {OverlayAnimated} from "~/client/design/overlay_animated";
-import {uninterruptedThoughtLimitMs} from "~/client/design/timing_constants";
 import {Tooltip, TooltipRef, TooltipState} from "~/client/design/tooltip";
 import {isMac} from "~/client/helpers/is_mac";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant";
@@ -203,7 +202,7 @@ export function ContentEditorPointerToolbar({
         if (showState.isShowing && showState.animation === "FadingOut") {
             const timeoutId = setTimeout(() => {
                 setShowState({isShowing: false});
-            }, uninterruptedThoughtLimitMs);
+            }, 1000);
 
             return () => {
                 clearTimeout(timeoutId);

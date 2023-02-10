@@ -2,7 +2,7 @@ import {DOMSerializer, Mark} from "prosemirror-model";
 import {MarkViewConstructor} from "prosemirror-view";
 import {To} from "react-router-dom";
 import {handleContentLinkClick} from "~/client/content/internal/handle_content_link_click";
-import {presentExtraContextAfterDelayMs} from "~/client/design/timing_constants";
+import {tooltipDelayMs} from "~/client/design/tooltip";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event";
 import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
@@ -116,7 +116,7 @@ export function createContentEditorMarkNodeViewConstructor({
                         to: $pos.posAtIndex(index + 1),
                     },
                 });
-            }, presentExtraContextAfterDelayMs);
+            }, tooltipDelayMs);
         });
 
         dom.addEventListener("pointerleave", () => {

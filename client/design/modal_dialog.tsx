@@ -6,7 +6,7 @@ import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
 import {IconButton} from "~/client/design/icon_button";
 import {OverlayScopeContextProvider, useOverlayRootPortalElement} from "~/client/design/overlay";
-import {uninterruptedThoughtLimitMs} from "~/client/design/timing_constants";
+import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -179,7 +179,7 @@ export function ModalDialog({
                                                     if (
                                                         new Date().getTime() -
                                                             promiseStartTime.getTime() >
-                                                        uninterruptedThoughtLimitMs
+                                                        delayLoadingIndicatorLimitMs
                                                     ) {
                                                         onCloseWithAnimation();
                                                     } else {

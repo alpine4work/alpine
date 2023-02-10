@@ -7,7 +7,7 @@ import {ContentEditorState} from "~/client/content/content_editor_state";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
 import {Overlay, OverlayRef} from "~/client/design/overlay";
-import {uninterruptedThoughtLimitMs} from "~/client/design/timing_constants";
+import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {defaultTooltipOffset} from "~/client/design/tooltip";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {MessageEditing} from "~/client/messaging/message_editing";
@@ -184,7 +184,7 @@ function MessageContentEditorInstructionsOverlay<RoomKey extends string>({
 
         const timeout = createTimeout(() => {
             setShouldShowSavingSpinner(true);
-        }, uninterruptedThoughtLimitMs);
+        }, delayLoadingIndicatorLimitMs);
         return () => {
             timeout.clear();
         };

@@ -18,11 +18,7 @@ import {
 import {Box} from "~/client/design/box";
 import {setElementAttributesWithCleanup} from "~/client/design/helpers/set_element_attributes_with_cleanup";
 import {Overlay, OverlayPlacement, OverlayRef} from "~/client/design/overlay";
-import {
-    perceivedAsInstantLimitMs,
-    presentExtraContextAfterDelayMs,
-    uninterruptedThoughtLimitMs,
-} from "~/client/design/timing_constants";
+import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted";
@@ -39,6 +35,17 @@ import {
     overlayFadeInAnimationDurationMs,
     overlayFadeOutAnimationDurationMs,
 } from "~/shared/styles/styles";
+
+/**
+ * Time it takes before we present a tooltip to the user if the user has
+ * not taken another action.
+ *
+ * If the user hovers over a button for this amount of time, we present a
+ * tooltip. If the user's mouse is quickly moving around then we don't present
+ * a tooltip because the user is taking quick action and doesn't appear to need
+ * extra context.
+ */
+export const tooltipDelayMs = 500;
 
 export type TooltipState =
     // Tooltip is definitely not visible.
@@ -866,7 +873,7 @@ export function TooltipCoordinationContextProvider({children}: {children: ReactN
                         hoveredTooltipsStatus: "WarmedUp",
                     };
                 });
-            }, presentExtraContextAfterDelayMs);
+            }, tooltipDelayMs);
 
             return () => {
                 clearTimeout(timeoutId);
@@ -887,7 +894,7 @@ export function TooltipCoordinationContextProvider({children}: {children: ReactN
                         hoveredTooltipsStatus: "CooledDown",
                     };
                 });
-            }, uninterruptedThoughtLimitMs);
+            }, 1000);
 
             return () => {
                 clearTimeout(timeoutId);

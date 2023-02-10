@@ -6,7 +6,7 @@ import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
 import {PrettyNumber} from "~/client/design/pretty_number";
-import {uninterruptedThoughtLimitMs} from "~/client/design/timing_constants";
+import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {Tooltip, TooltipProps} from "~/client/design/tooltip";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {spacing} from "~/shared/design/spacing";
@@ -120,7 +120,7 @@ function AsyncTooltip({
     >({isLoaded: false});
 
     useEffect(() => {
-        // Don't open the tooltip for 1s while we load content. After that open the
+        // Don't open the tooltip for a bit while we load content. After that open the
         // tooltip with a loading spinner.
         if (tooltipState.isHoveredOrFocused && tooltipState.isTooltipOpenStalled) {
             const timeoutId = setTimeout(() => {
@@ -128,7 +128,7 @@ function AsyncTooltip({
                     isHoveredOrFocused: true,
                     isTooltipOpenStalled: false,
                 });
-            }, uninterruptedThoughtLimitMs);
+            }, delayLoadingIndicatorLimitMs);
 
             return () => {
                 clearTimeout(timeoutId);

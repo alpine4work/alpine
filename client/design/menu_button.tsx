@@ -22,7 +22,7 @@ import {
 import {setElementAttributesWithCleanup} from "~/client/design/helpers/set_element_attributes_with_cleanup";
 import {useOutsidePress} from "~/client/design/helpers/use_outside_press";
 import {Overlay, OverlayPlacement} from "~/client/design/overlay";
-import {uninterruptedThoughtLimitMs} from "~/client/design/timing_constants";
+import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {useShowToast} from "~/client/design/toast";
 import {
     Tooltip,
@@ -455,7 +455,7 @@ const Menu = forwardRef(function Menu(
 
         const timeout = createTimeout(() => {
             setSearchText("");
-        }, uninterruptedThoughtLimitMs);
+        }, 1000);
 
         return () => {
             timeout.clear();
@@ -764,7 +764,7 @@ function MenuButtonInner({
 
         const timeout = createTimeout(() => {
             setPendingState({isPending: true, shouldShowPendingSpinner: true});
-        }, uninterruptedThoughtLimitMs);
+        }, delayLoadingIndicatorLimitMs);
 
         return () => {
             timeout.clear();

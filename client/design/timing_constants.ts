@@ -11,25 +11,15 @@
 export const perceivedAsInstantLimitMs = 100;
 
 /**
- * About the limit for the user's flow of thought to stay uninterrupted, even
- * though the user will notice the delay. Normally, no special feedback is
- * necessary during delays of more than 0.1 but less than 1.0 second, but the
- * user does lose the feeling of operating directly on the data.
+ * Delay showing the user a loading indicator for this long. If the action
+ * completes in less time then we don't flash a loading indicator and the
+ * action feels instant.
  *
- * From [RAIL][1] which in turn comes from [UX research][2].
+ * [UX research][1] (and [RAIL][2]) recommend a limit of 1000ms but we find in
+ * practice this feels too sluggish. Especially since we're building a product
+ * that feels more like an app then a document based website.
  *
- * [1]: https://web.dev/rail/
- * [2]: https://www.nngroup.com/articles/response-times-3-important-limits/
+ * [1]: https://www.nngroup.com/articles/response-times-3-important-limits/
+ * [2]: https://web.dev/rail/
  */
-export const uninterruptedThoughtLimitMs = 1000;
-
-/**
- * Time it takes before we present extra context to the user if the user has
- * not taken another action.
- *
- * This delay is used for tooltips among other things. If the user hovers over
- * a button for this amount of time, we present a tooltip. If the user's mouse
- * is quickly moving around then we don't present a tooltip because the user is
- * taking quick action and doesn't appear to need extra context.
- */
-export const presentExtraContextAfterDelayMs = 500;
+export const delayLoadingIndicatorLimitMs = 500;

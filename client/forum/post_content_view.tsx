@@ -9,7 +9,7 @@ import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
 import {PrettyAbsoluteDate} from "~/client/design/pretty_absolute_date";
 import {PrettyNumber} from "~/client/design/pretty_number";
-import {uninterruptedThoughtLimitMs} from "~/client/design/timing_constants";
+import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {MessageList} from "~/client/messaging/message_list";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context";
@@ -152,8 +152,8 @@ function PostCommentsToggleButton({
                     const postCommentsPromise = onLoadInitialPostComments();
 
                     // Open post comments once we get our data back. But if the data is taking a
-                    // long time to load, open post comments after 1000ms.
-                    await Promise.race([postCommentsPromise, wait(uninterruptedThoughtLimitMs)]);
+                    // long time to load, open post comments after a delay.
+                    await Promise.race([postCommentsPromise, wait(delayLoadingIndicatorLimitMs)]);
                     onTogglePostComments();
 
                     await postCommentsPromise;

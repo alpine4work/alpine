@@ -4,7 +4,7 @@ import {IconContext, SpinnerGap} from "phosphor-react";
 import {ReactNode, Ref, forwardRef, useEffect, useRef, useState} from "react";
 import {AriaButtonProps, mergeProps, useButton, useHover} from "react-aria";
 import {FocusRing} from "~/client/design/focus_ring";
-import {uninterruptedThoughtLimitMs} from "~/client/design/timing_constants";
+import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {useShowToast} from "~/client/design/toast";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
 import {Spacing, spacing} from "~/shared/design/spacing";
@@ -175,7 +175,7 @@ function Button(
 
         const timeout = createTimeout(() => {
             setShouldShowPendingSpinner(true);
-        }, uninterruptedThoughtLimitMs);
+        }, delayLoadingIndicatorLimitMs);
         return () => {
             timeout.clear();
         };
