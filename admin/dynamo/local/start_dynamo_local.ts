@@ -1,6 +1,5 @@
 import {spawn} from "child_process";
 import fs from "fs-extra";
-import isPortReachable from "is-port-reachable";
 import path from "path";
 import {runfilesPath} from "~/admin/helpers/runfiles_path";
 import {waitForProcessExit} from "~/admin/helpers/wait_for_process_exit";
@@ -65,13 +64,23 @@ export async function startDynamoLocal({
     while (true) {
         attemptNumber++;
 
-        if (await isPortReachable(port, {host: "localhost"})) break;
+        let error;
+        try {
+            // eslint-disable-next-line no-global-fetch
+            const response = await fetch(`http://localhost:${port}`);
+            await response.text();
+            break;
+        } catch (_error) {
+            // Ignore errors...
+            error = _error;
+        }
 
         // If DynamoDB hasn't started, try checking again with exponential backoff.
         const delayMs = 10 * 2 ** (attemptNumber - 1);
 
         if (delayMs > 1000 * 20)
-            throw new DeadlineExceededError(
+            throw DeadlineExceededError.from(
+                error,
                 `Timed out waiting for local DynamoDB to start listening on port ${port}`,
             );
 

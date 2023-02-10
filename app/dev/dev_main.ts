@@ -90,7 +90,9 @@ startDynamoLocal({
     dataPath: dynamoDataDirectoryPath,
     port: dynamoLocalPort,
 }).then(
-    () => dynamoLocalPromiseResolver.resolve(),
+    () => {
+        dynamoLocalPromiseResolver.resolve();
+    },
     error => {
         // eslint-disable-next-line no-console
         console.error(error);
@@ -145,20 +147,34 @@ process.stdin.on("data", chunk => {
  *                               HTTP Server                                  *
 \* ========================================================================== */
 
+function shouldWait(tryAgain: () => void) {
+    if (!devServerPromiseResolver.isSettled()) {
+        devServerPromiseResolver.promise.finally(tryAgain);
+        return true;
+    }
+    if (!dynamoLocalPromiseResolver.isSettled()) {
+        dynamoLocalPromiseResolver.promise.finally(tryAgain);
+        return true;
+    }
+    if (!bazelBuildPromiseResolver.isSettled()) {
+        bazelBuildPromiseResolver.promise.finally(tryAgain);
+        return true;
+    }
+    if (!miniflareReloadPromiseResolver.isSettled()) {
+        miniflareReloadPromiseResolver.promise.finally(tryAgain);
+        return true;
+    }
+
+    return false;
+}
+
 const server = http.createServer((req, res) => {
     run();
 
     function run() {
-        // If we have some promises, then wait for them to resolve recursively before
+        // If we have some promises, then wait for them to resolve before
         // our request can run.
-        if (!bazelBuildPromiseResolver.isSettled()) {
-            bazelBuildPromiseResolver.promise.finally(run);
-            return;
-        }
-        if (!miniflareReloadPromiseResolver.isSettled()) {
-            miniflareReloadPromiseResolver.promise.finally(run);
-            return;
-        }
+        if (shouldWait(run)) return;
 
         // Immediately fail the request if the build has a failure.
         if (hasBazelBuildFailed) {
@@ -250,24 +266,9 @@ server.on("upgrade", (req, socket, head) => {
     run();
 
     function run() {
-        // If we have some promises, then wait for them to resolve recursively before
+        // If we have some promises, then wait for them to resolve before
         // our request can run.
-        if (!devServerPromiseResolver.isSettled()) {
-            devServerPromiseResolver.promise.finally(run);
-            return;
-        }
-        if (!dynamoLocalPromiseResolver.isSettled()) {
-            dynamoLocalPromiseResolver.promise.finally(run);
-            return;
-        }
-        if (!bazelBuildPromiseResolver.isSettled()) {
-            bazelBuildPromiseResolver.promise.finally(run);
-            return;
-        }
-        if (!miniflareReloadPromiseResolver.isSettled()) {
-            miniflareReloadPromiseResolver.promise.finally(run);
-            return;
-        }
+        if (shouldWait(run)) return;
 
         // `socket` is guaranteed to be an instance of `net.Socket`:
         // https://nodejs.org/api/http.html#event-upgrade_1
