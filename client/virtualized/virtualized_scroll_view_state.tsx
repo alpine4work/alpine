@@ -31,16 +31,73 @@ export const initialVirtualizedScrollViewRenderFillScreenCount = 2;
  * height we should allocate.
  */
 export class VirtualizedScrollViewState {
+    /**
+     * The height of the virtualized scroll view. Not the height of the content
+     * within the view. Just the height of what the user can see. Used for
+     * computing our rendered range.
+     */
     private readonly _viewHeight: number;
+
+    /**
+     * The height of a buffered item. Every item we haven't measured has the same
+     * buffered height regardless of the item's type so we don't need to inspect
+     * future items.
+     */
     private readonly _bufferedItemHeight: number;
+
+    /**
+     * A list of measured items in the scroll view with buffers in between for
+     * unmeasured areas.
+     *
+     * This is the core data structure of our virtualized scroll view state!
+     *
+     * Logically, this is a list but it is implemented as a binary tree keyed by
+     * `OrderKey`. That means we can insert anywhere in the list in O(log(n)) time.
+     * Importantly it also means we can cache computations with subtrees.
+     *
+     * To compute the total content height we recursively traverse the tree and sum
+     * up the height. We cache the height of each subtree in
+     * `contentHeightSubtreeCache`. If the height of an item changes, because of
+     * the binary tree's structural sharing, we keep the cached heights for our
+     * subtrees and only need to sum the heights for the new copied parents (which
+     * should take O(log(n)) time, the height of the tree).
+     *
+     * We do the same subtree caching for item counts (used to figure out what the
+     * index of an item is) with `itemCountSubtreeCache`.
+     */
     private readonly _entryByOrderKey: Tree<OrderKey, VirtualizedScrollViewStateEntry>;
+
+    /**
+     * A map of item keys to the corresponding order key in `entryByOrderKey`. You
+     * can use this to look up the index or offset of an item in the virtualized
+     * scroll view.
+     */
     private readonly _orderKeyByItemKey: Tree<Key, OrderKey>;
+
+    /**
+     * The range of items rendered by our virtualized scroll view. Null if no items
+     * are currently rendered.
+     *
+     * This is updated by the `updateRenderedRange()` function which tells our
+     * state object the new scroll offset. We may update the rendered range in
+     * `render()` if we discover the rendered range is out-of-bounds, for instance,
+     * but only bounds correction happens in `render()`. `render()` does not know
+     * about the element's scroll offset.
+     */
     private readonly _renderedRange: VirtualizedScrollViewStateRenderedRange | null;
-    private readonly _itemCountCache: WeakMap<
+
+    /**
+     * Cache of the item count in `entryByOrderKey` subtrees.
+     */
+    private readonly _itemCountSubtreeCache: WeakMap<
         TreeNode<OrderKey, VirtualizedScrollViewStateEntry>,
         number
     >;
-    private readonly _contentHeightCache: WeakMap<
+
+    /**
+     * Cache of the content height in `entryByOrderKey` subtrees.
+     */
+    private readonly _contentHeightSubtreeCache: WeakMap<
         TreeNode<OrderKey, VirtualizedScrollViewStateEntry>,
         number
     >;
@@ -51,16 +108,19 @@ export class VirtualizedScrollViewState {
         entryByOrderKey,
         orderKeyByItemKey,
         renderedRange,
-        itemCountCache,
-        contentHeightCache,
+        itemCountSubtreeCache,
+        contentHeightSubtreeCache,
     }: {
         viewHeight: number;
         bufferedItemHeight: number;
         entryByOrderKey: Tree<OrderKey, VirtualizedScrollViewStateEntry>;
         orderKeyByItemKey: Tree<Key, OrderKey>;
         renderedRange: VirtualizedScrollViewStateRenderedRange | null;
-        itemCountCache: WeakMap<TreeNode<OrderKey, VirtualizedScrollViewStateEntry>, number>;
-        contentHeightCache: WeakMap<TreeNode<OrderKey, VirtualizedScrollViewStateEntry>, number>;
+        itemCountSubtreeCache: WeakMap<TreeNode<OrderKey, VirtualizedScrollViewStateEntry>, number>;
+        contentHeightSubtreeCache: WeakMap<
+            TreeNode<OrderKey, VirtualizedScrollViewStateEntry>,
+            number
+        >;
     }) {
         // Run some expensive validations in development environments.
         if (process.env.NODE_ENV !== "production") {
@@ -75,6 +135,11 @@ export class VirtualizedScrollViewState {
                 assert(
                     iterator.node.value.type !== "Buffer" || iterator.node.value.itemCount > 0,
                     "Buffer may not have zero items",
+                );
+                assert(
+                    iterator.node.value.type !== "Item" ||
+                        orderKeyByItemKey.get(iterator.node.value.key) === iterator.node.key,
+                    "Every item entry must have the correct order key set in `orderKeyByItemKey`",
                 );
 
                 if (
@@ -112,8 +177,8 @@ export class VirtualizedScrollViewState {
         this._entryByOrderKey = entryByOrderKey;
         this._orderKeyByItemKey = orderKeyByItemKey;
         this._renderedRange = renderedRange;
-        this._itemCountCache = itemCountCache;
-        this._contentHeightCache = contentHeightCache;
+        this._itemCountSubtreeCache = itemCountSubtreeCache;
+        this._contentHeightSubtreeCache = contentHeightSubtreeCache;
     }
 
     /**
@@ -188,8 +253,8 @@ export class VirtualizedScrollViewState {
                           endOrderKey: orderKeys[renderedItems.length - 1]!,
                       }
                     : null,
-            itemCountCache: new WeakMap(),
-            contentHeightCache: new WeakMap(),
+            itemCountSubtreeCache: new WeakMap(),
+            contentHeightSubtreeCache: new WeakMap(),
         });
     }
 
@@ -269,8 +334,8 @@ export class VirtualizedScrollViewState {
                           endOrderKey: orderKeys[renderedItems.length]!,
                       }
                     : null,
-            itemCountCache: new WeakMap(),
-            contentHeightCache: new WeakMap(),
+            itemCountSubtreeCache: new WeakMap(),
+            contentHeightSubtreeCache: new WeakMap(),
         });
     }
 
@@ -291,8 +356,8 @@ export class VirtualizedScrollViewState {
             entryByOrderKey: this._entryByOrderKey,
             orderKeyByItemKey: this._orderKeyByItemKey,
             renderedRange: this._renderedRange,
-            itemCountCache: this._itemCountCache,
-            contentHeightCache: this._contentHeightCache,
+            itemCountSubtreeCache: this._itemCountSubtreeCache,
+            contentHeightSubtreeCache: this._contentHeightSubtreeCache,
         });
     }
 
@@ -313,10 +378,10 @@ export class VirtualizedScrollViewState {
             entryByOrderKey: this._entryByOrderKey,
             orderKeyByItemKey: this._orderKeyByItemKey,
             renderedRange: this._renderedRange,
-            itemCountCache: this._itemCountCache,
+            itemCountSubtreeCache: this._itemCountSubtreeCache,
             // We need to clear the content height cache when the buffered item height
             // changes since it affects the height of buffer entries.
-            contentHeightCache: new WeakMap(),
+            contentHeightSubtreeCache: new WeakMap(),
         });
     }
 
@@ -343,8 +408,8 @@ export class VirtualizedScrollViewState {
             entryByOrderKey: entryIterator.update({type: "Item", key: itemKey, height: itemHeight}),
             orderKeyByItemKey: this._orderKeyByItemKey,
             renderedRange: this._renderedRange,
-            itemCountCache: this._itemCountCache,
-            contentHeightCache: this._contentHeightCache,
+            itemCountSubtreeCache: this._itemCountSubtreeCache,
+            contentHeightSubtreeCache: this._contentHeightSubtreeCache,
         });
     }
 
@@ -371,14 +436,14 @@ export class VirtualizedScrollViewState {
         // Don't spend memory caching nodes with no subtrees.
         if (node.left === null && node.right === null) return valueItemCount;
 
-        let itemCount = this._itemCountCache.get(node);
+        let itemCount = this._itemCountSubtreeCache.get(node);
 
         if (itemCount === undefined) {
             const leftItemCount = this._getSubtreeItemCount(node.left);
             const rightItemCount = this._getSubtreeItemCount(node.right);
 
             itemCount = leftItemCount + valueItemCount + rightItemCount;
-            this._itemCountCache.set(node, itemCount);
+            this._itemCountSubtreeCache.set(node, itemCount);
         }
 
         return itemCount;
@@ -440,14 +505,14 @@ export class VirtualizedScrollViewState {
         // Don't spend memory caching nodes with no subtrees.
         if (node.left === null && node.right === null) return valueContentHeight;
 
-        let contentHeight = this._contentHeightCache.get(node);
+        let contentHeight = this._contentHeightSubtreeCache.get(node);
 
         if (contentHeight === undefined) {
             const leftContentHeight = this._getSubtreeContentHeight(node.left);
             const rightContentHeight = this._getSubtreeContentHeight(node.right);
 
             contentHeight = leftContentHeight + valueContentHeight + rightContentHeight;
-            this._contentHeightCache.set(node, contentHeight);
+            this._contentHeightSubtreeCache.set(node, contentHeight);
         }
 
         return contentHeight;
@@ -915,8 +980,8 @@ export class VirtualizedScrollViewState {
                     startOrderKey: newRenderedRangeStartOrderKey,
                     endOrderKey: newRenderedRangeEndOrderKey,
                 },
-                itemCountCache: state._itemCountCache,
-                contentHeightCache: state._contentHeightCache,
+                itemCountSubtreeCache: state._itemCountSubtreeCache,
+                contentHeightSubtreeCache: state._contentHeightSubtreeCache,
             });
         };
 
@@ -930,8 +995,8 @@ export class VirtualizedScrollViewState {
                 entryByOrderKey: state._entryByOrderKey,
                 orderKeyByItemKey: state._orderKeyByItemKey,
                 renderedRange: null,
-                itemCountCache: state._itemCountCache,
-                contentHeightCache: state._contentHeightCache,
+                itemCountSubtreeCache: state._itemCountSubtreeCache,
+                contentHeightSubtreeCache: state._contentHeightSubtreeCache,
             });
 
             // Perform a binary search for the node which contains the provided offset.
@@ -1619,7 +1684,13 @@ export class VirtualizedScrollViewState {
 
             // If there was previously an item at the order key, remove the
             // `itemKey -> orderKey` association.
-            if (iterator1.value?.type === "Item") {
+            if (
+                iterator1.value?.type === "Item" &&
+                // If this is an item entry and the previous entry has the same key, we already
+                // updated the `orderKeyByItemKey` tree in the above branch. Don't remove the
+                // work we just did.
+                (entry.type !== "Item" || entry.key !== iterator1.value.key)
+            ) {
                 orderKeyByItemKey = orderKeyByItemKey.remove(iterator1.value.key);
             }
         };
@@ -1632,8 +1703,8 @@ export class VirtualizedScrollViewState {
             entryByOrderKey,
             orderKeyByItemKey,
             renderedRange: state._renderedRange,
-            itemCountCache: state._itemCountCache,
-            contentHeightCache: state._contentHeightCache,
+            itemCountSubtreeCache: state._itemCountSubtreeCache,
+            contentHeightSubtreeCache: state._contentHeightSubtreeCache,
         });
     }
 
@@ -1668,8 +1739,8 @@ export class VirtualizedScrollViewState {
             entryByOrderKey,
             orderKeyByItemKey,
             renderedRange: newRenderedRange !== undefined ? newRenderedRange : state._renderedRange,
-            itemCountCache: state._itemCountCache,
-            contentHeightCache: state._contentHeightCache,
+            itemCountSubtreeCache: state._itemCountSubtreeCache,
+            contentHeightSubtreeCache: state._contentHeightSubtreeCache,
         });
     }
 
