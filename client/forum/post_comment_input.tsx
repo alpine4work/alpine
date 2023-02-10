@@ -1,4 +1,4 @@
-import {FocusEvent, Ref, useState} from "react";
+import {Ref, useState} from "react";
 import {useNavigate} from "react-router-dom";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {ContentEditor} from "~/client/content/content_editor";
@@ -17,15 +17,11 @@ import {sprinkles} from "~/shared/styles/styles";
 export function PostCommentInput({
     post,
     actionsRef,
-    onFocus,
-    onBlur,
     postComments,
     onUpdatePostComments,
 }: {
     post: PostModel;
     actionsRef: Ref<PostRealtimeActions>;
-    onFocus: (event: FocusEvent<HTMLDivElement>) => void;
-    onBlur: (event: FocusEvent<HTMLDivElement>) => void;
     postComments: MessageList<PostCommentModel>;
     onUpdatePostComments: (
         update: (postComments: MessageList<PostCommentModel>) => MessageList<PostCommentModel>,
@@ -91,8 +87,6 @@ export function PostCommentInput({
                                 setIsSaving(false);
                             });
                         }}
-                        onFocus={onFocus}
-                        onBlur={onBlur}
                     />
                 </Box>
             </Box>

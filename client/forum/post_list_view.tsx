@@ -230,27 +230,6 @@ export function PostListView({
         },
     );
 
-    const [focusedPostCommentInputPostId, setFocusedPostCommentInputPostId] =
-        useState<PostId | null>(null);
-
-    const onPostCommentInputFocusChange = useEvent((postId: PostId, focused: boolean) => {
-        setFocusedPostCommentInputPostId(focusedPostCommentInputPostId => {
-            if (focused) return postId;
-            if (!focused && focusedPostCommentInputPostId === postId) return null;
-            return focusedPostCommentInputPostId;
-        });
-    });
-
-    // Handle case where component unmounts without firing `blur` event. Whenever
-    // we see a blur event on the document that should clear our focus state.
-    useEffect(() => {
-        const handleBlur = () => setFocusedPostCommentInputPostId(null);
-        document.addEventListener("blur", handleBlur);
-        return () => {
-            document.removeEventListener("blur", handleBlur);
-        };
-    }, []);
-
     const actionsByPostIdRef = useRef(new Map<PostId, PostRealtimeActions>());
 
     const messageEditing = useMessageEditing<PostId>({
@@ -480,8 +459,6 @@ export function PostListView({
                     const inputNode = (
                         <PostCommentInput
                             post={item.post}
-                            onFocus={() => onPostCommentInputFocusChange(item.post.id, true)}
-                            onBlur={() => onPostCommentInputFocusChange(item.post.id, false)}
                             actionsRef={actions => {
                                 if (actions) {
                                     actionsByPostIdRef.current.set(item.post.id, actions);
@@ -728,14 +705,7 @@ export function PostListView({
                     throw exhaustive(item);
             }
         },
-        [
-            list,
-            onTogglePostComments,
-            loadInitialPostComments,
-            messageEditing,
-            onUpdatePostComments,
-            onPostCommentInputFocusChange,
-        ],
+        [list, onTogglePostComments, loadInitialPostComments, messageEditing, onUpdatePostComments],
     );
 
     return (
@@ -745,13 +715,6 @@ export function PostListView({
             itemCount={list.getItemCount()}
             renderItem={renderItem}
             onRenderedRangeChange={tryLoadingMorePostComments}
-            // Pin to bottom when a comment element is focused because the user's attention
-            // is at the bottom of the scroll view where they are typing.
-            //
-            // As the comment input grows it should push the content the user is looking
-            // at up.
-            pinTo={focusedPostCommentInputPostId === null ? "top" : "bottom"}
-            disablePinHeuristics={focusedPostCommentInputPostId !== null}
         />
     );
 }
