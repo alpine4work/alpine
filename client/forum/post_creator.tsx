@@ -6,10 +6,12 @@ import {ContentView} from "~/client/content/content_view";
 import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
+import {useShowToast} from "~/client/design/toast";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer";
 import {isContentEmpty} from "~/shared/content/is_content_empty";
 import {emptyPostContent} from "~/shared/content/post_content_schema";
+import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 import {ChannelId} from "~/shared/id/types/id_types";
 import {createPost} from "~/shared/rpc/posts_rpc_definitions";
 import {sprinkles} from "~/shared/styles/styles";
@@ -17,11 +19,13 @@ import {sprinkles} from "~/shared/styles/styles";
 export function PostCreator({channelId}: {channelId: ChannelId}) {
     const navigate = useNavigate();
     const context = useAppContext();
+    const showToast = useShowToast();
 
     const [containerRef, containerSize] = useResizeObserver();
     const [inlineButtonRef, inlineButtonSize] = useResizeObserver();
     const [phantomContentRef, phantomContentSize] = useResizeObserver();
     const [state, setState] = useState(() => ContentEditorState.create(emptyPostContent));
+    const [isPending, setIsPending] = useState(false);
 
     const content = state.getContent();
     const isContentSingleParagraph =
@@ -34,11 +38,14 @@ export function PostCreator({channelId}: {channelId: ChannelId}) {
             phantomContentSize === null ||
             phantomContentSize.width < containerSize.width - inlineButtonSize.width);
 
+    const errorTitle = "Couldn’t create post";
+
     const postButton = (
         <Button
             variant="accent"
             isDisabled={isContentEmpty(state.getContent())}
-            pressErrorTitle="Couldn’t create post"
+            isPending={isPending}
+            pressErrorTitle={errorTitle}
             onPress={async () => {
                 const {post} = await createPost(context, {
                     channelId,
@@ -64,6 +71,10 @@ export function PostCreator({channelId}: {channelId: ChannelId}) {
                 <ContentEditor
                     aria-label="New post content"
                     state={state}
+                    onNavigate={navigate}
+                    placeholder="Share your ideas…"
+                    containerClassName={sprinkles({flexGrow: "1", overflowX: "hidden"})}
+                    className={sprinkles({paddingX: "3", paddingY: "4"})}
                     onChange={state => {
                         // Run with immediate priority so `isPostButtonInline` is updated in the
                         // same paint.
@@ -71,10 +82,27 @@ export function PostCreator({channelId}: {channelId: ChannelId}) {
                             setState(state);
                         });
                     }}
-                    onNavigate={navigate}
-                    placeholder="Share your ideas…"
-                    containerClassName={sprinkles({flexGrow: "1", overflowX: "hidden"})}
-                    className={sprinkles({paddingX: "3", paddingY: "4"})}
+                    onModEnter={() => {
+                        runPromiseWithoutAwaiting(async () => {
+                            setIsPending(true);
+                            try {
+                                await createPost(context, {
+                                    channelId,
+                                    content: state.getContent(),
+                                });
+
+                                setState(ContentEditorState.create(emptyPostContent));
+                            } catch (error) {
+                                showToast({
+                                    type: "Error",
+                                    title: errorTitle,
+                                    error,
+                                });
+                            } finally {
+                                setIsPending(false);
+                            }
+                        });
+                    }}
                 />
                 {isContentSingleParagraph && (
                     <Box

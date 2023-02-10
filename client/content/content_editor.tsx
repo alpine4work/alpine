@@ -121,12 +121,21 @@ export type ContentEditorProps<Content extends Node> = {
      * It will also switch our editor out of multiline mode for assistive
      * technologies.
      *
-     * Pressing Shift+Enter will insert a hard line break and won't trigger this
-     * callback. Pasting in content with multiple paragraphs also allows you to
-     * add multiple lines. So providing `onEnter` doesn't make our editor fully
-     * single lined.
+     * Pressing shift+enter has the same behavior as pressing enter as a
+     * workaround. Pressing alt+enter will insert a hard line break and won't
+     * trigger this callback. Pasting in content with multiple paragraphs also
+     * allows you to add multiple lines. So providing `onEnter` doesn't make our
+     * editor fully single lined.
      */
     onEnter?: () => void;
+
+    /**
+     * Fired when the user press cmd-enter (or ctrl-enter on non MacOS platforms)
+     * in a content editor.
+     *
+     * Providing an `onModEnter` callback will prevent the default enter behavior.
+     */
+    onModEnter?: () => void;
 
     /**
      * Placeholder text to render in the editor when there is no other content.
@@ -383,6 +392,19 @@ function ContentEditor<Content extends Node>(
             // If we have an `onEnter` callback then we want to run that instead of
             // letting ProseMirror handle an enter key press.
             handleKeyDown(_view, event) {
+                if (
+                    typeof propsRef.current.onModEnter === "function" &&
+                    event.key === "Enter" &&
+                    !event.altKey &&
+                    !event.shiftKey &&
+                    // Cmd+Enter triggers this on MacOS and Ctrl-Enter triggers this elsewhere
+                    (isMac ? event.metaKey : event.ctrlKey)
+                ) {
+                    event.preventDefault();
+                    propsRef.current.onModEnter();
+                    return true;
+                }
+
                 if (
                     typeof propsRef.current.onEnter === "function" &&
                     event.key === "Enter" &&
