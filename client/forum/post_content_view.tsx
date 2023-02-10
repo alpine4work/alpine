@@ -26,7 +26,7 @@ import {
 import {getPostCommentAuthors} from "~/shared/rpc/forum_rpc_definitions";
 import {sprinkles} from "~/shared/styles/styles";
 
-export const postContentViewMinHeight = "10.125rem";
+export const postContentViewMinHeight = "10rem";
 
 export function PostContentView({
     post,
