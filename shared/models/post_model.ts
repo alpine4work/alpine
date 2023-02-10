@@ -5,6 +5,8 @@ import {MessageInterface, MessagePayloadSchema} from "~/shared/models/message_in
 import {Model} from "~/shared/models/model";
 import {Schema} from "~/shared/schema/schema";
 
+export const maxPostPreviewCommentAuthorCount = 5;
+
 /**
  * A post creates a thread of conversation in a channel. Users can write any
  * content they want in a post and it will be delivered to all members of a

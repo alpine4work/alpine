@@ -26,7 +26,11 @@ import {AccountId, ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types"
 import {AccountModel} from "~/shared/models/account_model";
 import {ChannelModel} from "~/shared/models/channel_model";
 import {MessagePayloadSchema} from "~/shared/models/message_interface";
-import {PostCommentModel, PostModel} from "~/shared/models/post_model";
+import {
+    maxPostPreviewCommentAuthorCount,
+    PostCommentModel,
+    PostModel,
+} from "~/shared/models/post_model";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
 import {Schema} from "~/shared/schema/schema";
 
@@ -354,7 +358,11 @@ async function createPostModelFromItem(
         getAccountOrThrow(context, item.spaceId, item.authorId),
         runAllPromises(
             Array.from(
-                sliceIterable(item.commentsSummary.commentCountByAuthorId.keys(), 0, 5),
+                sliceIterable(
+                    item.commentsSummary.commentCountByAuthorId.keys(),
+                    0,
+                    maxPostPreviewCommentAuthorCount,
+                ),
                 accountId => getAccountOrThrow(context, item.spaceId, accountId),
             ),
         ),

@@ -1,4 +1,5 @@
 import {CaretRight} from "phosphor-react";
+import {useEffect, useMemo, useState} from "react";
 import {useNavigate} from "react-router-dom";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile";
@@ -13,7 +14,15 @@ import {MessageList} from "~/client/messaging/message_list";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context";
 import {wait} from "~/shared/helpers/async/wait";
-import {PostCommentModel, PostModel} from "~/shared/models/post_model";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
+import {AccountId} from "~/shared/id/types/id_types";
+import {AccountModel} from "~/shared/models/account_model";
+import {
+    PostCommentModel,
+    PostModel,
+    maxPostPreviewCommentAuthorCount,
+} from "~/shared/models/post_model";
 import {getPostCommentAuthors} from "~/shared/rpc/posts_rpc_definitions";
 import {sprinkles} from "~/shared/styles/styles";
 
@@ -88,21 +97,9 @@ function PostCommentsToggleButton({
     onTogglePostComments: () => void;
     onLoadInitialPostComments: () => Promise<void>;
 }) {
-    const context = useAppContext();
-
     return (
         <Box display="flex" alignItems="center" gap="1.5">
-            <AccountAvatarPile
-                previewAccounts={post.previewCommentAuthors}
-                accountCount={post.commentAuthorCount}
-                getAllAccounts={async limit => {
-                    const {authors} = await getPostCommentAuthors(context, {
-                        postId: post.id,
-                        limit,
-                    });
-                    return authors;
-                }}
-            />
+            <PostCommentsAccountAvatarPile post={post} postComments={postComments} />
             <Button
                 paddingX="2"
                 icon={
@@ -165,5 +162,93 @@ function PostCommentsToggleButton({
                 <PrettyNumber number={postComments.getMessageCount()} label="comment" />
             </Button>
         </Box>
+    );
+}
+
+function PostCommentsAccountAvatarPile({
+    post,
+    postComments,
+}: {
+    post: PostModel;
+    postComments: MessageList<PostCommentModel>;
+}) {
+    const context = useAppContext();
+
+    const [_additionalCommentAuthors, setAdditionalCommentAuthors] = useState<{
+        endIndex: number;
+        accountById: ReadonlyMap<AccountId, AccountModel>;
+    }>(() => ({
+        endIndex: postComments.getMessageCount(),
+        accountById: new Map(),
+    }));
+
+    const additionalCommentAuthors = useMemo(
+        () =>
+            _additionalCommentAuthors.endIndex < postComments.getMessageCount()
+                ? {
+                      endIndex: postComments.getMessageCount(),
+                      accountById: new Map(
+                          concatIterables(
+                              _additionalCommentAuthors.accountById,
+                              mapIterable(
+                                  postComments.iterateLoadedMessages(
+                                      _additionalCommentAuthors.endIndex,
+                                  ),
+                                  comment => [comment.author.id, comment.author],
+                              ),
+                          ),
+                      ),
+                  }
+                : _additionalCommentAuthors,
+        [_additionalCommentAuthors, postComments],
+    );
+
+    useEffect(() => {
+        setAdditionalCommentAuthors(additionalCommentAuthors);
+    }, [additionalCommentAuthors]);
+
+    const {previewAccounts, accountCount} = useMemo(() => {
+        // If there are unloaded comment authors then don't touch our author state.
+        // Since we don't know whether an additional comment author has already been
+        // counted in `commentAuthorCount`.
+        if (post.previewCommentAuthors.length < post.commentAuthorCount) {
+            return {
+                previewAccounts: post.previewCommentAuthors,
+                accountCount: post.commentAuthorCount,
+            };
+        }
+
+        const previewCommentAuthorIds = new Set<AccountId>();
+        const commentAuthors = [];
+
+        for (const account of post.previewCommentAuthors) {
+            previewCommentAuthorIds.add(account.id);
+            commentAuthors.push(account);
+        }
+
+        for (const account of additionalCommentAuthors.accountById.values()) {
+            if (!previewCommentAuthorIds.has(account.id)) {
+                commentAuthors.push(account);
+            }
+        }
+
+        return {
+            previewAccounts: commentAuthors.slice(0, maxPostPreviewCommentAuthorCount),
+            accountCount: commentAuthors.length,
+        };
+    }, [additionalCommentAuthors.accountById, post.commentAuthorCount, post.previewCommentAuthors]);
+
+    return (
+        <AccountAvatarPile
+            previewAccounts={previewAccounts}
+            accountCount={accountCount}
+            getAllAccounts={async limit => {
+                const {authors} = await getPostCommentAuthors(context, {
+                    postId: post.id,
+                    limit,
+                });
+                return authors;
+            }}
+        />
     );
 }

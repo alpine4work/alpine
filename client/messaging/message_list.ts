@@ -94,6 +94,19 @@ export class MessageList<Message extends MessageInterface> {
     }
 
     /**
+     * Iterate loaded messages in the list. Optionally starting with the
+     * provided index.
+     */
+    public *iterateLoadedMessages(startIndex: number = 0): IterableIterator<Message> {
+        const iterator = this._messages.ge(startIndex);
+
+        while (iterator.valid) {
+            yield iterator.value!;
+            iterator.next();
+        }
+    }
+
+    /**
      * Increase message count for this list. If the message count is less than the
      * current message count we won't change anything.
      */
