@@ -695,7 +695,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
         getChannelPosts(context.request(session1), {
             channelId: channel.id,
             limit: 100,
-            beforeCursor: {createdTime: post4.createdTime, postId: post4.id},
+            afterCursor: {createdTime: post4.createdTime, postId: post4.id},
         }),
     ).resolves.toEqual({
         hasMorePosts: false,
@@ -740,7 +740,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
         getChannelPosts(context.request(session1), {
             channelId: channel.id,
             limit: 2,
-            beforeCursor: {createdTime: post4.createdTime, postId: post4.id},
+            afterCursor: {createdTime: post4.createdTime, postId: post4.id},
         }),
     ).resolves.toEqual({
         hasMorePosts: true,
@@ -774,7 +774,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
         getChannelPosts(context.request(session1), {
             channelId: channel.id,
             limit: 2,
-            beforeCursor: {createdTime: post3.createdTime, postId: post3.id},
+            afterCursor: {createdTime: post3.createdTime, postId: post3.id},
         }),
     ).resolves.toEqual({
         hasMorePosts: false,

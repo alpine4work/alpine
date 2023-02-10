@@ -1,7 +1,6 @@
-import {useState} from "react";
-import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {PostList} from "~/client/forum/post_list";
 import {PostListView} from "~/client/forum/post_list_view";
+import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {getPostAndCommentsFromStart} from "~/server/dynamo/forum_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
@@ -44,20 +43,14 @@ export async function loader({params, context}: LoaderArgs) {
 export default function PostRoute() {
     const {post, postComments} = useLoaderDataWithSchema(schema);
 
-    const [list, setList] = useState(() =>
-        PostList.empty.insertAtEnd(post, {
-            arePostCommentsOpen: true,
-            initialPostComments: postComments,
-        }),
-    );
-
     return (
         <main className={sprinkles({height: "full"})}>
             <PostListView
-                list={list}
-                onTogglePostComments={index => setList(list => list.togglePostComments(index))}
-                onUpdatePostComments={(postId, update) =>
-                    setList(list => list.updatePostComments(postId, update))
+                initialPosts={() =>
+                    PostList.empty.insertPostAtEnd(post, {
+                        arePostCommentsOpen: true,
+                        initialPostComments: postComments,
+                    })
                 }
             />
         </main>

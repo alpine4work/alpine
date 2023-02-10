@@ -1,16 +1,17 @@
-import {useState} from "react";
+import {useAppContext} from "~/client/context/app_context";
 import {postContentViewMinHeight} from "~/client/forum/post_content_view";
 import {PostList} from "~/client/forum/post_list";
 import {PostListView} from "~/client/forum/post_list_view";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view";
-import {getChannel, getChannelPosts} from "~/server/dynamo/forum_table";
+import {getChannel} from "~/server/dynamo/forum_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
 import {NotFoundError} from "~/shared/error/error";
 import {ChannelId} from "~/shared/id/types/id_types";
 import {ChannelModel} from "~/shared/models/channel_model";
 import {PostModel} from "~/shared/models/post_model";
+import {getChannelPosts} from "~/shared/rpc/forum_rpc_definitions";
 import {Schema} from "~/shared/schema/schema";
 import {sprinkles} from "~/shared/styles/styles";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
@@ -50,22 +51,20 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
 }
 
 export default function ChannelRoute() {
+    const context = useAppContext();
     const {channel, channelPostsResult} = useLoaderDataWithSchema(LoaderSchema);
-
-    const [list, setList] = useState(() =>
-        PostList.empty
-            .setChannelHeader({channel})
-            .insertManyAtStart(channelPostsResult.posts)
-            .setHasMorePosts(channelPostsResult.hasMorePosts),
-    );
 
     return (
         <main className={sprinkles({height: "full"})}>
             <PostListView
-                list={list}
-                onTogglePostComments={index => setList(list => list.togglePostComments(index))}
-                onUpdatePostComments={(postId, update) =>
-                    setList(list => list.updatePostComments(postId, update))
+                initialPosts={() =>
+                    PostList.empty
+                        .setChannelHeader({channel})
+                        .insertManyPostsAtStart(channelPostsResult.posts)
+                        .setHasMorePosts(channelPostsResult.hasMorePosts)
+                }
+                onLoadMorePosts={({limit, afterCursor}) =>
+                    getChannelPosts(context, {channelId: channel.id, limit, afterCursor})
                 }
             />
         </main>

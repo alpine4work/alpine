@@ -1,6 +1,7 @@
 import {SpinnerGap} from "phosphor-react";
 import {ReactElement, useCallback, useEffect, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context";
+import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
 import {Spacer} from "~/client/design/spacer";
 import {ChannelHeaderView, channelHeaderViewMinHeight} from "~/client/forum/channel_header_view";
 import {PostCommentInput} from "~/client/forum/post_comment_input";
@@ -10,7 +11,6 @@ import {PostShimmer} from "~/client/forum/post_shimmer";
 import {PostRealtimeActions} from "~/client/forum/use_post_realtime";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useMessageEditing} from "~/client/messaging/message_editing";
-import {MessageList} from "~/client/messaging/message_list";
 import {MessageShimmer} from "~/client/messaging/message_shimmer";
 import {MessageView, messageViewMinHeight} from "~/client/messaging/message_view";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
@@ -21,14 +21,22 @@ import {
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view";
-import {RemLength, Spacing, addRemLengths, spacing} from "~/shared/design/spacing";
+import {
+    RemLength,
+    Spacing,
+    addRemLengths,
+    convertRemLengthToPx,
+    spacing,
+} from "~/shared/design/spacing";
 import {InternalError} from "~/shared/error/error";
+import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
+import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping";
 import {PostId} from "~/shared/id/types/id_types";
-import {PostCommentModel} from "~/shared/models/post_model";
-import {getPostCommentsFromEnd, getPostCommentsFromStart} from "~/shared/rpc/posts_rpc_definitions";
+import {PostModel} from "~/shared/models/post_model";
+import {getPostCommentsFromEnd, getPostCommentsFromStart} from "~/shared/rpc/forum_rpc_definitions";
 import {spinAnimationClassName, sprinkles} from "~/shared/styles/styles";
 
 export const postListViewMargin: Spacing = "5";
@@ -54,22 +62,22 @@ const bufferedPostViewHeight = addRemLengths(postContentViewMinHeight, spacing[p
 const Box = null;
 
 export function PostListView({
-    list,
-    onTogglePostComments: _onTogglePostComments,
-    onUpdatePostComments: _onUpdatePostComments,
+    initialPosts,
+    onLoadMorePosts,
 }: {
-    list: PostList;
-    onTogglePostComments: (index: number) => void;
-    onUpdatePostComments: (
-        postId: PostId,
-        update: (postComments: MessageList<PostCommentModel>) => MessageList<PostCommentModel>,
-    ) => void;
+    initialPosts: PostList | (() => PostList);
+    onLoadMorePosts?: (options: {
+        limit: number;
+        afterCursor?: {createdTime: Date; postId: PostId};
+    }) => Promise<{
+        hasMorePosts: boolean;
+        posts: ReadonlyArray<PostModel>;
+    }>;
 }) {
     const context = useAppContext();
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
-    const onTogglePostComments = useEvent(_onTogglePostComments);
-    const onUpdatePostComments = useEvent(_onUpdatePostComments);
+    const [posts, setPosts] = useState(initialPosts);
 
     const isLoadingRef = useRef(false);
     const [errorState, setErrorState] = useState<
@@ -88,8 +96,9 @@ export function PostListView({
 
         let nextIndex = renderedRange.startIndex;
         while (nextIndex <= renderedRange.startIndex) {
-            const item = list.getPostContentItem(nextIndex);
+            const item = posts.getPostContentItem(nextIndex);
 
+            // Skip non-posts (like channel header)
             if (!item) {
                 nextIndex++;
                 continue;
@@ -163,10 +172,12 @@ export function PostListView({
                 onFinishLoadingMessages: result => {
                     isLoadingRef.current = false;
                     if (result.ok) {
-                        onUpdatePostComments(item.post.id, postComments =>
-                            postComments
-                                .setMessageCount(result.value.messageCount)
-                                .setMessages(result.value.messages),
+                        setPosts(posts =>
+                            posts.updatePostComments(item.post.id, postComments =>
+                                postComments
+                                    .setMessageCount(result.value.messageCount)
+                                    .setMessages(result.value.messages),
+                            ),
                         );
                     } else {
                         setErrorState({hasError: true, error: result.error});
@@ -176,10 +187,55 @@ export function PostListView({
 
             if (result.isLoading) {
                 isLoadingRef.current = true;
-                // If we started loading some comments, don't try to load comments from any
-                // other posts. We only want to send one load request at a time.
-                break;
+                // If we started loading some comments, don't try to load anything else.
+                // We only want to send one load request at a time.
+                return;
             }
+        }
+
+        // If we are not loading any comments and the unloaded posts item is rendered,
+        // try loading that...
+        const renderedRangeEndItem = posts.getItem(renderedRange.endIndex);
+        if (renderedRangeEndItem.type === "MoreUnloadedPosts") {
+            isLoadingRef.current = true;
+            runPromiseWithoutAwaiting(async () => {
+                try {
+                    assert(
+                        onLoadMorePosts,
+                        "Must provided an `onLoadMorePosts` prop when the post list has more posts",
+                    );
+
+                    // The limit of items we will load is two views worth of posts. This gives
+                    // the user some space to scroll and read before we need to load more posts.
+                    const limit = Math.max(
+                        20,
+                        Math.ceil(
+                            (view.getHeight() * 2) /
+                                convertRemLengthToPx(
+                                    postContentViewMinHeight,
+                                    getRemPxWithoutListening(),
+                                ),
+                        ),
+                    );
+
+                    const lastPost = posts.getLastPostContentItem();
+
+                    const {hasMorePosts, posts: newPosts} = await onLoadMorePosts({
+                        limit,
+                        afterCursor: lastPost
+                            ? {createdTime: lastPost.post.createdTime, postId: lastPost.post.id}
+                            : undefined,
+                    });
+
+                    setPosts(posts =>
+                        posts.insertManyPostsAtEnd(newPosts).setHasMorePosts(hasMorePosts),
+                    );
+                } catch (error) {
+                    setErrorState({hasError: true, error});
+                } finally {
+                    isLoadingRef.current = false;
+                }
+            });
         }
     });
 
@@ -190,10 +246,10 @@ export function PostListView({
     // in case it didn't fully load the list.
     useEffect(() => {
         // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-        list;
+        posts;
 
         tryLoadingMorePostComments();
-    }, [list, tryLoadingMorePostComments]);
+    }, [posts, tryLoadingMorePostComments]);
 
     const loadInitialPostComments = useEvent(
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
@@ -220,8 +276,10 @@ export function PostListView({
                                 : limit,
                     });
 
-                    onUpdatePostComments(item.post.id, postComments =>
-                        postComments.setMessageCount(commentCount).setMessages(comments),
+                    setPosts(posts =>
+                        posts.updatePostComments(item.post.id, postComments =>
+                            postComments.setMessageCount(commentCount).setMessages(comments),
+                        ),
                     );
                 }
 
@@ -248,7 +306,7 @@ export function PostListView({
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {
-            const item = list.getItem(index);
+            const item = posts.getItem(index);
             switch (item.type) {
                 case "ChannelHeader": {
                     return {
@@ -291,7 +349,9 @@ export function PostListView({
                                             post={item.post}
                                             postComments={item.postComments}
                                             arePostCommentsOpen={item.arePostCommentsOpen}
-                                            onTogglePostComments={() => onTogglePostComments(index)}
+                                            onTogglePostComments={() =>
+                                                setPosts(posts => posts.togglePostComments(index))
+                                            }
                                             onLoadInitialPostComments={() =>
                                                 loadInitialPostComments(item)
                                             }
@@ -310,9 +370,9 @@ export function PostListView({
 
                 case "LoadedPostComment":
                 case "UnloadedPostComment": {
-                    const previousItem = index > 0 ? list.getItem(index - 1) : null;
+                    const previousItem = index > 0 ? posts.getItem(index - 1) : null;
                     const nextItem =
-                        index < list.getItemCount() - 1 ? list.getItem(index + 1) : null;
+                        index < posts.getItemCount() - 1 ? posts.getItem(index + 1) : null;
 
                     const previousComment =
                         previousItem?.type === "LoadedPostComment"
@@ -470,7 +530,7 @@ export function PostListView({
                             }}
                             postComments={item.postComments}
                             onUpdatePostComments={update =>
-                                onUpdatePostComments(item.post.id, update)
+                                setPosts(posts => posts.updatePostComments(item.post.id, update))
                             }
                         />
                     );
@@ -707,9 +767,9 @@ export function PostListView({
                 // create some space to scroll and more directly imply to the user that there
                 // is more content to be loaded. Sometimes we may only load 1 post and so the
                 // three shimmers is a little false but this feels like an acceptable tradeoff.
-                case "MorePosts": {
+                case "MoreUnloadedPosts": {
                     return {
-                        key: "MorePosts",
+                        key: "MoreUnloadedPosts",
                         minHeight: "36.875rem",
                         node: (
                             <div className={sprinkles({paddingX: postListViewMargin})}>
@@ -748,14 +808,14 @@ export function PostListView({
                     throw exhaustive(item);
             }
         },
-        [list, onTogglePostComments, loadInitialPostComments, messageEditing, onUpdatePostComments],
+        [posts, loadInitialPostComments, messageEditing],
     );
 
     return (
         <VirtualizedScrollView
             ref={viewRef}
             bufferedItemHeight={bufferedPostViewHeight}
-            itemCount={list.getItemCount()}
+            itemCount={posts.getItemCount()}
             renderItem={renderItem}
             onRenderedRangeChange={tryLoadingMorePostComments}
         />

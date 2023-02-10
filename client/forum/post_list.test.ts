@@ -133,20 +133,20 @@ test("can insert some posts into the end", () => {
         previewCommentAuthors: [],
     });
 
-    list = list.insertAtEnd(post1);
+    list = list.insertPostAtEnd(post1);
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post1, arePostCommentsOpen: false},
     ]);
 
-    list = list.insertAtEnd(post2);
+    list = list.insertPostAtEnd(post2);
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post1, arePostCommentsOpen: false},
         {type: "PostContent", post: post2, arePostCommentsOpen: false},
     ]);
 
-    list = list.insertAtEnd(post3);
+    list = list.insertPostAtEnd(post3);
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post1, arePostCommentsOpen: false},
@@ -154,7 +154,7 @@ test("can insert some posts into the end", () => {
         {type: "PostContent", post: post3, arePostCommentsOpen: false},
     ]);
 
-    list = list.insertAtEnd(post4);
+    list = list.insertPostAtEnd(post4);
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post1, arePostCommentsOpen: false},
@@ -163,7 +163,7 @@ test("can insert some posts into the end", () => {
         {type: "PostContent", post: post4, arePostCommentsOpen: false},
     ]);
 
-    list = list.insertAtEnd(post5);
+    list = list.insertPostAtEnd(post5);
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post1, arePostCommentsOpen: false},
@@ -237,20 +237,20 @@ test("can insert some posts into the start", () => {
         previewCommentAuthors: [],
     });
 
-    list = list.insertAtStart(post1);
+    list = list.insertPostAtStart(post1);
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post1, arePostCommentsOpen: false},
     ]);
 
-    list = list.insertAtStart(post2);
+    list = list.insertPostAtStart(post2);
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post2, arePostCommentsOpen: false},
         {type: "PostContent", post: post1, arePostCommentsOpen: false},
     ]);
 
-    list = list.insertAtStart(post3);
+    list = list.insertPostAtStart(post3);
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post3, arePostCommentsOpen: false},
@@ -258,7 +258,7 @@ test("can insert some posts into the start", () => {
         {type: "PostContent", post: post1, arePostCommentsOpen: false},
     ]);
 
-    list = list.insertAtStart(post4);
+    list = list.insertPostAtStart(post4);
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post4, arePostCommentsOpen: false},
@@ -267,7 +267,7 @@ test("can insert some posts into the start", () => {
         {type: "PostContent", post: post1, arePostCommentsOpen: false},
     ]);
 
-    list = list.insertAtStart(post5);
+    list = list.insertPostAtStart(post5);
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post5, arePostCommentsOpen: false},
@@ -341,20 +341,20 @@ test("can insert some posts into the end and others at the start", () => {
         previewCommentAuthors: [],
     });
 
-    list = list.insertAtStart(post1);
+    list = list.insertPostAtStart(post1);
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post1, arePostCommentsOpen: false},
     ]);
 
-    list = list.insertAtEnd(post2);
+    list = list.insertPostAtEnd(post2);
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post1, arePostCommentsOpen: false},
         {type: "PostContent", post: post2, arePostCommentsOpen: false},
     ]);
 
-    list = list.insertAtStart(post3);
+    list = list.insertPostAtStart(post3);
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post3, arePostCommentsOpen: false},
@@ -362,7 +362,7 @@ test("can insert some posts into the end and others at the start", () => {
         {type: "PostContent", post: post2, arePostCommentsOpen: false},
     ]);
 
-    list = list.insertAtEnd(post4);
+    list = list.insertPostAtEnd(post4);
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post3, arePostCommentsOpen: false},
@@ -371,7 +371,7 @@ test("can insert some posts into the end and others at the start", () => {
         {type: "PostContent", post: post4, arePostCommentsOpen: false},
     ]);
 
-    list = list.insertAtStart(post5);
+    list = list.insertPostAtStart(post5);
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post5, arePostCommentsOpen: false},
@@ -445,11 +445,11 @@ test("can toggle the comments for a post open", () => {
         previewCommentAuthors: [],
     });
 
-    list = list.insertAtEnd(post1);
-    list = list.insertAtEnd(post2);
-    list = list.insertAtEnd(post3);
-    list = list.insertAtEnd(post4);
-    list = list.insertAtEnd(post5);
+    list = list.insertPostAtEnd(post1);
+    list = list.insertPostAtEnd(post2);
+    list = list.insertPostAtEnd(post3);
+    list = list.insertPostAtEnd(post4);
+    list = list.insertPostAtEnd(post5);
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post1, arePostCommentsOpen: false},
@@ -706,20 +706,20 @@ test("can insert some posts into the end with already open comments", () => {
         previewCommentAuthors: [],
     });
 
-    list = list.insertAtEnd(post1);
+    list = list.insertPostAtEnd(post1);
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post1, arePostCommentsOpen: false},
     ]);
 
-    list = list.insertAtEnd(post2);
+    list = list.insertPostAtEnd(post2);
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post1, arePostCommentsOpen: false},
         {type: "PostContent", post: post2, arePostCommentsOpen: false},
     ]);
 
-    list = list.insertAtEnd(post3, {arePostCommentsOpen: true});
+    list = list.insertPostAtEnd(post3, {arePostCommentsOpen: true});
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post1, arePostCommentsOpen: false},
@@ -733,7 +733,7 @@ test("can insert some posts into the end with already open comments", () => {
         {type: "PostCommentInput", post: post3},
     ]);
 
-    list = list.insertAtEnd(post4);
+    list = list.insertPostAtEnd(post4);
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post1, arePostCommentsOpen: false},
@@ -748,7 +748,7 @@ test("can insert some posts into the end with already open comments", () => {
         {type: "PostContent", post: post4, arePostCommentsOpen: false},
     ]);
 
-    list = list.insertAtEnd(post5);
+    list = list.insertPostAtEnd(post5);
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post1, arePostCommentsOpen: false},
@@ -828,20 +828,20 @@ test("can insert some posts into the start with already open comments", () => {
         previewCommentAuthors: [],
     });
 
-    list = list.insertAtStart(post1);
+    list = list.insertPostAtStart(post1);
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post1, arePostCommentsOpen: false},
     ]);
 
-    list = list.insertAtStart(post2);
+    list = list.insertPostAtStart(post2);
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post2, arePostCommentsOpen: false},
         {type: "PostContent", post: post1, arePostCommentsOpen: false},
     ]);
 
-    list = list.insertAtStart(post3, {arePostCommentsOpen: true});
+    list = list.insertPostAtStart(post3, {arePostCommentsOpen: true});
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post3, arePostCommentsOpen: true},
@@ -855,7 +855,7 @@ test("can insert some posts into the start with already open comments", () => {
         {type: "PostContent", post: post1, arePostCommentsOpen: false},
     ]);
 
-    list = list.insertAtStart(post4);
+    list = list.insertPostAtStart(post4);
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post4, arePostCommentsOpen: false},
@@ -870,7 +870,7 @@ test("can insert some posts into the start with already open comments", () => {
         {type: "PostContent", post: post1, arePostCommentsOpen: false},
     ]);
 
-    list = list.insertAtStart(post5);
+    list = list.insertPostAtStart(post5);
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post5, arePostCommentsOpen: false},
@@ -950,11 +950,11 @@ test("can update the post comments list", () => {
         previewCommentAuthors: [],
     });
 
-    list = list.insertAtEnd(post1);
-    list = list.insertAtEnd(post2);
-    list = list.insertAtEnd(post3, {arePostCommentsOpen: true});
-    list = list.insertAtEnd(post4);
-    list = list.insertAtEnd(post5);
+    list = list.insertPostAtEnd(post1);
+    list = list.insertPostAtEnd(post2);
+    list = list.insertPostAtEnd(post3, {arePostCommentsOpen: true});
+    list = list.insertPostAtEnd(post4);
+    list = list.insertPostAtEnd(post5);
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post1, arePostCommentsOpen: false},

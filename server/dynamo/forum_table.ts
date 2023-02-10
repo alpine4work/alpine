@@ -27,9 +27,9 @@ import {AccountModel} from "~/shared/models/account_model";
 import {ChannelModel} from "~/shared/models/channel_model";
 import {MessagePayloadSchema} from "~/shared/models/message_interface";
 import {
-    maxPostPreviewCommentAuthorCount,
     PostCommentModel,
     PostModel,
+    maxPostPreviewCommentAuthorCount,
 } from "~/shared/models/post_model";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
 import {Schema} from "~/shared/schema/schema";
@@ -249,11 +249,11 @@ export async function getChannelPosts(
     {
         channelId,
         limit,
-        beforeCursor,
+        afterCursor,
     }: {
         channelId: ChannelId;
         limit: number;
-        beforeCursor?: ChannelPostsCursor;
+        afterCursor?: ChannelPostsCursor;
     },
 ): Promise<{
     hasMorePosts: boolean;
@@ -264,7 +264,7 @@ export async function getChannelPosts(
     const queriedPosts = await parallelMapAsyncIterableToArray(
         ChannelPostsIndex.query(context, {
             partitionKey: {channelId},
-            endSortKey: beforeCursor ? beforeCursor : undefined,
+            endSortKey: afterCursor ? afterCursor : undefined,
             isEndSortKeyExclusive: true,
             // Get one more post above the limit to determine if there are more posts. We
             // will throw the extra post away from the result set.

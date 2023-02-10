@@ -1,9 +1,25 @@
 import {PostContentSchema} from "~/shared/content/post_content_schema";
 import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
-import {PostCommentModel} from "~/shared/models/post_model";
+import {PostCommentModel, PostModel} from "~/shared/models/post_model";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc";
 import {Schema} from "~/shared/schema/schema";
+
+export const getChannelPosts = defineRpc({
+    name: "getChannelPosts",
+    input: {
+        channelId: Schema.id<ChannelId>(),
+        limit: Schema.integer,
+        afterCursor: Schema.object({
+            createdTime: Schema.date,
+            postId: Schema.id<PostId>(),
+        }).optional(),
+    },
+    output: {
+        hasMorePosts: Schema.boolean,
+        posts: Schema.array(PostModel.schema()),
+    },
+});
 
 export const createPost = defineRpc({
     name: "createPost",

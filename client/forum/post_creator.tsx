@@ -13,7 +13,7 @@ import {isContentEmpty} from "~/shared/content/is_content_empty";
 import {emptyPostContent} from "~/shared/content/post_content_schema";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 import {ChannelId} from "~/shared/id/types/id_types";
-import {createPost} from "~/shared/rpc/posts_rpc_definitions";
+import {createPost} from "~/shared/rpc/forum_rpc_definitions";
 import {sprinkles} from "~/shared/styles/styles";
 
 export function PostCreator({channelId}: {channelId: ChannelId}) {

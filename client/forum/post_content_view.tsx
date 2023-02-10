@@ -23,7 +23,7 @@ import {
     PostModel,
     maxPostPreviewCommentAuthorCount,
 } from "~/shared/models/post_model";
-import {getPostCommentAuthors} from "~/shared/rpc/posts_rpc_definitions";
+import {getPostCommentAuthors} from "~/shared/rpc/forum_rpc_definitions";
 import {sprinkles} from "~/shared/styles/styles";
 
 export const postContentViewMinHeight = "10.125rem";

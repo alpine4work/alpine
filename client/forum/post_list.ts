@@ -84,6 +84,11 @@ export class PostList {
      */
     private _postOrderKeyByPostContentItemIndex: Tree<number, OrderKey>;
 
+    /**
+     * The number of items in the list pre-computed ahead of time.
+     */
+    private readonly _itemCount: number;
+
     private constructor({
         channelHeader,
         hasMorePosts,
@@ -111,6 +116,23 @@ export class PostList {
         this._orderKeyByPostId = orderKeyByPostId;
         this._openPostCommentPostOrderKeys = openPostCommentPostOrderKeys;
         this._postOrderKeyByPostContentItemIndex = postOrderKeyByPostContentItemIndex;
+
+        this._itemCount =
+            (this._channelHeader ? 1 : 0) +
+            (this._hasMorePosts ? 1 : 0) +
+            this._postByOrderKey.size +
+            // For all posts with open comments, add the size of the comment sections plus
+            // one for the comment input.
+            reduceIterable(
+                this._openPostCommentPostOrderKeys,
+                (count, postOrderKey) =>
+                    count +
+                    assertExists(
+                        this._postByOrderKey.get(postOrderKey),
+                    ).postComments.getMessageCount() +
+                    1,
+                0,
+            );
     }
 
     /**
@@ -129,23 +151,7 @@ export class PostList {
      * Get the total number of items in the list.
      */
     public getItemCount() {
-        return (
-            (this._channelHeader ? 1 : 0) +
-            (this._hasMorePosts ? 1 : 0) +
-            this._postByOrderKey.size +
-            // For all posts with open comments, add the size of the comment sections plus
-            // one for the comment input.
-            reduceIterable(
-                this._openPostCommentPostOrderKeys,
-                (count, postOrderKey) =>
-                    count +
-                    assertExists(
-                        this._postByOrderKey.get(postOrderKey),
-                    ).postComments.getMessageCount() +
-                    1,
-                0,
-            )
-        );
+        return this._itemCount;
     }
 
     /**
@@ -296,6 +302,16 @@ export class PostList {
     }
 
     /**
+     * Get the last post content item in the list. Null if there are no posts in
+     * the list.
+     */
+    public getLastPostContentItem(): PostListPostContentItem | null {
+        const index = this.getItemCount() - 1 - (this._hasMorePosts ? 1 : 0);
+        if (index < 0) return null;
+        return this.getPostContentItem(index);
+    }
+
+    /**
      * Get the item at the provided index. Throws an error if the index is out
      * of bounds.
      */
@@ -309,7 +325,7 @@ export class PostList {
 
         if (this._hasMorePosts && index === this.getItemCount() - 1) {
             return {
-                type: "MorePosts",
+                type: "MoreUnloadedPosts",
             };
         }
 
@@ -407,7 +423,7 @@ export class PostList {
     /**
      * Insert a post into the start of the list.
      */
-    public insertAtStart(
+    public insertPostAtStart(
         post: PostModel,
         {
             arePostCommentsOpen = false,
@@ -454,7 +470,7 @@ export class PostList {
     /**
      * Insert a post into the end of the list.
      */
-    public insertAtEnd(
+    public insertPostAtEnd(
         post: PostModel,
         {
             arePostCommentsOpen = false,
@@ -499,9 +515,10 @@ export class PostList {
     }
 
     /**
-     * Insert many posts into the start of the list.
+     * Insert many posts into the start of the list. All of them will have their
+     * comments closed.
      */
-    public insertManyAtStart(posts: ReadonlyArray<PostModel>) {
+    public insertManyPostsAtStart(posts: ReadonlyArray<PostModel>) {
         const postOrderKeys = generateOrderKeysBetween(
             null,
             this._postByOrderKey.getFirstEntry()?.[0] ?? null,
@@ -535,6 +552,47 @@ export class PostList {
             // We have to throw away the entire cache for post content indexes because
             // inserting at the beginning means all indexes after are different.
             postOrderKeyByPostContentItemIndex: createTree(),
+        });
+    }
+
+    /**
+     * Insert many posts into the end of the list. All of them will have their
+     * comments closed.
+     */
+    public insertManyPostsAtEnd(posts: ReadonlyArray<PostModel>) {
+        const postOrderKeys = generateOrderKeysBetween(
+            this._postByOrderKey.getLastEntry()?.[0] ?? null,
+            null,
+            posts.length,
+        );
+
+        let postByOrderKey = this._postByOrderKey;
+        let orderKeyByPostId = this._orderKeyByPostId;
+
+        for (let i = 0; i < posts.length; i++) {
+            const post = posts[i]!;
+            const postOrderKey = postOrderKeys[i]!;
+
+            postByOrderKey = postByOrderKey.set(postOrderKey, {
+                post,
+                postComments: MessageList.new(post.commentCount),
+            });
+
+            orderKeyByPostId = orderKeyByPostId.update(post.id, lastOrderKey => {
+                assert(!lastOrderKey, "Post already exists in the list");
+                return postOrderKey;
+            });
+        }
+
+        return new PostList({
+            channelHeader: this._channelHeader,
+            hasMorePosts: this._hasMorePosts,
+            postByOrderKey,
+            orderKeyByPostId,
+            openPostCommentPostOrderKeys: this._openPostCommentPostOrderKeys,
+            // We can keep the existing cache for post content indexes because inserting at
+            // the end does not change the indexes of items that come before.
+            postOrderKeyByPostContentItemIndex: this._postOrderKeyByPostContentItemIndex,
         });
     }
 
@@ -632,7 +690,7 @@ export type PostListItem =
     | PostListLoadedPostCommentItem
     | PostListUnloadedPostCommentItem
     | PostListPostCommentInputItem
-    | PostListMorePostsItem;
+    | PostListMoreUnloadedPostsItem;
 
 export type PostListChannelHeaderItem = {
     readonly type: "ChannelHeader";
@@ -715,6 +773,6 @@ export type PostListPostCommentInputItem = {
 /**
  * The last item in a post list when there are more posts to be loaded.
  */
-export type PostListMorePostsItem = {
-    readonly type: "MorePosts";
+export type PostListMoreUnloadedPostsItem = {
+    readonly type: "MoreUnloadedPosts";
 };
