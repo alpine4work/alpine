@@ -18,6 +18,10 @@ import {Box} from "~/client/design/box";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref";
+import {
+    addResizeListenerForElement,
+    removeResizeListenerForElement,
+} from "~/client/helpers/use_resize_observer";
 import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
 
@@ -226,9 +230,14 @@ function Overlay(
                                       reference: Rect;
                                       popper: Rect;
                                   }) => {
+                                      // This seems to be running before the `sameWidth` and `sameHeight` plugin so
+                                      // our `popper` rect hasn't updated. Instead we can hardcode similar
+                                      // logic here.
                                       return [
-                                          reference.width / 2 - popper.width / 2,
-                                          -popper.height / 2 - reference.height / 2,
+                                          reference.width / 2 -
+                                              (sameWidth ? reference.width : popper.width) / 2,
+                                          -(sameHeight ? reference.height : popper.height) / 2 -
+                                              reference.height / 2,
                                       ];
                                   },
                               },
@@ -291,9 +300,14 @@ function Overlay(
             // right position.
             popper.forceUpdate();
 
+            // Update the overlay placement if the target element resizes.
+            const handleResize = () => popper.forceUpdate();
+            addResizeListenerForElement(targetElement, handleResize);
+
             return () => {
                 popperRef.current = null;
                 popper.destroy();
+                removeResizeListenerForElement(targetElement, handleResize);
             };
         },
         [

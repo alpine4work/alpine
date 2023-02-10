@@ -6,6 +6,7 @@ import {ContentView} from "~/client/content/content_view";
 import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
+import {FocusRing} from "~/client/design/focus_ring";
 import {useShowToast} from "~/client/design/toast";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer";
@@ -92,83 +93,85 @@ export function PostCreator({
     );
 
     return (
-        <Box backgroundColor="grey-0" borderRadius="md" boxShadow="elevation-5">
-            <Box
-                ref={containerRef}
-                position="relative"
-                display="flex"
-                alignItems="center"
-                overflowX="hidden"
-            >
-                <ContentEditor
-                    ref={editorRef}
-                    aria-label="New post content"
-                    state={state}
-                    onNavigate={navigate}
-                    placeholder="Share your ideas…"
-                    containerClassName={sprinkles({flexGrow: "1", overflowX: "hidden"})}
-                    className={sprinkles({paddingX: "3", paddingY: "4"})}
-                    onChange={state => {
-                        // Run with immediate priority so `isPostButtonInline` is updated in the
-                        // same paint.
-                        runWithImmediatePriority(() => {
-                            setState(state);
-                        });
-                    }}
-                    onModEnter={() => {
-                        runPromiseWithoutAwaiting(async () => {
-                            setIsPending(true);
-                            try {
-                                await handleCreatePost();
-                            } catch (error) {
-                                showToast({
-                                    type: "Error",
-                                    title: errorTitle,
-                                    error,
-                                });
-                            } finally {
-                                setIsPending(false);
-                            }
-                        });
-                    }}
-                />
-                {isContentSingleParagraph && (
+        <FocusRing isVisibleWhenFocusWithin={true}>
+            <Box backgroundColor="grey-0" borderRadius="md" boxShadow="elevation-5">
+                <Box
+                    ref={containerRef}
+                    position="relative"
+                    display="flex"
+                    alignItems="center"
+                    overflowX="hidden"
+                >
+                    <ContentEditor
+                        ref={editorRef}
+                        aria-label="New post content"
+                        state={state}
+                        onNavigate={navigate}
+                        placeholder="Share your ideas…"
+                        containerClassName={sprinkles({flexGrow: "1", overflowX: "hidden"})}
+                        className={sprinkles({paddingX: "3", paddingY: "4"})}
+                        onChange={state => {
+                            // Run with immediate priority so `isPostButtonInline` is updated in the
+                            // same paint.
+                            runWithImmediatePriority(() => {
+                                setState(state);
+                            });
+                        }}
+                        onModEnter={() => {
+                            runPromiseWithoutAwaiting(async () => {
+                                setIsPending(true);
+                                try {
+                                    await handleCreatePost();
+                                } catch (error) {
+                                    showToast({
+                                        type: "Error",
+                                        title: errorTitle,
+                                        error,
+                                    });
+                                } finally {
+                                    setIsPending(false);
+                                }
+                            });
+                        }}
+                    />
+                    {isContentSingleParagraph && (
+                        <Box
+                            ref={phantomContentRef}
+                            position="absolute"
+                            top="0"
+                            left="0"
+                            maxWidth="full"
+                            overflowX="hidden"
+                            display="inline-block"
+                            aria-hidden="true"
+                            style={{opacity: 0, pointerEvents: "none"}}
+                        >
+                            <ContentView
+                                content={content}
+                                onNavigate={navigate}
+                                className={sprinkles({paddingX: "3", paddingY: "4"})}
+                            />
+                        </Box>
+                    )}
+                    {isPostButtonInline && (
+                        <Box ref={inlineButtonRef} flexShrink="0" paddingX="3">
+                            {postButton}
+                        </Box>
+                    )}
+                </Box>
+                {!isPostButtonInline && (
                     <Box
-                        ref={phantomContentRef}
-                        position="absolute"
-                        top="0"
-                        left="0"
-                        maxWidth="full"
-                        overflowX="hidden"
-                        display="inline-block"
-                        aria-hidden="true"
-                        style={{opacity: 0, pointerEvents: "none"}}
+                        marginX="5"
+                        borderTop="grey-5"
+                        height="12"
+                        display="flex"
+                        justifyContent="flex-end"
+                        alignItems="center"
                     >
-                        <ContentView
-                            content={content}
-                            onNavigate={navigate}
-                            className={sprinkles({paddingX: "3", paddingY: "4"})}
-                        />
-                    </Box>
-                )}
-                {isPostButtonInline && (
-                    <Box ref={inlineButtonRef} flexShrink="0" paddingX="3">
                         {postButton}
                     </Box>
                 )}
             </Box>
-            {!isPostButtonInline && (
-                <Box
-                    marginX="5"
-                    borderTop="grey-5"
-                    height="12"
-                    display="flex"
-                    justifyContent="flex-end"
-                    alignItems="center"
-                >
-                    {postButton}
-                </Box>
-            )}
-        </Box>
+        </FocusRing>
     );
 }

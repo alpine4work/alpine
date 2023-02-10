@@ -22,6 +22,8 @@ import {assert} from "~/shared/helpers/control/assert";
 const FocusRingForwardRef = forwardRef(FocusRing);
 export {FocusRingForwardRef as FocusRing};
 
+const handledFocusInEvents = new WeakSet<FocusEvent>();
+
 /**
  * Our focus ring component is modeled after how [Discord built their focus
  * ring][1]. Instead of using native browser outlines that get clipped in
@@ -73,7 +75,14 @@ function FocusRing(
 
             const handleFocusIn = (event: FocusEvent) => {
                 if (isVisibleWhenFocusWithin || event.target === event.currentTarget) {
+                    // If another `<FocusRing>` became visible because of this focus event then we
+                    // don't want to show a second focus ring.
+                    if (isVisibleWhenFocusWithin && handledFocusInEvents.has(event)) {
+                        return;
+                    }
+
                     setFocusState({isFocused: true, isFocusVisible: isFocusVisible()});
+                    handledFocusInEvents.add(event);
                 }
             };
 
