@@ -5,8 +5,7 @@ import {PostListChannelHeader} from "~/client/forum/post_list";
 import {postListViewMargin} from "~/client/forum/post_list_view";
 import {sprinkles} from "~/shared/styles/styles";
 
-// TODO(calebmer): Real value!
-export const channelHeaderViewMinHeight = "4rem";
+export const channelHeaderViewMinHeight = "8.25rem";
 
 export function ChannelHeaderView({channelHeader}: {channelHeader: PostListChannelHeader}) {
     return (
@@ -22,9 +21,7 @@ export function ChannelHeaderView({channelHeader}: {channelHeader: PostListChann
                 >
                     {channelHeader.channel.name}
                 </h1>
-                <Box backgroundColor="grey-0" borderRadius="md" boxShadow="elevation-5">
-                    <PostCreator channelId={channelHeader.channel.id} />
-                </Box>
+                <PostCreator channelId={channelHeader.channel.id} />
                 <Spacer space={postListViewMargin} />
             </Box>
         </Box>

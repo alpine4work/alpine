@@ -53,7 +53,10 @@ export default function ChannelRoute() {
     const {channel, channelPostsResult} = useLoaderDataWithSchema(LoaderSchema);
 
     const [list, setList] = useState(() =>
-        PostList.empty.setChannelHeader({channel}).insertManyAtStart(channelPostsResult.posts),
+        PostList.empty
+            .setChannelHeader({channel})
+            .insertManyAtStart(channelPostsResult.posts)
+            .setHasMorePosts(channelPostsResult.hasMorePosts),
     );
 
     return (

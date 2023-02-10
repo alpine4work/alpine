@@ -1,3 +1,4 @@
+import {SpinnerGap} from "phosphor-react";
 import {ReactElement, useCallback, useEffect, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context";
 import {Spacer} from "~/client/design/spacer";
@@ -5,6 +6,7 @@ import {ChannelHeaderView, channelHeaderViewMinHeight} from "~/client/forum/chan
 import {PostCommentInput} from "~/client/forum/post_comment_input";
 import {PostContentView, postContentViewMinHeight} from "~/client/forum/post_content_view";
 import {PostList, PostListPostContentItem} from "~/client/forum/post_list";
+import {PostShimmer} from "~/client/forum/post_shimmer";
 import {PostRealtimeActions} from "~/client/forum/use_post_realtime";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useMessageEditing} from "~/client/messaging/message_editing";
@@ -27,7 +29,7 @@ import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlap
 import {PostId} from "~/shared/id/types/id_types";
 import {PostCommentModel} from "~/shared/models/post_model";
 import {getPostCommentsFromEnd, getPostCommentsFromStart} from "~/shared/rpc/posts_rpc_definitions";
-import {sprinkles} from "~/shared/styles/styles";
+import {spinAnimationClassName, sprinkles} from "~/shared/styles/styles";
 
 export const postListViewMargin: Spacing = "5";
 
@@ -699,6 +701,47 @@ export function PostListView({
                                 </>
                             );
                         },
+                    };
+                }
+                // NOTE(calebmer, 2023-02-10): We render 3 shimmers before the spinner to
+                // create some space to scroll and more directly imply to the user that there
+                // is more content to be loaded. Sometimes we may only load 1 post and so the
+                // three shimmers is a little false but this feels like an acceptable tradeoff.
+                case "MorePosts": {
+                    return {
+                        key: "MorePosts",
+                        minHeight: "36.875rem",
+                        node: (
+                            <div className={sprinkles({paddingX: postListViewMargin})}>
+                                <div
+                                    className={sprinkles({
+                                        width: "full",
+                                        maxWidth: "160",
+                                        marginX: "auto",
+                                    })}
+                                >
+                                    <PostShimmer />
+                                    <Spacer space={postListViewMargin} />
+                                    <PostShimmer />
+                                    <Spacer space={postListViewMargin} />
+                                    <PostShimmer />
+                                    <div
+                                        className={sprinkles({
+                                            display: "flex",
+                                            justifyContent: "center",
+                                            color: "grey-60",
+                                            paddingY: postListViewMargin,
+                                        })}
+                                    >
+                                        <SpinnerGap
+                                            className={spinAnimationClassName}
+                                            size={spacing["6"]}
+                                            weight="light"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        ),
                     };
                 }
                 default:

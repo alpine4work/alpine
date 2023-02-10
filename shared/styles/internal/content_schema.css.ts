@@ -3,6 +3,7 @@ import {colorByHighlightColor} from "~/shared/design/highlight_color";
 import {
     mobilePlatformMediaQuery,
     parseRemLengthNumber,
+    RemLength,
     remPxByPlatform,
     spacing,
 } from "~/shared/design/spacing";
@@ -88,7 +89,11 @@ export const titleClassName = style({
     },
 });
 
-export const paragraphFontSize = {
+export const paragraphFontSize: {
+    fontSize: string;
+    letterSpacing: string;
+    lineHeight: RemLength;
+} = {
     ...fontSizes["100"],
     // We use a 1.5x line height for paragraph content.
     lineHeight: "1.25rem",

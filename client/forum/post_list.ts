@@ -31,6 +31,7 @@ export type PostListChannelHeader = {
  */
 export class PostList {
     private readonly _channelHeader: PostListChannelHeader | null;
+    private readonly _hasMorePosts: boolean;
 
     /**
      * Our list of posts. But this is a map not a list you may say. Yes! It is a
@@ -85,12 +86,14 @@ export class PostList {
 
     private constructor({
         channelHeader,
+        hasMorePosts,
         postByOrderKey,
         orderKeyByPostId,
         openPostCommentPostOrderKeys,
-        postOrderKeyByPostContentIndex,
+        postOrderKeyByPostContentItemIndex,
     }: {
         channelHeader: PostListChannelHeader | null;
+        hasMorePosts: boolean;
         postByOrderKey: ImmutableMap<
             OrderKey,
             {
@@ -100,13 +103,14 @@ export class PostList {
         >;
         orderKeyByPostId: ImmutableMap<PostId, OrderKey>;
         openPostCommentPostOrderKeys: ImmutableSet<OrderKey>;
-        postOrderKeyByPostContentIndex: Tree<number, OrderKey>;
+        postOrderKeyByPostContentItemIndex: Tree<number, OrderKey>;
     }) {
         this._channelHeader = channelHeader;
+        this._hasMorePosts = hasMorePosts;
         this._postByOrderKey = postByOrderKey;
         this._orderKeyByPostId = orderKeyByPostId;
         this._openPostCommentPostOrderKeys = openPostCommentPostOrderKeys;
-        this._postOrderKeyByPostContentItemIndex = postOrderKeyByPostContentIndex;
+        this._postOrderKeyByPostContentItemIndex = postOrderKeyByPostContentItemIndex;
     }
 
     /**
@@ -114,10 +118,11 @@ export class PostList {
      */
     public static empty = new PostList({
         channelHeader: null,
+        hasMorePosts: false,
         postByOrderKey: ImmutableMap.empty(),
         orderKeyByPostId: ImmutableMap.empty(),
         openPostCommentPostOrderKeys: ImmutableSet.empty(),
-        postOrderKeyByPostContentIndex: createTree(),
+        postOrderKeyByPostContentItemIndex: createTree(),
     });
 
     /**
@@ -126,6 +131,7 @@ export class PostList {
     public getItemCount() {
         return (
             (this._channelHeader ? 1 : 0) +
+            (this._hasMorePosts ? 1 : 0) +
             this._postByOrderKey.size +
             // For all posts with open comments, add the size of the comment sections plus
             // one for the comment input.
@@ -154,6 +160,12 @@ export class PostList {
     } | null {
         if (index < 0 || !Number.isSafeInteger(index))
             throw new OutOfRangeError("Index should be a positive integer");
+
+        // We are in the channel header, not a post.
+        if (this._channelHeader && index === 0) return null;
+
+        // We are in the has more posts loading item, not a post.
+        if (this._hasMorePosts && index === this.getItemCount() - 1) return null;
 
         let startAfterOrderKey: OrderKey | null;
         let nextPostContentItemIndex: number;
@@ -295,6 +307,12 @@ export class PostList {
             };
         }
 
+        if (this._hasMorePosts && index === this.getItemCount() - 1) {
+            return {
+                type: "MorePosts",
+            };
+        }
+
         const {postContentItemIndex, postOrderKey, post, postComments} = assertExists(
             this._getPost(index),
             "Expected unsupported non-post indexes to be handled",
@@ -361,12 +379,28 @@ export class PostList {
     public setChannelHeader(channelHeader: PostListChannelHeader | null): PostList {
         return new PostList({
             channelHeader,
+            hasMorePosts: this._hasMorePosts,
             postByOrderKey: this._postByOrderKey,
             orderKeyByPostId: this._orderKeyByPostId,
             openPostCommentPostOrderKeys: this._openPostCommentPostOrderKeys,
             // We have to throw away the entire cache for post content indexes because
             // the channel header offsets everything by one.
-            postOrderKeyByPostContentIndex: createTree(),
+            postOrderKeyByPostContentItemIndex: createTree(),
+        });
+    }
+
+    /**
+     * Set that the post list should have a loading spinner once you reach the end.
+     */
+    public setHasMorePosts(hasMorePosts: boolean): PostList {
+        return new PostList({
+            channelHeader: this._channelHeader,
+            hasMorePosts,
+            postByOrderKey: this._postByOrderKey,
+            orderKeyByPostId: this._orderKeyByPostId,
+            openPostCommentPostOrderKeys: this._openPostCommentPostOrderKeys,
+            // We get to keep the index cache because the more posts item is at the end.
+            postOrderKeyByPostContentItemIndex: this._postOrderKeyByPostContentItemIndex,
         });
     }
 
@@ -407,12 +441,13 @@ export class PostList {
 
         return new PostList({
             channelHeader: this._channelHeader,
+            hasMorePosts: this._hasMorePosts,
             postByOrderKey,
             orderKeyByPostId,
             openPostCommentPostOrderKeys,
             // We have to throw away the entire cache for post content indexes because
             // inserting at the beginning means all indexes after are different.
-            postOrderKeyByPostContentIndex: createTree(),
+            postOrderKeyByPostContentItemIndex: createTree(),
         });
     }
 
@@ -453,12 +488,13 @@ export class PostList {
 
         return new PostList({
             channelHeader: this._channelHeader,
+            hasMorePosts: this._hasMorePosts,
             postByOrderKey,
             orderKeyByPostId,
             openPostCommentPostOrderKeys,
             // We can keep the existing cache for post content indexes because inserting at
             // the end does not change the indexes of items that come before.
-            postOrderKeyByPostContentIndex: this._postOrderKeyByPostContentItemIndex,
+            postOrderKeyByPostContentItemIndex: this._postOrderKeyByPostContentItemIndex,
         });
     }
 
@@ -492,12 +528,13 @@ export class PostList {
 
         return new PostList({
             channelHeader: this._channelHeader,
+            hasMorePosts: this._hasMorePosts,
             postByOrderKey,
             orderKeyByPostId,
             openPostCommentPostOrderKeys: this._openPostCommentPostOrderKeys,
             // We have to throw away the entire cache for post content indexes because
             // inserting at the beginning means all indexes after are different.
-            postOrderKeyByPostContentIndex: createTree(),
+            postOrderKeyByPostContentItemIndex: createTree(),
         });
     }
 
@@ -527,9 +564,9 @@ export class PostList {
             ? this._openPostCommentPostOrderKeys.delete(postOrderKey)
             : this._openPostCommentPostOrderKeys.add(postOrderKey);
 
-        // Keep the `left` side of the `postOrderKeyByPostContentIndex` cache and throw
+        // Keep the `left` side of the `postOrderKeyByPostContentItemIndex` cache and throw
         // away the `right` side which is now invalid.
-        const postOrderKeyByPostContentIndex = (() => {
+        const postOrderKeyByPostContentItemIndex = (() => {
             // HACK(calebmer): Hackishly get the constructor for a
             // `functional-red-black-tree` tree and construct it with the left-hand-side
             // subtree since there's not an official API.
@@ -542,10 +579,11 @@ export class PostList {
 
         return new PostList({
             channelHeader: this._channelHeader,
+            hasMorePosts: this._hasMorePosts,
             postByOrderKey: this._postByOrderKey,
             orderKeyByPostId: this._orderKeyByPostId,
             openPostCommentPostOrderKeys,
-            postOrderKeyByPostContentIndex,
+            postOrderKeyByPostContentItemIndex,
         });
     }
 
@@ -573,13 +611,14 @@ export class PostList {
 
         return new PostList({
             channelHeader: this._channelHeader,
+            hasMorePosts: this._hasMorePosts,
             postByOrderKey,
             orderKeyByPostId: this._orderKeyByPostId,
             openPostCommentPostOrderKeys: this._openPostCommentPostOrderKeys,
             // We don't know what index our post was out so we have to clear the entire
             // index tree. Maybe we should build our index cache like
             // `VirtualizedScrollViewState` where we sum up the item count of subtrees?
-            postOrderKeyByPostContentIndex: createTree(),
+            postOrderKeyByPostContentItemIndex: createTree(),
         });
     }
 }
@@ -592,7 +631,8 @@ export type PostListItem =
     | PostListPostContentItem
     | PostListLoadedPostCommentItem
     | PostListUnloadedPostCommentItem
-    | PostListPostCommentInputItem;
+    | PostListPostCommentInputItem
+    | PostListMorePostsItem;
 
 export type PostListChannelHeaderItem = {
     readonly type: "ChannelHeader";
@@ -670,4 +710,11 @@ export type PostListPostCommentInputItem = {
      * `PostList`.
      */
     readonly postContentItemIndex: number;
+};
+
+/**
+ * The last item in a post list when there are more posts to be loaded.
+ */
+export type PostListMorePostsItem = {
+    readonly type: "MorePosts";
 };

@@ -60,7 +60,7 @@ export function PostCreator({channelId}: {channelId: ChannelId}) {
     );
 
     return (
-        <>
+        <Box backgroundColor="grey-0" borderRadius="md" boxShadow="elevation-5">
             <Box
                 ref={containerRef}
                 position="relative"
@@ -141,6 +141,6 @@ export function PostCreator({channelId}: {channelId: ChannelId}) {
                     {postButton}
                 </Box>
             )}
-        </>
+        </Box>
     );
 }

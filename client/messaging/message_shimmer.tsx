@@ -1,12 +1,16 @@
-import classNames from "classnames";
 import {useRef} from "react";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {MessageList} from "~/client/messaging/message_list";
-import {Spacing} from "~/shared/design/spacing";
+import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {StableRandom} from "~/shared/helpers/number/stable_random";
 import {MessageInterface} from "~/shared/models/message_interface";
-import {pulseAnimationClassName, sprinkles} from "~/shared/styles/styles";
+import {
+    contentSchemaStyles,
+    fontSizes,
+    pulseAnimationClassName,
+    sprinkles,
+} from "~/shared/styles/styles";
 
 // We repeat sizes to make them appear more frequently when randomly selecting
 // a size.
@@ -108,72 +112,91 @@ export function MessageShimmer<Message extends MessageInterface>({
     }, []);
 
     return (
-        <div
-            ref={shimmerRef}
-            className={classNames(
-                pulseAnimationClassName,
-                sprinkles({
+        <div ref={shimmerRef} className={pulseAnimationClassName}>
+            {!shouldMergeWithPreviousMessage && (
+                <div
+                    className={sprinkles({paddingY: "0.5"})}
+                    style={{
+                        paddingLeft: addRemLengths(
+                            spacing["3"],
+                            spacing["7"],
+                            spacing["2"],
+                            spacing["1.5"],
+                        ),
+                    }}
+                >
+                    <div
+                        style={{height: fontSizes["50"].lineHeight}}
+                        className={sprinkles({display: "flex", alignItems: "center"})}
+                    >
+                        <div
+                            className={sprinkles({
+                                height: "2",
+                                width: "16",
+                                backgroundColor: "grey-5",
+                                borderRadius: "full",
+                            })}
+                        />
+                    </div>
+                </div>
+            )}
+            <div
+                className={sprinkles({
                     display: "flex",
                     paddingX: "3",
                     paddingBottom: !shouldMergeWithNextMessage ? "3" : "0.5",
-                }),
-            )}
-        >
-            <div
-                className={sprinkles({
-                    flexShrink: "0",
-                    width: "10",
-                    display: "flex",
-                    alignItems: "flex-end",
                 })}
             >
-                {!shouldMergeWithNextMessage && (
+                <div className={sprinkles({flexShrink: "0", paddingRight: "2"})}>
                     <div
                         className={sprinkles({
-                            flexShrink: "0",
-                            width: "8",
-                            height: "8",
-                            backgroundColor: "grey-10",
-                            borderRadius: "full",
+                            width: "7",
+                            height: "full",
                             display: "flex",
-                            justifyContent: "center",
-                            alignItems: "center",
+                            alignItems: "flex-end",
                         })}
-                    />
-                )}
-            </div>
-            <div className={sprinkles({flexGrow: "1"})}>
-                {!shouldMergeWithPreviousMessage && (
-                    <div className={sprinkles({paddingY: "0.5", paddingLeft: "2"})}>
-                        <div
-                            style={{height: 18}}
-                            className={sprinkles({display: "flex", alignItems: "center"})}
-                        >
+                    >
+                        {!shouldMergeWithNextMessage && (
                             <div
                                 className={sprinkles({
-                                    height: "2",
-                                    width: "16",
-                                    backgroundColor: "grey-5",
+                                    flexShrink: "0",
+                                    width: "7",
+                                    height: "7",
+                                    backgroundColor: "grey-10",
                                     borderRadius: "full",
+                                    display: "flex",
+                                    justifyContent: "center",
+                                    alignItems: "center",
                                 })}
                             />
-                        </div>
+                        )}
                     </div>
-                )}
-                <div
-                    className={sprinkles({
-                        paddingY: "2",
-                        paddingX: "2",
-                        backgroundColor: "grey-5",
-                        width: "full",
-                        maxWidth: messageSize.width,
-                        borderTopLeftRadius: !shouldMergeWithPreviousMessage ? "xl" : "base",
-                        borderTopRightRadius: "xl",
-                        borderBottomLeftRadius: !shouldMergeWithNextMessage ? "xl" : "base",
-                        borderBottomRightRadius: "xl",
-                    })}
-                >
-                    <div style={{height: `${messageSize.heightLines * 1.5}rem`}} />
+                </div>
+                <div className={sprinkles({flexGrow: "1", paddingRight: "10"})}>
+                    <div
+                        className={sprinkles({
+                            paddingY: "1.5",
+                            paddingX: "0.5",
+                            backgroundColor: "grey-5",
+                            width: "full",
+                            maxWidth: messageSize.width,
+                            borderTopLeftRadius: !shouldMergeWithPreviousMessage ? "xl" : "base",
+                            borderTopRightRadius: "xl",
+                            borderBottomLeftRadius: !shouldMergeWithNextMessage ? "xl" : "base",
+                            borderBottomRightRadius: "xl",
+                        })}
+                    >
+                        <div
+                            style={{
+                                height: `${
+                                    messageSize.heightLines *
+                                    parseRemLengthNumber(
+                                        contentSchemaStyles.paragraphFontSize.lineHeight,
+                                    )
+                                }rem`,
+                            }}
+                        />
+                    </div>
                 </div>
             </div>
         </div>

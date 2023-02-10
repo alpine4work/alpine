@@ -46,10 +46,10 @@ export function PostContentView({
             <Box paddingTop="5" paddingX="5" display="flex" alignItems="center">
                 <AccountAvatar account={post.author} size="8" />
                 <Box flexGrow="1" paddingLeft="3" paddingRight="4" overflow="hidden">
-                    <Box fontSize="100" fontStyle="truncate-semi-bold">
+                    <Box fontSize="75" fontStyle="truncate-semi-bold">
                         {post.author.name}
                     </Box>
-                    <Box fontSize="75" fontStyle="truncate" color="grey-50">
+                    <Box fontSize="50" fontStyle="truncate" color="grey-50">
                         <PrettyAbsoluteDate date={post.createdTime} />
                     </Box>
                 </Box>
