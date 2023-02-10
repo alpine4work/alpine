@@ -3,11 +3,18 @@ import {Spacer} from "~/client/design/spacer";
 import {PostCreator} from "~/client/forum/post_creator";
 import {PostListChannelHeader} from "~/client/forum/post_list";
 import {postListViewMargin} from "~/client/forum/post_list_view";
+import {PostModel} from "~/shared/models/post_model";
 import {sprinkles} from "~/shared/styles/styles";
 
 export const channelHeaderViewMinHeight = "8.25rem";
 
-export function ChannelHeaderView({channelHeader}: {channelHeader: PostListChannelHeader}) {
+export function ChannelHeaderView({
+    channelHeader,
+    onCreatePost,
+}: {
+    channelHeader: PostListChannelHeader;
+    onCreatePost: (post: PostModel) => void;
+}) {
     return (
         <Box paddingX={postListViewMargin}>
             <Box marginX="auto" width="full" maxWidth="160">
@@ -21,7 +28,7 @@ export function ChannelHeaderView({channelHeader}: {channelHeader: PostListChann
                 >
                     {channelHeader.channel.name}
                 </h1>
-                <PostCreator channelId={channelHeader.channel.id} />
+                <PostCreator channelId={channelHeader.channel.id} onCreatePost={onCreatePost} />
                 <Spacer space={postListViewMargin} />
             </Box>
         </Box>

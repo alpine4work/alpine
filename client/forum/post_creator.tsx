@@ -1,6 +1,6 @@
-import {useState} from "react";
+import {useRef, useState} from "react";
 import {useNavigate} from "react-router-dom";
-import {ContentEditor} from "~/client/content/content_editor";
+import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {ContentView} from "~/client/content/content_view";
 import {useAppContext} from "~/client/context/app_context";
@@ -9,21 +9,32 @@ import {Button} from "~/client/design/button";
 import {useShowToast} from "~/client/design/toast";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer";
+import {useSpaceContext} from "~/client/spaces/space_context";
 import {isContentEmpty} from "~/shared/content/is_content_empty";
 import {emptyPostContent} from "~/shared/content/post_content_schema";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {ChannelId} from "~/shared/id/types/id_types";
+import {PostModel} from "~/shared/models/post_model";
 import {createPost} from "~/shared/rpc/forum_rpc_definitions";
 import {sprinkles} from "~/shared/styles/styles";
 
-export function PostCreator({channelId}: {channelId: ChannelId}) {
+export function PostCreator({
+    channelId,
+    onCreatePost,
+}: {
+    channelId: ChannelId;
+    onCreatePost: (post: PostModel) => void;
+}) {
     const navigate = useNavigate();
-    const context = useAppContext();
     const showToast = useShowToast();
+    const context = useAppContext();
+    const {currentAccount} = useSpaceContext();
 
     const [containerRef, containerSize] = useResizeObserver();
     const [inlineButtonRef, inlineButtonSize] = useResizeObserver();
     const [phantomContentRef, phantomContentSize] = useResizeObserver();
+    const editorRef = useRef<ContentEditorRef>(null);
     const [state, setState] = useState(() => ContentEditorState.create(emptyPostContent));
     const [isPending, setIsPending] = useState(false);
 
@@ -40,20 +51,41 @@ export function PostCreator({channelId}: {channelId: ChannelId}) {
 
     const errorTitle = "Couldn’t create post";
 
+    const handleCreatePost = async () => {
+        const editor = assertExists(editorRef.current);
+        const content = state.getContent();
+
+        const {post} = await createPost(context, {
+            channelId,
+            content,
+        });
+
+        setState(ContentEditorState.create(emptyPostContent));
+
+        onCreatePost(
+            new PostModel({
+                id: post.id,
+                spaceId: post.spaceId,
+                channelId,
+                createdTime: post.createdTime,
+                author: currentAccount,
+                content,
+                commentCount: 0,
+                commentAuthorCount: 0,
+                previewCommentAuthors: [],
+            }),
+        );
+
+        editor.blur();
+    };
+
     const postButton = (
         <Button
             variant="accent"
             isDisabled={isContentEmpty(state.getContent())}
             isPending={isPending}
             pressErrorTitle={errorTitle}
-            onPress={async () => {
-                const {post} = await createPost(context, {
-                    channelId,
-                    content: state.getContent(),
-                });
-
-                navigate(`/s/${post.spaceId}/posts/${post.id}`);
-            }}
+            onPress={handleCreatePost}
         >
             Post
         </Button>
@@ -69,6 +101,7 @@ export function PostCreator({channelId}: {channelId: ChannelId}) {
                 overflowX="hidden"
             >
                 <ContentEditor
+                    ref={editorRef}
                     aria-label="New post content"
                     state={state}
                     onNavigate={navigate}
@@ -86,12 +119,7 @@ export function PostCreator({channelId}: {channelId: ChannelId}) {
                         runPromiseWithoutAwaiting(async () => {
                             setIsPending(true);
                             try {
-                                await createPost(context, {
-                                    channelId,
-                                    content: state.getContent(),
-                                });
-
-                                setState(ContentEditorState.create(emptyPostContent));
+                                await handleCreatePost();
                             } catch (error) {
                                 showToast({
                                     type: "Error",

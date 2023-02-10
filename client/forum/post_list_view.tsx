@@ -312,7 +312,14 @@ export function PostListView({
                     return {
                         key: "ChannelHeader",
                         minHeight: channelHeaderViewMinHeight,
-                        node: <ChannelHeaderView channelHeader={item.channelHeader} />,
+                        node: (
+                            <ChannelHeaderView
+                                channelHeader={item.channelHeader}
+                                onCreatePost={post =>
+                                    setPosts(posts => posts.insertPostAtStart(post))
+                                }
+                            />
+                        ),
                     };
                 }
                 case "PostContent": {
