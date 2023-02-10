@@ -1,7 +1,7 @@
 import {Ref, forwardRef, useEffect, useRef, useState} from "react";
-import {useElementWithRef} from "~/client/design/helpers/use_element_with_ref";
 import {Overlay, OverlayProps, OverlayRef} from "~/client/design/overlay";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
+import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref";
 import {assert} from "~/shared/helpers/control/assert";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
 import {

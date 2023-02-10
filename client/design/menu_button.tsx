@@ -20,9 +20,6 @@ import {
     getPreviousFocusableElement,
 } from "~/client/design/helpers/get_next_focusable_element";
 import {setElementAttributesWithCleanup} from "~/client/design/helpers/set_element_attributes_with_cleanup";
-import {useElementWithRef} from "~/client/design/helpers/use_element_with_ref";
-import {useLifecycleRef} from "~/client/design/helpers/use_lifecycle_ref";
-import {useMergedRefs} from "~/client/design/helpers/use_merged_refs";
 import {useOutsidePress} from "~/client/design/helpers/use_outside_press";
 import {Overlay, OverlayPlacement} from "~/client/design/overlay";
 import {uninterruptedThoughtLimitMs} from "~/client/design/timing_constants";
@@ -34,6 +31,9 @@ import {
     useShouldDisableTooltips,
 } from "~/client/design/tooltip";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
+import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref";
+import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
 import {Spacing, spacing} from "~/shared/design/spacing";
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";

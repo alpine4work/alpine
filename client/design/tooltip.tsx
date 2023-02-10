@@ -17,8 +17,6 @@ import {
 } from "react";
 import {Box} from "~/client/design/box";
 import {setElementAttributesWithCleanup} from "~/client/design/helpers/set_element_attributes_with_cleanup";
-import {useElementWithRef} from "~/client/design/helpers/use_element_with_ref";
-import {useLifecycleRef} from "~/client/design/helpers/use_lifecycle_ref";
 import {Overlay, OverlayPlacement, OverlayRef} from "~/client/design/overlay";
 import {
     perceivedAsInstantLimitMs,
@@ -28,6 +26,8 @@ import {
 import {useConstant} from "~/client/helpers/lifecycle/use_constant";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted";
+import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref";
+import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref";
 import {Spacing} from "~/shared/design/spacing";
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";

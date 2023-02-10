@@ -1,9 +1,9 @@
 import {createVar, globalStyle, style} from "@vanilla-extract/css";
 import {colorByHighlightColor} from "~/shared/design/highlight_color";
 import {
+    RemLength,
     mobilePlatformMediaQuery,
     parseRemLengthNumber,
-    RemLength,
     remPxByPlatform,
     spacing,
 } from "~/shared/design/spacing";

@@ -31,7 +31,6 @@ import {
     trimSpacesFromRange,
 } from "~/client/content/internal/content_editor_prosemirror_helpers";
 import {Box} from "~/client/design/box";
-import {useLifecycleRef} from "~/client/design/helpers/use_lifecycle_ref";
 import {useOutsidePress} from "~/client/design/helpers/use_outside_press";
 import {Overlay, OverlayRef} from "~/client/design/overlay";
 import {OverlayAnimated} from "~/client/design/overlay_animated";
@@ -39,6 +38,7 @@ import {uninterruptedThoughtLimitMs} from "~/client/design/timing_constants";
 import {Tooltip, TooltipRef, TooltipState} from "~/client/design/tooltip";
 import {isMac} from "~/client/helpers/is_mac";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant";
+import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema";
 import {spacing} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";

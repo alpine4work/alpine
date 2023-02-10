@@ -11,11 +11,11 @@ import {
     useState,
 } from "react";
 import {Box} from "~/client/design/box";
-import {useElementWithRef} from "~/client/design/helpers/use_element_with_ref";
-import {useLifecycleRef} from "~/client/design/helpers/use_lifecycle_ref";
-import {useMergedRefs} from "~/client/design/helpers/use_merged_refs";
 import {useSpacingPx} from "~/client/design/helpers/use_spacing_px";
 import {Overlay} from "~/client/design/overlay";
+import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref";
+import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
 import {Spacing} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
 

@@ -15,9 +15,9 @@ import {
 } from "react";
 import {createPortal} from "react-dom";
 import {Box} from "~/client/design/box";
-import {useElementWithRef} from "~/client/design/helpers/use_element_with_ref";
-import {useLifecycleRef} from "~/client/design/helpers/use_lifecycle_ref";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
+import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref";
+import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref";
 import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
 

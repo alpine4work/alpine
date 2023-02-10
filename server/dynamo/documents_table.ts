@@ -347,6 +347,7 @@ async function getInternalDocument(
         endSortKey: {
             sortRangeType: "Snapshot",
         },
+        limit: "All",
     })) {
         switch (item.sortRangeType) {
             case "Attributes":
@@ -1352,6 +1353,7 @@ async function updateDocumentSnapshotAfterUpdatingContent(
                     sortRangeType: "StepTransactionsAfterSnapshot",
                     startVersion: newVersion - 1,
                 },
+                limit: "All",
             }),
         );
 
@@ -1559,6 +1561,7 @@ async function* getDocumentStepTransactionsBetweenValidatedVersionRange(
                     sortRangeType: "StepTransactionsAfterSnapshot",
                     startVersion: endVersion - 1,
                 },
+                limit: "All",
             })) {
                 yield stepTransaction;
             }
@@ -1583,6 +1586,7 @@ async function* getDocumentStepTransactionsBetweenValidatedVersionRange(
                     sortRangeType: "StepTransactionsBeforeSnapshot",
                     startVersion: endVersion - 1,
                 },
+                limit: "All",
             });
 
             let lastStepTransactionBeforeSnapshot = null;
@@ -1619,6 +1623,7 @@ async function* getDocumentStepTransactionsBetweenValidatedVersionRange(
                     sortRangeType: "StepTransactionsAfterSnapshot",
                     startVersion: endVersion - 1,
                 },
+                limit: "All",
             });
 
             yield* stepTransactionAfterSnapshotIterator;

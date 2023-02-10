@@ -3,9 +3,9 @@ import {IconContext} from "phosphor-react";
 import {Ref, forwardRef, useRef} from "react";
 import {AriaButtonProps, mergeProps, useButton, useHover} from "react-aria";
 import {FocusRing} from "~/client/design/focus_ring";
-import {useMergedRefs} from "~/client/design/helpers/use_merged_refs";
 import {useShowToast} from "~/client/design/toast";
 import {Tooltip} from "~/client/design/tooltip";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
 import {spacing} from "~/shared/design/spacing";
 import {Sprinkles, sprinkles} from "~/shared/styles/styles";
 

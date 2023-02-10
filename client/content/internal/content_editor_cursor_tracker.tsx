@@ -2,7 +2,7 @@ import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {Memo, Ref, RefObject, forwardRef, useCallback, useLayoutEffect, useRef} from "react";
 import {Box} from "~/client/design/box";
-import {useMergedRefs} from "~/client/design/helpers/use_merged_refs";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
 import {
     addResizeListenerForElement,
     removeResizeListenerForElement,
