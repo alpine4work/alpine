@@ -414,6 +414,17 @@ export class VirtualizedScrollViewState {
     }
 
     /**
+     * Return the height we've record for the provided item key if it exists.
+     */
+    private _getItemHeightIfExists(itemKey: Key): number | null {
+        const orderKey = this._orderKeyByItemKey.get(itemKey);
+        if (!orderKey) return null;
+        const entry = this._entryByOrderKey.get(orderKey);
+        if (!entry || entry.type !== "Item") return null;
+        return entry.height;
+    }
+
+    /**
      * Get the number of items in the provided subtree.
      *
      * WARNING: If you want to get the count of all items before the entry you
@@ -598,6 +609,8 @@ export class VirtualizedScrollViewState {
             getItem: (index: number) => {key: Key; minHeight: number};
         },
     ): VirtualizedScrollViewState {
+        const originalState = state;
+
         // Validation to make sure that every index has a unique key. In future
         // renders items may move around so two indexes may have the same key at
         // different points in time but at a given point in time each index should
@@ -714,17 +727,20 @@ export class VirtualizedScrollViewState {
                     // that item with our new one. If the new item existed somewhere else in the
                     // list it will be replaced with a buffer.
                     else if (node.value.type === "Item") {
+                        const itemHeight =
+                            originalState._getItemHeightIfExists(item.key) ?? item.minHeight;
+
                         state = VirtualizedScrollViewState._setEntry(
                             state,
                             node.key,
                             {
                                 type: "Item",
                                 key: item.key,
-                                height: item.minHeight,
+                                height: itemHeight,
                             },
                             getItem,
                         );
-                        newRenderedRangeStartOffset -= item.minHeight;
+                        newRenderedRangeStartOffset -= itemHeight;
                         newRenderedRangeStartOrderKey = node.key;
                     }
                     // If the previous item in the list is a buffer then we replace as many buffer
@@ -738,17 +754,21 @@ export class VirtualizedScrollViewState {
                             node.key,
                             newRenderedRangeStartOrderKey,
                         );
+
+                        const itemHeight =
+                            originalState._getItemHeightIfExists(item.key) ?? item.minHeight;
+
                         state = VirtualizedScrollViewState._setEntry(
                             state,
                             newEntryOrderKey,
                             {
                                 type: "Item",
                                 key: item.key,
-                                height: item.minHeight,
+                                height: itemHeight,
                             },
                             getItem,
                         );
-                        newRenderedRangeStartOffset -= item.minHeight;
+                        newRenderedRangeStartOffset -= itemHeight;
                         newRenderedRangeStartOrderKey = newEntryOrderKey;
 
                         while (
@@ -764,17 +784,21 @@ export class VirtualizedScrollViewState {
                                 node.key,
                                 newRenderedRangeStartOrderKey,
                             );
+
+                            const itemHeight =
+                                originalState._getItemHeightIfExists(item.key) ?? item.minHeight;
+
                             state = VirtualizedScrollViewState._setEntry(
                                 state,
                                 newEntryOrderKey,
                                 {
                                     type: "Item",
                                     key: item.key,
-                                    height: item.minHeight,
+                                    height: itemHeight,
                                 },
                                 getItem,
                             );
-                            newRenderedRangeStartOffset -= item.minHeight;
+                            newRenderedRangeStartOffset -= itemHeight;
                             newRenderedRangeStartOrderKey = newEntryOrderKey;
                         }
 
@@ -863,17 +887,20 @@ export class VirtualizedScrollViewState {
                     // item with our new one. If the new item existed somewhere else in the list it
                     // will be replaced with a buffer.
                     else if (node.value.type === "Item") {
+                        const itemHeight =
+                            originalState._getItemHeightIfExists(item.key) ?? item.minHeight;
+
                         state = VirtualizedScrollViewState._setEntry(
                             state,
                             node.key,
                             {
                                 type: "Item",
                                 key: item.key,
-                                height: item.minHeight,
+                                height: itemHeight,
                             },
                             getItem,
                         );
-                        newRenderedRangeEndOffset += item.minHeight;
+                        newRenderedRangeEndOffset += itemHeight;
                         newRenderedRangeEndOrderKey = node.key;
                     }
                     // If the next item in the list is a buffer then we replace as many buffer items
@@ -887,17 +914,21 @@ export class VirtualizedScrollViewState {
                             newRenderedRangeEndOrderKey,
                             node.key,
                         );
+
+                        const itemHeight =
+                            originalState._getItemHeightIfExists(item.key) ?? item.minHeight;
+
                         state = VirtualizedScrollViewState._setEntry(
                             state,
                             newEntryOrderKey,
                             {
                                 type: "Item",
                                 key: item.key,
-                                height: item.minHeight,
+                                height: itemHeight,
                             },
                             getItem,
                         );
-                        newRenderedRangeEndOffset += item.minHeight;
+                        newRenderedRangeEndOffset += itemHeight;
                         newRenderedRangeEndOrderKey = newEntryOrderKey;
 
                         while (
@@ -913,17 +944,21 @@ export class VirtualizedScrollViewState {
                                 newRenderedRangeEndOrderKey,
                                 node.key,
                             );
+
+                            const itemHeight =
+                                originalState._getItemHeightIfExists(item.key) ?? item.minHeight;
+
                             state = VirtualizedScrollViewState._setEntry(
                                 state,
                                 newEntryOrderKey,
                                 {
                                     type: "Item",
                                     key: item.key,
-                                    height: item.minHeight,
+                                    height: itemHeight,
                                 },
                                 getItem,
                             );
-                            newRenderedRangeEndOffset += item.minHeight;
+                            newRenderedRangeEndOffset += itemHeight;
                             newRenderedRangeEndOrderKey = newEntryOrderKey;
                         }
 
@@ -1113,13 +1148,15 @@ export class VirtualizedScrollViewState {
                 nextNode = iterator.node;
             }
 
+            const itemHeight = originalState._getItemHeightIfExists(item.key) ?? item.minHeight;
+
             state = VirtualizedScrollViewState._setEntry(
                 state,
                 node.key,
                 {
                     type: "Item",
                     key: item.key,
-                    height: item.minHeight,
+                    height: itemHeight,
                 },
                 getItem,
             );
@@ -1154,7 +1191,7 @@ export class VirtualizedScrollViewState {
                 offset,
                 node.key,
                 index,
-                offset + item.minHeight,
+                offset + itemHeight,
             );
         };
 
@@ -1292,6 +1329,8 @@ export class VirtualizedScrollViewState {
         bufferedHeightBeforeChildren: number;
         renderedRange: {startIndex: number; endIndex: number} | null;
     } {
+        const originalState = state;
+
         // Validation to make sure that every index has a unique key. In future
         // renders items may move around so two indexes may have the same key at
         // different points in time but at a given point in time each index should
@@ -1436,7 +1475,10 @@ export class VirtualizedScrollViewState {
 
             const index = endIndex;
             const item = getItem(index);
-            const itemHeight = node.value.key === item.key ? node.value.height : item.minHeight;
+            const itemHeight =
+                node.value.key === item.key
+                    ? node.value.height
+                    : originalState._getItemHeightIfExists(item.key) ?? item.minHeight;
 
             const renderedItem = item.render({
                 offset,
@@ -1467,7 +1509,7 @@ export class VirtualizedScrollViewState {
                     {
                         type: "Item",
                         key: item.key,
-                        height: item.minHeight,
+                        height: itemHeight,
                     },
                     getItem,
                 );
@@ -1508,6 +1550,11 @@ export class VirtualizedScrollViewState {
                 if (node.value.type === "Item") {
                     assert(nodeIndex === 0);
 
+                    const itemHeight =
+                        node.value.key === item.key
+                            ? node.value.height
+                            : originalState._getItemHeightIfExists(item.key) ?? item.minHeight;
+
                     // If the item key changed from what we have in state then we need to set a new
                     // entry in our state with a new key and new height.
                     if (node.value.key !== item.key) {
@@ -1517,14 +1564,14 @@ export class VirtualizedScrollViewState {
                             {
                                 type: "Item",
                                 key: item.key,
-                                height: item.minHeight,
+                                height: itemHeight,
                             },
                             getItem,
                         );
                     }
 
                     offset = nodeOffset;
-                    height = node.value.key === item.key ? node.value.height : item.minHeight;
+                    height = itemHeight;
                 }
                 // If the index is in a buffer, we need to split the buffer in half to add an
                 // entry for the additional item we're rendering.
@@ -1547,13 +1594,16 @@ export class VirtualizedScrollViewState {
                         nextNode = iterator.node;
                     }
 
+                    const itemHeight =
+                        originalState._getItemHeightIfExists(item.key) ?? item.minHeight;
+
                     state = VirtualizedScrollViewState._setEntry(
                         state,
                         node.key,
                         {
                             type: "Item",
                             key: item.key,
-                            height: item.minHeight,
+                            height: itemHeight,
                         },
                         getItem,
                     );
@@ -1583,7 +1633,7 @@ export class VirtualizedScrollViewState {
                     }
 
                     offset = nodeOffset + newBufferedItemCountBefore * state._bufferedItemHeight;
-                    height = item.minHeight;
+                    height = itemHeight;
                 }
 
                 const renderedItem = item.render({
@@ -1621,12 +1671,31 @@ export class VirtualizedScrollViewState {
         entry: VirtualizedScrollViewStateEntry,
         getItem: (index: number) => {key: Key; minHeight: number},
     ): VirtualizedScrollViewState {
+        const originalState = state;
+
         let entryByOrderKey = state._entryByOrderKey;
         let orderKeyByItemKey = state._orderKeyByItemKey;
 
         // We may recursively call this function so create an intermediate function
         // definition.
         const setEntry = (orderKey: OrderKey, entry: VirtualizedScrollViewStateEntry) => {
+            // Replace the entry at the provided order key.
+            const iterator1 = entryByOrderKey.find(orderKey);
+            entryByOrderKey = iterator1.valid
+                ? iterator1.update(entry)
+                : entryByOrderKey.insert(orderKey, entry);
+
+            // If there was previously an item at the order key, remove the
+            // `itemKey -> orderKey` association.
+            if (
+                iterator1.value?.type === "Item" &&
+                // If this is an item entry and the previous entry has the same key, we will
+                // update the `orderKeyByItemKey` tree in the below branch.
+                (entry.type !== "Item" || entry.key !== iterator1.value.key)
+            ) {
+                orderKeyByItemKey = orderKeyByItemKey.remove(iterator1.value.key);
+            }
+
             // If we are replacing an item then add the `itemKey -> orderKey` association.
             if (entry.type === "Item") {
                 const iterator2 = orderKeyByItemKey.find(entry.key);
@@ -1640,11 +1709,7 @@ export class VirtualizedScrollViewState {
                 // swapped positions with another item?
                 if (iterator2.node) {
                     const iterator3 = entryByOrderKey.find(iterator2.node.value);
-
-                    // Reuse the height from the old, measured, item in the new entry instead of
-                    // using a `minHeight`.
                     assert(iterator3.node?.value.type === "Item");
-                    entry = {...entry, height: iterator3.node.value.height};
 
                     if (iterator2.node.value !== orderKey) {
                         entryByOrderKey = iterator3.update({type: "Buffer", itemCount: 1});
@@ -1667,31 +1732,13 @@ export class VirtualizedScrollViewState {
                             setEntry(iterator2.node.value, {
                                 type: "Item",
                                 key: newItem.key,
-                                height: newItem.minHeight,
+                                height:
+                                    originalState._getItemHeightIfExists(newItem.key) ??
+                                    newItem.minHeight,
                             });
                         }
                     }
                 }
-            }
-
-            // Replace the entry at the provided order key.
-            //
-            // We do this last so we can reassign `entry` in the above branch.
-            const iterator1 = entryByOrderKey.find(orderKey);
-            entryByOrderKey = iterator1.valid
-                ? iterator1.update(entry)
-                : entryByOrderKey.insert(orderKey, entry);
-
-            // If there was previously an item at the order key, remove the
-            // `itemKey -> orderKey` association.
-            if (
-                iterator1.value?.type === "Item" &&
-                // If this is an item entry and the previous entry has the same key, we already
-                // updated the `orderKeyByItemKey` tree in the above branch. Don't remove the
-                // work we just did.
-                (entry.type !== "Item" || entry.key !== iterator1.value.key)
-            ) {
-                orderKeyByItemKey = orderKeyByItemKey.remove(iterator1.value.key);
             }
         };
 
