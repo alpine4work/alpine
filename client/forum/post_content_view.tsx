@@ -1,4 +1,4 @@
-import {CaretRight} from "phosphor-react";
+import {CaretRight, DotsThree} from "phosphor-react";
 import {useEffect, useMemo, useState} from "react";
 import {useNavigate} from "react-router-dom";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
@@ -7,6 +7,8 @@ import {ContentView} from "~/client/content/content_view";
 import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
+import {IconButton} from "~/client/design/icon_button";
+import {MenuButton} from "~/client/design/menu_button";
 import {PrettyAbsoluteDate} from "~/client/design/pretty_absolute_date";
 import {PrettyNumber} from "~/client/design/pretty_number";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
@@ -43,7 +45,7 @@ export function PostContentView({
 }) {
     return (
         <Box style={{minHeight: postContentViewMinHeight}}>
-            <Box paddingTop="5" paddingX="5" display="flex" alignItems="center">
+            <Box position="relative" paddingTop="5" paddingX="5" display="flex" alignItems="center">
                 <AccountAvatar account={post.author} size="8" />
                 <Box flexGrow="1" paddingLeft="3" paddingRight="4" overflow="hidden">
                     <Box fontSize="75" fontStyle="truncate-semi-bold">
@@ -52,6 +54,27 @@ export function PostContentView({
                     <Box fontSize="50" fontStyle="truncate" color="grey-50">
                         <PrettyAbsoluteDate date={post.createdTime} />
                     </Box>
+                </Box>
+                <Box position="absolute" top="2" right="2">
+                    <MenuButton
+                        actions={[
+                            {
+                                label: "Copy link",
+                                pressErrorTitle: "Couldn’t copy post link",
+                                onPress: async () => {
+                                    const url = new URL(
+                                        `/s/${post.spaceId}/posts/${post.id}`,
+                                        window.location.href,
+                                    );
+                                    await navigator.clipboard.writeText(url.toString());
+                                },
+                            },
+                        ]}
+                    >
+                        <IconButton description="More" withoutTooltip={true}>
+                            <DotsThree />
+                        </IconButton>
+                    </MenuButton>
                 </Box>
             </Box>
             <ContentView

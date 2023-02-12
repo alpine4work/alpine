@@ -359,8 +359,8 @@ export function MenuButton({
                     placement={placement}
                     isFadingOut={!state.isExpanded && state.isFadingOut}
                     initiallyFocus={state.initiallyFocus ?? "Menu"}
-                    onClose={({returnFocusTo} = {}) => {
-                        setState({isExpanded: false, isFadingOut: true});
+                    onClose={({returnFocusTo, withoutAnimation} = {}) => {
+                        setState({isExpanded: false, isFadingOut: !withoutAnimation});
 
                         const menuButtonElement = assertExists(menuButtonRef.current);
 
@@ -414,6 +414,7 @@ const Menu = forwardRef(function Menu(
         initiallyFocus: "Menu" | "FirstMenuItem" | "LastMenuItem";
         onClose: (opts?: {
             returnFocusTo?: "TriggerElement" | "NextElement" | "PreviousElement";
+            withoutAnimation?: boolean;
         }) => void;
     },
     ref: Ref<HTMLDivElement>,
@@ -608,7 +609,8 @@ const Menu = forwardRef(function Menu(
                                 action={action}
                                 parentPlacement={placement}
                                 isFadingOut={isFadingOut}
-                                onClose={onClose}
+                                onCloseWithAnimation={onClose}
+                                onCloseWithoutAnimation={() => onClose({withoutAnimation: true})}
                             />
                         );
                     })}
@@ -623,12 +625,14 @@ const MenuItem = forwardRef(function MenuItem(
         action,
         parentPlacement,
         isFadingOut,
-        onClose,
+        onCloseWithAnimation,
+        onCloseWithoutAnimation,
     }: {
         action: MenuAction;
         parentPlacement: OverlayPlacement;
         isFadingOut: boolean;
-        onClose: () => void;
+        onCloseWithAnimation: () => void;
+        onCloseWithoutAnimation: () => void;
     },
     ref: Ref<HTMLDivElement>,
 ) {
@@ -649,7 +653,8 @@ const MenuItem = forwardRef(function MenuItem(
                         innerRef={ref}
                         action={action}
                         isFadingOut={isFadingOut}
-                        onClose={onClose}
+                        onCloseWithAnimation={onCloseWithAnimation}
+                        onCloseWithoutAnimation={onCloseWithoutAnimation}
                         skipTooltipHoverDelay={skipHoverDelay}
                     />
                 )}
@@ -661,7 +666,8 @@ const MenuItem = forwardRef(function MenuItem(
                 innerRef={ref}
                 action={action}
                 isFadingOut={isFadingOut}
-                onClose={onClose}
+                onCloseWithAnimation={onCloseWithAnimation}
+                onCloseWithoutAnimation={onCloseWithoutAnimation}
             />
         );
     }
@@ -671,13 +677,15 @@ function MenuButtonInner({
     innerRef,
     action,
     isFadingOut,
-    onClose,
+    onCloseWithAnimation,
+    onCloseWithoutAnimation,
     skipTooltipHoverDelay,
 }: {
     innerRef: Ref<HTMLDivElement>;
     action: MenuAction;
     isFadingOut: boolean;
-    onClose: () => void;
+    onCloseWithAnimation: () => void;
+    onCloseWithoutAnimation: () => void;
     skipTooltipHoverDelay?: () => void;
 }) {
     const showToast = useShowToast();
@@ -731,8 +739,10 @@ function MenuButtonInner({
             // - Show a loading spinner after a short delay
             // - Show a toast if there was an error
             if (!(promise instanceof Promise)) {
-                onClose();
+                onCloseWithoutAnimation();
             } else {
+                const promiseStartTime = new Date();
+
                 setPendingState({isPending: true, shouldShowPendingSpinner: false});
 
                 assert(
@@ -742,7 +752,19 @@ function MenuButtonInner({
 
                 promise.then(
                     () => {
-                        onClose();
+                        // Our animation principle is to respond to user input immediately
+                        // without animation.
+                        //
+                        // If the item had to go into a loading state we consider the click long
+                        // enough ago that it is no longer a direct action.
+                        if (
+                            new Date().getTime() - promiseStartTime.getTime() >
+                            delayLoadingIndicatorLimitMs
+                        ) {
+                            onCloseWithAnimation();
+                        } else {
+                            onCloseWithoutAnimation();
+                        }
                     },
                     error => {
                         setPendingState({isPending: false, shouldShowPendingSpinner: false});

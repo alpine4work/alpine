@@ -166,7 +166,9 @@ export function ModalDialog({
                                     pressErrorTitle={primaryButtonPressErrorTitle}
                                     onPress={() => {
                                         const promise = onPrimaryButtonPress();
-                                        if (promise instanceof Promise) {
+                                        if (!(promise instanceof Promise)) {
+                                            onCloseWithoutAnimation();
+                                        } else {
                                             const promiseStartTime = new Date();
 
                                             return promise.then(
@@ -190,8 +192,6 @@ export function ModalDialog({
                                                     throw error;
                                                 },
                                             );
-                                        } else {
-                                            onCloseWithoutAnimation();
                                         }
                                     }}
                                 >
