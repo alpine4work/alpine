@@ -4,7 +4,7 @@ import {MessageList} from "~/client/messaging/message_list";
 import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {StableRandom} from "~/shared/helpers/number/stable_random";
-import {MessageInterface} from "~/shared/models/message_interface";
+import {MessageInterface, MessageInterfaceBase} from "~/shared/models/message_interface";
 import {
     contentSchemaStyles,
     fontSizes,
@@ -80,8 +80,8 @@ export function MessageShimmer<Message extends MessageInterface>({
 }: {
     randomSeed: string;
     index: number;
-    previousMessage: Message | null;
-    nextMessage: Message | null;
+    previousMessage: MessageInterfaceBase | null;
+    nextMessage: MessageInterfaceBase | null;
     messages: MessageList<Message>;
 }) {
     const shimmerRef = useRef<HTMLDivElement>(null);

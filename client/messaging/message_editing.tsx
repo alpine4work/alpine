@@ -5,7 +5,7 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {MessageContent} from "~/shared/content/message_content_schema";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {omitObject} from "~/shared/helpers/object/omit_object";
-import {MessageWithContentPayloadInterface} from "~/shared/models/message_interface";
+import {MessageContentPayload} from "~/shared/models/message_interface";
 
 export type MessageEditingState<RoomKey extends string> =
     | {
@@ -30,7 +30,9 @@ export type MessageEditingState<RoomKey extends string> =
 export type MessageEditingAction<RoomKey extends string> =
     | {
           readonly type: "StartEditing";
-          readonly message: MessageWithContentPayloadInterface<RoomKey>;
+          readonly messageRoomKey: RoomKey;
+          readonly messageIndex: number;
+          readonly messagePayload: MessageContentPayload;
       }
     | {
           readonly type: "ContentEditorStateChange";
@@ -56,9 +58,9 @@ function reduce<RoomKey extends string>(
         case "StartEditing": {
             return {
                 isEditing: true,
-                messageRoomKey: action.message.getRoomKey(),
-                messageIndex: action.message.index,
-                contentEditorState: ContentEditorState.create(action.message.payload.content),
+                messageRoomKey: action.messageRoomKey,
+                messageIndex: action.messageIndex,
+                contentEditorState: ContentEditorState.create(action.messagePayload.content),
                 isSaving: false,
             };
         }

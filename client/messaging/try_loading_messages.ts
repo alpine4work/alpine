@@ -3,7 +3,6 @@ import {MessageList} from "~/client/messaging/message_list";
 import {messageViewMinHeight} from "~/client/messaging/message_view";
 import {convertRemLengthToPx} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {Result} from "~/shared/helpers/control/result";
 import {MessageInterface} from "~/shared/models/message_interface";
 
@@ -67,7 +66,8 @@ export function tryLoadingMessages<Message extends MessageInterface>({
     //
     // TODO(calebmer): If there are some unloaded messages in the middle of the
     // range we should load those.
-    if (startMessage.isLoaded && endMessage.isLoaded) return {isLoading: false};
+    if (startMessage.type !== "Unloaded" && endMessage.type !== "Unloaded")
+        return {isLoading: false};
 
     // The limit of items we will load is two views worth of messages. This gives
     // the user some space to scroll and read before we need to load more messages.
@@ -115,14 +115,16 @@ export function tryLoadingMessages<Message extends MessageInterface>({
         );
     };
 
-    if (startMessage.isLoaded && !endMessage.isLoaded) {
-        const afterMessageIndex = assertExists(
-            messages.getLastLoadedMessageBefore(range.endIndex),
-            "Start message is loaded so there should be a loaded message after our end index",
-        ).index;
+    if (startMessage.type !== "Unloaded" && endMessage.type === "Unloaded") {
+        const afterMessageIndex =
+            messages.getLastLoadedMessageBefore(range.endIndex)?.index ?? null;
 
         const beforeMessageIndex =
             messages.getFirstLoadedMessageAfter(range.endIndex)?.index ?? null;
+
+        // Always start at the last loaded message in our range. If there is none then
+        // maybe optimistic messages are involved?
+        if (afterMessageIndex === null) return {isLoading: false};
 
         loadFromStart({
             afterMessageIndex,
@@ -132,14 +134,16 @@ export function tryLoadingMessages<Message extends MessageInterface>({
         return {isLoading: true, wasJump: false};
     }
 
-    if (!startMessage.isLoaded && endMessage.isLoaded) {
+    if (startMessage.type === "Unloaded" && endMessage.type !== "Unloaded") {
         const afterMessageIndex =
             messages.getLastLoadedMessageBefore(range.startIndex)?.index ?? null;
 
-        const beforeMessageIndex = assertExists(
-            messages.getFirstLoadedMessageAfter(range.startIndex),
-            "End message is loaded so there should be a loaded message after our start index",
-        ).index;
+        const beforeMessageIndex =
+            messages.getFirstLoadedMessageAfter(range.startIndex)?.index ?? null;
+
+        // Always start at the first loaded message in our range. If there is none then
+        // maybe optimistic messages are involved?
+        if (beforeMessageIndex === null) return {isLoading: false};
 
         onLoadFromEnd({
             afterMessageIndex,
@@ -167,7 +171,7 @@ export function tryLoadingMessages<Message extends MessageInterface>({
     // `id`s are mostly dense to pick a message `id` at roughly the same percentage
     // the user has scrolled. We load data in at that point and scroll it
     // into view.
-    assert(!startMessage.isLoaded && !endMessage.isLoaded);
+    assert(startMessage.type === "Unloaded" && endMessage.type === "Unloaded");
 
     const messageBeforeUnloadedSegment = messages.getLastLoadedMessageBefore(range.startIndex);
     const messageAfterUnloadedSegment = messages.getFirstLoadedMessageAfter(range.endIndex);

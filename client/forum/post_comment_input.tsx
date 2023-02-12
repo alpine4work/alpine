@@ -11,6 +11,8 @@ import {useSpaceContext} from "~/client/spaces/space_context";
 import {isContentEmpty} from "~/shared/content/is_content_empty";
 import {emptyMessageContent} from "~/shared/content/message_content_schema";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
+import {generateId} from "~/shared/id/id";
+import {OptimisticMessageInterface} from "~/shared/models/message_interface";
 import {PostCommentModel, PostModel} from "~/shared/models/post_model";
 import {sprinkles} from "~/shared/styles/styles";
 
@@ -30,7 +32,6 @@ export function PostCommentInput({
     const showToast = useShowToast();
     const {currentAccount} = useSpaceContext();
     const [state, setState] = useState(ContentEditorState.create(emptyMessageContent));
-    const [isSaving, setIsSaving] = useState(false);
 
     // We connect to realtime in our `<PostCommentInput>` component. When comments
     // are open this component is always rendered and we only want to connect to
@@ -55,10 +56,7 @@ export function PostCommentInput({
                 <Box maxHeight="96" overflowX="hidden" overflowY="scroll">
                     <ContentEditor
                         state={state}
-                        onChange={state => {
-                            if (isSaving) return;
-                            setState(state);
-                        }}
+                        onChange={setState}
                         onNavigate={useNavigate()}
                         aria-label="Comment"
                         placeholder="Write a comment…"
@@ -67,25 +65,78 @@ export function PostCommentInput({
                             paddingY: "1.5",
                         })}
                         onEnter={() => {
-                            if (isContentEmpty(state.getContent())) return;
+                            const content = state.getContent();
+                            if (isContentEmpty(content)) return;
 
-                            runPromiseWithoutAwaiting(async () => {
-                                setIsSaving(true);
-                                try {
-                                    await actions.createPostComment({
-                                        parentCommentIndex: null,
-                                        content: state.getContent(),
-                                    });
-                                    setState(ContentEditorState.create(emptyMessageContent));
-                                } catch (error) {
-                                    showToast({
-                                        type: "Error",
-                                        title: "Couldn’t create comment",
-                                        error,
-                                    });
-                                }
-                                setIsSaving(false);
-                            });
+                            const optimisticComment: OptimisticMessageInterface = {
+                                isOptimistic: true,
+                                optimisticId: generateId(),
+                                optimisticRequestErrorState: {hasError: false},
+                                author: currentAccount,
+                                createdTime: new Date(),
+                                payload: {
+                                    type: "Content",
+                                    parentMessageIndex: null,
+                                    content,
+                                    contentUpdatedTime: null,
+                                },
+                                getRoomKey: () => post.id,
+                            };
+
+                            onUpdatePostComments(postComments =>
+                                postComments.addOptimisticMessage(optimisticComment),
+                            );
+
+                            setState(ContentEditorState.create(emptyMessageContent));
+
+                            const createPostComment = () => {
+                                runPromiseWithoutAwaiting(async () => {
+                                    try {
+                                        await actions.createPostComment({
+                                            parentCommentIndex: null,
+                                            content,
+                                        });
+                                    } catch (error) {
+                                        showToast({
+                                            type: "Error",
+                                            title: "Couldn’t create comment",
+                                            error,
+                                        });
+
+                                        onUpdatePostComments(postComments =>
+                                            postComments.updateOptimisticMessage(
+                                                optimisticComment.optimisticId,
+                                                optimisticMessage => ({
+                                                    ...optimisticMessage,
+                                                    optimisticRequestErrorState: {
+                                                        hasError: true,
+                                                        retry: () => {
+                                                            // Clear the error when we are retrying then call this
+                                                            // function again.
+                                                            onUpdatePostComments(postComments =>
+                                                                postComments.updateOptimisticMessage(
+                                                                    optimisticComment.optimisticId,
+                                                                    optimisticMessage => ({
+                                                                        ...optimisticMessage,
+                                                                        optimisticRequestErrorState:
+                                                                            {
+                                                                                hasError: false,
+                                                                            },
+                                                                    }),
+                                                                ),
+                                                            );
+
+                                                            createPostComment();
+                                                        },
+                                                    },
+                                                }),
+                                            ),
+                                        );
+                                    }
+                                });
+                            };
+
+                            createPostComment();
                         }}
                     />
                 </Box>

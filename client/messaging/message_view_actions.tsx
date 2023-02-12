@@ -7,15 +7,12 @@ import {MenuButton} from "~/client/design/menu_button";
 import {ModalDialog} from "~/client/design/modal_dialog";
 import {MessageEditing} from "~/client/messaging/message_editing";
 import {useSpaceContext} from "~/client/spaces/space_context";
-import {
-    MessageInterface,
-    MessageRoomKeyType,
-    MessageWithContentPayloadInterface,
-} from "~/shared/models/message_interface";
+import {MessageContentPayload, MessageInterface} from "~/shared/models/message_interface";
 
-export function MessageViewActions<Message extends MessageInterface>({
+export function MessageViewActions<RoomKey extends string>({
     messageNoun,
     message,
+    messagePayload,
     messageEditing,
     isHovered,
     onDeleteMessage,
@@ -23,8 +20,9 @@ export function MessageViewActions<Message extends MessageInterface>({
     shouldFocusMessageContentEditorRef,
 }: {
     messageNoun: string;
-    message: MessageWithContentPayloadInterface<MessageRoomKeyType<Message>>;
-    messageEditing: MessageEditing<MessageRoomKeyType<Message>>;
+    message: MessageInterface<RoomKey>;
+    messagePayload: MessageContentPayload;
+    messageEditing: MessageEditing<RoomKey>;
     isHovered: boolean;
     onDeleteMessage: () => Promise<void>;
     isEditing: boolean;
@@ -62,7 +60,9 @@ export function MessageViewActions<Message extends MessageInterface>({
                                 shouldFocusMessageContentEditorRef.current = true;
                                 messageEditing.dispatch({
                                     type: "StartEditing",
-                                    message,
+                                    messageIndex: message.index,
+                                    messageRoomKey: message.getRoomKey(),
+                                    messagePayload,
                                 });
                             },
                         },

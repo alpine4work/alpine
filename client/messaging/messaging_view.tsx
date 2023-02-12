@@ -1,14 +1,7 @@
 import {useCallback, useEffect, useRef, useState} from "react";
-import {Spacer} from "~/client/design/spacer";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {useMessageEditing} from "~/client/messaging/message_editing";
 import {MessageList} from "~/client/messaging/message_list";
-import {MessageShimmer} from "~/client/messaging/message_shimmer";
-import {
-    MessageView,
-    bufferedMessageViewHeight,
-    messageViewMinHeight,
-} from "~/client/messaging/message_view";
+import {bufferedMessageViewHeight, messageViewMinHeight} from "~/client/messaging/message_view";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages";
 import {
     VirtualizedScrollView,
@@ -17,7 +10,7 @@ import {
 } from "~/client/virtualized/virtualized_scroll_view";
 import {UnimplementedError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {MessageInterface, MessageRoomKeyType} from "~/shared/models/message_interface";
+import {MessageInterface} from "~/shared/models/message_interface";
 import {ClientInfo} from "~/shared/remix/client_info";
 
 /**
@@ -128,76 +121,15 @@ export function MessagingView<Message extends MessageInterface>({
         }
     }, [state.isLoading, tryLoadingMore]);
 
-    const messageEditing = useMessageEditing<MessageRoomKeyType<Message>>({
-        onUpdateMessageContent: () => {
-            throw new UnimplementedError("TODO");
-        },
-    });
-
     return (
         <VirtualizedScrollView
             ref={viewRef}
             pinTo={state.pinTo}
             bufferedItemHeight={bufferedMessageViewHeight}
             itemCount={state.list.getMessageCount()}
-            renderItem={useCallback(
-                index => {
-                    const messageResult = state.list.getMessage(index);
-
-                    const previousMessageResult =
-                        index > 0 ? state.list.getMessage(index - 1) : null;
-                    const nextMessageResult =
-                        index < state.list.getMessageCount() - 1
-                            ? state.list.getMessage(index + 1)
-                            : null;
-
-                    const previousMessage = previousMessageResult?.isLoaded
-                        ? previousMessageResult.message
-                        : null;
-                    const nextMessage = nextMessageResult?.isLoaded
-                        ? nextMessageResult.message
-                        : null;
-
-                    const node = messageResult.isLoaded ? (
-                        <MessageView
-                            message={messageResult.message}
-                            previousMessage={previousMessage}
-                            nextMessage={nextMessage}
-                            messageEditing={messageEditing}
-                            // TODO(calebmer): Implement this properly
-                            disableExpensiveFeaturesDuringScroll={false}
-                            onDeleteMessage={() => {
-                                throw new UnimplementedError("TODO");
-                            }}
-                        />
-                    ) : (
-                        <MessageShimmer
-                            randomSeed={shimmerRandomSeed}
-                            index={index}
-                            previousMessage={previousMessage}
-                            nextMessage={nextMessage}
-                            messages={state.list}
-                        />
-                    );
-
-                    return {
-                        minHeight: messageViewMinHeight,
-                        key: messageResult.isLoaded
-                            ? `MessageView:${messageResult.message.index}`
-                            : `MessageShimmer:${index}`,
-                        node:
-                            index === 0 ? (
-                                <>
-                                    <Spacer space="3" />
-                                    {node}
-                                </>
-                            ) : (
-                                node
-                            ),
-                    };
-                },
-                [state.list, messageEditing, shimmerRandomSeed],
-            )}
+            renderItem={useCallback(index => {
+                throw new UnimplementedError("TODO");
+            }, [])}
             onRenderedRangeChange={tryLoadingMore}
         />
     );

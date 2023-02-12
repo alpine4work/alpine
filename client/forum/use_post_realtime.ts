@@ -65,7 +65,7 @@ export function usePostRealtime({
                 }
                 case "UpdatedPostCommentContent": {
                     onUpdatePostComments(postComments =>
-                        postComments.updateMessage(message.commentIndex, comment => {
+                        postComments.updateLoadedMessage(message.commentIndex, comment => {
                             // Do nothing if the comment is deleted or the comment was updated at a later
                             // time then our message. There are no ordering guarantees for
                             // `UpdatedPostCommentContent`! So we have to enforce ordering with
@@ -92,7 +92,7 @@ export function usePostRealtime({
                 }
                 case "DeletedPostComment": {
                     onUpdatePostComments(postComments =>
-                        postComments.updateMessage(message.commentIndex, comment => {
+                        postComments.updateLoadedMessage(message.commentIndex, comment => {
                             if (comment.payload.type !== "Content") return comment;
 
                             return comment.clone({

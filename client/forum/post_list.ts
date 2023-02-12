@@ -3,6 +3,7 @@ import {MessageList} from "~/client/messaging/message_list";
 import {InternalError, OutOfRangeError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
 import {ImmutableSet} from "~/shared/helpers/immutable/immutable_set";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
@@ -13,6 +14,7 @@ import {
 } from "~/shared/helpers/sort/order_key";
 import {PostId} from "~/shared/id/types/id_types";
 import {ChannelModel} from "~/shared/models/channel_model";
+import {OptimisticMessageInterface} from "~/shared/models/message_interface";
 import {PostCommentModel, PostModel} from "~/shared/models/post_model";
 
 export type PostListChannelHeader = {
@@ -356,23 +358,39 @@ export class PostList {
 
             if (0 <= postCommentIndex && postCommentIndex < postCommentCount) {
                 const postComment = postComments.getMessage(postCommentIndex);
-                if (postComment.isLoaded) {
-                    return {
-                        type: "LoadedPostComment",
-                        post,
-                        postComments,
-                        postCommentIndex,
-                        postComment: postComment.message,
-                        postCommentInputItemIndex,
-                    };
-                } else {
-                    return {
-                        type: "UnloadedPostComment",
-                        post,
-                        postComments,
-                        postCommentIndex,
-                        postCommentInputItemIndex,
-                    };
+                switch (postComment.type) {
+                    case "Loaded": {
+                        return {
+                            type: "LoadedPostComment",
+                            post,
+                            postComments,
+                            postCommentIndex,
+                            postComment: postComment.message,
+                            postCommentInputItemIndex,
+                        };
+                    }
+                    case "Unloaded": {
+                        return {
+                            type: "UnloadedPostComment",
+                            post,
+                            postComments,
+                            postCommentIndex,
+                            postCommentInputItemIndex,
+                        };
+                    }
+                    case "Optimistic": {
+                        return {
+                            type: "OptimisticPostComment",
+                            post,
+                            postComments,
+                            postCommentIndex,
+                            postComment: postComment.message,
+                            postCommentInputItemIndex,
+                            optimisticPostCommentIndex: postComment.optimisticMessageIndex,
+                        };
+                    }
+                    default:
+                        throw exhaustive(postComment);
                 }
             }
 
@@ -689,6 +707,7 @@ export type PostListItem =
     | PostListPostContentItem
     | PostListLoadedPostCommentItem
     | PostListUnloadedPostCommentItem
+    | PostListOptimisticPostCommentItem
     | PostListPostCommentInputItem
     | PostListMoreUnloadedPostsItem;
 
@@ -754,6 +773,32 @@ export type PostListUnloadedPostCommentItem = {
      * input in the full `PostList`.
      */
     readonly postCommentInputItemIndex: number;
+};
+
+/**
+ * A comment created on the client before it has been acknowledged by
+ * the server.
+ */
+export type PostListOptimisticPostCommentItem = {
+    readonly type: "OptimisticPostComment";
+    readonly post: PostModel;
+    readonly postComments: MessageList<PostCommentModel>;
+    /**
+     * The index the loaded post comment is at in the `MessageList`. The
+     * post index may move but this will stay stable.
+     */
+    readonly postCommentIndex: number;
+    readonly postComment: OptimisticMessageInterface;
+    /**
+     * If the comment section is open, this will be the index of the post comment
+     * input in the full `PostList`.
+     */
+    readonly postCommentInputItemIndex: number;
+    /**
+     * What is the index of this optimistic post comment in the optimistic post
+     * comment list?
+     */
+    readonly optimisticPostCommentIndex: number;
 };
 
 /**

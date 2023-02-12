@@ -1,5 +1,5 @@
 import {addSeconds} from "date-fns";
-import {Triangle, Warning, X} from "phosphor-react";
+import {X} from "phosphor-react";
 import {
     Memo,
     ReactNode,
@@ -15,6 +15,7 @@ import {
 } from "react";
 import {Box} from "~/client/design/box";
 import {ErrorDisplayMessageRenderer} from "~/client/design/error_display_message_renderer";
+import {ErrorIcon} from "~/client/design/error_icon";
 import {IconButton} from "~/client/design/icon_button";
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants";
 import {useDevConsoleTool} from "~/client/dev/dev_console";
@@ -25,7 +26,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {cast} from "~/shared/helpers/control/cast";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {clamp} from "~/shared/helpers/number/clamp";
-import {colorSchemeVars, sprinkles, toastStyles} from "~/shared/styles/styles";
+import {toastStyles} from "~/shared/styles/styles";
 
 // Error toasts should be visible long enough for the user to read but short
 // enough so that the user can try again. Or if the user is already trying
@@ -296,15 +297,8 @@ function ToastView({
                 <ToastViewTimer startTime={startTime} expirationTime={expirationTime} />
             </Box>
             <Box flexShrink="0" color="red-50-const" paddingRight="2">
-                <Box position="relative" zIndex="0" style={{top: 1}}>
-                    <Warning weight="fill" size={spacing["4"]} />
-                    <Triangle
-                        weight="fill"
-                        size={spacing["4"]}
-                        color={colorSchemeVars["grey-0-const"]}
-                        className={sprinkles({position: "absolute", top: "0", zIndex: "-10"})}
-                        style={{transform: "scale(0.9)"}}
-                    />
+                <Box position="relative" style={{top: 1}}>
+                    <ErrorIcon size={spacing["4"]} />
                 </Box>
             </Box>
             <Box flexGrow="1" role="alert">

@@ -128,7 +128,7 @@ function PostCommentsToggleButton({
                         index < Math.min(postComments.getMessageCount(), initialLoadMessageCount);
                         index++
                     ) {
-                        if (!postComments.getMessage(index).isLoaded) {
+                        if (postComments.getMessage(index).type !== "Loaded") {
                             areAllInitialMessagesLoaded = false;
                             break;
                         }

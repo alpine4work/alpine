@@ -376,23 +376,29 @@ export function PostListView({
                 }
 
                 case "LoadedPostComment":
-                case "UnloadedPostComment": {
+                case "UnloadedPostComment":
+                case "OptimisticPostComment": {
                     const previousItem = index > 0 ? posts.getItem(index - 1) : null;
                     const nextItem =
                         index < posts.getItemCount() - 1 ? posts.getItem(index + 1) : null;
 
                     const previousComment =
-                        previousItem?.type === "LoadedPostComment"
+                        previousItem?.type === "LoadedPostComment" ||
+                        previousItem?.type === "OptimisticPostComment"
                             ? previousItem.postComment
                             : null;
                     const nextComment =
-                        nextItem?.type === "LoadedPostComment" ? nextItem.postComment : null;
+                        nextItem?.type === "LoadedPostComment" ||
+                        nextItem?.type === "OptimisticPostComment"
+                            ? nextItem.postComment
+                            : null;
 
                     const actuallyRender = (
                         disableExpensiveFeaturesDuringScroll: boolean,
                     ): ReactElement => {
                         const messageNode =
-                            item.type === "LoadedPostComment" ? (
+                            item.type === "LoadedPostComment" ||
+                            item.type === "OptimisticPostComment" ? (
                                 <MessageView
                                     messageNoun="comment"
                                     message={item.postComment}
@@ -480,6 +486,8 @@ export function PostListView({
                         key:
                             item.type === "LoadedPostComment"
                                 ? `LoadedPostComment:${item.post.id}:${item.postComment.index}`
+                                : item.type === "OptimisticPostComment"
+                                ? `OptimisticPostComment:${item.post.id}:${item.optimisticPostCommentIndex}`
                                 : `UnloadedPostComment:${item.post.id}:${item.postCommentIndex}`,
                         minHeight: messageViewMinHeight,
                         renderAdditionalItemIndexes: [item.postCommentInputItemIndex],

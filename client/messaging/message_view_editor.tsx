@@ -17,10 +17,9 @@ import {spacing} from "~/shared/design/spacing";
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {MessageInterface, MessageRoomKeyType} from "~/shared/models/message_interface";
 import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/shared/styles/styles";
 
-export function MessageViewEditor<Message extends MessageInterface>({
+export function MessageViewEditor<RoomKey extends string>({
     messageNoun,
     messageStartOfSentenceNoun,
     shouldMergeWithPreviousMessage,
@@ -32,7 +31,7 @@ export function MessageViewEditor<Message extends MessageInterface>({
     messageStartOfSentenceNoun: string;
     shouldMergeWithPreviousMessage: boolean;
     shouldMergeWithNextMessage: boolean;
-    messageEditing: MessageEditing<MessageRoomKeyType<Message>>;
+    messageEditing: MessageEditing<RoomKey>;
     shouldFocusMessageContentEditorRef: MutableRefObject<boolean>;
 }) {
     assert(messageEditing.state.isEditing);

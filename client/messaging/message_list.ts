@@ -1,7 +1,38 @@
 import createTree, {Tree} from "functional-red-black-tree";
 import {InvalidArgumentError, OutOfRangeError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
-import {MessageInterface} from "~/shared/models/message_interface";
+import {Id} from "~/shared/id/id";
+import {
+    MessageInterface,
+    OptimisticMessageInterface,
+    areMessagePayloadsEqual,
+} from "~/shared/models/message_interface";
+
+export type MessageListItem<Message extends MessageInterface> =
+    | MessageListLoadedItem<Message>
+    | MessageListUnloadedItem
+    | MessageListOptimisticItem;
+
+export type MessageListLoadedItem<Message extends MessageInterface> = {
+    readonly type: "Loaded";
+    readonly message: Message;
+};
+
+export type MessageListUnloadedItem = {
+    readonly type: "Unloaded";
+};
+
+export type MessageListOptimisticItem = {
+    readonly type: "Optimistic";
+    readonly message: OptimisticMessageInterface;
+    /**
+     * What is the index of this message relative to other optimistic messages? For
+     * example, if this is the second optimistic message and we have 10 loaded
+     * messages, this will be 1 because it is index 1 in the optimistic messages
+     * array.
+     */
+    readonly optimisticMessageIndex: number;
+};
 
 /**
  * Immutable state for keeping track of a list of messages. The message list
@@ -10,8 +41,17 @@ import {MessageInterface} from "~/shared/models/message_interface";
 export class MessageList<Message extends MessageInterface> {
     private readonly _messageCount: number;
     private readonly _messages: Tree<number, Message>;
+    private readonly _optimisticMessages: ReadonlyArray<OptimisticMessageInterface>;
 
-    private constructor(messageCount: number, messages: Tree<number, Message>) {
+    private constructor({
+        messageCount,
+        messages,
+        optimisticMessages,
+    }: {
+        messageCount: number;
+        messages: Tree<number, Message>;
+        optimisticMessages: ReadonlyArray<OptimisticMessageInterface>;
+    }) {
         if (process.env.NODE_ENV !== "production") {
             assert(
                 !messages.begin.node || messages.begin.node.key >= 0,
@@ -25,12 +65,17 @@ export class MessageList<Message extends MessageInterface> {
 
         this._messageCount = messageCount;
         this._messages = messages;
+        this._optimisticMessages = optimisticMessages;
     }
 
     public static new<Message extends MessageInterface>(
         messageCount: number,
     ): MessageList<Message> {
-        return new MessageList(messageCount, createTree());
+        return new MessageList({
+            messageCount,
+            messages: createTree(),
+            optimisticMessages: [],
+        });
     }
 
     /**
@@ -38,21 +83,27 @@ export class MessageList<Message extends MessageInterface> {
      * have loaded.
      */
     public getMessageCount(): number {
-        return this._messageCount;
+        return this._messageCount + this._optimisticMessages.length;
     }
 
     /**
      * Get the message at the provided index. If we haven't loaded the message
      * we'll return `isLoaded: false`. Throws if the index is out of bounds.
      */
-    public getMessage(index: number): {isLoaded: true; message: Message} | {isLoaded: false} {
+    public getMessage(index: number): MessageListItem<Message> {
         if (!Number.isSafeInteger(index))
             throw new InvalidArgumentError("Message index is not an integer");
-        if (index < 0 || index >= this._messageCount)
+        if (index < 0 || index >= this.getMessageCount())
             throw new OutOfRangeError("Message index out of bounds");
 
+        if (index >= this._messageCount) {
+            const optimisticMessageIndex = index - this._messageCount;
+            const message = this._optimisticMessages[optimisticMessageIndex]!;
+            return {type: "Optimistic", message, optimisticMessageIndex};
+        }
+
         const message = this._messages.get(index);
-        return message ? {isLoaded: true, message} : {isLoaded: false};
+        return message ? {type: "Loaded", message} : {type: "Unloaded"};
     }
 
     /**
@@ -66,6 +117,10 @@ export class MessageList<Message extends MessageInterface> {
      *   first loaded message after the unloaded segment (or null if there is none).
      * - If the index is unloaded then return the first loaded message after the
      *   unloaded segment (or null if there is none).
+     *
+     * Excludes optimistic messages. If `index` is for an optimistic message you
+     * will get `null` since there are no loaded messages after an optimistic
+     * message.
      */
     public getFirstLoadedMessageAfter(index: number): Message | null {
         const iterator = this._messages.gt(index);
@@ -85,6 +140,8 @@ export class MessageList<Message extends MessageInterface> {
      *   last loaded message before the unloaded segment (or null if there is none).
      * - If the index is unloaded then return the last loaded message before
      *   the unloaded segment (or null if there is none).
+     *
+     * Excludes optimistic messages.
      */
     public getLastLoadedMessageBefore(index: number): Message | null {
         const iterator = this._messages.lt(index);
@@ -96,6 +153,8 @@ export class MessageList<Message extends MessageInterface> {
     /**
      * Iterate loaded messages in the list. Optionally starting with the
      * provided index.
+     *
+     * Excludes optimistic messages.
      */
     public *iterateLoadedMessages(startIndex: number = 0): IterableIterator<Message> {
         const iterator = this._messages.ge(startIndex);
@@ -109,6 +168,8 @@ export class MessageList<Message extends MessageInterface> {
     /**
      * Increase message count for this list. If the message count is less than the
      * current message count we won't change anything.
+     *
+     * Excludes message count from optimistic messages.
      */
     public setMessageCount(messageCount: number): MessageList<Message> {
         assert(Number.isSafeInteger(messageCount), "Message count is not an integer");
@@ -118,7 +179,11 @@ export class MessageList<Message extends MessageInterface> {
         messageCount = Math.max(messageCount, this._messageCount);
 
         if (messageCount === this._messageCount) return this;
-        return new MessageList(messageCount, this._messages);
+        return new MessageList({
+            messageCount,
+            messages: this._messages,
+            optimisticMessages: this._optimisticMessages,
+        });
     }
 
     /**
@@ -129,6 +194,7 @@ export class MessageList<Message extends MessageInterface> {
     public setMessages(newMessages: ReadonlyArray<Message>): MessageList<Message> {
         let messageCount = this._messageCount;
         let messages = this._messages;
+        let optimisticMessages = this._optimisticMessages;
 
         for (const message of newMessages) {
             const iterator = messages.find(message.index);
@@ -137,9 +203,25 @@ export class MessageList<Message extends MessageInterface> {
                 : messages.insert(message.index, message);
 
             messageCount = Math.max(messageCount, message.index + 1);
+
+            // If we have an equivalent optimistic message, remove it from the list now
+            // that we have the real loaded message in the correct position.
+            const optimisticMessage = optimisticMessages.find(
+                optimisticMessage =>
+                    optimisticMessage.author.id === message.author.id &&
+                    areMessagePayloadsEqual(optimisticMessage.payload, message.payload),
+            );
+            if (optimisticMessage)
+                optimisticMessages = optimisticMessages.filter(
+                    otherOptimisticMessage => otherOptimisticMessage !== optimisticMessage,
+                );
         }
 
-        return new MessageList(messageCount, messages);
+        return new MessageList({
+            messageCount,
+            messages,
+            optimisticMessages,
+        });
     }
 
     /**
@@ -152,10 +234,27 @@ export class MessageList<Message extends MessageInterface> {
     }
 
     /**
+     * Adds an optimistic message to the message list.
+     *
+     * The optimistic message will be cleared when a new message is added
+     * that's equal.
+     */
+    public addOptimisticMessage(message: OptimisticMessageInterface): MessageList<Message> {
+        return new MessageList({
+            messageCount: this._messageCount,
+            messages: this._messages,
+            optimisticMessages: [...this._optimisticMessages, message],
+        });
+    }
+
+    /**
      * Updates a message at the specified index in the list. If the message at that
      * index is not loaded or out of bounds then this function does nothing.
+     *
+     * Excludes optimistic messages. If the index is an optimistic message we will
+     * ignore and do nothing.
      */
-    public updateMessage(
+    public updateLoadedMessage(
         messageIndex: number,
         update: (message: Message) => Message,
     ): MessageList<Message> {
@@ -163,6 +262,29 @@ export class MessageList<Message extends MessageInterface> {
         if (!iterator.value) return this;
         const newMessage = update(iterator.value);
         if (newMessage === iterator.value) return this;
-        return new MessageList(this._messageCount, iterator.update(newMessage));
+        return new MessageList({
+            messageCount: this._messageCount,
+            messages: iterator.update(newMessage),
+            optimisticMessages: this._optimisticMessages,
+        });
+    }
+
+    /**
+     * Updates the optimistic message with the specified id. If no optimistic
+     * message with the provided id exists then this function does nothing.
+     */
+    public updateOptimisticMessage(
+        optimisticId: Id,
+        update: (message: OptimisticMessageInterface) => OptimisticMessageInterface,
+    ) {
+        return new MessageList({
+            messageCount: this._messageCount,
+            messages: this._messages,
+            optimisticMessages: this._optimisticMessages.map(optimisticMessage =>
+                optimisticMessage.optimisticId === optimisticId
+                    ? update(optimisticMessage)
+                    : optimisticMessage,
+            ),
+        });
     }
 }

@@ -1,19 +1,28 @@
 import {differenceInMinutes} from "date-fns";
+import {SpinnerGap} from "phosphor-react";
 import {useEffect, useMemo, useRef, useState} from "react";
 import {useNavigate} from "react-router-dom";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {ContentView} from "~/client/content/content_view";
+import {ErrorIcon} from "~/client/design/error_icon";
+import {IconButton} from "~/client/design/icon_button";
 import {MessageEditing} from "~/client/messaging/message_editing";
 import {MessageViewActions} from "~/client/messaging/message_view_actions";
 import {MessageViewEditor} from "~/client/messaging/message_view_editor";
 import {RemLength, Spacing, addRemLengths, spacing} from "~/shared/design/spacing";
+import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {
     MessageInterface,
-    MessageRoomKeyType,
-    MessageWithContentPayloadInterface,
+    MessageInterfaceBase,
+    OptimisticMessageInterface,
 } from "~/shared/models/message_interface";
-import {colorSchemeVars, contentSchemaStyles, sprinkles} from "~/shared/styles/styles";
+import {
+    colorSchemeVars,
+    contentSchemaStyles,
+    spinAnimationClassName,
+    sprinkles,
+} from "~/shared/styles/styles";
 
 const {paragraphFontSize} = contentSchemaStyles;
 
@@ -48,7 +57,7 @@ const mergeMessageMinuteLimit = 5;
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const Box = null;
 
-export function MessageView<Message extends MessageInterface>({
+export function MessageView<RoomKey extends string>({
     messageNoun = "message",
     messageStartOfSentenceNoun = messageNoun.slice(0).toUpperCase() + messageNoun.slice(1),
     message,
@@ -60,10 +69,10 @@ export function MessageView<Message extends MessageInterface>({
 }: {
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
-    message: Message;
-    previousMessage: Message | null;
-    nextMessage: Message | null;
-    messageEditing: MessageEditing<MessageRoomKeyType<Message>>;
+    message: MessageInterface<RoomKey> | OptimisticMessageInterface;
+    previousMessage: MessageInterfaceBase | null;
+    nextMessage: MessageInterfaceBase | null;
+    messageEditing: MessageEditing<RoomKey>;
     disableExpensiveFeaturesDuringScroll: boolean;
     onDeleteMessage: () => Promise<void>;
 }) {
@@ -103,9 +112,33 @@ export function MessageView<Message extends MessageInterface>({
     const isEditing =
         messageEditing.state.isEditing &&
         messageEditing.state.messageRoomKey === message.getRoomKey() &&
+        !message.isOptimistic &&
         messageEditing.state.messageIndex === message.index;
 
     const shouldFocusMessageContentEditorRef = useRef(false);
+
+    const [shouldShowOptimisticLoadingIndicator, setShouldShowOptimisticLoadingShimmer] =
+        useState(false);
+
+    const shouldShowOptimisticLoadingIndicatorAfterDelay =
+        message.isOptimistic && !message.optimisticRequestErrorState.hasError;
+
+    useEffect(() => {
+        if (!shouldShowOptimisticLoadingIndicatorAfterDelay) {
+            setShouldShowOptimisticLoadingShimmer(false);
+            return;
+        }
+
+        const timeout = createTimeout(() => {
+            setShouldShowOptimisticLoadingShimmer(true);
+            // Use a longer timeout than `delayLoadingIndicatorLimitMs` since most of the
+            // time the optimistic placement is the correct end state.
+        }, 1000);
+
+        return () => {
+            timeout.clear();
+        };
+    }, [shouldShowOptimisticLoadingIndicatorAfterDelay]);
 
     // We try to memoize any UI in this component that changes infrequently to
     // speed up React rendering. Because `<MessageView>` renders during scroll
@@ -253,22 +286,43 @@ export function MessageView<Message extends MessageInterface>({
                             })}
                         >
                             <div className={sprinkles({width: "10"})}>
-                                {!disableExpensiveFeaturesDuringScroll && (
-                                    <MessageViewActions
-                                        messageNoun={messageNoun}
-                                        message={
-                                            message as any as MessageWithContentPayloadInterface<
-                                                MessageRoomKeyType<Message>
-                                            >
-                                        }
-                                        messageEditing={messageEditing}
-                                        isHovered={isHovered}
-                                        onDeleteMessage={onDeleteMessage}
-                                        isEditing={isEditing}
-                                        shouldFocusMessageContentEditorRef={
-                                            shouldFocusMessageContentEditorRef
-                                        }
-                                    />
+                                {message.isOptimistic &&
+                                message.optimisticRequestErrorState.hasError ? (
+                                    <div>
+                                        <IconButton
+                                            // NOTE(calebmer): I think we can use "click" in copy here since the
+                                            // description is part of a tooltip which is fundamentally a mouse/pointer
+                                            // thing. On mobile we need to pop open a modal or alert or something.
+                                            description={`Couldn’t create ${messageNoun}. Click to try again`}
+                                            size="sm"
+                                            onPress={message.optimisticRequestErrorState.retry}
+                                        >
+                                            <ErrorIcon />
+                                        </IconButton>
+                                    </div>
+                                ) : shouldShowOptimisticLoadingIndicator ? (
+                                    <div>
+                                        <SpinnerGap
+                                            className={spinAnimationClassName}
+                                            size={spacing["4"]}
+                                        />
+                                    </div>
+                                ) : (
+                                    !message.isOptimistic &&
+                                    !disableExpensiveFeaturesDuringScroll && (
+                                        <MessageViewActions
+                                            messageNoun={messageNoun}
+                                            message={message}
+                                            messagePayload={message.payload}
+                                            messageEditing={messageEditing}
+                                            isHovered={isHovered}
+                                            onDeleteMessage={onDeleteMessage}
+                                            isEditing={isEditing}
+                                            shouldFocusMessageContentEditorRef={
+                                                shouldFocusMessageContentEditorRef
+                                            }
+                                        />
+                                    )
                                 )}
                             </div>
                         </div>
