@@ -1,5 +1,11 @@
 /**
  * CSS box shadows used to simulate elevation in our product.
+ *
+ * Light mode shadows have a 1px transparent border to increase contrast. See
+ * [this thread][1] for explanation on why it looks better than a solid border
+ * color.
+ *
+ * [1]: https://twitter.com/jamesm/status/1622702890912456704
  */
 export const elevation = {
     "elevation-5": {
