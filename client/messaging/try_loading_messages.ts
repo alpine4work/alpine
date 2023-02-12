@@ -176,29 +176,10 @@ export function tryLoadingMessages<Message extends MessageInterface>({
     const messageBeforeUnloadedSegment = messages.getLastLoadedMessageBefore(range.startIndex);
     const messageAfterUnloadedSegment = messages.getFirstLoadedMessageAfter(range.endIndex);
 
-    const unloadedSegmentStartMessageIndex = messageBeforeUnloadedSegment?.index ?? -1;
-    const unloadedSegmentEndMessageIndex =
-        messageAfterUnloadedSegment?.index ??
-        Math.max(messages.getMessageCount() + 1, unloadedSegmentStartMessageIndex + 1);
-
-    const unloadedSegmentStartIndex = messageBeforeUnloadedSegment?.index ?? 0;
-    const unloadedSegmentEndIndex =
-        messageAfterUnloadedSegment?.index ?? messages.getMessageCount() - 1;
-
-    const rangeStartFraction =
-        (range.startIndex - unloadedSegmentStartIndex) /
-        (unloadedSegmentEndIndex - unloadedSegmentStartIndex);
-
-    // Pick a message `id` to start loading data from taking advantage of the fact
-    // that messages are mostly dense.
-    const afterMessageIndex = Math.min(
-        Math.max(0, unloadedSegmentEndMessageIndex - jumpLimit),
-        Math.round(
-            unloadedSegmentStartMessageIndex +
-                (unloadedSegmentEndMessageIndex - unloadedSegmentStartMessageIndex) *
-                    rangeStartFraction,
-        ),
-    );
+    let afterMessageIndex =
+        range.startIndex + (range.endIndex - range.startIndex) / 2 - jumpLimit / 2;
+    if (messageBeforeUnloadedSegment)
+        afterMessageIndex = Math.max(afterMessageIndex, messageBeforeUnloadedSegment.index);
 
     loadFromStart({
         afterMessageIndex,

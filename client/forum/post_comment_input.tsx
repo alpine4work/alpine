@@ -97,6 +97,10 @@ export function PostCommentInput({
                                             content,
                                         });
                                     } catch (error) {
+                                        // TODO(calebmer): If you scroll away form the post and `usePostRealtime()`
+                                        // unmounts this will error even if the comment is successfully created in the
+                                        // background. Maybe we should keep our WebSocket alive while there are
+                                        // unacknowledged messages for some timeout?
                                         showToast({
                                             type: "Error",
                                             title: "Couldn’t create comment",

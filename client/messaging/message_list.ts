@@ -87,6 +87,13 @@ export class MessageList<Message extends MessageInterface> {
     }
 
     /**
+     * Get the number of messages in the list excluding any optimistic messages.
+     */
+    public getMessageCountExcludingOptimisticMessages(): number {
+        return this._messageCount;
+    }
+
+    /**
      * Get the message at the provided index. If we haven't loaded the message
      * we'll return `isLoaded: false`. Throws if the index is out of bounds.
      */

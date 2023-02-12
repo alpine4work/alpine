@@ -123,7 +123,8 @@ export function usePostRealtime({
         if (isConnected) {
             sendMessage({
                 type: "BackfillPostCommentsRequest",
-                currentCommentCount: postCommentsRef.current.getMessageCount(),
+                currentCommentCount:
+                    postCommentsRef.current.getMessageCountExcludingOptimisticMessages(),
                 backfillCommentLimit: getInitialLoadMessageCount(getClientInfoWithoutListening()),
             }).catch(error => setErrorState({hasError: true, error}));
         }
