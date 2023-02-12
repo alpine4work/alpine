@@ -1,7 +1,6 @@
 import {CaretRight, DotsThree} from "phosphor-react";
 import {useEffect, useMemo, useState} from "react";
 import {useNavigate} from "react-router-dom";
-import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile";
 import {ContentView} from "~/client/content/content_view";
 import {useAppContext} from "~/client/context/app_context";
@@ -9,12 +8,13 @@ import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
 import {IconButton} from "~/client/design/icon_button";
 import {MenuButton} from "~/client/design/menu_button";
-import {PrettyAbsoluteDate} from "~/client/design/pretty_absolute_date";
 import {PrettyNumber} from "~/client/design/pretty_number";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
+import {PostContentViewHeader} from "~/client/forum/post_content_view_header";
 import {MessageList} from "~/client/messaging/message_list";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context";
+import {useSpaceContext} from "~/client/spaces/space_context";
 import {wait} from "~/shared/helpers/async/wait";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
@@ -34,27 +34,23 @@ export function PostContentView({
     post,
     postComments,
     arePostCommentsOpen,
+    onEditPost,
     onTogglePostComments,
     onLoadInitialPostComments,
 }: {
     post: PostModel;
     postComments: MessageList<PostCommentModel>;
     arePostCommentsOpen: boolean;
+    onEditPost: () => void;
     onTogglePostComments: () => void;
     onLoadInitialPostComments: () => Promise<void>;
 }) {
+    const {currentAccount} = useSpaceContext();
+
     return (
         <Box style={{minHeight: postContentViewMinHeight}}>
-            <Box position="relative" paddingTop="5" paddingX="5" display="flex" alignItems="center">
-                <AccountAvatar account={post.author} size="8" />
-                <Box flexGrow="1" paddingLeft="3" paddingRight="4" overflow="hidden">
-                    <Box fontSize="75" fontStyle="truncate-semi-bold">
-                        {post.author.name}
-                    </Box>
-                    <Box fontSize="50" fontStyle="truncate" color="grey-50">
-                        <PrettyAbsoluteDate date={post.createdTime} />
-                    </Box>
-                </Box>
+            <Box position="relative" paddingTop="5" paddingX="5">
+                <PostContentViewHeader post={post} />
                 <Box position="absolute" top="2" right="2">
                     <MenuButton
                         actions={[
@@ -69,6 +65,14 @@ export function PostContentView({
                                     await navigator.clipboard.writeText(url.toString());
                                 },
                             },
+                            ...(currentAccount.id === post.author.id
+                                ? [
+                                      {
+                                          label: "Edit",
+                                          onPress: onEditPost,
+                                      },
+                                  ]
+                                : []),
                         ]}
                     >
                         <IconButton description="More" withoutTooltip={true}>

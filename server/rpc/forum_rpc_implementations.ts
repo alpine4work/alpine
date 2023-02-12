@@ -4,6 +4,7 @@ import {
     getPostCommentAuthors,
     getPostCommentsFromEnd,
     getPostCommentsFromStart,
+    updatePostContent,
 } from "~/server/dynamo/forum_table";
 import {implementRpc} from "~/server/rpc/internal/implement_rpc";
 import * as definition from "~/shared/rpc/forum_rpc_definitions";
@@ -15,6 +16,10 @@ implementRpc(definition.getChannelPosts, async (context, input) => {
 implementRpc(definition.createPost, async (context, input) => {
     const post = await createPost(await context.auth.authenticate(), input);
     return {post};
+});
+
+implementRpc(definition.updatePostContent, async (context, input) => {
+    return updatePostContent(await context.auth.authenticate(), input);
 });
 
 implementRpc(definition.getPostCommentAuthors, async (context, input) => {

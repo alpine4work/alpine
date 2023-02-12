@@ -36,6 +36,17 @@ export const createPost = defineRpc({
     },
 });
 
+export const updatePostContent = defineRpc({
+    name: "updatePostContent",
+    input: {
+        postId: Schema.id<PostId>(),
+        content: PostContentSchema,
+    },
+    output: {
+        contentUpdatedTime: Schema.date,
+    },
+});
+
 export const getPostCommentAuthors = defineRpc({
     name: "getPostCommentAuthors",
     input: {

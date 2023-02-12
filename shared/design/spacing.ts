@@ -75,6 +75,16 @@ export const spacing = {
 export type RemLength = `${number}rem`;
 
 /**
+ * Is the provided string a `RemLength` string?
+ */
+export function isRemLength(string: string): string is RemLength {
+    if (!string.endsWith("rem")) return false;
+    const remLengthNumber = parseFloat(string.slice(0, -3));
+    if (isNaN(remLengthNumber)) return false;
+    return true;
+}
+
+/**
  * Parses a length in rem units to the underlying rem value.
  */
 export function parseRemLengthNumber(remLength: RemLength): number {

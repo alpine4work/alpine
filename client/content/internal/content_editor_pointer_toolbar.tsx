@@ -267,7 +267,7 @@ function ContentEditorPointerToolbarOverlay({
             // flip down or else we might cover selection content.
             canFlip={false}
             offset="3"
-            offsetAlong="-5"
+            offsetAlong="-4"
             overlay={
                 <div className={overlayAnimateContainerClassName}>
                     <Box

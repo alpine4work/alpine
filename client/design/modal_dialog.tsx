@@ -1,16 +1,10 @@
-import {X} from "phosphor-react";
-import {useEffect, useId, useRef, useState} from "react";
-import {FocusScope} from "react-aria";
-import {createPortal} from "react-dom";
+import {useEffect, useId, useRef} from "react";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
-import {IconButton} from "~/client/design/icon_button";
-import {OverlayScopeContextProvider, useOverlayRootPortalElement} from "~/client/design/overlay";
+import {Modal} from "~/client/design/modal";
+import {Spacer} from "~/client/design/spacer";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
-import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {contentSchemaStyles, modalDialogStyles, sprinkles} from "~/shared/styles/styles";
 
 /**
  * Present information to the user, blocking their experience, and ask them to
@@ -34,187 +28,80 @@ export function ModalDialog({
     primaryButtonLabel,
     primaryButtonPressErrorTitle,
     onPrimaryButtonPress,
-    isPrimaryButtonDestructive,
-    onClose: _onCloseWithoutAnimation,
+    cancelButtonLabel = "Cancel",
+    onClose,
 }: {
     title: string;
     description: string;
     primaryButtonLabel: string;
     primaryButtonPressErrorTitle?: string;
     onPrimaryButtonPress: () => void | Promise<void>;
-    isPrimaryButtonDestructive?: boolean;
+    cancelButtonLabel?: string;
     onClose: () => void;
 }) {
-    const portalElement = useOverlayRootPortalElement();
-    const titleId = useId();
     const descriptionId = useId();
     const primaryButtonRef = useRef<HTMLButtonElement>(null);
-    const [isFadingOut, setIsFadingOut] = useState(false);
 
     // Immediately focus the primary button.
     useEffect(() => {
-        if (!portalElement) return;
-
         const primaryButtonElement = assertExists(primaryButtonRef.current);
         primaryButtonElement.focus();
-    }, [portalElement]);
+    }, []);
 
-    const onCloseWithoutAnimation = useEvent(_onCloseWithoutAnimation);
-    useEffect(() => {
-        if (!isFadingOut) return;
-        const timeout = createTimeout(
-            onCloseWithoutAnimation,
-            modalDialogStyles.modalFadeOutDuration,
-        );
-        return () => timeout.clear();
-    }, [isFadingOut, onCloseWithoutAnimation]);
-
-    const onCloseWithAnimation = () => setIsFadingOut(true);
-
-    if (!portalElement) return null;
-
-    return createPortal(
-        <Box
-            position="fixed"
-            inset="0"
-            display="flex"
-            justifyContent="center"
-            alignItems="center"
-            style={{animation: isFadingOut ? modalDialogStyles.modalFadeOutAnimation : undefined}}
-        >
-            <OverlayScopeContextProvider>
-                <Box
-                    position="absolute"
-                    inset="0"
-                    zIndex="-10"
-                    backgroundColor="grey-dark"
-                    style={{
-                        opacity: modalDialogStyles.modalUnderlayOpacity,
-                        animation: modalDialogStyles.modalUnderlayFadeInAnimation,
-                    }}
-                    // If the underlay is clicked, we close the modal. This element is not
-                    // focusable or keyboard accessible. You can hit the "Escape" key as a shortcut
-                    // to close the modal.
-                    onClick={onCloseWithAnimation}
-                />
-                <FocusScope restoreFocus contain>
-                    <section
-                        role="alertdialog"
-                        aria-modal="true"
-                        aria-labelledby={titleId}
-                        aria-describedby={descriptionId}
-                        onKeyDown={event => {
-                            if (event.key === "Escape") {
-                                event.stopPropagation();
-                                event.preventDefault();
-                                onCloseWithoutAnimation();
-                            }
-                        }}
-                        className={sprinkles({
-                            position: "relative",
-                            zIndex: "0",
-                            maxWidth: "128",
-                            width: "full",
-                            paddingX: "7",
-                            paddingTop: "7",
-                            paddingBottom: "5",
-                            margin: "3",
-                            backgroundColor: "grey-0",
-                            border: {dark: "grey-5"},
-                            boxShadow: "elevation-40",
-                            borderRadius: "md",
-                        })}
-                        style={{
-                            animation: modalDialogStyles.modalOverlayFadeInAnimation,
-                        }}
+    return (
+        <Modal title={title} aria-describedby={descriptionId} onClose={onClose}>
+            {({onCloseWithAnimation, onCloseWithoutAnimation}) => (
+                <Box paddingX="5" paddingTop="4" paddingBottom="5">
+                    <Box
+                        id={descriptionId}
+                        userSelect="text"
+                        fontSize="75"
+                        style={{lineHeight: 1.5}}
                     >
-                        <Box
-                            style={{
-                                animation: isFadingOut
-                                    ? modalDialogStyles.modalContentFadeOutAnimation
-                                    : modalDialogStyles.modalContentFadeInAnimation,
+                        {description}
+                    </Box>
+                    <Spacer space="5" />
+                    <Box display="flex" justifyContent="flex-end" gap="2">
+                        <Button onPress={onCloseWithoutAnimation}>{cancelButtonLabel}</Button>
+                        <Button
+                            ref={primaryButtonRef}
+                            variant="accent"
+                            pressErrorTitle={primaryButtonPressErrorTitle}
+                            onPress={() => {
+                                const promise = onPrimaryButtonPress();
+                                if (!(promise instanceof Promise)) {
+                                    onCloseWithoutAnimation();
+                                } else {
+                                    const promiseStartTime = new Date();
+
+                                    return promise.then(
+                                        () => {
+                                            // Our animation principle is to respond to user input immediately
+                                            // without animation.
+                                            //
+                                            // If the button had to go into a loading state we consider the click long
+                                            // enough ago that it is no longer a direct action.
+                                            if (
+                                                new Date().getTime() - promiseStartTime.getTime() >
+                                                delayLoadingIndicatorLimitMs
+                                            ) {
+                                                onCloseWithAnimation();
+                                            } else {
+                                                onCloseWithoutAnimation();
+                                            }
+                                        },
+                                        error => {
+                                            throw error;
+                                        },
+                                    );
+                                }
                             }}
                         >
-                            <h2
-                                id={titleId}
-                                className={sprinkles({
-                                    fontStyle: "semi-bold",
-                                    fontSize: "300",
-                                    paddingBottom: "2",
-                                    // Make sure our heading doesn't collide with the close button.
-                                    paddingRight: "6",
-                                    borderBottom: "grey-5",
-                                    userSelect: "text",
-                                })}
-                            >
-                                {title}
-                            </h2>
-                            <Box
-                                id={descriptionId}
-                                userSelect="text"
-                                paddingTop="4"
-                                paddingBottom="6"
-                                style={contentSchemaStyles.paragraphFontSize}
-                            >
-                                {description}
-                            </Box>
-                            <Box display="flex" justifyContent="flex-end" gap="2">
-                                <Button onPress={onCloseWithoutAnimation}>Cancel</Button>
-                                <Button
-                                    ref={primaryButtonRef}
-                                    variant={isPrimaryButtonDestructive ? "destructive" : "accent"}
-                                    pressErrorTitle={primaryButtonPressErrorTitle}
-                                    onPress={() => {
-                                        const promise = onPrimaryButtonPress();
-                                        if (!(promise instanceof Promise)) {
-                                            onCloseWithoutAnimation();
-                                        } else {
-                                            const promiseStartTime = new Date();
-
-                                            return promise.then(
-                                                () => {
-                                                    // Our animation principle is to respond to user input immediately
-                                                    // without animation.
-                                                    //
-                                                    // If the button had to go into a loading state we consider the click long
-                                                    // enough ago that it is no longer a direct action.
-                                                    if (
-                                                        new Date().getTime() -
-                                                            promiseStartTime.getTime() >
-                                                        delayLoadingIndicatorLimitMs
-                                                    ) {
-                                                        onCloseWithAnimation();
-                                                    } else {
-                                                        onCloseWithoutAnimation();
-                                                    }
-                                                },
-                                                error => {
-                                                    throw error;
-                                                },
-                                            );
-                                        }
-                                    }}
-                                >
-                                    {primaryButtonLabel}
-                                </Button>
-                            </Box>
-                            <Box position="absolute" top="2" right="2">
-                                <IconButton
-                                    size="xs"
-                                    description="Close"
-                                    // Our animation principle is to respond to user input immediately
-                                    // without animation.
-                                    onPress={onCloseWithoutAnimation}
-                                    withoutTooltip={true}
-                                >
-                                    <X />
-                                </IconButton>
-                            </Box>
-                        </Box>
-                    </section>
-                </FocusScope>
-            </OverlayScopeContextProvider>
-        </Box>,
-        portalElement,
+                            {primaryButtonLabel}
+                        </Button>
+                    </Box>
+                </Box>
+            )}
+        </Modal>
     );
 }

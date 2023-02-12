@@ -582,6 +582,15 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "contentUpdatedTime": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Date"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
                                     "commentsSummary": {
                                         "valueSchema": {
                                             "type": "Object",

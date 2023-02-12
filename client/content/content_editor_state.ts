@@ -41,7 +41,10 @@ export class ContentEditorState<Content extends Node> {
     /**
      * Creates a new state for our content editor.
      */
-    public static create<Content extends Node>(content: Content): ContentEditorState<Content> {
+    public static create<Content extends Node>(
+        content: Content,
+        {selectionAt = "start"}: {selectionAt?: "start" | "end"} = {},
+    ): ContentEditorState<Content> {
         assert(content.type.schema.topNodeType === content.type);
 
         const plugins = buildPlugins(content.type.schema);
@@ -50,6 +53,8 @@ export class ContentEditorState<Content extends Node> {
             EditorState.create({
                 doc: content,
                 plugins,
+                selection:
+                    selectionAt === "end" ? Selection.atEnd(content) : Selection.atStart(content),
             }),
         );
     }
@@ -60,6 +65,7 @@ export class ContentEditorState<Content extends Node> {
     public static createCollaborative<Content extends Node>({
         version,
         content,
+        selectionAt,
     }: {
         /**
          * The content version for collaborative editing.
@@ -71,6 +77,11 @@ export class ContentEditorState<Content extends Node> {
          * start with empty content.
          */
         content: Content;
+
+        /**
+         * Where to put the selection at in the editor.
+         */
+        selectionAt?: "start" | "end";
     }): ContentEditorState<Content> {
         assert(content.type.schema.topNodeType === content.type);
 
@@ -94,6 +105,8 @@ export class ContentEditorState<Content extends Node> {
             EditorState.create({
                 doc: content,
                 plugins,
+                selection:
+                    selectionAt === "end" ? Selection.atEnd(content) : Selection.atStart(content),
             }),
         );
 

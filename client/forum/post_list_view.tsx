@@ -6,6 +6,7 @@ import {Spacer} from "~/client/design/spacer";
 import {ChannelHeaderView, channelHeaderViewMinHeight} from "~/client/forum/channel_header_view";
 import {PostCommentInput} from "~/client/forum/post_comment_input";
 import {PostContentView, postContentViewMinHeight} from "~/client/forum/post_content_view";
+import {PostEditorModal} from "~/client/forum/post_editor_modal";
 import {PostList, PostListPostContentItem} from "~/client/forum/post_list";
 import {PostShimmer} from "~/client/forum/post_shimmer";
 import {PostRealtimeActions} from "~/client/forum/use_post_realtime";
@@ -40,6 +41,8 @@ import {getPostCommentsFromEnd, getPostCommentsFromStart} from "~/shared/rpc/for
 import {spinAnimationClassName, sprinkles} from "~/shared/styles/styles";
 
 export const postListViewMargin: Spacing = "5";
+
+export const postMaxWidth: Spacing = "160";
 
 /**
  * The buffered height of an item in the post view virtualized list is the minimum
@@ -304,6 +307,8 @@ export function PostListView({
         },
     });
 
+    const [editingPost, setEditingPost] = useState<PostModel | null>(null);
+
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {
             const item = posts.getItem(index);
@@ -343,7 +348,7 @@ export function PostListView({
                                     <div
                                         className={sprinkles({
                                             marginX: "auto",
-                                            maxWidth: "160",
+                                            maxWidth: postMaxWidth,
                                             backgroundColor: "grey-0",
                                             borderTopRadius: "md",
                                             borderBottomRadius: !item.arePostCommentsOpen
@@ -356,6 +361,7 @@ export function PostListView({
                                             post={item.post}
                                             postComments={item.postComments}
                                             arePostCommentsOpen={item.arePostCommentsOpen}
+                                            onEditPost={() => setEditingPost(item.post)}
                                             onTogglePostComments={() =>
                                                 setPosts(posts => posts.togglePostComments(index))
                                             }
@@ -442,7 +448,7 @@ export function PostListView({
                                 <div
                                     className={sprinkles({
                                         marginX: "auto",
-                                        maxWidth: "160",
+                                        maxWidth: postMaxWidth,
                                         backgroundColor: "grey-0",
                                         boxShadow: "elevation-5",
                                         paddingX: "2",
@@ -589,7 +595,7 @@ export function PostListView({
                                                 <div
                                                     className={sprinkles({
                                                         marginX: "auto",
-                                                        maxWidth: "160",
+                                                        maxWidth: postMaxWidth,
                                                         height: "full",
                                                         backgroundColor: "grey-0",
                                                         borderBottomRadius: "md",
@@ -638,7 +644,7 @@ export function PostListView({
                                                 className={sprinkles({
                                                     display: "flex",
                                                     width: "full",
-                                                    maxWidth: "160",
+                                                    maxWidth: postMaxWidth,
                                                     marginX: "auto",
                                                     overflowX: "hidden",
                                                     pointerEvents: "auto",
@@ -719,7 +725,7 @@ export function PostListView({
                                                     position: "absolute",
                                                     left: postListViewMargin,
                                                     right: postListViewMargin,
-                                                    maxWidth: "160",
+                                                    maxWidth: postMaxWidth,
                                                     marginX: "auto",
                                                     backgroundColor: "grey-0",
                                                     zIndex: "-10",
@@ -765,7 +771,7 @@ export function PostListView({
                                                     }}
                                                     className={sprinkles({
                                                         width: "full",
-                                                        maxWidth: "160",
+                                                        maxWidth: postMaxWidth,
                                                         marginX: "auto",
                                                         borderTop: "grey-5",
                                                     })}
@@ -791,7 +797,7 @@ export function PostListView({
                                 <div
                                     className={sprinkles({
                                         width: "full",
-                                        maxWidth: "160",
+                                        maxWidth: postMaxWidth,
                                         marginX: "auto",
                                     })}
                                 >
@@ -827,12 +833,23 @@ export function PostListView({
     );
 
     return (
-        <VirtualizedScrollView
-            ref={viewRef}
-            bufferedItemHeight={bufferedPostViewHeight}
-            itemCount={posts.getItemCount()}
-            renderItem={renderItem}
-            onRenderedRangeChange={tryLoadingMorePostComments}
-        />
+        <>
+            <VirtualizedScrollView
+                ref={viewRef}
+                bufferedItemHeight={bufferedPostViewHeight}
+                itemCount={posts.getItemCount()}
+                renderItem={renderItem}
+                onRenderedRangeChange={tryLoadingMorePostComments}
+            />
+            {editingPost && (
+                <PostEditorModal
+                    post={editingPost}
+                    onUpdatePost={update =>
+                        setPosts(posts => posts.updatePost(editingPost.id, update))
+                    }
+                    onClose={() => setEditingPost(null)}
+                />
+            )}
+        </>
     );
 }

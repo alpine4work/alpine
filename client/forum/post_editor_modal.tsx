@@ -1,0 +1,148 @@
+import {useEffect, useRef, useState} from "react";
+import {useNavigate} from "react-router-dom";
+import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
+import {ContentEditorState} from "~/client/content/content_editor_state";
+import {useAppContext} from "~/client/context/app_context";
+import {Box} from "~/client/design/box";
+import {Button} from "~/client/design/button";
+import {Modal} from "~/client/design/modal";
+import {ModalDialog} from "~/client/design/modal_dialog";
+import {useShowToast} from "~/client/design/toast";
+import {PostContentViewHeader} from "~/client/forum/post_content_view_header";
+import {postMaxWidth} from "~/client/forum/post_list_view";
+import {isContentEmpty} from "~/shared/content/is_content_empty";
+import {parseRemLengthNumber, spacing} from "~/shared/design/spacing";
+import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {PostModel} from "~/shared/models/post_model";
+import {updatePostContent} from "~/shared/rpc/forum_rpc_definitions";
+import {sprinkles} from "~/shared/styles/styles";
+
+export function PostEditorModal({
+    post,
+    onUpdatePost,
+    onClose,
+}: {
+    post: PostModel;
+    onUpdatePost: (update: (post: PostModel) => PostModel) => void;
+    onClose: () => void;
+}) {
+    const navigate = useNavigate();
+    const context = useAppContext();
+    const showToast = useShowToast();
+    const editorRef = useRef<ContentEditorRef>(null);
+    const [state, setState] = useState(() =>
+        ContentEditorState.create(post.content, {selectionAt: "end"}),
+    );
+    const [isPending, setIsPending] = useState(false);
+    const [shouldConfirmClose, setShouldConfirmClose] = useState(false);
+
+    const errorTitle = "Couldn’t save post";
+
+    useEffect(() => {
+        const editor = assertExists(editorRef.current);
+        editor.focus();
+    }, []);
+
+    const handleUpdatePost = async () => {
+        // If we are already pending, don't try to submit again...
+        if (isPending) return;
+
+        setIsPending(true);
+        try {
+            const content = state.getContent();
+
+            const {contentUpdatedTime} = await updatePostContent(context, {
+                postId: post.id,
+                content,
+            });
+
+            onUpdatePost(post => post.clone({content, contentUpdatedTime}));
+            onClose();
+        } catch (error) {
+            showToast({
+                type: "Error",
+                title: errorTitle,
+                error,
+            });
+        } finally {
+            setIsPending(false);
+        }
+    };
+
+    return (
+        <>
+            <Modal
+                title="Edit post"
+                disableCloseAnimation={true}
+                onClose={() => setShouldConfirmClose(true)}
+                maxWidth={`${
+                    // Make post editor slimmer than a post so if we render it on top of a post it
+                    // doesn't line up precisely.
+                    parseRemLengthNumber(spacing[postMaxWidth]) -
+                    parseRemLengthNumber(spacing["3"]) * 2
+                }rem`}
+                footer={
+                    <Box
+                        marginX="5"
+                        height="12"
+                        display="flex"
+                        justifyContent="flex-end"
+                        alignItems="center"
+                    >
+                        <Button
+                            variant="accent"
+                            isDisabled={isContentEmpty(state.getContent())}
+                            isPending={isPending}
+                            pressErrorTitle={errorTitle}
+                            onPress={handleUpdatePost}
+                        >
+                            Save
+                        </Button>
+                    </Box>
+                }
+            >
+                <Box paddingTop="5" paddingX="5">
+                    <PostContentViewHeader post={post} />
+                </Box>
+                <ContentEditor
+                    ref={editorRef}
+                    aria-label="Post content"
+                    state={state}
+                    onNavigate={navigate}
+                    placeholder="Share your ideas…"
+                    className={sprinkles({paddingX: "3", paddingY: "4"})}
+                    onChange={(state, transaction) => {
+                        // Don't change content while we are pending...
+                        if (transaction.docChanged && isPending) return;
+
+                        setState(state);
+                    }}
+                    onModEnter={() => {
+                        runPromiseWithoutAwaiting(async () => {
+                            try {
+                                await handleUpdatePost();
+                            } catch (error) {
+                                showToast({
+                                    type: "Error",
+                                    title: errorTitle,
+                                    error,
+                                });
+                            }
+                        });
+                    }}
+                />
+            </Modal>
+            {shouldConfirmClose && (
+                <ModalDialog
+                    title="Discard changes?"
+                    description="Changes you made to the post will not be saved."
+                    onClose={() => setShouldConfirmClose(false)}
+                    primaryButtonLabel="Discard"
+                    onPrimaryButtonPress={onClose}
+                    cancelButtonLabel="Keep editing"
+                />
+            )}
+        </>
+    );
+}

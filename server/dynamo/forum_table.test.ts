@@ -11,6 +11,7 @@ import {
     getPostCommentsFromEnd,
     getPostCommentsFromStart,
     updatePostCommentContent,
+    updatePostContent,
 } from "~/server/dynamo/forum_table";
 import {createTestContext} from "~/server/dynamo/test/create_test_context";
 import {createTestSession} from "~/server/dynamo/test/create_test_session";
@@ -25,6 +26,7 @@ import {
     PostContentProsemirrorSchema as schema,
 } from "~/shared/content/post_content_schema";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error";
+import {assert} from "~/shared/helpers/control/assert";
 import {generateId} from "~/shared/id/id";
 import {PostId} from "~/shared/id/types/id_types";
 
@@ -352,6 +354,7 @@ test("can get the first few posts in a channel", async () => {
                 createdTime: expect.any(Date),
                 author: session1.account,
                 content: testContent1,
+                contentUpdatedTime: null,
                 commentCount: 0,
                 commentAuthorCount: 0,
                 previewCommentAuthors: [],
@@ -376,6 +379,7 @@ test("can get the first few posts in a channel", async () => {
                 createdTime: expect.any(Date),
                 author: session2.account,
                 content: testContent2,
+                contentUpdatedTime: null,
                 commentCount: 0,
                 commentAuthorCount: 0,
                 previewCommentAuthors: [],
@@ -387,6 +391,7 @@ test("can get the first few posts in a channel", async () => {
                 createdTime: expect.any(Date),
                 author: session1.account,
                 content: testContent1,
+                contentUpdatedTime: null,
                 commentCount: 0,
                 commentAuthorCount: 0,
                 previewCommentAuthors: [],
@@ -411,6 +416,7 @@ test("can get the first few posts in a channel", async () => {
                 createdTime: expect.any(Date),
                 author: session3.account,
                 content: testContent3,
+                contentUpdatedTime: null,
                 commentCount: 0,
                 commentAuthorCount: 0,
                 previewCommentAuthors: [],
@@ -422,6 +428,7 @@ test("can get the first few posts in a channel", async () => {
                 createdTime: expect.any(Date),
                 author: session2.account,
                 content: testContent2,
+                contentUpdatedTime: null,
                 commentCount: 0,
                 commentAuthorCount: 0,
                 previewCommentAuthors: [],
@@ -433,6 +440,7 @@ test("can get the first few posts in a channel", async () => {
                 createdTime: expect.any(Date),
                 author: session1.account,
                 content: testContent1,
+                contentUpdatedTime: null,
                 commentCount: 0,
                 commentAuthorCount: 0,
                 previewCommentAuthors: [],
@@ -484,6 +492,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 createdTime: expect.any(Date),
                 author: session2.account,
                 content: testContent1,
+                contentUpdatedTime: null,
                 commentCount: 0,
                 commentAuthorCount: 0,
                 previewCommentAuthors: [],
@@ -495,6 +504,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 createdTime: expect.any(Date),
                 author: session1.account,
                 content: testContent2,
+                contentUpdatedTime: null,
                 commentCount: 0,
                 commentAuthorCount: 0,
                 previewCommentAuthors: [],
@@ -506,6 +516,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 createdTime: expect.any(Date),
                 author: session3.account,
                 content: testContent3,
+                contentUpdatedTime: null,
                 commentCount: 0,
                 commentAuthorCount: 0,
                 previewCommentAuthors: [],
@@ -517,6 +528,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 createdTime: expect.any(Date),
                 author: session2.account,
                 content: testContent2,
+                contentUpdatedTime: null,
                 commentCount: 0,
                 commentAuthorCount: 0,
                 previewCommentAuthors: [],
@@ -528,6 +540,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 createdTime: expect.any(Date),
                 author: session1.account,
                 content: testContent1,
+                contentUpdatedTime: null,
                 commentCount: 0,
                 commentAuthorCount: 0,
                 previewCommentAuthors: [],
@@ -547,6 +560,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 createdTime: expect.any(Date),
                 author: session2.account,
                 content: testContent1,
+                contentUpdatedTime: null,
                 commentCount: 0,
                 commentAuthorCount: 0,
                 previewCommentAuthors: [],
@@ -558,6 +572,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 createdTime: expect.any(Date),
                 author: session1.account,
                 content: testContent2,
+                contentUpdatedTime: null,
                 commentCount: 0,
                 commentAuthorCount: 0,
                 previewCommentAuthors: [],
@@ -569,6 +584,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 createdTime: expect.any(Date),
                 author: session3.account,
                 content: testContent3,
+                contentUpdatedTime: null,
                 commentCount: 0,
                 commentAuthorCount: 0,
                 previewCommentAuthors: [],
@@ -588,6 +604,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 createdTime: expect.any(Date),
                 author: session2.account,
                 content: testContent1,
+                contentUpdatedTime: null,
                 commentCount: 0,
                 commentAuthorCount: 0,
                 previewCommentAuthors: [],
@@ -599,6 +616,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 createdTime: expect.any(Date),
                 author: session1.account,
                 content: testContent2,
+                contentUpdatedTime: null,
                 commentCount: 0,
                 commentAuthorCount: 0,
                 previewCommentAuthors: [],
@@ -610,6 +628,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 createdTime: expect.any(Date),
                 author: session3.account,
                 content: testContent3,
+                contentUpdatedTime: null,
                 commentCount: 0,
                 commentAuthorCount: 0,
                 previewCommentAuthors: [],
@@ -621,6 +640,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 createdTime: expect.any(Date),
                 author: session2.account,
                 content: testContent2,
+                contentUpdatedTime: null,
                 commentCount: 0,
                 commentAuthorCount: 0,
                 previewCommentAuthors: [],
@@ -640,6 +660,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 createdTime: expect.any(Date),
                 author: session2.account,
                 content: testContent1,
+                contentUpdatedTime: null,
                 commentCount: 0,
                 commentAuthorCount: 0,
                 previewCommentAuthors: [],
@@ -651,6 +672,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 createdTime: expect.any(Date),
                 author: session1.account,
                 content: testContent2,
+                contentUpdatedTime: null,
                 commentCount: 0,
                 commentAuthorCount: 0,
                 previewCommentAuthors: [],
@@ -662,6 +684,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 createdTime: expect.any(Date),
                 author: session3.account,
                 content: testContent3,
+                contentUpdatedTime: null,
                 commentCount: 0,
                 commentAuthorCount: 0,
                 previewCommentAuthors: [],
@@ -673,6 +696,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 createdTime: expect.any(Date),
                 author: session2.account,
                 content: testContent2,
+                contentUpdatedTime: null,
                 commentCount: 0,
                 commentAuthorCount: 0,
                 previewCommentAuthors: [],
@@ -684,6 +708,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 createdTime: expect.any(Date),
                 author: session1.account,
                 content: testContent1,
+                contentUpdatedTime: null,
                 commentCount: 0,
                 commentAuthorCount: 0,
                 previewCommentAuthors: [],
@@ -707,6 +732,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 createdTime: expect.any(Date),
                 author: session3.account,
                 content: testContent3,
+                contentUpdatedTime: null,
                 commentCount: 0,
                 commentAuthorCount: 0,
                 previewCommentAuthors: [],
@@ -718,6 +744,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 createdTime: expect.any(Date),
                 author: session2.account,
                 content: testContent2,
+                contentUpdatedTime: null,
                 commentCount: 0,
                 commentAuthorCount: 0,
                 previewCommentAuthors: [],
@@ -729,6 +756,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 createdTime: expect.any(Date),
                 author: session1.account,
                 content: testContent1,
+                contentUpdatedTime: null,
                 commentCount: 0,
                 commentAuthorCount: 0,
                 previewCommentAuthors: [],
@@ -752,6 +780,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 createdTime: expect.any(Date),
                 author: session3.account,
                 content: testContent3,
+                contentUpdatedTime: null,
                 commentCount: 0,
                 commentAuthorCount: 0,
                 previewCommentAuthors: [],
@@ -763,6 +792,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 createdTime: expect.any(Date),
                 author: session2.account,
                 content: testContent2,
+                contentUpdatedTime: null,
                 commentCount: 0,
                 commentAuthorCount: 0,
                 previewCommentAuthors: [],
@@ -786,6 +816,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 createdTime: expect.any(Date),
                 author: session2.account,
                 content: testContent2,
+                contentUpdatedTime: null,
                 commentCount: 0,
                 commentAuthorCount: 0,
                 previewCommentAuthors: [],
@@ -797,12 +828,160 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 createdTime: expect.any(Date),
                 author: session1.account,
                 content: testContent1,
+                contentUpdatedTime: null,
                 commentCount: 0,
                 commentAuthorCount: 0,
                 previewCommentAuthors: [],
             },
         ],
     });
+});
+
+test("can update a post's contents", async () => {
+    const channel = await createChannel(context.request(session1), {
+        spaceId: space.id,
+        name: "Test",
+    });
+
+    const post = await createPost(context.request(session1), {
+        channelId: channel.id,
+        content: testContent1,
+    });
+
+    expect(await getPost(context.request(session1), post.id)).toEqual({
+        id: post.id,
+        spaceId: space.id,
+        channelId: channel.id,
+        createdTime: expect.any(Date),
+        author: session1.account,
+        content: testContent1,
+        contentUpdatedTime: null,
+        commentCount: 0,
+        commentAuthorCount: 0,
+        previewCommentAuthors: [],
+    });
+
+    const {contentUpdatedTime: contentUpdatedTime1} = await updatePostContent(
+        context.request(session1),
+        {
+            postId: post.id,
+            content: testContent2,
+        },
+    );
+
+    expect(await getPost(context.request(session1), post.id)).toEqual({
+        id: post.id,
+        spaceId: space.id,
+        channelId: channel.id,
+        createdTime: expect.any(Date),
+        author: session1.account,
+        content: testContent2,
+        contentUpdatedTime: contentUpdatedTime1,
+        commentCount: 0,
+        commentAuthorCount: 0,
+        previewCommentAuthors: [],
+    });
+
+    const {contentUpdatedTime: contentUpdatedTime2} = await updatePostContent(
+        context.request(session1),
+        {
+            postId: post.id,
+            content: testContent3,
+        },
+    );
+
+    expect(await getPost(context.request(session1), post.id)).toEqual({
+        id: post.id,
+        spaceId: space.id,
+        channelId: channel.id,
+        createdTime: expect.any(Date),
+        author: session1.account,
+        content: testContent3,
+        contentUpdatedTime: contentUpdatedTime2,
+        commentCount: 0,
+        commentAuthorCount: 0,
+        previewCommentAuthors: [],
+    });
+});
+
+test("can not update another account's post", async () => {
+    const channel = await createChannel(context.request(session1), {
+        spaceId: space.id,
+        name: "Test",
+    });
+
+    const post = await createPost(context.request(session1), {
+        channelId: channel.id,
+        content: testContent1,
+    });
+
+    await expect(
+        updatePostContent(context.request(session2), {
+            postId: post.id,
+            content: testContent2,
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+});
+
+test("can not update another space's post", async () => {
+    const channel = await createChannel(context.request(session1), {
+        spaceId: space.id,
+        name: "Test",
+    });
+
+    const post = await createPost(context.request(session1), {
+        channelId: channel.id,
+        content: testContent1,
+    });
+
+    await expect(
+        updatePostContent(context.request(otherSession), {
+            postId: post.id,
+            content: testContent2,
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+});
+
+test("if time hasn't moved forward updating a post will set it to +1ms of the last update time", async () => {
+    const originalDateNow = Date.now;
+    const mockTime = 1675809808692;
+    Date.now = () => mockTime;
+
+    try {
+        const channel = await createChannel(context.request(session1), {
+            spaceId: space.id,
+            name: "Test",
+        });
+
+        const post = await createPost(context.request(session1), {
+            channelId: channel.id,
+            content: testContent1,
+        });
+
+        await updatePostContent(context.request(session1), {
+            postId: post.id,
+            content: testContent2,
+        });
+
+        {
+            const updatedPost = await getPost(context.request(session1), post.id);
+            assert(updatedPost);
+            expect(updatedPost.contentUpdatedTime).toEqual(new Date(mockTime));
+        }
+
+        await updatePostContent(context.request(session1), {
+            postId: post.id,
+            content: testContent3,
+        });
+
+        {
+            const updatedPost = await getPost(context.request(session1), post.id);
+            assert(updatedPost);
+            expect(updatedPost.contentUpdatedTime).toEqual(new Date(mockTime + 1));
+        }
+    } finally {
+        Date.now = originalDateNow;
+    }
 });
 
 testMessagingImplementation<PostId>(context, {

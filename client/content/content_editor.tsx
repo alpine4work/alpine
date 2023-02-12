@@ -37,6 +37,7 @@ import {useContentEditorDebugTools} from "~/client/content/internal/use_content_
 import {FocusRingPortal} from "~/client/design/focus_ring";
 import {isMac} from "~/client/helpers/is_mac";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
+import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
 import {documentFallbackTitle} from "~/shared/content/document_fallback_title";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty";
 import {ThemeColor} from "~/shared/design/theme_colors";
@@ -441,9 +442,20 @@ function ContentEditor<Content extends Node>(
 
                 const newState = oldState.apply(transaction);
 
-                // Always calls the handler from the last React commit. By using a ref
-                // we can avoid destroying and recreating an editor.
-                propsRef.current.onChange(wrap(newState), transaction);
+                const shouldRunWithImmediatePriority =
+                    // Run the update immediately if the content is going into an empty state so we
+                    // can render the placeholders in the same frame.
+                    isContentTitleEmpty(newState.doc) || isContentBodyEmpty(newState.doc);
+
+                // Always call the change handler through a ref. By using a ref we can avoid
+                // destroying and recreating an editor when the function changes.
+                if (!shouldRunWithImmediatePriority) {
+                    propsRef.current.onChange(wrap(newState), transaction);
+                } else {
+                    runWithImmediatePriority(() => {
+                        propsRef.current.onChange(wrap(newState), transaction);
+                    });
+                }
 
                 // Optimistically apply the next transaction to our editor view.
                 // ProseMirror preserves local DOM state when we call `updateState()`

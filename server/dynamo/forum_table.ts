@@ -84,6 +84,9 @@ const ForumTable = DynamoTableSchema.new({
                         /** The contents of this post. */
                         content: PostContentSchema,
 
+                        /** The last time at which the post's content was updated. */
+                        contentUpdatedTime: Schema.date.nullable().default(null),
+
                         /**
                          * Information regarding the post's comments. Nested in an object so we can
                          * update it at once.
@@ -319,6 +322,7 @@ export async function createPost(
         createdTime: new Date(),
         authorId: context.auth.getAccountId(),
         content,
+        contentUpdatedTime: null,
         commentsSummary: {
             nextCommentIndex: 0,
             commentCountByAuthorId: new Map(),
@@ -375,6 +379,7 @@ async function createPostModelFromItem(
         createdTime: item.createdTime,
         author,
         content: item.content,
+        contentUpdatedTime: item.contentUpdatedTime,
         commentCount: reduceIterable(
             item.commentsSummary.commentCountByAuthorId.values(),
             (commentCount, authorCommentCount) => commentCount + authorCommentCount,
@@ -382,6 +387,42 @@ async function createPostModelFromItem(
         ),
         commentAuthorCount: item.commentsSummary.commentCountByAuthorId.size,
         previewCommentAuthors,
+    });
+}
+
+/**
+ * Update the contents of a post if you are the post's author.
+ */
+export function updatePostContent(
+    context: RequestContext,
+    {postId, content}: {postId: PostId; content: PostContent},
+): Promise<{contentUpdatedTime: Date}> {
+    return retryDynamoConditionCheckErrors(async () => {
+        const postItem = await ForumTable.getItem(context, {
+            partitionType: "Post",
+            sortRangeType: "Attributes",
+            postId,
+        });
+        if (!postItem) throw new NotFoundError("Post not found");
+
+        await authorizeChannelAccess(context, postItem.channelId);
+
+        if (postItem.authorId !== context.auth.getAccountId())
+            throw new PermissionDeniedError("Can only update post comments you authored");
+
+        const contentUpdatedTime = new Date(
+            postItem.contentUpdatedTime
+                ? Math.max(postItem.contentUpdatedTime.getTime() + 1, Date.now())
+                : Date.now(),
+        );
+
+        await ForumTable.directlyUpdateItem(context, {
+            ...postItem,
+            content,
+            contentUpdatedTime,
+        });
+
+        return {contentUpdatedTime};
     });
 }
 

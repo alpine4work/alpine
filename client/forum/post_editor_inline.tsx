@@ -20,7 +20,7 @@ import {PostModel} from "~/shared/models/post_model";
 import {createPost} from "~/shared/rpc/forum_rpc_definitions";
 import {sprinkles} from "~/shared/styles/styles";
 
-export function PostCreator({
+export function PostEditorInline({
     channelId,
     onCreatePost,
 }: {
@@ -53,31 +53,39 @@ export function PostCreator({
     const errorTitle = "Couldn’t create post";
 
     const handleCreatePost = async () => {
-        const editor = assertExists(editorRef.current);
-        const content = state.getContent();
+        // If we are already pending, don't try to submit again...
+        if (isPending) return;
 
-        const {post} = await createPost(context, {
-            channelId,
-            content,
-        });
+        setIsPending(true);
+        try {
+            const editor = assertExists(editorRef.current);
+            const content = state.getContent();
 
-        setState(ContentEditorState.create(emptyPostContent));
-
-        onCreatePost(
-            new PostModel({
-                id: post.id,
-                spaceId: post.spaceId,
+            const {post} = await createPost(context, {
                 channelId,
-                createdTime: post.createdTime,
-                author: currentAccount,
                 content,
-                commentCount: 0,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
-            }),
-        );
+            });
 
-        editor.blur();
+            setState(ContentEditorState.create(emptyPostContent));
+
+            onCreatePost(
+                new PostModel({
+                    id: post.id,
+                    spaceId: post.spaceId,
+                    channelId,
+                    createdTime: post.createdTime,
+                    author: currentAccount,
+                    content,
+                    commentCount: 0,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
+                }),
+            );
+
+            editor.blur();
+        } finally {
+            setIsPending(false);
+        }
     };
 
     const postButton = (
@@ -110,7 +118,10 @@ export function PostCreator({
                         placeholder="Share your ideas…"
                         containerClassName={sprinkles({flexGrow: "1", overflowX: "hidden"})}
                         className={sprinkles({paddingX: "3", paddingY: "4"})}
-                        onChange={state => {
+                        onChange={(state, transaction) => {
+                            // Don't change content while we are pending...
+                            if (transaction.docChanged && isPending) return;
+
                             // Run with immediate priority so `isPostButtonInline` is updated in the
                             // same paint.
                             runWithImmediatePriority(() => {
@@ -119,7 +130,6 @@ export function PostCreator({
                         }}
                         onModEnter={() => {
                             runPromiseWithoutAwaiting(async () => {
-                                setIsPending(true);
                                 try {
                                     await handleCreatePost();
                                 } catch (error) {
@@ -128,8 +138,6 @@ export function PostCreator({
                                         title: errorTitle,
                                         error,
                                     });
-                                } finally {
-                                    setIsPending(false);
                                 }
                             });
                         }}

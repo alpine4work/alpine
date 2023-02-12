@@ -664,15 +664,46 @@ export class PostList {
     }
 
     /**
-     * Update the comments list for a post. The index must point to the post's
-     * content. Otherwise we will throw.
+     * Update the post in our list. If the post is not in the list this is
+     * a noop.
+     */
+    public updatePost(postId: PostId, update: (post: PostModel) => PostModel): PostList {
+        const postOrderKey = this._orderKeyByPostId.get(postId);
+        if (!postOrderKey) return this;
+
+        const postByOrderKey = this._postByOrderKey.update(postOrderKey, post => {
+            if (!post) throw new InternalError("Post not found for order key");
+
+            const newPost = update(post.post);
+
+            return {
+                post: newPost,
+                postComments: post.postComments,
+            };
+        });
+
+        return new PostList({
+            channelHeader: this._channelHeader,
+            hasMorePosts: this._hasMorePosts,
+            postByOrderKey,
+            orderKeyByPostId: this._orderKeyByPostId,
+            openPostCommentPostOrderKeys: this._openPostCommentPostOrderKeys,
+            // We can keep the index cache because we are replacing an existing post which
+            // should not add any new items.
+            postOrderKeyByPostContentItemIndex: this._postOrderKeyByPostContentItemIndex,
+        });
+    }
+
+    /**
+     * Update the comments list for a post. If the post id is not in the list this
+     * is a noop.
      */
     public updatePostComments(
         postId: PostId,
         update: (postComments: MessageList<PostCommentModel>) => MessageList<PostCommentModel>,
     ): PostList {
         const postOrderKey = this._orderKeyByPostId.get(postId);
-        if (!postOrderKey) throw new InternalError("Post not found for order key");
+        if (!postOrderKey) return this;
 
         const postByOrderKey = this._postByOrderKey.update(postOrderKey, post => {
             if (!post) throw new InternalError("Post not found for order key");
@@ -691,7 +722,7 @@ export class PostList {
             postByOrderKey,
             orderKeyByPostId: this._orderKeyByPostId,
             openPostCommentPostOrderKeys: this._openPostCommentPostOrderKeys,
-            // We don't know what index our post was out so we have to clear the entire
+            // We don't know what index our post was at so we have to clear the entire
             // index tree. Maybe we should build our index cache like
             // `VirtualizedScrollViewState` where we sum up the item count of subtrees?
             postOrderKeyByPostContentItemIndex: createTree(),

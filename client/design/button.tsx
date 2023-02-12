@@ -15,7 +15,7 @@ import {Sprinkles, spinAnimationClassName, sprinkles} from "~/shared/styles/styl
 const ButtonForwardRef = forwardRef(Button);
 export {ButtonForwardRef as Button};
 
-type ButtonVariant = "accent" | "quiet" | "destructive";
+type ButtonVariant = "accent" | "quiet";
 
 function Button(
     props: Omit<AriaButtonProps<"button">, "onPress"> & {
@@ -208,10 +208,6 @@ function Button(
         },
         accent: {
             backgroundColor: "theme-40-const",
-            color: "grey-0-const",
-        },
-        destructive: {
-            backgroundColor: "red-50",
             color: "grey-0-const",
         },
     };

@@ -23,6 +23,7 @@ export class PostModel extends Model(
         createdTime: Schema.date,
         author: AccountModel.schema(),
         content: PostContentSchema,
+        contentUpdatedTime: Schema.date.nullable(),
         /**
          * The total number of comments on the post.
          */
