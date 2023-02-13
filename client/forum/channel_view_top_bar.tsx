@@ -61,9 +61,9 @@ export function ChannelViewTopBar({
                                   spacing[postListViewMargin],
                               )
                             : addRemLengths(
+                                  spacing[postListViewMargin],
                                   spacing[postViewMaxWidth],
-                                  spacing[postViewMaxWidth],
-                                  spacing[postViewMaxWidth],
+                                  spacing[postListViewMargin],
                               ),
                     }}
                 >

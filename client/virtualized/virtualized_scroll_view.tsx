@@ -326,6 +326,10 @@ function VirtualizedScrollView(
         /**
          * Extra children to always render in our virtualized scroll view. Useful if
          * you want to render extra sticky content.
+         *
+         * The children are rendered in a container with no pointer events. So you need
+         * to add `pointerEvents: "auto"` on elements you want to be interactive with
+         * a pointer.
          */
         extraChildren?: ReactNode;
     },
@@ -837,7 +841,22 @@ function VirtualizedScrollView(
                     }}
                 >
                     <OverlayScopeContextProvider>
-                        {extraChildren}
+                        {extraChildren && (
+                            <div
+                                style={{
+                                    // We need to render extra children in an absolutely positioned `<div>` so
+                                    // it doesn't affect server side rendering.
+                                    position: "absolute",
+                                    top: 0,
+                                    bottom: 0,
+                                    left: 0,
+                                    right: 0,
+                                    pointerEvents: "none",
+                                }}
+                            >
+                                {extraChildren}
+                            </div>
+                        )}
                         {shouldRenderWithRelativePositioning &&
                             bufferedHeightBeforeChildren > 0 && (
                                 <div style={{height: bufferedHeightBeforeChildren}} />
