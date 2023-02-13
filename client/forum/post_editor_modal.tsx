@@ -11,6 +11,7 @@ import {useShowToast} from "~/client/design/toast";
 import {PostContentViewHeader} from "~/client/forum/post_content_view_header";
 import {postMaxWidth} from "~/client/forum/post_list_view";
 import {isContentEmpty} from "~/shared/content/is_content_empty";
+import {PostContent} from "~/shared/content/post_content_schema";
 import {parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -31,9 +32,13 @@ export function PostEditorModal({
     const context = useAppContext();
     const showToast = useShowToast();
     const editorRef = useRef<ContentEditorRef>(null);
-    const [state, setState] = useState(() =>
-        ContentEditorState.create(post.content, {selectionAt: "end"}),
-    );
+    const [{state, hasContentChanged}, setState] = useState<{
+        state: ContentEditorState<PostContent>;
+        hasContentChanged: boolean;
+    }>(() => ({
+        state: ContentEditorState.create(post.content, {selectionAt: "end"}),
+        hasContentChanged: false,
+    }));
     const [isPending, setIsPending] = useState(false);
     const [shouldConfirmClose, setShouldConfirmClose] = useState(false);
 
@@ -75,7 +80,13 @@ export function PostEditorModal({
             <Modal
                 title="Edit post"
                 disableCloseAnimation={true}
-                onClose={() => setShouldConfirmClose(true)}
+                onClose={() => {
+                    if (hasContentChanged) {
+                        setShouldConfirmClose(true);
+                    } else {
+                        onClose();
+                    }
+                }}
                 maxWidth={`${
                     // Make post editor slimmer than a post so if we render it on top of a post it
                     // doesn't line up precisely.
@@ -116,7 +127,10 @@ export function PostEditorModal({
                         // Don't change content while we are pending...
                         if (transaction.docChanged && isPending) return;
 
-                        setState(state);
+                        setState(({state: oldState, hasContentChanged}) => ({
+                            state,
+                            hasContentChanged: hasContentChanged || transaction.docChanged,
+                        }));
                     }}
                     onModEnter={() => {
                         runPromiseWithoutAwaiting(async () => {
