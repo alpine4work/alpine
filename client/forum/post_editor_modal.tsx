@@ -9,7 +9,7 @@ import {Modal} from "~/client/design/modal";
 import {ModalDialog} from "~/client/design/modal_dialog";
 import {useShowToast} from "~/client/design/toast";
 import {PostContentViewHeader} from "~/client/forum/post_content_view_header";
-import {postMaxWidth} from "~/client/forum/post_list_view";
+import {postViewMaxWidth} from "~/client/forum/post_list_view";
 import {isContentEmpty} from "~/shared/content/is_content_empty";
 import {PostContent} from "~/shared/content/post_content_schema";
 import {parseRemLengthNumber, spacing} from "~/shared/design/spacing";
@@ -90,7 +90,7 @@ export function PostEditorModal({
                 maxWidth={`${
                     // Make post editor slimmer than a post so if we render it on top of a post it
                     // doesn't line up precisely.
-                    parseRemLengthNumber(spacing[postMaxWidth]) -
+                    parseRemLengthNumber(spacing[postViewMaxWidth]) -
                     parseRemLengthNumber(spacing["3"]) * 2
                 }rem`}
                 footer={

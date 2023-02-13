@@ -13,12 +13,15 @@ import {useResizeObserver} from "~/client/helpers/use_resize_observer";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {isContentEmpty} from "~/shared/content/is_content_empty";
 import {emptyPostContent} from "~/shared/content/post_content_schema";
+import {RemLength} from "~/shared/design/spacing";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {ChannelId} from "~/shared/id/types/id_types";
 import {PostModel} from "~/shared/models/post_model";
 import {createPost} from "~/shared/rpc/forum_rpc_definitions";
 import {sprinkles} from "~/shared/styles/styles";
+
+export const postEditorInlineMinHeight: RemLength = "3.25rem";
 
 export function PostEditorInline({
     channelId,
@@ -108,7 +111,12 @@ export function PostEditorInline({
 
     return (
         <FocusRing isVisibleWhenFocusWithin={true}>
-            <Box backgroundColor="grey-0" borderRadius="md" boxShadow="elevation-5">
+            <Box
+                backgroundColor="grey-0"
+                borderRadius="md"
+                boxShadow="elevation-5"
+                style={{minHeight: postEditorInlineMinHeight}}
+            >
                 <Box
                     ref={containerRef}
                     position="relative"

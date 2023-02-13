@@ -261,6 +261,7 @@ function VirtualizedScrollView(
         onRenderedRangeChange: _onRenderedRangeChange,
         pinTo = "top",
         disablePinHeuristics,
+        extraChildren,
     }: {
         /**
          * The total number of virtualized items. You do not need all the items loaded
@@ -313,6 +314,7 @@ function VirtualizedScrollView(
          * bottom to the scroll bottom is kept constant.
          */
         pinTo?: "top" | "bottom";
+
         /**
          * Disable any heuristics associated with `pinTo`. For example when you have
          * `pinTo="bottom"` and an element is focused we treat the element as
@@ -320,6 +322,12 @@ function VirtualizedScrollView(
          * `pinTo="bottom"`.
          */
         disablePinHeuristics?: boolean;
+
+        /**
+         * Extra children to always render in our virtualized scroll view. Useful if
+         * you want to render extra sticky content.
+         */
+        extraChildren?: ReactNode;
     },
     ref: Ref<VirtualizedScrollViewRef>,
 ) {
@@ -829,6 +837,7 @@ function VirtualizedScrollView(
                     }}
                 >
                     <OverlayScopeContextProvider>
+                        {extraChildren}
                         {shouldRenderWithRelativePositioning &&
                             bufferedHeightBeforeChildren > 0 && (
                                 <div style={{height: bufferedHeightBeforeChildren}} />
