@@ -18,4 +18,4 @@ import {Schema} from "~/shared/schema/schema";
  *
  * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ServiceQuotas.html
  */
-export const LabelStringSchema = Schema.string.singleLine().trim().minLength(1).maxLength(512);
+export const LabelStringSchema = Schema.string.minLength(1).maxLength(512).singleLine().trim();

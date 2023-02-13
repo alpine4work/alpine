@@ -1,18 +1,29 @@
 import {CaretDown} from "phosphor-react";
 import {useEffect, useRef, useState} from "react";
+import {useNavigate} from "react-router-dom";
+import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
+import {ContentEditorState} from "~/client/content/content_editor_state";
 import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
+import {FocusRing} from "~/client/design/focus_ring";
 import {MenuButton} from "~/client/design/menu_button";
+import {defaultModalMaxWidth} from "~/client/design/modal";
+import {ModalDialog} from "~/client/design/modal_dialog";
 import {ModalWithButtons, ModalWithButtonsRef} from "~/client/design/modal_with_buttons";
-import {TextInput} from "~/client/design/text_input";
+import {TextInput, textInputClassName} from "~/client/design/text_input";
 import {PostList} from "~/client/forum/post_list";
 import {PostListView, postListViewMargin, postMaxWidth} from "~/client/forum/post_list_view";
-import {spacing} from "~/shared/design/spacing";
+import {MessageContent} from "~/shared/content/message_content_schema";
+import {addRemLengths, spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {ChannelModel} from "~/shared/models/channel_model";
 import {PostModel} from "~/shared/models/post_model";
-import {getChannelPosts, updateChannelName} from "~/shared/rpc/forum_rpc_definitions";
+import {
+    getChannelPosts,
+    updateChannelDescription,
+    updateChannelName,
+} from "~/shared/rpc/forum_rpc_definitions";
 import {sprinkles} from "~/shared/styles/styles";
 
 export function ChannelView({
@@ -115,6 +126,13 @@ export function ChannelView({
                     onClose={() => setShouldShowEditNameModal(false)}
                 />
             )}
+            {shouldShowEditDescriptionModal && (
+                <ChannelEditDescriptionModal
+                    channel={channel}
+                    onUpdateChannel={setChannel}
+                    onClose={() => setShouldShowEditDescriptionModal(false)}
+                />
+            )}
         </Box>
     );
 }
@@ -146,14 +164,17 @@ function ChannelEditNameModal({
             title="Edit channel name"
             onClose={onClose}
             primaryButtonLabel="Save"
+            isPrimaryButtonDisabled={name.length === 0}
             primaryButtonPressErrorTitle="Couldn’t save channel name"
             onPrimaryButtonPress={async () => {
+                const trimmedName = name.trim();
+
                 await updateChannelName(context, {
                     channelId: channel.id,
-                    name,
+                    name: trimmedName,
                 });
 
-                onUpdateChannel(channel => channel.clone({name}));
+                onUpdateChannel(channel => channel.clone({name: trimmedName}));
             }}
         >
             {({isPending, pressPrimaryButton}) => (
@@ -175,5 +196,110 @@ function ChannelEditNameModal({
                 </Box>
             )}
         </ModalWithButtons>
+    );
+}
+
+function ChannelEditDescriptionModal({
+    channel,
+    onUpdateChannel,
+    onClose,
+}: {
+    channel: ChannelModel;
+    onUpdateChannel: (update: (channel: ChannelModel) => ChannelModel) => void;
+    onClose: () => void;
+}) {
+    const navigate = useNavigate();
+    const context = useAppContext();
+    const modalRef = useRef<ModalWithButtonsRef>(null);
+    const editorRef = useRef<ContentEditorRef>(null);
+
+    const [{state, hasContentChanged}, setState] = useState<{
+        state: ContentEditorState<MessageContent>;
+        hasContentChanged: boolean;
+    }>(() => ({
+        state: ContentEditorState.create(channel.description, {selectionAt: "end"}),
+        hasContentChanged: false,
+    }));
+    const [shouldConfirmClose, setShouldConfirmClose] = useState(false);
+
+    useEffect(() => {
+        const editor = assertExists(editorRef.current);
+        editor.focus();
+    }, []);
+
+    return (
+        <>
+            <ModalWithButtons
+                ref={modalRef}
+                title="Edit channel description"
+                disableCloseAnimation={hasContentChanged}
+                onClose={() => {
+                    if (hasContentChanged) {
+                        setShouldConfirmClose(true);
+                    } else {
+                        onClose();
+                    }
+                }}
+                primaryButtonLabel="Save"
+                primaryButtonPressErrorTitle="Couldn’t save channel description"
+                onPrimaryButtonPress={async () => {
+                    const description = state.getContent();
+
+                    await updateChannelDescription(context, {
+                        channelId: channel.id,
+                        description,
+                    });
+
+                    onUpdateChannel(channel => channel.clone({description}));
+                    onClose();
+                }}
+                // A little wider than the default modal width so the confirmation modal
+                // doesn't line up precisely.
+                maxWidth={addRemLengths(spacing[defaultModalMaxWidth], spacing["4"])}
+            >
+                {({isPending, pressPrimaryButton}) => (
+                    <Box paddingTop="5" paddingX="5" paddingBottom="5">
+                        <FocusRing isVisibleWhenFocusWithin={true} offset="border">
+                            <Box className={textInputClassName}>
+                                <ContentEditor
+                                    ref={editorRef}
+                                    aria-label="Channel description"
+                                    placeholder="What’s the purpose of this channel?"
+                                    state={state}
+                                    onChange={(state, transaction) => {
+                                        // Don't change content while we are pending...
+                                        if (transaction.docChanged && isPending) return;
+
+                                        setState(({state: oldState, hasContentChanged}) => ({
+                                            state,
+                                            hasContentChanged:
+                                                hasContentChanged || transaction.docChanged,
+                                        }));
+                                    }}
+                                    onNavigate={navigate}
+                                    onModEnter={pressPrimaryButton}
+                                    className={sprinkles({
+                                        paddingX: "0.5",
+                                        paddingY: "2",
+                                        height: "64",
+                                        overflowY: "scroll",
+                                    })}
+                                />
+                            </Box>
+                        </FocusRing>
+                    </Box>
+                )}
+            </ModalWithButtons>
+            {shouldConfirmClose && (
+                <ModalDialog
+                    title="Discard changes?"
+                    description="Changes you made to the post will not be saved."
+                    onClose={() => setShouldConfirmClose(false)}
+                    primaryButtonLabel="Discard"
+                    onPrimaryButtonPress={onClose}
+                    cancelButtonLabel="Keep editing"
+                />
+            )}
+        </>
     );
 }

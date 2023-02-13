@@ -79,6 +79,16 @@ const TextInputForwardRef = forwardRef(TextInput);
 export {TextInputForwardRef as TextInput};
 
 /**
+ * Core styles for `<TextInput>` you can use to create other elements that look
+ * like a text input.
+ */
+export const textInputClassName = sprinkles({
+    border: "grey-20",
+    backgroundColor: "grey-0",
+    borderRadius: "base",
+});
+
+/**
  * Simple, single-line, text input with a label.
  */
 // TODO(calebmer): This is a very standard web design text input. Consider the
@@ -131,18 +141,18 @@ function TextInput(
             <FocusRing offset="border">
                 <input
                     ref={ref}
-                    className={sprinkles({
-                        display: "block",
-                        width: "full",
-                        height: ({"75": "7", "200": "10"} as const)[fontSize],
-                        paddingX: ({"75": "2", "200": "3"} as const)[fontSize],
-                        border: "grey-20",
-                        backgroundColor: "grey-0",
-                        borderRadius: "base",
-                        fontSize,
-                        fontStyle,
-                        flex: layout === "inline" ? "auto" : undefined,
-                    })}
+                    className={classNames(
+                        textInputClassName,
+                        sprinkles({
+                            display: "block",
+                            width: "full",
+                            height: ({"75": "7", "200": "10"} as const)[fontSize],
+                            paddingX: ({"75": "2", "200": "3"} as const)[fontSize],
+                            fontSize,
+                            fontStyle,
+                            flex: layout === "inline" ? "auto" : undefined,
+                        }),
+                    )}
                     id={id}
                     type={autoComplete === "email" ? "email" : "text"}
                     value={value}

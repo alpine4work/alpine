@@ -79,7 +79,7 @@ export function PostEditorModal({
         <>
             <Modal
                 title="Edit post"
-                disableCloseAnimation={true}
+                disableCloseAnimation={hasContentChanged}
                 onClose={() => {
                     if (hasContentChanged) {
                         setShouldConfirmClose(true);

@@ -18,6 +18,7 @@ import {
     NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error";
+import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
@@ -256,6 +257,12 @@ export async function updateChannelName(
         name: string;
     },
 ) {
+    // Give the user a nice error message if there was an error validating the new
+    // channel name.
+    LabelStringSchema.validate?.(name, {
+        errorDisplayMessagePrefix: errorDisplayMessage`The name you typed`,
+    });
+
     await ForumTable.updateItem(
         context,
         {partitionType: "Channel", sortRangeType: "Attributes", channelId},

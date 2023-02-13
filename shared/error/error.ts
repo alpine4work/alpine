@@ -39,10 +39,17 @@ export abstract class ErrorBase extends Error {
      * If you call `ErrorBase.from()` you will get an `UnknownError`. Instead
      * prefer using a specific error like `FailedPreconditionError.from()`.
      */
-    public static from(error: unknown, newMessage?: string): ErrorBase {
+    public static from(
+        error: unknown,
+        newMessage?: string,
+        {displayMessage}: {displayMessage?: ErrorDisplayMessage} = {},
+    ): ErrorBase {
         const ErrorConstructor =
             this !== ErrorBase
-                ? (this as any as new (message: string, options?: {cause?: unknown}) => ErrorBase)
+                ? (this as any as new (
+                      message: string,
+                      options?: {cause?: unknown; displayMessage?: ErrorDisplayMessage},
+                  ) => ErrorBase)
                 : UnknownError;
 
         return new ErrorConstructor(
@@ -50,6 +57,7 @@ export abstract class ErrorBase extends Error {
                 (error instanceof Error ? error.message : String(error)),
             {
                 cause: error,
+                displayMessage,
             },
         );
     }

@@ -3,6 +3,7 @@ import {
     ErrorDisplayMessageLinkSegment,
     ErrorDisplayMessageSegment,
 } from "~/shared/error/types/error_display_message_type";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array";
 import {assert} from "~/shared/helpers/control/assert";
 import {isObject} from "~/shared/helpers/object/is_object";
 import {ObjectSchema, Schema} from "~/shared/schema/schema";
@@ -52,7 +53,7 @@ export const ErrorDisplayMessageSchema: Schema<ErrorDisplayMessage> =
  */
 export function errorDisplayMessage(
     templateStrings: TemplateStringsArray,
-    ...values: Array<string | number | ErrorDisplayMessageLinkSegment>
+    ...values: Array<string | number | ErrorDisplayMessage | ErrorDisplayMessageLinkSegment>
 ): ErrorDisplayMessage {
     assert(templateStrings.length > 0);
     assert(templateStrings.length === values.length + 1);
@@ -63,7 +64,11 @@ export function errorDisplayMessage(
         if (i !== 0) {
             const value = values[i - 1]!;
 
-            if (isObject(value)) {
+            if (isReadonlyArray(value)) {
+                for (const segment of value) {
+                    message.push(segment);
+                }
+            } else if (isObject(value)) {
                 message.push(value);
             } else {
                 // Interpolated values are all considered to be sensitive user data. Create a

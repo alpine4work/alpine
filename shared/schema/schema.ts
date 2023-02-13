@@ -2,6 +2,8 @@ import {base64ToBytes, bytesToBase64} from "byte-base64";
 import isValidDate from "date-fns/isValid";
 import parseISO from "date-fns/parseISO";
 import {InternalError, InvalidArgumentError} from "~/shared/error/error";
+import {errorDisplayMessage} from "~/shared/error/error_display_message";
+import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
@@ -1413,6 +1415,27 @@ class StringSchema extends Schema<string> {
         validate: null,
     });
 
+    public override readonly validate:
+        | ((value: string, options?: {errorDisplayMessagePrefix?: ErrorDisplayMessage}) => void)
+        | null;
+
+    protected constructor({
+        description,
+        serialize,
+        deserialize,
+        validate,
+    }: {
+        description: SchemaSerializedValueDescription;
+        serialize: (value: string) => SchemaSerializedValue;
+        deserialize: (serializedValue: SchemaSerializedValue) => string;
+        validate:
+            | ((value: string, options?: {errorDisplayMessagePrefix?: ErrorDisplayMessage}) => void)
+            | null;
+    }) {
+        super({description, serialize, deserialize, validate});
+        this.validate = validate;
+    }
+
     public _transformString({
         serialize,
         deserialize,
@@ -1420,7 +1443,9 @@ class StringSchema extends Schema<string> {
     }: {
         serialize: (value: string) => string;
         deserialize: (value: string) => string;
-        validate: ((value: string) => void) | null;
+        validate:
+            | ((value: string, options?: {errorDisplayMessagePrefix?: ErrorDisplayMessage}) => void)
+            | null;
     }): StringSchema {
         const {validate: oldValidate} = this;
 
@@ -1436,9 +1461,9 @@ class StringSchema extends Schema<string> {
             },
             validate:
                 newValidate || oldValidate
-                    ? value => {
-                          oldValidate?.(value);
-                          newValidate?.(value);
+                    ? (value, options) => {
+                          oldValidate?.(value, options);
+                          newValidate?.(value, options);
                       }
                     : null,
         });
@@ -1467,10 +1492,17 @@ class StringSchema extends Schema<string> {
 
                 return value;
             },
-            validate: value => {
+            validate: (value, {errorDisplayMessagePrefix} = {}) => {
                 if (value.length < length)
                     throw new InvalidArgumentError(
                         `Expected string to have a length greater than or equal to ${length}`,
+                        {
+                            displayMessage: errorDisplayMessagePrefix
+                                ? value.length === 0
+                                    ? errorDisplayMessage`${errorDisplayMessagePrefix} is empty.`
+                                    : errorDisplayMessage`${errorDisplayMessagePrefix} is too short.`
+                                : undefined,
+                        },
                     );
             },
         });
@@ -1499,10 +1531,15 @@ class StringSchema extends Schema<string> {
 
                 return value;
             },
-            validate: value => {
+            validate: (value, {errorDisplayMessagePrefix} = {}) => {
                 if (value.length > length)
                     throw new InvalidArgumentError(
                         `Expected string to have a length less than or equal to ${length}`,
+                        {
+                            displayMessage: errorDisplayMessagePrefix
+                                ? errorDisplayMessage`${errorDisplayMessagePrefix} is too long.`
+                                : undefined,
+                        },
                     );
             },
         });
@@ -1526,9 +1563,13 @@ class StringSchema extends Schema<string> {
 
                 return value;
             },
-            validate: value => {
+            validate: (value, {errorDisplayMessagePrefix} = {}) => {
                 if (/[\n\r]/g.test(value))
-                    throw new InvalidArgumentError("Expected single line string");
+                    throw new InvalidArgumentError("Expected single line string", {
+                        displayMessage: errorDisplayMessagePrefix
+                            ? errorDisplayMessage`${errorDisplayMessagePrefix} should be a single line.`
+                            : undefined,
+                    });
             },
         });
     }
@@ -1537,14 +1578,22 @@ class StringSchema extends Schema<string> {
      * Transforms a value by removing the whitespace from the start and end of the
      * string.
      */
+    // NOTE(calebmer): It's important that this runs before length validations
+    // since it may change the length of the string. Right now users need to
+    // manually order their combinators correctly. Can we do this automatically?
     public trim(): StringSchema {
         return this._transformString({
             serialize: value => value.trim(),
             deserialize: value => value.trim(),
-            validate: value => {
+            validate: (value, {errorDisplayMessagePrefix} = {}) => {
                 if (value !== value.trim())
                     throw new InvalidArgumentError(
                         "Expected string to not have whitespace at the start or end",
+                        {
+                            displayMessage: errorDisplayMessagePrefix
+                                ? errorDisplayMessage`${errorDisplayMessagePrefix} should not start or end with spaces.`
+                                : undefined,
+                        },
                     );
             },
         });
@@ -1557,9 +1606,13 @@ class StringSchema extends Schema<string> {
         return this._transformString({
             serialize: value => value.toLowerCase(),
             deserialize: value => value.toLowerCase(),
-            validate: value => {
+            validate: (value, {errorDisplayMessagePrefix} = {}) => {
                 if (value !== value.toLowerCase())
-                    throw new InvalidArgumentError("Expected string to be lower case");
+                    throw new InvalidArgumentError("Expected string to be lower case", {
+                        displayMessage: errorDisplayMessagePrefix
+                            ? errorDisplayMessage`${errorDisplayMessagePrefix} should only use lower case characters.`
+                            : undefined,
+                    });
             },
         });
     }

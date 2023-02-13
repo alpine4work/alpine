@@ -4,6 +4,7 @@ import {Button} from "~/client/design/button";
 import {Modal} from "~/client/design/modal";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {useShowToast} from "~/client/design/toast";
+import {RemLength, Spacing} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 
@@ -23,22 +24,28 @@ function ModalWithButtons(
         title,
         children,
         primaryButtonLabel,
+        isPrimaryButtonDisabled,
         primaryButtonPressErrorTitle,
         onPrimaryButtonPress,
         cancelButtonLabel = "Cancel",
         onClose,
+        disableCloseAnimation,
         "aria-describedby": ariaDescribedBy,
+        maxWidth,
     }: {
         title: string;
         children?:
             | ReactNode
             | ((props: {isPending: boolean; pressPrimaryButton: () => void}) => ReactNode);
         primaryButtonLabel: string;
+        isPrimaryButtonDisabled?: boolean;
         primaryButtonPressErrorTitle?: string;
         onPrimaryButtonPress: () => void | Promise<void>;
         cancelButtonLabel?: string;
         onClose: () => void;
+        disableCloseAnimation?: boolean;
         "aria-describedby"?: string;
+        maxWidth?: Spacing | RemLength;
     },
     ref: Ref<ModalWithButtonsRef>,
 ) {
@@ -58,9 +65,17 @@ function ModalWithButtons(
     );
 
     return (
-        <Modal title={title} aria-describedby={ariaDescribedBy} onClose={onClose}>
+        <Modal
+            title={title}
+            aria-describedby={ariaDescribedBy}
+            onClose={onClose}
+            disableCloseAnimation={disableCloseAnimation}
+            maxWidth={maxWidth}
+        >
             {({onCloseWithAnimation, onCloseWithoutAnimation}) => {
                 const pressPrimaryButton = () => {
+                    if (isPrimaryButtonDisabled) return;
+
                     const promise = onPrimaryButtonPress();
 
                     if (!(promise instanceof Promise)) {
@@ -122,8 +137,9 @@ function ModalWithButtons(
                             <Button
                                 ref={primaryButtonRef}
                                 variant="accent"
-                                pressErrorTitle={primaryButtonPressErrorTitle}
+                                isDisabled={isPrimaryButtonDisabled}
                                 isPending={isPending}
+                                pressErrorTitle={primaryButtonPressErrorTitle}
                                 onPress={pressPrimaryButton}
                             >
                                 {primaryButtonLabel}

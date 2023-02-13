@@ -11,6 +11,8 @@ import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {modalDialogStyles, sprinkles} from "~/shared/styles/styles";
 
+export const defaultModalMaxWidth: Spacing = "128";
+
 /**
  * A view which takes over the entire screen and blocks interaction with the
  * content underneath while it is open.
@@ -24,7 +26,7 @@ export function Modal({
     onClose: _onCloseWithoutAnimation,
     disableCloseAnimation,
     "aria-describedby": ariaDescribedBy,
-    maxWidth = "128",
+    maxWidth = defaultModalMaxWidth,
 }: {
     /**
      * The title of the modal. This will be rendered in a header along with a

@@ -280,11 +280,34 @@ function ToastView({
             border={{light: "grey-0", dark: "grey-10"}}
             borderRadius="base"
             boxShadow="elevation-30"
-            padding="2"
-            paddingRight="6"
             display="flex"
         >
-            <Box position="absolute" top="1.5" right="1.5">
+            <Box flexGrow="1" alignSelf="center" display="flex" padding="2">
+                <Box flexShrink="0" color="red-50-const" paddingRight="2">
+                    <Box position="relative" style={{top: 1}}>
+                        <ErrorIcon size={spacing["4"]} />
+                    </Box>
+                </Box>
+                <Box flexGrow="1" role="alert">
+                    {!isInitialRender && (
+                        // [According to MDN][1], live regions (`role="alert"`, `role="status"`,
+                        // `aria-live="assertive"`, `aria-live="polite"`) only notify users of assistive
+                        // technology when the element updates. Not when it is added to the DOM. So we
+                        // initially render without content then the element immediately re-renders with
+                        // the alert content.
+                        //
+                        // [1]: https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/alert_role
+                        <ErrorDisplayMessageRenderer
+                            error={toast.error}
+                            fontSize="75"
+                            // Add punctuation to the title since it was written standalone.
+                            prefixMessage={`${toast.title}.`}
+                            isSingleLine={true}
+                        />
+                    )}
+                </Box>
+            </Box>
+            <Box flexShrink="0" padding="1.5" paddingLeft="0">
                 <IconButton
                     variant="quiet-on-grey-5-dark-background"
                     size="xs"
@@ -295,29 +318,6 @@ function ToastView({
                     <X />
                 </IconButton>
                 <ToastViewTimer startTime={startTime} expirationTime={expirationTime} />
-            </Box>
-            <Box flexShrink="0" color="red-50-const" paddingRight="2">
-                <Box position="relative" style={{top: 1}}>
-                    <ErrorIcon size={spacing["4"]} />
-                </Box>
-            </Box>
-            <Box flexGrow="1" role="alert">
-                {!isInitialRender && (
-                    // [According to MDN][1], live regions (`role="alert"`, `role="status"`,
-                    // `aria-live="assertive"`, `aria-live="polite"`) only notify users of assistive
-                    // technology when the element updates. Not when it is added to the DOM. So we
-                    // initially render without content then the element immediately re-renders with
-                    // the alert content.
-                    //
-                    // [1]: https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/alert_role
-                    <ErrorDisplayMessageRenderer
-                        error={toast.error}
-                        fontSize="75"
-                        // Add punctuation to the title since it was written standalone.
-                        prefixMessage={`${toast.title}.`}
-                        isSingleLine={true}
-                    />
-                )}
             </Box>
         </Box>
     );

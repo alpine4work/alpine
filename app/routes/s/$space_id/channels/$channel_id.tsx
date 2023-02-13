@@ -6,6 +6,7 @@ import {getChannel} from "~/server/dynamo/forum_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
 import {NotFoundError} from "~/shared/error/error";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {ChannelId} from "~/shared/id/types/id_types";
 import {ChannelModel} from "~/shared/models/channel_model";
 import {PostModel} from "~/shared/models/post_model";
@@ -26,20 +27,18 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
     const channelId = Schema.id<ChannelId>().deserialize(params.channel_id ?? null);
     const context = await unauthenticatedContext.auth.authenticate();
 
-    const channelPromise = getChannel(context, channelId);
+    const [channel, channelPostsResult] = await runAllPromises([
+        getChannel(context, channelId),
+        getChannelPosts(context, {
+            channelId,
+            limit: getInitialVirtualizedScrollViewRenderedItemCount(
+                context.loader.clientInfo,
+                postContentViewMinHeight,
+            ),
+        }),
+    ]);
 
-    const channelPostsResultPromise = getChannelPosts(context, {
-        channelId,
-        limit: getInitialVirtualizedScrollViewRenderedItemCount(
-            context.loader.clientInfo,
-            postContentViewMinHeight,
-        ),
-    });
-
-    const channel = await channelPromise;
     if (!channel) throw new NotFoundError("Channel not found");
-
-    const channelPostsResult = await channelPostsResultPromise;
 
     const propagateEventData: TracerEventData = {
         context: {channelId},
