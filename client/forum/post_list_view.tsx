@@ -765,7 +765,6 @@ export function PostListView({
                                         <div
                                             ref={ref}
                                             style={{
-                                                paddingBottom,
                                                 ...(!shouldRenderWithRelativePositioning && {
                                                     position: "sticky",
                                                     bottom: `-${paddingBottom}`,
@@ -785,6 +784,7 @@ export function PostListView({
                                                     overflowX: "hidden",
                                                 })}
                                                 style={{
+                                                    paddingBottom,
                                                     maxWidth: postViewMaxWidthWithMarginsRem,
                                                     flex: postViewFlex,
                                                 }}
