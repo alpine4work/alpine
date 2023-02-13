@@ -1,3 +1,4 @@
+import {MessageContentSchema} from "~/shared/content/message_content_schema";
 import {ChannelId, SpaceId} from "~/shared/id/types/id_types";
 import {Model} from "~/shared/models/model";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
@@ -9,5 +10,6 @@ export class ChannelModel extends Model(
         spaceId: Schema.id<SpaceId>(),
         createdTime: Schema.date,
         name: LabelStringSchema,
+        description: MessageContentSchema,
     }),
 ) {}

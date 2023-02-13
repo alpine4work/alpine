@@ -37,6 +37,7 @@ import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_str
 import {isIdentifier} from "~/shared/helpers/string/is_identifier";
 import {quote} from "~/shared/helpers/string/quote";
 import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection";
 import {
     ObjectSchema,
@@ -934,6 +935,11 @@ export class DynamoTableSchema<
      * _after_ our read but _before_ our write then the `PutItem` command will fail
      * and we will try again with `retryDynamoConditionCheckErrors()`.
      *
+     * Be careful about what you put in the `update()` function. The `update()`
+     * function may run multiple times if there are conflicting updates. Avoid
+     * performing writes in the `update()` function since they may throw a DynamoDB
+     * condition check error which causes us to retry the update.
+     *
      * [1]: https://en.wikipedia.org/wiki/Optimistic_concurrency_control
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html
      * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
@@ -943,7 +949,7 @@ export class DynamoTableSchema<
         key: Key,
         update: (
             item: MergeObjectIntersection<Types["Item"] & Key> | null,
-        ) => MergeObjectIntersection<Types["Item"] & Key>,
+        ) => MaybePromise<MergeObjectIntersection<Types["Item"] & Key>>,
     ): Promise<void> {
         await context.tracer.withSpan("DynamoTableSchema.updateItem", async (context, span) => {
             span.addData({dynamodb: {tableName: this.getName()}});
@@ -951,17 +957,7 @@ export class DynamoTableSchema<
             await retryDynamoConditionCheckErrors(async () => {
                 const item = await this.getItem(context, key);
 
-                // The update function is synchronous to discourage more complex coordination
-                // in the middle of an update. For example trying to perform an update across
-                // items or tables that really should be part of a transaction.
-                //
-                // The update function is also synchronous to avoid it executing a write that
-                // throws a condition check error that throws off our
-                // `retryDynamoConditionCheckErrors()` function.
-                //
-                // However, it is not a hard requirement that these things do not happen. If
-                // the need arises this function could plausibly be async.
-                const newItem = update(item);
+                const newItem = await update(item);
 
                 // Update was short-circuited.
                 if (item === newItem) return;

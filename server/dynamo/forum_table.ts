@@ -6,7 +6,11 @@ import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attr
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry_dynamo_condition_check_errors";
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
-import {MessageContent} from "~/shared/content/message_content_schema";
+import {
+    MessageContent,
+    MessageContentSchema,
+    emptyMessageContent,
+} from "~/shared/content/message_content_schema";
 import {PostContent, PostContentSchema} from "~/shared/content/post_content_schema";
 import {
     DataLossError,
@@ -52,6 +56,9 @@ const ForumTable = DynamoTableSchema.new({
 
                         /** The name of this channel. */
                         name: LabelStringSchema,
+
+                        /** A description for the channel which will appear in a sidebar. */
+                        description: MessageContentSchema.default(emptyMessageContent),
                     }),
                 },
             },
@@ -158,6 +165,7 @@ export async function seedTestChannels(context: DynamoContext) {
         spaceId: defaultSpaceId,
         createdTime: new Date(),
         name: "Test",
+        description: emptyMessageContent,
     });
 }
 
@@ -177,6 +185,7 @@ export async function createChannel(
         spaceId,
         createdTime: new Date(),
         name,
+        description: emptyMessageContent,
     };
 
     await ForumTable.createItem(context, channelItem);
@@ -218,6 +227,7 @@ function createChannelModelFromItem(channelItem: ChannelAttributesItem): Channel
         spaceId: channelItem.spaceId,
         createdTime: channelItem.createdTime,
         name: channelItem.name,
+        description: channelItem.description,
     });
 }
 
@@ -231,6 +241,62 @@ export async function authorizeChannelAccess(
 ): Promise<void> {
     const channelItem = await getChannelItem(context, id);
     if (!channelItem) throw new NotFoundError("Channel not found");
+}
+
+/**
+ * Updates the name of the channel.
+ */
+export async function updateChannelName(
+    context: RequestContext,
+    {
+        channelId,
+        name,
+    }: {
+        channelId: ChannelId;
+        name: string;
+    },
+) {
+    await ForumTable.updateItem(
+        context,
+        {partitionType: "Channel", sortRangeType: "Attributes", channelId},
+        async channelItem => {
+            if (!channelItem) throw new NotFoundError("Channel not found");
+            await authorizeSpaceAccess(context, channelItem.spaceId);
+
+            return {
+                ...channelItem,
+                name,
+            };
+        },
+    );
+}
+
+/**
+ * Updates the description of the channel.
+ */
+export async function updateChannelDescription(
+    context: RequestContext,
+    {
+        channelId,
+        description,
+    }: {
+        channelId: ChannelId;
+        description: MessageContent;
+    },
+) {
+    await ForumTable.updateItem(
+        context,
+        {partitionType: "Channel", sortRangeType: "Attributes", channelId},
+        async channelItem => {
+            if (!channelItem) throw new NotFoundError("Channel not found");
+            await authorizeSpaceAccess(context, channelItem.spaceId);
+
+            return {
+                ...channelItem,
+                description,
+            };
+        },
+    );
 }
 
 /**
@@ -393,37 +459,42 @@ async function createPostModelFromItem(
 /**
  * Update the contents of a post if you are the post's author.
  */
-export function updatePostContent(
+export async function updatePostContent(
     context: RequestContext,
     {postId, content}: {postId: PostId; content: PostContent},
 ): Promise<{contentUpdatedTime: Date}> {
-    return retryDynamoConditionCheckErrors(async () => {
-        const postItem = await ForumTable.getItem(context, {
+    let contentUpdatedTime: Date | null = null;
+
+    await ForumTable.updateItem(
+        context,
+        {
             partitionType: "Post",
             sortRangeType: "Attributes",
             postId,
-        });
-        if (!postItem) throw new NotFoundError("Post not found");
+        },
+        async postItem => {
+            if (!postItem) throw new NotFoundError("Post not found");
+            await authorizeChannelAccess(context, postItem.channelId);
 
-        await authorizeChannelAccess(context, postItem.channelId);
+            if (postItem.authorId !== context.auth.getAccountId())
+                throw new PermissionDeniedError("Can only update post comments you authored");
 
-        if (postItem.authorId !== context.auth.getAccountId())
-            throw new PermissionDeniedError("Can only update post comments you authored");
+            contentUpdatedTime = new Date(
+                postItem.contentUpdatedTime
+                    ? Math.max(postItem.contentUpdatedTime.getTime() + 1, Date.now())
+                    : Date.now(),
+            );
 
-        const contentUpdatedTime = new Date(
-            postItem.contentUpdatedTime
-                ? Math.max(postItem.contentUpdatedTime.getTime() + 1, Date.now())
-                : Date.now(),
-        );
+            return {
+                ...postItem,
+                content,
+                contentUpdatedTime,
+            };
+        },
+    );
 
-        await ForumTable.directlyUpdateItem(context, {
-            ...postItem,
-            content,
-            contentUpdatedTime,
-        });
-
-        return {contentUpdatedTime};
-    });
+    assert(contentUpdatedTime !== null);
+    return {contentUpdatedTime};
 }
 
 /**

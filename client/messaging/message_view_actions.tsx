@@ -106,7 +106,6 @@ function MessageDeleteConfirmationDialog({
             title={`Delete ${messageNoun}`}
             description={`Everyone will still be able to see that you sent a ${messageNoun} and the time you sent it, but they will not be able to see what was in the ${messageNoun}.`}
             onClose={onClose}
-            isPrimaryButtonDestructive={true}
             primaryButtonLabel="Delete"
             primaryButtonPressErrorTitle={`Couldn’t delete ${messageNoun}`}
             onPrimaryButtonPress={onDeleteMessage}

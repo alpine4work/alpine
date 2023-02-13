@@ -1,9 +1,28 @@
+import {MessageContentSchema} from "~/shared/content/message_content_schema";
 import {PostContentSchema} from "~/shared/content/post_content_schema";
 import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
 import {PostCommentModel, PostModel} from "~/shared/models/post_model";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc";
 import {Schema} from "~/shared/schema/schema";
+
+export const updateChannelName = defineRpc({
+    name: "updateChannelName",
+    input: {
+        channelId: Schema.id<ChannelId>(),
+        name: Schema.string,
+    },
+    output: {},
+});
+
+export const updateChannelDescription = defineRpc({
+    name: "updateChannelDescription",
+    input: {
+        channelId: Schema.id<ChannelId>(),
+        description: MessageContentSchema,
+    },
+    output: {},
+});
 
 export const getChannelPosts = defineRpc({
     name: "getChannelPosts",

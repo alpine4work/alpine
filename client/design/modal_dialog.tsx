@@ -1,9 +1,6 @@
 import {useEffect, useId, useRef} from "react";
 import {Box} from "~/client/design/box";
-import {Button} from "~/client/design/button";
-import {Modal} from "~/client/design/modal";
-import {Spacer} from "~/client/design/spacer";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
+import {ModalWithButtons, ModalWithButtonsRef} from "~/client/design/modal_with_buttons";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 
 /**
@@ -40,68 +37,36 @@ export function ModalDialog({
     onClose: () => void;
 }) {
     const descriptionId = useId();
-    const primaryButtonRef = useRef<HTMLButtonElement>(null);
+    const modalRef = useRef<ModalWithButtonsRef>(null);
 
     // Immediately focus the primary button.
     useEffect(() => {
-        const primaryButtonElement = assertExists(primaryButtonRef.current);
-        primaryButtonElement.focus();
+        const modal = assertExists(modalRef.current);
+        modal.focusPrimaryButton();
     }, []);
 
     return (
-        <Modal title={title} aria-describedby={descriptionId} onClose={onClose}>
-            {({onCloseWithAnimation, onCloseWithoutAnimation}) => (
-                <Box paddingX="5" paddingTop="4" paddingBottom="5">
-                    <Box
-                        id={descriptionId}
-                        userSelect="text"
-                        fontSize="75"
-                        style={{lineHeight: 1.5}}
-                    >
-                        {description}
-                    </Box>
-                    <Spacer space="5" />
-                    <Box display="flex" justifyContent="flex-end" gap="2">
-                        <Button onPress={onCloseWithoutAnimation}>{cancelButtonLabel}</Button>
-                        <Button
-                            ref={primaryButtonRef}
-                            variant="accent"
-                            pressErrorTitle={primaryButtonPressErrorTitle}
-                            onPress={() => {
-                                const promise = onPrimaryButtonPress();
-                                if (!(promise instanceof Promise)) {
-                                    onCloseWithoutAnimation();
-                                } else {
-                                    const promiseStartTime = new Date();
-
-                                    return promise.then(
-                                        () => {
-                                            // Our animation principle is to respond to user input immediately
-                                            // without animation.
-                                            //
-                                            // If the button had to go into a loading state we consider the click long
-                                            // enough ago that it is no longer a direct action.
-                                            if (
-                                                new Date().getTime() - promiseStartTime.getTime() >
-                                                delayLoadingIndicatorLimitMs
-                                            ) {
-                                                onCloseWithAnimation();
-                                            } else {
-                                                onCloseWithoutAnimation();
-                                            }
-                                        },
-                                        error => {
-                                            throw error;
-                                        },
-                                    );
-                                }
-                            }}
-                        >
-                            {primaryButtonLabel}
-                        </Button>
-                    </Box>
-                </Box>
-            )}
-        </Modal>
+        <ModalWithButtons
+            ref={modalRef}
+            title={title}
+            aria-describedby={descriptionId}
+            onClose={onClose}
+            primaryButtonLabel={primaryButtonLabel}
+            primaryButtonPressErrorTitle={primaryButtonPressErrorTitle}
+            onPrimaryButtonPress={onPrimaryButtonPress}
+            cancelButtonLabel={cancelButtonLabel}
+        >
+            <Box
+                id={descriptionId}
+                paddingX="5"
+                paddingTop="4"
+                paddingBottom="5"
+                userSelect="text"
+                fontSize="75"
+                style={{lineHeight: 1.5}}
+            >
+                {description}
+            </Box>
+        </ModalWithButtons>
     );
 }

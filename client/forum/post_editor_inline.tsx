@@ -53,13 +53,19 @@ export function PostEditorInline({
     const errorTitle = "Couldn’t create post";
 
     const handleCreatePost = async () => {
+        // Don't create a post when content is empty. We do this instead of disabling
+        // the create post button because we want user's eye to be drawn to the accent
+        // color even when there is no content yet. The user won't see the accent color
+        // if the button is disabled.
+        const content = state.getContent();
+        if (isContentEmpty(content)) return;
+
         // If we are already pending, don't try to submit again...
         if (isPending) return;
 
         setIsPending(true);
         try {
             const editor = assertExists(editorRef.current);
-            const content = state.getContent();
 
             const {post} = await createPost(context, {
                 channelId,
@@ -76,6 +82,7 @@ export function PostEditorInline({
                     createdTime: post.createdTime,
                     author: currentAccount,
                     content,
+                    contentUpdatedTime: null,
                     commentCount: 0,
                     commentAuthorCount: 0,
                     previewCommentAuthors: [],
@@ -91,7 +98,6 @@ export function PostEditorInline({
     const postButton = (
         <Button
             variant="accent"
-            isDisabled={isContentEmpty(state.getContent())}
             isPending={isPending}
             pressErrorTitle={errorTitle}
             onPress={handleCreatePost}
