@@ -3,7 +3,7 @@ import {ReactElement, useCallback, useEffect, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
 import {Spacer} from "~/client/design/spacer";
-import {ChannelHeaderView, channelHeaderViewMinHeight} from "~/client/forum/channel_header_view";
+import {ChannelHeaderView, getChannelHeaderViewMinHeight} from "~/client/forum/channel_header_view";
 import {PostCommentInput} from "~/client/forum/post_comment_input";
 import {PostContentView, postContentViewMinHeight} from "~/client/forum/post_content_view";
 import {PostEditorModal} from "~/client/forum/post_editor_modal";
@@ -40,7 +40,7 @@ import {PostModel} from "~/shared/models/post_model";
 import {getPostCommentsFromEnd, getPostCommentsFromStart} from "~/shared/rpc/forum_rpc_definitions";
 import {spinAnimationClassName, sprinkles} from "~/shared/styles/styles";
 
-export const postListViewMargin: Spacing = "5";
+export const postListViewMargin: Spacing = "3";
 
 export const postMaxWidth: Spacing = "160";
 
@@ -316,7 +316,7 @@ export function PostListView({
                 case "ChannelHeader": {
                     return {
                         key: "ChannelHeader",
-                        minHeight: channelHeaderViewMinHeight,
+                        minHeight: getChannelHeaderViewMinHeight(),
                         node: (
                             <ChannelHeaderView
                                 channelHeader={item.channelHeader}

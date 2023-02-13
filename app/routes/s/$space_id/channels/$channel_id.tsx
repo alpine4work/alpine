@@ -1,7 +1,5 @@
-import {useAppContext} from "~/client/context/app_context";
+import {ChannelView} from "~/client/forum/channel_view";
 import {postContentViewMinHeight} from "~/client/forum/post_content_view";
-import {PostList} from "~/client/forum/post_list";
-import {PostListView} from "~/client/forum/post_list_view";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view";
 import {getChannel} from "~/server/dynamo/forum_table";
@@ -51,22 +49,11 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
 }
 
 export default function ChannelRoute() {
-    const context = useAppContext();
     const {channel, channelPostsResult} = useLoaderDataWithSchema(LoaderSchema);
 
     return (
         <main className={sprinkles({height: "full"})}>
-            <PostListView
-                initialPosts={() =>
-                    PostList.empty
-                        .setChannelHeader({channel})
-                        .insertManyPostsAtStart(channelPostsResult.posts)
-                        .setHasMorePosts(channelPostsResult.hasMorePosts)
-                }
-                onLoadMorePosts={({limit, afterCursor}) =>
-                    getChannelPosts(context, {channelId: channel.id, limit, afterCursor})
-                }
-            />
+            <ChannelView channel={channel} initialChannelPostsResult={channelPostsResult} />
         </main>
     );
 }

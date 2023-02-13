@@ -134,6 +134,7 @@ export function MenuButton({
     actions,
     placement = "bottom-start",
     offset = defaultTooltipOffset,
+    offsetAlong,
     children: actualChildren,
     onStateChange: _onStateChange,
 }: {
@@ -155,6 +156,15 @@ export function MenuButton({
      * Defaults to the same thing as tooltips.
      */
     offset?: Spacing;
+
+    /**
+     * How far the offset should move along the reference.
+     *
+     * See the [demo][1] here.
+     *
+     * [1]: https://popper.js.org/docs/v2/modifiers/offset/#demo
+     */
+    offsetAlong?: Spacing | `-${Spacing}`;
 
     /**
      * The button element which opens and closes the menu. Must provide a ref to
@@ -352,6 +362,7 @@ export function MenuButton({
             isVisible={isVisible}
             placement={placement}
             offset={offset}
+            offsetAlong={offsetAlong}
             overlay={
                 <Menu
                     ref={useMergedRefs<HTMLDivElement>(menuRef, outsidePressRef)}
