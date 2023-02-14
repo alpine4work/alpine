@@ -168,7 +168,7 @@ function ChannelEditNameModal({
             }}
         >
             {({isPending, pressPrimaryButton}) => (
-                <Box paddingTop="5" paddingX="5" paddingBottom="7">
+                <Box paddingTop="5" paddingX="5" paddingBottom="5">
                     <TextInput
                         ref={inputRef}
                         label="Channel name"
