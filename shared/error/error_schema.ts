@@ -1,8 +1,36 @@
 import {ErrorBase} from "~/shared/error/error";
 import {ErrorCode, isErrorCode} from "~/shared/error/error_code";
-import {ErrorDisplayMessageSchema} from "~/shared/error/error_display_message";
 import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code";
-import {Schema} from "~/shared/schema/schema";
+import {
+    ErrorDisplayMessage,
+    ErrorDisplayMessageLinkSegment,
+    ErrorDisplayMessageSegment,
+} from "~/shared/error/types/error_display_message_type";
+import {ObjectSchema, Schema} from "~/shared/schema/schema";
+
+export const ErrorDisplayMessageLinkSegmentSchema: ObjectSchema<ErrorDisplayMessageLinkSegment> =
+    Schema.object({
+        type: Schema.value("Link"),
+        text: Schema.string,
+        url: Schema.string,
+    });
+
+export const ErrorDisplayMessageSegmentSchema: Schema<ErrorDisplayMessageSegment> = Schema.union({
+    Text: Schema.object({
+        type: Schema.value("Text"),
+        text: Schema.string,
+    }),
+    SensitiveText: Schema.object({
+        type: Schema.value("SensitiveText"),
+        text: Schema.string,
+    }),
+    Link: ErrorDisplayMessageLinkSegmentSchema,
+});
+
+const _ErrorDisplayMessageSchema = Schema.array(ErrorDisplayMessageSegmentSchema);
+
+export const ErrorDisplayMessageSchema: Schema<ErrorDisplayMessage> =
+    _ErrorDisplayMessageSchema as Schema<any>;
 
 export const ErrorSchema = Schema.object({
     code: Schema.integer.optional(),

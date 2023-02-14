@@ -1,36 +1,9 @@
+import {InternalError} from "~/shared/error/error";
 import {
     ErrorDisplayMessage,
     ErrorDisplayMessageLinkSegment,
     ErrorDisplayMessageSegment,
 } from "~/shared/error/types/error_display_message_type";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array";
-import {assert} from "~/shared/helpers/control/assert";
-import {isObject} from "~/shared/helpers/object/is_object";
-import {ObjectSchema, Schema} from "~/shared/schema/schema";
-
-export const ErrorDisplayMessageLinkSegmentSchema: ObjectSchema<ErrorDisplayMessageLinkSegment> =
-    Schema.object({
-        type: Schema.value("Link"),
-        text: Schema.string,
-        url: Schema.string,
-    });
-
-export const ErrorDisplayMessageSegmentSchema: Schema<ErrorDisplayMessageSegment> = Schema.union({
-    Text: Schema.object({
-        type: Schema.value("Text"),
-        text: Schema.string,
-    }),
-    SensitiveText: Schema.object({
-        type: Schema.value("SensitiveText"),
-        text: Schema.string,
-    }),
-    Link: ErrorDisplayMessageLinkSegmentSchema,
-});
-
-const _ErrorDisplayMessageSchema = Schema.array(ErrorDisplayMessageSegmentSchema);
-
-export const ErrorDisplayMessageSchema: Schema<ErrorDisplayMessage> =
-    _ErrorDisplayMessageSchema as Schema<any>;
 
 /**
  * Error messages are intended for developers, not for users. Error messages
@@ -53,10 +26,12 @@ export const ErrorDisplayMessageSchema: Schema<ErrorDisplayMessage> =
  */
 export function errorDisplayMessage(
     templateStrings: TemplateStringsArray,
-    ...values: Array<string | number | ErrorDisplayMessage | ErrorDisplayMessageLinkSegment>
+    ...values: Array<string | number | ErrorDisplayMessageLinkSegment | ErrorDisplayMessage>
 ): ErrorDisplayMessage {
-    assert(templateStrings.length > 0);
-    assert(templateStrings.length === values.length + 1);
+    if (templateStrings.length === 0)
+        throw new InternalError("Template string array must not be empty");
+    if (templateStrings.length !== values.length + 1)
+        throw new InternalError("Must have appropriate number of values for template string array");
 
     const message: Array<ErrorDisplayMessageSegment> = [];
 
@@ -64,11 +39,11 @@ export function errorDisplayMessage(
         if (i !== 0) {
             const value = values[i - 1]!;
 
-            if (isReadonlyArray(value)) {
+            if (isErrorDisplayMessage(value)) {
                 for (const segment of value) {
                     message.push(segment);
                 }
-            } else if (isObject(value)) {
+            } else if (isErrorDisplayMessageLinkSegment(value)) {
                 message.push(value);
             } else {
                 // Interpolated values are all considered to be sensitive user data. Create a
@@ -88,6 +63,18 @@ export function errorDisplayMessage(
     }
 
     return message as any as ErrorDisplayMessage;
+}
+
+function isErrorDisplayMessage(
+    value: string | number | ErrorDisplayMessageLinkSegment | ErrorDisplayMessage,
+): value is ErrorDisplayMessage {
+    return Array.isArray(value);
+}
+
+function isErrorDisplayMessageLinkSegment(
+    value: string | number | ErrorDisplayMessageLinkSegment | ErrorDisplayMessage,
+): value is ErrorDisplayMessageLinkSegment {
+    return typeof value === "object" && value !== null && (value as any).type === "Link";
 }
 
 /**
