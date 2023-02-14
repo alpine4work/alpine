@@ -11,6 +11,7 @@ import {PostList, PostListPostContentItem} from "~/client/forum/post_list";
 import {PostShimmer} from "~/client/forum/post_shimmer";
 import {PostRealtimeActions} from "~/client/forum/use_post_realtime";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
+import {useResizeObserver} from "~/client/helpers/use_resize_observer";
 import {useMessageEditing} from "~/client/messaging/message_editing";
 import {MessageShimmer} from "~/client/messaging/message_shimmer";
 import {MessageView, messageViewMinHeight} from "~/client/messaging/message_view";
@@ -36,6 +37,7 @@ import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping";
+import {clamp} from "~/shared/helpers/number/clamp";
 import {PostId} from "~/shared/id/types/id_types";
 import {PostModel} from "~/shared/models/post_model";
 import {getPostCommentsFromEnd, getPostCommentsFromStart} from "~/shared/rpc/forum_rpc_definitions";
@@ -102,6 +104,18 @@ export function PostListView({
 }) {
     const context = useAppContext();
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
+    const [viewContainerRef, viewSize] = useResizeObserver();
+    const [asideRef, asideSize] = useResizeObserver();
+
+    const lastScrollOffsetRef = useRef(0);
+    const [scrollDirectionState, setScrollDirectionState] = useState<{
+        scrollDirection: "Up" | "Down";
+        asideBufferedHeight: number;
+    }>({
+        scrollDirection: "Down",
+        asideBufferedHeight: 0,
+    });
+
     const hasAside = !!aside;
 
     const [posts, setPosts] = useState(initialPosts);
@@ -1070,6 +1084,7 @@ export function PostListView({
     return (
         <>
             <div
+                ref={viewContainerRef}
                 className={sprinkles({
                     width: "full",
                     height: "full",
@@ -1083,50 +1098,114 @@ export function PostListView({
                     itemCount={posts.getItemCount()}
                     renderItem={renderItem}
                     onRenderedRangeChange={tryLoadingMorePostComments}
+                    onScroll={scrollOffset => {
+                        const viewHeight = viewSize?.height ?? 0;
+                        const asideHeight = Math.max(viewHeight, asideSize?.height ?? 0);
+
+                        const lastScrollOffset = lastScrollOffsetRef.current;
+                        lastScrollOffsetRef.current = scrollOffset;
+
+                        setScrollDirectionState(scrollDirectionState => {
+                            const newScrollDirection =
+                                scrollOffset > lastScrollOffset ? "Down" : "Up";
+
+                            if (scrollDirectionState.scrollDirection === newScrollDirection)
+                                return scrollDirectionState;
+
+                            if (newScrollDirection === "Down") {
+                                const asideScrollOffset = clamp(
+                                    0,
+                                    scrollOffset - scrollDirectionState.asideBufferedHeight,
+                                    asideHeight - viewHeight,
+                                );
+
+                                const asideBufferedHeight = scrollOffset - asideScrollOffset;
+
+                                return {
+                                    scrollDirection: "Down",
+                                    asideBufferedHeight,
+                                };
+                            } else {
+                                const asideScrollOffset =
+                                    clamp(
+                                        scrollDirectionState.asideBufferedHeight -
+                                            (asideHeight - viewHeight),
+                                        scrollOffset,
+                                        scrollDirectionState.asideBufferedHeight +
+                                            (asideHeight - viewHeight),
+                                    ) - scrollDirectionState.asideBufferedHeight;
+
+                                const asideBufferedHeight = scrollOffset - asideScrollOffset;
+
+                                return {
+                                    scrollDirection: "Up",
+                                    asideBufferedHeight,
+                                };
+                            }
+                        });
+                    }}
                     extraChildren={
                         hasAside && (
-                            <div
-                                className={sprinkles({
-                                    zIndex: "30",
-                                    pointerEvents: "none",
-                                    display: "flex",
-                                    justifyContent: "center",
-                                })}
-                                style={{
-                                    position: "sticky",
-                                    top: 0,
-                                    left: 0,
-                                    right: 0,
-                                }}
-                            >
+                            <>
+                                <div style={{height: scrollDirectionState.asideBufferedHeight}} />
                                 <div
                                     className={sprinkles({
                                         width: "full",
-                                        paddingX: postListViewMargin,
-                                        overflowX: "hidden",
+                                        zIndex: "30",
+                                        pointerEvents: "none",
+                                        display: "flex",
+                                        justifyContent: "center",
                                     })}
                                     style={{
-                                        maxWidth: postViewMaxWidthWithMarginsRem,
-                                        flex: postViewFlex,
-                                    }}
-                                />
-                                <div
-                                    style={{
-                                        width: "100%",
-                                        maxWidth: postListViewAsideMaxWidthWithMarginsRem,
-                                        flex: postListViewAsideFlex,
+                                        position: "sticky",
+                                        ...(scrollDirectionState.scrollDirection === "Down"
+                                            ? {
+                                                  top:
+                                                      viewSize && asideSize
+                                                          ? -(asideSize.height - viewSize.height)
+                                                          : 0,
+                                              }
+                                            : {
+                                                  bottom:
+                                                      viewSize && asideSize
+                                                          ? -(asideSize.height - viewSize.height)
+                                                          : 0,
+                                              }),
+                                        left: 0,
+                                        right: 0,
                                     }}
                                 >
                                     <div
                                         className={sprinkles({
-                                            pointerEvents: "auto",
-                                            paddingRight: postListViewMargin,
+                                            width: "full",
+                                            paddingX: postListViewMargin,
+                                            overflowX: "hidden",
                                         })}
+                                        style={{
+                                            maxWidth: postViewMaxWidthWithMarginsRem,
+                                            flex: postViewFlex,
+                                        }}
+                                    />
+                                    <div
+                                        style={{
+                                            width: "100%",
+                                            maxWidth: postListViewAsideMaxWidthWithMarginsRem,
+                                            flex: postListViewAsideFlex,
+                                        }}
                                     >
-                                        {aside}
+                                        <aside
+                                            ref={asideRef}
+                                            className={sprinkles({
+                                                pointerEvents: "auto",
+                                                paddingRight: postListViewMargin,
+                                            })}
+                                            style={{minHeight: viewSize?.height}}
+                                        >
+                                            {aside}
+                                        </aside>
                                     </div>
                                 </div>
-                            </div>
+                            </>
                         )
                     }
                 />
@@ -1143,3 +1222,92 @@ export function PostListView({
         </>
     );
 }
+
+// function PostListViewAside({
+//     aside,
+//     viewSize,
+//     scrollDirection,
+//     lastScrollOffsetWhenDirectionChanged,
+//     scrollOffsetWhenDirectionChanged,
+// }: {
+//     aside: ReactNode;
+//     viewSize: {width: number; height: number} | null;
+//     scrollDirection: "Up" | "Down";
+//     lastScrollOffsetWhenDirectionChanged: number;
+//     scrollOffsetWhenDirectionChanged: number;
+// }) {
+//     const [asideRef, asideSize] = useResizeObserver();
+//     const viewHeight = viewSize?.height ?? 0;
+//     const asideHeight = asideSize?.height ?? 0;
+
+//     const asideScrollOffsetWhenDirectionChanged = clamp(
+//         0,
+//         scrollOffsetWhenDirectionChanged - lastScrollOffsetWhenDirectionChanged,
+//         asideHeight - viewHeight,
+//     );
+
+//     const bufferedHeight = scrollOffsetWhenDirectionChanged - asideScrollOffsetWhenDirectionChanged;
+
+//     useEffect(() => {
+//         console.log({asideScrollOffsetWhenDirectionChanged});
+//     }, [asideScrollOffsetWhenDirectionChanged]);
+
+//     return (
+//         <>
+//             <div
+//                 style={{
+//                     height: bufferedHeight,
+//                 }}
+//             />
+//             <div
+//                 className={sprinkles({
+//                     width: "full",
+//                     zIndex: "30",
+//                     pointerEvents: "none",
+//                     display: "flex",
+//                     justifyContent: "center",
+//                 })}
+//                 style={{
+//                     position: "sticky",
+//                     ...(scrollDirection === "Down"
+//                         ? {top: viewSize && asideSize ? -(asideSize.height - viewSize.height) : 0}
+//                         : {
+//                               bottom:
+//                                   viewSize && asideSize ? -(asideSize.height - viewSize.height) : 0,
+//                           }),
+//                     left: 0,
+//                     right: 0,
+//                 }}
+//             >
+//                 <div
+//                     className={sprinkles({
+//                         width: "full",
+//                         paddingX: postListViewMargin,
+//                         overflowX: "hidden",
+//                     })}
+//                     style={{
+//                         maxWidth: postViewMaxWidthWithMarginsRem,
+//                         flex: postViewFlex,
+//                     }}
+//                 />
+//                 <div
+//                     style={{
+//                         width: "100%",
+//                         maxWidth: postListViewAsideMaxWidthWithMarginsRem,
+//                         flex: postListViewAsideFlex,
+//                     }}
+//                 >
+//                     <aside
+//                         ref={asideRef}
+//                         className={sprinkles({
+//                             pointerEvents: "auto",
+//                             paddingRight: postListViewMargin,
+//                         })}
+//                     >
+//                         {aside}
+//                     </aside>
+//                 </div>
+//             </div>
+//         </>
+//     );
+// }

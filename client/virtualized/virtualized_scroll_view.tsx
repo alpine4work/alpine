@@ -259,6 +259,7 @@ function VirtualizedScrollView(
         renderItem: _renderItem,
         bufferedItemHeight: _bufferedItemHeight,
         onRenderedRangeChange: _onRenderedRangeChange,
+        onScroll,
         pinTo = "top",
         disablePinHeuristics,
         extraChildren,
@@ -296,6 +297,13 @@ function VirtualizedScrollView(
          * the range object. The range is inclusive of both the start and end index.
          */
         onRenderedRangeChange?: (range: {startIndex: number; endIndex: number} | null) => void;
+
+        /**
+         * Called whenever the scroll position changes. Remember that the scroll event
+         * is asynchronous with the browser renderer so be careful tying effects to the
+         * scroll position.
+         */
+        onScroll?: (scrollOffset: number) => void;
 
         /**
          * When the size of our scroll view's content changes, should we pin the
@@ -599,6 +607,8 @@ function VirtualizedScrollView(
         });
 
         const {scrollTop, clientHeight} = assertExists(scrollRef.current);
+
+        onScroll?.(scrollTop);
 
         // If the user is scrolling fast we enter a jump scroll state. We will not
         // update the rendered range until after the jump scroll has finished
