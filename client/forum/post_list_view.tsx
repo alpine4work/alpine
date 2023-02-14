@@ -736,11 +736,19 @@ export function PostListView({
                                                         className={sprinkles({
                                                             width: "full",
                                                             height: "full",
+                                                            paddingX: "5",
                                                             backgroundColor: "grey-0",
                                                             borderBottomRadius: "md",
                                                             boxShadow: "elevation-5",
                                                         })}
-                                                    />
+                                                    >
+                                                        <div
+                                                            className={sprinkles({
+                                                                width: "full",
+                                                                borderTop: "grey-5",
+                                                            })}
+                                                        />
+                                                    </div>
                                                 </div>
                                                 {hasAside && (
                                                     <div
@@ -815,61 +823,44 @@ export function PostListView({
                                                             boxShadow: "elevation-5",
                                                         }),
                                                     })}
+                                                    style={{
+                                                        // Allow full-width top border to be visible until it slides under.
+                                                        paddingTop:
+                                                            !shouldRenderWithRelativePositioning
+                                                                ? 1
+                                                                : 0,
+                                                    }}
                                                 >
                                                     <div
                                                         className={sprinkles({
-                                                            flexShrink: "0",
-                                                            alignSelf: "stretch",
-                                                            width: "5",
-                                                        })}
-                                                        style={{
-                                                            // Allow full-width top border to be visible until it slides under.
-                                                            paddingTop: 1,
-                                                        }}
-                                                    >
-                                                        <div
-                                                            className={sprinkles({
-                                                                width: "full",
-                                                                height: "full",
-                                                                backgroundColor: "grey-0",
-                                                                borderBottomLeftRadius: "md",
-                                                            })}
-                                                        />
-                                                    </div>
-                                                    <div
-                                                        className={sprinkles({
+                                                            position: "relative",
                                                             flexGrow: "1",
                                                             overflowX: "hidden",
-                                                            borderTop: "grey-5",
                                                             backgroundColor: "grey-0",
+                                                            paddingX: "5",
+                                                            borderBottomRadius: "md",
                                                         })}
                                                         style={{
-                                                            // Remove one pixel from top padding for border.
-                                                            paddingTop: `calc(${spacing["3"]} - 1px)`,
+                                                            // Remove one pixel from top to make space for for border.
+                                                            paddingTop:
+                                                                !shouldRenderWithRelativePositioning
+                                                                    ? `calc(${spacing["3"]} - 1px)`
+                                                                    : spacing["3"],
                                                             paddingBottom: spacing["3"],
                                                         }}
                                                     >
+                                                        {shouldRenderWithRelativePositioning && (
+                                                            <div
+                                                                className={sprinkles({
+                                                                    position: "absolute",
+                                                                    top: "0",
+                                                                    left: "5",
+                                                                    right: "5",
+                                                                    borderTop: "grey-5",
+                                                                })}
+                                                            />
+                                                        )}
                                                         {inputNode}
-                                                    </div>
-                                                    <div
-                                                        className={sprinkles({
-                                                            flexShrink: "0",
-                                                            alignSelf: "stretch",
-                                                            width: "5",
-                                                        })}
-                                                        style={{
-                                                            // Allow full-width top border to be visible until it slides under.
-                                                            paddingTop: 1,
-                                                        }}
-                                                    >
-                                                        <div
-                                                            className={sprinkles({
-                                                                width: "full",
-                                                                height: "full",
-                                                                backgroundColor: "grey-0",
-                                                                borderBottomRightRadius: "md",
-                                                            })}
-                                                        />
                                                     </div>
                                                 </div>
                                             </div>
@@ -990,7 +981,7 @@ export function PostListView({
                                                         <div
                                                             className={sprinkles({
                                                                 width: "full",
-                                                                borderTop: "grey-5",
+                                                                borderTop: "grey-10",
                                                             })}
                                                             style={{flex: postViewFlex}}
                                                         />
