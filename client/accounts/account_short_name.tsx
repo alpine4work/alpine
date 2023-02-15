@@ -1,6 +1,5 @@
 import {useMemo} from "react";
 import {parseAccountName} from "~/client/accounts/internal/parse_account_name";
-import {Tooltip} from "~/client/design/tooltip";
 import {AccountModel} from "~/shared/models/account_model";
 
 /**
@@ -10,9 +9,7 @@ import {AccountModel} from "~/shared/models/account_model";
 export function AccountShortName({account}: {account: AccountModel}) {
     const firstName = useMemo(() => parseAccountName(account).firstName, [account]);
 
-    return (
-        <Tooltip content={account.name}>
-            <span>{firstName}</span>
-        </Tooltip>
-    );
+    // NOTE(calebmer): Someday I'd like to have an account card that shows up on
+    // hover of avatar or name.
+    return <span>{firstName}</span>;
 }

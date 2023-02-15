@@ -885,7 +885,6 @@ export function PostListView({
                                                             flexGrow: "1",
                                                             overflowX: "hidden",
                                                             backgroundColor: "grey-0",
-                                                            paddingX: "5",
                                                             borderBottomRadius: "md",
                                                         })}
                                                         style={{

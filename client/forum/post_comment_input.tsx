@@ -1,34 +1,44 @@
-import {Ref, useEffect, useRef, useState} from "react";
+import {ArrowArcLeft, X} from "phosphor-react";
+import {Ref, useEffect, useMemo, useRef, useState} from "react";
 import {useNavigate} from "react-router-dom";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountShortName} from "~/client/accounts/account_short_name";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
+import {ContentView} from "~/client/content/content_view";
 import {Box} from "~/client/design/box";
+import {IconButton} from "~/client/design/icon_button";
 import {useShowToast} from "~/client/design/toast";
 import {PostRealtimeActions, usePostRealtime} from "~/client/forum/use_post_realtime";
 import {MessageList} from "~/client/messaging/message_list";
 import {
+    getTruncatedMessageContentForReplyPreview,
+    messageBubbleMarginLeft,
+    messageViewActionsWidth,
     messageViewBubbleBorderRadius,
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
+    messageViewPreviewScale,
+    messageViewReplyPreviewBubbleOpacity,
+    messageViewReplyPreviewOpacity,
 } from "~/client/messaging/message_view";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {isContentEmpty} from "~/shared/content/is_content_empty";
 import {emptyMessageContent} from "~/shared/content/message_content_schema";
+import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {generateId} from "~/shared/id/id";
 import {OptimisticMessageInterface} from "~/shared/models/message_interface";
 import {PostCommentModel, PostModel} from "~/shared/models/post_model";
-import {sprinkles} from "~/shared/styles/styles";
+import {contentViewStyles, sprinkles} from "~/shared/styles/styles";
 
 export function PostCommentInput({
     post,
     actionsRef,
     postComments,
     onUpdatePostComments,
-    replyingToPostComment,
+    replyingToPostComment: _replyingToPostComment,
     onClearReplyingToPostComment,
 }: {
     post: PostModel;
@@ -40,6 +50,7 @@ export function PostCommentInput({
     replyingToPostComment: PostCommentModel | null;
     onClearReplyingToPostComment: () => void;
 }) {
+    const navigate = useNavigate();
     const showToast = useShowToast();
     const {currentAccount} = useSpaceContext();
     const editorRef = useRef<ContentEditorRef>(null);
@@ -55,8 +66,20 @@ export function PostCommentInput({
         onUpdatePostComments,
     });
 
+    const replyingToPostComment = useMemo(() => {
+        if (!_replyingToPostComment) return null;
+
+        return {
+            comment: _replyingToPostComment,
+            truncatedContent: getTruncatedMessageContentForReplyPreview({
+                message: _replyingToPostComment,
+                messageStartOfSentenceNoun: "Comment",
+            }),
+        };
+    }, [_replyingToPostComment]);
+
     // Focus the comment input whenever the comment we're replying to changes.
-    const replyingToPostCommentIndex = replyingToPostComment?.index ?? null;
+    const replyingToPostCommentIndex = replyingToPostComment?.comment.index ?? null;
     useEffect(() => {
         if (replyingToPostCommentIndex === null) return;
         const editor = assertExists(editorRef.current);
@@ -65,15 +88,97 @@ export function PostCommentInput({
 
     return (
         <>
-            {replyingToPostComment && (
-                <Box paddingBottom="3">
-                    Replying to{" "}
-                    <span className={sprinkles({fontStyle: "semi-bold"})}>
-                        <AccountShortName account={replyingToPostComment.author} />
-                    </span>
-                </Box>
-            )}
-            <Box overflowX="hidden" display="flex">
+            {replyingToPostComment &&
+                (() => {
+                    const height = addRemLengths(
+                        spacing["1.5"],
+                        contentViewStyles.truncatedHeight,
+                        spacing["1.5"],
+                    );
+
+                    const scaledHeight = `${
+                        Math.round(parseRemLengthNumber(height) * messageViewPreviewScale * 16) / 16
+                    }rem`;
+
+                    return (
+                        <Box
+                            position="relative"
+                            paddingBottom="3"
+                            style={{
+                                paddingLeft: addRemLengths(messageBubbleMarginLeft, spacing["2"]),
+                                paddingRight: addRemLengths(
+                                    spacing["2"],
+                                    spacing["3"],
+                                    spacing[messageViewActionsWidth],
+                                    spacing["3"],
+                                ),
+                            }}
+                        >
+                            <Box position="absolute" top="0" right="5">
+                                <IconButton
+                                    size="xs"
+                                    description="Cancel reply"
+                                    withoutTooltip={true}
+                                    onPress={onClearReplyingToPostComment}
+                                >
+                                    <X />
+                                </IconButton>
+                            </Box>
+                            <Box
+                                paddingLeft="1.5"
+                                paddingBottom="1"
+                                display="flex"
+                                alignItems="center"
+                                gap="0.5"
+                                fontSize="50"
+                                fontStyle="truncate"
+                            >
+                                <ArrowArcLeft size={spacing["3"]} />
+                                <span>
+                                    Replying to{" "}
+                                    <span className={sprinkles({fontStyle: "bold"})}>
+                                        <AccountShortName
+                                            account={replyingToPostComment.comment.author}
+                                        />
+                                    </span>
+                                </span>
+                            </Box>
+                            <Box style={{height: scaledHeight}}>
+                                <Box
+                                    position="relative"
+                                    zIndex="0"
+                                    display="inline-block"
+                                    maxWidth="full"
+                                    paddingX={messageViewBubblePaddingX}
+                                    paddingY={messageViewBubblePaddingY}
+                                    style={{
+                                        opacity: messageViewReplyPreviewOpacity,
+                                        transform: `scale(${messageViewPreviewScale})`,
+                                        transformOrigin: "0% 0% 0",
+                                    }}
+                                >
+                                    <Box
+                                        position="absolute"
+                                        inset="0"
+                                        zIndex="-10"
+                                        borderRadius={messageViewBubbleBorderRadius}
+                                        backgroundColor="grey-5"
+                                        style={{opacity: messageViewReplyPreviewBubbleOpacity}}
+                                    />
+                                    <Box overflow="hidden" pointerEvents="none">
+                                        <ContentView
+                                            isInert={true}
+                                            isTruncated={true}
+                                            content={replyingToPostComment.truncatedContent}
+                                            onNavigate={navigate}
+                                        />
+                                    </Box>
+                                </Box>
+                            </Box>
+                        </Box>
+                    );
+                })()}
+            <Box overflowX="hidden" display="flex" paddingX="5">
                 <Box display="flex" alignItems="flex-end">
                     <Box paddingY="0.5">
                         <AccountAvatar account={currentAccount} size="7" />
@@ -91,7 +196,7 @@ export function PostCommentInput({
                             ref={editorRef}
                             state={state}
                             onChange={setState}
-                            onNavigate={useNavigate()}
+                            onNavigate={navigate}
                             aria-label="Comment"
                             placeholder="Write a comment…"
                             className={sprinkles({
@@ -110,7 +215,8 @@ export function PostCommentInput({
                                     createdTime: new Date(),
                                     payload: {
                                         type: "Content",
-                                        parentMessageIndex: replyingToPostComment?.index ?? null,
+                                        parentMessageIndex:
+                                            replyingToPostComment?.comment.index ?? null,
                                         content,
                                         contentUpdatedTime: null,
                                     },
@@ -129,7 +235,7 @@ export function PostCommentInput({
                                         try {
                                             await actions.createPostComment({
                                                 parentCommentIndex:
-                                                    replyingToPostComment?.index ?? null,
+                                                    replyingToPostComment?.comment.index ?? null,
                                                 content,
                                             });
                                         } catch (error) {

@@ -3,6 +3,7 @@ import {IconContext} from "phosphor-react";
 import {Ref, forwardRef, useRef} from "react";
 import {AriaButtonProps, mergeProps, useButton, useHover} from "react-aria";
 import {FocusRing} from "~/client/design/focus_ring";
+import {OverlayPlacement} from "~/client/design/overlay";
 import {useShowToast} from "~/client/design/toast";
 import {Tooltip} from "~/client/design/tooltip";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
@@ -56,6 +57,13 @@ function IconButton(
          * Defaults to `false`.
          */
         withoutTooltip?: boolean;
+
+        /**
+         * Where to place the tooltip?
+         *
+         * Defaults to `bottom-start`.
+         */
+        tooltipPlacement?: OverlayPlacement;
     },
     foreignRef: Ref<HTMLButtonElement>,
 ) {
@@ -67,6 +75,7 @@ function IconButton(
         children,
         isDisabled = false,
         withoutTooltip = false,
+        tooltipPlacement = "bottom-start",
     } = props;
     const localRef = useRef<HTMLButtonElement>(null);
     const showToast = useShowToast();
@@ -135,7 +144,7 @@ function IconButton(
 
     return (
         <Tooltip
-            placement="bottom-start"
+            placement={tooltipPlacement}
             content={description}
             isDisabled={isDisabled || withoutTooltip}
         >

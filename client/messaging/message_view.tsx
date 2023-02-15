@@ -11,7 +11,11 @@ import {MessageEditing} from "~/client/messaging/message_editing";
 import {MessageList} from "~/client/messaging/message_list";
 import {MessageViewActions} from "~/client/messaging/message_view_actions";
 import {MessageViewEditor} from "~/client/messaging/message_view_editor";
-import {MessageContentProsemirrorSchema} from "~/shared/content/message_content_schema";
+import {
+    MessageContent,
+    MessageContentProsemirrorSchema,
+    assertMessageContent,
+} from "~/shared/content/message_content_schema";
 import {
     RemLength,
     Spacing,
@@ -21,6 +25,7 @@ import {
 } from "~/shared/design/spacing";
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {
     MessageInterface,
     MessageInterfaceBase,
@@ -61,6 +66,10 @@ export const messageViewBubbleMergedBorderRadius = "base" as const;
 export const messageViewBubblePaddingX: Spacing = "0.5";
 export const messageViewBubblePaddingY: Spacing = "1.5";
 export const messageViewActionsWidth: Spacing = "10";
+export const messageViewPreviewScale =
+    fontSizesByPlatform["50"].desktop.fontSize / fontSizesByPlatform["100"].desktop.fontSize;
+export const messageViewReplyPreviewOpacity = 0.6;
+export const messageViewReplyPreviewBubbleOpacity = 0.7;
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders
@@ -264,37 +273,14 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
             spacing["1.5"],
         );
 
-        const scale =
-            fontSizesByPlatform["50"].desktop.fontSize /
-            fontSizesByPlatform["100"].desktop.fontSize;
+        const scaledHeight = `${
+            Math.round(parseRemLengthNumber(height) * messageViewPreviewScale * 16) / 16
+        }rem`;
 
-        const scaledHeight = `${Math.round(parseRemLengthNumber(height) * scale * 16) / 16}rem`;
-
-        const truncatedContent =
-            parentMessage.payload.type === "Content"
-                ? parentMessage.payload.content.cut(
-                      0,
-                      Math.min(
-                          parentMessage.payload.content.content.size,
-                          // Arbitrarily picked as close to the number of characters in a string of only
-                          // "x"s that wraps to two lines on my wide monitor. Rounded up to the nearest
-                          // 100 to count for structural nodes.
-                          600,
-                      ),
-                  )
-                : // NOTE(calebmer): We render deleted messages with the same style as a normal
-                  // message in a reply because if we render with the deleted style (no
-                  // background, 1px border) it's just too light when scaled down and made
-                  // translucent. The user can click on the reply to jump to the actual message
-                  // with the correct treatment.
-                  MessageContentProsemirrorSchema.node("doc", {}, [
-                      MessageContentProsemirrorSchema.node("paragraph", {}, [
-                          MessageContentProsemirrorSchema.text(
-                              `${messageStartOfSentenceNoun} deleted`,
-                              [MessageContentProsemirrorSchema.mark("italic")],
-                          ),
-                      ]),
-                  ]);
+        const truncatedContent = getTruncatedMessageContentForReplyPreview({
+            message: parentMessage,
+            messageStartOfSentenceNoun,
+        });
 
         return (
             <div
@@ -317,25 +303,25 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
                         display: "inline-block",
                         paddingX: messageViewBubblePaddingX,
                         paddingTop: messageViewBubblePaddingY,
-                        paddingBottom: "4",
+                        paddingBottom: "5",
                     })}
                     style={{
-                        opacity: 0.6,
-                        transform: `scale(${scale})`,
+                        opacity: messageViewReplyPreviewOpacity,
+                        transform: `scale(${messageViewPreviewScale})`,
                         transformOrigin: "0% 0% 0",
                     }}
                 >
                     <div
                         className={sprinkles({
                             position: "absolute",
-                            zIndex: "-10",
                             inset: "0",
+                            zIndex: "-10",
                             borderRadius: messageViewBubbleBorderRadius,
                             borderBottomLeftRadius: "none",
                             backgroundColor: "grey-5",
                         })}
                         style={{
-                            opacity: 0.7,
+                            opacity: messageViewReplyPreviewBubbleOpacity,
                         }}
                     />
                     <div className={sprinkles({overflow: "hidden", pointerEvents: "none"})}>
@@ -493,4 +479,53 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
             </div>
         </div>
     );
+}
+
+/**
+ * Get the content to render in a reply preview of a message. A content payload
+ * will be truncated to enough content to fill a single line. A deleted payload
+ * will show a placeholder informing the user the message is deleted.
+ */
+export function getTruncatedMessageContentForReplyPreview({
+    message,
+    messageStartOfSentenceNoun,
+}: {
+    message: MessageInterface;
+    messageStartOfSentenceNoun: string;
+}): MessageContent {
+    switch (message.payload.type) {
+        case "Content": {
+            return assertMessageContent(
+                message.payload.content.cut(
+                    0,
+                    Math.min(
+                        message.payload.content.content.size,
+                        // Arbitrarily picked as close to the number of characters in a string of only
+                        // "x"s that wraps to two lines on my wide monitor. Rounded up to the nearest
+                        // 100 to count for structural nodes.
+                        600,
+                    ),
+                ),
+            );
+        }
+        case "Deleted": {
+            // NOTE(calebmer): We render deleted messages with the same style as a normal
+            // message in a reply because if we render with the deleted style (no
+            // background, 1px border) it's just too light when scaled down and made
+            // translucent. The user can click on the reply to jump to the actual message
+            // with the correct treatment.
+            return assertMessageContent(
+                MessageContentProsemirrorSchema.node("doc", {}, [
+                    MessageContentProsemirrorSchema.node("paragraph", {}, [
+                        MessageContentProsemirrorSchema.text(
+                            `${messageStartOfSentenceNoun} deleted`,
+                            [MessageContentProsemirrorSchema.mark("italic")],
+                        ),
+                    ]),
+                ]),
+            );
+        }
+        default:
+            throw exhaustive(message.payload);
+    }
 }
