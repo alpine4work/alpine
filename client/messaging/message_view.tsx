@@ -11,6 +11,7 @@ import {MessageEditing} from "~/client/messaging/message_editing";
 import {MessageList} from "~/client/messaging/message_list";
 import {MessageViewActions} from "~/client/messaging/message_view_actions";
 import {MessageViewEditor} from "~/client/messaging/message_view_editor";
+import {MessageContentProsemirrorSchema} from "~/shared/content/message_content_schema";
 import {
     RemLength,
     Spacing,
@@ -90,7 +91,7 @@ function shouldMergeMessages(
 
 export function MessageView<RoomKey extends string, Message extends MessageInterface<RoomKey>>({
     messageNoun = "message",
-    messageStartOfSentenceNoun = messageNoun.slice(0).toUpperCase() + messageNoun.slice(1),
+    messageStartOfSentenceNoun = messageNoun.slice(0, 1).toUpperCase() + messageNoun.slice(1),
     message,
     previousMessage,
     nextMessage,
@@ -188,7 +189,7 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
             <div
                 className={sprinkles({
                     backgroundColor: "grey-bubble",
-                    maxWidth: "160",
+                    maxWidth: "full",
                     overflow: "hidden",
                     display: "inline-block",
                     paddingX: messageViewBubblePaddingX,
@@ -251,35 +252,19 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
                     })}
                     style={{lineHeight: paragraphFontSize.lineHeight}}
                 >
-                    {`Deleted ${messageNoun}`}
+                    {`${messageStartOfSentenceNoun} deleted`}
                 </div>
             </div>
         );
     }, [
         message.payload.type,
-        messageNoun,
+        messageStartOfSentenceNoun,
         shouldMergeWithNextMessage,
         shouldMergeWithPreviousMessage,
     ]);
 
     const parentMessageNode = useMemo(() => {
         if (!parentMessage) return null;
-
-        if (parentMessage.payload.type === "Deleted") {
-            // TODO(calebmer): Implement
-            return null;
-        }
-
-        const truncatedContent = parentMessage.payload.content.cut(
-            0,
-            Math.min(
-                parentMessage.payload.content.content.size,
-                // Arbitrarily picked as close to the number of characters in a string of only
-                // "x"s that wraps to two lines on my wide monitor. Rounded up to the nearest
-                // 100 to count for structural nodes.
-                600,
-            ),
-        );
 
         const height = addRemLengths(
             spacing["1.5"],
@@ -291,16 +276,50 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
             fontSizesByPlatform["50"].desktop.fontSize /
             fontSizesByPlatform["100"].desktop.fontSize;
 
+        const scaledHeight = `${Math.round(parseRemLengthNumber(height) * scale * 16) / 16}rem`;
+
+        // Scale up our border radius so visually it looks like the `base` size even
+        // though we've scaled the element down.
+        const scaledMergedBorderRadius = `${
+            parseRemLengthNumber(borderRadius[messageViewBubbleMergedBorderRadius]) / scale
+        }rem`;
+
+        const opacity = 0.5;
+
+        const truncatedContent =
+            parentMessage.payload.type === "Content"
+                ? parentMessage.payload.content.cut(
+                      0,
+                      Math.min(
+                          parentMessage.payload.content.content.size,
+                          // Arbitrarily picked as close to the number of characters in a string of only
+                          // "x"s that wraps to two lines on my wide monitor. Rounded up to the nearest
+                          // 100 to count for structural nodes.
+                          600,
+                      ),
+                  )
+                : // NOTE(calebmer): We render deleted messages with the same style as a normal
+                  // message in a reply because if we render with the deleted style (no
+                  // background, 1px border) it's just too light when scaled down and made
+                  // translucent. The user can click on the reply to jump to the actual message
+                  // with the correct treatment.
+                  MessageContentProsemirrorSchema.node("doc", {}, [
+                      MessageContentProsemirrorSchema.node("paragraph", {}, [
+                          MessageContentProsemirrorSchema.text(
+                              `${messageStartOfSentenceNoun} deleted`,
+                              [MessageContentProsemirrorSchema.mark("italic")],
+                          ),
+                      ]),
+                  ]);
+
         return (
             <div
                 className={sprinkles({
-                    position: "relative",
-                    zIndex: "-10",
                     marginBottom: "0.5",
                     overflow: "hidden",
                 })}
                 style={{
-                    height: `${Math.round(parseRemLengthNumber(height) * scale * 16) / 16}rem`,
+                    height: scaledHeight,
                     paddingLeft: messageBubbleMarginLeft,
                     paddingRight: addRemLengths(
                         spacing["3"],
@@ -311,7 +330,6 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
             >
                 <div
                     className={sprinkles({
-                        position: "relative",
                         backgroundColor: "grey-bubble",
                         maxWidth: "full",
                         overflow: "hidden",
@@ -321,17 +339,11 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
                         borderRadius: messageViewBubbleBorderRadius,
                     })}
                     style={{
-                        height: "2rem",
-                        opacity: 0.5,
+                        height,
+                        opacity,
                         transform: `scale(${scale})`,
                         transformOrigin: "0% 0% 0",
-                        // Scale up our border radius so visually it looks like the `base` size even
-                        // though we've scaled the element down.
-                        borderBottomLeftRadius: `${
-                            parseRemLengthNumber(
-                                borderRadius[messageViewBubbleMergedBorderRadius],
-                            ) / scale
-                        }rem`,
+                        borderBottomLeftRadius: scaledMergedBorderRadius,
                     }}
                 >
                     <div className={sprinkles({overflow: "hidden", pointerEvents: "none"})}>
@@ -346,7 +358,7 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
                 </div>
             </div>
         );
-    }, [navigate, parentMessage]);
+    }, [messageStartOfSentenceNoun, navigate, parentMessage]);
 
     return (
         <div className={sprinkles({position: "relative", zIndex: "0"})}>
