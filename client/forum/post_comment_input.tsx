@@ -7,6 +7,7 @@ import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {ContentView} from "~/client/content/content_view";
 import {Box} from "~/client/design/box";
+import {FocusRing} from "~/client/design/focus_ring";
 import {IconButton} from "~/client/design/icon_button";
 import {useShowToast} from "~/client/design/toast";
 import {PostRealtimeActions, usePostRealtime} from "~/client/forum/use_post_realtime";
@@ -40,6 +41,7 @@ export function PostCommentInput({
     onUpdatePostComments,
     replyingToPostComment: _replyingToPostComment,
     onClearReplyingToPostComment,
+    onJumpToPostComment,
 }: {
     post: PostModel;
     actionsRef: Ref<PostRealtimeActions>;
@@ -49,6 +51,7 @@ export function PostCommentInput({
     ) => void;
     replyingToPostComment: PostCommentModel | null;
     onClearReplyingToPostComment: () => void;
+    onJumpToPostComment: (postCommentIndex: number) => void;
 }) {
     const navigate = useNavigate();
     const showToast = useShowToast();
@@ -114,16 +117,6 @@ export function PostCommentInput({
                                 ),
                             }}
                         >
-                            <Box position="absolute" top="0" right="5">
-                                <IconButton
-                                    size="xs"
-                                    description="Cancel reply"
-                                    withoutTooltip={true}
-                                    onPress={onClearReplyingToPostComment}
-                                >
-                                    <X />
-                                </IconButton>
-                            </Box>
                             <Box
                                 paddingLeft="1.5"
                                 paddingBottom="1"
@@ -144,36 +137,86 @@ export function PostCommentInput({
                                 </span>
                             </Box>
                             <Box style={{height: scaledHeight}}>
-                                <Box
-                                    position="relative"
-                                    zIndex="0"
-                                    display="inline-block"
-                                    maxWidth="full"
-                                    paddingX={messageViewBubblePaddingX}
-                                    paddingY={messageViewBubblePaddingY}
-                                    style={{
-                                        opacity: messageViewReplyPreviewOpacity,
-                                        transform: `scale(${messageViewPreviewScale})`,
-                                        transformOrigin: "0% 0% 0",
-                                    }}
-                                >
+                                <FocusRing>
                                     <Box
-                                        position="absolute"
-                                        inset="0"
-                                        zIndex="-10"
+                                        // This is a simulated link. When the user clicks on it our code navigates us
+                                        // to the right message instead of relying on browser URL navigation.
+                                        //
+                                        // See: https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/link_role
+                                        role="link"
+                                        tabIndex={0}
+                                        // We don't use a pointer cursor for buttons in our product because buttons
+                                        // they clearly appear clickable. We call this a strong affordance. A reply
+                                        // preview is clickable and gives some affordance (different color) but it's a
+                                        // weak affordance. So we use a pointer to make this element unambiguously
+                                        // clickable.
+                                        //
+                                        // Also, this element is semantically a link which the pointer cursor was
+                                        // originally designed for.
+                                        //
+                                        // See: https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
+                                        cursor="pointer"
+                                        position="relative"
+                                        zIndex="0"
+                                        display="inline-block"
+                                        maxWidth="full"
+                                        paddingX={messageViewBubblePaddingX}
+                                        paddingY={messageViewBubblePaddingY}
                                         borderRadius={messageViewBubbleBorderRadius}
-                                        backgroundColor="grey-5"
-                                        style={{opacity: messageViewReplyPreviewBubbleOpacity}}
-                                    />
-                                    <Box overflow="hidden" pointerEvents="none">
-                                        <ContentView
-                                            isInert={true}
-                                            isTruncated={true}
-                                            content={replyingToPostComment.truncatedContent}
-                                            onNavigate={navigate}
+                                        style={{
+                                            opacity: messageViewReplyPreviewOpacity,
+                                            transform: `scale(${messageViewPreviewScale})`,
+                                            transformOrigin: "0% 0% 0",
+                                        }}
+                                        onClick={() =>
+                                            onJumpToPostComment(replyingToPostComment.comment.index)
+                                        }
+                                        onKeyDown={event => {
+                                            if (event.key === "Enter") {
+                                                event.preventDefault();
+                                                onJumpToPostComment(
+                                                    replyingToPostComment.comment.index,
+                                                );
+                                                return;
+                                            }
+
+                                            if (event.key === " ") {
+                                                event.preventDefault();
+                                                onJumpToPostComment(
+                                                    replyingToPostComment.comment.index,
+                                                );
+                                                return;
+                                            }
+                                        }}
+                                    >
+                                        <Box
+                                            position="absolute"
+                                            inset="0"
+                                            zIndex="-10"
+                                            borderRadius={messageViewBubbleBorderRadius}
+                                            backgroundColor="grey-5"
+                                            style={{opacity: messageViewReplyPreviewBubbleOpacity}}
                                         />
+                                        <Box overflow="hidden" pointerEvents="none">
+                                            <ContentView
+                                                isInert={true}
+                                                isTruncated={true}
+                                                content={replyingToPostComment.truncatedContent}
+                                                onNavigate={navigate}
+                                            />
+                                        </Box>
                                     </Box>
-                                </Box>
+                                </FocusRing>
+                            </Box>
+                            <Box position="absolute" top="0" right="5">
+                                <IconButton
+                                    size="xs"
+                                    description="Cancel reply"
+                                    withoutTooltip={true}
+                                    onPress={onClearReplyingToPostComment}
+                                >
+                                    <X />
+                                </IconButton>
                             </Box>
                         </Box>
                     );
@@ -184,109 +227,114 @@ export function PostCommentInput({
                         <AccountAvatar account={currentAccount} size="7" />
                     </Box>
                 </Box>
-                <Box
-                    flexGrow="1"
-                    overflowX="hidden"
-                    marginLeft="2"
-                    backgroundColor="grey-5"
-                    borderRadius={messageViewBubbleBorderRadius}
-                >
-                    <Box maxHeight="96" overflowX="hidden" overflowY="scroll">
-                        <ContentEditor
-                            ref={editorRef}
-                            state={state}
-                            onChange={setState}
-                            onNavigate={navigate}
-                            aria-label="Comment"
-                            placeholder="Write a comment…"
-                            className={sprinkles({
-                                paddingX: messageViewBubblePaddingX,
-                                paddingY: messageViewBubblePaddingY,
-                            })}
-                            onEnter={() => {
-                                const content = state.getContent();
-                                if (isContentEmpty(content)) return;
+                <FocusRing isVisibleWhenFocusWithin={true}>
+                    <Box
+                        flexGrow="1"
+                        overflowX="hidden"
+                        marginLeft="2"
+                        backgroundColor="grey-5"
+                        borderRadius={messageViewBubbleBorderRadius}
+                    >
+                        <Box maxHeight="96" overflowX="hidden" overflowY="scroll">
+                            <ContentEditor
+                                ref={editorRef}
+                                state={state}
+                                onChange={setState}
+                                onNavigate={navigate}
+                                aria-label="Comment"
+                                placeholder="Write a comment…"
+                                className={sprinkles({
+                                    paddingX: messageViewBubblePaddingX,
+                                    paddingY: messageViewBubblePaddingY,
+                                })}
+                                onEnter={() => {
+                                    const content = state.getContent();
+                                    if (isContentEmpty(content)) return;
 
-                                const optimisticComment: OptimisticMessageInterface = {
-                                    isOptimistic: true,
-                                    optimisticId: generateId(),
-                                    optimisticRequestErrorState: {hasError: false},
-                                    author: currentAccount,
-                                    createdTime: new Date(),
-                                    payload: {
-                                        type: "Content",
-                                        parentMessageIndex:
-                                            replyingToPostComment?.comment.index ?? null,
-                                        content,
-                                        contentUpdatedTime: null,
-                                    },
-                                    getRoomKey: () => post.id,
-                                };
+                                    const optimisticComment: OptimisticMessageInterface = {
+                                        isOptimistic: true,
+                                        optimisticId: generateId(),
+                                        optimisticRequestErrorState: {hasError: false},
+                                        author: currentAccount,
+                                        createdTime: new Date(),
+                                        payload: {
+                                            type: "Content",
+                                            parentMessageIndex:
+                                                replyingToPostComment?.comment.index ?? null,
+                                            content,
+                                            contentUpdatedTime: null,
+                                        },
+                                        getRoomKey: () => post.id,
+                                    };
 
-                                onUpdatePostComments(postComments =>
-                                    postComments.addOptimisticMessage(optimisticComment),
-                                );
+                                    onUpdatePostComments(postComments =>
+                                        postComments.addOptimisticMessage(optimisticComment),
+                                    );
 
-                                setState(ContentEditorState.create(emptyMessageContent));
-                                onClearReplyingToPostComment();
+                                    setState(ContentEditorState.create(emptyMessageContent));
+                                    onClearReplyingToPostComment();
 
-                                const createPostComment = () => {
-                                    runPromiseWithoutAwaiting(async () => {
-                                        try {
-                                            await actions.createPostComment({
-                                                parentCommentIndex:
-                                                    replyingToPostComment?.comment.index ?? null,
-                                                content,
-                                            });
-                                        } catch (error) {
-                                            // TODO(calebmer): If you scroll away form the post and `usePostRealtime()`
-                                            // unmounts this will error even if the comment is successfully created in the
-                                            // background. Maybe we should keep our WebSocket alive while there are
-                                            // unacknowledged messages for some timeout?
-                                            showToast({
-                                                type: "Error",
-                                                title: "Couldn’t create comment",
-                                                error,
-                                            });
+                                    const createPostComment = () => {
+                                        runPromiseWithoutAwaiting(async () => {
+                                            try {
+                                                await actions.createPostComment({
+                                                    parentCommentIndex:
+                                                        replyingToPostComment?.comment.index ??
+                                                        null,
+                                                    content,
+                                                });
+                                            } catch (error) {
+                                                // TODO(calebmer): If you scroll away form the post and `usePostRealtime()`
+                                                // unmounts this will error even if the comment is successfully created in the
+                                                // background. Maybe we should keep our WebSocket alive while there are
+                                                // unacknowledged messages for some timeout?
+                                                showToast({
+                                                    type: "Error",
+                                                    title: "Couldn’t create comment",
+                                                    error,
+                                                });
 
-                                            onUpdatePostComments(postComments =>
-                                                postComments.updateOptimisticMessage(
-                                                    optimisticComment.optimisticId,
-                                                    optimisticMessage => ({
-                                                        ...optimisticMessage,
-                                                        optimisticRequestErrorState: {
-                                                            hasError: true,
-                                                            retry: () => {
-                                                                // Clear the error when we are retrying then call this
-                                                                // function again.
-                                                                onUpdatePostComments(postComments =>
-                                                                    postComments.updateOptimisticMessage(
-                                                                        optimisticComment.optimisticId,
-                                                                        optimisticMessage => ({
-                                                                            ...optimisticMessage,
-                                                                            optimisticRequestErrorState:
-                                                                                {
-                                                                                    hasError: false,
-                                                                                },
-                                                                        }),
-                                                                    ),
-                                                                );
+                                                onUpdatePostComments(postComments =>
+                                                    postComments.updateOptimisticMessage(
+                                                        optimisticComment.optimisticId,
+                                                        optimisticMessage => ({
+                                                            ...optimisticMessage,
+                                                            optimisticRequestErrorState: {
+                                                                hasError: true,
+                                                                retry: () => {
+                                                                    // Clear the error when we are retrying then call this
+                                                                    // function again.
+                                                                    onUpdatePostComments(
+                                                                        postComments =>
+                                                                            postComments.updateOptimisticMessage(
+                                                                                optimisticComment.optimisticId,
+                                                                                optimisticMessage => ({
+                                                                                    ...optimisticMessage,
+                                                                                    optimisticRequestErrorState:
+                                                                                        {
+                                                                                            hasError:
+                                                                                                false,
+                                                                                        },
+                                                                                }),
+                                                                            ),
+                                                                    );
 
-                                                                createPostComment();
+                                                                    createPostComment();
+                                                                },
                                                             },
-                                                        },
-                                                    }),
-                                                ),
-                                            );
-                                        }
-                                    });
-                                };
+                                                        }),
+                                                    ),
+                                                );
+                                            }
+                                        });
+                                    };
 
-                                createPostComment();
-                            }}
-                        />
+                                    createPostComment();
+                                }}
+                            />
+                        </Box>
                     </Box>
-                </Box>
+                </FocusRing>
             </Box>
         </>
     );

@@ -65,11 +65,13 @@ export function MessageViewEditor<RoomKey extends string>({
         >
             <FocusRing isVisibleWhenFocusWithin={true}>
                 <Box
+                    pointerEvents="auto"
                     maxWidth="160"
                     overflow="hidden"
                     display="inline-block"
                     paddingX="0.5"
                     paddingY="1.5"
+                    backgroundColor="grey-0"
                     borderTopLeftRadius={
                         !shouldMergeWithPreviousMessage
                             ? messageViewBubbleBorderRadius

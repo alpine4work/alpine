@@ -28,7 +28,7 @@ export function createSpringAnimation({
     startY?: number;
     endX?: number;
     endY?: number;
-    units: "px" | "%";
+    units: "px" | "rem" | "%";
     tension: number;
     friction: number;
     mass?: number;
@@ -38,7 +38,7 @@ export function createSpringAnimation({
     const d = -friction;
 
     const frameRate = 1 / 60;
-    const displacementThreshold = units === "px" ? 0.5 : 0.1;
+    const displacementThreshold = {px: 0.5, rem: 0.03, "%": 0.1}[units];
     let framesBelowDisplacementThreshold = 0;
 
     const positions = [];
@@ -69,7 +69,7 @@ export function createSpringAnimation({
         x += velocityX * frameRate;
         y += velocityY * frameRate;
 
-        positions.push({transform: `translate(${startX - x}${units}, ${endY - y}${units})`});
+        positions.push({transform: `translate(${endX - x}${units}, ${endY - y}${units})`});
 
         const displacement = Math.hypot(x, y);
 
@@ -101,5 +101,6 @@ export function createSpringAnimation({
         animationDuration: duration,
         animationKeyframes: springKeyframes,
         animation: `${springKeyframes} ${duration}ms linear both`,
+        animationPositions: positions,
     };
 }

@@ -1,12 +1,15 @@
 import {differenceInMinutes} from "date-fns";
 import {ArrowArcLeft, SpinnerGap} from "phosphor-react";
-import {useEffect, useMemo, useRef, useState} from "react";
+import {MutableRefObject, useEffect, useMemo, useRef, useState} from "react";
 import {useNavigate} from "react-router-dom";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountShortName} from "~/client/accounts/account_short_name";
 import {ContentView} from "~/client/content/content_view";
 import {ErrorIcon} from "~/client/design/error_icon";
+import {FocusRing} from "~/client/design/focus_ring";
 import {IconButton} from "~/client/design/icon_button";
+import {OverlayScopeContextProvider} from "~/client/design/overlay";
+import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {MessageEditing} from "~/client/messaging/message_editing";
 import {MessageList} from "~/client/messaging/message_list";
 import {MessageViewActions} from "~/client/messaging/message_view_actions";
@@ -36,6 +39,7 @@ import {
     contentSchemaStyles,
     contentViewStyles,
     fontSizesByPlatform,
+    messageViewStyles,
     spinAnimationClassName,
     sprinkles,
 } from "~/shared/styles/styles";
@@ -106,6 +110,8 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
     messages,
     messageEditing,
     disableExpensiveFeaturesDuringScroll,
+    shouldHighlightRef,
+    onJumpToMessage: _onJumpToMessage,
     onReplyToMessage,
     onDeleteMessage,
 }: {
@@ -117,6 +123,8 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
     messages: MessageList<Message>;
     messageEditing: MessageEditing<RoomKey>;
     disableExpensiveFeaturesDuringScroll: boolean;
+    shouldHighlightRef: MutableRefObject<boolean> | null;
+    onJumpToMessage: (messageIndex: number) => void;
     onReplyToMessage: () => void;
     onDeleteMessage: () => Promise<void>;
 }) {
@@ -187,6 +195,29 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
         };
     }, [shouldShowOptimisticLoadingIndicatorAfterDelay]);
 
+    const [shouldHighlight, setShouldHighlight] = useState(false);
+
+    // If the ref we were provided told us to highlight then update our state and
+    // clear the ref so we only highlight once for the ref.
+    useEffect(() => {
+        if (!shouldHighlightRef?.current) return;
+        shouldHighlightRef.current = false;
+
+        setShouldHighlight(true);
+    }, [shouldHighlightRef]);
+
+    useEffect(() => {
+        if (!shouldHighlight) return;
+
+        const timeout = createTimeout(() => {
+            setShouldHighlight(false);
+        }, messageViewStyles.messageViewHighlightAnimationDuration);
+
+        return () => {
+            timeout.clear();
+        };
+    }, [shouldHighlight]);
+
     // We try to memoize any UI in this component that changes infrequently to
     // speed up React rendering. Because `<MessageView>` renders during scroll
     // animations it's important to keep it fast.
@@ -196,6 +227,7 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
         return (
             <div
                 className={sprinkles({
+                    pointerEvents: "auto",
                     backgroundColor: "grey-5",
                     maxWidth: "full",
                     overflow: "hidden",
@@ -227,6 +259,7 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
         return (
             <div
                 className={sprinkles({
+                    pointerEvents: "auto",
                     paddingX: messageViewBubblePaddingX,
                     paddingY: messageViewBubblePaddingY,
                     display: "flex",
@@ -264,6 +297,8 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
         shouldMergeWithPreviousMessage,
     ]);
 
+    const onJumpToMessage = useEvent(_onJumpToMessage);
+
     const parentMessageNode = useMemo(() => {
         if (!parentMessage) return null;
 
@@ -284,6 +319,10 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
 
         return (
             <div
+                className={sprinkles({
+                    position: "relative",
+                    zIndex: "-10",
+                })}
                 style={{
                     height: scaledHeight,
                     paddingLeft: messageBubbleMarginLeft,
@@ -294,52 +333,99 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
                     ),
                 }}
             >
-                <div
-                    className={sprinkles({
-                        position: "relative",
-                        zIndex: "0",
-                        maxWidth: "full",
-                        overflow: "hidden",
-                        display: "inline-block",
-                        paddingX: messageViewBubblePaddingX,
-                        paddingTop: messageViewBubblePaddingY,
-                        paddingBottom: "5",
-                    })}
-                    style={{
-                        opacity: messageViewReplyPreviewOpacity,
-                        transform: `scale(${messageViewPreviewScale})`,
-                        transformOrigin: "0% 0% 0",
-                    }}
+                <OverlayScopeContextProvider
+                // We render an overlay scope here so that a focus ring around the reply
+                // preview will render underneath the replying message instead of on top.
                 >
-                    <div
-                        className={sprinkles({
-                            position: "absolute",
-                            inset: "0",
-                            zIndex: "-10",
-                            borderRadius: messageViewBubbleBorderRadius,
-                            borderBottomLeftRadius: "none",
-                            backgroundColor: "grey-5",
-                        })}
-                        style={{
-                            opacity: messageViewReplyPreviewBubbleOpacity,
-                        }}
-                    />
-                    <div className={sprinkles({overflow: "hidden", pointerEvents: "none"})}>
-                        <ContentView
-                            isInert={true}
-                            isTruncated={true}
-                            content={truncatedContent}
-                            onNavigate={navigate}
-                            className={sprinkles({minWidth: messageViewBubbleMinWidth})}
-                        />
-                    </div>
-                </div>
+                    <FocusRing>
+                        <div
+                            // This is a simulated link. When the user clicks on it our code navigates us
+                            // to the right message instead of relying on browser URL navigation.
+                            //
+                            // See: https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/link_role
+                            role="link"
+                            tabIndex={0}
+                            className={sprinkles({
+                                position: "relative",
+                                zIndex: "0",
+                                maxWidth: "full",
+                                overflow: "hidden",
+                                display: "inline-block",
+                                paddingX: messageViewBubblePaddingX,
+                                paddingTop: messageViewBubblePaddingY,
+                                paddingBottom: "5",
+                                borderRadius: messageViewBubbleBorderRadius,
+                                borderBottomLeftRadius: messageViewBubbleMergedBorderRadius,
+                                // We don't use a pointer cursor for buttons in our product because buttons
+                                // they clearly appear clickable. We call this a strong affordance. A reply
+                                // preview is clickable and gives some affordance (different color) but it's a
+                                // weak affordance. So we use a pointer to make this element unambiguously
+                                // clickable.
+                                //
+                                // Also, this element is semantically a link which the pointer cursor was
+                                // originally designed for.
+                                //
+                                // See: https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
+                                cursor: "pointer",
+                            })}
+                            style={{
+                                opacity: messageViewReplyPreviewOpacity,
+                                transform: `scale(${messageViewPreviewScale})`,
+                                transformOrigin: "0% 0% 0",
+                            }}
+                            onClick={() => onJumpToMessage(parentMessage.index)}
+                            onKeyDown={event => {
+                                if (event.key === "Enter") {
+                                    event.preventDefault();
+                                    onJumpToMessage(parentMessage.index);
+                                    return;
+                                }
+
+                                if (event.key === " ") {
+                                    event.preventDefault();
+                                    onJumpToMessage(parentMessage.index);
+                                    return;
+                                }
+                            }}
+                        >
+                            <div
+                                className={sprinkles({
+                                    position: "absolute",
+                                    inset: "0",
+                                    zIndex: "-10",
+                                    borderRadius: messageViewBubbleBorderRadius,
+                                    borderBottomLeftRadius: messageViewBubbleMergedBorderRadius,
+                                    backgroundColor: "grey-5",
+                                })}
+                                style={{
+                                    opacity: messageViewReplyPreviewBubbleOpacity,
+                                }}
+                            />
+                            <div className={sprinkles({overflow: "hidden", pointerEvents: "none"})}>
+                                <ContentView
+                                    isInert={true}
+                                    isTruncated={true}
+                                    content={truncatedContent}
+                                    onNavigate={navigate}
+                                    className={sprinkles({minWidth: messageViewBubbleMinWidth})}
+                                />
+                            </div>
+                        </div>
+                    </FocusRing>
+                </OverlayScopeContextProvider>
             </div>
         );
-    }, [messageStartOfSentenceNoun, navigate, parentMessage]);
+    }, [messageStartOfSentenceNoun, navigate, onJumpToMessage, parentMessage]);
 
     return (
-        <div className={sprinkles({position: "relative", zIndex: "0"})}>
+        <div
+            className={sprinkles({position: "relative", zIndex: "0"})}
+            style={{
+                animation: shouldHighlight
+                    ? messageViewStyles.messageViewHighlightAnimation
+                    : undefined,
+            }}
+        >
             {useMemo(
                 () =>
                     !shouldMergeWithPreviousMessage && (
@@ -385,11 +471,21 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
                     display: "flex",
                     paddingX: "3",
                     paddingBottom: !shouldMergeWithNextMessage ? "3" : "0.5",
+                    // Our message bubble container has no pointer events and children must
+                    // re-enable them so the reply preview rendered underneath the bubble
+                    // is clickable.
+                    pointerEvents: "none",
                 })}
             >
                 {useMemo(
                     () => (
-                        <div className={sprinkles({flexShrink: "0", paddingRight: "2"})}>
+                        <div
+                            className={sprinkles({
+                                flexShrink: "0",
+                                paddingRight: "2",
+                                pointerEvents: "auto",
+                            })}
+                        >
                             <div
                                 className={sprinkles({
                                     width: "7",
@@ -430,7 +526,12 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
                                 paddingLeft: "3",
                             })}
                         >
-                            <div className={sprinkles({width: messageViewActionsWidth})}>
+                            <div
+                                className={sprinkles({
+                                    width: messageViewActionsWidth,
+                                    pointerEvents: "auto",
+                                })}
+                            >
                                 {message.isOptimistic &&
                                 message.optimisticRequestErrorState.hasError ? (
                                     <div>
@@ -454,7 +555,8 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
                                     </div>
                                 ) : (
                                     !message.isOptimistic &&
-                                    !disableExpensiveFeaturesDuringScroll && (
+                                    !disableExpensiveFeaturesDuringScroll &&
+                                    !shouldHighlight && (
                                         <MessageViewActions
                                             messageNoun={messageNoun}
                                             message={message}

@@ -34,7 +34,7 @@ import {createContentEditorOrderedListItemNodeView} from "~/client/content/inter
 import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/content_editor_phantom_selection_cursor";
 import {trimSpacesFromRange} from "~/client/content/internal/content_editor_prosemirror_helpers";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools";
-import {FocusRingPortal} from "~/client/design/focus_ring";
+import {TargetedFocusRing} from "~/client/design/focus_ring";
 import {isMac} from "~/client/helpers/is_mac";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
@@ -904,7 +904,7 @@ function ContentEditor<Content extends Node>(
                 // put your cursor at the beginning of "bar" and hit backspace it selects the
                 // title node and it looks weird. (Make sure there are no paragraphs
                 // after "bar".)
-                <FocusRingPortal element={selectedNodeElement} />
+                <TargetedFocusRing targetElement={selectedNodeElement} />
             )}
             {phantomSelections?.map(phantomSelection => (
                 <ContentEditorPhantomSelectionCursor

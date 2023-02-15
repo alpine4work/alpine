@@ -9,7 +9,7 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {RemLength, Spacing, isRemLength, spacing} from "~/shared/design/spacing";
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {modalDialogStyles, sprinkles} from "~/shared/styles/styles";
+import {modalStyles, sprinkles} from "~/shared/styles/styles";
 
 export const defaultModalMaxWidth: Spacing = "128";
 
@@ -87,10 +87,7 @@ export function Modal({
     const onCloseWithoutAnimation = useEvent(_onCloseWithoutAnimation);
     useEffect(() => {
         if (!isFadingOut) return;
-        const timeout = createTimeout(
-            onCloseWithoutAnimation,
-            modalDialogStyles.modalFadeOutDuration,
-        );
+        const timeout = createTimeout(onCloseWithoutAnimation, modalStyles.modalFadeOutDuration);
         return () => timeout.clear();
     }, [isFadingOut, onCloseWithoutAnimation]);
 
@@ -110,7 +107,7 @@ export function Modal({
             justifyContent="center"
             alignItems="center"
             padding="5"
-            style={{animation: isFadingOut ? modalDialogStyles.modalFadeOutAnimation : undefined}}
+            style={{animation: isFadingOut ? modalStyles.modalFadeOutAnimation : undefined}}
             overflow="hidden"
         >
             <OverlayScopeContextProvider>
@@ -120,8 +117,8 @@ export function Modal({
                     zIndex="-10"
                     backgroundColor="grey-dark"
                     style={{
-                        opacity: modalDialogStyles.modalUnderlayOpacity,
-                        animation: modalDialogStyles.modalUnderlayFadeInAnimation,
+                        opacity: modalStyles.modalUnderlayOpacity,
+                        animation: modalStyles.modalUnderlayFadeInAnimation,
                     }}
                     // If the underlay is clicked, we close the modal. This element is not
                     // focusable or keyboard accessible. You can hit the "Escape" key as a shortcut
@@ -155,7 +152,7 @@ export function Modal({
                         })}
                         style={{
                             maxWidth: isRemLength(maxWidth) ? maxWidth : spacing[maxWidth],
-                            animation: modalDialogStyles.modalOverlayFadeInAnimation,
+                            animation: modalStyles.modalOverlayFadeInAnimation,
                         }}
                     >
                         <Box
@@ -166,8 +163,8 @@ export function Modal({
                             overflow="hidden"
                             style={{
                                 animation: isFadingOut
-                                    ? modalDialogStyles.modalContentFadeOutAnimation
-                                    : modalDialogStyles.modalContentFadeInAnimation,
+                                    ? modalStyles.modalContentFadeOutAnimation
+                                    : modalStyles.modalContentFadeInAnimation,
                             }}
                         >
                             <Box flexShrink="0" paddingX="5" paddingTop="5" borderBottom="grey-5">

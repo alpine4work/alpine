@@ -1,5 +1,13 @@
 import {SpinnerGap} from "phosphor-react";
-import {ReactElement, ReactNode, useCallback, useEffect, useRef, useState} from "react";
+import {
+    MutableRefObject,
+    ReactElement,
+    ReactNode,
+    useCallback,
+    useEffect,
+    useRef,
+    useState,
+} from "react";
 import {useAppContext} from "~/client/context/app_context";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
 import {Spacer} from "~/client/design/spacer";
@@ -358,6 +366,20 @@ export function PostListView({
         ReadonlyMap<PostId, number>
     >(new Map());
 
+    const [highlightPostComment, setHighlightPostComment] = useState<{
+        postId: PostId;
+        postCommentIndex: number;
+        shouldHighlightRef: MutableRefObject<boolean>;
+    } | null>(null);
+
+    const handleJumpToPostComment = useEvent((postId: PostId, postCommentIndex: number) => {
+        setHighlightPostComment({
+            postId,
+            postCommentIndex,
+            shouldHighlightRef: {current: true},
+        });
+    });
+
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {
             const item = posts.getItem(index);
@@ -525,6 +547,16 @@ export function PostListView({
                                     nextMessage={nextComment}
                                     messages={item.postComments}
                                     messageEditing={messageEditing}
+                                    shouldHighlightRef={
+                                        highlightPostComment?.postId === item.post.id &&
+                                        highlightPostComment.postCommentIndex ===
+                                            item.postCommentIndex
+                                            ? highlightPostComment.shouldHighlightRef
+                                            : null
+                                    }
+                                    onJumpToMessage={index =>
+                                        handleJumpToPostComment(item.post.id, index)
+                                    }
                                     onReplyToMessage={() => {
                                         if (item.postComment.isOptimistic) return;
                                         const postCommentIndex = item.postComment.index;
@@ -724,6 +756,9 @@ export function PostListView({
                                     },
                                 );
                             }}
+                            onJumpToPostComment={index =>
+                                handleJumpToPostComment(item.post.id, index)
+                            }
                         />
                     );
 
@@ -1121,6 +1156,8 @@ export function PostListView({
             hasAside,
             loadInitialPostComments,
             messageEditing,
+            highlightPostComment,
+            handleJumpToPostComment,
             replyingToPostCommentIndexByPostId,
         ],
     );

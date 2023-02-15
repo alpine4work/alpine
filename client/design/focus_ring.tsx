@@ -129,12 +129,12 @@ function FocusRing(
  * A `<FocusRing>` but always visible and instead of targeting a React child it
  * targets a DOM node.
  */
-export function FocusRingPortal({
+export function TargetedFocusRing({
     offset,
-    element,
+    targetElement,
 }: {
     offset?: Spacing | "border";
-    element: HTMLElement;
+    targetElement: HTMLElement;
 }) {
     const ringRef = useRef<HTMLDivElement>(null);
     const popperRef = useRef<Instance | null>(null);
@@ -142,7 +142,7 @@ export function FocusRingPortal({
     useLayoutEffect(() => {
         assert(ringRef.current);
 
-        const popper = createPopper(element, ringRef.current, {
+        const popper = createPopper(targetElement, ringRef.current, {
             placement: "top-start",
             modifiers: [
                 {
@@ -202,7 +202,7 @@ export function FocusRingPortal({
             popperRef.current = null;
             popper.destroy();
         };
-    }, [element]);
+    }, [targetElement]);
 
     // Update popper every React re-render.
     useLayoutEffect(() => {
@@ -210,9 +210,9 @@ export function FocusRingPortal({
         popperRef.current.forceUpdate();
     });
 
-    const targetRef = useRef(element);
+    const targetRef = useRef(targetElement);
     useLayoutEffect(() => {
-        targetRef.current = element;
+        targetRef.current = targetElement;
     });
 
     return (
