@@ -195,22 +195,15 @@ const specialGreyColorVars: {
      * In dark mode, this is a darker shade of grey than our `grey-90` panels.
      */
     "grey-wash": CssVarFunction;
-
-    /**
-     * The background color for a text bubble.
-     */
-    "grey-bubble": CssVarFunction;
 } = createGlobalTheme(":root", {
     "grey-text": colors["grey-dark"],
     "grey-wash": colors["grey-5"],
-    "grey-bubble": colors["grey-bubble-light"],
 });
 
 globalStyle(darkColorSchemeSelector, {
     vars: assignVars(specialGreyColorVars, {
         "grey-text": colors["grey-0"],
         "grey-wash": colors["grey-dark"],
-        "grey-bubble": colors["grey-bubble-dark"],
     }),
 });
 

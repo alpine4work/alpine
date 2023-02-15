@@ -83,7 +83,7 @@ export function PostCommentInput({
                     flexGrow="1"
                     overflowX="hidden"
                     marginLeft="2"
-                    backgroundColor="grey-bubble"
+                    backgroundColor="grey-5"
                     borderRadius={messageViewBubbleBorderRadius}
                 >
                     <Box maxHeight="96" overflowX="hidden" overflowY="scroll">

@@ -188,7 +188,7 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
         return (
             <div
                 className={sprinkles({
-                    backgroundColor: "grey-bubble",
+                    backgroundColor: "grey-5",
                     maxWidth: "full",
                     overflow: "hidden",
                     display: "inline-block",
@@ -330,7 +330,7 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
             >
                 <div
                     className={sprinkles({
-                        backgroundColor: "grey-bubble",
+                        backgroundColor: "grey-5",
                         maxWidth: "full",
                         overflow: "hidden",
                         display: "inline-block",

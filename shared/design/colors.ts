@@ -14,7 +14,7 @@ export type Color = keyof typeof colors;
  */
 export const colors = {
     "grey-0": "#fbfbfc",
-    "grey-5": "#ededf2",
+    "grey-5": "#f0f0f5",
     "grey-10": "#d9d9de",
     "grey-20": "#bcbcc4",
     "grey-30": "#a6a6ab",
@@ -22,7 +22,7 @@ export const colors = {
     "grey-50": "#6d6d73",
     "grey-60": "#57575c",
     "grey-70": "#3f3f45",
-    "grey-80": "#323236",
+    "grey-80": "#2f2f33",
     "grey-90": "#212124",
 
     // Our darkest grey is not a part of the grey color spectrum. In order to
@@ -37,12 +37,6 @@ export const colors = {
     // `grey-0` as our text color in dark mode. This requires special handling
     // because `grey-0` does not map to this color.
     "grey-dark": "#0b0b0d",
-
-    // The grey we use for speech bubbles. Between `grey-0` and `grey-5`. We only
-    // use this for the speech bubble background color to help contrast with other
-    // elements using normal colors.
-    "grey-bubble-light": "#f0f0f2",
-    "grey-bubble-dark": "#2d2d30",
 
     "red-5": "#fcf1e8",
     "red-10": "#ffd4c2",
