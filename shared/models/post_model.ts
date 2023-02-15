@@ -58,6 +58,10 @@ export class PostCommentModel
     )
     implements MessageInterface<PostId>
 {
+    // Make sure this property is available on this type and not just the
+    // interface.
+    public readonly isOptimistic?: undefined;
+
     public getRoomKey() {
         return this.postId;
     }

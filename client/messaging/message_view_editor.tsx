@@ -11,7 +11,11 @@ import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {defaultTooltipOffset} from "~/client/design/tooltip";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {MessageEditing} from "~/client/messaging/message_editing";
-import {messageBubbleMinWidth} from "~/client/messaging/message_view";
+import {
+    messageViewBubbleBorderRadius,
+    messageViewBubbleMergedBorderRadius,
+    messageViewBubbleMinWidth,
+} from "~/client/messaging/message_view";
 import {MessageContent} from "~/shared/content/message_content_schema";
 import {spacing} from "~/shared/design/spacing";
 import {createTimeout} from "~/shared/helpers/async/timeout";
@@ -66,10 +70,18 @@ export function MessageViewEditor<RoomKey extends string>({
                     display="inline-block"
                     paddingX="0.5"
                     paddingY="1.5"
-                    borderTopLeftRadius={!shouldMergeWithPreviousMessage ? "xl" : "base"}
-                    borderTopRightRadius="xl"
-                    borderBottomLeftRadius={!shouldMergeWithNextMessage ? "xl" : "base"}
-                    borderBottomRightRadius="xl"
+                    borderTopLeftRadius={
+                        !shouldMergeWithPreviousMessage
+                            ? messageViewBubbleBorderRadius
+                            : messageViewBubbleMergedBorderRadius
+                    }
+                    borderTopRightRadius={messageViewBubbleBorderRadius}
+                    borderBottomLeftRadius={
+                        !shouldMergeWithNextMessage
+                            ? messageViewBubbleBorderRadius
+                            : messageViewBubbleMergedBorderRadius
+                    }
+                    borderBottomRightRadius={messageViewBubbleBorderRadius}
                     style={{
                         boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
                     }}
@@ -147,7 +159,7 @@ function MessageContentEditor({
             // an en-dash as a placeholder.
             placeholder={"\u2013"}
             onNavigate={useNavigate()}
-            className={sprinkles({minWidth: messageBubbleMinWidth})}
+            className={sprinkles({minWidth: messageViewBubbleMinWidth})}
             onEscape={onEscape}
             onEnter={onSave}
         />

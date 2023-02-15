@@ -30,6 +30,7 @@ export function MessagingView<Message extends MessageInterface>({
         readonly pinTo: "top" | "bottom";
         readonly messageCount: number;
         readonly messages: ReadonlyArray<Message>;
+        readonly otherReferencedMessages: ReadonlyArray<Message>;
     };
     shimmerRandomSeed: string;
     onLoadFromStart: (options: {
@@ -39,6 +40,7 @@ export function MessagingView<Message extends MessageInterface>({
     }) => Promise<{
         messageCount: number;
         messages: ReadonlyArray<Message>;
+        otherReferencedMessages: ReadonlyArray<Message>;
     }>;
     onLoadFromEnd: (options: {
         limit: number;
@@ -47,6 +49,7 @@ export function MessagingView<Message extends MessageInterface>({
     }) => Promise<{
         messageCount: number;
         messages: ReadonlyArray<Message>;
+        otherReferencedMessages: ReadonlyArray<Message>;
     }>;
 }) {
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
@@ -59,9 +62,7 @@ export function MessagingView<Message extends MessageInterface>({
             errorState: {hasError: false} | {hasError: true; error: unknown};
         } => ({
             pinTo: initialState.pinTo,
-            list: MessageList.new<Message>(initialState.messageCount).setMessages(
-                initialState.messages,
-            ),
+            list: MessageList.new<Message>(initialState.messageCount).loadMessages(initialState),
             isLoading: false,
             errorState: {hasError: false},
         }),
@@ -89,9 +90,7 @@ export function MessagingView<Message extends MessageInterface>({
                     setState(state => ({
                         ...state,
                         isLoading: false,
-                        list: state.list
-                            .setMessageCount(result.value.messageCount)
-                            .setMessages(result.value.messages),
+                        list: state.list.loadMessages(result.value),
                     }));
                 } else {
                     setState(state => ({

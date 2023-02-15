@@ -1,16 +1,23 @@
-import {Ref, useState} from "react";
+import {Ref, useEffect, useRef, useState} from "react";
 import {useNavigate} from "react-router-dom";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
-import {ContentEditor} from "~/client/content/content_editor";
+import {AccountShortName} from "~/client/accounts/account_short_name";
+import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {Box} from "~/client/design/box";
 import {useShowToast} from "~/client/design/toast";
 import {PostRealtimeActions, usePostRealtime} from "~/client/forum/use_post_realtime";
 import {MessageList} from "~/client/messaging/message_list";
+import {
+    messageViewBubbleBorderRadius,
+    messageViewBubblePaddingX,
+    messageViewBubblePaddingY,
+} from "~/client/messaging/message_view";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {isContentEmpty} from "~/shared/content/is_content_empty";
 import {emptyMessageContent} from "~/shared/content/message_content_schema";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {generateId} from "~/shared/id/id";
 import {OptimisticMessageInterface} from "~/shared/models/message_interface";
 import {PostCommentModel, PostModel} from "~/shared/models/post_model";
@@ -21,6 +28,8 @@ export function PostCommentInput({
     actionsRef,
     postComments,
     onUpdatePostComments,
+    replyingToPostComment,
+    onClearReplyingToPostComment,
 }: {
     post: PostModel;
     actionsRef: Ref<PostRealtimeActions>;
@@ -28,9 +37,12 @@ export function PostCommentInput({
     onUpdatePostComments: (
         update: (postComments: MessageList<PostCommentModel>) => MessageList<PostCommentModel>,
     ) => void;
+    replyingToPostComment: PostCommentModel | null;
+    onClearReplyingToPostComment: () => void;
 }) {
     const showToast = useShowToast();
     const {currentAccount} = useSpaceContext();
+    const editorRef = useRef<ContentEditorRef>(null);
     const [state, setState] = useState(ContentEditorState.create(emptyMessageContent));
 
     // We connect to realtime in our `<PostCommentInput>` component. When comments
@@ -43,108 +55,133 @@ export function PostCommentInput({
         onUpdatePostComments,
     });
 
+    // Focus the comment input whenever the comment we're replying to changes.
+    const replyingToPostCommentIndex = replyingToPostComment?.index ?? null;
+    useEffect(() => {
+        if (replyingToPostCommentIndex === null) return;
+        const editor = assertExists(editorRef.current);
+        editor.focus();
+    }, [replyingToPostCommentIndex]);
+
     return (
-        <Box flexGrow="1" overflowX="hidden" display="flex">
-            <AccountAvatar account={currentAccount} size="7" />
-            <Box
-                flexGrow="1"
-                overflowX="hidden"
-                marginLeft="2"
-                backgroundColor="grey-bubble"
-                borderRadius="xl"
-            >
-                <Box maxHeight="96" overflowX="hidden" overflowY="scroll">
-                    <ContentEditor
-                        state={state}
-                        onChange={setState}
-                        onNavigate={useNavigate()}
-                        aria-label="Comment"
-                        placeholder="Write a comment…"
-                        className={sprinkles({
-                            paddingX: "0.5",
-                            paddingY: "1.5",
-                        })}
-                        onEnter={() => {
-                            const content = state.getContent();
-                            if (isContentEmpty(content)) return;
+        <>
+            {replyingToPostComment && (
+                <Box paddingBottom="3">
+                    Replying to{" "}
+                    <span className={sprinkles({fontStyle: "semi-bold"})}>
+                        <AccountShortName account={replyingToPostComment.author} />
+                    </span>
+                </Box>
+            )}
+            <Box overflowX="hidden" display="flex">
+                <Box display="flex" alignItems="flex-end">
+                    <Box paddingY="0.5">
+                        <AccountAvatar account={currentAccount} size="7" />
+                    </Box>
+                </Box>
+                <Box
+                    flexGrow="1"
+                    overflowX="hidden"
+                    marginLeft="2"
+                    backgroundColor="grey-bubble"
+                    borderRadius={messageViewBubbleBorderRadius}
+                >
+                    <Box maxHeight="96" overflowX="hidden" overflowY="scroll">
+                        <ContentEditor
+                            ref={editorRef}
+                            state={state}
+                            onChange={setState}
+                            onNavigate={useNavigate()}
+                            aria-label="Comment"
+                            placeholder="Write a comment…"
+                            className={sprinkles({
+                                paddingX: messageViewBubblePaddingX,
+                                paddingY: messageViewBubblePaddingY,
+                            })}
+                            onEnter={() => {
+                                const content = state.getContent();
+                                if (isContentEmpty(content)) return;
 
-                            const optimisticComment: OptimisticMessageInterface = {
-                                isOptimistic: true,
-                                optimisticId: generateId(),
-                                optimisticRequestErrorState: {hasError: false},
-                                author: currentAccount,
-                                createdTime: new Date(),
-                                payload: {
-                                    type: "Content",
-                                    parentMessageIndex: null,
-                                    content,
-                                    contentUpdatedTime: null,
-                                },
-                                getRoomKey: () => post.id,
-                            };
+                                const optimisticComment: OptimisticMessageInterface = {
+                                    isOptimistic: true,
+                                    optimisticId: generateId(),
+                                    optimisticRequestErrorState: {hasError: false},
+                                    author: currentAccount,
+                                    createdTime: new Date(),
+                                    payload: {
+                                        type: "Content",
+                                        parentMessageIndex: replyingToPostComment?.index ?? null,
+                                        content,
+                                        contentUpdatedTime: null,
+                                    },
+                                    getRoomKey: () => post.id,
+                                };
 
-                            onUpdatePostComments(postComments =>
-                                postComments.addOptimisticMessage(optimisticComment),
-                            );
+                                onUpdatePostComments(postComments =>
+                                    postComments.addOptimisticMessage(optimisticComment),
+                                );
 
-                            setState(ContentEditorState.create(emptyMessageContent));
+                                setState(ContentEditorState.create(emptyMessageContent));
+                                onClearReplyingToPostComment();
 
-                            const createPostComment = () => {
-                                runPromiseWithoutAwaiting(async () => {
-                                    try {
-                                        await actions.createPostComment({
-                                            parentCommentIndex: null,
-                                            content,
-                                        });
-                                    } catch (error) {
-                                        // TODO(calebmer): If you scroll away form the post and `usePostRealtime()`
-                                        // unmounts this will error even if the comment is successfully created in the
-                                        // background. Maybe we should keep our WebSocket alive while there are
-                                        // unacknowledged messages for some timeout?
-                                        showToast({
-                                            type: "Error",
-                                            title: "Couldn’t create comment",
-                                            error,
-                                        });
+                                const createPostComment = () => {
+                                    runPromiseWithoutAwaiting(async () => {
+                                        try {
+                                            await actions.createPostComment({
+                                                parentCommentIndex:
+                                                    replyingToPostComment?.index ?? null,
+                                                content,
+                                            });
+                                        } catch (error) {
+                                            // TODO(calebmer): If you scroll away form the post and `usePostRealtime()`
+                                            // unmounts this will error even if the comment is successfully created in the
+                                            // background. Maybe we should keep our WebSocket alive while there are
+                                            // unacknowledged messages for some timeout?
+                                            showToast({
+                                                type: "Error",
+                                                title: "Couldn’t create comment",
+                                                error,
+                                            });
 
-                                        onUpdatePostComments(postComments =>
-                                            postComments.updateOptimisticMessage(
-                                                optimisticComment.optimisticId,
-                                                optimisticMessage => ({
-                                                    ...optimisticMessage,
-                                                    optimisticRequestErrorState: {
-                                                        hasError: true,
-                                                        retry: () => {
-                                                            // Clear the error when we are retrying then call this
-                                                            // function again.
-                                                            onUpdatePostComments(postComments =>
-                                                                postComments.updateOptimisticMessage(
-                                                                    optimisticComment.optimisticId,
-                                                                    optimisticMessage => ({
-                                                                        ...optimisticMessage,
-                                                                        optimisticRequestErrorState:
-                                                                            {
-                                                                                hasError: false,
-                                                                            },
-                                                                    }),
-                                                                ),
-                                                            );
+                                            onUpdatePostComments(postComments =>
+                                                postComments.updateOptimisticMessage(
+                                                    optimisticComment.optimisticId,
+                                                    optimisticMessage => ({
+                                                        ...optimisticMessage,
+                                                        optimisticRequestErrorState: {
+                                                            hasError: true,
+                                                            retry: () => {
+                                                                // Clear the error when we are retrying then call this
+                                                                // function again.
+                                                                onUpdatePostComments(postComments =>
+                                                                    postComments.updateOptimisticMessage(
+                                                                        optimisticComment.optimisticId,
+                                                                        optimisticMessage => ({
+                                                                            ...optimisticMessage,
+                                                                            optimisticRequestErrorState:
+                                                                                {
+                                                                                    hasError: false,
+                                                                                },
+                                                                        }),
+                                                                    ),
+                                                                );
 
-                                                            createPostComment();
+                                                                createPostComment();
+                                                            },
                                                         },
-                                                    },
-                                                }),
-                                            ),
-                                        );
-                                    }
-                                });
-                            };
+                                                    }),
+                                                ),
+                                            );
+                                        }
+                                    });
+                                };
 
-                            createPostComment();
-                        }}
-                    />
+                                createPostComment();
+                            }}
+                        />
+                    </Box>
                 </Box>
             </Box>
-        </Box>
+        </>
     );
 }

@@ -445,10 +445,13 @@ export class PostList {
         post: PostModel,
         {
             arePostCommentsOpen = false,
-            initialPostComments,
+            initialLoadPostComments,
         }: {
             arePostCommentsOpen?: boolean;
-            initialPostComments?: ReadonlyArray<PostCommentModel>;
+            initialLoadPostComments?: {
+                comments: ReadonlyArray<PostCommentModel>;
+                otherReferencedComments: ReadonlyArray<PostCommentModel>;
+            };
         } = {},
     ): PostList {
         const postOrderKey = generateOrderKeyBetween(
@@ -457,7 +460,13 @@ export class PostList {
         );
 
         let postComments = MessageList.new<PostCommentModel>(post.commentCount);
-        if (initialPostComments) postComments = postComments.setMessages(initialPostComments);
+        if (initialLoadPostComments) {
+            postComments = postComments.loadMessages({
+                messageCount: post.commentCount,
+                messages: initialLoadPostComments.comments,
+                otherReferencedMessages: initialLoadPostComments.otherReferencedComments,
+            });
+        }
 
         const postByOrderKey = this._postByOrderKey.set(postOrderKey, {
             post,
@@ -492,10 +501,13 @@ export class PostList {
         post: PostModel,
         {
             arePostCommentsOpen = false,
-            initialPostComments,
+            initialLoadPostComments,
         }: {
             arePostCommentsOpen?: boolean;
-            initialPostComments?: ReadonlyArray<PostCommentModel>;
+            initialLoadPostComments?: {
+                comments: ReadonlyArray<PostCommentModel>;
+                otherReferencedComments: ReadonlyArray<PostCommentModel>;
+            };
         } = {},
     ): PostList {
         const postOrderKey = generateOrderKeyBetween(
@@ -504,7 +516,13 @@ export class PostList {
         );
 
         let postComments = MessageList.new<PostCommentModel>(post.commentCount);
-        if (initialPostComments) postComments = postComments.setMessages(initialPostComments);
+        if (initialLoadPostComments) {
+            postComments = postComments.loadMessages({
+                messageCount: post.commentCount,
+                messages: initialLoadPostComments.comments,
+                otherReferencedMessages: initialLoadPostComments.otherReferencedComments,
+            });
+        }
 
         const postByOrderKey = this._postByOrderKey.set(postOrderKey, {
             post,

@@ -136,17 +136,19 @@ export class PostRealtimeDurableObjectConnection {
                     this._nextCommentIndexToSend = null;
                     this._queuedComments = [];
 
-                    const {commentCount, comments} = await getPostCommentsFromStart(
-                        // Use a strong read consistency here so our durable object doesn't miss a
-                        // comment and stall (all new comments are queued because we missed a comment).
-                        context.dynamo.setDefaultReadConsistency("Strong"),
-                        {
-                            postId: this._postId,
-                            afterCommentIndex: message.currentCommentCount - 1,
-                            beforeCommentIndex: null,
-                            limit: message.backfillCommentLimit,
-                        },
-                    );
+                    const {commentCount, comments, otherReferencedComments} =
+                        await getPostCommentsFromStart(
+                            // Use a strong read consistency here so our durable object doesn't miss a
+                            // comment and stall (the connection queues new messages but never flushes
+                            // because we missed an earlier comment).
+                            context.dynamo.setDefaultReadConsistency("Strong"),
+                            {
+                                postId: this._postId,
+                                afterCommentIndex: message.currentCommentCount - 1,
+                                beforeCommentIndex: null,
+                                limit: message.backfillCommentLimit,
+                            },
+                        );
 
                     await postRealtimeBackfillCommentsBeforeFlushTestCheckpoint.waitForTest(
                         context.auth.getSessionId(),
@@ -155,7 +157,8 @@ export class PostRealtimeDurableObjectConnection {
                     this._sendMessage(context, {
                         type: "BackfillPostCommentsResponse",
                         commentCount,
-                        newComments: comments,
+                        comments,
+                        otherReferencedComments,
                     });
 
                     this._nextCommentIndexToSend = commentCount;

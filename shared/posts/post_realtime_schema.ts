@@ -61,7 +61,8 @@ export const PostRealtimeMessageFromServerSchema = Schema.union({
     BackfillPostCommentsResponse: Schema.object({
         type: Schema.value("BackfillPostCommentsResponse"),
         commentCount: Schema.integer,
-        newComments: Schema.array(PostCommentModel.schema()),
+        comments: Schema.array(PostCommentModel.schema()),
+        otherReferencedComments: Schema.array(PostCommentModel.schema()),
     }),
     /**
      * A new comment was created! The comment could have been created by our

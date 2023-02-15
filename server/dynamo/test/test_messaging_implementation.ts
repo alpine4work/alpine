@@ -137,6 +137,7 @@ export type MessagingImplementation<RoomKey> = {
     ): Promise<{
         messageCount: number;
         messages: Array<MessageInterface>;
+        otherReferencedMessages: Array<MessageInterface>;
     }>;
 
     /**
@@ -154,6 +155,7 @@ export type MessagingImplementation<RoomKey> = {
     ): Promise<{
         messageCount: number;
         messages: Array<MessageInterface>;
+        otherReferencedMessages: Array<MessageInterface>;
     }>;
 };
 
@@ -233,10 +235,17 @@ export function testMessagingImplementation<RoomKey>(
         }
     }
 
-    function massageMessages(result: {messages: Array<MessageInterface>}) {
+    function massageMessages(result: {
+        messageCount: number;
+        messages: Array<MessageInterface>;
+        otherReferencedMessages: Array<MessageInterface>;
+    }) {
         return {
-            ...result,
+            messageCount: result.messageCount,
             messages: result.messages.map(massageMessage),
+            ...(result.otherReferencedMessages.length > 0
+                ? {otherReferencedMessages: result.otherReferencedMessages.map(massageMessage)}
+                : {}),
         };
     }
 
@@ -4036,6 +4045,499 @@ export function testMessagingImplementation<RoomKey>(
             } finally {
                 Date.now = originalDateNow;
             }
+        });
+
+        test("will get messages referenced outside the queried range when loading from start", async () => {
+            const room = await createRoom(context.request(session1), space.id);
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            const message2 = await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+            });
+
+            const message3 = await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content3,
+            });
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: message3.index,
+                content: content3,
+            });
+
+            await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageIndex: message3.index,
+                content: content1,
+            });
+
+            const message6 = await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+            });
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: message6.index,
+                content: content4,
+            });
+
+            await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageIndex: message2.index,
+                content: content4,
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromStart(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 100,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 8,
+                messages: [
+                    {
+                        author: session1.account,
+                        parentMessageIndex: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageIndex: null,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session3.account,
+                        parentMessageIndex: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session1.account,
+                        parentMessageIndex: message3.index,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageIndex: message3.index,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session3.account,
+                        parentMessageIndex: null,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session1.account,
+                        parentMessageIndex: message6.index,
+                        content: content4,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageIndex: message2.index,
+                        content: content4,
+                        hasContentUpdated: false,
+                    },
+                ],
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromStart(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 100,
+                        afterMessageIndex: message3.index,
+                        beforeMessageIndex: null,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 8,
+                messages: [
+                    {
+                        author: session1.account,
+                        parentMessageIndex: message3.index,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageIndex: message3.index,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session3.account,
+                        parentMessageIndex: null,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session1.account,
+                        parentMessageIndex: message6.index,
+                        content: content4,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageIndex: message2.index,
+                        content: content4,
+                        hasContentUpdated: false,
+                    },
+                ],
+                otherReferencedMessages: [
+                    {
+                        author: session3.account,
+                        parentMessageIndex: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageIndex: null,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                ],
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromStart(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 3,
+                        afterMessageIndex: message3.index,
+                        beforeMessageIndex: null,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 8,
+                messages: [
+                    {
+                        author: session1.account,
+                        parentMessageIndex: message3.index,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageIndex: message3.index,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session3.account,
+                        parentMessageIndex: null,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                ],
+                otherReferencedMessages: [
+                    {
+                        author: session3.account,
+                        parentMessageIndex: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                ],
+            });
+        });
+
+        test("will get messages referenced outside the queried range when loading from end", async () => {
+            const room = await createRoom(context.request(session1), space.id);
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            const message2 = await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+            });
+
+            const message3 = await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content3,
+            });
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: message3.index,
+                content: content3,
+            });
+
+            await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageIndex: message3.index,
+                content: content1,
+            });
+
+            const message6 = await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+            });
+
+            const message7 = await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: message6.index,
+                content: content4,
+            });
+
+            await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageIndex: message2.index,
+                content: content4,
+            });
+
+            const message9 = await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content4,
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromEnd(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 100,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 9,
+                messages: [
+                    {
+                        author: session1.account,
+                        parentMessageIndex: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageIndex: null,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session3.account,
+                        parentMessageIndex: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session1.account,
+                        parentMessageIndex: message3.index,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageIndex: message3.index,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session3.account,
+                        parentMessageIndex: null,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session1.account,
+                        parentMessageIndex: message6.index,
+                        content: content4,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageIndex: message2.index,
+                        content: content4,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session3.account,
+                        parentMessageIndex: null,
+                        content: content4,
+                        hasContentUpdated: false,
+                    },
+                ],
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromEnd(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 5,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: message9.index,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 9,
+                messages: [
+                    {
+                        author: session1.account,
+                        parentMessageIndex: message3.index,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageIndex: message3.index,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session3.account,
+                        parentMessageIndex: null,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session1.account,
+                        parentMessageIndex: message6.index,
+                        content: content4,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageIndex: message2.index,
+                        content: content4,
+                        hasContentUpdated: false,
+                    },
+                ],
+                otherReferencedMessages: [
+                    {
+                        author: session3.account,
+                        parentMessageIndex: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageIndex: null,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                ],
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromEnd(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 3,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: message7.index,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 9,
+                messages: [
+                    {
+                        author: session1.account,
+                        parentMessageIndex: message3.index,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageIndex: message3.index,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session3.account,
+                        parentMessageIndex: null,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                ],
+                otherReferencedMessages: [
+                    {
+                        author: session3.account,
+                        parentMessageIndex: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                ],
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromEnd(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 100,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: message7.index,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 9,
+                messages: [
+                    {
+                        author: session1.account,
+                        parentMessageIndex: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageIndex: null,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session3.account,
+                        parentMessageIndex: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session1.account,
+                        parentMessageIndex: message3.index,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageIndex: message3.index,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session3.account,
+                        parentMessageIndex: null,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                ],
+            });
         });
     });
 }

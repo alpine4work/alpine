@@ -202,7 +202,7 @@ export const bulletListItemClassName = style({
             pointerEvents: "none",
             width: bulletListItemBulletSize,
             height: bulletListItemBulletSize,
-            top: "0.625rem",
+            top: "0.5rem",
             left: `calc(${blockPaddingX} + (${listItemIndentationVar} * ${listItemIndentation}) + ${
                 parseRemLengthNumber(listItemIndentation) / 2 -
                 parseRemLengthNumber(bulletListItemBulletSize) / 2
@@ -366,9 +366,6 @@ export const highlightClassNameByColor = mapObjectValues(colorByHighlightColor, 
 );
 
 export const linkClassName = style({
-    // Links use a pointer cursor. See:
-    // https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
-    cursor: "pointer",
     color: colorSchemeVars["theme-60"],
     textDecorationLine: "underline",
     textDecorationThickness: 1,
@@ -380,6 +377,14 @@ export const linkClassName = style({
     // machine generated strings. For example, our IDs look weird when you have 3x9
     // randomly generated in the string.
     fontFeatureSettings: '"calt" off',
+    selectors: {
+        // Inert links use a `<span>` element.
+        "a&": {
+            // Links use a pointer cursor. See:
+            // https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
+            cursor: "pointer",
+        },
+    },
 });
 
 // Make sure the first child in our document never has top margin.

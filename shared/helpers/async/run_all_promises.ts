@@ -1,4 +1,3 @@
-import {ErrorBase} from "~/shared/error/error";
 import {isSystemError} from "~/shared/error/is_system_error_code";
 
 /**
@@ -21,13 +20,20 @@ import {isSystemError} from "~/shared/error/is_system_error_code";
 // utility.
 export async function runAllPromises<Promises extends ReadonlyArray<Promise<unknown>>>(
     promises: Promises,
-): Promise<{-readonly [K in keyof Promises]: Awaited<Promises[K]>}> {
+): Promise<{-readonly [K in keyof Promises]: Awaited<Promises[K]>}>;
+export async function runAllPromises<Value>(
+    promises: Iterable<Value>,
+): Promise<Array<Awaited<Value>>>;
+export async function runAllPromises<Value>(
+    promises: Iterable<Value>,
+): Promise<Array<Awaited<Value>>> {
     const results = await Promise.allSettled(promises);
 
     let hasRejection = false;
-    let systemError: ErrorBase | null = null;
     let firstRejectionReason;
-    const values = [];
+    let hasSystemError = false;
+    let firstSystemError;
+    const values: Array<Awaited<Value>> = [];
 
     for (const result of results) {
         // TODO(calebmer): Log all rejections in our telemetry, not just the first one.
@@ -35,8 +41,9 @@ export async function runAllPromises<Promises extends ReadonlyArray<Promise<unkn
             if (!hasRejection) firstRejectionReason = result.reason;
             hasRejection = true;
 
-            if (isSystemError(result.reason)) {
-                systemError = result.reason;
+            if (!hasSystemError && isSystemError(result.reason)) {
+                hasSystemError = true;
+                firstSystemError = result.reason;
                 break;
             }
 
@@ -48,10 +55,10 @@ export async function runAllPromises<Promises extends ReadonlyArray<Promise<unkn
 
     // If we had a system error, prioritize throwing that. Otherwise throw the
     // first error we saw.
-    if (systemError) throw systemError;
+    if (hasSystemError) throw firstSystemError;
     if (hasRejection) throw firstRejectionReason;
 
-    return values as any;
+    return values;
 }
 
 /**

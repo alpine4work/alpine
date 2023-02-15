@@ -88,6 +88,7 @@ export const getPostCommentsFromStart = defineRpc({
     output: {
         commentCount: Schema.integer,
         comments: Schema.array(PostCommentModel.schema()),
+        otherReferencedComments: Schema.array(PostCommentModel.schema()),
     },
 });
 
@@ -102,5 +103,6 @@ export const getPostCommentsFromEnd = defineRpc({
     output: {
         commentCount: Schema.integer,
         comments: Schema.array(PostCommentModel.schema()),
+        otherReferencedComments: Schema.array(PostCommentModel.schema()),
     },
 });

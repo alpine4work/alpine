@@ -7,10 +7,17 @@ import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/d
 import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry_dynamo_condition_check_errors";
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
 import {MessageContent} from "~/shared/content/message_content_schema";
-import {FailedPreconditionError, NotFoundError, PermissionDeniedError} from "~/shared/error/error";
+import {
+    FailedPreconditionError,
+    InternalError,
+    NotFoundError,
+    PermissionDeniedError,
+} from "~/shared/error/error";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
-import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array";
+import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
+import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator";
 import {AccountId, SimpleChatId, SpaceId} from "~/shared/id/types/id_types";
 import {MessagePayloadSchema} from "~/shared/models/message_interface";
 import {SimpleChatMessageModel, SimpleChatModel} from "~/shared/models/simple_chat_model";
@@ -335,6 +342,7 @@ export async function getSimpleChatMessagesFromStart(
 ): Promise<{
     messageCount: number;
     messages: Array<SimpleChatMessageModel>;
+    otherReferencedMessages: Array<SimpleChatMessageModel>;
 }> {
     // Start querying before authorization so our query runs in parallel
     // with authorization.
@@ -360,9 +368,44 @@ export async function getSimpleChatMessagesFromStart(
     const simpleChat = await getSimpleChat(context, simpleChatId);
     if (!simpleChat) throw new NotFoundError("Simple chat not found");
 
-    const messages = await parallelMapAsyncIterableToArray(queryIterable, item =>
-        createSimpleChatMessageModelFromItem(context, simpleChat.spaceId, item),
+    const messageIndexes = new Set<number>();
+    const parentMessageIndexes = new Set<number>();
+
+    const messagePromises = await arrayFromAsyncIterable(
+        mapAsyncIterableIterator(queryIterable, item => {
+            messageIndexes.add(item.messageIndex);
+
+            if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null)
+                parentMessageIndexes.add(item.payload.parentMessageIndex);
+
+            return createSimpleChatMessageModelFromItem(context, simpleChat.spaceId, item);
+        }),
     );
+
+    const [messages, otherReferencedMessages] = await runAllPromises([
+        runAllPromises(messagePromises),
+        runAllPromises(
+            filterMapIterable(parentMessageIndexes, parentMessageIndex => {
+                if (messageIndexes.has(parentMessageIndex)) return null;
+
+                return (async () => {
+                    const messageItem = await SimpleChatTable.getItem(context, {
+                        partitionType: "SimpleChat",
+                        sortRangeType: "Messages",
+                        simpleChatId,
+                        messageIndex: parentMessageIndex,
+                    });
+                    if (!messageItem) throw new InternalError("Parent message not found");
+
+                    return createSimpleChatMessageModelFromItem(
+                        context,
+                        simpleChat.spaceId,
+                        messageItem,
+                    );
+                })();
+            }),
+        ),
+    ]);
 
     return {
         // Make sure `messageCount` is consistent with `messages` in case of eventual
@@ -372,6 +415,7 @@ export async function getSimpleChatMessagesFromStart(
             messages.length > 0 ? messages[messages.length - 1]!.index + 1 : 0,
         ),
         messages,
+        otherReferencedMessages,
     };
 }
 
@@ -391,6 +435,7 @@ export async function getSimpleChatMessagesFromEnd(
 ): Promise<{
     messageCount: number;
     messages: Array<SimpleChatMessageModel>;
+    otherReferencedMessages: Array<SimpleChatMessageModel>;
 }> {
     // Start querying before authorization so our query runs in parallel
     // with authorization.
@@ -423,12 +468,48 @@ export async function getSimpleChatMessagesFromEnd(
     const simpleChat = await getSimpleChat(context, simpleChatId);
     if (!simpleChat) throw new NotFoundError("Simple chat not found");
 
-    const messages = await parallelMapAsyncIterableToArray(queryIterable, item =>
-        createSimpleChatMessageModelFromItem(context, simpleChat.spaceId, item),
+    const messageIndexes = new Set<number>();
+    const parentMessageIndexes = new Set<number>();
+
+    const messagePromises = await arrayFromAsyncIterable(
+        mapAsyncIterableIterator(queryIterable, item => {
+            messageIndexes.add(item.messageIndex);
+
+            if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null)
+                parentMessageIndexes.add(item.payload.parentMessageIndex);
+
+            return createSimpleChatMessageModelFromItem(context, simpleChat.spaceId, item);
+        }),
     );
+
+    const [messages, otherReferencedMessages] = await runAllPromises([
+        runAllPromises(messagePromises),
+        runAllPromises(
+            filterMapIterable(parentMessageIndexes, parentMessageIndex => {
+                if (messageIndexes.has(parentMessageIndex)) return null;
+
+                return (async () => {
+                    const messageItem = await SimpleChatTable.getItem(context, {
+                        partitionType: "SimpleChat",
+                        sortRangeType: "Messages",
+                        simpleChatId,
+                        messageIndex: parentMessageIndex,
+                    });
+                    if (!messageItem) throw new InternalError("Parent message not found");
+
+                    return createSimpleChatMessageModelFromItem(
+                        context,
+                        simpleChat.spaceId,
+                        messageItem,
+                    );
+                })();
+            }),
+        ),
+    ]);
 
     // We queried in descending order so put comments back in the right order.
     messages.reverse();
+    otherReferencedMessages.reverse();
 
     return {
         // Make sure `messageCount` is consistent with `messages` in case of eventual
@@ -438,5 +519,6 @@ export async function getSimpleChatMessagesFromEnd(
             messages.length > 0 ? messages[messages.length - 1]!.index + 1 : 0,
         ),
         messages,
+        otherReferencedMessages,
     };
 }

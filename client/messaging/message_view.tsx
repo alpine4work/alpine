@@ -1,15 +1,23 @@
 import {differenceInMinutes} from "date-fns";
-import {SpinnerGap} from "phosphor-react";
+import {ArrowArcLeft, SpinnerGap} from "phosphor-react";
 import {useEffect, useMemo, useRef, useState} from "react";
 import {useNavigate} from "react-router-dom";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
+import {AccountShortName} from "~/client/accounts/account_short_name";
 import {ContentView} from "~/client/content/content_view";
 import {ErrorIcon} from "~/client/design/error_icon";
 import {IconButton} from "~/client/design/icon_button";
 import {MessageEditing} from "~/client/messaging/message_editing";
+import {MessageList} from "~/client/messaging/message_list";
 import {MessageViewActions} from "~/client/messaging/message_view_actions";
 import {MessageViewEditor} from "~/client/messaging/message_view_editor";
-import {RemLength, Spacing, addRemLengths, spacing} from "~/shared/design/spacing";
+import {
+    RemLength,
+    Spacing,
+    addRemLengths,
+    parseRemLengthNumber,
+    spacing,
+} from "~/shared/design/spacing";
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {
@@ -18,8 +26,11 @@ import {
     OptimisticMessageInterface,
 } from "~/shared/models/message_interface";
 import {
+    borderRadius,
     colorSchemeVars,
     contentSchemaStyles,
+    contentViewStyles,
+    fontSizesByPlatform,
     spinAnimationClassName,
     sprinkles,
 } from "~/shared/styles/styles";
@@ -39,9 +50,17 @@ export const bufferedMessageViewHeight: RemLength = "4rem";
 /**
  * The minimum width of a message bubble.
  */
-export const messageBubbleMinWidth: Spacing = "6";
+export const messageViewBubbleMinWidth: Spacing = "6";
 
 const mergeMessageMinuteLimit = 5;
+
+export const messageBubbleMarginLeft = addRemLengths(spacing["3"], spacing["7"], spacing["2"]);
+
+export const messageViewBubbleBorderRadius = "xl" as const;
+export const messageViewBubbleMergedBorderRadius = "base" as const;
+export const messageViewBubblePaddingX: Spacing = "0.5";
+export const messageViewBubblePaddingY: Spacing = "1.5";
+export const messageViewActionsWidth: Spacing = "10";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders
@@ -57,35 +76,54 @@ const mergeMessageMinuteLimit = 5;
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const Box = null;
 
-export function MessageView<RoomKey extends string>({
+function shouldMergeMessages(
+    message1: MessageInterfaceBase,
+    message2: MessageInterfaceBase,
+): boolean {
+    return (
+        message1.author.id === message2.author.id &&
+        Math.abs(differenceInMinutes(message1.createdTime, message2.createdTime)) <
+            mergeMessageMinuteLimit &&
+        (message2.payload.type !== "Content" || message2.payload.parentMessageIndex === null)
+    );
+}
+
+export function MessageView<RoomKey extends string, Message extends MessageInterface<RoomKey>>({
     messageNoun = "message",
     messageStartOfSentenceNoun = messageNoun.slice(0).toUpperCase() + messageNoun.slice(1),
     message,
     previousMessage,
     nextMessage,
+    messages,
     messageEditing,
     disableExpensiveFeaturesDuringScroll,
+    onReplyToMessage,
     onDeleteMessage,
 }: {
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
-    message: MessageInterface<RoomKey> | OptimisticMessageInterface;
+    message: Message | OptimisticMessageInterface;
     previousMessage: MessageInterfaceBase | null;
     nextMessage: MessageInterfaceBase | null;
+    messages: MessageList<Message>;
     messageEditing: MessageEditing<RoomKey>;
     disableExpensiveFeaturesDuringScroll: boolean;
+    onReplyToMessage: () => void;
     onDeleteMessage: () => Promise<void>;
 }) {
     const shouldMergeWithPreviousMessage: boolean =
-        !!previousMessage &&
-        previousMessage.author.id === message.author.id &&
-        Math.abs(differenceInMinutes(message.createdTime, previousMessage.createdTime)) <
-            mergeMessageMinuteLimit;
+        !!previousMessage && shouldMergeMessages(previousMessage, message);
+
     const shouldMergeWithNextMessage: boolean =
-        !!nextMessage &&
-        nextMessage.author.id === message.author.id &&
-        Math.abs(differenceInMinutes(nextMessage.createdTime, message.createdTime)) <
-            mergeMessageMinuteLimit;
+        !!nextMessage && shouldMergeMessages(message, nextMessage);
+
+    const parentMessage =
+        message.payload.type === "Content" && message.payload.parentMessageIndex !== null
+            ? assertExists(
+                  messages.getLoadedMessageIfExists(message.payload.parentMessageIndex),
+                  "Parent message should have been loaded",
+              )
+            : null;
 
     // Manually implement hovering state by attaching event listeners (instead of
     // using `useHover()` from `react-aria`). React doesn't deliver a
@@ -153,22 +191,33 @@ export function MessageView<RoomKey extends string>({
                     maxWidth: "160",
                     overflow: "hidden",
                     display: "inline-block",
-                    paddingX: "0.5",
-                    paddingY: "1.5",
-                    borderTopLeftRadius: !shouldMergeWithPreviousMessage ? "xl" : "base",
-                    borderTopRightRadius: "xl",
-                    borderBottomLeftRadius: !shouldMergeWithNextMessage ? "xl" : "base",
-                    borderBottomRightRadius: "xl",
+                    paddingX: messageViewBubblePaddingX,
+                    paddingY: messageViewBubblePaddingY,
+                    borderTopLeftRadius:
+                        !shouldMergeWithPreviousMessage && !parentMessage
+                            ? messageViewBubbleBorderRadius
+                            : messageViewBubbleMergedBorderRadius,
+                    borderTopRightRadius: messageViewBubbleBorderRadius,
+                    borderBottomLeftRadius: !shouldMergeWithNextMessage
+                        ? messageViewBubbleBorderRadius
+                        : messageViewBubbleMergedBorderRadius,
+                    borderBottomRightRadius: messageViewBubbleBorderRadius,
                 })}
             >
                 <ContentView
                     content={message.payload.content}
                     onNavigate={navigate}
-                    className={sprinkles({minWidth: messageBubbleMinWidth})}
+                    className={sprinkles({minWidth: messageViewBubbleMinWidth})}
                 />
             </div>
         );
-    }, [message.payload, navigate, shouldMergeWithNextMessage, shouldMergeWithPreviousMessage]);
+    }, [
+        message.payload,
+        navigate,
+        parentMessage,
+        shouldMergeWithNextMessage,
+        shouldMergeWithPreviousMessage,
+    ]);
 
     const deletedPayloadNode = useMemo(() => {
         if (message.payload.type !== "Deleted") return null;
@@ -176,14 +225,18 @@ export function MessageView<RoomKey extends string>({
         return (
             <div
                 className={sprinkles({
-                    paddingX: "0.5",
-                    paddingY: "1.5",
+                    paddingX: messageViewBubblePaddingX,
+                    paddingY: messageViewBubblePaddingY,
                     display: "flex",
                     alignItems: "center",
-                    borderTopLeftRadius: !shouldMergeWithPreviousMessage ? "xl" : "base",
-                    borderTopRightRadius: "xl",
-                    borderBottomLeftRadius: !shouldMergeWithNextMessage ? "xl" : "base",
-                    borderBottomRightRadius: "xl",
+                    borderTopLeftRadius: !shouldMergeWithPreviousMessage
+                        ? messageViewBubbleBorderRadius
+                        : messageViewBubbleMergedBorderRadius,
+                    borderTopRightRadius: messageViewBubbleBorderRadius,
+                    borderBottomLeftRadius: !shouldMergeWithNextMessage
+                        ? messageViewBubbleBorderRadius
+                        : messageViewBubbleMergedBorderRadius,
+                    borderBottomRightRadius: messageViewBubbleBorderRadius,
                     userSelect: "text",
                 })}
                 style={{
@@ -209,8 +262,94 @@ export function MessageView<RoomKey extends string>({
         shouldMergeWithPreviousMessage,
     ]);
 
+    const parentMessageNode = useMemo(() => {
+        if (!parentMessage) return null;
+
+        if (parentMessage.payload.type === "Deleted") {
+            // TODO(calebmer): Implement
+            return null;
+        }
+
+        const truncatedContent = parentMessage.payload.content.cut(
+            0,
+            Math.min(
+                parentMessage.payload.content.content.size,
+                // Arbitrarily picked as close to the number of characters in a string of only
+                // "x"s that wraps to two lines on my wide monitor. Rounded up to the nearest
+                // 100 to count for structural nodes.
+                600,
+            ),
+        );
+
+        const height = addRemLengths(
+            spacing["1.5"],
+            contentViewStyles.truncatedHeight,
+            spacing["1.5"],
+        );
+
+        const scale =
+            fontSizesByPlatform["50"].desktop.fontSize /
+            fontSizesByPlatform["100"].desktop.fontSize;
+
+        return (
+            <div
+                className={sprinkles({
+                    position: "relative",
+                    zIndex: "-10",
+                    marginBottom: "0.5",
+                    overflow: "hidden",
+                })}
+                style={{
+                    height: `${Math.round(parseRemLengthNumber(height) * scale * 16) / 16}rem`,
+                    paddingLeft: messageBubbleMarginLeft,
+                    paddingRight: addRemLengths(
+                        spacing["3"],
+                        spacing[messageViewActionsWidth],
+                        spacing["3"],
+                    ),
+                }}
+            >
+                <div
+                    className={sprinkles({
+                        position: "relative",
+                        backgroundColor: "grey-bubble",
+                        maxWidth: "full",
+                        overflow: "hidden",
+                        display: "inline-block",
+                        paddingX: messageViewBubblePaddingX,
+                        paddingY: messageViewBubblePaddingY,
+                        borderRadius: messageViewBubbleBorderRadius,
+                    })}
+                    style={{
+                        height: "2rem",
+                        opacity: 0.5,
+                        transform: `scale(${scale})`,
+                        transformOrigin: "0% 0% 0",
+                        // Scale up our border radius so visually it looks like the `base` size even
+                        // though we've scaled the element down.
+                        borderBottomLeftRadius: `${
+                            parseRemLengthNumber(
+                                borderRadius[messageViewBubbleMergedBorderRadius],
+                            ) / scale
+                        }rem`,
+                    }}
+                >
+                    <div className={sprinkles({overflow: "hidden", pointerEvents: "none"})}>
+                        <ContentView
+                            isInert={true}
+                            isTruncated={true}
+                            content={truncatedContent}
+                            onNavigate={navigate}
+                            className={sprinkles({minWidth: messageViewBubbleMinWidth})}
+                        />
+                    </div>
+                </div>
+            </div>
+        );
+    }, [navigate, parentMessage]);
+
     return (
-        <div>
+        <div className={sprinkles({position: "relative", zIndex: "0"})}>
             {useMemo(
                 () =>
                     !shouldMergeWithPreviousMessage && (
@@ -221,21 +360,34 @@ export function MessageView<RoomKey extends string>({
                                 paddingY: "0.5",
                                 paddingRight: "3",
                                 color: "grey-50",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "0.5",
                             })}
                             style={{
-                                paddingLeft: addRemLengths(
-                                    spacing["3"],
-                                    spacing["7"],
-                                    spacing["2"],
-                                    spacing["1.5"],
-                                ),
+                                paddingLeft: addRemLengths(messageBubbleMarginLeft, spacing["1.5"]),
                             }}
                         >
-                            {message.author.name}
+                            {parentMessage !== null && <ArrowArcLeft size={spacing["3"]} />}
+                            <span>
+                                <AccountShortName account={message.author} />
+                                {parentMessage !== null && (
+                                    <>
+                                        {" "}
+                                        replied to{" "}
+                                        {message.author.id === parentMessage.author.id ? (
+                                            "themself"
+                                        ) : (
+                                            <AccountShortName account={parentMessage.author} />
+                                        )}
+                                    </>
+                                )}
+                            </span>
                         </div>
                     ),
-                [message.author.name, shouldMergeWithPreviousMessage],
+                [message.author, parentMessage, shouldMergeWithPreviousMessage],
             )}
+            {parentMessageNode}
             <div
                 ref={hoverRef}
                 className={sprinkles({
@@ -256,7 +408,9 @@ export function MessageView<RoomKey extends string>({
                                 })}
                             >
                                 {!shouldMergeWithNextMessage && (
-                                    <AccountAvatar account={message.author} size="7" />
+                                    <div className={sprinkles({paddingY: "0.5"})}>
+                                        <AccountAvatar account={message.author} size="7" />
+                                    </div>
                                 )}
                             </div>
                         </div>
@@ -285,7 +439,7 @@ export function MessageView<RoomKey extends string>({
                                 paddingLeft: "3",
                             })}
                         >
-                            <div className={sprinkles({width: "10"})}>
+                            <div className={sprinkles({width: messageViewActionsWidth})}>
                                 {message.isOptimistic &&
                                 message.optimisticRequestErrorState.hasError ? (
                                     <div>
@@ -316,6 +470,7 @@ export function MessageView<RoomKey extends string>({
                                             messagePayload={message.payload}
                                             messageEditing={messageEditing}
                                             isHovered={isHovered}
+                                            onReplyToMessage={onReplyToMessage}
                                             onDeleteMessage={onDeleteMessage}
                                             isEditing={isEditing}
                                             shouldFocusMessageContentEditorRef={

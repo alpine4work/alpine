@@ -1,6 +1,14 @@
 import {useRef} from "react";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {MessageList} from "~/client/messaging/message_list";
+import {
+    messageBubbleMarginLeft,
+    messageViewActionsWidth,
+    messageViewBubbleBorderRadius,
+    messageViewBubbleMergedBorderRadius,
+    messageViewBubblePaddingX,
+    messageViewBubblePaddingY,
+} from "~/client/messaging/message_view";
 import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {StableRandom} from "~/shared/helpers/number/stable_random";
@@ -96,6 +104,7 @@ export function MessageShimmer<Message extends MessageInterface>({
         !nextMessage &&
         index < messages.getMessageCount() - 1 &&
         stableRandom.randomFloat("size", index, 1) < shouldMergeMessageShimmerProbability;
+
     const shouldMergeWithPreviousMessage =
         !previousMessage &&
         index > 0 &&
@@ -116,14 +125,7 @@ export function MessageShimmer<Message extends MessageInterface>({
             {!shouldMergeWithPreviousMessage && (
                 <div
                     className={sprinkles({paddingY: "0.5"})}
-                    style={{
-                        paddingLeft: addRemLengths(
-                            spacing["3"],
-                            spacing["7"],
-                            spacing["2"],
-                            spacing["1.5"],
-                        ),
-                    }}
+                    style={{paddingLeft: addRemLengths(messageBubbleMarginLeft, spacing["1.5"])}}
                 >
                     <div
                         style={{height: fontSizes["50"].lineHeight}}
@@ -157,33 +159,39 @@ export function MessageShimmer<Message extends MessageInterface>({
                         })}
                     >
                         {!shouldMergeWithNextMessage && (
-                            <div
-                                className={sprinkles({
-                                    flexShrink: "0",
-                                    width: "7",
-                                    height: "7",
-                                    backgroundColor: "grey-10",
-                                    borderRadius: "full",
-                                    display: "flex",
-                                    justifyContent: "center",
-                                    alignItems: "center",
-                                })}
-                            />
+                            <div className={sprinkles({paddingY: "0.5"})}>
+                                <div
+                                    className={sprinkles({
+                                        flexShrink: "0",
+                                        width: "7",
+                                        height: "7",
+                                        backgroundColor: "grey-10",
+                                        borderRadius: "full",
+                                        display: "flex",
+                                        justifyContent: "center",
+                                        alignItems: "center",
+                                    })}
+                                />
+                            </div>
                         )}
                     </div>
                 </div>
-                <div className={sprinkles({flexGrow: "1", paddingRight: "10"})}>
+                <div className={sprinkles({flexGrow: "1", paddingRight: messageViewActionsWidth})}>
                     <div
                         className={sprinkles({
-                            paddingY: "1.5",
-                            paddingX: "0.5",
+                            paddingX: messageViewBubblePaddingX,
+                            paddingY: messageViewBubblePaddingY,
                             backgroundColor: "grey-5",
                             width: "full",
                             maxWidth: messageSize.width,
-                            borderTopLeftRadius: !shouldMergeWithPreviousMessage ? "xl" : "base",
-                            borderTopRightRadius: "xl",
-                            borderBottomLeftRadius: !shouldMergeWithNextMessage ? "xl" : "base",
-                            borderBottomRightRadius: "xl",
+                            borderTopLeftRadius: !shouldMergeWithPreviousMessage
+                                ? messageViewBubbleBorderRadius
+                                : messageViewBubbleMergedBorderRadius,
+                            borderTopRightRadius: messageViewBubbleBorderRadius,
+                            borderBottomLeftRadius: !shouldMergeWithNextMessage
+                                ? messageViewBubbleBorderRadius
+                                : messageViewBubbleMergedBorderRadius,
+                            borderBottomRightRadius: messageViewBubbleBorderRadius,
                         })}
                     >
                         <div

@@ -12,6 +12,7 @@
 import {createSprinkles, defineProperties} from "@vanilla-extract/sprinkles";
 import {mobilePlatformMediaQuery, spacing} from "~/shared/design/spacing";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
+import {borderRadius} from "~/shared/styles/internal/border_radius.css";
 import {
     colorSchemeVars,
     darkColorSchemeSelector,
@@ -19,17 +20,6 @@ import {
     lightColorSchemeSelector,
 } from "~/shared/styles/internal/color_scheme.css";
 import {fontSizes, fontStyles} from "~/shared/styles/internal/fonts.css";
-
-const borderRadiuses = {
-    none: "0rem",
-    sm: "0.125rem",
-    base: "0.25rem",
-    md: "0.375rem",
-    // Half of `spacing["6"]` which is our `<MessageView>` minimum width. We use
-    // this for message view bubbles.
-    xl: "0.75rem",
-    full: "9999px",
-} as const;
 
 const properties = defineProperties({
     properties: {
@@ -73,17 +63,22 @@ const properties = defineProperties({
         },
         pointerEvents: {auto: "auto", none: "none"},
         userSelect: {auto: "auto", none: "none", text: "text", all: "all"},
-        borderRadius: borderRadiuses,
-        borderTopLeftRadius: borderRadiuses,
-        borderTopRightRadius: borderRadiuses,
-        borderBottomLeftRadius: borderRadiuses,
-        borderBottomRightRadius: borderRadiuses,
+        borderTopLeftRadius: borderRadius,
+        borderTopRightRadius: borderRadius,
+        borderBottomLeftRadius: borderRadius,
+        borderBottomRightRadius: borderRadius,
         boxShadow: elevationVars,
         textAlign: {left: "left", center: "center", right: "right", justify: "justify"},
         fontSize: fontSizes,
         fontStyle: fontStyles,
     },
     shorthands: {
+        borderRadius: [
+            "borderTopLeftRadius",
+            "borderTopRightRadius",
+            "borderBottomLeftRadius",
+            "borderBottomRightRadius",
+        ],
         borderTopRadius: ["borderTopLeftRadius", "borderTopRightRadius"],
         borderBottomRadius: ["borderBottomLeftRadius", "borderBottomRightRadius"],
         borderLeftRadius: ["borderTopLeftRadius", "borderBottomLeftRadius"],

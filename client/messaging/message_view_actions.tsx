@@ -15,6 +15,7 @@ export function MessageViewActions<RoomKey extends string>({
     messagePayload,
     messageEditing,
     isHovered,
+    onReplyToMessage,
     onDeleteMessage,
     isEditing,
     shouldFocusMessageContentEditorRef,
@@ -24,6 +25,7 @@ export function MessageViewActions<RoomKey extends string>({
     messagePayload: MessageContentPayload;
     messageEditing: MessageEditing<RoomKey>;
     isHovered: boolean;
+    onReplyToMessage: () => void;
     onDeleteMessage: () => Promise<void>;
     isEditing: boolean;
     shouldFocusMessageContentEditorRef: MutableRefObject<boolean>;
@@ -48,7 +50,12 @@ export function MessageViewActions<RoomKey extends string>({
             style={{opacity: isShowingActions ? "1" : "0"}}
             {...focusWithinActionsProps}
         >
-            <IconButton description="Reply" size="sm" isDisabled={isEditing}>
+            <IconButton
+                description="Reply"
+                size="sm"
+                isDisabled={isEditing}
+                onPress={onReplyToMessage}
+            >
                 <ArrowArcLeft />
             </IconButton>
             {currentAccount.id === message.author.id && (

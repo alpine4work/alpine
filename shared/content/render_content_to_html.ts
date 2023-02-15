@@ -1,9 +1,10 @@
-import {Node} from "prosemirror-model";
+import {DOMOutputSpec, Node} from "prosemirror-model";
 import {contentCheckListItemIconSvg} from "~/shared/content/content_check_list_item_icon_svg";
 import {clampListItemIndentation} from "~/shared/content/content_schema";
 import {documentFallbackTitle} from "~/shared/content/document_fallback_title";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty";
 import {assert} from "~/shared/helpers/control/assert";
+import {omitObject} from "~/shared/helpers/object/omit_object";
 import {
     ElementHtmlGenerator,
     renderProsemirrorDomOutputSpec,
@@ -36,10 +37,13 @@ export function renderContentToHtml(topNode: Node, options?: {placeholder?: stri
  * Does not render the wrapping `<div>` for the entire doc. Only the inner
  * content. Generally you want `renderContentToHtml()`. This is useful if you
  * want to add other attributes to the wrapping `<div>`.
+ *
+ * If `isInert` is set to true then elements which were interactive, like
+ * links, are made non clickable or focusable. But visually the stay the same.
  */
 export function renderContentFragmentToHtml(
     topNode: Node,
-    {placeholder}: {placeholder?: string} = {},
+    {placeholder, isInert}: {placeholder?: string; isInert?: boolean} = {},
 ): string {
     assert(topNode.type.schema.topNodeType === topNode.type);
 
@@ -185,9 +189,14 @@ export function renderContentFragmentToHtml(
             // 1 is implemented by `<ContentView>` and 2 we don't need since you don't need
             // to edit a link when reading.
             link: (mark, inline) => {
-                const {html, contentHtml} = renderProsemirrorDomOutputSpec(
-                    mark.type.spec.toDOM!(mark, inline),
-                );
+                const markSpec = mark.type.spec.toDOM!(mark, inline);
+                assert(Array.isArray(markSpec) && markSpec[0] === "a");
+
+                const actualMarkSpec: DOMOutputSpec = isInert
+                    ? ["span", omitObject(markSpec[1], ["href", "target", "rel"]), 0]
+                    : markSpec;
+
+                const {html, contentHtml} = renderProsemirrorDomOutputSpec(actualMarkSpec);
                 assert(html instanceof ElementHtmlGenerator);
                 return {html, contentHtml};
             },

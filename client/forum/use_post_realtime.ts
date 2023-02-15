@@ -53,14 +53,16 @@ export function usePostRealtime({
             switch (message.type) {
                 case "BackfillPostCommentsResponse": {
                     onUpdatePostComments(postComments =>
-                        postComments
-                            .setMessageCount(message.commentCount)
-                            .setMessages(message.newComments),
+                        postComments.loadMessages({
+                            messageCount: message.commentCount,
+                            messages: message.comments,
+                            otherReferencedMessages: message.otherReferencedComments,
+                        }),
                     );
                     break;
                 }
                 case "NewPostComment": {
-                    onUpdatePostComments(postComments => postComments.setMessage(message.comment));
+                    onUpdatePostComments(postComments => postComments.addMessage(message.comment));
                     break;
                 }
                 case "UpdatedPostCommentContent": {

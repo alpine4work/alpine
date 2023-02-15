@@ -187,27 +187,31 @@ export function PostListView({
                     endIndex: renderedPostCommentRangeEndIndex,
                 },
                 onLoadFromStart: async ({afterMessageIndex, beforeMessageIndex, limit}) => {
-                    const {commentCount, comments} = await getPostCommentsFromStart(context, {
-                        postId: item.post.id,
-                        afterCommentIndex: afterMessageIndex,
-                        beforeCommentIndex: beforeMessageIndex,
-                        limit,
-                    });
+                    const {commentCount, comments, otherReferencedComments} =
+                        await getPostCommentsFromStart(context, {
+                            postId: item.post.id,
+                            afterCommentIndex: afterMessageIndex,
+                            beforeCommentIndex: beforeMessageIndex,
+                            limit,
+                        });
                     return {
                         messageCount: commentCount,
                         messages: comments,
+                        otherReferencedMessages: otherReferencedComments,
                     };
                 },
                 onLoadFromEnd: async ({afterMessageIndex, beforeMessageIndex, limit}) => {
-                    const {commentCount, comments} = await getPostCommentsFromEnd(context, {
-                        postId: item.post.id,
-                        afterCommentIndex: afterMessageIndex,
-                        beforeCommentIndex: beforeMessageIndex,
-                        limit,
-                    });
+                    const {commentCount, comments, otherReferencedComments} =
+                        await getPostCommentsFromEnd(context, {
+                            postId: item.post.id,
+                            afterCommentIndex: afterMessageIndex,
+                            beforeCommentIndex: beforeMessageIndex,
+                            limit,
+                        });
                     return {
                         messageCount: commentCount,
                         messages: comments,
+                        otherReferencedMessages: otherReferencedComments,
                     };
                 },
                 onFinishLoadingMessages: result => {
@@ -215,9 +219,7 @@ export function PostListView({
                     if (result.ok) {
                         setPosts(posts =>
                             posts.updatePostComments(item.post.id, postComments =>
-                                postComments
-                                    .setMessageCount(result.value.messageCount)
-                                    .setMessages(result.value.messages),
+                                postComments.loadMessages(result.value),
                             ),
                         );
                     } else {
@@ -307,19 +309,24 @@ export function PostListView({
                 const lastLoadedMessage = item.postComments.getLastLoadedMessageBefore(limit);
 
                 if (lastLoadedMessage === null || lastLoadedMessage.index < limit - 1) {
-                    const {commentCount, comments} = await getPostCommentsFromStart(context, {
-                        postId: item.post.id,
-                        afterCommentIndex: lastLoadedMessage?.index ?? null,
-                        beforeCommentIndex: null,
-                        limit:
-                            lastLoadedMessage !== null
-                                ? limit - (lastLoadedMessage.index + 1)
-                                : limit,
-                    });
+                    const {commentCount, comments, otherReferencedComments} =
+                        await getPostCommentsFromStart(context, {
+                            postId: item.post.id,
+                            afterCommentIndex: lastLoadedMessage?.index ?? null,
+                            beforeCommentIndex: null,
+                            limit:
+                                lastLoadedMessage !== null
+                                    ? limit - (lastLoadedMessage.index + 1)
+                                    : limit,
+                        });
 
                     setPosts(posts =>
                         posts.updatePostComments(item.post.id, postComments =>
-                            postComments.setMessageCount(commentCount).setMessages(comments),
+                            postComments.loadMessages({
+                                messageCount: commentCount,
+                                messages: comments,
+                                otherReferencedMessages: otherReferencedComments,
+                            }),
                         ),
                     );
                 }
@@ -346,6 +353,10 @@ export function PostListView({
     });
 
     const [editingPost, setEditingPost] = useState<PostModel | null>(null);
+
+    const [replyingToPostCommentIndexByPostId, setReplyingToPostCommentIndexByPostId] = useState<
+        ReadonlyMap<PostId, number>
+    >(new Map());
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {
@@ -512,7 +523,24 @@ export function PostListView({
                                     message={item.postComment}
                                     previousMessage={previousComment}
                                     nextMessage={nextComment}
+                                    messages={item.postComments}
                                     messageEditing={messageEditing}
+                                    onReplyToMessage={() => {
+                                        if (item.postComment.isOptimistic) return;
+                                        const postCommentIndex = item.postComment.index;
+
+                                        setReplyingToPostCommentIndexByPostId(
+                                            replyingToPostCommentIndexByPostId => {
+                                                const newReplyingToPostCommentIndexByPostId =
+                                                    new Map(replyingToPostCommentIndexByPostId);
+                                                newReplyingToPostCommentIndexByPostId.set(
+                                                    item.post.id,
+                                                    postCommentIndex,
+                                                );
+                                                return newReplyingToPostCommentIndexByPostId;
+                                            },
+                                        );
+                                    }}
                                     onDeleteMessage={async () => {
                                         const actions = actionsByPostIdRef.current.get(
                                             item.post.id,
@@ -552,7 +580,7 @@ export function PostListView({
                                     className={sprinkles({
                                         width: "full",
                                         paddingX: postListViewMargin,
-                                        overflowX: "hidden",
+                                        overflow: "hidden",
                                     })}
                                     style={{
                                         maxWidth: postViewMaxWidthWithMarginsRem,
@@ -660,6 +688,14 @@ export function PostListView({
                 // the effect if while scrolling the comment input is a layer on top of the post
                 // and when at the bottom of the post the comment input is inline.
                 case "PostCommentInput": {
+                    const replyingToPostCommentIndex = replyingToPostCommentIndexByPostId.get(
+                        item.post.id,
+                    );
+                    const replyingToPostComment =
+                        replyingToPostCommentIndex !== undefined
+                            ? item.postComments.getLoadedMessageIfExists(replyingToPostCommentIndex)
+                            : null;
+
                     // This is defined out here so that it doesn't re-rerender every time the
                     // `render()` function is called since it's referentially stable.
                     const inputNode = (
@@ -676,6 +712,18 @@ export function PostListView({
                             onUpdatePostComments={update =>
                                 setPosts(posts => posts.updatePostComments(item.post.id, update))
                             }
+                            replyingToPostComment={replyingToPostComment}
+                            onClearReplyingToPostComment={() => {
+                                setReplyingToPostCommentIndexByPostId(
+                                    replyingToPostCommentIndexByPostId => {
+                                        const newReplyingToPostCommentIndexByPostId = new Map(
+                                            replyingToPostCommentIndexByPostId,
+                                        );
+                                        newReplyingToPostCommentIndexByPostId.delete(item.post.id);
+                                        return newReplyingToPostCommentIndexByPostId;
+                                    },
+                                );
+                            }}
                         />
                     );
 
@@ -1069,7 +1117,13 @@ export function PostListView({
                     throw exhaustive(item);
             }
         },
-        [posts, hasAside, loadInitialPostComments, messageEditing],
+        [
+            posts,
+            hasAside,
+            loadInitialPostComments,
+            messageEditing,
+            replyingToPostCommentIndexByPostId,
+        ],
     );
 
     return (

@@ -15,7 +15,7 @@ import {Sprinkles, spinAnimationClassName, sprinkles} from "~/shared/styles/styl
 const ButtonForwardRef = forwardRef(Button);
 export {ButtonForwardRef as Button};
 
-type ButtonVariant = "accent" | "quiet";
+type ButtonVariant = "quiet" | "accent" | "accent-even-when-disabled";
 
 function Button(
     props: Omit<AriaButtonProps<"button">, "onPress"> & {
@@ -202,11 +202,28 @@ function Button(
     ) : null;
 
     const stylesByVariant: {[K in ButtonVariant]: Sprinkles} = {
-        quiet: {
-            backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
-            color: "grey-text",
-        },
-        accent: {
+        quiet: !isDisabled
+            ? {
+                  backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
+                  color: "grey-text",
+              }
+            : {
+                  backgroundColor: undefined,
+                  color: "grey-30",
+              },
+        accent: !isDisabled
+            ? {
+                  backgroundColor: "theme-40-const",
+                  color: "grey-0-const",
+              }
+            : {
+                  backgroundColor: "grey-5",
+                  color: "grey-30",
+              },
+        // We have the accent styles even when the button is disabled. Disabling makes
+        // the button not clickable or focusable but does not visually change the
+        // button. Useful for buttons we really want to accent.
+        "accent-even-when-disabled": {
             backgroundColor: "theme-40-const",
             color: "grey-0-const",
         },
@@ -219,15 +236,6 @@ function Button(
                 ref={useMergedRefs(foreignRef, localRef)}
                 className={sprinkles({
                     ...stylesByVariant[variant],
-
-                    // Override the styles in `stylesByVariant` but only if we are in one of
-                    // these states.
-                    ...(isDisabled
-                        ? {
-                              backgroundColor: variant !== "quiet" ? "grey-5" : undefined,
-                              color: "grey-30",
-                          }
-                        : {}),
 
                     position: "relative",
                     overflow: "hidden",

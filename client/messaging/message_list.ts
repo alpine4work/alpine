@@ -95,7 +95,7 @@ export class MessageList<Message extends MessageInterface> {
 
     /**
      * Get the message at the provided index. If we haven't loaded the message
-     * we'll return `isLoaded: false`. Throws if the index is out of bounds.
+     * we'll return `type: "Unloaded"`. Throws if the index is out of bounds.
      */
     public getMessage(index: number): MessageListItem<Message> {
         if (!Number.isSafeInteger(index))
@@ -111,6 +111,16 @@ export class MessageList<Message extends MessageInterface> {
 
         const message = this._messages.get(index);
         return message ? {type: "Loaded", message} : {type: "Unloaded"};
+    }
+
+    /**
+     * Get the message at the provided index but only if it is loaded. Otherwise we
+     * return null. Throws if the index is out of bounds.
+     */
+    public getLoadedMessageIfExists(index: number): Message | null {
+        const message = this.getMessage(index);
+        if (message.type !== "Loaded") return null;
+        return message.message;
     }
 
     /**
@@ -178,7 +188,7 @@ export class MessageList<Message extends MessageInterface> {
      *
      * Excludes message count from optimistic messages.
      */
-    public setMessageCount(messageCount: number): MessageList<Message> {
+    private _setMessageCount(messageCount: number): MessageList<Message> {
         assert(Number.isSafeInteger(messageCount), "Message count is not an integer");
         assert(messageCount >= 0, "Message count should be positive");
 
@@ -186,6 +196,7 @@ export class MessageList<Message extends MessageInterface> {
         messageCount = Math.max(messageCount, this._messageCount);
 
         if (messageCount === this._messageCount) return this;
+
         return new MessageList({
             messageCount,
             messages: this._messages,
@@ -198,7 +209,9 @@ export class MessageList<Message extends MessageInterface> {
      * than our message count then we will extend the message count. If the message
      * with the same index already exists then it will be replaced.
      */
-    public setMessages(newMessages: ReadonlyArray<Message>): MessageList<Message> {
+    private _setMessages(newMessages: ReadonlyArray<Message>): MessageList<Message> {
+        if (newMessages.length === 0) return this;
+
         let messageCount = this._messageCount;
         let messages = this._messages;
         let optimisticMessages = this._optimisticMessages;
@@ -232,12 +245,34 @@ export class MessageList<Message extends MessageInterface> {
     }
 
     /**
-     * Sets a message in the list at its index. If the message index is greater
+     * Load messages from a server message query endpoint into our message list.
+     * Message query endpoints are expected to:
+     *
+     * - Return the count of all messages in the list
+     * - Return a list of consecutive loaded messages
+     * - Return a list of messages referenced by the main `messages` list
+     */
+    public loadMessages({
+        messageCount,
+        messages,
+        otherReferencedMessages,
+    }: {
+        messageCount: number;
+        messages: ReadonlyArray<Message>;
+        otherReferencedMessages: ReadonlyArray<Message>;
+    }): MessageList<Message> {
+        return this._setMessageCount(messageCount)
+            ._setMessages(messages)
+            ._setMessages(otherReferencedMessages);
+    }
+
+    /**
+     * Adds a message in the list at its index. If the message index is greater
      * than our message count then we will extend the message count. If the message
      * with the same index already exists then it will be replaced.
      */
-    public setMessage(message: Message): MessageList<Message> {
-        return this.setMessages([message]);
+    public addMessage(message: Message): MessageList<Message> {
+        return this._setMessages([message]);
     }
 
     /**

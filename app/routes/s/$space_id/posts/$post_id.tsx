@@ -15,6 +15,7 @@ import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
 const schema = Schema.object({
     post: PostModel.schema(),
     postComments: Schema.array(PostCommentModel.schema()),
+    otherReferencedPostComments: Schema.array(PostCommentModel.schema()),
 });
 
 export async function loader({params, context}: LoaderArgs) {
@@ -28,7 +29,7 @@ export async function loader({params, context}: LoaderArgs) {
     });
     if (!postResult) throw new NotFoundError("Post not found");
 
-    const {post, postComments} = postResult;
+    const {post, postComments, otherReferencedPostComments} = postResult;
 
     const propagateEventData: TracerEventData = {
         context: {
@@ -37,11 +38,15 @@ export async function loader({params, context}: LoaderArgs) {
         },
     };
 
-    return jsonWithSchema(schema, {post, postComments}, {propagateEventData});
+    return jsonWithSchema(
+        schema,
+        {post, postComments, otherReferencedPostComments},
+        {propagateEventData},
+    );
 }
 
 export default function PostRoute() {
-    const {post, postComments} = useLoaderDataWithSchema(schema);
+    const {post, postComments, otherReferencedPostComments} = useLoaderDataWithSchema(schema);
 
     return (
         <main className={sprinkles({height: "full"})}>
@@ -49,7 +54,10 @@ export default function PostRoute() {
                 initialPosts={() =>
                     PostList.empty.insertPostAtEnd(post, {
                         arePostCommentsOpen: true,
-                        initialPostComments: postComments,
+                        initialLoadPostComments: {
+                            comments: postComments,
+                            otherReferencedComments: otherReferencedPostComments,
+                        },
                     })
                 }
             />

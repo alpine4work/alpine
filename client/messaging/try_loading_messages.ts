@@ -31,6 +31,7 @@ export function tryLoadingMessages<Message extends MessageInterface>({
     }) => Promise<{
         messageCount: number;
         messages: ReadonlyArray<Message>;
+        otherReferencedMessages: ReadonlyArray<Message>;
     }>;
     onLoadFromEnd: (options: {
         limit: number;
@@ -39,12 +40,14 @@ export function tryLoadingMessages<Message extends MessageInterface>({
     }) => Promise<{
         messageCount: number;
         messages: ReadonlyArray<Message>;
+        otherReferencedMessages: ReadonlyArray<Message>;
     }>;
     onFinishLoadingMessages: (
         result: Result<
             {
                 messageCount: number;
                 messages: ReadonlyArray<Message>;
+                otherReferencedMessages: ReadonlyArray<Message>;
             },
             unknown
         >,

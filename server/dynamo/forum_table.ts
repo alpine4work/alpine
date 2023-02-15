@@ -15,6 +15,7 @@ import {PostContent, PostContentSchema} from "~/shared/content/post_content_sche
 import {
     DataLossError,
     FailedPreconditionError,
+    InternalError,
     NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error";
@@ -23,6 +24,9 @@ import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_al
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable";
+import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
+import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable";
@@ -816,6 +820,7 @@ export async function getPostAndCommentsFromStart(
 ): Promise<{
     post: PostModel;
     postComments: Array<PostCommentModel>;
+    otherReferencedPostComments: Array<PostCommentModel>;
 } | null> {
     // Start querying before authorization so our query runs in parallel
     // with authorization.
@@ -841,6 +846,9 @@ export async function getPostAndCommentsFromStart(
         postCommentPromises: Array<Promise<PostCommentModel>>;
     } | null = null;
 
+    const commentIndexes = new Set<number>();
+    const parentCommentIndexes = new Set<number>();
+
     for await (const item of queryIterable) {
         switch (item.sortRangeType) {
             case "Attributes": {
@@ -859,6 +867,11 @@ export async function getPostAndCommentsFromStart(
                 if (state === null)
                     throw new DataLossError("Found post comment item but no post attributes item");
 
+                commentIndexes.add(item.commentIndex);
+
+                if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null)
+                    parentCommentIndexes.add(item.payload.parentMessageIndex);
+
                 state.postCommentPromises.push(
                     createPostCommentModelFromItem(context, state.spaceId, item),
                 );
@@ -870,10 +883,28 @@ export async function getPostAndCommentsFromStart(
     }
 
     if (!state) return null;
+    const {spaceId} = state;
 
-    const [post, postComments] = await runAllPromises([
+    const [post, postComments, otherReferencedPostComments] = await runAllPromises([
         state.postPromise,
         runAllPromises(state.postCommentPromises),
+        runAllPromises(
+            filterMapIterable(parentCommentIndexes, parentCommentIndex => {
+                if (commentIndexes.has(parentCommentIndex)) return null;
+
+                return (async () => {
+                    const commentItem = await ForumTable.getItem(context, {
+                        partitionType: "Post",
+                        sortRangeType: "Comments",
+                        postId,
+                        commentIndex: parentCommentIndex,
+                    });
+                    if (!commentItem) throw new InternalError("Parent comment not found");
+
+                    return createPostCommentModelFromItem(context, spaceId, commentItem);
+                })();
+            }),
+        ),
     ]);
 
     const lastPostCommentIndex =
@@ -887,6 +918,7 @@ export async function getPostAndCommentsFromStart(
                 ? post.clone({commentCount: lastPostCommentIndex + 1})
                 : post,
         postComments,
+        otherReferencedPostComments,
     };
 }
 
@@ -909,6 +941,7 @@ export async function getPostCommentsFromStart(
 ): Promise<{
     commentCount: number;
     comments: Array<PostCommentModel>;
+    otherReferencedComments: Array<PostCommentModel>;
 }> {
     // Start querying before authorization so our query runs in parallel
     // with authorization.
@@ -946,9 +979,40 @@ export async function getPostCommentsFromStart(
 
     await authorizeChannelAccess(context, postItem.channelId);
 
-    const comments = await parallelMapAsyncIterableToArray(queryIterable, item =>
-        createPostCommentModelFromItem(context, postItem.spaceId, item),
+    const commentIndexes = new Set<number>();
+    const parentCommentIndexes = new Set<number>();
+
+    const commentPromises = await arrayFromAsyncIterable(
+        mapAsyncIterableIterator(queryIterable, item => {
+            commentIndexes.add(item.commentIndex);
+
+            if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null)
+                parentCommentIndexes.add(item.payload.parentMessageIndex);
+
+            return createPostCommentModelFromItem(context, postItem.spaceId, item);
+        }),
     );
+
+    const [comments, otherReferencedComments] = await runAllPromises([
+        runAllPromises(commentPromises),
+        runAllPromises(
+            filterMapIterable(parentCommentIndexes, parentCommentIndex => {
+                if (commentIndexes.has(parentCommentIndex)) return null;
+
+                return (async () => {
+                    const commentItem = await ForumTable.getItem(context, {
+                        partitionType: "Post",
+                        sortRangeType: "Comments",
+                        postId,
+                        commentIndex: parentCommentIndex,
+                    });
+                    if (!commentItem) throw new InternalError("Parent comment not found");
+
+                    return createPostCommentModelFromItem(context, postItem.spaceId, commentItem);
+                })();
+            }),
+        ),
+    ]);
 
     const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
 
@@ -964,6 +1028,7 @@ export async function getPostCommentsFromStart(
             lastCommentIndex + 1,
         ),
         comments,
+        otherReferencedComments,
     };
 }
 
@@ -986,6 +1051,7 @@ export async function getPostCommentsFromEnd(
 ): Promise<{
     commentCount: number;
     comments: Array<PostCommentModel>;
+    otherReferencedComments: Array<PostCommentModel>;
 }> {
     // Start querying before authorization so our query runs in parallel
     // with authorization.
@@ -1030,12 +1096,44 @@ export async function getPostCommentsFromEnd(
 
     await authorizeChannelAccess(context, postItem.channelId);
 
-    const comments = await parallelMapAsyncIterableToArray(queryIterable, item =>
-        createPostCommentModelFromItem(context, postItem.spaceId, item),
+    const commentIndexes = new Set<number>();
+    const parentCommentIndexes = new Set<number>();
+
+    const commentPromises = await arrayFromAsyncIterable(
+        mapAsyncIterableIterator(queryIterable, item => {
+            commentIndexes.add(item.commentIndex);
+
+            if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null)
+                parentCommentIndexes.add(item.payload.parentMessageIndex);
+
+            return createPostCommentModelFromItem(context, postItem.spaceId, item);
+        }),
     );
+
+    const [comments, otherReferencedComments] = await runAllPromises([
+        runAllPromises(commentPromises),
+        runAllPromises(
+            filterMapIterable(parentCommentIndexes, parentCommentIndex => {
+                if (commentIndexes.has(parentCommentIndex)) return null;
+
+                return (async () => {
+                    const commentItem = await ForumTable.getItem(context, {
+                        partitionType: "Post",
+                        sortRangeType: "Comments",
+                        postId,
+                        commentIndex: parentCommentIndex,
+                    });
+                    if (!commentItem) throw new InternalError("Parent comment not found");
+
+                    return createPostCommentModelFromItem(context, postItem.spaceId, commentItem);
+                })();
+            }),
+        ),
+    ]);
 
     // We queried in descending order so put comments back in the right order.
     comments.reverse();
+    otherReferencedComments.reverse();
 
     const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
 
@@ -1051,5 +1149,6 @@ export async function getPostCommentsFromEnd(
             lastCommentIndex + 1,
         ),
         comments,
+        otherReferencedComments,
     };
 }

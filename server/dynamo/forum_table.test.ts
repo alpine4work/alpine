@@ -1163,15 +1163,19 @@ testMessagingImplementation<PostId>(context, {
             beforeMessageIndex: beforeCommentIndex,
         },
     ) {
-        const {commentCount, comments} = await getPostCommentsFromStart(context, {
-            postId,
-            limit,
-            afterCommentIndex,
-            beforeCommentIndex,
-        });
+        const {commentCount, comments, otherReferencedComments} = await getPostCommentsFromStart(
+            context,
+            {
+                postId,
+                limit,
+                afterCommentIndex,
+                beforeCommentIndex,
+            },
+        );
         return {
             messageCount: commentCount,
             messages: comments,
+            otherReferencedMessages: otherReferencedComments,
         };
     },
     async getMessagesFromEnd(
@@ -1183,15 +1187,19 @@ testMessagingImplementation<PostId>(context, {
             beforeMessageIndex: beforeCommentIndex,
         },
     ) {
-        const {commentCount, comments} = await getPostCommentsFromEnd(context, {
-            postId,
-            limit,
-            afterCommentIndex,
-            beforeCommentIndex,
-        });
+        const {commentCount, comments, otherReferencedComments} = await getPostCommentsFromEnd(
+            context,
+            {
+                postId,
+                limit,
+                afterCommentIndex,
+                beforeCommentIndex,
+            },
+        );
         return {
             messageCount: commentCount,
             messages: comments,
+            otherReferencedMessages: otherReferencedComments,
         };
     },
 });

@@ -25,6 +25,7 @@ export const getSimpleChatMessagesFromStart = defineRpc({
     output: {
         messageCount: Schema.integer,
         messages: Schema.array(SimpleChatMessageModel.schema()),
+        otherReferencedMessages: Schema.array(SimpleChatMessageModel.schema()),
     },
 });
 
@@ -39,5 +40,6 @@ export const getSimpleChatMessagesFromEnd = defineRpc({
     output: {
         messageCount: Schema.integer,
         messages: Schema.array(SimpleChatMessageModel.schema()),
+        otherReferencedMessages: Schema.array(SimpleChatMessageModel.schema()),
     },
 });
