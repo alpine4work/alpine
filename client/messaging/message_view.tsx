@@ -27,7 +27,6 @@ import {
     OptimisticMessageInterface,
 } from "~/shared/models/message_interface";
 import {
-    borderRadius,
     colorSchemeVars,
     contentSchemaStyles,
     contentViewStyles,
@@ -194,10 +193,9 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
                     display: "inline-block",
                     paddingX: messageViewBubblePaddingX,
                     paddingY: messageViewBubblePaddingY,
-                    borderTopLeftRadius:
-                        !shouldMergeWithPreviousMessage && !parentMessage
-                            ? messageViewBubbleBorderRadius
-                            : messageViewBubbleMergedBorderRadius,
+                    borderTopLeftRadius: !shouldMergeWithPreviousMessage
+                        ? messageViewBubbleBorderRadius
+                        : messageViewBubbleMergedBorderRadius,
                     borderTopRightRadius: messageViewBubbleBorderRadius,
                     borderBottomLeftRadius: !shouldMergeWithNextMessage
                         ? messageViewBubbleBorderRadius
@@ -212,13 +210,7 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
                 />
             </div>
         );
-    }, [
-        message.payload,
-        navigate,
-        parentMessage,
-        shouldMergeWithNextMessage,
-        shouldMergeWithPreviousMessage,
-    ]);
+    }, [message.payload, navigate, shouldMergeWithNextMessage, shouldMergeWithPreviousMessage]);
 
     const deletedPayloadNode = useMemo(() => {
         if (message.payload.type !== "Deleted") return null;
@@ -278,14 +270,6 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
 
         const scaledHeight = `${Math.round(parseRemLengthNumber(height) * scale * 16) / 16}rem`;
 
-        // Scale up our border radius so visually it looks like the `base` size even
-        // though we've scaled the element down.
-        const scaledMergedBorderRadius = `${
-            parseRemLengthNumber(borderRadius[messageViewBubbleMergedBorderRadius]) / scale
-        }rem`;
-
-        const opacity = 0.5;
-
         const truncatedContent =
             parentMessage.payload.type === "Content"
                 ? parentMessage.payload.content.cut(
@@ -314,10 +298,6 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
 
         return (
             <div
-                className={sprinkles({
-                    marginBottom: "0.5",
-                    overflow: "hidden",
-                })}
                 style={{
                     height: scaledHeight,
                     paddingLeft: messageBubbleMarginLeft,
@@ -330,22 +310,34 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
             >
                 <div
                     className={sprinkles({
-                        backgroundColor: "grey-5",
+                        position: "relative",
+                        zIndex: "0",
                         maxWidth: "full",
                         overflow: "hidden",
                         display: "inline-block",
                         paddingX: messageViewBubblePaddingX,
-                        paddingY: messageViewBubblePaddingY,
-                        borderRadius: messageViewBubbleBorderRadius,
+                        paddingTop: messageViewBubblePaddingY,
+                        paddingBottom: "4",
                     })}
                     style={{
-                        height,
-                        opacity,
+                        opacity: 0.6,
                         transform: `scale(${scale})`,
                         transformOrigin: "0% 0% 0",
-                        borderBottomLeftRadius: scaledMergedBorderRadius,
                     }}
                 >
+                    <div
+                        className={sprinkles({
+                            position: "absolute",
+                            zIndex: "-10",
+                            inset: "0",
+                            borderRadius: messageViewBubbleBorderRadius,
+                            borderBottomLeftRadius: "none",
+                            backgroundColor: "grey-5",
+                        })}
+                        style={{
+                            opacity: 0.7,
+                        }}
+                    />
                     <div className={sprinkles({overflow: "hidden", pointerEvents: "none"})}>
                         <ContentView
                             isInert={true}
@@ -369,7 +361,8 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
                             className={sprinkles({
                                 fontSize: "50",
                                 fontStyle: "truncate",
-                                paddingY: "0.5",
+                                paddingTop: "0.5",
+                                paddingBottom: parentMessage === null ? "0.5" : "1",
                                 paddingRight: "3",
                                 color: "grey-50",
                                 display: "flex",
