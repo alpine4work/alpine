@@ -157,6 +157,29 @@ export class PostList {
     }
 
     /**
+     * Get the total number of items before this post id.
+     *
+     * This function is O(posts)! Don't use in performance critical paths.
+     */
+    public getItemCountBeforePostId(postId: PostId): number {
+        const orderKey = this._orderKeyByPostId.get(postId);
+        if (!orderKey) throw new InternalError("Post id not found");
+
+        let itemCount = this._channelHeader ? 1 : 0;
+
+        for (const [otherOrderKey, otherPost] of this._postByOrderKey.entriesBefore(orderKey)) {
+            itemCount += 1;
+
+            if (this._openPostCommentPostOrderKeys.has(otherOrderKey)) {
+                itemCount += otherPost.postComments.getMessageCount();
+                itemCount += 1;
+            }
+        }
+
+        return itemCount;
+    }
+
+    /**
      * Get the post this index is referring to. Throws an error if the index is out
      * of range. Every item in this list is associated with a post.
      */

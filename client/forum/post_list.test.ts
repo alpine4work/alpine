@@ -1,5 +1,6 @@
 import {PostList, PostListItem} from "~/client/forum/post_list";
 import {MessageList} from "~/client/messaging/message_list";
+import {emptyMessageContent} from "~/shared/content/message_content_schema";
 import {
     assertPostContent,
     PostContentProsemirrorSchema as schema,
@@ -10,6 +11,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {generateId} from "~/shared/id/id";
 import {ChannelId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
+import {ChannelModel} from "~/shared/models/channel_model";
 import {PostModel} from "~/shared/models/post_model";
 
 const spaceId = generateId<SpaceId>();
@@ -54,7 +56,7 @@ function getItems(list: PostList) {
         items[index] = list.getItem(index);
     }
 
-    return items.map((item: {[key: string]: unknown} | null) => {
+    return items.map((item: {[key: string]: unknown} | null, index) => {
         const {
             postOrderKey,
             postComments,
@@ -62,6 +64,11 @@ function getItems(list: PostList) {
             postCommentInputItemIndex,
             ...remainingItem
         } = assertExists(item);
+
+        if (remainingItem.type === "PostContent") {
+            expect(list.getItemCountBeforePostId((remainingItem.post as any).id)).toEqual(index);
+        }
+
         return remainingItem;
     });
 }
@@ -1032,6 +1039,258 @@ test("can update the post comments list", () => {
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 4},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 5},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 6},
+        {type: "PostCommentInput", post: post3},
+        {type: "PostContent", post: post4, arePostCommentsOpen: false},
+        {type: "PostContent", post: post5, arePostCommentsOpen: false},
+    ]);
+});
+
+test("can add a channel header at the beginning", () => {
+    const channel = new ChannelModel({
+        id: channelId,
+        spaceId,
+        createdTime,
+        name: "Test",
+        description: emptyMessageContent,
+    });
+
+    let list = PostList.empty;
+
+    const post1 = new PostModel({
+        id: generateId(),
+        spaceId,
+        channelId,
+        createdTime,
+        author: account1,
+        content: testContent1,
+        contentUpdatedTime: null,
+        commentCount: 5,
+        commentAuthorCount: 1,
+        previewCommentAuthors: [account1],
+    });
+
+    const post2 = new PostModel({
+        id: generateId(),
+        spaceId,
+        channelId,
+        createdTime,
+        author: account2,
+        content: testContent2,
+        contentUpdatedTime: null,
+        commentCount: 0,
+        commentAuthorCount: 0,
+        previewCommentAuthors: [],
+    });
+
+    const post3 = new PostModel({
+        id: generateId(),
+        spaceId,
+        channelId,
+        createdTime,
+        author: account3,
+        content: testContent3,
+        contentUpdatedTime: null,
+        commentCount: 5,
+        commentAuthorCount: 1,
+        previewCommentAuthors: [account1],
+    });
+
+    const post4 = new PostModel({
+        id: generateId(),
+        spaceId,
+        channelId,
+        createdTime,
+        author: account4,
+        content: testContent4,
+        contentUpdatedTime: null,
+        commentCount: 1,
+        commentAuthorCount: 1,
+        previewCommentAuthors: [account1],
+    });
+
+    const post5 = new PostModel({
+        id: generateId(),
+        spaceId,
+        channelId,
+        createdTime,
+        author: account5,
+        content: testContent5,
+        contentUpdatedTime: null,
+        commentCount: 0,
+        commentAuthorCount: 0,
+        previewCommentAuthors: [],
+    });
+
+    list = list.insertPostAtEnd(post1);
+    list = list.insertPostAtEnd(post2);
+    list = list.insertPostAtEnd(post3, {arePostCommentsOpen: true});
+    list = list.insertPostAtEnd(post4);
+    list = list.insertPostAtEnd(post5);
+
+    expect(getItems(list)).toEqual([
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 3},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 4},
+        {type: "PostCommentInput", post: post3},
+        {type: "PostContent", post: post4, arePostCommentsOpen: false},
+        {type: "PostContent", post: post5, arePostCommentsOpen: false},
+    ]);
+
+    list = list.setChannelHeader({channel});
+
+    expect(getItems(list)).toEqual([
+        {type: "ChannelHeader", channelHeader: {channel}},
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 3},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 4},
+        {type: "PostCommentInput", post: post3},
+        {type: "PostContent", post: post4, arePostCommentsOpen: false},
+        {type: "PostContent", post: post5, arePostCommentsOpen: false},
+    ]);
+
+    list = list.setChannelHeader(null);
+
+    expect(getItems(list)).toEqual([
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 3},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 4},
+        {type: "PostCommentInput", post: post3},
+        {type: "PostContent", post: post4, arePostCommentsOpen: false},
+        {type: "PostContent", post: post5, arePostCommentsOpen: false},
+    ]);
+});
+
+test("can add an unloaded posts section at the end", () => {
+    let list = PostList.empty;
+
+    const post1 = new PostModel({
+        id: generateId(),
+        spaceId,
+        channelId,
+        createdTime,
+        author: account1,
+        content: testContent1,
+        contentUpdatedTime: null,
+        commentCount: 5,
+        commentAuthorCount: 1,
+        previewCommentAuthors: [account1],
+    });
+
+    const post2 = new PostModel({
+        id: generateId(),
+        spaceId,
+        channelId,
+        createdTime,
+        author: account2,
+        content: testContent2,
+        contentUpdatedTime: null,
+        commentCount: 0,
+        commentAuthorCount: 0,
+        previewCommentAuthors: [],
+    });
+
+    const post3 = new PostModel({
+        id: generateId(),
+        spaceId,
+        channelId,
+        createdTime,
+        author: account3,
+        content: testContent3,
+        contentUpdatedTime: null,
+        commentCount: 5,
+        commentAuthorCount: 1,
+        previewCommentAuthors: [account1],
+    });
+
+    const post4 = new PostModel({
+        id: generateId(),
+        spaceId,
+        channelId,
+        createdTime,
+        author: account4,
+        content: testContent4,
+        contentUpdatedTime: null,
+        commentCount: 1,
+        commentAuthorCount: 1,
+        previewCommentAuthors: [account1],
+    });
+
+    const post5 = new PostModel({
+        id: generateId(),
+        spaceId,
+        channelId,
+        createdTime,
+        author: account5,
+        content: testContent5,
+        contentUpdatedTime: null,
+        commentCount: 0,
+        commentAuthorCount: 0,
+        previewCommentAuthors: [],
+    });
+
+    list = list.insertPostAtEnd(post1);
+    list = list.insertPostAtEnd(post2);
+    list = list.insertPostAtEnd(post3, {arePostCommentsOpen: true});
+    list = list.insertPostAtEnd(post4);
+    list = list.insertPostAtEnd(post5);
+
+    expect(getItems(list)).toEqual([
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 3},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 4},
+        {type: "PostCommentInput", post: post3},
+        {type: "PostContent", post: post4, arePostCommentsOpen: false},
+        {type: "PostContent", post: post5, arePostCommentsOpen: false},
+    ]);
+
+    list = list.setHasMorePosts(true);
+
+    expect(getItems(list)).toEqual([
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 3},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 4},
+        {type: "PostCommentInput", post: post3},
+        {type: "PostContent", post: post4, arePostCommentsOpen: false},
+        {type: "PostContent", post: post5, arePostCommentsOpen: false},
+        {type: "MoreUnloadedPosts"},
+    ]);
+
+    list = list.setHasMorePosts(false);
+
+    expect(getItems(list)).toEqual([
+        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 3},
+        {type: "UnloadedPostComment", post: post3, postCommentIndex: 4},
         {type: "PostCommentInput", post: post3},
         {type: "PostContent", post: post4, arePostCommentsOpen: false},
         {type: "PostContent", post: post5, arePostCommentsOpen: false},

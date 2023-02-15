@@ -14,7 +14,7 @@ import {
     useRef,
     useState,
 } from "react";
-import {useRemPx} from "~/client/design/helpers/use_rem_px";
+import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants";
 import {isMobileWebKit} from "~/client/helpers/is_mobile_web_kit";
@@ -36,6 +36,7 @@ import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_aft
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
 import {safe} from "~/shared/helpers/string/safe_string";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit";
@@ -140,7 +141,7 @@ export type VirtualizedScrollViewItem =
               offset: number;
               height: number;
               shouldRenderWithRelativePositioning: boolean;
-              getIndexPosition: (index: number) => {offset: number; height: number};
+              getPositionByIndex: (index: number) => {offset: number; height: number};
               isScrolling: boolean;
           }) => ReactElement;
       });
@@ -150,11 +151,18 @@ export type VirtualizedScrollViewRef = {
      * Get the height of the scroll view.
      */
     getHeight(): number;
+
     /**
      * Return the current rendered range. This is the same value we pass into
      * `onRenderedRangeChange`.
      */
     getRenderedRange(): {startIndex: number; endIndex: number} | null;
+
+    /**
+     * Scroll so the provided index is visible. Will throw an error if the index is
+     * out of bounds.
+     */
+    scrollToIndex(index: number): void;
 };
 
 const VirtualizedScrollViewForwardRef = forwardRef(VirtualizedScrollView);
@@ -349,15 +357,6 @@ function VirtualizedScrollView(
     const scrollRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
 
-    useImperativeHandle(
-        ref,
-        (): VirtualizedScrollViewRef => ({
-            getHeight: () => assertExists(scrollRef.current).clientHeight,
-            getRenderedRange: () => renderedRangeRef.current,
-        }),
-        [],
-    );
-
     const {scriptElement: pinToScriptElement} = useScrollViewPinTo(scrollRef, contentRef, {
         pinTo,
         disablePinHeuristics,
@@ -470,7 +469,7 @@ function VirtualizedScrollView(
                 key: item.key,
                 minHeight: item.minHeight,
                 renderAdditionalItemIndexes: item.renderAdditionalItemIndexes,
-                render: ({offset, height, getIndexPosition}) => {
+                render: ({offset, height, getPositionByIndex}) => {
                     // Listen to the element's height with a resize observer so we can correctly
                     // position items. The resize observer will notify us whenever the height
                     // changes.
@@ -562,7 +561,7 @@ function VirtualizedScrollView(
                             offset,
                             height,
                             shouldRenderWithRelativePositioning,
-                            getIndexPosition,
+                            getPositionByIndex,
                             isScrolling: actualState.isScrolling,
                         });
                         return cloneElement(element, {key: item.key});
@@ -809,6 +808,66 @@ function VirtualizedScrollView(
         renderedRangeRef.current = range;
         onRenderedRangeChange(range);
     }, [onRenderedRangeChange, renderedRange?.endIndex, renderedRange?.startIndex]);
+
+    useImperativeHandle(
+        ref,
+        (): VirtualizedScrollViewRef => ({
+            getHeight: () => assertExists(scrollRef.current).clientHeight,
+            getRenderedRange: () => renderedRangeRef.current,
+            scrollToIndex: index => {
+                const scrollElement = assertExists(scrollRef.current);
+                const scrollTop = scrollElement.scrollTop;
+                const viewHeight = scrollElement.clientHeight;
+
+                const {offset, height} = state.getPositionByIndex(index);
+
+                // If the item is already partially visible, we make sure it is fully visible
+                // and don't scroll anymore.
+                if (
+                    areRangesOverlapping(offset, offset + height, scrollTop, scrollTop + viewHeight)
+                ) {
+                    // If the item is bigger than the screen, don't change scroll position.
+                    if (offset < scrollTop && offset + height > scrollTop + viewHeight) {
+                        return;
+                    }
+
+                    if (offset < scrollTop) {
+                        scrollElement.scrollTop = offset - getRemPxWithoutListening();
+                        return;
+                    }
+
+                    if (offset + height > scrollTop + viewHeight) {
+                        scrollElement.scrollTop =
+                            offset + height - viewHeight + getRemPxWithoutListening();
+                        return;
+                    }
+
+                    return;
+                }
+
+                // Ideally we scroll the item one fourth down the screen so it's near the top
+                // but there is some context surrounding it.
+                const idealScrollTop = Math.max(0, offset - viewHeight / 5);
+
+                const scrollBottomLimit = offset + height + viewHeight / 5;
+                const scrollBottomLimitDifferenceFromIdealScrollBottom =
+                    scrollBottomLimit - (idealScrollTop + viewHeight);
+
+                // Push the ideal scroll top down if the scroll button limit would not be
+                // visible with the ideal scroll top. We want the item centered which is why we
+                // divide the difference by two.
+                //
+                // The top of the item must be visible so don't let the scroll top go past the
+                // item offset.
+                scrollElement.scrollTop = Math.min(
+                    offset,
+                    idealScrollTop +
+                        Math.max(0, scrollBottomLimitDifferenceFromIdealScrollBottom / 2),
+                );
+            },
+        }),
+        [state],
+    );
 
     return (
         <>

@@ -213,8 +213,23 @@ export class ImmutableMap<Key extends string | number, Value> implements Readonl
     }
 
     /**
+     * Returns a new iterator of entries in the map before the provided key not
+     * including the key.
+     *
+     * Iterates in reverse key order, not insertion order.
+     */
+    public *entriesBefore(beforeKey: Key): IterableIterator<[Key, Value]> {
+        const iterator = this._tree.lt(beforeKey);
+
+        while (iterator.valid) {
+            yield [iterator.key!, iterator.value!];
+            iterator.prev();
+        }
+    }
+
+    /**
      * Returns a new iterator of entries in the map after the provided key not
-     * included the key.
+     * including the key.
      *
      * Iterates in key order, not insertion order.
      */

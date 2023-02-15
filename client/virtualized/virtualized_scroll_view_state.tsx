@@ -1289,7 +1289,7 @@ export class VirtualizedScrollViewState {
             render: (props: {
                 offset: number;
                 height: number;
-                getIndexPosition: (index: number) => {offset: number; height: number};
+                getPositionByIndex: (index: number) => {offset: number; height: number};
             }) => ReactNode;
         };
     }): {
@@ -1318,7 +1318,7 @@ export class VirtualizedScrollViewState {
                 render: (props: {
                     offset: number;
                     height: number;
-                    getIndexPosition: (index: number) => {offset: number; height: number};
+                    getPositionByIndex: (index: number) => {offset: number; height: number};
                 }) => ReactNode;
             };
         },
@@ -1449,25 +1449,6 @@ export class VirtualizedScrollViewState {
         let offset = bufferedHeightBeforeChildren;
         const renderAdditionalItemIndexes = new Set<number>();
 
-        const getIndexPosition = (index: number) => {
-            const {iterator, nodeIndex} = state._getNodeAtIndex(index);
-            const node = assertExists(iterator.node);
-            if (node.value.type === "Item") {
-                assert(nodeIndex === 0);
-                return {
-                    offset: state._getPreviousContentHeight(iterator),
-                    height: node.value.height,
-                };
-            } else {
-                return {
-                    offset:
-                        state._getPreviousContentHeight(iterator) +
-                        nodeIndex * state._bufferedItemHeight,
-                    height: state._bufferedItemHeight,
-                };
-            }
-        };
-
         while (iterator.node && iterator.node.key <= state._renderedRange!.endOrderKey) {
             const node = iterator.node;
             assert(node.value.type === "Item", "Entries within rendered range must be items");
@@ -1480,10 +1461,12 @@ export class VirtualizedScrollViewState {
                     ? node.value.height
                     : originalState._getItemHeightIfExists(item.key) ?? item.minHeight;
 
+            const currentState = state;
+
             const renderedItem = item.render({
                 offset,
                 height: itemHeight,
-                getIndexPosition: searchIndex => {
+                getPositionByIndex: searchIndex => {
                     // NOTE(calebmer): We do not allow this because we are not done laying out items
                     // after this one. We could implement this by laying out all items first then
                     // calling `render()`.
@@ -1492,7 +1475,7 @@ export class VirtualizedScrollViewState {
                             "Can not get the offset for an index after the item index",
                         );
 
-                    return getIndexPosition(searchIndex);
+                    return currentState.getPositionByIndex(searchIndex);
                 },
             });
 
@@ -1636,10 +1619,12 @@ export class VirtualizedScrollViewState {
                     height = itemHeight;
                 }
 
+                const currentState = state;
+
                 const renderedItem = item.render({
                     offset,
                     height,
-                    getIndexPosition: searchIndex => {
+                    getPositionByIndex: searchIndex => {
                         // NOTE(calebmer): We do not allow this because we are not done laying out items
                         // after this one. We could implement this by laying out all items first then
                         // calling `render()`.
@@ -1648,7 +1633,7 @@ export class VirtualizedScrollViewState {
                                 "Can not get the offset for an index after the item index",
                             );
 
-                        return getIndexPosition(searchIndex);
+                        return currentState.getPositionByIndex(searchIndex);
                     },
                 });
 
@@ -1849,6 +1834,31 @@ export class VirtualizedScrollViewState {
             iterator,
             nodeIndex: searchResult.nodeIndex,
         };
+    }
+
+    /**
+     * Get the position of an item at the provided index. If the index is out of
+     * bounds then we throw an error.
+     */
+    public getPositionByIndex(index: number): {
+        offset: number;
+        height: number;
+    } {
+        const {iterator, nodeIndex} = this._getNodeAtIndex(index);
+        const node = assertExists(iterator.node);
+        if (node.value.type === "Item") {
+            assert(nodeIndex === 0);
+            return {
+                offset: this._getPreviousContentHeight(iterator),
+                height: node.value.height,
+            };
+        } else {
+            return {
+                offset:
+                    this._getPreviousContentHeight(iterator) + nodeIndex * this._bufferedItemHeight,
+                height: this._bufferedItemHeight,
+            };
+        }
     }
 }
 

@@ -346,8 +346,21 @@ export function PostListView({
         },
     );
 
+    // Post realtime is managed by the `usePostRealtime()` hook in the
+    // `<PostCommentInput>` component since the `<PostCommentInput>` component is
+    // always mounted when the post's comments are open. Since we need realtime
+    // actions in every part of the post we have `usePostRealtime()` stash actions
+    // in this ref so they can be called elsewhere.
     const actionsByPostIdRef = useRef(new Map<PostId, PostRealtimeActions>());
 
+    // Manages the editable message.
+    //
+    // This is at the post list level because:
+    //
+    // 1. If a message is scrolled out of the virtualization window we still want
+    //    it to be editable so it shouldn't lose state.
+    //
+    // 2. We want only one message to be editable at a time.
     const messageEditing = useMessageEditing<PostId>({
         onUpdateMessageContent: async ({roomKey, messageIndex, content}) => {
             const actions = actionsByPostIdRef.current.get(roomKey);
@@ -360,19 +373,33 @@ export function PostListView({
         },
     });
 
+    // Manages the post which is currently being editing in `<PostEditorModal>`.
     const [editingPost, setEditingPost] = useState<PostModel | null>(null);
 
+    // Manages which comment `<PostCommentInput>` is currently replying to.
     const [replyingToPostCommentIndexByPostId, setReplyingToPostCommentIndexByPostId] = useState<
         ReadonlyMap<PostId, number>
     >(new Map());
 
+    // A comment to highlight for the user. We currently highlight comments with a
+    // little wiggle animation (see `message_view.css.ts` for more information). We
+    // highlight comments when initially loading a page with a comment index in the
+    // URL and when the user clicks on a reply preview to jump to it.
     const [highlightPostComment, setHighlightPostComment] = useState<{
         postId: PostId;
         postCommentIndex: number;
         shouldHighlightRef: MutableRefObject<boolean>;
     } | null>(null);
 
+    // Jumping to a post comment entails:
+    //
+    // 1. We scroll to the comment
+    // 2. We highlight the comment to the user
     const handleJumpToPostComment = useEvent((postId: PostId, postCommentIndex: number) => {
+        const view = assertExists(viewRef.current);
+
+        view.scrollToIndex(posts.getItemCountBeforePostId(postId) + 1 + postCommentIndex);
+
         setHighlightPostComment({
             postId,
             postCommentIndex,
@@ -772,9 +799,11 @@ export function PostListView({
                             offset,
                             height,
                             shouldRenderWithRelativePositioning,
-                            getIndexPosition,
+                            getPositionByIndex,
                         }) => {
-                            const postContentPosition = getIndexPosition(item.postContentItemIndex);
+                            const postContentPosition = getPositionByIndex(
+                                item.postContentItemIndex,
+                            );
 
                             const postContentOffsetEnd =
                                 postContentPosition.offset + postContentPosition.height - 1;
