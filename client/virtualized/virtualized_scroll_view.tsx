@@ -34,6 +34,7 @@ import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit";
 import {ClientInfo} from "~/shared/remix/client_info";
@@ -369,6 +370,7 @@ function VirtualizedScrollView(
             Key,
             {
                 generation: number;
+                index: number;
                 element: HTMLDivElement;
                 lastHeight: number | null;
                 cleanup: () => void;
@@ -379,6 +381,16 @@ function VirtualizedScrollView(
         generation: 1,
         elementRefByKey: new Map(),
     });
+
+    const iterateItemRefs = () =>
+        filterIterable(
+            itemsRef.current.elementRefByKey,
+            ([key, elementRef]) =>
+                // Ignore refs from old generations. They will eventually be cleaned up.
+                elementRef.generation === itemsRef.current.generation &&
+                // Ignore refs that were removed from the DOM but have not been cleaned up yet.
+                document.body.contains(elementRef.element),
+        );
 
     // We don't know the heights of elements when server-side rendering so we
     // should render with relative positioning. Then when client rendering kicks in
@@ -440,6 +452,9 @@ function VirtualizedScrollView(
                         // current generation so it doesn't get cleaned up.
                         if (currentElementRef && currentElementRef.element === element) {
                             currentElementRef.generation = itemsRef.current.generation;
+
+                            // The key for an item may stay stable while the index changes.
+                            currentElementRef.index = index;
                         }
                         // Otherwise, cleanup the old ref (if it exists) and observe the height of the
                         // new element.
@@ -475,11 +490,13 @@ function VirtualizedScrollView(
 
                             const newElementRef: {
                                 generation: number;
+                                index: number;
                                 element: HTMLDivElement;
                                 lastHeight: number | null;
                                 cleanup: () => void;
                             } = {
                                 generation: itemsRef.current.generation,
+                                index,
                                 element,
                                 lastHeight: currentElementRef?.lastHeight ?? null,
                                 cleanup: () =>
@@ -528,6 +545,82 @@ function VirtualizedScrollView(
 
     state = newStateAfterRender;
 
+    const scrollAnchorRef = useRef<{
+        // If you manually set a scroll anchor you can set this flag so it won't change
+        // on scroll and will continue to be the anchor as long as it is in the
+        // scroll window.
+        shouldAnchorWhileVisible: boolean;
+        lastPosition: {offset: number; height: number};
+        getPosition: () => {offset: number; height: number} | null;
+    } | null>(null);
+
+    // Implement an anchor node selection algorithm. Ours is simpler than the
+    // generic browser algorithm. We only look at our item elements.
+    // https://github.com/WICG/ScrollAnchoring/blob/master/explainer.md#anchor-node-selection
+    const updateScrollAnchor = () => {
+        const contentElement = assertExists(contentRef.current);
+        const scrollElement = assertExists(scrollRef.current);
+        const {scrollTop, clientHeight} = scrollElement;
+
+        // If the scroll anchor was manually set and it's currently visible then don't
+        // update the scroll anchor to something different.
+        if (scrollAnchorRef.current !== null && scrollAnchorRef.current.shouldAnchorWhileVisible) {
+            const scrollAnchorPosition = scrollAnchorRef.current.getPosition();
+            if (
+                scrollAnchorPosition &&
+                areRangesOverlapping(
+                    scrollTop,
+                    scrollTop + clientHeight,
+                    scrollAnchorPosition.offset,
+                    scrollAnchorPosition.offset + scrollAnchorPosition.height,
+                )
+            ) {
+                return;
+            }
+        }
+
+        let element: HTMLElement | null = null;
+
+        // NOTE(calebmer): There's room to optimize this algorithm. If we keep our item
+        // refs in sorted order we can break after we find the first item within the
+        // scroll window.
+        for (const [, elementRef] of iterateItemRefs()) {
+            // Ignore elements that are positioned within an element other than our
+            // absolutely positioned content element. This could happen for items using
+            // custom layout.
+            if (elementRef.element.offsetParent !== contentElement) continue;
+
+            // Ignore elements that are above scroll window.
+            if (elementRef.element.offsetTop < scrollTop) continue;
+
+            // Select the element closest to the top of the scroll window.
+            if (element === null || elementRef.element.offsetTop < element.offsetTop) {
+                element = elementRef.element;
+            }
+        }
+
+        if (element === null) {
+            scrollAnchorRef.current = null;
+        } else {
+            const scrollAnchorElement = element;
+
+            scrollAnchorRef.current = {
+                shouldAnchorWhileVisible: false,
+                lastPosition: {
+                    offset: scrollAnchorElement.offsetTop,
+                    height: scrollAnchorElement.offsetHeight,
+                },
+                getPosition: () => {
+                    if (!document.body.contains(scrollAnchorElement)) return null;
+                    return {
+                        offset: scrollAnchorElement.offsetTop,
+                        height: scrollAnchorElement.offsetHeight,
+                    };
+                },
+            };
+        }
+    };
+
     const hasHandledScrollThisAnimationFrameRef = useRef(false);
     const lastScrollTopRef = useRef<number | null>(null);
     const scrollDebounceTimeoutRef = useRef<Timeout | null>(null);
@@ -540,6 +633,10 @@ function VirtualizedScrollView(
             hasHandledScrollThisAnimationFrameRef.current = false;
         });
 
+        // Update the scroll anchor whenever our scroll position changes since there
+        // may be a new node that's first in the scroll window.
+        updateScrollAnchor();
+
         const {scrollTop, clientHeight} = assertExists(scrollRef.current);
 
         onScroll?.(scrollTop);
@@ -548,8 +645,8 @@ function VirtualizedScrollView(
         // update the rendered range until after the jump scroll has finished
         // to maintain high performance as the user jumps through the scrollable view.
         //
-        // The threshold for jump scrolling is the user has moved more than half of the
-        // scroll view height in the last render frame. As long as the user maintains
+        // The threshold for jump scrolling is the user has moved more than two
+        // scroll view heights in the last render frame. As long as the user maintains
         // that speed we will continue the jump scroll. If scrolling decelerates (like
         // in an iOS toss scroll which maintains scrolling momentum a while) the jump
         // scroll ends.
@@ -637,14 +734,7 @@ function VirtualizedScrollView(
     useLayoutEffectWithoutServerSideWarning(() => {
         const heightByKey = new Map<Key, number>();
 
-        for (const [key, elementRef] of itemsRef.current.elementRefByKey) {
-            // Ignore refs from old generations.
-            if (elementRef.generation !== itemsRef.current.generation) continue;
-
-            // If the element was removed from the DOM its height will be zero. Don't
-            // record that height.
-            if (!document.body.contains(elementRef.element)) continue;
-
+        for (const [key, elementRef] of iterateItemRefs()) {
             const height = elementRef.element.offsetHeight;
             if (height !== elementRef.lastHeight) {
                 heightByKey.set(key, height);
@@ -652,12 +742,36 @@ function VirtualizedScrollView(
             }
         }
 
-        const {scrollTop} = assertExists(scrollRef.current);
-
         let newState = state;
 
         for (const [key, height] of heightByKey) {
             newState = newState.setItemHeight(key, height);
+        }
+
+        const scrollElement = assertExists(scrollRef.current);
+        const originalScrollTop = scrollElement.scrollTop;
+        let scrollTop = originalScrollTop;
+
+        // We want to perform our scroll anchoring adjustment whenever the anchor
+        // node moves.
+        //
+        // All anchor node movements that we care about should be captured by this
+        // effect (item height changes, view height changes) so we do the
+        // adjustment here.
+        //
+        // It means we can avoid calling `updateRenderedRange()` twice. Once here and
+        // once again in the scroll event handler in response to our adjustment.
+        if (scrollAnchorRef.current) {
+            // Will return null if the scroll anchor was unmounted.
+            const nextPosition = scrollAnchorRef.current.getPosition();
+            if (nextPosition) {
+                const lastPosition = scrollAnchorRef.current.lastPosition;
+
+                scrollTop = scrollTop + (nextPosition.offset - lastPosition.offset);
+                if (scrollTop !== originalScrollTop) scrollElement.scrollTop = scrollTop;
+
+                scrollAnchorRef.current.lastPosition = nextPosition;
+            }
         }
 
         if (actualState.isJumpScrolling) {
@@ -719,20 +833,65 @@ function VirtualizedScrollView(
             getRenderedRange: () => renderedRangeRef.current,
             scrollToIndex: index => {
                 const scrollElement = assertExists(scrollRef.current);
+                const contentElement = assertExists(contentRef.current);
 
-                scrollElement.scrollTop = getVirtualizedScrollViewOffsetForScrollToIndex({
+                const {scrollOffset, position} = getVirtualizedScrollViewOffsetForScrollToIndex({
                     state,
                     index,
-                    currentScrollOffset: scrollElement.scrollTop,
+                    scrollOffset: scrollElement.scrollTop,
                 });
+
+                let itemElement: HTMLElement | null = null;
+
+                // Anchor to the item we are scrolling to. At first when the item hasn't
+                // rendered we use the position we found in our state. Then once we find the
+                // item was rendered in the DOM we use the position of the related DOM node.
+                //
+                // The position we initially render our item in the DOM may be different from
+                // the computed position which is why we need to capture the computed
+                // position here.
+                scrollAnchorRef.current = {
+                    shouldAnchorWhileVisible: true,
+                    lastPosition: position,
+                    getPosition: () => {
+                        if (itemElement === null) {
+                            for (const [, elementRef] of iterateItemRefs()) {
+                                if (
+                                    elementRef.index === index &&
+                                    elementRef.element.offsetParent === contentElement
+                                ) {
+                                    itemElement = elementRef.element;
+                                    break;
+                                }
+                            }
+
+                            // If the item hasn't rendered yet, continue using the computed position.
+                            if (itemElement === null) return position;
+                        }
+
+                        // If the item we discovered was unmounted start returning null.
+                        if (!document.body.contains(itemElement)) return null;
+
+                        return {
+                            offset: itemElement.offsetTop,
+                            height: itemElement.clientHeight,
+                        };
+                    },
+                };
+
+                // Actually perform the scroll.
+                //
+                // We perform this after setting the scroll anchor to make sure any event
+                // listeners see the new scroll anchor.
+                scrollElement.scrollTop = scrollOffset;
             },
             peekRenderedRangeAfterScrollToIndex: index => {
                 const scrollElement = assertExists(scrollRef.current);
 
-                const scrollOffset = getVirtualizedScrollViewOffsetForScrollToIndex({
+                const {scrollOffset} = getVirtualizedScrollViewOffsetForScrollToIndex({
                     state,
                     index,
-                    currentScrollOffset: scrollElement.scrollTop,
+                    scrollOffset: scrollElement.scrollTop,
                 });
 
                 const peekState = state.updateRenderedRange({
@@ -758,6 +917,11 @@ function VirtualizedScrollView(
                     overflowY: "scroll",
                 })}
                 style={{
+                    // Opt-out of scroll anchoring. We need to manually implement scroll anchoring
+                    // for our virtualized scroll view.
+                    //
+                    // See: https://github.com/WICG/ScrollAnchoring/blob/master/explainer.md
+                    overflowAnchor: "none",
                     // Make sure we use momentum-based scrolling on iOS.
                     WebkitOverflowScrolling: "touch",
                 }}
@@ -838,39 +1002,36 @@ function updateVirtualizedScrollViewActualStateRenderedRange(
 function getVirtualizedScrollViewOffsetForScrollToIndex({
     state,
     index,
-    currentScrollOffset,
+    scrollOffset,
 }: {
     state: VirtualizedScrollViewState;
     index: number;
-    currentScrollOffset: number;
-}): number {
+    scrollOffset: number;
+}): {scrollOffset: number; position: {offset: number; height: number}} {
     const viewHeight = state.getViewHeight();
-    const {offset, height} = state.getPositionByIndex(index);
+    const position = state.getPositionByIndex(index);
+    const {offset, height} = position;
 
     // If the item is already partially visible, we make sure it is fully visible
     // and don't scroll anymore.
-    if (
-        areRangesOverlapping(
-            offset,
-            offset + height,
-            currentScrollOffset,
-            currentScrollOffset + viewHeight,
-        )
-    ) {
+    if (areRangesOverlapping(offset, offset + height, scrollOffset, scrollOffset + viewHeight)) {
         // If the item is bigger than the screen, don't change scroll position.
-        if (offset < currentScrollOffset && offset + height > currentScrollOffset + viewHeight) {
-            return currentScrollOffset;
+        if (offset < scrollOffset && offset + height > scrollOffset + viewHeight) {
+            return {scrollOffset, position};
         }
 
-        if (offset < currentScrollOffset) {
-            return offset - getRemPxWithoutListening();
+        if (offset < scrollOffset) {
+            return {scrollOffset: offset - getRemPxWithoutListening(), position};
         }
 
-        if (offset + height > currentScrollOffset + viewHeight) {
-            return offset + height - viewHeight + getRemPxWithoutListening();
+        if (offset + height > scrollOffset + viewHeight) {
+            return {
+                scrollOffset: offset + height - viewHeight + getRemPxWithoutListening(),
+                position,
+            };
         }
 
-        return currentScrollOffset;
+        return {scrollOffset, position};
     }
 
     // Ideally we scroll the item one fourth down the screen so it's near the top
@@ -887,8 +1048,10 @@ function getVirtualizedScrollViewOffsetForScrollToIndex({
     //
     // The top of the item must be visible so don't let the scroll top go past the
     // item offset.
-    return Math.min(
+    const newScrollOffset = Math.min(
         offset,
         idealScrollTop + Math.max(0, scrollBottomLimitDifferenceFromIdealScrollBottom / 2),
     );
+
+    return {scrollOffset: newScrollOffset, position};
 }

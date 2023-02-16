@@ -1,5 +1,8 @@
 import {Memo, RefCallback, useCallback, useRef} from "react";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error";
+
+let scheduledMicrotaskCallbacks: Array<() => void> = [];
 
 /**
  * A convenient helper for defining refs that add event listeners or attributes
@@ -58,7 +61,29 @@ export function useLifecycleRef<T>(
                 if (valueRef.current) {
                     const currentValue = valueRef.current;
                     currentValue.hasScheduledCleanup = true;
-                    scheduleMicrotask(() => {
+
+                    if (scheduledMicrotaskCallbacks.length === 0) {
+                        scheduleMicrotask(() => {
+                            const callbacks = scheduledMicrotaskCallbacks;
+                            scheduledMicrotaskCallbacks = [];
+
+                            for (const callback of callbacks) {
+                                try {
+                                    callback();
+                                } catch (error) {
+                                    scheduleUncaughtError(error);
+                                }
+                            }
+                        });
+                    }
+
+                    // Optimization: Instead of calling `scheduleMicrotask()` every time, we batch
+                    // into one scheduled microtask.
+                    //
+                    // When profiling `<PostListView>` (which uses `<VirtualizedScrollView>`), we
+                    // found that the `scheduleMicrotask()` function was taking ~87% (~215ms) of the
+                    // time it took to render a jump scroll!
+                    scheduledMicrotaskCallbacks.push(() => {
                         if (valueRef.current === currentValue) valueRef.current = null;
                         if (currentValue.hasScheduledCleanup) currentValue.cleanup?.();
                     });
