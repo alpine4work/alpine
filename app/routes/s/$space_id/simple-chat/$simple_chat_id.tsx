@@ -65,7 +65,7 @@ export default function SimpleChatRoute() {
                 <MessagingView
                     initialState={useMemo(
                         () => ({
-                            pinTo: "bottom",
+                            initialScrollOffset: "bottom",
                             messageCount: simpleChat.messageCount,
                             messages: simpleChatMessages,
                             otherReferencedMessages: otherReferencedSimpleChatMessages,

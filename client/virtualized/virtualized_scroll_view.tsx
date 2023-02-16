@@ -16,6 +16,7 @@ import {
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants";
+import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
@@ -36,6 +37,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
+import {safe} from "~/shared/helpers/string/safe_string";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit";
 import {ClientInfo} from "~/shared/remix/client_info";
 import {sprinkles} from "~/shared/styles/styles";
@@ -250,6 +252,7 @@ function VirtualizedScrollView(
         itemCount,
         renderItem: _renderItem,
         bufferedItemHeight: _bufferedItemHeight,
+        initialScrollOffset = "top",
         onRenderedRangeChange: _onRenderedRangeChange,
         onScroll,
         extraChildren,
@@ -280,6 +283,14 @@ function VirtualizedScrollView(
          * the buffered height.
          */
         bufferedItemHeight: number | RemLength;
+
+        /**
+         * On initial render where are we scrolled? Top of the scroll view or bottom?
+         * Even works when server-side rendering by injecting a blocking `<script>`.
+         *
+         * Defaults to `top`.
+         */
+        initialScrollOffset?: "top" | "bottom";
 
         /**
          * Called on initial mount and again whenever the range of rendered items
@@ -345,23 +356,50 @@ function VirtualizedScrollView(
     );
 
     const [actualState, setState] = useState<VirtualizedScrollViewActualState>(() => {
-        return {
-            state: VirtualizedScrollViewState.initializeFromTop({
-                screenHeight,
-                bufferedItemHeight,
-                itemCount,
-                getItem: getItemWithoutRender,
-            }),
-            isScrolling: false,
-            isJumpScrolling: false,
-            contentHeightBeforeScrollForMobileWebKitPinToBottom: null,
-        };
+        if (initialScrollOffset === "top") {
+            return {
+                state: VirtualizedScrollViewState.initializeFromTop({
+                    screenHeight,
+                    bufferedItemHeight,
+                    itemCount,
+                    getItem: getItemWithoutRender,
+                }),
+                isScrolling: false,
+                isJumpScrolling: false,
+            };
+        } else {
+            return {
+                state: VirtualizedScrollViewState.initializeFromBottom({
+                    screenHeight,
+                    bufferedItemHeight,
+                    itemCount,
+                    getItem: getItemWithoutRender,
+                }),
+                isScrolling: false,
+                isJumpScrolling: false,
+            };
+        }
     });
     let {state} = actualState;
 
     // Update the buffered item height in our state based on our props if
     // necessary.
     state = state.setBufferedItemHeight(bufferedItemHeight);
+
+    const hasInitiallyScrolledRef = useRef(false);
+
+    // For server side renders we include a `<script>` (see below) that scrolls our
+    // element to the bottom.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (hasInitiallyScrolledRef.current) return;
+        hasInitiallyScrolledRef.current = true;
+
+        const scrollElement = assertExists(scrollRef.current);
+
+        if (initialScrollOffset === "bottom") {
+            scrollElement.scrollTop = scrollElement.scrollHeight - scrollElement.clientHeight;
+        }
+    }, [initialScrollOffset]);
 
     const itemsRef = useRef<{
         hasScheduledCleanup: boolean;
@@ -932,7 +970,7 @@ function VirtualizedScrollView(
                     ref={contentRef}
                     // NOTE(calebmer): We render our virtualized list in an absolutely positioned
                     // container because we find it helps avoid some jankiness on initial load with
-                    // `pinTo="bottom"`. It is unclear to me why this is the fix.
+                    // `initialScrollOffset="bottom"`. It is unclear to me why this is the fix.
                     style={{
                         position: "absolute",
                         left: 0,
@@ -967,6 +1005,22 @@ function VirtualizedScrollView(
                     </OverlayScopeContextProvider>
                 </div>
             </div>
+            {initialScrollOffset === "bottom" && (
+                // When server side rendering this component, we want it to be
+                // immediately scrolled to the bottom. There should be no flash where
+                // the element is scrolled to the top.
+                //
+                // That means we need to scroll the element to the bottom before our
+                // JavaScript code loads and React component mounts. So inject a small
+                // `<script>` element in the page on server side render to do just that.
+                //
+                // We set the scroll position in a `requestAnimationFrame()` because we need to
+                // set the scroll position before the first browser render but after other
+                // elements in the DOM have been lain out.
+                <ScriptBeforeAppInitialRender
+                    script={safe`var element = document.currentScript.previousElementSibling; requestAnimationFrame(function () { element.scrollTop = element.scrollHeight - element.clientHeight; })`}
+                />
+            )}
         </>
     );
 }

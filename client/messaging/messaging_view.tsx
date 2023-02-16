@@ -25,7 +25,7 @@ export function MessagingView<Message extends MessageInterface>({
     onLoadFromEnd,
 }: {
     initialState: {
-        readonly pinTo: "top" | "bottom";
+        readonly initialScrollOffset: "top" | "bottom";
         readonly messageCount: number;
         readonly messages: ReadonlyArray<Message>;
         readonly otherReferencedMessages: ReadonlyArray<Message>;
@@ -54,12 +54,12 @@ export function MessagingView<Message extends MessageInterface>({
 
     const [state] = useState(
         (): {
-            pinTo: "top" | "bottom";
+            initialScrollOffset: "top" | "bottom";
             list: MessageList<Message>;
             isLoading: boolean;
             errorState: {hasError: false} | {hasError: true; error: unknown};
         } => ({
-            pinTo: initialState.pinTo,
+            initialScrollOffset: initialState.initialScrollOffset,
             list: MessageList.new<Message>(initialState.messageCount).loadMessages(initialState),
             isLoading: false,
             errorState: {hasError: false},
@@ -84,7 +84,7 @@ export function MessagingView<Message extends MessageInterface>({
     return (
         <VirtualizedScrollView
             ref={viewRef}
-            pinTo={state.pinTo}
+            initialScrollOffset={state.initialScrollOffset}
             bufferedItemHeight={bufferedMessageViewHeight}
             itemCount={state.list.getMessageCount()}
             renderItem={useCallback(index => {

@@ -8,8 +8,12 @@ import {sprinkles} from "~/shared/styles/styles";
 const stableRandom = new StableRandom("test");
 
 export default function VirtualizedScrollViewDesignPlaygroundPage() {
-    const [pinToSearchParam, setPinTo] = useUrlSearchParamState("pin");
-    const pinTo = pinToSearchParam ?? "top";
+    const [initialScrollOffsetSearchParam, setInitialScrollOffset] =
+        useUrlSearchParamState("scroll");
+    const initialScrollOffset =
+        (initialScrollOffsetSearchParam ?? "top") === "bottom"
+            ? ("bottom" as const)
+            : ("top" as const);
 
     const [itemCountStringSearchParam, setItemCountString] = useUrlSearchParamState("count");
     const itemCountString = itemCountStringSearchParam ?? "10000";
@@ -36,10 +40,10 @@ export default function VirtualizedScrollViewDesignPlaygroundPage() {
                 gap="5"
             >
                 <label>
-                    Pin to{" "}
+                    Initial scroll offset{" "}
                     <select
-                        value={pinTo === "top" ? "top" : "bottom"}
-                        onChange={event => setPinTo(event.currentTarget.value)}
+                        value={initialScrollOffset}
+                        onChange={event => setInitialScrollOffset(event.currentTarget.value)}
                     >
                         <option>top</option>
                         <option>bottom</option>
@@ -80,7 +84,7 @@ export default function VirtualizedScrollViewDesignPlaygroundPage() {
                         [],
                     )}
                     bufferedItemHeight={65}
-                    pinTo={pinTo === "top" ? "top" : "bottom"}
+                    initialScrollOffset={initialScrollOffset}
                 />
             </Box>
         </main>
