@@ -4,7 +4,6 @@ import {
     ReactElement,
     ReactNode,
     Ref,
-    RefObject,
     cloneElement,
     forwardRef,
     startTransition,
@@ -17,8 +16,6 @@ import {
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants";
-import {isMobileWebKit} from "~/client/helpers/is_mobile_web_kit";
-import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
@@ -38,7 +35,6 @@ import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
-import {safe} from "~/shared/helpers/string/safe_string";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit";
 import {ClientInfo} from "~/shared/remix/client_info";
 import {sprinkles} from "~/shared/styles/styles";
@@ -181,40 +177,6 @@ type VirtualizedScrollViewActualState = {
     readonly state: VirtualizedScrollViewState;
     readonly isScrolling: boolean;
     readonly isJumpScrolling: boolean;
-    /**
-     * Well, this is annoying.
-     *
-     * Our `pinTo="bottom"` prop makes sure that when content is added to the
-     * scroll view, the bottom of the scroll window stays constant. Otherwise you
-     * get a janky, jittery, experience when scrolling up. To do that we have a
-     * hook that adjusts `scrollElement.scrollTop` on resize. However in Safari on
-     * iOS (not Safari on MacOS) this cancels the momentum scroll animation ([you
-     * can follow this code around][1]) leading to an even more janky experience
-     * where your scrolls don't feel continuous.
-     *
-     * I spent a lot of time digging around in the WebKit source code for a way to
-     * adjust scroll position without cancelling the scroll animation (e.g.
-     * dispatch `wheel` event?) but couldn't find anything.
-     *
-     * So on mobile WebKit the way we implement `pinTo="bottom"` is by offsetting
-     * the position in which all our items are rendered during a scroll then fixing
-     * the position once the scroll is done (with a `scrollElement.scrollTop`
-     * assignment).
-     *
-     * So if we start with content height of 100 and render an item above our
-     * rendered range which is 5 pixels larger than its min-height while scrolling
-     * up, we will keep a content height of 100 (even though the true content
-     * height is now 105) and we will offset the position of all items by -5. When
-     * the scroll is complete, we set the content height back to 105 and offset the
-     * `scrollElement.scrollTop` by +5 so to the user it feels like you didn't move.
-     *
-     * Now, this is a little janky when you get to the top of the scroll view.
-     * Especially if the accumulated offset is a big number. But we are ok with
-     * this tradeoff for smooth continuous scrolling.
-     *
-     * [1]: https://github.com/WebKit/WebKit/blob/8f690bd4d72836915fb0c82775e16f1bf01caf59/Source/WebCore/dom/Element.cpp#L1564-L1585
-     */
-    readonly contentHeightBeforeScrollForMobileWebKitPinToBottom: number | null;
 };
 
 export type VirtualizedScrollViewRenderItem = Memo<(index: number) => VirtualizedScrollViewItem>;
@@ -241,12 +203,23 @@ export type VirtualizedScrollViewRenderItem = Memo<(index: number) => Virtualize
  * - Server-side rendering: Can be initially rendered on the server then
  *   hydrated on the client before knowing anything about client screen height.
  *
- * - Pin to bottom scrolling: By default when content is inserted into a scrollable
- *   element, the browser keeps the top edge of the scroll window constant. However
- *   for products where the user starts at the bottom of the scroll element and
- *   scrolls up (like chat) it is sometimes desirable to keep the bottom edge of
- *   the scroll window constant instead. We provided this configuration with the
- *   `pinTo` prop.
+ * - Scroll anchoring: Browser's implement a [scroll anchoring][4] algorithm so
+ *   that layout shifts above the content a user is viewing does not disrupt
+ *   the user's reading. This behavior is even more important for a virtualized
+ *   list implementation where we don't know the heights of items until we
+ *   render them. As a user scrolls from bottom to top content will continually
+ *   jump as we measure items without scroll anchoring. However, scroll
+ *   anchoring does not work for scrollable elements with absolutely positioned
+ *   children so we need to reimplement scroll anchoring in user land for the
+ *   best experience.
+ *
+ *   Additionally, iOS Safari does not support scroll anchoring at all and
+ *   changing the scroll offset during a scroll disrupts scrolling animations!
+ *   So we need custom workarounds for smooth scrolling on iOS.
+ *
+ * - Initial scroll to bottom: For interfaces like a chat interface, we want to
+ *   initially scroll the user to the bottom of the view instead of the top.
+ *   Both on client and server.
  *
  * - Advanced escape hatches: Advanced props that allow you to break out of
  *   normal operation for rendering things like sticky headers/footers.
@@ -269,6 +242,7 @@ export type VirtualizedScrollViewRenderItem = Memo<(index: number) => Virtualize
  * [1]: https://github.com/bvaughn/react-window
  * [2]: https://github.com/bvaughn/react-virtualized
  * [3]: https://necolas.github.io/react-native-web/docs/lists/
+ * [4]: https://github.com/WICG/ScrollAnchoring/blob/master/explainer.md
  */
 function VirtualizedScrollView(
     {
@@ -277,8 +251,6 @@ function VirtualizedScrollView(
         bufferedItemHeight: _bufferedItemHeight,
         onRenderedRangeChange: _onRenderedRangeChange,
         onScroll,
-        pinTo = "top",
-        disablePinHeuristics,
         extraChildren,
     }: {
         /**
@@ -323,32 +295,6 @@ function VirtualizedScrollView(
         onScroll?: (scrollOffset: number) => void;
 
         /**
-         * When the size of our scroll view's content changes, should we pin the
-         * scroll window to the top of the scroll view or the bottom of the scroll
-         * view?
-         *
-         * If set to `bottom` we will also scroll the view to the bottom when it loads.
-         *
-         * The browser default is to pin the window to the top of the scroll view.
-         * That means the number of pixels from the scroll view top to the scroll
-         * window top is kept constant.
-         *
-         * However, for some interfaces (like a chat interface) where content is added
-         * to the bottom of the scroll view we instead want to pint the window to the
-         * bottom of the scroll view. So the number of pixels from the scroll view
-         * bottom to the scroll bottom is kept constant.
-         */
-        pinTo?: "top" | "bottom";
-
-        /**
-         * Disable any heuristics associated with `pinTo`. For example when you have
-         * `pinTo="bottom"` and an element is focused we treat the element as
-         * `pinTo="top"`. If this is true then the view will always behave as
-         * `pinTo="bottom"`.
-         */
-        disablePinHeuristics?: boolean;
-
-        /**
          * Extra children to always render in our virtualized scroll view. Useful if
          * you want to render extra sticky content.
          *
@@ -365,11 +311,6 @@ function VirtualizedScrollView(
 
     const scrollRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
-
-    const {scriptElement: pinToScriptElement} = useScrollViewPinTo(scrollRef, contentRef, {
-        pinTo,
-        disablePinHeuristics,
-    });
 
     // Cache the `getItem` function as long as the function reference doesn't
     // change.
@@ -403,34 +344,19 @@ function VirtualizedScrollView(
     );
 
     const [actualState, setState] = useState<VirtualizedScrollViewActualState>(() => {
-        if (pinTo === "top") {
-            return {
-                state: VirtualizedScrollViewState.initializeFromTop({
-                    screenHeight,
-                    bufferedItemHeight,
-                    itemCount,
-                    getItem: getItemWithoutRender,
-                }),
-                isScrolling: false,
-                isJumpScrolling: false,
-                contentHeightBeforeScrollForMobileWebKitPinToBottom: null,
-            };
-        } else {
-            return {
-                state: VirtualizedScrollViewState.initializeFromBottom({
-                    screenHeight,
-                    bufferedItemHeight,
-                    itemCount,
-                    getItem: getItemWithoutRender,
-                }),
-                isScrolling: false,
-                isJumpScrolling: false,
-                contentHeightBeforeScrollForMobileWebKitPinToBottom: null,
-            };
-        }
+        return {
+            state: VirtualizedScrollViewState.initializeFromTop({
+                screenHeight,
+                bufferedItemHeight,
+                itemCount,
+                getItem: getItemWithoutRender,
+            }),
+            isScrolling: false,
+            isJumpScrolling: false,
+            contentHeightBeforeScrollForMobileWebKitPinToBottom: null,
+        };
     });
     let {state} = actualState;
-    const {contentHeightBeforeScrollForMobileWebKitPinToBottom} = actualState;
 
     // Update the buffered item height in our state based on our props if
     // necessary.
@@ -650,7 +576,6 @@ function VirtualizedScrollView(
 
                 return {
                     ...updateVirtualizedScrollViewActualStateRenderedRange(actualState, {
-                        pinTo,
                         itemCount,
                         getItemWithoutRender,
                         scrollTop,
@@ -670,9 +595,6 @@ function VirtualizedScrollView(
                     actualState = {
                         ...actualState,
                         isScrolling: false,
-                        // Reset the content height on mobile WebKit once the user is done scrolling.
-                        // This should update our rendered element's content height.
-                        contentHeightBeforeScrollForMobileWebKitPinToBottom: null,
                     };
 
                     // If we were jump scrolling we need to update the rendered range at the end of
@@ -692,7 +614,6 @@ function VirtualizedScrollView(
                     }
 
                     return updateVirtualizedScrollViewActualStateRenderedRange(actualState, {
-                        pinTo,
                         itemCount,
                         getItemWithoutRender,
                         scrollTop,
@@ -750,7 +671,6 @@ function VirtualizedScrollView(
                         ? {...actualState, state: newState}
                         : actualState,
                     {
-                        pinTo,
                         itemCount,
                         getItemWithoutRender,
                         scrollTop,
@@ -758,33 +678,7 @@ function VirtualizedScrollView(
                 ),
             );
         }
-    }, [getItemWithoutRender, itemCount, actualState, pinTo, state]);
-
-    const previousContentHeightRef = useRef(contentHeight);
-    const previousContentHeightBeforeScrollForMobileWebKitPinToBottomRef = useRef(
-        contentHeightBeforeScrollForMobileWebKitPinToBottom,
-    );
-
-    // When we clear `contentHeightBeforeScrollForMobileWebKitPinToBottom` from
-    // state, all items shift as they find their correct positions. This layout
-    // effect counteracts the shift to maintain the position in the scroll view the
-    // user was looking at.
-    useLayoutEffectWithoutServerSideWarning(() => {
-        const scrollElement = assertExists(scrollRef.current);
-
-        if (
-            previousContentHeightBeforeScrollForMobileWebKitPinToBottomRef.current !== null &&
-            contentHeightBeforeScrollForMobileWebKitPinToBottom === null
-        ) {
-            scrollElement.scrollTop -=
-                previousContentHeightBeforeScrollForMobileWebKitPinToBottomRef.current -
-                previousContentHeightRef.current;
-        }
-
-        previousContentHeightRef.current = contentHeight;
-        previousContentHeightBeforeScrollForMobileWebKitPinToBottomRef.current =
-            contentHeightBeforeScrollForMobileWebKitPinToBottom;
-    }, [contentHeight, contentHeightBeforeScrollForMobileWebKitPinToBottom]);
+    }, [getItemWithoutRender, itemCount, actualState, state]);
 
     // Effect to report the rendered range back to our callback.
     const onRenderedRangeChange = useEvent(_onRenderedRangeChange);
@@ -869,12 +763,7 @@ function VirtualizedScrollView(
                 }}
                 onScroll={handleScroll}
             >
-                <div
-                    style={{
-                        height:
-                            contentHeightBeforeScrollForMobileWebKitPinToBottom ?? contentHeight,
-                    }}
-                />
+                <div style={{height: contentHeight}} />
                 <div
                     ref={contentRef}
                     // NOTE(calebmer): We render our virtualized list in an absolutely positioned
@@ -884,11 +773,7 @@ function VirtualizedScrollView(
                         position: "absolute",
                         left: 0,
                         right: 0,
-                        top:
-                            contentHeightBeforeScrollForMobileWebKitPinToBottom !== null
-                                ? contentHeightBeforeScrollForMobileWebKitPinToBottom -
-                                  contentHeight
-                                : 0,
+                        top: 0,
                         height: contentHeight,
                         zIndex: "0", // Make sure we create a new z-index stacking context
                     }}
@@ -918,7 +803,6 @@ function VirtualizedScrollView(
                     </OverlayScopeContextProvider>
                 </div>
             </div>
-            {pinToScriptElement}
         </>
     );
 }
@@ -926,24 +810,17 @@ function VirtualizedScrollView(
 function updateVirtualizedScrollViewActualStateRenderedRange(
     actualState: VirtualizedScrollViewActualState,
     {
-        pinTo,
         itemCount,
         getItemWithoutRender,
         scrollTop,
     }: {
-        pinTo: "top" | "bottom";
         itemCount: number;
         getItemWithoutRender: (index: number) => {key: Key; minHeight: number};
         scrollTop: number;
     },
 ): VirtualizedScrollViewActualState {
     const state = actualState.state.updateRenderedRange({
-        scrollOffset:
-            scrollTop -
-            (actualState.contentHeightBeforeScrollForMobileWebKitPinToBottom !== null
-                ? actualState.contentHeightBeforeScrollForMobileWebKitPinToBottom -
-                  actualState.state.getContentHeight()
-                : 0),
+        scrollOffset: scrollTop,
         itemCount,
         getItem: getItemWithoutRender,
     });
@@ -955,148 +832,6 @@ function updateVirtualizedScrollViewActualStateRenderedRange(
         state,
         isScrolling: actualState.isScrolling,
         isJumpScrolling: false,
-        contentHeightBeforeScrollForMobileWebKitPinToBottom:
-            actualState.contentHeightBeforeScrollForMobileWebKitPinToBottom ??
-            (isMobileWebKit && pinTo === "bottom" ? actualState.state.getContentHeight() : null),
-    };
-}
-
-function useScrollViewPinTo(
-    scrollRef: RefObject<HTMLDivElement>,
-    contentRef: RefObject<HTMLDivElement>,
-    {
-        pinTo,
-        disablePinHeuristics = false,
-    }: {
-        pinTo: "top" | "bottom";
-        disablePinHeuristics?: boolean;
-    },
-): {scriptElement: ReactNode} {
-    const pinToRef = useRef(pinTo);
-    const onLayoutEffectRef = useRef<(() => void) | null>(null);
-
-    useLayoutEffectWithoutServerSideWarning(() => {
-        pinToRef.current = pinTo;
-        onLayoutEffectRef.current?.();
-    });
-
-    // This layout effect is safe because in server side renders we include a
-    // `<script>` (see below) that scrolls our element to the bottom.
-    //
-    // We only want to perform an initial scroll on our initial render.
-    useLayoutEffectWithoutServerSideWarning(() => {
-        if (pinToRef.current === "bottom") {
-            const scrollElement = assertExists(scrollRef.current);
-            scrollElement.scrollTop = scrollElement.scrollHeight - scrollElement.clientHeight;
-        }
-    }, [scrollRef]);
-
-    useLayoutEffectWithoutServerSideWarning(() => {
-        if (pinTo !== "bottom") return;
-
-        // Unfortunately, setting `scrollTop` in mobile WebKit (but not desktop
-        // WebKit!) cancels any animations. So if the user is momentum scrolling with
-        // touch, that scroll will be cancelled.
-        //
-        // In order to get the same behavior on mobile WebKit we use a hacky
-        // implementation that maintains the position of items until the scroll
-        // finishes.
-        if (isMobileWebKit) return;
-
-        const scrollElement = assertExists(scrollRef.current);
-        const contentElement = assertExists(contentRef.current);
-
-        const getScrollBottom = () =>
-            scrollElement.scrollHeight - (scrollElement.scrollTop + scrollElement.clientHeight);
-
-        let scrollBottom = getScrollBottom();
-
-        const handleScroll = () => {
-            scrollBottom = getScrollBottom();
-        };
-
-        let lastInteractionEventTimeMs: number;
-
-        const handleInteraction = () => {
-            lastInteractionEventTimeMs = Date.now();
-        };
-
-        const handleResize = () => {
-            // When focus is within the scroll view, always pin to top. Users
-            // typically expect the top of whatever elements they're interacting with
-            // to stay in place.
-            if (
-                !disablePinHeuristics &&
-                document.activeElement &&
-                scrollElement.contains(document.activeElement)
-            ) {
-                return;
-            }
-
-            // If the user just interacted with the scroll view either through their
-            // mouse or their keyboard then we want to pin to top. Users
-            // typically expect the top of whatever elements they're interacting with
-            // to stay in place.
-            if (
-                !disablePinHeuristics &&
-                lastInteractionEventTimeMs !== undefined &&
-                Date.now() - lastInteractionEventTimeMs < perceivedAsInstantLimitMs
-            ) {
-                return;
-            }
-
-            // Fix the scroll position so that instead of holding
-            // `scrollElement.scrollTop` constant, we hold the virtual
-            // `scrollElement.scrollBottom` constant (a `scrollBottom` property
-            // doesn’t actually exist in the DOM).
-            scrollElement.scrollTop =
-                scrollElement.scrollHeight - scrollElement.clientHeight - scrollBottom;
-        };
-
-        const observer = new ResizeObserver(handleResize);
-
-        onLayoutEffectRef.current = handleResize;
-        observer.observe(scrollElement, {box: "border-box"});
-        observer.observe(contentElement, {box: "border-box"});
-        scrollElement.addEventListener("scroll", handleScroll);
-        scrollElement.addEventListener("keydown", handleInteraction);
-        scrollElement.addEventListener("keyup", handleInteraction);
-        scrollElement.addEventListener("mousedown", handleInteraction);
-        scrollElement.addEventListener("mouseup", handleInteraction);
-        scrollElement.addEventListener("pointerdown", handleInteraction);
-        scrollElement.addEventListener("pointerup", handleInteraction);
-        return () => {
-            onLayoutEffectRef.current = null;
-            observer.unobserve(scrollElement);
-            observer.unobserve(contentElement);
-            scrollElement.removeEventListener("scroll", handleScroll);
-            scrollElement.removeEventListener("keydown", handleInteraction);
-            scrollElement.removeEventListener("keyup", handleInteraction);
-            scrollElement.removeEventListener("mousedown", handleInteraction);
-            scrollElement.removeEventListener("mouseup", handleInteraction);
-            scrollElement.removeEventListener("pointerdown", handleInteraction);
-            scrollElement.removeEventListener("pointerup", handleInteraction);
-        };
-    }, [contentRef, disablePinHeuristics, pinTo, scrollRef]);
-
-    return {
-        scriptElement:
-            pinTo === "bottom" ? (
-                // When server side rendering this component, we want it to be
-                // immediately scrolled to the bottom. There should be no flash where
-                // the element is scrolled to the top.
-                //
-                // That means we need to scroll the element to the bottom before our
-                // JavaScript code loads and React component mounts. So inject a small
-                // `<script>` element in the page on server side render to do just that.
-                //
-                // We set the scroll position in a `requestAnimationFrame()` because we need to
-                // set the scroll position before the first browser render but after other
-                // elements in the DOM have been lain out.
-                <ScriptBeforeAppInitialRender
-                    script={safe`var element = document.currentScript.previousElementSibling; requestAnimationFrame(function () { element.scrollTop = element.scrollHeight - element.clientHeight; })`}
-                />
-            ) : null,
     };
 }
 
