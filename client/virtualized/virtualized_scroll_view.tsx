@@ -16,6 +16,7 @@ import {
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants";
+import {isMobileWebKit} from "~/client/helpers/is_mobile_web_kit";
 import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
@@ -180,6 +181,40 @@ type VirtualizedScrollViewActualState = {
     readonly state: VirtualizedScrollViewState;
     readonly isScrolling: boolean;
     readonly isJumpScrolling: boolean;
+    /**
+     * Well, this is annoying.
+     *
+     * Our scroll anchoring logic makes sure that when content is added to the
+     * scroll view, the visible items stay visible. Otherwise you get a janky,
+     * jittery, experience when scrolling up. To do that we adjust
+     * `scrollElement.scrollTop` when items resize in an effect. However in Safari
+     * on iOS (not Safari on MacOS) this cancels the momentum scroll animation
+     * ([you can follow this code around][1]) leading to an even more janky
+     * experience where your scrolls don't feel continuous.
+     *
+     * I spent a lot of time digging around in the WebKit source code for a way to
+     * adjust scroll position without cancelling the scroll animation (e.g.
+     * dispatch `wheel` event?) but couldn't find anything.
+     *
+     * So on mobile WebKit the way we implement scroll anchoring is by offsetting
+     * the position in which all our items are rendered during a scroll then fixing
+     * the position once the scroll is done (with a `scrollElement.scrollTop`
+     * assignment).
+     *
+     * So if we start with content height of 100 and render an item above our
+     * rendered range which is 5 pixels larger than its min-height while scrolling
+     * up, we will keep a content height of 100 (even though the true content
+     * height is now 105) and we will offset the position of all items by -5. When
+     * the scroll is complete, we set the content height back to 105 and offset the
+     * `scrollElement.scrollTop` by +5 so to the user it feels like you didn't move.
+     *
+     * Now, this is a little janky when you get to the top of the scroll view.
+     * Especially if the accumulated offset is a big number. But we are ok with
+     * this tradeoff for smooth continuous scrolling.
+     *
+     * [1]: https://github.com/WebKit/WebKit/blob/8f690bd4d72836915fb0c82775e16f1bf01caf59/Source/WebCore/dom/Element.cpp#L1564-L1585
+     */
+    readonly scrollAnchorAdjustmentDuringMobileWebKitScroll: number | null;
 };
 
 export type VirtualizedScrollViewRenderItem = Memo<(index: number) => VirtualizedScrollViewItem>;
@@ -366,6 +401,7 @@ function VirtualizedScrollView(
                 }),
                 isScrolling: false,
                 isJumpScrolling: false,
+                scrollAnchorAdjustmentDuringMobileWebKitScroll: null,
             };
         } else {
             return {
@@ -377,10 +413,12 @@ function VirtualizedScrollView(
                 }),
                 isScrolling: false,
                 isJumpScrolling: false,
+                scrollAnchorAdjustmentDuringMobileWebKitScroll: null,
             };
         }
     });
     let {state} = actualState;
+    const {scrollAnchorAdjustmentDuringMobileWebKitScroll} = actualState;
 
     // Update the buffered item height in our state based on our props if
     // necessary.
@@ -730,6 +768,9 @@ function VirtualizedScrollView(
                     actualState = {
                         ...actualState,
                         isScrolling: false,
+                        // Reset the scroll adjustment on mobile WebKit once the user is done
+                        // scrolling. This should update our rendered element's content height.
+                        scrollAnchorAdjustmentDuringMobileWebKitScroll: null,
                     };
 
                     // If we were jump scrolling we need to update the rendered range at the end of
@@ -789,6 +830,8 @@ function VirtualizedScrollView(
         const scrollElement = assertExists(scrollRef.current);
         const originalScrollTop = scrollElement.scrollTop;
         let scrollTop = originalScrollTop;
+        let newScrollAnchorAdjustmentDuringMobileWebKitScroll =
+            actualState.scrollAnchorAdjustmentDuringMobileWebKitScroll;
 
         // We want to perform our scroll anchoring adjustment whenever the anchor
         // node moves.
@@ -805,32 +848,70 @@ function VirtualizedScrollView(
             if (nextPosition) {
                 const lastPosition = scrollAnchorRef.current.lastPosition;
 
-                scrollTop = scrollTop + (nextPosition.offset - lastPosition.offset);
-                if (scrollTop !== originalScrollTop) scrollElement.scrollTop = scrollTop;
+                const scrollAdjustment = nextPosition.offset - lastPosition.offset;
+
+                // If this is not a mobile WebKit scroll, actually update the `scrollTop`. On
+                // mobile WebKit this cancels the scrolling animation so instead we have a
+                // piece of state we use to implement a more hacky version of scroll
+                // adjustments that doesn't disrupt the scroll.
+                if (newScrollAnchorAdjustmentDuringMobileWebKitScroll === null) {
+                    scrollTop = scrollTop + scrollAdjustment;
+                    if (scrollTop !== originalScrollTop) scrollElement.scrollTop = scrollTop;
+                } else {
+                    newScrollAnchorAdjustmentDuringMobileWebKitScroll += scrollAdjustment;
+                }
 
                 scrollAnchorRef.current.lastPosition = nextPosition;
             }
         }
 
+        const newActualState =
+            actualState.state !== newState ||
+            actualState.scrollAnchorAdjustmentDuringMobileWebKitScroll !==
+                newScrollAnchorAdjustmentDuringMobileWebKitScroll
+                ? {
+                      ...actualState,
+                      state: newState,
+                      scrollAnchorAdjustmentDuringMobileWebKitScroll:
+                          newScrollAnchorAdjustmentDuringMobileWebKitScroll,
+                  }
+                : actualState;
+
         if (actualState.isJumpScrolling) {
-            setState(
-                actualState.state !== newState ? {...actualState, state: newState} : actualState,
-            );
+            setState(newActualState);
         } else {
             setState(
-                updateVirtualizedScrollViewActualStateRenderedRange(
-                    actualState.state !== newState
-                        ? {...actualState, state: newState}
-                        : actualState,
-                    {
-                        itemCount,
-                        getItemWithoutRender,
-                        scrollTop,
-                    },
-                ),
+                updateVirtualizedScrollViewActualStateRenderedRange(newActualState, {
+                    itemCount,
+                    getItemWithoutRender,
+                    scrollTop,
+                }),
             );
         }
     }, [getItemWithoutRender, itemCount, actualState, state]);
+
+    const previousScrollAnchorAdjustmentDuringMobileWebKitScrollRef = useRef(
+        scrollAnchorAdjustmentDuringMobileWebKitScroll,
+    );
+
+    // When we clear `scrollAnchorAdjustmentDuringMobileWebKitScroll` from
+    // state, all items shift as they find their correct positions. This layout
+    // effect counteracts the shift to maintain the position in the scroll view the
+    // user was looking at.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        const scrollElement = assertExists(scrollRef.current);
+
+        if (
+            previousScrollAnchorAdjustmentDuringMobileWebKitScrollRef.current !== null &&
+            scrollAnchorAdjustmentDuringMobileWebKitScroll === null
+        ) {
+            scrollElement.scrollTop +=
+                previousScrollAnchorAdjustmentDuringMobileWebKitScrollRef.current;
+        }
+
+        previousScrollAnchorAdjustmentDuringMobileWebKitScrollRef.current =
+            scrollAnchorAdjustmentDuringMobileWebKitScroll;
+    }, [contentHeight, scrollAnchorAdjustmentDuringMobileWebKitScroll]);
 
     // Effect to report the rendered range back to our callback.
     const onRenderedRangeChange = useEvent(_onRenderedRangeChange);
@@ -968,14 +1049,11 @@ function VirtualizedScrollView(
                 <div style={{height: contentHeight}} />
                 <div
                     ref={contentRef}
-                    // NOTE(calebmer): We render our virtualized list in an absolutely positioned
-                    // container because we find it helps avoid some jankiness on initial load with
-                    // `initialScrollOffset="bottom"`. It is unclear to me why this is the fix.
                     style={{
                         position: "absolute",
                         left: 0,
                         right: 0,
-                        top: 0,
+                        top: 0 - (scrollAnchorAdjustmentDuringMobileWebKitScroll ?? 0),
                         height: contentHeight,
                         zIndex: "0", // Make sure we create a new z-index stacking context
                     }}
@@ -1038,7 +1116,7 @@ function updateVirtualizedScrollViewActualStateRenderedRange(
     },
 ): VirtualizedScrollViewActualState {
     const state = actualState.state.updateRenderedRange({
-        scrollOffset: scrollTop,
+        scrollOffset: scrollTop + (actualState.scrollAnchorAdjustmentDuringMobileWebKitScroll ?? 0),
         itemCount,
         getItem: getItemWithoutRender,
     });
@@ -1050,6 +1128,9 @@ function updateVirtualizedScrollViewActualStateRenderedRange(
         state,
         isScrolling: actualState.isScrolling,
         isJumpScrolling: false,
+        scrollAnchorAdjustmentDuringMobileWebKitScroll:
+            actualState.scrollAnchorAdjustmentDuringMobileWebKitScroll ??
+            (isMobileWebKit ? 0 : null),
     };
 }
 
