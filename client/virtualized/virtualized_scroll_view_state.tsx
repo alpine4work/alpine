@@ -1887,6 +1887,24 @@ export class VirtualizedScrollViewState {
             };
         }
     }
+
+    /**
+     * Get the position of an item with the provided key. Returns null if an item
+     * with the provided key does not exist.
+     */
+    public getPositionByKeyIfExists(key: Key): {
+        offset: number;
+        height: number;
+    } | null {
+        const iterator1 = this._orderKeyByItemKey.find(key);
+        if (!iterator1.node) return null;
+        const iterator2 = this._entryByOrderKey.find(iterator1.node.value);
+        assert(iterator2.node?.value.type === "Item", "Item entry not found for order key");
+        return {
+            offset: this._getPreviousContentHeight(iterator2),
+            height: iterator2.node.value.height,
+        };
+    }
 }
 
 type VirtualizedScrollViewStateRenderedRange = {

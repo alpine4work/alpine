@@ -201,9 +201,19 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
     // clear the ref so we only highlight once for the ref.
     useEffect(() => {
         if (!shouldHighlightRef?.current) return;
-        shouldHighlightRef.current = false;
 
-        setShouldHighlight(true);
+        // Wait a bit before highlighting in case this component is immediately
+        // unmounted. This will happen if while measuring content the virtualized
+        // scroll view thinks this is offscreen before our scroll anchoring puts it
+        // back in place. Arguably this is a bug in the virtualized scroll view.
+        const timeout = createTimeout(() => {
+            if (!shouldHighlightRef?.current) return;
+            shouldHighlightRef.current = false;
+
+            setShouldHighlight(true);
+        }, 10);
+
+        return () => timeout.clear();
     }, [shouldHighlightRef]);
 
     useEffect(() => {

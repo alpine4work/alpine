@@ -390,7 +390,7 @@ function VirtualizedScrollView(
         [_bufferedItemHeight, remPx],
     );
 
-    const [actualState, setState] = useState<VirtualizedScrollViewActualState>(() => {
+    const [actualState, setActualState] = useState<VirtualizedScrollViewActualState>(() => {
         if (initialScrollOffset === "top") {
             return {
                 state: VirtualizedScrollViewState.initializeFromTop({
@@ -552,7 +552,7 @@ function VirtualizedScrollView(
 
                                 // NOTE(calebmer): We can't update the rendered range inline here because we
                                 // will have captured stale `itemCount` and `renderItem` props.
-                                setState(actualState => {
+                                setActualState(actualState => {
                                     const newState = actualState.state.setItemHeight(
                                         item.key,
                                         height,
@@ -730,7 +730,7 @@ function VirtualizedScrollView(
             lastScrollTopRef.current !== null &&
             Math.abs(lastScrollTopRef.current - scrollTop) > clientHeight * 2;
 
-        setState(actualState => {
+        setActualState(actualState => {
             if (actualState.isJumpScrolling || isJumpScrolling) {
                 if (actualState.isJumpScrolling) return actualState;
                 return {...actualState, isJumpScrolling: true};
@@ -764,7 +764,7 @@ function VirtualizedScrollView(
             // based on `isScrolling` the render may be expensive and it will be useful to
             // time slice.
             startTransition(() => {
-                setState(actualState => {
+                setActualState(actualState => {
                     actualState = {
                         ...actualState,
                         isScrolling: false,
@@ -802,6 +802,11 @@ function VirtualizedScrollView(
         lastScrollTopRef.current = scrollTop;
     };
 
+    const stateRef = useRef({state, itemCount, getItemWithoutRender});
+    useLayoutEffectWithoutServerSideWarning(() => {
+        stateRef.current = {state, itemCount, getItemWithoutRender};
+    });
+
     // On every render:
     //
     // - Check if our item heights changed and update them. This is redundant with
@@ -811,6 +816,8 @@ function VirtualizedScrollView(
     // - Update our rendered range. Many changes in props may affect what items
     //   need to be rendered outside of simply scroll changes.
     useLayoutEffectWithoutServerSideWarning(() => {
+        const scrollElement = assertExists(scrollRef.current);
+
         const heightByKey = new Map<Key, number>();
 
         for (const [key, elementRef] of iterateItemRefs()) {
@@ -823,11 +830,14 @@ function VirtualizedScrollView(
 
         let newState = state;
 
+        // Make sure the view height is correct. Updating here also means a view height
+        // change is batched with this effect render.
+        newState = newState.setViewHeight(scrollElement.clientHeight);
+
         for (const [key, height] of heightByKey) {
             newState = newState.setItemHeight(key, height);
         }
 
-        const scrollElement = assertExists(scrollRef.current);
         const originalScrollTop = scrollElement.scrollTop;
         let scrollTop = originalScrollTop;
         let newScrollAnchorAdjustmentDuringMobileWebKitScroll =
@@ -865,7 +875,7 @@ function VirtualizedScrollView(
             }
         }
 
-        const newActualState =
+        let newActualState =
             actualState.state !== newState ||
             actualState.scrollAnchorAdjustmentDuringMobileWebKitScroll !==
                 newScrollAnchorAdjustmentDuringMobileWebKitScroll
@@ -877,18 +887,35 @@ function VirtualizedScrollView(
                   }
                 : actualState;
 
-        if (actualState.isJumpScrolling) {
-            setState(newActualState);
-        } else {
-            setState(
-                updateVirtualizedScrollViewActualStateRenderedRange(newActualState, {
-                    itemCount,
-                    getItemWithoutRender,
-                    scrollTop,
-                }),
-            );
+        if (!actualState.isJumpScrolling) {
+            newActualState = updateVirtualizedScrollViewActualStateRenderedRange(newActualState, {
+                itemCount,
+                getItemWithoutRender,
+                scrollTop,
+            });
         }
+
+        setActualState(newActualState);
     }, [getItemWithoutRender, itemCount, actualState, state]);
+
+    // Watch size changes to the view element to make sure we update the height.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        const scrollElement = assertExists(scrollRef.current);
+
+        const handleResize = () => {
+            const viewHeight = scrollElement.clientHeight;
+
+            setActualState(actualState => {
+                if (actualState.state.getViewHeight() === viewHeight) return actualState;
+                return {...actualState, state: state.setViewHeight(viewHeight)};
+            });
+        };
+
+        addResizeListenerForElement(scrollElement, handleResize);
+        return () => {
+            removeResizeListenerForElement(scrollElement, handleResize);
+        };
+    });
 
     const previousScrollAnchorAdjustmentDuringMobileWebKitScrollRef = useRef(
         scrollAnchorAdjustmentDuringMobileWebKitScroll,
@@ -951,6 +978,7 @@ function VirtualizedScrollView(
             getHeight: () => assertExists(scrollRef.current).clientHeight,
             getRenderedRange: () => renderedRangeRef.current,
             scrollToIndex: index => {
+                const state = stateRef.current.state;
                 const scrollElement = assertExists(scrollRef.current);
                 const contentElement = assertExists(contentRef.current);
 
@@ -960,7 +988,7 @@ function VirtualizedScrollView(
                     scrollOffset: scrollElement.scrollTop,
                 });
 
-                let itemElement: HTMLElement | null = null;
+                let renderedItem: {key: Key; element: HTMLElement} | null = null;
 
                 // Anchor to the item we are scrolling to. At first when the item hasn't
                 // rendered we use the position we found in our state. Then once we find the
@@ -973,27 +1001,44 @@ function VirtualizedScrollView(
                     shouldAnchorWhileVisible: true,
                     lastPosition: position,
                     getPosition: () => {
-                        if (itemElement === null) {
-                            for (const [, elementRef] of iterateItemRefs()) {
+                        const state = stateRef.current.state;
+
+                        if (
+                            renderedItem === null ||
+                            !document.body.contains(renderedItem.element)
+                        ) {
+                            // Search for the rendered element in our refs first by looking for an element
+                            // ref at the same index. This will tell us the key of the item. In the future
+                            // we will use the item key in case the item moves.
+                            for (const [key, elementRef] of iterateItemRefs()) {
                                 if (
-                                    elementRef.index === index &&
+                                    (renderedItem
+                                        ? renderedItem.key === key
+                                        : elementRef.index === index) &&
                                     elementRef.element.offsetParent === contentElement
                                 ) {
-                                    itemElement = elementRef.element;
+                                    renderedItem = {key, element: elementRef.element};
                                     break;
                                 }
                             }
 
-                            // If the item hasn't rendered yet, continue using the computed position.
-                            if (itemElement === null) return position;
+                            // If the item hasn't rendered yet, get the current position in state for
+                            // the index.
+                            if (renderedItem === null) {
+                                if (index >= state.getItemCount()) return null;
+                                return state.getPositionByIndex(index);
+                            }
+
+                            // If the item was unmounted, look for the position by key in our state.
+                            // We use key instead of index in case the item moved.
+                            if (!document.body.contains(renderedItem.element)) {
+                                return state.getPositionByKeyIfExists(renderedItem.key);
+                            }
                         }
 
-                        // If the item we discovered was unmounted start returning null.
-                        if (!document.body.contains(itemElement)) return null;
-
                         return {
-                            offset: itemElement.offsetTop,
-                            height: itemElement.clientHeight,
+                            offset: renderedItem.element.offsetTop,
+                            height: renderedItem.element.clientHeight,
                         };
                     },
                 };
@@ -1005,6 +1050,7 @@ function VirtualizedScrollView(
                 scrollElement.scrollTop = scrollOffset;
             },
             peekRenderedRangeAfterScrollToIndex: index => {
+                const state = stateRef.current.state;
                 const scrollElement = assertExists(scrollRef.current);
 
                 const {scrollOffset} = getVirtualizedScrollViewOffsetForScrollToIndex({
@@ -1015,14 +1061,14 @@ function VirtualizedScrollView(
 
                 const peekState = state.updateRenderedRange({
                     scrollOffset,
-                    itemCount,
-                    getItem: getItemWithoutRender,
+                    itemCount: stateRef.current.itemCount,
+                    getItem: stateRef.current.getItemWithoutRender,
                 });
 
                 return peekState.getRenderedRange();
             },
         }),
-        [getItemWithoutRender, itemCount, state],
+        [],
     );
 
     return (
@@ -1143,8 +1189,19 @@ function getVirtualizedScrollViewOffsetForScrollToIndex({
     index: number;
     scrollOffset: number;
 }): {scrollOffset: number; position: {offset: number; height: number}} {
+    const margin = getRemPxWithoutListening();
     const viewHeight = state.getViewHeight();
     const position = state.getPositionByIndex(index);
+
+    // NOTE(calebmer): When scrolling to an unmeasured item we won't know the
+    // `height`! This means we may render a large item too far down the view. Maybe
+    // we should measure the item before scrolling to it?
+    //
+    // If we keep the item we're scrolling to rendered during the scroll that would
+    // also prevent bugs where measuring items around it unmounts the item. We
+    // could simplify some code like `getPosition` below which handles its
+    // `element` being unmounted and `<MessageView>` which takes care to not
+    // animate if we might soon unmount the message.
     const {offset, height} = position;
 
     // If the item is already partially visible, we make sure it is fully visible
@@ -1156,12 +1213,12 @@ function getVirtualizedScrollViewOffsetForScrollToIndex({
         }
 
         if (offset < scrollOffset) {
-            return {scrollOffset: offset - getRemPxWithoutListening(), position};
+            return {scrollOffset: offset - margin, position};
         }
 
         if (offset + height > scrollOffset + viewHeight) {
             return {
-                scrollOffset: offset + height - viewHeight + getRemPxWithoutListening(),
+                scrollOffset: offset + height - viewHeight + margin,
                 position,
             };
         }
@@ -1169,24 +1226,17 @@ function getVirtualizedScrollViewOffsetForScrollToIndex({
         return {scrollOffset, position};
     }
 
-    // Ideally we scroll the item one fourth down the screen so it's near the top
+    // Ideally we scroll the item one fifth down the screen so it's near the top
     // but there is some context surrounding it.
-    const idealScrollTop = Math.max(0, offset - viewHeight / 5);
+    let newScrollOffset = Math.max(0, offset - viewHeight / 5);
 
-    const scrollBottomLimit = offset + height + viewHeight / 5;
-    const scrollBottomLimitDifferenceFromIdealScrollBottom =
-        scrollBottomLimit - (idealScrollTop + viewHeight);
+    // If there would be less than one fifth of the screen below the message then
+    // push the message back up.
+    const viewHeightBelow = newScrollOffset + viewHeight - (offset + height);
+    newScrollOffset -= Math.min(0, viewHeightBelow - viewHeight / 5);
 
-    // Push the ideal scroll top down if the scroll button limit would not be
-    // visible with the ideal scroll top. We want the item centered which is why we
-    // divide the difference by two.
-    //
-    // The top of the item must be visible so don't let the scroll top go past the
-    // item offset.
-    const newScrollOffset = Math.min(
-        offset,
-        idealScrollTop + Math.max(0, scrollBottomLimitDifferenceFromIdealScrollBottom / 2),
-    );
+    // The top of the message should always be visible.
+    newScrollOffset = Math.min(offset - margin, newScrollOffset);
 
     return {scrollOffset: newScrollOffset, position};
 }
