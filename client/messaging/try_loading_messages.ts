@@ -3,7 +3,6 @@ import {MessageList} from "~/client/messaging/message_list";
 import {messageViewMinHeight} from "~/client/messaging/message_view";
 import {convertRemLengthToPx} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
-import {Result} from "~/shared/helpers/control/result";
 import {MessageInterface} from "~/shared/models/message_interface";
 
 /**
@@ -17,14 +16,13 @@ export function tryLoadingMessages<Message extends MessageInterface>({
     viewHeight,
     messages,
     range,
-    onLoadFromStart,
-    onLoadFromEnd,
-    onFinishLoadingMessages,
+    loadFromStart,
+    loadFromEnd,
 }: {
     viewHeight: number;
     messages: MessageList<Message>;
     range: {startIndex: number; endIndex: number};
-    onLoadFromStart: (options: {
+    loadFromStart: (options: {
         limit: number;
         afterMessageIndex: number | null;
         beforeMessageIndex: number | null;
@@ -33,7 +31,7 @@ export function tryLoadingMessages<Message extends MessageInterface>({
         messages: ReadonlyArray<Message>;
         otherReferencedMessages: ReadonlyArray<Message>;
     }>;
-    onLoadFromEnd: (options: {
+    loadFromEnd: (options: {
         limit: number;
         afterMessageIndex: number | null;
         beforeMessageIndex: number | null;
@@ -42,16 +40,6 @@ export function tryLoadingMessages<Message extends MessageInterface>({
         messages: ReadonlyArray<Message>;
         otherReferencedMessages: ReadonlyArray<Message>;
     }>;
-    onFinishLoadingMessages: (
-        result: Result<
-            {
-                messageCount: number;
-                messages: ReadonlyArray<Message>;
-                otherReferencedMessages: ReadonlyArray<Message>;
-            },
-            unknown
-        >,
-    ) => void;
 }):
     | {
           isLoading: false;
@@ -59,6 +47,11 @@ export function tryLoadingMessages<Message extends MessageInterface>({
     | {
           isLoading: true;
           wasJump: boolean;
+          promise: Promise<{
+              messageCount: number;
+              messages: ReadonlyArray<Message>;
+              otherReferencedMessages: ReadonlyArray<Message>;
+          }>;
       } {
     const remPx = getRemPxWithoutListening();
 
@@ -89,35 +82,6 @@ export function tryLoadingMessages<Message extends MessageInterface>({
         ),
     );
 
-    const loadFromStart = ({
-        afterMessageIndex,
-        beforeMessageIndex,
-        limit,
-    }: {
-        afterMessageIndex: number;
-        beforeMessageIndex: number | null;
-        limit: number;
-    }) => {
-        onLoadFromStart({
-            afterMessageIndex,
-            beforeMessageIndex,
-            limit,
-        }).then(
-            result => {
-                onFinishLoadingMessages({
-                    ok: true,
-                    value: result,
-                });
-            },
-            error => {
-                onFinishLoadingMessages({
-                    ok: false,
-                    error,
-                });
-            },
-        );
-    };
-
     if (startMessage.type !== "Unloaded" && endMessage.type === "Unloaded") {
         const afterMessageIndex =
             messages.getLastLoadedMessageBefore(range.endIndex)?.index ?? null;
@@ -129,12 +93,15 @@ export function tryLoadingMessages<Message extends MessageInterface>({
         // maybe optimistic messages are involved?
         if (afterMessageIndex === null) return {isLoading: false};
 
-        loadFromStart({
-            afterMessageIndex,
-            beforeMessageIndex,
-            limit,
-        });
-        return {isLoading: true, wasJump: false};
+        return {
+            isLoading: true,
+            wasJump: false,
+            promise: loadFromStart({
+                afterMessageIndex,
+                beforeMessageIndex,
+                limit,
+            }),
+        };
     }
 
     if (startMessage.type === "Unloaded" && endMessage.type !== "Unloaded") {
@@ -148,25 +115,15 @@ export function tryLoadingMessages<Message extends MessageInterface>({
         // maybe optimistic messages are involved?
         if (beforeMessageIndex === null) return {isLoading: false};
 
-        onLoadFromEnd({
-            afterMessageIndex,
-            beforeMessageIndex,
-            limit,
-        }).then(
-            result => {
-                onFinishLoadingMessages({
-                    ok: true,
-                    value: result,
-                });
-            },
-            error => {
-                onFinishLoadingMessages({
-                    ok: false,
-                    error,
-                });
-            },
-        );
-        return {isLoading: true, wasJump: false};
+        return {
+            isLoading: true,
+            wasJump: false,
+            promise: loadFromEnd({
+                afterMessageIndex,
+                beforeMessageIndex,
+                limit,
+            }),
+        };
     }
 
     // If neither of the messages in our rendered range are loaded then this is a
@@ -179,15 +136,19 @@ export function tryLoadingMessages<Message extends MessageInterface>({
     const messageBeforeUnloadedSegment = messages.getLastLoadedMessageBefore(range.startIndex);
     const messageAfterUnloadedSegment = messages.getFirstLoadedMessageAfter(range.endIndex);
 
-    let afterMessageIndex =
-        range.startIndex + (range.endIndex - range.startIndex) / 2 - jumpLimit / 2;
+    let afterMessageIndex = Math.floor(
+        range.startIndex + (range.endIndex - range.startIndex) / 2 - jumpLimit / 2,
+    );
     if (messageBeforeUnloadedSegment)
         afterMessageIndex = Math.max(afterMessageIndex, messageBeforeUnloadedSegment.index);
 
-    loadFromStart({
-        afterMessageIndex,
-        beforeMessageIndex: messageAfterUnloadedSegment?.index ?? null,
-        limit: jumpLimit,
-    });
-    return {isLoading: true, wasJump: true};
+    return {
+        isLoading: true,
+        wasJump: true,
+        promise: loadFromStart({
+            afterMessageIndex,
+            beforeMessageIndex: messageAfterUnloadedSegment?.index ?? null,
+            limit: jumpLimit,
+        }),
+    };
 }

@@ -2,14 +2,12 @@ import {useCallback, useEffect, useRef, useState} from "react";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {MessageList} from "~/client/messaging/message_list";
 import {bufferedMessageViewHeight, messageViewMinHeight} from "~/client/messaging/message_view";
-import {tryLoadingMessages} from "~/client/messaging/try_loading_messages";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
     getInitialVirtualizedScrollViewRenderedItemCount,
 } from "~/client/virtualized/virtualized_scroll_view";
 import {UnimplementedError} from "~/shared/error/error";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {MessageInterface} from "~/shared/models/message_interface";
 import {ClientInfo} from "~/shared/remix/client_info";
 
@@ -54,7 +52,7 @@ export function MessagingView<Message extends MessageInterface>({
 }) {
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
-    const [state, setState] = useState(
+    const [state] = useState(
         (): {
             pinTo: "top" | "bottom";
             list: MessageList<Message>;
@@ -72,44 +70,7 @@ export function MessagingView<Message extends MessageInterface>({
     if (state.errorState.hasError) throw state.errorState.error;
 
     const tryLoadingMore = useEvent(() => {
-        // If we're already loading, don't try to load more data.
-        if (state.isLoading) return;
-
-        const view = assertExists(viewRef.current);
-        const range = view.getRenderedRange();
-        if (!range) return;
-
-        const result = tryLoadingMessages({
-            viewHeight: view.getHeight(),
-            messages: state.list,
-            range,
-            onLoadFromStart,
-            onLoadFromEnd,
-            onFinishLoadingMessages: result => {
-                if (result.ok) {
-                    setState(state => ({
-                        ...state,
-                        isLoading: false,
-                        list: state.list.loadMessages(result.value),
-                    }));
-                } else {
-                    setState(state => ({
-                        ...state,
-                        isLoading: false,
-                        errorState: {hasError: true, error: result.error},
-                    }));
-                }
-            },
-        });
-
-        if (result.isLoading) {
-            setState(state => ({
-                ...state,
-                isLoading: true,
-                // Jump scrolls switch us into pin to top mode.
-                pinTo: result.wasJump ? "top" : state.pinTo,
-            }));
-        }
+        throw new UnimplementedError("TODO");
     });
 
     // Whenever we stop loading, try loading more messages. Maybe while we were

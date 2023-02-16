@@ -340,6 +340,13 @@ export class VirtualizedScrollViewState {
     }
 
     /**
+     * Get the current view height.
+     */
+    public getViewHeight(): number {
+        return this._viewHeight;
+    }
+
+    /**
      * Set the view height.
      *
      * This may shift the virtualization window so you should call
@@ -561,6 +568,26 @@ export class VirtualizedScrollViewState {
      */
     public getContentHeight(): number {
         return this._getSubtreeContentHeight(this._entryByOrderKey.root);
+    }
+
+    /**
+     * Get the rendered range of item indexes for this virtualized scroll view.
+     *
+     * Has O(log(n)) performance. If you are calling `render()` it also returns the
+     * rendered range so you can avoid a call to this function.
+     */
+    public getRenderedRange(): {startIndex: number; endIndex: number} | null {
+        if (!this._renderedRange) return null;
+
+        const startIterator = this._entryByOrderKey.find(this._renderedRange.startOrderKey);
+        assert(startIterator.node, "Could not find rendered range start order key");
+        const startIndex = this._getPreviousItemCount(startIterator);
+
+        const endIterator = this._entryByOrderKey.find(this._renderedRange.endOrderKey);
+        assert(endIterator.node, "Could not find rendered range end order key");
+        const endIndex = this._getPreviousItemCount(endIterator);
+
+        return {startIndex, endIndex};
     }
 
     /**
