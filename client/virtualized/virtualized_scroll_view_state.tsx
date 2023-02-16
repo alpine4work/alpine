@@ -393,6 +393,21 @@ export class VirtualizedScrollViewState {
     }
 
     /**
+     * The height of the virtualization window. Will be larger than the view height
+     * so we can render more content that's available when scrolled.
+     */
+    public getVirtualizationWindowHeight(): number {
+        // Currently implemented with a heuristic that smaller screens should have,
+        // proportionally, a larger virtualized window. 1080px tall views get half a
+        // view's worth of content on the top and bottom whereas a smaller 855px screen
+        // will get a full view's worth of content on the top and bottom.
+        return (
+            this._viewHeight +
+            this._viewHeight * clamp(0.5, -4 * Math.log(this._viewHeight / 1080) + 0.5, 2) * 2
+        );
+    }
+
+    /**
      * Set the height of a single item.
      *
      * This may shift the rendered range so you should call
@@ -681,11 +696,15 @@ export class VirtualizedScrollViewState {
             maxScrollEndOffset,
         );
 
+        const virtualizationWindowHeight = state.getVirtualizationWindowHeight();
+
         // The virtualized window is the range we expect to be filled with content. It
         // is the scroll window plus half a view in either direction so that a user
         // scrolling quickly will see more content.
-        const virtualizedWindowStartOffset = scrollStartOffset - state._viewHeight * 0.5;
-        const virtualizedWindowEndOffset = scrollEndOffset + state._viewHeight * 0.5;
+        const virtualizedWindowStartOffset =
+            scrollStartOffset - (virtualizationWindowHeight - state._viewHeight) / 2;
+        const virtualizedWindowEndOffset =
+            scrollEndOffset + (virtualizationWindowHeight - state._viewHeight) / 2;
         const clampedVirtualizedWindowStartOffset = clamp(
             minScrollStartOffset,
             virtualizedWindowStartOffset,

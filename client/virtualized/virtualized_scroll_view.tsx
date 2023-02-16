@@ -713,7 +713,7 @@ function VirtualizedScrollView(
         // may be a new node that's first in the scroll window.
         updateScrollAnchor();
 
-        const {scrollTop, clientHeight} = assertExists(scrollRef.current);
+        const {scrollTop} = assertExists(scrollRef.current);
 
         onScroll?.(scrollTop);
 
@@ -728,7 +728,8 @@ function VirtualizedScrollView(
         // scroll ends.
         const isJumpScrolling =
             lastScrollTopRef.current !== null &&
-            Math.abs(lastScrollTopRef.current - scrollTop) > clientHeight * 2;
+            Math.abs(lastScrollTopRef.current - scrollTop) >
+                (state.getVirtualizationWindowHeight() - state.getViewHeight()) * 2;
 
         setActualState(actualState => {
             if (actualState.isJumpScrolling || isJumpScrolling) {
