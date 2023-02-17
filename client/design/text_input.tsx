@@ -2,7 +2,7 @@ import classNames from "classnames";
 import {Ref, forwardRef, useId, useState} from "react";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
-import {isMac} from "~/client/helpers/is_mac";
+import {isMac} from "~/client/helpers/browser/is_mac";
 import {sprinkles} from "~/shared/styles/styles";
 
 export type TextInputProps = {
@@ -161,6 +161,7 @@ function TextInput(
                     autoComplete={autoComplete}
                     name={formName}
                     aria-label={hideLabel ? label : undefined}
+                    enterKeyHint={onEnter ? "done" : undefined}
                     onKeyDown={event => {
                         if (
                             onEnter &&

@@ -35,7 +35,8 @@ import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/con
 import {trimSpacesFromRange} from "~/client/content/internal/content_editor_prosemirror_helpers";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools";
 import {TargetedFocusRing} from "~/client/design/focus_ring";
-import {isMac} from "~/client/helpers/is_mac";
+import {isMac} from "~/client/helpers/browser/is_mac";
+import {isVirtualKeyboardEvent} from "~/client/helpers/events/is_virtual_keyboard_event";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
 import {documentFallbackTitle} from "~/shared/content/document_fallback_title";
@@ -118,17 +119,17 @@ export type ContentEditorProps<Content extends Node> = {
     /**
      * Fired when the user presses enter in a content editor.
      *
-     * Providing an `onEnter` callback will prevent the default enter behavior.
-     * It will also switch our editor out of multiline mode for assistive
-     * technologies.
+     * Providing an `onEnterFromPhysicalKeyboard` callback will prevent the default
+     * enter behavior. It will also switch our editor out of multiline mode for
+     * assistive technologies.
      *
      * Pressing shift+enter has the same behavior as pressing enter as a
      * workaround. Pressing alt+enter will insert a hard line break and won't
      * trigger this callback. Pasting in content with multiple paragraphs also
-     * allows you to add multiple lines. So providing `onEnter` doesn't make our
-     * editor fully single lined.
+     * allows you to add multiple lines. So providing `onEnterFromPhysicalKeyboard`
+     * doesn't make our editor fully single lined.
      */
-    onEnter?: () => void;
+    onEnterFromPhysicalKeyboard?: () => void;
 
     /**
      * Fired when the user press cmd-enter (or ctrl-enter on non MacOS platforms)
@@ -259,7 +260,6 @@ function ContentEditor<Content extends Node>(
         onBlur,
         phantomSelections,
     } = props;
-    const hasEnterCallback = typeof props.onEnter === "function";
 
     // The props for the current React commit. We are integrating with a stateful
     // component (ProseMirror's `EditorView`) so we need to be able to
@@ -390,8 +390,6 @@ function ContentEditor<Content extends Node>(
 
             handlePaste,
 
-            // If we have an `onEnter` callback then we want to run that instead of
-            // letting ProseMirror handle an enter key press.
             handleKeyDown(_view, event) {
                 if (
                     typeof propsRef.current.onModEnter === "function" &&
@@ -407,17 +405,23 @@ function ContentEditor<Content extends Node>(
                 }
 
                 if (
-                    typeof propsRef.current.onEnter === "function" &&
+                    typeof propsRef.current.onEnterFromPhysicalKeyboard === "function" &&
                     event.key === "Enter" &&
                     !event.altKey &&
                     !event.shiftKey &&
                     // Ctrl+Enter on non-MacOS platforms should trigger the callback
                     (!isMac || !event.ctrlKey) &&
                     // Cmd+Enter on MacOS platforms should trigger the callback
-                    (isMac || !event.metaKey)
+                    (isMac || !event.metaKey) &&
+                    // On a physical keyboard where the user has access to Shift+Enter we sometimes
+                    // want enter to send the message or otherwise save what's being edited. On a
+                    // virtual, mobile, keyboard (like the iOS touchscreen keyboard) we want enter
+                    // to insert a newline and have the user submit their message with a
+                    // button press.
+                    !isVirtualKeyboardEvent(event)
                 ) {
                     event.preventDefault();
-                    propsRef.current.onEnter();
+                    propsRef.current.onEnterFromPhysicalKeyboard();
                     return true;
                 }
 
@@ -625,7 +629,7 @@ function ContentEditor<Content extends Node>(
         // Set the role for assistive technologies. For documentation see:
         // https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/textbox_role
         viewElement.setAttribute("role", "textbox");
-        viewElement.setAttribute("aria-multiline", hasEnterCallback ? "false" : "true");
+        viewElement.setAttribute("aria-multiline", "true");
 
         if (ariaLabel) {
             viewElement.setAttribute("aria-label", ariaLabel);
@@ -638,7 +642,7 @@ function ContentEditor<Content extends Node>(
         } else {
             viewElement.removeAttribute("aria-labelledby");
         }
-    }, [ariaLabel, ariaLabelledBy, hasEnterCallback]);
+    }, [ariaLabel, ariaLabelledBy]);
 
     const isTitleEmpty = isContentTitleEmpty(state.getContent());
     const isBodyEmpty = isContentBodyEmpty(state.getContent());

@@ -1,4 +1,4 @@
-import {isMac} from "~/client/helpers/is_mac";
+import {isMac} from "~/client/helpers/browser/is_mac";
 
 /**
  * Is this a click event that on an `<a>` element would open the URL in a

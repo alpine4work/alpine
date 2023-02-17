@@ -16,7 +16,7 @@ import {
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants";
-import {isMobileWebKit} from "~/client/helpers/is_mobile_web_kit";
+import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit";
 import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";

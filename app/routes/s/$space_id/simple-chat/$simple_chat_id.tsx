@@ -113,7 +113,7 @@ export default function SimpleChatRoute() {
                     aria-label="Message"
                     placeholder="Type a message here…"
                     className={sprinkles({paddingY: "4"})}
-                    onEnter={() => {
+                    onEnterFromPhysicalKeyboard={() => {
                         if (isContentEmpty(state.getContent())) return;
 
                         runPromiseWithoutAwaiting(async () => {

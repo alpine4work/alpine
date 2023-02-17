@@ -35,7 +35,7 @@ import {useOutsidePress} from "~/client/design/helpers/use_outside_press";
 import {Overlay, OverlayRef} from "~/client/design/overlay";
 import {OverlayAnimated} from "~/client/design/overlay_animated";
 import {Tooltip, TooltipRef, TooltipState} from "~/client/design/tooltip";
-import {isMac} from "~/client/helpers/is_mac";
+import {isMac} from "~/client/helpers/browser/is_mac";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema";

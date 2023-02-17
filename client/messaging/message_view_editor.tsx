@@ -162,7 +162,7 @@ function MessageContentEditor({
             onNavigate={useNavigate()}
             className={sprinkles({minWidth: messageViewBubbleMinWidth})}
             onEscape={onEscape}
-            onEnter={onSave}
+            onEnterFromPhysicalKeyboard={onSave}
         />
     );
 }
