@@ -104,39 +104,51 @@ function IconButton(
     const {hoverProps, isHovered} = useHover({});
 
     const stylesByVariant: {[K in IconButtonVariant]: Sprinkles} = {
-        accent: {
-            backgroundColor: "theme-40-const",
-            color: "grey-0-const",
-        },
-        quiet: {
-            backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
-            color: isPressed ? "grey-90" : "grey-70",
-        },
-        "quiet-on-grey-5-dark-background": {
-            backgroundColor: isPressed
-                ? {light: "grey-10", dark: "grey-20"}
-                : isHovered
-                ? {light: "grey-5", dark: "grey-10"}
-                : undefined,
-            color: isPressed ? "grey-90" : "grey-70",
-        },
+        accent: !isDisabled
+            ? {
+                  backgroundColor: "theme-40-const",
+                  color: "grey-0-const",
+              }
+            : {
+                  backgroundColor: "grey-5",
+                  color: "grey-30",
+              },
+        quiet: !isDisabled
+            ? {
+                  backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
+                  color: isPressed ? "grey-90" : "grey-70",
+              }
+            : {
+                  backgroundColor: undefined,
+                  color: "grey-30",
+              },
+        "quiet-on-grey-5-dark-background": !isDisabled
+            ? {
+                  backgroundColor: isPressed
+                      ? {light: "grey-10", dark: "grey-20"}
+                      : isHovered
+                      ? {light: "grey-5", dark: "grey-10"}
+                      : undefined,
+                  color: isPressed ? "grey-90" : "grey-70",
+              }
+            : {
+                  backgroundColor: undefined,
+                  color: "grey-30",
+              },
     };
 
-    const {buttonSize, buttonPadding, iconSize} = (
+    const {buttonSize, iconSize} = (
         {
             base: {
                 buttonSize: "7",
-                buttonPadding: "1",
                 iconSize: "5",
             },
             sm: {
                 buttonSize: "5",
-                buttonPadding: "0.5",
                 iconSize: "4",
             },
             xs: {
                 buttonSize: "4",
-                buttonPadding: "0.5",
                 iconSize: "3",
             },
         } as const
@@ -155,14 +167,39 @@ function IconButton(
                     className={sprinkles({
                         width: buttonSize,
                         height: buttonSize,
-                        padding: buttonPadding,
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
                         borderRadius: "full",
+                        overflow: "hidden",
                         // You may notice our button doesn't have a pointer cursor. See:
                         // https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
                         cursor: "default",
+                        position: "relative",
                         ...stylesByVariant[variant],
                     })}
                 >
+                    {isPressed && variant === "accent" && (
+                        // For accent buttons, instead of choosing a darker background color shade when
+                        // pressed we add a black overlay at a lowered opacity. We accomplish this with
+                        // an overlay element since such a color is not in our color scheme.
+                        //
+                        // Darker shades in our color scheme are more saturated. We want the effect of a
+                        // button being physically pressed down.
+                        //
+                        // When we added this there was a happy accident. The text color also got
+                        // darker! This is more fitting for the physical analogy of a button being
+                        // pressed down.
+                        <span
+                            className={sprinkles({
+                                position: "absolute",
+                                inset: "0",
+                                backgroundColor: "grey-dark",
+                                pointerEvents: "none",
+                            })}
+                            style={{opacity: 0.2}}
+                        />
+                    )}
                     <IconContext.Provider
                         value={{
                             color: "currentColor",

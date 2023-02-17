@@ -17,6 +17,7 @@ import {
     postListViewMarginX,
     postViewMaxWidth,
 } from "~/client/forum/post_list_view";
+import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard";
 import {isContentEmpty} from "~/shared/content/is_content_empty";
 import {MessageContent} from "~/shared/content/message_content_schema";
 import {addRemLengths, spacing} from "~/shared/design/spacing";
@@ -79,7 +80,7 @@ export function ChannelViewTopBar({
                                         `/s/${channel.spaceId}/channels/${channel.id}`,
                                         window.location.href,
                                     );
-                                    await navigator.clipboard.writeText(url.toString());
+                                    await writeTextToClipboard(url.toString());
                                 },
                             },
                             {

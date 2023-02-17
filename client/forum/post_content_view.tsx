@@ -12,6 +12,7 @@ import {PrettyNumber} from "~/client/design/pretty_number";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {PostContentViewHeader} from "~/client/forum/post_content_view_header";
 import {PostCommentsState} from "~/client/forum/post_list";
+import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard";
 import {MessageList} from "~/client/messaging/message_list";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context";
@@ -63,7 +64,7 @@ export function PostContentView({
                                         `/s/${post.spaceId}/posts/${post.id}`,
                                         window.location.href,
                                     );
-                                    await navigator.clipboard.writeText(url.toString());
+                                    await writeTextToClipboard(url.toString());
                                 },
                             },
                             ...(currentAccount.id === post.author.id

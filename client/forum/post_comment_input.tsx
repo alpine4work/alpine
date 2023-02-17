@@ -1,4 +1,4 @@
-import {ArrowArcLeft, X} from "phosphor-react";
+import {ArrowArcLeft, PaperPlaneRight, X} from "phosphor-react";
 import {Ref, useEffect, useMemo, useRef, useState} from "react";
 import {useNavigate} from "react-router-dom";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
@@ -88,6 +88,83 @@ export function PostCommentInput({
         const editor = assertExists(editorRef.current);
         editor.focus();
     }, [replyingToPostCommentIndex]);
+
+    const submitPostComment = () => {
+        const content = state.getContent();
+        if (isContentEmpty(content)) return;
+
+        const optimisticComment: OptimisticMessageInterface = {
+            isOptimistic: true,
+            optimisticId: generateId(),
+            optimisticRequestErrorState: {hasError: false},
+            author: currentAccount,
+            createdTime: new Date(),
+            payload: {
+                type: "Content",
+                parentMessageIndex: replyingToPostComment?.comment.index ?? null,
+                content,
+                contentUpdatedTime: null,
+            },
+            getRoomKey: () => post.id,
+        };
+
+        onUpdatePostComments(postComments => postComments.addOptimisticMessage(optimisticComment));
+
+        setState(ContentEditorState.create(emptyMessageContent));
+        onClearReplyingToPostComment();
+
+        const createPostComment = () => {
+            runPromiseWithoutAwaiting(async () => {
+                try {
+                    await actions.createPostComment({
+                        parentCommentIndex: replyingToPostComment?.comment.index ?? null,
+                        content,
+                    });
+                } catch (error) {
+                    // TODO(calebmer): If you scroll away form the post and `usePostRealtime()`
+                    // unmounts this will error even if the comment is successfully created in the
+                    // background. Maybe we should keep our WebSocket alive while there are
+                    // unacknowledged messages for some timeout?
+                    showToast({
+                        type: "Error",
+                        title: "Couldn’t create comment",
+                        error,
+                    });
+
+                    onUpdatePostComments(postComments =>
+                        postComments.updateOptimisticMessage(
+                            optimisticComment.optimisticId,
+                            optimisticMessage => ({
+                                ...optimisticMessage,
+                                optimisticRequestErrorState: {
+                                    hasError: true,
+                                    retry: () => {
+                                        // Clear the error when we are retrying then call this
+                                        // function again.
+                                        onUpdatePostComments(postComments =>
+                                            postComments.updateOptimisticMessage(
+                                                optimisticComment.optimisticId,
+                                                optimisticMessage => ({
+                                                    ...optimisticMessage,
+                                                    optimisticRequestErrorState: {
+                                                        hasError: false,
+                                                    },
+                                                }),
+                                            ),
+                                        );
+
+                                        createPostComment();
+                                    },
+                                },
+                            }),
+                        ),
+                    );
+                }
+            });
+        };
+
+        createPostComment();
+    };
 
     return (
         <>
@@ -231,7 +308,7 @@ export function PostCommentInput({
                     <Box
                         flexGrow="1"
                         overflowX="hidden"
-                        marginLeft="2"
+                        marginX="2"
                         backgroundColor="grey-5"
                         borderRadius={messageViewBubbleBorderRadius}
                     >
@@ -247,94 +324,28 @@ export function PostCommentInput({
                                     paddingX: messageViewBubblePaddingX,
                                     paddingY: messageViewBubblePaddingY,
                                 })}
-                                onEnter={() => {
-                                    const content = state.getContent();
-                                    if (isContentEmpty(content)) return;
-
-                                    const optimisticComment: OptimisticMessageInterface = {
-                                        isOptimistic: true,
-                                        optimisticId: generateId(),
-                                        optimisticRequestErrorState: {hasError: false},
-                                        author: currentAccount,
-                                        createdTime: new Date(),
-                                        payload: {
-                                            type: "Content",
-                                            parentMessageIndex:
-                                                replyingToPostComment?.comment.index ?? null,
-                                            content,
-                                            contentUpdatedTime: null,
-                                        },
-                                        getRoomKey: () => post.id,
-                                    };
-
-                                    onUpdatePostComments(postComments =>
-                                        postComments.addOptimisticMessage(optimisticComment),
-                                    );
-
-                                    setState(ContentEditorState.create(emptyMessageContent));
-                                    onClearReplyingToPostComment();
-
-                                    const createPostComment = () => {
-                                        runPromiseWithoutAwaiting(async () => {
-                                            try {
-                                                await actions.createPostComment({
-                                                    parentCommentIndex:
-                                                        replyingToPostComment?.comment.index ??
-                                                        null,
-                                                    content,
-                                                });
-                                            } catch (error) {
-                                                // TODO(calebmer): If you scroll away form the post and `usePostRealtime()`
-                                                // unmounts this will error even if the comment is successfully created in the
-                                                // background. Maybe we should keep our WebSocket alive while there are
-                                                // unacknowledged messages for some timeout?
-                                                showToast({
-                                                    type: "Error",
-                                                    title: "Couldn’t create comment",
-                                                    error,
-                                                });
-
-                                                onUpdatePostComments(postComments =>
-                                                    postComments.updateOptimisticMessage(
-                                                        optimisticComment.optimisticId,
-                                                        optimisticMessage => ({
-                                                            ...optimisticMessage,
-                                                            optimisticRequestErrorState: {
-                                                                hasError: true,
-                                                                retry: () => {
-                                                                    // Clear the error when we are retrying then call this
-                                                                    // function again.
-                                                                    onUpdatePostComments(
-                                                                        postComments =>
-                                                                            postComments.updateOptimisticMessage(
-                                                                                optimisticComment.optimisticId,
-                                                                                optimisticMessage => ({
-                                                                                    ...optimisticMessage,
-                                                                                    optimisticRequestErrorState:
-                                                                                        {
-                                                                                            hasError:
-                                                                                                false,
-                                                                                        },
-                                                                                }),
-                                                                            ),
-                                                                    );
-
-                                                                    createPostComment();
-                                                                },
-                                                            },
-                                                        }),
-                                                    ),
-                                                );
-                                            }
-                                        });
-                                    };
-
-                                    createPostComment();
-                                }}
+                                onEnter={submitPostComment}
                             />
                         </Box>
                     </Box>
                 </FocusRing>
+                <Box display="flex" alignItems="flex-end">
+                    <Box paddingY="0.5">
+                        <IconButton
+                            variant="accent"
+                            description="Send comment"
+                            withoutTooltip={true}
+                            isDisabled={isContentEmpty(state.getContent())}
+                            onPress={submitPostComment}
+                        >
+                            <PaperPlaneRight
+                                size={spacing["4"]}
+                                weight="fill"
+                                style={{transform: "translateX(1px)"}}
+                            />
+                        </IconButton>
+                    </Box>
+                </Box>
             </Box>
         </>
     );

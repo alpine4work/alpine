@@ -394,12 +394,18 @@ function VirtualizedScrollView(
     const getItemWithoutRender = useMemo(() => {
         const itemByIndex = new Map<
             number,
-            DistributiveOmit<VirtualizedScrollViewItem, "minHeight"> & {minHeight: number}
+            DistributiveOmit<VirtualizedScrollViewItem, "minHeight"> & {
+                minHeight: number;
+                originalMinHeight: RemLength | number;
+            }
         >();
 
         return (
             index: number,
-        ): DistributiveOmit<VirtualizedScrollViewItem, "minHeight"> & {minHeight: number} =>
+        ): DistributiveOmit<VirtualizedScrollViewItem, "minHeight"> & {
+            minHeight: number;
+            originalMinHeight: RemLength | number;
+        } =>
             getOrSetDefaultMapValue(itemByIndex, index, () => {
                 const item = _renderItem(index);
                 return {
@@ -408,6 +414,7 @@ function VirtualizedScrollView(
                         typeof item.minHeight === "string"
                             ? convertRemLengthToPx(item.minHeight, remPx)
                             : item.minHeight,
+                    originalMinHeight: item.minHeight,
                 };
             });
     }, [_renderItem, remPx]);
@@ -628,7 +635,9 @@ function VirtualizedScrollView(
                                 key={item.key}
                                 ref={ref}
                                 style={{
-                                    minHeight: item.minHeight,
+                                    // Use the original min-height in case we have the wrong `remPx` value during
+                                    // server-side rendering.
+                                    minHeight: item.originalMinHeight,
                                     ...(shouldRenderWithRelativePositioning
                                         ? {position: "relative"}
                                         : {
