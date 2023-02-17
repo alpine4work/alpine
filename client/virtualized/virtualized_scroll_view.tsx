@@ -43,6 +43,31 @@ import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit";
 import {ClientInfo} from "~/shared/remix/client_info";
 import {sprinkles} from "~/shared/styles/styles";
 
+// NOTE(calebmer, 2023-02-17): An observation I've had after working on
+// scrolling for a while is it is better to have a scroll animation that drops
+// the occasional frame then to show flashes of un-rendered content. Showing
+// flashes of un-rendered content is more jarring and breaks the physics of
+// the product.
+//
+// However, blocking scroll to render content is really hard to do in a
+// cross-browser compatible way. [Monday.com has a good article][1] on
+// overriding the wheel event to implement synchronous scrolling vs
+// asynchronous scrolling (Airtable does this too). Notably, this only works
+// for the mouse wheel! It doesn't work for touch interactions in browsers like
+// Safari so breaks touch momentum scrolling which feels terrible.
+//
+// I wonder if when I build a custom native app wrapper if I can hook into web
+// view scrolling to provide a mechanism for blocking scrolls? (And a better
+// implementation for scroll anchoring during a scroll...) This [blog post from
+// Salesforce][2] hints at being able to have native control over a web view's
+// scrolling but it might only work for body scrolling.
+//
+// If not, then I think tightly controlling scroll behavior is a meaningful
+// quality reason to eventually build native apps.
+//
+// [1]: https://engineering.monday.com/our-journey-to-understand-scrolling-across-different-browsers/
+// [2]: https://engineering.salesforce.com/native-scrolling-in-salesforce-mobile-app-4f334b6ad96e/
+
 /**
  * How many items will the virtualized scroll view initially render assuming
  * every item has the same minimum height?
@@ -1195,7 +1220,7 @@ function getVirtualizedScrollViewOffsetForScrollToIndex({
     const position = state.getPositionByIndex(index);
 
     // NOTE(calebmer): When scrolling to an unmeasured item we won't know the
-    // `height`! This means we may render a large item too far down the view. Maybe
+    // height! This means we may render a large item too far down the view. Maybe
     // we should measure the item before scrolling to it?
     //
     // If we keep the item we're scrolling to rendered during the scroll that would
