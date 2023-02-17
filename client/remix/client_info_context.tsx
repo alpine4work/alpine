@@ -20,7 +20,7 @@ export const defaultClientInfo: ClientInfo = {
      *
      * [1]: https://www.browserstack.com/guide/ideal-screen-sizes-for-responsive-design
      */
-    screenWidth: 1920,
+    windowWidth: 1920,
     /**
      * The default screen height we use when server-side rendering when we don't
      * know what the user's actual screen height is. 1080px is the height of the
@@ -29,7 +29,7 @@ export const defaultClientInfo: ClientInfo = {
      *
      * [1]: https://www.browserstack.com/guide/ideal-screen-sizes-for-responsive-design
      */
-    screenHeight: 1080,
+    windowHeight: 1080,
     /**
      * We use the New York time zone when we haven't gotten the client's actual
      * time zone since that's where our company is based.
@@ -38,8 +38,8 @@ export const defaultClientInfo: ClientInfo = {
 };
 
 const clientInfo = new Lazy(() => ({
-    screenWidth: window.screen.width,
-    screenHeight: window.screen.height,
+    windowWidth: window.innerWidth,
+    windowHeight: window.innerHeight,
     timeZone: getCurrentTimeZone(),
 }));
 
@@ -57,6 +57,9 @@ const ClientInfoContext = createContext<ClientInfo | null>(null);
  * We include client information (like time zone) in React context. When server
  * side rendering we get this information from a cookie. Then when the client
  * loads we re-render the app with the real values.
+ *
+ * Client info is currently only computed when the app loads. We do not listen
+ * for changes and re-render the app.
  */
 export function useClientInfo(): ClientInfo {
     const clientInfo = useContext(ClientInfoContext);

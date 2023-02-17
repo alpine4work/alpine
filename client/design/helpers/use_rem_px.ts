@@ -1,11 +1,5 @@
-import {useEffect, useState} from "react";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
-import {useClientInfo} from "~/client/remix/client_info_context";
-import {
-    getRemPxFromScreenWidth,
-    mobilePlatformMediaQuery,
-    remPxByPlatform,
-} from "~/shared/design/spacing";
+import {useIsMobile} from "~/client/helpers/use_is_mobile";
+import {mobilePlatformMediaQuery, remPxByPlatform} from "~/shared/design/spacing";
 
 /**
  * Get the number of pixels in 1rem.
@@ -16,34 +10,8 @@ import {
  * screen width is unknown, we assume a desktop platform.
  */
 export function useRemPx(): number {
-    const {screenWidth} = useClientInfo();
-    const isInitialAppRender = useIsInitialAppRender();
-
-    const [remPx, setRemPx] = useState(() => {
-        if (isInitialAppRender) {
-            return getRemPxFromScreenWidth(screenWidth);
-        } else {
-            return getRemPxWithoutListening();
-        }
-    });
-
-    useEffect(() => {
-        const mediaQueryList = window.matchMedia(mobilePlatformMediaQuery);
-
-        const update = () => {
-            setRemPx(mediaQueryList.matches ? remPxByPlatform.mobile : remPxByPlatform.desktop);
-        };
-
-        // In case the value changed since the time component rendered.
-        update();
-
-        mediaQueryList.addEventListener("change", update);
-        return () => {
-            mediaQueryList.removeEventListener("change", update);
-        };
-    }, []);
-
-    return remPx;
+    const isMobile = useIsMobile();
+    return isMobile ? remPxByPlatform.mobile : remPxByPlatform.desktop;
 }
 
 /**

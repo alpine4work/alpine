@@ -1,4 +1,3 @@
-import {PostList} from "~/client/forum/post_list";
 import {PostListView} from "~/client/forum/post_list_view";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
@@ -51,15 +50,15 @@ export default function PostRoute() {
     return (
         <main className={sprinkles({height: "full"})}>
             <PostListView
-                initialPosts={() =>
-                    PostList.empty.insertPostAtEnd(post, {
-                        arePostCommentsOpen: true,
-                        initialLoadPostComments: {
-                            comments: postComments,
-                            otherReferencedComments: otherReferencedPostComments,
-                        },
-                    })
-                }
+                initialPostsResult={{
+                    type: "One",
+                    post,
+                    arePostCommentsOpen: true,
+                    initialLoadPostComments: {
+                        comments: postComments,
+                        otherReferencedComments: otherReferencedPostComments,
+                    },
+                }}
             />
         </main>
     );

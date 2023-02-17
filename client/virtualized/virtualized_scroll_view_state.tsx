@@ -23,7 +23,7 @@ import {
  * have space to scroll). Some of the screen is probably covered so this is
  * more than necessary but we'll never show blank content.
  */
-export const initialVirtualizedScrollViewRenderFillScreenCount = 2;
+export const initialVirtualizedScrollViewRenderFillWindowCount = 2;
 
 /**
  * Immutable state object for a `<VirtualizedScrollView>` component. It manages the
@@ -190,17 +190,17 @@ export class VirtualizedScrollViewState {
      * empty space in the view on initial render.
      */
     public static initializeFromTop({
-        screenHeight,
+        windowHeight,
         bufferedItemHeight,
         itemCount,
         getItem,
     }: {
-        screenHeight: number;
+        windowHeight: number;
         bufferedItemHeight: number;
         itemCount: number;
         getItem: (index: number) => {key: Key; minHeight: number};
     }): VirtualizedScrollViewState {
-        const maxRenderedHeight = screenHeight * initialVirtualizedScrollViewRenderFillScreenCount;
+        const maxRenderedHeight = windowHeight * initialVirtualizedScrollViewRenderFillWindowCount;
         let renderedHeight = 0;
         const renderedItems: Array<{key: Key; minHeight: number}> = [];
 
@@ -242,7 +242,7 @@ export class VirtualizedScrollViewState {
         }
 
         return new VirtualizedScrollViewState({
-            viewHeight: screenHeight,
+            viewHeight: windowHeight,
             bufferedItemHeight,
             entryByOrderKey,
             orderKeyByItemKey,
@@ -267,17 +267,17 @@ export class VirtualizedScrollViewState {
      * empty space in the view on initial render.
      */
     public static initializeFromBottom({
-        screenHeight,
+        windowHeight,
         bufferedItemHeight,
         itemCount,
         getItem,
     }: {
-        screenHeight: number;
+        windowHeight: number;
         bufferedItemHeight: number;
         itemCount: number;
         getItem: (index: number) => {key: Key; minHeight: number};
     }): VirtualizedScrollViewState {
-        const maxRenderedHeight = screenHeight * initialVirtualizedScrollViewRenderFillScreenCount;
+        const maxRenderedHeight = windowHeight * initialVirtualizedScrollViewRenderFillWindowCount;
         let renderedHeight = 0;
         const renderedItems: Array<{key: Key; minHeight: number}> = [];
 
@@ -323,7 +323,7 @@ export class VirtualizedScrollViewState {
         }
 
         return new VirtualizedScrollViewState({
-            viewHeight: screenHeight,
+            viewHeight: windowHeight,
             bufferedItemHeight,
             entryByOrderKey,
             orderKeyByItemKey,

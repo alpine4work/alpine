@@ -434,6 +434,9 @@ export class PostList {
      * Set the channel header item at the beginning of the post list.
      */
     public setChannelHeader(channelHeader: PostListChannelHeader | null): PostList {
+        // Optimization: Don't update the post list if this property hasn't changed.
+        if (channelHeader === this._channelHeader) return this;
+
         return new PostList({
             channelHeader,
             hasMorePosts: this._hasMorePosts,
@@ -450,6 +453,9 @@ export class PostList {
      * Set that the post list should have a loading spinner once you reach the end.
      */
     public setHasMorePosts(hasMorePosts: boolean): PostList {
+        // Optimization: Don't update the post list if this property hasn't changed.
+        if (hasMorePosts === this._hasMorePosts) return this;
+
         return new PostList({
             channelHeader: this._channelHeader,
             hasMorePosts,

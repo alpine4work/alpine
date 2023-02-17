@@ -65,7 +65,6 @@ export function MessageViewEditor<RoomKey extends string>({
         >
             <FocusRing isVisibleWhenFocusWithin={true}>
                 <Box
-                    pointerEvents="auto"
                     maxWidth="160"
                     overflow="hidden"
                     display="inline-block"

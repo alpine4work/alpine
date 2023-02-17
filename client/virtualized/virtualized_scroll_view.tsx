@@ -28,9 +28,9 @@ import {
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {
     VirtualizedScrollViewState,
-    initialVirtualizedScrollViewRenderFillScreenCount,
+    initialVirtualizedScrollViewRenderFillWindowCount,
 } from "~/client/virtualized/virtualized_scroll_view_state";
-import {RemLength, convertRemLengthToPx, getRemPxFromScreenWidth} from "~/shared/design/spacing";
+import {RemLength, convertRemLengthToPx, getRemPxFromWindowWidth} from "~/shared/design/spacing";
 import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_after_next_browser_paint";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
@@ -76,14 +76,14 @@ export function getInitialVirtualizedScrollViewRenderedItemCount(
     clientInfo: ClientInfo,
     minItemHeight: number | RemLength,
 ) {
-    const remPx = getRemPxFromScreenWidth(clientInfo.screenWidth);
+    const remPx = getRemPxFromWindowWidth(clientInfo.windowWidth);
     const minItemHeightPx =
         typeof minItemHeight === "string"
             ? convertRemLengthToPx(minItemHeight, remPx)
             : minItemHeight;
 
     return Math.ceil(
-        (clientInfo.screenHeight * initialVirtualizedScrollViewRenderFillScreenCount) /
+        (clientInfo.windowHeight * initialVirtualizedScrollViewRenderFillWindowCount) /
             minItemHeightPx,
     );
 }
@@ -383,7 +383,7 @@ function VirtualizedScrollView(
     },
     ref: Ref<VirtualizedScrollViewRef>,
 ) {
-    const {screenHeight} = useClientInfo();
+    const {windowHeight} = useClientInfo();
     const remPx = useRemPx();
 
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -424,7 +424,7 @@ function VirtualizedScrollView(
         if (initialScrollOffset === "top") {
             return {
                 state: VirtualizedScrollViewState.initializeFromTop({
-                    screenHeight,
+                    windowHeight,
                     bufferedItemHeight,
                     itemCount,
                     getItem: getItemWithoutRender,
@@ -436,7 +436,7 @@ function VirtualizedScrollView(
         } else {
             return {
                 state: VirtualizedScrollViewState.initializeFromBottom({
-                    screenHeight,
+                    windowHeight,
                     bufferedItemHeight,
                     itemCount,
                     getItem: getItemWithoutRender,

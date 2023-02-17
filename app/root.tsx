@@ -24,6 +24,7 @@ import {
     getColorSchemeWithoutListening,
 } from "~/client/helpers/color_scheme";
 import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use_is_initial_app_render";
+import {IsMobileContextProvider} from "~/client/helpers/use_is_mobile";
 import {useStableValue} from "~/client/helpers/use_stable_value";
 import {ClientInfoContextProvider, defaultClientInfo} from "~/client/remix/client_info_context";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
@@ -168,11 +169,13 @@ export default function Root({error}: {error?: unknown}) {
                     initialClientInfo={loaderData?.clientInfo ?? defaultClientInfo}
                 >
                     <AppInitialRenderContextProvider>
-                        <OverlayScopeContextProvider>
-                            <TooltipCoordinationContextProvider>
-                                <ToastContextProvider>{children}</ToastContextProvider>
-                            </TooltipCoordinationContextProvider>
-                        </OverlayScopeContextProvider>
+                        <IsMobileContextProvider>
+                            <OverlayScopeContextProvider>
+                                <TooltipCoordinationContextProvider>
+                                    <ToastContextProvider>{children}</ToastContextProvider>
+                                </TooltipCoordinationContextProvider>
+                            </OverlayScopeContextProvider>
+                        </IsMobileContextProvider>
                     </AppInitialRenderContextProvider>
                 </ClientInfoContextProvider>
             </AppContextProvider>

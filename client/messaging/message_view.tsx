@@ -237,7 +237,8 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
         return (
             <div
                 className={sprinkles({
-                    pointerEvents: "auto",
+                    position: "relative",
+                    zIndex: "20",
                     backgroundColor: "grey-5",
                     maxWidth: "full",
                     overflow: "hidden",
@@ -269,7 +270,8 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
         return (
             <div
                 className={sprinkles({
-                    pointerEvents: "auto",
+                    position: "relative",
+                    zIndex: "20",
                     paddingX: messageViewBubblePaddingX,
                     paddingY: messageViewBubblePaddingY,
                     display: "flex",
@@ -331,7 +333,7 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
             <div
                 className={sprinkles({
                     position: "relative",
-                    zIndex: "-10",
+                    zIndex: "10",
                 })}
                 style={{
                     height: scaledHeight,
@@ -481,10 +483,6 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
                     display: "flex",
                     paddingX: "3",
                     paddingBottom: !shouldMergeWithNextMessage ? "3" : "0.5",
-                    // Our message bubble container has no pointer events and children must
-                    // re-enable them so the reply preview rendered underneath the bubble
-                    // is clickable.
-                    pointerEvents: "none",
                 })}
             >
                 {useMemo(
@@ -493,7 +491,6 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
                             className={sprinkles({
                                 flexShrink: "0",
                                 paddingRight: "2",
-                                pointerEvents: "auto",
                             })}
                         >
                             <div
@@ -539,7 +536,8 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
                             <div
                                 className={sprinkles({
                                     width: messageViewActionsWidth,
-                                    pointerEvents: "auto",
+                                    position: "relative",
+                                    zIndex: "20",
                                 })}
                             >
                                 {message.isOptimistic &&

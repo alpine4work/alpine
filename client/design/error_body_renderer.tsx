@@ -1,6 +1,7 @@
 import {Warning} from "phosphor-react";
 import {Box} from "~/client/design/box";
 import {ErrorDisplayMessageRenderer} from "~/client/design/error_display_message_renderer";
+import {ErrorIcon} from "~/client/design/error_icon";
 import {fontSizes, sprinkles} from "~/shared/styles/styles";
 
 /**
@@ -27,7 +28,7 @@ export function ErrorBodyRenderer({title, error}: {title: string; error: unknown
                             height: fontSizes["400"].fontSize,
                         }}
                     >
-                        <Warning weight="fill" size="100%" />
+                        <ErrorIcon size="100%" />
                     </div>
                 </Box>
                 <h1

@@ -1,5 +1,6 @@
 import {SpinnerGap} from "phosphor-react";
 import {
+    Memo,
     MutableRefObject,
     ReactElement,
     ReactNode,
@@ -12,14 +13,15 @@ import {useAppContext} from "~/client/context/app_context";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
 import {Spacer} from "~/client/design/spacer";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
+import {ChannelViewHeader, channelViewHeaderMinHeight} from "~/client/forum/channel_view_header";
 import {PostCommentInput} from "~/client/forum/post_comment_input";
 import {PostContentView, postContentViewMinHeight} from "~/client/forum/post_content_view";
-import {PostEditorInline, postEditorInlineMinHeight} from "~/client/forum/post_editor_inline";
 import {PostEditorModal} from "~/client/forum/post_editor_modal";
-import {PostList, PostListPostContentItem} from "~/client/forum/post_list";
+import {PostList, PostListChannelHeader, PostListPostContentItem} from "~/client/forum/post_list";
 import {PostShimmer} from "~/client/forum/post_shimmer";
 import {PostRealtimeActions} from "~/client/forum/use_post_realtime";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
+import {useIsMobile} from "~/client/helpers/use_is_mobile";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer";
 import {useMessageEditing} from "~/client/messaging/message_editing";
 import {MessageShimmer} from "~/client/messaging/message_shimmer";
@@ -48,7 +50,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping";
 import {clamp} from "~/shared/helpers/number/clamp";
 import {PostId} from "~/shared/id/types/id_types";
-import {PostModel} from "~/shared/models/post_model";
+import {PostCommentModel, PostModel} from "~/shared/models/post_model";
 import {getPostCommentsFromEnd, getPostCommentsFromStart} from "~/shared/rpc/forum_rpc_definitions";
 import {spinAnimationClassName, sprinkles} from "~/shared/styles/styles";
 
@@ -97,11 +99,27 @@ const bufferedPostViewHeight = addRemLengths(postContentViewMinHeight, spacing[p
 const Box = null;
 
 export function PostListView({
-    initialPosts,
+    channelHeader,
+    initialPostsResult,
     onLoadMorePosts,
     aside,
 }: {
-    initialPosts: PostList | (() => PostList);
+    channelHeader?: Memo<PostListChannelHeader>;
+    initialPostsResult:
+        | {
+              type: "Many";
+              hasMorePosts: boolean;
+              posts: ReadonlyArray<PostModel>;
+          }
+        | {
+              type: "One";
+              post: PostModel;
+              arePostCommentsOpen?: boolean;
+              initialLoadPostComments?: {
+                  comments: ReadonlyArray<PostCommentModel>;
+                  otherReferencedComments: ReadonlyArray<PostCommentModel>;
+              };
+          };
     onLoadMorePosts?: (options: {
         limit: number;
         afterCursor?: {createdTime: Date; postId: PostId};
@@ -111,6 +129,7 @@ export function PostListView({
     }>;
     aside?: ReactNode;
 }) {
+    const isMobile = useIsMobile();
     const context = useAppContext();
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const [viewContainerRef, viewSize] = useResizeObserver();
@@ -125,9 +144,31 @@ export function PostListView({
         asideBufferedHeight: 0,
     });
 
-    const hasAside = !!aside;
+    const hasAside = !isMobile && !!aside;
 
-    const [posts, setPosts] = useState(initialPosts);
+    const [postsWithoutChannelHeader, setPosts] = useState(() => {
+        let posts: PostList;
+        switch (initialPostsResult.type) {
+            case "Many": {
+                posts = PostList.empty
+                    .insertManyPostsAtEnd(initialPostsResult.posts)
+                    .setHasMorePosts(initialPostsResult.hasMorePosts);
+                break;
+            }
+            case "One": {
+                posts = PostList.empty.insertPostAtEnd(initialPostsResult.post, initialPostsResult);
+                break;
+            }
+            default:
+                throw exhaustive(initialPostsResult);
+        }
+        return posts.setChannelHeader(channelHeader ?? null);
+    });
+
+    const posts = postsWithoutChannelHeader.setChannelHeader(channelHeader ?? null);
+    useEffect(() => {
+        setPosts(posts);
+    }, [posts]);
 
     const isLoadingRef = useRef(false);
     const [errorState, setErrorState] = useState<
@@ -464,7 +505,7 @@ export function PostListView({
                         key: "ChannelHeader",
                         minHeight: addRemLengths(
                             spacing[postListViewMargin],
-                            postEditorInlineMinHeight,
+                            channelViewHeaderMinHeight,
                             halfPostListViewMarginRem,
                         ),
                         node: (
@@ -487,8 +528,8 @@ export function PostListView({
                                         paddingBottom: halfPostListViewMarginRem,
                                     }}
                                 >
-                                    <PostEditorInline
-                                        channelId={item.channelHeader.channel.id}
+                                    <ChannelViewHeader
+                                        channelHeader={item.channelHeader}
                                         onCreatePost={post =>
                                             setPosts(posts => posts.insertPostAtStart(post))
                                         }
