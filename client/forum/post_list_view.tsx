@@ -1257,6 +1257,14 @@ export function PostListView({
                     renderItem={renderItem}
                     onRenderedRangeChange={tryLoadingMoreData}
                     onScroll={scrollOffset => {
+                        const view = assertExists(viewRef.current);
+
+                        scrollOffset = clamp(
+                            0,
+                            scrollOffset,
+                            view.getContentHeight() - view.getHeight(),
+                        );
+
                         const viewHeight = viewSize?.height ?? 0;
                         const asideHeight = Math.max(viewHeight, asideSize?.height ?? 0);
 

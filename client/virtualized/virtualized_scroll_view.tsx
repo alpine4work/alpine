@@ -178,6 +178,11 @@ export type VirtualizedScrollViewRef = {
     getHeight(): number;
 
     /**
+     * Get the height of the scroll view's contents.
+     */
+    getContentHeight(): number;
+
+    /**
      * Return the current rendered range. This is the same value we pass into
      * `onRenderedRangeChange`.
      */
@@ -1002,6 +1007,7 @@ function VirtualizedScrollView(
         ref,
         (): VirtualizedScrollViewRef => ({
             getHeight: () => assertExists(scrollRef.current).clientHeight,
+            getContentHeight: () => assertExists(scrollRef.current).scrollHeight,
             getRenderedRange: () => renderedRangeRef.current,
             scrollToIndex: index => {
                 const state = stateRef.current.state;
