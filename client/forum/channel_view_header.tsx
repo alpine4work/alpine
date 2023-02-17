@@ -13,11 +13,11 @@ export const channelViewHeaderMinHeight = postEditorInlineMinHeight;
 export function ChannelViewHeader({
     channelHeader,
     onCreatePost,
-    parentHasMarginX,
+    parentHasMargin,
 }: {
     channelHeader: PostListChannelHeader;
     onCreatePost: (post: PostModel) => void;
-    parentHasMarginX: boolean;
+    parentHasMargin: boolean;
 }) {
     const navigate = useNavigate();
     const isMobile = useIsMobile();
@@ -27,7 +27,7 @@ export function ChannelViewHeader({
             {isMobile && (
                 <Box
                     paddingBottom={postListViewMarginY}
-                    paddingX={!parentHasMarginX ? postListViewMarginX : undefined}
+                    paddingX={!parentHasMargin ? postListViewMarginX : undefined}
                 >
                     <h3
                         className={sprinkles({
@@ -47,7 +47,7 @@ export function ChannelViewHeader({
             <PostEditorInline
                 channelId={channelHeader.channel.id}
                 onCreatePost={onCreatePost}
-                parentHasMarginX={parentHasMarginX}
+                parentHasMargin={parentHasMargin}
             />
         </>
     );
