@@ -1,6 +1,12 @@
 import createTree, {Tree} from "functional-red-black-tree";
 import {MessageList} from "~/client/messaging/message_list";
-import {FailedPreconditionError, InternalError, OutOfRangeError} from "~/shared/error/error";
+import {
+    FailedPreconditionError,
+    InternalError,
+    InvalidArgumentError,
+    NotFoundError,
+    OutOfRangeError,
+} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
@@ -164,25 +170,66 @@ export class PostList {
 
     /**
      * Get the total number of items before this post id.
-     *
-     * This function is O(posts)! Don't use in performance critical paths.
      */
-    public getItemCountBeforePostId(postId: PostId): number {
+    public getPostById(postId: PostId): {
+        post: PostModel;
+        postComments: MessageList<PostCommentModel>;
+        /**
+         * Get the index of the post in our list.
+         *
+         * Getting the index is O(posts)! Don't use in performance critical paths.
+         */
+        getPostIndex: () => number;
+        /**
+         * Get the index of the post comment in our list. If comments are not open on
+         * this post or if the comment index is out of bounds this will throw an error.
+         */
+        getPostCommentIndex: (postCommentIndex: number) => number;
+    } {
         const orderKey = this._orderKeyByPostId.get(postId);
-        if (!orderKey) throw new InternalError("Post id not found");
+        if (!orderKey) throw new NotFoundError("Post id not found");
+        const post = this._postByOrderKey.get(orderKey);
+        if (!post) throw new InternalError("Post not found for order key");
 
-        let itemCount = this._channelHeader ? 1 : 0;
+        const getPostIndex = () => {
+            let itemCount = this._channelHeader ? 1 : 0;
 
-        for (const [otherOrderKey, otherPost] of this._postByOrderKey.entriesBefore(orderKey)) {
-            itemCount += 1;
-
-            if (this._postCommentsOpenStateByOrderKey.has(otherOrderKey)) {
-                itemCount += otherPost.postComments.getMessageCount();
+            for (const [otherOrderKey, otherPost] of this._postByOrderKey.entriesBefore(orderKey)) {
                 itemCount += 1;
-            }
-        }
 
-        return itemCount;
+                if (this._postCommentsOpenStateByOrderKey.has(otherOrderKey)) {
+                    itemCount += otherPost.postComments.getMessageCount();
+                    itemCount += 1;
+                }
+            }
+
+            return itemCount;
+        };
+
+        const getPostCommentIndex = (postCommentIndex: number) => {
+            const postIndex = getPostIndex();
+
+            const postCommentsState =
+                this._postCommentsOpenStateByOrderKey.get(orderKey) ?? "Closed";
+
+            if (postCommentsState === "Closed")
+                throw new FailedPreconditionError("Post comments are closed");
+
+            if (postCommentIndex < 0 || !Number.isSafeInteger(postCommentIndex))
+                throw new InvalidArgumentError("Post comment index must be a positive integer");
+
+            if (postCommentIndex >= post.postComments.getMessageCount())
+                throw new NotFoundError("Post comment index out of bounds");
+
+            return postIndex + 1 + postCommentIndex;
+        };
+
+        return {
+            post: post.post,
+            postComments: post.postComments,
+            getPostIndex,
+            getPostCommentIndex,
+        };
     }
 
     /**

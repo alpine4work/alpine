@@ -114,6 +114,7 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
     onJumpToMessage: _onJumpToMessage,
     onReplyToMessage,
     onDeleteMessage,
+    getCopyLinkUrl,
 }: {
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
@@ -127,6 +128,7 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
     onJumpToMessage: (messageIndex: number) => void;
     onReplyToMessage: () => void;
     onDeleteMessage: () => Promise<void>;
+    getCopyLinkUrl: (messageIndex: number) => URL;
 }) {
     const shouldMergeWithPreviousMessage: boolean =
         !!previousMessage && shouldMergeMessages(previousMessage, message);
@@ -577,6 +579,7 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
                                             shouldFocusMessageContentEditorRef={
                                                 shouldFocusMessageContentEditorRef
                                             }
+                                            getCopyLinkUrl={getCopyLinkUrl}
                                         />
                                     )
                                 )}

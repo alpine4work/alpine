@@ -4,8 +4,11 @@ import {
     MutableRefObject,
     ReactElement,
     ReactNode,
+    Ref,
+    forwardRef,
     useCallback,
     useEffect,
+    useImperativeHandle,
     useRef,
     useState,
 } from "react";
@@ -109,37 +112,51 @@ const bufferedPostViewHeight = addRemLengths(
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const Box = null;
 
-export function PostListView({
-    channelHeader,
-    initialPostsResult,
-    onLoadMorePosts,
-    aside,
-}: {
-    channelHeader?: Memo<PostListChannelHeader>;
-    initialPostsResult:
-        | {
-              type: "Many";
-              hasMorePosts: boolean;
-              posts: ReadonlyArray<PostModel>;
-          }
-        | {
-              type: "One";
-              post: PostModel;
-              postCommentsState?: PostCommentsState;
-              initialLoadPostComments?: {
-                  comments: ReadonlyArray<PostCommentModel>;
-                  otherReferencedComments: ReadonlyArray<PostCommentModel>;
+const PostListViewForwardRef = forwardRef(PostListView);
+export {PostListViewForwardRef as PostListView};
+
+export type PostListViewRef = {
+    /**
+     * Jump to the provided post comment. If the post or post comment do
+     * not exist an error will be thrown.
+     */
+    jumpToPostComment(postId: PostId, postCommentIndex: number): void;
+};
+
+function PostListView(
+    {
+        channelHeader,
+        initialPostsResult,
+        onLoadMorePosts,
+        aside,
+    }: {
+        channelHeader?: Memo<PostListChannelHeader>;
+        initialPostsResult:
+            | {
+                  type: "Many";
+                  hasMorePosts: boolean;
+                  posts: ReadonlyArray<PostModel>;
+              }
+            | {
+                  type: "One";
+                  post: PostModel;
+                  postCommentsState?: PostCommentsState;
+                  initialLoadPostComments?: {
+                      comments: ReadonlyArray<PostCommentModel>;
+                      otherReferencedComments: ReadonlyArray<PostCommentModel>;
+                  };
               };
-          };
-    onLoadMorePosts?: (options: {
-        limit: number;
-        afterCursor?: {createdTime: Date; postId: PostId};
-    }) => Promise<{
-        hasMorePosts: boolean;
-        posts: ReadonlyArray<PostModel>;
-    }>;
-    aside?: ReactNode;
-}) {
+        onLoadMorePosts?: (options: {
+            limit: number;
+            afterCursor?: {createdTime: Date; postId: PostId};
+        }) => Promise<{
+            hasMorePosts: boolean;
+            posts: ReadonlyArray<PostModel>;
+        }>;
+        aside?: ReactNode;
+    },
+    ref: Ref<PostListViewRef>,
+) {
     const isMobile = useIsMobile();
     const context = useAppContext();
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
@@ -478,7 +495,7 @@ export function PostListView({
 
         const view = assertExists(viewRef.current);
 
-        const scrollToIndex = posts.getItemCountBeforePostId(postId) + 1 + postCommentIndex;
+        const scrollToIndex = posts.getPostById(postId).getPostCommentIndex(postCommentIndex);
 
         const peekRenderedRange = view.peekRenderedRangeAfterScrollToIndex(scrollToIndex);
         const result = tryLoadingMoreData(peekRenderedRange);
@@ -507,6 +524,14 @@ export function PostListView({
             });
         }
     });
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            jumpToPostComment: handleJumpToPostComment,
+        }),
+        [handleJumpToPostComment],
+    );
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {
@@ -726,6 +751,12 @@ export function PostListView({
                                     disableExpensiveFeaturesDuringScroll={
                                         disableExpensiveFeaturesDuringScroll
                                     }
+                                    getCopyLinkUrl={messageIndex => {
+                                        return new URL(
+                                            `/s/${item.post.spaceId}/posts/${item.post.id}?comment=${messageIndex}`,
+                                            window.location.href,
+                                        );
+                                    }}
                                 />
                             ) : (
                                 <MessageShimmer

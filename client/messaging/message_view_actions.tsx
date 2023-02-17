@@ -3,8 +3,9 @@ import {MutableRefObject, useState} from "react";
 import {useFocusVisible, useFocusWithin} from "react-aria";
 import {Box} from "~/client/design/box";
 import {IconButton} from "~/client/design/icon_button";
-import {MenuButton} from "~/client/design/menu_button";
+import {MenuAction, MenuButton} from "~/client/design/menu_button";
 import {ModalDialog} from "~/client/design/modal_dialog";
+import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard";
 import {MessageEditing} from "~/client/messaging/message_editing";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {MessageContentPayload, MessageInterface} from "~/shared/models/message_interface";
@@ -19,6 +20,7 @@ export function MessageViewActions<RoomKey extends string>({
     onDeleteMessage,
     isEditing,
     shouldFocusMessageContentEditorRef,
+    getCopyLinkUrl,
 }: {
     messageNoun: string;
     message: MessageInterface<RoomKey>;
@@ -29,6 +31,7 @@ export function MessageViewActions<RoomKey extends string>({
     onDeleteMessage: () => Promise<void>;
     isEditing: boolean;
     shouldFocusMessageContentEditorRef: MutableRefObject<boolean>;
+    getCopyLinkUrl: (messageIndex: number) => URL;
 }) {
     const {currentAccount} = useSpaceContext();
 
@@ -42,6 +45,39 @@ export function MessageViewActions<RoomKey extends string>({
 
     const isShowingActions =
         !isEditing && (isHovered || (isFocusWithinActions && isFocusVisible) || isMoreMenuOpen);
+
+    const actions: Array<MenuAction> = [];
+
+    actions.push({
+        label: "Copy link",
+        pressErrorTitle: `Couldn’t copy ${messageNoun} link`,
+        onPress: async () => {
+            await writeTextToClipboard(getCopyLinkUrl(message.index).toString());
+        },
+    });
+
+    if (currentAccount.id === message.author.id) {
+        actions.push({
+            label: "Edit",
+            onPress: () => {
+                shouldFocusMessageContentEditorRef.current = true;
+                messageEditing.dispatch({
+                    type: "StartEditing",
+                    messageIndex: message.index,
+                    messageRoomKey: message.getRoomKey(),
+                    messagePayload,
+                });
+            },
+        });
+
+        actions.push({
+            label: "Delete",
+            pressErrorTitle: `Couldn’t delete ${messageNoun}`,
+            onPress: () => {
+                setShowDeleteConfirmationDialog(true);
+            },
+        });
+    }
 
     return (
         <Box
@@ -58,29 +94,9 @@ export function MessageViewActions<RoomKey extends string>({
             >
                 <ArrowArcLeft />
             </IconButton>
-            {currentAccount.id === message.author.id && (
+            {actions.length > 0 && (
                 <MenuButton
-                    actions={[
-                        {
-                            label: "Edit",
-                            onPress: () => {
-                                shouldFocusMessageContentEditorRef.current = true;
-                                messageEditing.dispatch({
-                                    type: "StartEditing",
-                                    messageIndex: message.index,
-                                    messageRoomKey: message.getRoomKey(),
-                                    messagePayload,
-                                });
-                            },
-                        },
-                        {
-                            label: "Delete",
-                            pressErrorTitle: `Couldn’t delete ${messageNoun}`,
-                            onPress: () => {
-                                setShowDeleteConfirmationDialog(true);
-                            },
-                        },
-                    ]}
+                    actions={actions}
                     onStateChange={state => setIsMoreMenuOpen(state.isExpanded)}
                 >
                     <IconButton description="More" size="sm" isDisabled={isEditing}>

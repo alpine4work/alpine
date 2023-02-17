@@ -1,3 +1,4 @@
+import {useSearchParams} from "react-router-dom";
 import {PostView} from "~/client/forum/post_view";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
@@ -45,7 +46,11 @@ export async function loader({params, context}: LoaderArgs) {
 }
 
 export default function PostRoute() {
+    const [searchParams] = useSearchParams();
     const {post, postComments, otherReferencedPostComments} = useLoaderDataWithSchema(schema);
+
+    const postCommentIndexString = searchParams.get("comment");
+    const postCommentIndex = postCommentIndexString ? parseInt(postCommentIndexString, 10) : null;
 
     return (
         <main className={sprinkles({height: "full"})}>
@@ -53,6 +58,7 @@ export default function PostRoute() {
                 initialPost={post}
                 initialPostComments={postComments}
                 initialOtherReferencedPostComments={otherReferencedPostComments}
+                initialScrollToPostCommentIndex={postCommentIndex}
             />
         </main>
     );
