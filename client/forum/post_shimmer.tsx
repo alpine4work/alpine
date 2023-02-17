@@ -2,11 +2,11 @@ import {Box} from "~/client/design/box";
 import {postContentViewMinHeight} from "~/client/forum/post_content_view";
 import {fontSizes, pulseAnimationClassName} from "~/shared/styles/styles";
 
-export function PostShimmer() {
+export function PostShimmer({parentHasMarginX}: {parentHasMarginX: boolean}) {
     return (
         <Box
             backgroundColor="grey-0"
-            borderRadius="md"
+            borderRadius={parentHasMarginX ? "md" : undefined}
             boxShadow="elevation-5"
             style={{height: postContentViewMinHeight}}
             display="flex"

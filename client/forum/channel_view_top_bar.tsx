@@ -14,7 +14,7 @@ import {ModalWithButtons, ModalWithButtonsRef} from "~/client/design/modal_with_
 import {TextInput, textInputClassName} from "~/client/design/text_input";
 import {
     postListViewAsideMaxWidth,
-    postListViewMargin,
+    postListViewMarginX,
     postViewMaxWidth,
 } from "~/client/forum/post_list_view";
 import {isContentEmpty} from "~/shared/content/is_content_empty";
@@ -47,23 +47,23 @@ export function ChannelViewTopBar({
                 <Box
                     width="full"
                     height="10"
-                    paddingX={postListViewMargin}
+                    paddingX={postListViewMarginX}
                     marginX="auto"
                     display="flex"
                     alignItems="center"
                     style={{
                         maxWidth: !isContentEmpty(channel.description)
                             ? addRemLengths(
-                                  spacing[postListViewMargin],
+                                  spacing[postListViewMarginX],
                                   spacing[postViewMaxWidth],
-                                  spacing[postListViewMargin],
+                                  spacing[postListViewMarginX],
                                   spacing[postListViewAsideMaxWidth],
-                                  spacing[postListViewMargin],
+                                  spacing[postListViewMarginX],
                               )
                             : addRemLengths(
-                                  spacing[postListViewMargin],
+                                  spacing[postListViewMarginX],
                                   spacing[postViewMaxWidth],
-                                  spacing[postListViewMargin],
+                                  spacing[postListViewMarginX],
                               ),
                     }}
                 >

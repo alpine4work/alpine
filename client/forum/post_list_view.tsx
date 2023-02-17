@@ -39,7 +39,6 @@ import {
     Spacing,
     addRemLengths,
     convertRemLengthToPx,
-    parseRemLengthNumber,
     spacing,
 } from "~/shared/design/spacing";
 import {InternalError} from "~/shared/error/error";
@@ -54,25 +53,29 @@ import {PostCommentModel, PostModel} from "~/shared/models/post_model";
 import {getPostCommentsFromEnd, getPostCommentsFromStart} from "~/shared/rpc/forum_rpc_definitions";
 import {spinAnimationClassName, sprinkles} from "~/shared/styles/styles";
 
-export const postListViewMargin: Spacing = "3";
+export const postListViewMarginX: Spacing = "3";
 
-const halfPostListViewMarginRem: RemLength = `${
-    parseRemLengthNumber(spacing[postListViewMargin]) / 2
-}rem`;
+// We want our Y margin to be the same as our X margin. We want to give items
+// some margin top and some margin bottom so that the shadows don't overflow.
+// We split up the top and bottom margin into 1 and 2 instead of 1.5 and 1.5 to
+// avoid dealing with subpixel measurements.
+const postListViewMarginTop: Spacing = "1";
+const postListViewMarginBottom: Spacing = "2";
+export const postListViewMarginY: Spacing = "3";
 
 export const postViewMaxWidth: Spacing = "160";
 
-const postViewMaxWidthWithMarginsRem = addRemLengths(
-    spacing[postListViewMargin],
+const postViewMaxWidthWithMarginXRem = addRemLengths(
+    spacing[postListViewMarginX],
     spacing[postViewMaxWidth],
-    spacing[postListViewMargin],
+    spacing[postListViewMarginX],
 );
 
 export const postListViewAsideMaxWidth: Spacing = "64";
 
-const postListViewAsideMaxWidthWithMarginsRem = addRemLengths(
+const postListViewAsideMaxWidthWithMarginXRem = addRemLengths(
     spacing[postListViewAsideMaxWidth],
-    spacing[postListViewMargin],
+    spacing[postListViewMarginX],
 );
 
 const postViewFlex = 7;
@@ -82,7 +85,10 @@ const postListViewAsideFlex = 3;
  * The buffered height of an item in the post view virtualized list is the minimum
  * height of a single post.
  */
-const bufferedPostViewHeight = addRemLengths(postContentViewMinHeight, spacing[postListViewMargin]);
+const bufferedPostViewHeight = addRemLengths(
+    postContentViewMinHeight,
+    spacing[postListViewMarginY],
+);
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders
@@ -145,6 +151,7 @@ export function PostListView({
     });
 
     const hasAside = !isMobile && !!aside;
+    const hasMarginX = !isMobile || hasAside;
 
     const [postsWithoutChannelHeader, setPosts] = useState(() => {
         let posts: PostList;
@@ -504,9 +511,9 @@ export function PostListView({
                     return {
                         key: "ChannelHeader",
                         minHeight: addRemLengths(
-                            spacing[postListViewMargin],
+                            spacing[postListViewMarginY],
                             channelViewHeaderMinHeight,
-                            halfPostListViewMarginRem,
+                            spacing[postListViewMarginBottom],
                         ),
                         node: (
                             <div
@@ -518,14 +525,17 @@ export function PostListView({
                                 <div
                                     className={sprinkles({
                                         width: "full",
-                                        paddingX: postListViewMargin,
                                         overflowX: "hidden",
+                                        paddingX: hasMarginX ? postListViewMarginX : undefined,
+                                        paddingTop: postListViewMarginY,
+                                        paddingBottom:
+                                            index + 1 < posts.getItemCount()
+                                                ? postListViewMarginBottom
+                                                : postListViewMarginY,
                                     })}
                                     style={{
-                                        maxWidth: postViewMaxWidthWithMarginsRem,
+                                        maxWidth: postViewMaxWidthWithMarginXRem,
                                         flex: postViewFlex,
-                                        paddingTop: spacing[postListViewMargin],
-                                        paddingBottom: halfPostListViewMarginRem,
                                     }}
                                 >
                                     <ChannelViewHeader
@@ -533,13 +543,14 @@ export function PostListView({
                                         onCreatePost={post =>
                                             setPosts(posts => posts.insertPostAtStart(post))
                                         }
+                                        parentHasMarginX={hasMarginX}
                                     />
                                 </div>
                                 {hasAside && (
                                     <div
                                         style={{
                                             width: "100%",
-                                            maxWidth: postListViewAsideMaxWidthWithMarginsRem,
+                                            maxWidth: postListViewAsideMaxWidthWithMarginXRem,
                                             flex: postListViewAsideFlex,
                                         }}
                                     />
@@ -551,12 +562,18 @@ export function PostListView({
                 case "PostContent": {
                     let minHeight: RemLength = postContentViewMinHeight;
 
-                    if (index === 0) {
-                        minHeight = addRemLengths(minHeight, spacing[postListViewMargin]);
-                    }
+                    const marginTop = index === 0 ? postListViewMarginY : postListViewMarginTop;
 
-                    if (!item.arePostCommentsOpen) {
-                        minHeight = addRemLengths(minHeight, spacing[postListViewMargin]);
+                    const marginBottom = !item.arePostCommentsOpen
+                        ? index === posts.getItemCount() - 1
+                            ? postListViewMarginY
+                            : postListViewMarginBottom
+                        : undefined;
+
+                    minHeight = addRemLengths(minHeight, spacing[marginTop]);
+
+                    if (marginBottom) {
+                        minHeight = addRemLengths(minHeight, spacing[marginBottom]);
                     }
 
                     return {
@@ -572,31 +589,25 @@ export function PostListView({
                                 <div
                                     className={sprinkles({
                                         width: "full",
-                                        paddingX: postListViewMargin,
                                         overflowX: "hidden",
+                                        paddingX: hasMarginX ? postListViewMarginX : undefined,
+                                        paddingTop: marginTop,
+                                        paddingBottom: marginBottom,
                                     })}
                                     style={{
-                                        maxWidth: postViewMaxWidthWithMarginsRem,
+                                        maxWidth: postViewMaxWidthWithMarginXRem,
                                         flex: postViewFlex,
-                                        paddingTop:
-                                            index === 0
-                                                ? spacing[postListViewMargin]
-                                                : halfPostListViewMarginRem,
-                                        paddingBottom: !item.arePostCommentsOpen
-                                            ? index === posts.getItemCount() - 1
-                                                ? spacing[postListViewMargin]
-                                                : halfPostListViewMarginRem
-                                            : undefined,
                                     }}
                                 >
                                     <div
                                         className={sprinkles({
                                             width: "full",
                                             backgroundColor: "grey-0",
-                                            borderTopRadius: "md",
-                                            borderBottomRadius: !item.arePostCommentsOpen
-                                                ? "md"
-                                                : undefined,
+                                            borderTopRadius: hasMarginX ? "md" : undefined,
+                                            borderBottomRadius:
+                                                hasMarginX && !item.arePostCommentsOpen
+                                                    ? "md"
+                                                    : undefined,
                                             boxShadow: "elevation-5",
                                         })}
                                     >
@@ -618,7 +629,7 @@ export function PostListView({
                                     <div
                                         style={{
                                             width: "100%",
-                                            maxWidth: postListViewAsideMaxWidthWithMarginsRem,
+                                            maxWidth: postListViewAsideMaxWidthWithMarginXRem,
                                             flex: postListViewAsideFlex,
                                         }}
                                     />
@@ -727,11 +738,11 @@ export function PostListView({
                                 <div
                                     className={sprinkles({
                                         width: "full",
-                                        paddingX: postListViewMargin,
+                                        paddingX: hasMarginX ? postListViewMarginX : undefined,
                                         overflow: "hidden",
                                     })}
                                     style={{
-                                        maxWidth: postViewMaxWidthWithMarginsRem,
+                                        maxWidth: postViewMaxWidthWithMarginXRem,
                                         flex: postViewFlex,
                                     }}
                                 >
@@ -757,7 +768,7 @@ export function PostListView({
                                     <div
                                         style={{
                                             width: "100%",
-                                            maxWidth: postListViewAsideMaxWidthWithMarginsRem,
+                                            maxWidth: postListViewAsideMaxWidthWithMarginXRem,
                                             flex: postListViewAsideFlex,
                                         }}
                                     />
@@ -878,9 +889,14 @@ export function PostListView({
                         />
                     );
 
+                    const marginBottom =
+                        index === posts.getItemCount() - 1
+                            ? postListViewMarginY
+                            : postListViewMarginBottom;
+
                     return {
                         key: `PostCommentInput:${item.post.id}`,
-                        minHeight: addRemLengths("3.5rem", halfPostListViewMarginRem),
+                        minHeight: addRemLengths("3.5rem", spacing[marginBottom]),
                         withManualLayout: true,
                         stayCompletelyVisibleAfterResize: true,
                         render: ({
@@ -896,11 +912,6 @@ export function PostListView({
 
                             const postContentOffsetEnd =
                                 postContentPosition.offset + postContentPosition.height - 1;
-
-                            const paddingBottom =
-                                index === posts.getItemCount() - 1
-                                    ? spacing[postListViewMargin]
-                                    : halfPostListViewMarginRem;
 
                             return (
                                 <>
@@ -924,13 +935,15 @@ export function PostListView({
                                                 <div
                                                     className={sprinkles({
                                                         width: "full",
-                                                        paddingX: postListViewMargin,
                                                         overflowX: "hidden",
+                                                        paddingX: hasMarginX
+                                                            ? postListViewMarginX
+                                                            : undefined,
+                                                        paddingBottom: marginBottom,
                                                     })}
                                                     style={{
-                                                        maxWidth: postViewMaxWidthWithMarginsRem,
+                                                        maxWidth: postViewMaxWidthWithMarginXRem,
                                                         flex: postViewFlex,
-                                                        paddingBottom,
                                                     }}
                                                 >
                                                     <div
@@ -939,7 +952,9 @@ export function PostListView({
                                                             height: "full",
                                                             paddingX: "5",
                                                             backgroundColor: "grey-0",
-                                                            borderBottomRadius: "md",
+                                                            borderBottomRadius: hasMarginX
+                                                                ? "md"
+                                                                : undefined,
                                                             boxShadow: "elevation-5",
                                                         })}
                                                     >
@@ -956,7 +971,7 @@ export function PostListView({
                                                         style={{
                                                             width: "100%",
                                                             maxWidth:
-                                                                postListViewAsideMaxWidthWithMarginsRem,
+                                                                postListViewAsideMaxWidthWithMarginXRem,
                                                             flex: postListViewAsideFlex,
                                                         }}
                                                     />
@@ -990,7 +1005,7 @@ export function PostListView({
                                             style={{
                                                 ...(!shouldRenderWithRelativePositioning && {
                                                     position: "sticky",
-                                                    bottom: `-${paddingBottom}`,
+                                                    bottom: `-${spacing[marginBottom]}`,
                                                 }),
                                             }}
                                             className={sprinkles({
@@ -1003,12 +1018,14 @@ export function PostListView({
                                             <div
                                                 className={sprinkles({
                                                     width: "full",
-                                                    paddingX: postListViewMargin,
                                                     overflowX: "hidden",
+                                                    paddingX: hasMarginX
+                                                        ? postListViewMarginX
+                                                        : undefined,
+                                                    paddingBottom: marginBottom,
                                                 })}
                                                 style={{
-                                                    paddingBottom,
-                                                    maxWidth: postViewMaxWidthWithMarginsRem,
+                                                    maxWidth: postViewMaxWidthWithMarginXRem,
                                                     flex: postViewFlex,
                                                 }}
                                             >
@@ -1020,7 +1037,9 @@ export function PostListView({
                                                             // When absolutely positioned we render an element underneath this one at the
                                                             // end of the post so that while sticky scrolling we don't have double shadows.
                                                             backgroundColor: "grey-0",
-                                                            borderBottomRadius: "md",
+                                                            borderBottomRadius: hasMarginX
+                                                                ? "md"
+                                                                : undefined,
                                                             boxShadow: "elevation-5",
                                                         }),
                                                     })}
@@ -1038,7 +1057,9 @@ export function PostListView({
                                                             flexGrow: "1",
                                                             overflowX: "hidden",
                                                             backgroundColor: "grey-0",
-                                                            borderBottomRadius: "md",
+                                                            borderBottomRadius: hasMarginX
+                                                                ? "md"
+                                                                : undefined,
                                                         })}
                                                         style={{
                                                             // Remove one pixel from top to make space for for border.
@@ -1069,7 +1090,7 @@ export function PostListView({
                                                     style={{
                                                         width: "100%",
                                                         maxWidth:
-                                                            postListViewAsideMaxWidthWithMarginsRem,
+                                                            postListViewAsideMaxWidthWithMarginXRem,
                                                         flex: postListViewAsideFlex,
                                                     }}
                                                 />
@@ -1097,23 +1118,30 @@ export function PostListView({
                                                         1
                                                     }px + ${
                                                         item.postContentItemIndex === 0
-                                                            ? spacing[postListViewMargin]
-                                                            : halfPostListViewMarginRem
+                                                            ? spacing[postListViewMarginY]
+                                                            : spacing[postListViewMarginTop]
                                                     })`,
-                                                    height:
+                                                    height: `calc(${
                                                         offset -
                                                         postContentOffsetEnd +
-                                                        postContentPosition.height,
+                                                        postContentPosition.height
+                                                    }px - ${
+                                                        item.postContentItemIndex === 0
+                                                            ? spacing[postListViewMarginY]
+                                                            : spacing[postListViewMarginTop]
+                                                    })`,
                                                 }}
                                             >
                                                 <div
                                                     className={sprinkles({
                                                         width: "full",
-                                                        paddingX: postListViewMargin,
+                                                        paddingX: hasMarginX
+                                                            ? postListViewMarginX
+                                                            : undefined,
                                                         overflowX: "hidden",
                                                     })}
                                                     style={{
-                                                        maxWidth: postViewMaxWidthWithMarginsRem,
+                                                        maxWidth: postViewMaxWidthWithMarginXRem,
                                                         flex: postViewFlex,
                                                     }}
                                                 >
@@ -1122,7 +1150,9 @@ export function PostListView({
                                                             width: "full",
                                                             height: "full",
                                                             backgroundColor: "grey-0",
-                                                            borderTopRadius: "md",
+                                                            borderTopRadius: hasMarginX
+                                                                ? "md"
+                                                                : undefined,
                                                         })}
                                                     />
                                                 </div>
@@ -1131,7 +1161,7 @@ export function PostListView({
                                                         style={{
                                                             width: "100%",
                                                             maxWidth:
-                                                                postListViewAsideMaxWidthWithMarginsRem,
+                                                                postListViewAsideMaxWidthWithMarginXRem,
                                                             flex: postListViewAsideFlex,
                                                         }}
                                                     />
@@ -1155,8 +1185,7 @@ export function PostListView({
                                                 <div
                                                     style={{
                                                         position: "sticky",
-                                                        paddingBottom,
-                                                        bottom: `-${paddingBottom}`,
+                                                        bottom: `-${spacing[marginBottom]}`,
                                                         height,
                                                     }}
                                                     className={sprinkles({
@@ -1164,17 +1193,20 @@ export function PostListView({
                                                         overflowX: "hidden",
                                                         display: "flex",
                                                         justifyContent: "center",
+                                                        paddingBottom: marginBottom,
                                                     })}
                                                 >
                                                     <div
                                                         className={sprinkles({
                                                             width: "full",
-                                                            paddingX: postListViewMargin,
+                                                            paddingX: hasMarginX
+                                                                ? postListViewMarginX
+                                                                : undefined,
                                                             overflowX: "hidden",
                                                         })}
                                                         style={{
                                                             maxWidth:
-                                                                postViewMaxWidthWithMarginsRem,
+                                                                postViewMaxWidthWithMarginXRem,
                                                             flex: postViewFlex,
                                                         }}
                                                     >
@@ -1191,7 +1223,7 @@ export function PostListView({
                                                             style={{
                                                                 width: "100%",
                                                                 maxWidth:
-                                                                    postListViewAsideMaxWidthWithMarginsRem,
+                                                                    postListViewAsideMaxWidthWithMarginXRem,
                                                                 flex: postListViewAsideFlex,
                                                             }}
                                                         />
@@ -1223,26 +1255,26 @@ export function PostListView({
                                 <div
                                     className={sprinkles({
                                         width: "full",
-                                        paddingX: postListViewMargin,
                                         overflowX: "hidden",
+                                        paddingX: hasMarginX ? postListViewMarginX : undefined,
+                                        paddingTop: postListViewMarginTop,
                                     })}
                                     style={{
-                                        maxWidth: postViewMaxWidthWithMarginsRem,
+                                        maxWidth: postViewMaxWidthWithMarginXRem,
                                         flex: postViewFlex,
-                                        paddingTop: halfPostListViewMarginRem,
                                     }}
                                 >
-                                    <PostShimmer />
-                                    <Spacer space={postListViewMargin} />
-                                    <PostShimmer />
-                                    <Spacer space={postListViewMargin} />
-                                    <PostShimmer />
+                                    <PostShimmer parentHasMarginX={hasMarginX} />
+                                    <Spacer space={postListViewMarginY} />
+                                    <PostShimmer parentHasMarginX={hasMarginX} />
+                                    <Spacer space={postListViewMarginY} />
+                                    <PostShimmer parentHasMarginX={hasMarginX} />
                                     <div
                                         className={sprinkles({
                                             display: "flex",
                                             justifyContent: "center",
                                             color: "grey-60",
-                                            paddingY: postListViewMargin,
+                                            paddingY: postListViewMarginY,
                                         })}
                                     >
                                         <SpinnerGap
@@ -1256,7 +1288,7 @@ export function PostListView({
                                     <div
                                         style={{
                                             width: "100%",
-                                            maxWidth: postListViewAsideMaxWidthWithMarginsRem,
+                                            maxWidth: postListViewAsideMaxWidthWithMarginXRem,
                                             flex: postListViewAsideFlex,
                                         }}
                                     />
@@ -1271,6 +1303,7 @@ export function PostListView({
         },
         [
             posts,
+            hasMarginX,
             hasAside,
             loadInitialPostComments,
             messageEditing,
@@ -1385,18 +1418,18 @@ export function PostListView({
                                     <div
                                         className={sprinkles({
                                             width: "full",
-                                            paddingX: postListViewMargin,
+                                            paddingX: postListViewMarginX,
                                             overflowX: "hidden",
                                         })}
                                         style={{
-                                            maxWidth: postViewMaxWidthWithMarginsRem,
+                                            maxWidth: postViewMaxWidthWithMarginXRem,
                                             flex: postViewFlex,
                                         }}
                                     />
                                     <div
                                         style={{
                                             width: "100%",
-                                            maxWidth: postListViewAsideMaxWidthWithMarginsRem,
+                                            maxWidth: postListViewAsideMaxWidthWithMarginXRem,
                                             flex: postListViewAsideFlex,
                                         }}
                                     >
@@ -1404,7 +1437,7 @@ export function PostListView({
                                             ref={asideRef}
                                             className={sprinkles({
                                                 pointerEvents: "auto",
-                                                paddingRight: postListViewMargin,
+                                                paddingRight: postListViewMarginX,
                                             })}
                                             style={{minHeight: viewSize?.height}}
                                         >

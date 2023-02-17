@@ -3,7 +3,7 @@ import {ContentView} from "~/client/content/content_view";
 import {Box} from "~/client/design/box";
 import {PostEditorInline, postEditorInlineMinHeight} from "~/client/forum/post_editor_inline";
 import {PostListChannelHeader} from "~/client/forum/post_list";
-import {postListViewMargin} from "~/client/forum/post_list_view";
+import {postListViewMarginX, postListViewMarginY} from "~/client/forum/post_list_view";
 import {useIsMobile} from "~/client/helpers/use_is_mobile";
 import {PostModel} from "~/shared/models/post_model";
 import {sprinkles} from "~/shared/styles/styles";
@@ -13,9 +13,11 @@ export const channelViewHeaderMinHeight = postEditorInlineMinHeight;
 export function ChannelViewHeader({
     channelHeader,
     onCreatePost,
+    parentHasMarginX,
 }: {
     channelHeader: PostListChannelHeader;
     onCreatePost: (post: PostModel) => void;
+    parentHasMarginX: boolean;
 }) {
     const navigate = useNavigate();
     const isMobile = useIsMobile();
@@ -23,7 +25,10 @@ export function ChannelViewHeader({
     return (
         <>
             {isMobile && (
-                <Box paddingBottom={postListViewMargin}>
+                <Box
+                    paddingBottom={postListViewMarginY}
+                    paddingX={!parentHasMarginX ? postListViewMarginX : undefined}
+                >
                     <h3
                         className={sprinkles({
                             paddingLeft: "2",
@@ -39,7 +44,11 @@ export function ChannelViewHeader({
                     />
                 </Box>
             )}
-            <PostEditorInline channelId={channelHeader.channel.id} onCreatePost={onCreatePost} />
+            <PostEditorInline
+                channelId={channelHeader.channel.id}
+                onCreatePost={onCreatePost}
+                parentHasMarginX={parentHasMarginX}
+            />
         </>
     );
 }

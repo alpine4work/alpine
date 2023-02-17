@@ -26,9 +26,11 @@ export const postEditorInlineMinHeight: RemLength = "3.25rem";
 export function PostEditorInline({
     channelId,
     onCreatePost,
+    parentHasMarginX,
 }: {
     channelId: ChannelId;
     onCreatePost: (post: PostModel) => void;
+    parentHasMarginX: boolean;
 }) {
     const navigate = useNavigate();
     const showToast = useShowToast();
@@ -112,7 +114,7 @@ export function PostEditorInline({
         <FocusRing isVisibleWhenFocusWithin={true}>
             <Box
                 backgroundColor="grey-0"
-                borderRadius="md"
+                borderRadius={parentHasMarginX ? "md" : undefined}
                 boxShadow="elevation-5"
                 style={{minHeight: postEditorInlineMinHeight}}
             >
