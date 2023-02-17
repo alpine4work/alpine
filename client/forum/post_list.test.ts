@@ -148,41 +148,41 @@ test("can insert some posts into the end", () => {
     list = list.insertPostAtEnd(post1);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
     ]);
 
     list = list.insertPostAtEnd(post2);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
     ]);
 
     list = list.insertPostAtEnd(post3);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
-        {type: "PostContent", post: post3, arePostCommentsOpen: false},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
+        {type: "PostContent", post: post3, postCommentsState: "Closed"},
     ]);
 
     list = list.insertPostAtEnd(post4);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
-        {type: "PostContent", post: post3, arePostCommentsOpen: false},
-        {type: "PostContent", post: post4, arePostCommentsOpen: false},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
+        {type: "PostContent", post: post3, postCommentsState: "Closed"},
+        {type: "PostContent", post: post4, postCommentsState: "Closed"},
     ]);
 
     list = list.insertPostAtEnd(post5);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
-        {type: "PostContent", post: post3, arePostCommentsOpen: false},
-        {type: "PostContent", post: post4, arePostCommentsOpen: false},
-        {type: "PostContent", post: post5, arePostCommentsOpen: false},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
+        {type: "PostContent", post: post3, postCommentsState: "Closed"},
+        {type: "PostContent", post: post4, postCommentsState: "Closed"},
+        {type: "PostContent", post: post5, postCommentsState: "Closed"},
     ]);
 });
 
@@ -257,41 +257,41 @@ test("can insert some posts into the start", () => {
     list = list.insertPostAtStart(post1);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
     ]);
 
     list = list.insertPostAtStart(post2);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
     ]);
 
     list = list.insertPostAtStart(post3);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post3, arePostCommentsOpen: false},
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post3, postCommentsState: "Closed"},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
     ]);
 
     list = list.insertPostAtStart(post4);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post4, arePostCommentsOpen: false},
-        {type: "PostContent", post: post3, arePostCommentsOpen: false},
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post4, postCommentsState: "Closed"},
+        {type: "PostContent", post: post3, postCommentsState: "Closed"},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
     ]);
 
     list = list.insertPostAtStart(post5);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post5, arePostCommentsOpen: false},
-        {type: "PostContent", post: post4, arePostCommentsOpen: false},
-        {type: "PostContent", post: post3, arePostCommentsOpen: false},
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post5, postCommentsState: "Closed"},
+        {type: "PostContent", post: post4, postCommentsState: "Closed"},
+        {type: "PostContent", post: post3, postCommentsState: "Closed"},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
     ]);
 });
 
@@ -366,41 +366,41 @@ test("can insert some posts into the end and others at the start", () => {
     list = list.insertPostAtStart(post1);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
     ]);
 
     list = list.insertPostAtEnd(post2);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
     ]);
 
     list = list.insertPostAtStart(post3);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post3, arePostCommentsOpen: false},
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post3, postCommentsState: "Closed"},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
     ]);
 
     list = list.insertPostAtEnd(post4);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post3, arePostCommentsOpen: false},
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
-        {type: "PostContent", post: post4, arePostCommentsOpen: false},
+        {type: "PostContent", post: post3, postCommentsState: "Closed"},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
+        {type: "PostContent", post: post4, postCommentsState: "Closed"},
     ]);
 
     list = list.insertPostAtStart(post5);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post5, arePostCommentsOpen: false},
-        {type: "PostContent", post: post3, arePostCommentsOpen: false},
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
-        {type: "PostContent", post: post4, arePostCommentsOpen: false},
+        {type: "PostContent", post: post5, postCommentsState: "Closed"},
+        {type: "PostContent", post: post3, postCommentsState: "Closed"},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
+        {type: "PostContent", post: post4, postCommentsState: "Closed"},
     ]);
 });
 
@@ -479,31 +479,31 @@ test("can toggle the comments for a post open", () => {
     list = list.insertPostAtEnd(post5);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
-        {type: "PostContent", post: post3, arePostCommentsOpen: false},
-        {type: "PostContent", post: post4, arePostCommentsOpen: false},
-        {type: "PostContent", post: post5, arePostCommentsOpen: false},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
+        {type: "PostContent", post: post3, postCommentsState: "Closed"},
+        {type: "PostContent", post: post4, postCommentsState: "Closed"},
+        {type: "PostContent", post: post5, postCommentsState: "Closed"},
     ]);
 
     list = list.togglePostComments(3);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
-        {type: "PostContent", post: post3, arePostCommentsOpen: false},
-        {type: "PostContent", post: post4, arePostCommentsOpen: true},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
+        {type: "PostContent", post: post3, postCommentsState: "Closed"},
+        {type: "PostContent", post: post4, postCommentsState: "Open"},
         {type: "UnloadedPostComment", post: post4, postCommentIndex: 0},
         {type: "PostCommentInput", post: post4},
-        {type: "PostContent", post: post5, arePostCommentsOpen: false},
+        {type: "PostContent", post: post5, postCommentsState: "Closed"},
     ]);
 
     list = list.togglePostComments(2);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
-        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
+        {type: "PostContent", post: post3, postCommentsState: "Open"},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
@@ -525,24 +525,24 @@ test("can toggle the comments for a post open", () => {
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 18},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 19},
         {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post4, arePostCommentsOpen: true},
+        {type: "PostContent", post: post4, postCommentsState: "Open"},
         {type: "UnloadedPostComment", post: post4, postCommentIndex: 0},
         {type: "PostCommentInput", post: post4},
-        {type: "PostContent", post: post5, arePostCommentsOpen: false},
+        {type: "PostContent", post: post5, postCommentsState: "Closed"},
     ]);
 
     list = list.togglePostComments(0);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1, arePostCommentsOpen: true},
+        {type: "PostContent", post: post1, postCommentsState: "Open"},
         {type: "UnloadedPostComment", post: post1, postCommentIndex: 0},
         {type: "UnloadedPostComment", post: post1, postCommentIndex: 1},
         {type: "UnloadedPostComment", post: post1, postCommentIndex: 2},
         {type: "UnloadedPostComment", post: post1, postCommentIndex: 3},
         {type: "UnloadedPostComment", post: post1, postCommentIndex: 4},
         {type: "PostCommentInput", post: post1},
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
-        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
+        {type: "PostContent", post: post3, postCommentsState: "Open"},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
@@ -564,25 +564,25 @@ test("can toggle the comments for a post open", () => {
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 18},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 19},
         {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post4, arePostCommentsOpen: true},
+        {type: "PostContent", post: post4, postCommentsState: "Open"},
         {type: "UnloadedPostComment", post: post4, postCommentIndex: 0},
         {type: "PostCommentInput", post: post4},
-        {type: "PostContent", post: post5, arePostCommentsOpen: false},
+        {type: "PostContent", post: post5, postCommentsState: "Closed"},
     ]);
 
     list = list.togglePostComments(7);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1, arePostCommentsOpen: true},
+        {type: "PostContent", post: post1, postCommentsState: "Open"},
         {type: "UnloadedPostComment", post: post1, postCommentIndex: 0},
         {type: "UnloadedPostComment", post: post1, postCommentIndex: 1},
         {type: "UnloadedPostComment", post: post1, postCommentIndex: 2},
         {type: "UnloadedPostComment", post: post1, postCommentIndex: 3},
         {type: "UnloadedPostComment", post: post1, postCommentIndex: 4},
         {type: "PostCommentInput", post: post1},
-        {type: "PostContent", post: post2, arePostCommentsOpen: true},
+        {type: "PostContent", post: post2, postCommentsState: "Open"},
         {type: "PostCommentInput", post: post2},
-        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "PostContent", post: post3, postCommentsState: "Open"},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
@@ -604,69 +604,69 @@ test("can toggle the comments for a post open", () => {
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 18},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 19},
         {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post4, arePostCommentsOpen: true},
+        {type: "PostContent", post: post4, postCommentsState: "Open"},
         {type: "UnloadedPostComment", post: post4, postCommentIndex: 0},
         {type: "PostCommentInput", post: post4},
-        {type: "PostContent", post: post5, arePostCommentsOpen: false},
+        {type: "PostContent", post: post5, postCommentsState: "Closed"},
     ]);
 
     list = list.togglePostComments(9);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1, arePostCommentsOpen: true},
+        {type: "PostContent", post: post1, postCommentsState: "Open"},
         {type: "UnloadedPostComment", post: post1, postCommentIndex: 0},
         {type: "UnloadedPostComment", post: post1, postCommentIndex: 1},
         {type: "UnloadedPostComment", post: post1, postCommentIndex: 2},
         {type: "UnloadedPostComment", post: post1, postCommentIndex: 3},
         {type: "UnloadedPostComment", post: post1, postCommentIndex: 4},
         {type: "PostCommentInput", post: post1},
-        {type: "PostContent", post: post2, arePostCommentsOpen: true},
+        {type: "PostContent", post: post2, postCommentsState: "Open"},
         {type: "PostCommentInput", post: post2},
-        {type: "PostContent", post: post3, arePostCommentsOpen: false},
-        {type: "PostContent", post: post4, arePostCommentsOpen: true},
+        {type: "PostContent", post: post3, postCommentsState: "Closed"},
+        {type: "PostContent", post: post4, postCommentsState: "Open"},
         {type: "UnloadedPostComment", post: post4, postCommentIndex: 0},
         {type: "PostCommentInput", post: post4},
-        {type: "PostContent", post: post5, arePostCommentsOpen: false},
+        {type: "PostContent", post: post5, postCommentsState: "Closed"},
     ]);
 
     list = list.togglePostComments(7);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1, arePostCommentsOpen: true},
+        {type: "PostContent", post: post1, postCommentsState: "Open"},
         {type: "UnloadedPostComment", post: post1, postCommentIndex: 0},
         {type: "UnloadedPostComment", post: post1, postCommentIndex: 1},
         {type: "UnloadedPostComment", post: post1, postCommentIndex: 2},
         {type: "UnloadedPostComment", post: post1, postCommentIndex: 3},
         {type: "UnloadedPostComment", post: post1, postCommentIndex: 4},
         {type: "PostCommentInput", post: post1},
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
-        {type: "PostContent", post: post3, arePostCommentsOpen: false},
-        {type: "PostContent", post: post4, arePostCommentsOpen: true},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
+        {type: "PostContent", post: post3, postCommentsState: "Closed"},
+        {type: "PostContent", post: post4, postCommentsState: "Open"},
         {type: "UnloadedPostComment", post: post4, postCommentIndex: 0},
         {type: "PostCommentInput", post: post4},
-        {type: "PostContent", post: post5, arePostCommentsOpen: false},
+        {type: "PostContent", post: post5, postCommentsState: "Closed"},
     ]);
 
     list = list.togglePostComments(0);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
-        {type: "PostContent", post: post3, arePostCommentsOpen: false},
-        {type: "PostContent", post: post4, arePostCommentsOpen: true},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
+        {type: "PostContent", post: post3, postCommentsState: "Closed"},
+        {type: "PostContent", post: post4, postCommentsState: "Open"},
         {type: "UnloadedPostComment", post: post4, postCommentIndex: 0},
         {type: "PostCommentInput", post: post4},
-        {type: "PostContent", post: post5, arePostCommentsOpen: false},
+        {type: "PostContent", post: post5, postCommentsState: "Closed"},
     ]);
 
     list = list.togglePostComments(3);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
-        {type: "PostContent", post: post3, arePostCommentsOpen: false},
-        {type: "PostContent", post: post4, arePostCommentsOpen: false},
-        {type: "PostContent", post: post5, arePostCommentsOpen: false},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
+        {type: "PostContent", post: post3, postCommentsState: "Closed"},
+        {type: "PostContent", post: post4, postCommentsState: "Closed"},
+        {type: "PostContent", post: post5, postCommentsState: "Closed"},
     ]);
 });
 
@@ -741,22 +741,22 @@ test("can insert some posts into the end with already open comments", () => {
     list = list.insertPostAtEnd(post1);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
     ]);
 
     list = list.insertPostAtEnd(post2);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
     ]);
 
-    list = list.insertPostAtEnd(post3, {arePostCommentsOpen: true});
+    list = list.insertPostAtEnd(post3, {postCommentsState: "Open"});
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
-        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
+        {type: "PostContent", post: post3, postCommentsState: "Open"},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
@@ -768,32 +768,32 @@ test("can insert some posts into the end with already open comments", () => {
     list = list.insertPostAtEnd(post4);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
-        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
+        {type: "PostContent", post: post3, postCommentsState: "Open"},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 3},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 4},
         {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post4, arePostCommentsOpen: false},
+        {type: "PostContent", post: post4, postCommentsState: "Closed"},
     ]);
 
     list = list.insertPostAtEnd(post5);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
-        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
+        {type: "PostContent", post: post3, postCommentsState: "Open"},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 3},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 4},
         {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post4, arePostCommentsOpen: false},
-        {type: "PostContent", post: post5, arePostCommentsOpen: false},
+        {type: "PostContent", post: post4, postCommentsState: "Closed"},
+        {type: "PostContent", post: post5, postCommentsState: "Closed"},
     ]);
 });
 
@@ -868,59 +868,59 @@ test("can insert some posts into the start with already open comments", () => {
     list = list.insertPostAtStart(post1);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
     ]);
 
     list = list.insertPostAtStart(post2);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
     ]);
 
-    list = list.insertPostAtStart(post3, {arePostCommentsOpen: true});
+    list = list.insertPostAtStart(post3, {postCommentsState: "Open"});
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "PostContent", post: post3, postCommentsState: "Open"},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 3},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 4},
         {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
     ]);
 
     list = list.insertPostAtStart(post4);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post4, arePostCommentsOpen: false},
-        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "PostContent", post: post4, postCommentsState: "Closed"},
+        {type: "PostContent", post: post3, postCommentsState: "Open"},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 3},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 4},
         {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
     ]);
 
     list = list.insertPostAtStart(post5);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post5, arePostCommentsOpen: false},
-        {type: "PostContent", post: post4, arePostCommentsOpen: false},
-        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "PostContent", post: post5, postCommentsState: "Closed"},
+        {type: "PostContent", post: post4, postCommentsState: "Closed"},
+        {type: "PostContent", post: post3, postCommentsState: "Open"},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 3},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 4},
         {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
     ]);
 });
 
@@ -994,44 +994,44 @@ test("can update the post comments list", () => {
 
     list = list.insertPostAtEnd(post1);
     list = list.insertPostAtEnd(post2);
-    list = list.insertPostAtEnd(post3, {arePostCommentsOpen: true});
+    list = list.insertPostAtEnd(post3, {postCommentsState: "Open"});
     list = list.insertPostAtEnd(post4);
     list = list.insertPostAtEnd(post5);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
-        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
+        {type: "PostContent", post: post3, postCommentsState: "Open"},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 3},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 4},
         {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post4, arePostCommentsOpen: false},
-        {type: "PostContent", post: post5, arePostCommentsOpen: false},
+        {type: "PostContent", post: post4, postCommentsState: "Closed"},
+        {type: "PostContent", post: post5, postCommentsState: "Closed"},
     ]);
 
     list = list.updatePostComments(post3.id, () => MessageList.new(3));
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
-        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
+        {type: "PostContent", post: post3, postCommentsState: "Open"},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
         {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post4, arePostCommentsOpen: false},
-        {type: "PostContent", post: post5, arePostCommentsOpen: false},
+        {type: "PostContent", post: post4, postCommentsState: "Closed"},
+        {type: "PostContent", post: post5, postCommentsState: "Closed"},
     ]);
 
     list = list.updatePostComments(post3.id, () => MessageList.new(7));
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
-        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
+        {type: "PostContent", post: post3, postCommentsState: "Open"},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
@@ -1040,8 +1040,8 @@ test("can update the post comments list", () => {
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 5},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 6},
         {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post4, arePostCommentsOpen: false},
-        {type: "PostContent", post: post5, arePostCommentsOpen: false},
+        {type: "PostContent", post: post4, postCommentsState: "Closed"},
+        {type: "PostContent", post: post5, postCommentsState: "Closed"},
     ]);
 });
 
@@ -1123,55 +1123,55 @@ test("can add a channel header at the beginning", () => {
 
     list = list.insertPostAtEnd(post1);
     list = list.insertPostAtEnd(post2);
-    list = list.insertPostAtEnd(post3, {arePostCommentsOpen: true});
+    list = list.insertPostAtEnd(post3, {postCommentsState: "Open"});
     list = list.insertPostAtEnd(post4);
     list = list.insertPostAtEnd(post5);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
-        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
+        {type: "PostContent", post: post3, postCommentsState: "Open"},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 3},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 4},
         {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post4, arePostCommentsOpen: false},
-        {type: "PostContent", post: post5, arePostCommentsOpen: false},
+        {type: "PostContent", post: post4, postCommentsState: "Closed"},
+        {type: "PostContent", post: post5, postCommentsState: "Closed"},
     ]);
 
     list = list.setChannelHeader({channel});
 
     expect(getItems(list)).toEqual([
         {type: "ChannelHeader", channelHeader: {channel}},
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
-        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
+        {type: "PostContent", post: post3, postCommentsState: "Open"},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 3},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 4},
         {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post4, arePostCommentsOpen: false},
-        {type: "PostContent", post: post5, arePostCommentsOpen: false},
+        {type: "PostContent", post: post4, postCommentsState: "Closed"},
+        {type: "PostContent", post: post5, postCommentsState: "Closed"},
     ]);
 
     list = list.setChannelHeader(null);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
-        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
+        {type: "PostContent", post: post3, postCommentsState: "Open"},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 3},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 4},
         {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post4, arePostCommentsOpen: false},
-        {type: "PostContent", post: post5, arePostCommentsOpen: false},
+        {type: "PostContent", post: post4, postCommentsState: "Closed"},
+        {type: "PostContent", post: post5, postCommentsState: "Closed"},
     ]);
 });
 
@@ -1245,54 +1245,54 @@ test("can add an unloaded posts section at the end", () => {
 
     list = list.insertPostAtEnd(post1);
     list = list.insertPostAtEnd(post2);
-    list = list.insertPostAtEnd(post3, {arePostCommentsOpen: true});
+    list = list.insertPostAtEnd(post3, {postCommentsState: "Open"});
     list = list.insertPostAtEnd(post4);
     list = list.insertPostAtEnd(post5);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
-        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
+        {type: "PostContent", post: post3, postCommentsState: "Open"},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 3},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 4},
         {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post4, arePostCommentsOpen: false},
-        {type: "PostContent", post: post5, arePostCommentsOpen: false},
+        {type: "PostContent", post: post4, postCommentsState: "Closed"},
+        {type: "PostContent", post: post5, postCommentsState: "Closed"},
     ]);
 
     list = list.setHasMorePosts(true);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
-        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
+        {type: "PostContent", post: post3, postCommentsState: "Open"},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 3},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 4},
         {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post4, arePostCommentsOpen: false},
-        {type: "PostContent", post: post5, arePostCommentsOpen: false},
+        {type: "PostContent", post: post4, postCommentsState: "Closed"},
+        {type: "PostContent", post: post5, postCommentsState: "Closed"},
         {type: "MoreUnloadedPosts"},
     ]);
 
     list = list.setHasMorePosts(false);
 
     expect(getItems(list)).toEqual([
-        {type: "PostContent", post: post1, arePostCommentsOpen: false},
-        {type: "PostContent", post: post2, arePostCommentsOpen: false},
-        {type: "PostContent", post: post3, arePostCommentsOpen: true},
+        {type: "PostContent", post: post1, postCommentsState: "Closed"},
+        {type: "PostContent", post: post2, postCommentsState: "Closed"},
+        {type: "PostContent", post: post3, postCommentsState: "Open"},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 0},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 1},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 2},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 3},
         {type: "UnloadedPostComment", post: post3, postCommentIndex: 4},
         {type: "PostCommentInput", post: post3},
-        {type: "PostContent", post: post4, arePostCommentsOpen: false},
-        {type: "PostContent", post: post5, arePostCommentsOpen: false},
+        {type: "PostContent", post: post4, postCommentsState: "Closed"},
+        {type: "PostContent", post: post5, postCommentsState: "Closed"},
     ]);
 });

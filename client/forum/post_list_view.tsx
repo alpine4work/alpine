@@ -17,7 +17,12 @@ import {ChannelViewHeader, channelViewHeaderMinHeight} from "~/client/forum/chan
 import {PostCommentInput} from "~/client/forum/post_comment_input";
 import {PostContentView, postContentViewMinHeight} from "~/client/forum/post_content_view";
 import {PostEditorModal} from "~/client/forum/post_editor_modal";
-import {PostList, PostListChannelHeader, PostListPostContentItem} from "~/client/forum/post_list";
+import {
+    PostCommentsState,
+    PostList,
+    PostListChannelHeader,
+    PostListPostContentItem,
+} from "~/client/forum/post_list";
 import {PostShimmer} from "~/client/forum/post_shimmer";
 import {PostRealtimeActions} from "~/client/forum/use_post_realtime";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
@@ -120,7 +125,7 @@ export function PostListView({
         | {
               type: "One";
               post: PostModel;
-              arePostCommentsOpen?: boolean;
+              postCommentsState?: PostCommentsState;
               initialLoadPostComments?: {
                   comments: ReadonlyArray<PostCommentModel>;
                   otherReferencedComments: ReadonlyArray<PostCommentModel>;
@@ -569,13 +574,14 @@ export function PostListView({
                                 : undefined
                             : postListViewMarginTop;
 
-                    const marginBottom = !item.arePostCommentsOpen
-                        ? index === posts.getItemCount() - 1
-                            ? hasMargin
-                                ? postListViewMarginY
-                                : undefined
-                            : postListViewMarginBottom
-                        : undefined;
+                    const marginBottom =
+                        item.postCommentsState === "Closed"
+                            ? index === posts.getItemCount() - 1
+                                ? hasMargin
+                                    ? postListViewMarginY
+                                    : undefined
+                                : postListViewMarginBottom
+                            : undefined;
 
                     if (marginTop) minHeight = addRemLengths(minHeight, spacing[marginTop]);
                     if (marginBottom) minHeight = addRemLengths(minHeight, spacing[marginBottom]);
@@ -609,7 +615,7 @@ export function PostListView({
                                             backgroundColor: "grey-0",
                                             borderTopRadius: hasMargin ? "md" : undefined,
                                             borderBottomRadius:
-                                                hasMargin && !item.arePostCommentsOpen
+                                                hasMargin && item.postCommentsState === "Closed"
                                                     ? "md"
                                                     : undefined,
                                             boxShadow: "elevation-5",
@@ -618,7 +624,7 @@ export function PostListView({
                                         <PostContentView
                                             post={item.post}
                                             postComments={item.postComments}
-                                            arePostCommentsOpen={item.arePostCommentsOpen}
+                                            postCommentsState={item.postCommentsState}
                                             onEditPost={() => setEditingPost(item.post)}
                                             onTogglePostComments={() =>
                                                 setPosts(posts => posts.togglePostComments(index))
