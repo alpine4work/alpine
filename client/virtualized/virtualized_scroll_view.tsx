@@ -478,7 +478,7 @@ function VirtualizedScrollView(
                 generation: number;
                 index: number;
                 element: HTMLDivElement;
-                lastHeight: number | null;
+                lastRenderedHeight: number | null;
                 cleanup: () => void;
             }
         >;
@@ -577,8 +577,7 @@ function VirtualizedScrollView(
                                 if (!document.body.contains(element)) return;
 
                                 // If the height didn't change, don't bother setting state.
-                                if (height === newElementRef.lastHeight) return;
-                                newElementRef.lastHeight = height;
+                                if (height === newElementRef.lastRenderedHeight) return;
 
                                 // NOTE(calebmer): We can't update the rendered range inline here because we
                                 // will have captured stale `itemCount` and `renderItem` props.
@@ -598,13 +597,13 @@ function VirtualizedScrollView(
                                 generation: number;
                                 index: number;
                                 element: HTMLDivElement;
-                                lastHeight: number | null;
+                                lastRenderedHeight: number | null;
                                 cleanup: () => void;
                             } = {
                                 generation: itemsRef.current.generation,
                                 index,
                                 element,
-                                lastHeight: currentElementRef?.lastHeight ?? null,
+                                lastRenderedHeight: currentElementRef?.lastRenderedHeight ?? null,
                                 cleanup: () =>
                                     removeResizeListenerForElement(element, handleResize),
                             };
@@ -853,9 +852,8 @@ function VirtualizedScrollView(
 
         for (const [key, elementRef] of iterateItemRefs()) {
             const height = elementRef.element.offsetHeight;
-            if (height !== elementRef.lastHeight) {
+            if (height !== elementRef.lastRenderedHeight) {
                 heightByKey.set(key, height);
-                elementRef.lastHeight = height;
             }
         }
 
@@ -928,6 +926,15 @@ function VirtualizedScrollView(
 
         setActualState(newActualState);
     }, [getItemWithoutRender, itemCount, actualState, state]);
+
+    // Optimization: Record the last rendered height for all our items so we don't
+    // need to set the height again on every update.
+    useEffect(() => {
+        for (const [key, elementRef] of iterateItemRefs()) {
+            const position = state.getPositionByKeyIfExists(key);
+            if (position) elementRef.lastRenderedHeight = position.height;
+        }
+    }, [state]);
 
     // Watch size changes to the view element to make sure we update the height.
     useLayoutEffectWithoutServerSideWarning(() => {
