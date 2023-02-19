@@ -5,6 +5,7 @@ import {AwsClient} from "aws4fetch";
 import {classifyDynamoError} from "~/server/dynamo/internal/classify_dynamo_error";
 import {isConstructedDynamoTableSchemaName} from "~/server/dynamo/internal/dynamo_table_schema";
 import {assert} from "~/shared/helpers/control/assert";
+import {TraceId, TraceSpanId} from "~/shared/id/types/id_types";
 import {TracerBase} from "~/shared/tracer/tracer_base";
 import {TracerSpan} from "~/shared/tracer/tracer_span";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
@@ -119,6 +120,7 @@ export class DynamoClientInternal {
      */
     public BatchGetItem(
         tracer: TracerBase,
+        otherTracers: Iterable<TracerBase>,
         input: types.BatchGetItemInput,
     ): Promise<types.BatchGetItemOutput> {
         return tracer.withSpan("DynamoDB BatchGetItem", async span => {
@@ -143,6 +145,21 @@ export class DynamoClientInternal {
                     batchSize,
                 },
             });
+
+            const linkedTracerKeys = new Set<`${TraceId}:${TraceSpanId}`>();
+
+            if (tracer instanceof TracerSpan)
+                linkedTracerKeys.add(`${tracer.traceId}:${tracer.spanId}`);
+
+            // Link our other tracers to the batch span so we can see they are related.
+            for (const otherTracer of otherTracers) {
+                if (!(otherTracer instanceof TracerSpan)) continue;
+                const otherTracerKey: `${TraceId}:${TraceSpanId}` = `${otherTracer.traceId}:${otherTracer.spanId}`;
+                if (!linkedTracerKeys.has(otherTracerKey)) {
+                    linkedTracerKeys.add(otherTracerKey);
+                    otherTracer.link(span);
+                }
+            }
 
             const output = await this._execute<types.BatchGetItemInput, types.BatchGetItemOutput>(
                 span,
@@ -238,6 +255,7 @@ export class DynamoClientInternal {
      */
     public BatchWriteItem(
         tracer: TracerBase,
+        otherTracers: Iterable<TracerBase>,
         input: types.BatchWriteItemInput,
     ): Promise<types.BatchWriteItemOutput> {
         return tracer.withSpan("DynamoDB BatchWriteItem", async span => {
@@ -259,6 +277,21 @@ export class DynamoClientInternal {
                     batchSize,
                 },
             });
+
+            const linkedTracerKeys = new Set<`${TraceId}:${TraceSpanId}`>();
+
+            if (tracer instanceof TracerSpan)
+                linkedTracerKeys.add(`${tracer.traceId}:${tracer.spanId}`);
+
+            // Link our other tracers to the batch span so we can see they are related.
+            for (const otherTracer of otherTracers) {
+                if (!(otherTracer instanceof TracerSpan)) continue;
+                const otherTracerKey: `${TraceId}:${TraceSpanId}` = `${otherTracer.traceId}:${otherTracer.spanId}`;
+                if (!linkedTracerKeys.has(otherTracerKey)) {
+                    linkedTracerKeys.add(otherTracerKey);
+                    otherTracer.link(span);
+                }
+            }
 
             const output = await this._execute<
                 types.BatchWriteItemInput,

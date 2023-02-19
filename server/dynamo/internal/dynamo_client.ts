@@ -12,10 +12,10 @@ import {
 import {DynamoClientInternal} from "~/server/dynamo/internal/dynamo_client_internal";
 import {DeadlineExceededError, InternalError, InvalidArgumentError} from "~/shared/error/error";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
-import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
+import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
 import {quote} from "~/shared/helpers/string/quote";
@@ -561,7 +561,7 @@ type DynamoClientTableBatch<Input, Output> = {
 type DynamoClientKeyBatch<Input, Output> = {
     key: SchemaSerializedObjectValue;
     input: Input;
-    promiseResolvers: Array<PromiseResolver<Output>>;
+    promiseResolvers: Array<{tracer: TracerBase; promiseResolver: PromiseResolver<Output>}>;
 };
 
 abstract class DynamoClientItemBatcherBase<Input, Output> {
@@ -578,7 +578,15 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
                 itemCount: 0,
                 tableBatches: new Map(),
             };
-            this._scheduleBatchExecution(tracer);
+
+            // We create a macrotask with a timeout that will run after the microtask queue
+            // is exhausted.
+            setTimeout(() => {
+                assert(this._scheduledBatch !== null);
+                const scheduledBatch = this._scheduledBatch;
+                this._scheduledBatch = null;
+                this._executeFullBatch(tracer, scheduledBatch);
+            });
         }
         return this._scheduledBatch;
     }
@@ -621,65 +629,9 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
         // Always override with the latest input.
         keyBatch.input = input;
 
-        keyBatch.promiseResolvers.push(promiseResolver);
+        keyBatch.promiseResolvers.push({tracer, promiseResolver});
 
         return promiseResolver.promise;
-    }
-
-    /**
-     * We schedule our batch execution to happen during the current JavaScript
-     * runtime task once all other code in the task has executed. (Learn more about
-     * [tasks and microtasks][1].)
-     *
-     * We want to execute during the current task so that we don't give code
-     * running for other requests a chance to execute before we fire off our
-     * request to DynamoDB.
-     *
-     * So we use `scheduleMicrotask()` to schedule some async work at the end of
-     * our current task. Well, we schedule multiple microtasks.
-     *
-     * We schedule a microtask and then once that executes we schedule another
-     * microtask. Like this:
-     *
-     * ```ts
-     * scheduleMicrotask(() => {
-     *     scheduleMicrotask(() => {
-     *         // ...
-     *     });
-     * });
-     * ```
-     *
-     * That way we execute after all microtasks queued before our batch
-     * execution was scheduled and we execute after all microtasks queued after
-     * our batch execution was scheduled.
-     *
-     * We keep scheduling microtasks until we see no more `getItem()` calls. At
-     * this point we assume our task is done batching `getItem()` calls and is now
-     * actually waiting for data to be returned.
-     *
-     * [1]: https://developer.mozilla.org/en-US/docs/Web/API/HTML_DOM_API/Microtask_guide/In_depth
-     */
-    private _scheduleBatchExecution(tracer: TracerBase) {
-        assert(this._scheduledBatch !== null);
-        const scheduledBatch = this._scheduledBatch;
-
-        const maybeExecuteBatch = () => {
-            assert(scheduledBatch === this._scheduledBatch);
-            const lastItemCount = scheduledBatch.itemCount;
-
-            scheduleMicrotask(() => {
-                assert(scheduledBatch === this._scheduledBatch);
-
-                if (lastItemCount !== scheduledBatch.itemCount) {
-                    maybeExecuteBatch();
-                } else {
-                    this._scheduledBatch = null;
-                    this._executeFullBatch(tracer, scheduledBatch);
-                }
-            });
-        };
-
-        scheduleMicrotask(maybeExecuteBatch);
     }
 
     protected _executeFullBatch(tracer: TracerBase, fullBatch: DynamoClientBatch<Input, Output>) {
@@ -695,7 +647,7 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
         } catch (error) {
             for (const {keyBatches} of fullBatch.tableBatches.values()) {
                 for (const {promiseResolvers} of keyBatches.values()) {
-                    for (const promiseResolver of promiseResolvers) {
+                    for (const {promiseResolver} of promiseResolvers) {
                         promiseResolver.reject(error);
                     }
                 }
@@ -737,7 +689,7 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
         } catch (error) {
             for (const {keyBatches} of batch.tableBatches.values()) {
                 for (const {promiseResolvers} of keyBatches.values()) {
-                    for (const promiseResolver of promiseResolvers) {
+                    for (const {promiseResolver} of promiseResolvers) {
                         promiseResolver.reject(error);
                     }
                 }
@@ -882,7 +834,7 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
                 });
 
                 const item = output.Item ? fromDynamoAttributeValueObject(output.Item) : null;
-                for (const promiseResolver of promiseResolvers) promiseResolver.resolve(item);
+                for (const {promiseResolver} of promiseResolvers) promiseResolver.resolve(item);
 
                 return {
                     unprocessedBatch: {
@@ -893,21 +845,29 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
             }
         }
 
-        const output = await this._client.BatchGetItem(tracer, {
-            RequestItems: Object.fromEntries(
-                Array.from(batch.tableBatches, ([tableName, tableBatch]) => {
-                    return [
-                        tableName,
-                        {
-                            ConsistentRead: this._consistency === "Strong",
-                            Keys: Array.from(tableBatch.keyBatches.values(), ({key}) =>
-                                intoDynamoAttributeValueObject(key),
-                            ),
-                        },
-                    ];
-                }),
+        const output = await this._client.BatchGetItem(
+            tracer,
+            flatMapIterable(batch.tableBatches.values(), tableBatch =>
+                flatMapIterable(tableBatch.keyBatches.values(), ({promiseResolvers}) =>
+                    mapIterable(promiseResolvers, ({tracer}) => tracer),
+                ),
             ),
-        });
+            {
+                RequestItems: Object.fromEntries(
+                    Array.from(batch.tableBatches, ([tableName, tableBatch]) => {
+                        return [
+                            tableName,
+                            {
+                                ConsistentRead: this._consistency === "Strong",
+                                Keys: Array.from(tableBatch.keyBatches.values(), ({key}) =>
+                                    intoDynamoAttributeValueObject(key),
+                                ),
+                            },
+                        ];
+                    }),
+                ),
+            },
+        );
 
         for (const [tableName, items] of Object.entries(output.Responses ?? {})) {
             const tableBatch = batch.tableBatches.get(tableName);
@@ -933,7 +893,7 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
                     '"BatchGetItem" output contains a response for an item we didn\'t request',
                 );
 
-                for (const promiseResolver of keyBatch.promiseResolvers) {
+                for (const {promiseResolver} of keyBatch.promiseResolvers) {
                     promiseResolver.resolve(item);
                 }
 
@@ -1002,7 +962,7 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
         // that means they do not have an item in DynamoDB and should resolve to null.
         for (const {keyBatches} of batch.tableBatches.values()) {
             for (const {promiseResolvers} of keyBatches.values()) {
-                for (const promiseResolver of promiseResolvers) {
+                for (const {promiseResolver} of promiseResolvers) {
                     promiseResolver.resolve(null);
                 }
             }
@@ -1081,7 +1041,7 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
                         throw exhaustive(input);
                 }
 
-                for (const promiseResolver of promiseResolvers) promiseResolver.resolve();
+                for (const {promiseResolver} of promiseResolvers) promiseResolver.resolve();
 
                 return {
                     unprocessedBatch: {
@@ -1092,35 +1052,43 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
             }
         }
 
-        const output = await this._client.BatchWriteItem(tracer, {
-            RequestItems: Object.fromEntries(
-                Array.from(batch.tableBatches, ([tableName, tableBatch]) => {
-                    return [
-                        tableName,
-                        Array.from(tableBatch.keyBatches.values(), ({key, input}) => {
-                            switch (input.action) {
-                                case "Put": {
-                                    return {
-                                        PutRequest: {
-                                            Item: intoDynamoAttributeValueObject(input.item),
-                                        },
-                                    };
-                                }
-                                case "Delete": {
-                                    return {
-                                        DeleteRequest: {
-                                            Key: intoDynamoAttributeValueObject(key),
-                                        },
-                                    };
-                                }
-                                default:
-                                    throw exhaustive(input);
-                            }
-                        }),
-                    ];
-                }),
+        const output = await this._client.BatchWriteItem(
+            tracer,
+            flatMapIterable(batch.tableBatches.values(), tableBatch =>
+                flatMapIterable(tableBatch.keyBatches.values(), ({promiseResolvers}) =>
+                    mapIterable(promiseResolvers, ({tracer}) => tracer),
+                ),
             ),
-        });
+            {
+                RequestItems: Object.fromEntries(
+                    Array.from(batch.tableBatches, ([tableName, tableBatch]) => {
+                        return [
+                            tableName,
+                            Array.from(tableBatch.keyBatches.values(), ({key, input}) => {
+                                switch (input.action) {
+                                    case "Put": {
+                                        return {
+                                            PutRequest: {
+                                                Item: intoDynamoAttributeValueObject(input.item),
+                                            },
+                                        };
+                                    }
+                                    case "Delete": {
+                                        return {
+                                            DeleteRequest: {
+                                                Key: intoDynamoAttributeValueObject(key),
+                                            },
+                                        };
+                                    }
+                                    default:
+                                        throw exhaustive(input);
+                                }
+                            }),
+                        ];
+                    }),
+                ),
+            },
+        );
 
         const unprocessedBatch: DynamoClientBatch<DynamoClientWriteItemBatchAction, void> = {
             itemCount: 0,
@@ -1191,7 +1159,7 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
         // succeeded so we can resolve the promises for the batched items.
         for (const {keyBatches} of batch.tableBatches.values()) {
             for (const {promiseResolvers} of keyBatches.values()) {
-                for (const promiseResolver of promiseResolvers) {
+                for (const {promiseResolver} of promiseResolvers) {
                     promiseResolver.resolve();
                 }
             }
