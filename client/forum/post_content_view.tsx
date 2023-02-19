@@ -220,7 +220,10 @@ function PostCommentsAccountAvatarPile({
         endIndex: number;
         accountById: ReadonlyMap<AccountId, AccountModel>;
     }>(() => ({
-        endIndex: postComments.getMessageCount(),
+        // NOTE(calebmer): Intentionally using the `PostModel` comment count instead of
+        // `postComments.getMessageCount()` so that we use the comment count that
+        // `previewCommentAuthors` was loaded at.
+        endIndex: post.commentCount,
         accountById: new Map(),
     }));
 
@@ -233,10 +236,8 @@ function PostCommentsAccountAvatarPile({
                           concatIterables(
                               _additionalCommentAuthors.accountById,
                               mapIterable(
-                                  postComments.iterateLoadedMessages(
-                                      _additionalCommentAuthors.endIndex,
-                                  ),
-                                  comment => [comment.author.id, comment.author],
+                                  postComments.iterateMessages(_additionalCommentAuthors.endIndex),
+                                  comment => [comment.message.author.id, comment.message.author],
                               ),
                           ),
                       ),

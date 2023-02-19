@@ -170,15 +170,21 @@ export class MessageList<Message extends MessageInterface> {
     /**
      * Iterate loaded messages in the list. Optionally starting with the
      * provided index.
-     *
-     * Excludes optimistic messages.
      */
-    public *iterateLoadedMessages(startIndex: number = 0): IterableIterator<Message> {
+    public *iterateMessages(
+        startIndex: number = 0,
+    ): IterableIterator<MessageListLoadedItem<Message> | MessageListOptimisticItem> {
         const iterator = this._messages.ge(startIndex);
 
         while (iterator.valid) {
-            yield iterator.value!;
+            yield {type: "Loaded", message: iterator.value!};
             iterator.next();
+        }
+
+        for (const [optimisticMessageIndex, message] of this._optimisticMessages
+            .slice(Math.max(0, startIndex - this._messages.length))
+            .entries()) {
+            yield {type: "Optimistic", message, optimisticMessageIndex};
         }
     }
 
