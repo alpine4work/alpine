@@ -6,7 +6,7 @@ import {SpaceContextProvider} from "~/client/spaces/space_context";
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
-import {runAllPromises, runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises";
+import {runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises";
 import {SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
 import {Schema} from "~/shared/schema/schema";

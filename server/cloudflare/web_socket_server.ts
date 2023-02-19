@@ -19,7 +19,7 @@ import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {generateId} from "~/shared/id/id";
-import {SessionId, WebSocketConnectionId} from "~/shared/id/types/id_types";
+import {AccountId, SessionId, WebSocketConnectionId} from "~/shared/id/types/id_types";
 import {Schema, UnionSchema} from "~/shared/schema/schema";
 import {TracerSpan} from "~/shared/tracer/tracer_span";
 
@@ -170,6 +170,7 @@ export class WebSocketServer<
             messageFromServerSchema: this._messageFromServerSchema,
             connection: actualConnection,
             sessionId: requestContext.auth.getSessionId(),
+            sessionAccountId: requestContext.auth.getAccountId(),
         });
 
         assert(!this._connections.has(connection.id));
@@ -354,6 +355,7 @@ class WebSocketServerConnectionWrapper<
     >;
     public readonly connection: Connection;
     private readonly _sessionId: SessionId;
+    private readonly _sessionAccountId: AccountId;
     private _lastMessageTimeMs: number = Date.now();
 
     constructor({
@@ -364,6 +366,7 @@ class WebSocketServerConnectionWrapper<
         messageFromServerSchema,
         connection,
         sessionId,
+        sessionAccountId,
     }: {
         id: WebSocketConnectionId;
         processContext: ProcessContext;
@@ -372,6 +375,7 @@ class WebSocketServerConnectionWrapper<
         messageFromServerSchema: Schema<WebSocketMessageFromServer<MessageFromServer>>;
         connection: Connection;
         sessionId: SessionId;
+        sessionAccountId: AccountId;
     }) {
         this.id = id;
         this._processContext = processContext;
@@ -380,6 +384,7 @@ class WebSocketServerConnectionWrapper<
         this._messageFromServerSchema = messageFromServerSchema;
         this.connection = connection;
         this._sessionId = sessionId;
+        this._sessionAccountId = sessionAccountId;
 
         this._socket.addEventListener("message", event => {
             this._processContext.process.waitUntil(async () => {
@@ -434,7 +439,11 @@ class WebSocketServerConnectionWrapper<
                             });
 
                             // TODO(calebmer): Can we at least give this some kind of TTL in-memory cache??
-                            const session = await Session.get(context, this._sessionId);
+                            const session = await Session.get(
+                                context,
+                                this._sessionId,
+                                this._sessionAccountId,
+                            );
                             if (!session)
                                 throw new NotFoundError(
                                     "Session was revoked after the connection began",

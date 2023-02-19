@@ -22,6 +22,8 @@ import {quote} from "~/shared/helpers/string/quote";
 import {SchemaSerializedObjectValue, SchemaSerializedValue} from "~/shared/schema/schema";
 import {TracerBase} from "~/shared/tracer/tracer_base";
 
+const originalSetTimeout = setTimeout;
+
 export type DynamoReadConsistency = "Eventual" | "Strong";
 
 /**
@@ -581,7 +583,11 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
 
             // We create a macrotask with a timeout that will run after the microtask queue
             // is exhausted.
-            setTimeout(() => {
+            //
+            // We can't use `setTimeout()` directly since Jest will override `setTimeout()`
+            // when `jest.useFakeTimers()` is on. The fact that we use a timer here under
+            // the hood should not be a testable implementation detail.
+            originalSetTimeout(() => {
                 assert(this._scheduledBatch !== null);
                 const scheduledBatch = this._scheduledBatch;
                 this._scheduledBatch = null;
