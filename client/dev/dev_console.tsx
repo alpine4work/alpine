@@ -10,6 +10,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
 import {generateId} from "~/shared/id/id";
+import {AccountModel} from "~/shared/models/account_model";
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema";
 
 const devConsole = {
@@ -27,13 +28,30 @@ defineSchemaProperty<ColorScheme>(
 
 /**
  * Attach the developer console object to window under `dev`.
+ *
+ * In non-production environments the dev console is always available so this
+ * can be called unconditionally. In production environments only accounts with
+ * internal access can use the dev console.
+ *
+ * We don't allow every account to use the dev console since it would simplify
+ * the ability for people to write scripts automating our product. An attacker
+ * could write malicious scripts but even a well intentioned person shouldn't
+ * be using an undocumented, unversioned API.
  */
-export function attachDevConsole() {
-    // Only give access to developer console tools in development environments (for
-    // now). In the future we will allow signed in internal users to access
-    // these tools.
-    if (process.env.NODE_ENV !== "production") {
-        // @ts-expect-error cyberworlds doesn't exist on windows types
+export function attachDevConsoleNotInProduction() {
+    if (process.env.NODE_ENV !== "production" && !("dev" in window)) {
+        // @ts-expect-error `dev` doesn't exist on windows types
+        window.dev = devConsole;
+    }
+}
+
+/**
+ * Attach the developer console object to window under `dev` if the
+ * provided account has internal system access.
+ */
+export function attachDevConsoleForAccountInProduction(account: AccountModel) {
+    if (process.env.NODE_ENV === "production" && account.hasInternalAccess && !("dev" in window)) {
+        // @ts-expect-error `dev` doesn't exist on windows types
         window.dev = devConsole;
     }
 }

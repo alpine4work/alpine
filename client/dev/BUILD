@@ -12,6 +12,7 @@ ts_project(
         "//client/helpers",
         "//shared/helpers",
         "//shared/id",
+        "//shared/models",
         "//shared/schema",
     ],
 )

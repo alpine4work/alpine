@@ -1,4 +1,6 @@
 import {Outlet, ShouldReloadFunction} from "@remix-run/react";
+import {useEffect} from "react";
+import {attachDevConsoleForAccountInProduction} from "~/client/dev/dev_console";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {SpaceContextProvider} from "~/client/spaces/space_context";
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
@@ -37,8 +39,12 @@ export async function loader({context, params}: LoaderArgs) {
     return jsonWithSchema(LoaderSchema, {currentAccount}, {propagateEventData});
 }
 
-export default function InternalLayout() {
+export default function SpaceLayout() {
     const {currentAccount} = useLoaderDataWithSchema(LoaderSchema);
+
+    useEffect(() => {
+        attachDevConsoleForAccountInProduction(currentAccount);
+    }, [currentAccount]);
 
     return (
         <SpaceContextProvider currentAccount={currentAccount}>

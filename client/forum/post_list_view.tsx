@@ -29,7 +29,6 @@ import {
 import {PostShimmer} from "~/client/forum/post_shimmer";
 import {PostRealtimeActions} from "~/client/forum/use_post_realtime";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {useIsMobile} from "~/client/helpers/use_is_mobile";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer";
 import {useMessageEditing} from "~/client/messaging/message_editing";
 import {MessageShimmer} from "~/client/messaging/message_shimmer";
@@ -37,6 +36,7 @@ import {MessageView, messageViewMinHeight} from "~/client/messaging/message_view
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context";
+import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,

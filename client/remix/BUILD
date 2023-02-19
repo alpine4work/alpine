@@ -13,6 +13,8 @@ ts_project(
         "//:node_modules/@types/react",
         "//:node_modules/js-cookie",
         "//:node_modules/react",
+        "//client/helpers",
+        "//shared/design",
         "//shared/helpers",
         "//shared/remix",
         "//shared/schema",

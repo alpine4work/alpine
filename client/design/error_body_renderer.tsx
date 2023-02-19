@@ -1,4 +1,3 @@
-import {Warning} from "phosphor-react";
 import {Box} from "~/client/design/box";
 import {ErrorDisplayMessageRenderer} from "~/client/design/error_display_message_renderer";
 import {ErrorIcon} from "~/client/design/error_icon";

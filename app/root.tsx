@@ -24,9 +24,9 @@ import {
     getColorSchemeWithoutListening,
 } from "~/client/helpers/color_scheme";
 import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use_is_initial_app_render";
-import {IsMobileContextProvider} from "~/client/helpers/use_is_mobile";
 import {useStableValue} from "~/client/helpers/use_stable_value";
 import {ClientInfoContextProvider, defaultClientInfo} from "~/client/remix/client_info_context";
+import {IsMobileContextProvider} from "~/client/remix/use_is_mobile";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
 import {spacing} from "~/shared/design/spacing";

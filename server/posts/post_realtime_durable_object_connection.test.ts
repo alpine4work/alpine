@@ -109,7 +109,7 @@ test("will backfill comments when requested", async () => {
         {
             type: "BackfillPostCommentsResponse",
             commentCount: 3,
-            newComments: [
+            comments: [
                 {
                     postId: post.id,
                     index: 0,
@@ -147,6 +147,7 @@ test("will backfill comments when requested", async () => {
                     },
                 },
             ],
+            otherReferencedComments: [],
         },
     ]);
     connection1Messages = [];
@@ -161,7 +162,7 @@ test("will backfill comments when requested", async () => {
         {
             type: "BackfillPostCommentsResponse",
             commentCount: 3,
-            newComments: [
+            comments: [
                 {
                     postId: post.id,
                     index: 1,
@@ -187,6 +188,7 @@ test("will backfill comments when requested", async () => {
                     },
                 },
             ],
+            otherReferencedComments: [],
         },
     ]);
     connection1Messages = [];
@@ -201,7 +203,7 @@ test("will backfill comments when requested", async () => {
         {
             type: "BackfillPostCommentsResponse",
             commentCount: 3,
-            newComments: [
+            comments: [
                 {
                     postId: post.id,
                     index: 0,
@@ -227,6 +229,7 @@ test("will backfill comments when requested", async () => {
                     },
                 },
             ],
+            otherReferencedComments: [],
         },
     ]);
     connection1Messages = [];
@@ -299,14 +302,16 @@ test("will send comments from other connections", async () => {
         {
             type: "BackfillPostCommentsResponse",
             commentCount: 1,
-            newComments: [],
+            comments: [],
+            otherReferencedComments: [],
         },
     ]);
     expect(connection2Messages).toEqual([
         {
             type: "BackfillPostCommentsResponse",
             commentCount: 1,
-            newComments: [],
+            comments: [],
+            otherReferencedComments: [],
         },
     ]);
     expect(connection3Messages).toEqual([]);
@@ -416,7 +421,7 @@ test("will send comments from other connections", async () => {
         {
             type: "BackfillPostCommentsResponse",
             commentCount: 3,
-            newComments: [
+            comments: [
                 {
                     postId: post.id,
                     index: 1,
@@ -442,6 +447,7 @@ test("will send comments from other connections", async () => {
                     },
                 },
             ],
+            otherReferencedComments: [],
         },
     ]);
     connection1Messages = [];
@@ -530,14 +536,16 @@ test("will send comments from other connections when those comments are added du
         {
             type: "BackfillPostCommentsResponse",
             commentCount: 1,
-            newComments: [],
+            comments: [],
+            otherReferencedComments: [],
         },
     ]);
     expect(connection2Messages).toEqual([
         {
             type: "BackfillPostCommentsResponse",
             commentCount: 1,
-            newComments: [],
+            comments: [],
+            otherReferencedComments: [],
         },
     ]);
     expect(connection3Messages).toEqual([]);
@@ -644,7 +652,8 @@ test("will send comments from other connections when those comments are added du
         {
             type: "BackfillPostCommentsResponse",
             commentCount: 1,
-            newComments: [],
+            comments: [],
+            otherReferencedComments: [],
         },
         {
             type: "NewPostComment",
@@ -763,14 +772,16 @@ test("will send comments our connection when those comments are added during bac
         {
             type: "BackfillPostCommentsResponse",
             commentCount: 1,
-            newComments: [],
+            comments: [],
+            otherReferencedComments: [],
         },
     ]);
     expect(connection2Messages).toEqual([
         {
             type: "BackfillPostCommentsResponse",
             commentCount: 1,
-            newComments: [],
+            comments: [],
+            otherReferencedComments: [],
         },
     ]);
     expect(connection3Messages).toEqual([]);
@@ -832,7 +843,8 @@ test("will send comments our connection when those comments are added during bac
         {
             type: "BackfillPostCommentsResponse",
             commentCount: 1,
-            newComments: [],
+            comments: [],
+            otherReferencedComments: [],
         },
         {
             type: "NewPostComment",
@@ -924,21 +936,24 @@ test("will send comments from other connections in order", async () => {
         {
             type: "BackfillPostCommentsResponse",
             commentCount: 0,
-            newComments: [],
+            comments: [],
+            otherReferencedComments: [],
         },
     ]);
     expect(connection2Messages).toEqual([
         {
             type: "BackfillPostCommentsResponse",
             commentCount: 0,
-            newComments: [],
+            comments: [],
+            otherReferencedComments: [],
         },
     ]);
     expect(connection3Messages).toEqual([
         {
             type: "BackfillPostCommentsResponse",
             commentCount: 0,
-            newComments: [],
+            comments: [],
+            otherReferencedComments: [],
         },
     ]);
     connection1Messages = [];
@@ -1109,21 +1124,24 @@ test("will send comments from other connections in order even if it is wacky", a
         {
             type: "BackfillPostCommentsResponse",
             commentCount: 0,
-            newComments: [],
+            comments: [],
+            otherReferencedComments: [],
         },
     ]);
     expect(connection2Messages).toEqual([
         {
             type: "BackfillPostCommentsResponse",
             commentCount: 0,
-            newComments: [],
+            comments: [],
+            otherReferencedComments: [],
         },
     ]);
     expect(connection3Messages).toEqual([
         {
             type: "BackfillPostCommentsResponse",
             commentCount: 0,
-            newComments: [],
+            comments: [],
+            otherReferencedComments: [],
         },
     ]);
     connection1Messages = [];
@@ -1288,7 +1306,8 @@ test("will ignore new messages if they are part of the backfill", async () => {
         {
             type: "BackfillPostCommentsResponse",
             commentCount: 0,
-            newComments: [],
+            comments: [],
+            otherReferencedComments: [],
         },
     ]);
     expect(connection2Messages).toEqual([]);
@@ -1323,7 +1342,7 @@ test("will ignore new messages if they are part of the backfill", async () => {
         {
             type: "BackfillPostCommentsResponse",
             commentCount: 1,
-            newComments: [
+            comments: [
                 {
                     postId: post.id,
                     index: 0,
@@ -1337,6 +1356,7 @@ test("will ignore new messages if they are part of the backfill", async () => {
                     },
                 },
             ],
+            otherReferencedComments: [],
         },
     ]);
     connection1Messages = [];
@@ -1413,7 +1433,8 @@ test("will ignore new messages if they are queued but part of the backfill", asy
         {
             type: "BackfillPostCommentsResponse",
             commentCount: 0,
-            newComments: [],
+            comments: [],
+            otherReferencedComments: [],
         },
     ]);
     expect(connection2Messages).toEqual([]);
@@ -1486,7 +1507,7 @@ test("will ignore new messages if they are queued but part of the backfill", asy
         {
             type: "BackfillPostCommentsResponse",
             commentCount: 1,
-            newComments: [
+            comments: [
                 {
                     postId: post.id,
                     index: 0,
@@ -1500,6 +1521,7 @@ test("will ignore new messages if they are queued but part of the backfill", asy
                     },
                 },
             ],
+            otherReferencedComments: [],
         },
     ]);
     connection1Messages = [];

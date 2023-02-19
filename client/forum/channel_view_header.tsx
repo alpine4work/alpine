@@ -4,7 +4,7 @@ import {Box} from "~/client/design/box";
 import {PostEditorInline, postEditorInlineMinHeight} from "~/client/forum/post_editor_inline";
 import {PostListChannelHeader} from "~/client/forum/post_list";
 import {postListViewMarginX, postListViewMarginY} from "~/client/forum/post_list_view";
-import {useIsMobile} from "~/client/helpers/use_is_mobile";
+import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {PostModel} from "~/shared/models/post_model";
 import {sprinkles} from "~/shared/styles/styles";
 

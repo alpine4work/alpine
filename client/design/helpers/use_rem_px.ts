@@ -1,4 +1,4 @@
-import {useIsMobile} from "~/client/helpers/use_is_mobile";
+import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {mobilePlatformMediaQuery, remPxByPlatform} from "~/shared/design/spacing";
 
 /**

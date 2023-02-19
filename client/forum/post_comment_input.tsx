@@ -11,7 +11,6 @@ import {FocusRing} from "~/client/design/focus_ring";
 import {IconButton} from "~/client/design/icon_button";
 import {useShowToast} from "~/client/design/toast";
 import {PostRealtimeActions, usePostRealtime} from "~/client/forum/use_post_realtime";
-import {isVirtualKeyboardEvent} from "~/client/helpers/events/is_virtual_keyboard_event";
 import {MessageList} from "~/client/messaging/message_list";
 import {
     getTruncatedMessageContentForReplyPreview,
@@ -166,8 +165,6 @@ export function PostCommentInput({
 
         createPostComment();
     };
-
-    isVirtualKeyboardEvent;
 
     return (
         <>

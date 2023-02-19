@@ -3,7 +3,7 @@ import {startTransition} from "react";
 import {hydrateRoot} from "react-dom/client";
 import {AppContext, AppContextProvider} from "~/client/context/app_context";
 import {ReactContextModule} from "~/client/context/react_context_module";
-import {attachDevConsole} from "~/client/dev/dev_console";
+import {attachDevConsoleNotInProduction} from "~/client/dev/dev_console";
 import {ClientRpcContextModule} from "~/client/rpc/client_rpc_context_module";
 import {createClientTracer} from "~/client/tracer/client_tracer";
 import {Context} from "~/shared/context/context";
@@ -51,4 +51,4 @@ startTransition(() => {
     );
 });
 
-attachDevConsole();
+attachDevConsoleNotInProduction();

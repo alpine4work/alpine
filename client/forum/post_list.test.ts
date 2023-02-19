@@ -66,7 +66,7 @@ function getItems(list: PostList) {
         } = assertExists(item);
 
         if (remainingItem.type === "PostContent") {
-            expect(list.getItemCountBeforePostId((remainingItem.post as any).id)).toEqual(index);
+            expect(list.getPostById((remainingItem.post as any).id).getPostIndex()).toEqual(index);
         }
 
         return remainingItem;

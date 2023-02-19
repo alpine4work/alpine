@@ -397,6 +397,11 @@ export class VirtualizedScrollViewState {
      * so we can render more content that's available when scrolled.
      */
     public getVirtualizationWindowHeight(): number {
+        // In Jest tests, our virtualization window height is a simple constant. This
+        // makes it easier to write tests since you can correctly predict which items
+        // should be visible with mental math.
+        if (typeof jest !== "undefined") return this._viewHeight * 2;
+
         // Currently implemented with a heuristic that smaller screens should have,
         // proportionally, a larger virtualized window. 1080px tall views get half a
         // view's worth of content on the top and bottom whereas a smaller 855px screen
