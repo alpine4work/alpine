@@ -52,7 +52,12 @@ export default function ChannelRoute() {
 
     return (
         <main className={sprinkles({height: "full"})}>
-            <ChannelView channel={channel} initialChannelPostsResult={channelPostsResult} />
+            <ChannelView
+                // Remount when navigating to a different channel.
+                key={channel.id}
+                initialChannel={channel}
+                initialChannelPostsResult={channelPostsResult}
+            />
         </main>
     );
 }

@@ -10,10 +10,10 @@ import {PostModel} from "~/shared/models/post_model";
 import {getChannelPosts} from "~/shared/rpc/forum_rpc_definitions";
 
 export function ChannelView({
-    channel: initialChannel,
+    initialChannel,
     initialChannelPostsResult,
 }: {
-    channel: ChannelModel;
+    initialChannel: ChannelModel;
     initialChannelPostsResult: {posts: ReadonlyArray<PostModel>; hasMorePosts: boolean};
 }) {
     const context = useAppContext();

@@ -55,6 +55,8 @@ export default function PostRoute() {
     return (
         <main className={sprinkles({height: "full"})}>
             <PostView
+                // Remount when navigating to a different post.
+                key={post.id}
                 initialPost={post}
                 initialPostComments={postComments}
                 initialOtherReferencedPostComments={otherReferencedPostComments}
