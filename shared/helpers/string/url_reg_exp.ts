@@ -20,6 +20,9 @@
  * limitations under the License.
  */
 
+
+
+function createUrlRegExp() {
 /**
  * Regular expression to match all IANA top-level domains.
  *
@@ -286,6 +289,11 @@ const webUrlWithProtocol =
  */
 const autolinkWebUrl = "(" + webUrlWithProtocol + "|" + webUrlWithoutProtocol + ")";
 
+return new RegExp(autolinkWebUrl, "gu");
+}
+
+let urlRegExp: RegExp | null = null
+
 /**
  * A regular expression for detecting URLs in a string. This will detect a URL
  * with a protocol like `https://google.com` and without a protocol like
@@ -293,5 +301,18 @@ const autolinkWebUrl = "(" + webUrlWithProtocol + "|" + webUrlWithoutProtocol + 
  *
  * Useful for detecting URLs in arbitrary user text. This regular expression is
  * adapted from the Android source code.
+ *
+ * Lazily created the first time you call this function.
  */
-export const urlRegExp = new RegExp(autolinkWebUrl, "gu");
+// NOTE(calebmer): Currently this regular expression does not work on Safari
+// because it uses a negative lookbehind (`(?<!:)`) in `webUrlWithoutProtocol`.
+// [Safari 16.4 will support negative lookbehinds][1]. This regular expression
+// is only used on the server at the moment so as long as we don't construct it
+// on the client we're fine.
+//
+// [1]: https://caniuse.com/js-regexp-lookbehind
+export function getUrlRegExp() {
+    if (urlRegExp === null) urlRegExp = createUrlRegExp()
+    return urlRegExp
+}
+
