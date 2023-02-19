@@ -6,7 +6,7 @@ import {SpaceContextProvider} from "~/client/spaces/space_context";
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
+import {runAllPromises, runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises";
 import {SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
 import {Schema} from "~/shared/schema/schema";
@@ -22,12 +22,17 @@ export const unstable_shouldReload: ShouldReloadFunction = ({url, prevUrl}) =>
 
 export async function loader({context, params}: LoaderArgs) {
     const spaceId = Schema.id<SpaceId>().deserialize(params.space_id ?? null);
-    const authenticatedContext = await context.auth.authenticate();
 
-    const [currentAccount] = await runAllPromises([
-        authenticatedContext.auth.getAccount(),
-        authorizeSpaceAccess(authenticatedContext, spaceId),
-    ]);
+    const [currentAccount] = await runAllPromiseThunks(
+        async () => {
+            const authenticatedContext = await context.auth.authenticate();
+            return authenticatedContext.auth.getAccount();
+        },
+        async () => {
+            const sessionCookie = await context.loader.getSessionCookie();
+            await authorizeSpaceAccess(context, spaceId, sessionCookie.get().sessionAccountId);
+        },
+    );
 
     const propagateEventData: TracerEventData = {
         context: {

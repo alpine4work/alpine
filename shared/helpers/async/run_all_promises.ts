@@ -18,7 +18,7 @@ import {isSystemError} from "~/shared/error/is_system_error_code";
  */
 // TODO(calebmer): Lint rule banning `Promise.all()` and recommending this
 // utility.
-export async function runAllPromises<Promises extends ReadonlyArray<Promise<unknown>>>(
+export async function runAllPromises<Promises extends ReadonlyArray<unknown>>(
     promises: Promises,
 ): Promise<{-readonly [K in keyof Promises]: Awaited<Promises[K]>}>;
 export async function runAllPromises<Value>(

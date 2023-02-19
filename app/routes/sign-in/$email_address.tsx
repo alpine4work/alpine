@@ -50,7 +50,7 @@ export async function action({request, context, params}: LoaderArgs) {
         if (typeof oneTimePassword !== "string")
             throw new InvalidArgumentError('Expected property "oneTimePassword" in form data');
 
-        const {sessionId} = await attemptOneTimePasswordSignIn(
+        const {sessionId, sessionAccountId} = await attemptOneTimePasswordSignIn(
             context,
             await validateEmailAddress(context, emailAddress),
             oneTimePassword,
@@ -63,7 +63,10 @@ export async function action({request, context, params}: LoaderArgs) {
             },
         );
 
-        (await context.loader.getSessionCookie()).dangerouslySetSessionId(sessionId);
+        (await context.loader.getSessionCookie()).dangerouslySetSessionId(
+            sessionId,
+            sessionAccountId,
+        );
 
         return redirectToAuthenticatedHome(context);
     } catch (error) {

@@ -1,5 +1,5 @@
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
-import {RequestContext} from "~/server/dynamo/context/request_context";
+import {UnauthenticatedRequestContext} from "~/server/dynamo/context/request_context";
 import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
@@ -129,7 +129,7 @@ export function createSpaceAccountForAlphaTransactionEntries({
  * Is the `accountId` a member of the provided `spaceId`?
  */
 export async function isAccountMemberOfSpace(
-    context: RequestContext,
+    context: UnauthenticatedRequestContext,
     spaceId: SpaceId,
     accountId: AccountId,
 ): Promise<boolean> {
@@ -151,9 +151,24 @@ const SpaceAuthorizationContextCache = new ContextCache<SpaceId, void>();
  *
  * We cache the result of this function on a per-request basis.
  */
-export function authorizeSpaceAccess(context: RequestContext, spaceId: SpaceId): Promise<void> {
+export function authorizeSpaceAccess(
+    context: UnauthenticatedRequestContext,
+    spaceId: SpaceId,
+    /**
+     * If you know the account ID before authenticating, you may pass it in here.
+     * This will increase the parallelization of this function since we can call
+     * `context.auth.authenticate()` in parallel with authorizing space access for
+     * the session account.
+     *
+     * If you pass in the wrong account ID an error will be thrown.
+     */
+    optimisticSessionAccountId?: AccountId,
+): Promise<void> {
     return SpaceAuthorizationContextCache.get(context, spaceId, async () => {
-        const accountId = context.auth.getAccountId();
+        const authenticatedContextPromise = context.auth.authenticate();
+
+        const accountId =
+            optimisticSessionAccountId ?? (await authenticatedContextPromise).auth.getAccountId();
 
         if (!(await isAccountMemberOfSpace(context, spaceId, accountId))) {
             throw new PermissionDeniedError("Account does not have access to space", {
@@ -161,6 +176,15 @@ export function authorizeSpaceAccess(context: RequestContext, spaceId: SpaceId):
                 // to in the help part of this error message.
                 displayMessage: errorDisplayMessage`You are not a member of this space.`,
             });
+        }
+
+        if (
+            optimisticSessionAccountId &&
+            optimisticSessionAccountId !== (await authenticatedContextPromise).auth.getAccountId()
+        ) {
+            throw new PermissionDeniedError(
+                "Optimistic session account ID does not match actual session account ID",
+            );
         }
     });
 }

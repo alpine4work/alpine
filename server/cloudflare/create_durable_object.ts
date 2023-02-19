@@ -21,7 +21,7 @@ import {
 } from "~/shared/error/error";
 import {isSystemError} from "~/shared/error/is_system_error_code";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise";
-import {SessionId} from "~/shared/id/types/id_types";
+import {AccountId, SessionId} from "~/shared/id/types/id_types";
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema";
 import {DurableObjectServiceName, TracerRoot} from "~/shared/tracer/tracer_root";
 
@@ -134,11 +134,14 @@ export function createDurableObject<
 
                                 const authenticationToken = authorizationHeaderMatch[1] ?? "";
 
-                                const {sessionId} = await this._verifyAuthenticationToken(
-                                    authenticationToken,
-                                );
+                                const {sessionId, sessionAccountId} =
+                                    await this._verifyAuthenticationToken(authenticationToken);
 
-                                const session = await Session.get(context, sessionId);
+                                const session = await Session.get(
+                                    context,
+                                    sessionId,
+                                    sessionAccountId ?? null,
+                                );
                                 if (!session)
                                     throw new NotFoundError(
                                         'Could not find session from "Authorization" header',
@@ -189,16 +192,19 @@ export function createDurableObject<
             });
         }
 
-        private async _verifyAuthenticationToken(token: string): Promise<{sessionId: SessionId}> {
+        private async _verifyAuthenticationToken(token: string) {
             const {payload} = await jwtVerify(
                 token,
                 new TextEncoder().encode(this._sessionCookieSecret),
             );
-            const sessionId = Schema.id<SessionId>().deserialize(
-                payload.sessionId as SchemaSerializedValue,
+            return DurableObjectAuthenticationTokenSchema.deserialize(
+                payload as SchemaSerializedValue,
             );
-
-            return {sessionId};
         }
     };
 }
+
+const DurableObjectAuthenticationTokenSchema = Schema.object({
+    sessionId: Schema.id<SessionId>(),
+    sessionAccountId: Schema.id<AccountId>().optional(),
+});

@@ -46,6 +46,7 @@ export async function fetchFromDurableObjectStub({
     // prevents that.
     const authenticationToken = await new SignJWT({
         sessionId: sessionCookie.sessionId,
+        sessionAccountId: sessionCookie.sessionAccountId,
     })
         .setProtectedHeader({alg: "HS256"})
         .setIssuedAt()

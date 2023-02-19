@@ -13,9 +13,14 @@ import {authorizeSpaceAccess, isAccountMemberOfSpace} from "~/server/dynamo/spac
 import {EmailAddress} from "~/server/emails/email_address";
 import {FromEmailAddress} from "~/server/emails/from_email_address";
 import {ContextCache} from "~/shared/context/cache_context_module";
-import {FailedPreconditionError, NotFoundError, PermissionDeniedError} from "~/shared/error/error";
+import {
+    FailedPreconditionError,
+    InternalError,
+    NotFoundError,
+    PermissionDeniedError,
+} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
-import {runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises";
+import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {quote} from "~/shared/helpers/string/quote";
@@ -435,6 +440,7 @@ export function attemptOneTimePasswordSignIn(
     },
 ): Promise<{
     sessionId: SessionId;
+    sessionAccountId: AccountId;
 }> {
     return retryDynamoConditionCheckErrors(async () => {
         const accountEmailAddressItem = await AccountsTable.getItem(context, {
@@ -514,6 +520,7 @@ export function attemptOneTimePasswordSignIn(
 
             return {
                 sessionId,
+                sessionAccountId: accountEmailAddressItem.accountId,
             };
         }
     });
@@ -592,21 +599,54 @@ export class Session {
     public readonly id: SessionId;
     public readonly createdTime: Date;
     public readonly accountId: AccountId;
+    private readonly _preloadedAccount: AccountModel | null;
 
-    private constructor(sessionId: SessionId, sessionItem: SessionItem) {
+    private constructor(
+        sessionId: SessionId,
+        sessionItem: SessionItem,
+        preloadedAccount: AccountModel | null,
+    ) {
         this.id = sessionId;
         this.createdTime = sessionItem.createdTime;
         this.accountId = sessionItem.accountId;
+        this._preloadedAccount = preloadedAccount;
     }
 
-    public static async get(context: DynamoContext, sessionId: SessionId): Promise<Session | null> {
-        const sessionItem = await AccountsTable.getItem(context, {
-            partitionType: "Session",
-            sortRangeType: "Attributes",
-            sessionId,
-        });
+    public static async get(
+        context: DynamoContext,
+        sessionId: SessionId,
+        // Optional: As an optimization you may include the account the session is for
+        // so you load both the session data and account data in parallel. If you pass
+        // in the wrong account ID for the session an error will be thrown.
+        sessionAccountId: AccountId | null,
+    ): Promise<Session | null> {
+        const [sessionItem, accountItem] = await runAllPromises([
+            AccountsTable.getItem(context, {
+                partitionType: "Session",
+                sortRangeType: "Attributes",
+                sessionId,
+            }),
+            sessionAccountId
+                ? AccountsTable.getItem(context, {
+                      partitionType: "Account",
+                      sortRangeType: "Attributes",
+                      accountId: sessionAccountId,
+                  })
+                : null,
+        ]);
         if (!sessionItem) return null;
-        return new Session(sessionId, sessionItem);
+
+        if (sessionAccountId && sessionItem.accountId !== sessionAccountId)
+            throw new PermissionDeniedError("Wrong account ID for session");
+
+        if (sessionAccountId && !accountItem)
+            throw new InternalError("Expected account referenced by session to exist");
+
+        return new Session(
+            sessionId,
+            sessionItem,
+            accountItem ? createAccountModelFromItem(accountItem) : null,
+        );
     }
 
     /**
@@ -615,17 +655,17 @@ export class Session {
      */
     public static test(sessionId: SessionId, sessionItem: SessionItem) {
         assert(typeof jest !== "undefined");
-        return new Session(sessionId, sessionItem);
+        return new Session(sessionId, sessionItem, null);
     }
 
     private _accountPromise: Promise<AccountModel> | null = null;
 
     public getAccount(context: DynamoContext): Promise<AccountModel> {
+        if (this._preloadedAccount !== null) return Promise.resolve(this._preloadedAccount);
+
         if (this._accountPromise === null) {
             this._accountPromise = (async () => {
                 const accountItem = assertExists(
-                    // TODO(calebmer): We have a read request waterfall here. Given how frequently
-                    // we need to get the account from a session, maybe we should add an LRU cache?
                     await AccountsTable.getItem(context, {
                         partitionType: "Account",
                         sortRangeType: "Attributes",
@@ -634,7 +674,7 @@ export class Session {
                     "Expected account referenced by session to exist",
                 );
 
-                return new AccountModel(createAccountModelFromItem(accountItem));
+                return createAccountModelFromItem(accountItem);
             })();
         }
 

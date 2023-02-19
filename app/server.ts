@@ -253,16 +253,25 @@ async function handleFetch(
                     auth: new UnauthenticatedAuthContextModule(async context => {
                         const sessionCookie = await sessionCookiePromise;
 
-                        const {sessionId} = sessionCookie.get();
+                        const {sessionId, sessionAccountId} = sessionCookie.get();
                         if (!sessionId) return null;
 
-                        const session = await Session.get(context, sessionId);
+                        const session = await Session.get(
+                            context,
+                            sessionId,
+                            sessionAccountId ?? null,
+                        );
                         if (!session) {
                             // If the session was deleted since we stored the session in our cookie, remove
                             // the session from the cookie.
                             sessionCookie.unsetSessionId();
                             return null;
                         }
+
+                        // Optimization: Add the account ID for the session to our cookie which allows
+                        // us to load account data in parallel with session data in the future.
+                        if (!sessionAccountId)
+                            sessionCookie.dangerouslySetSessionId(sessionId, session.accountId);
 
                         return session;
                     }),
