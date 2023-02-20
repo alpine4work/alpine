@@ -176,7 +176,6 @@ type DynamoTableSchemaInitializationState =
  * - Reads and writes are automatically batched behind the scenes when
  *   possible.
  * - Queries use async iterators to transparently paginate.
- * - Transactions automatically use the request id to ensure idempotency.
  */
 export class DynamoTableSchema<
     Types extends DynamoTableSchemaTypes.Types<DynamoTableSchemaTypes.ConfigBase>,
