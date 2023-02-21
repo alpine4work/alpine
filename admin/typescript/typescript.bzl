@@ -74,7 +74,7 @@ def ts_project(
                 "//:node_modules/@types/jest",
                 "//:node_modules/@types/testing-library__jest-dom",
                 "//:node_modules/@testing-library/jest-dom",
-            ],
+            ] + test_deps,
         )
 
         for test_src in test_srcs:

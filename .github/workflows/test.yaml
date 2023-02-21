@@ -3,12 +3,12 @@ on: push
 
 jobs:
     test:
-        runs-on: ubuntu-latest
+        container: calebmer/cyberworlds-ci
 
         steps:
             - uses: actions/checkout@v3
 
-            - name: Get Date
+            - name: Get date
               id: date
               shell: bash
               run: |
