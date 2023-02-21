@@ -1,5 +1,3 @@
-load("//admin/playwright:playwright.bzl", "playwright_test")
+load("//admin/playwright:playwright.bzl", "ts_playwright_tests")
 
-playwright_test(
-    test_src = "example.test.ts",
-)
+ts_playwright_tests(name = "tests")

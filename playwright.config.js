@@ -4,12 +4,14 @@ const {devices} = require("@playwright/test");
 
 module.exports = {
     testMatch: ["**/*.test.js"],
-    timeout: 30 * 1000,
-    expect: {timeout: 5 * 1000},
+    timeout: 10 * 1000,
+    expect: {timeout: 1000},
     reporter: "list",
     use: {
         actionTimeout: 0,
-        trace: "on-first-retry",
+        screenshot: "only-on-failure",
+        video: "retain-on-failure",
+        trace: "retain-on-failure",
     },
     projects: [
         {

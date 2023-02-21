@@ -1,65 +1,137 @@
-load("@npm//:@playwright/test/package_json.bzl", "bin")
-load("//admin/typescript:typescript.bzl", "swc_transpiler")
+"""
+Rules for generating Playwright tests.
+"""
 
-def playwright_test(test_src):
-    if not test_src.endswith(".test.ts") and not test_src.endswith(".test.tsx"):
+load("@npm//:@playwright/test/package_json.bzl", "bin")
+load("//admin/typescript:typescript.bzl", "swc_transpiler", "ts_lint_and_format_test", "ts_typecheck_test")
+
+def ts_playwright_tests(
+        name,
+        srcs = None,
+        deps = []):
+    """
+    Sets up Playwright tests for the provided test files.
+
+    If no test files are provided we default to all test files in the
+    current directory.
+
+    Also sets up lint, format, and typechecking tests.
+
+    Args:
+        name: The base name of our Playwright tests.
+        srcs: Sources to test. This defaults to all TypeScript files in the package.
+        deps: Dependencies of the sources we're testing.
+    """
+
+    if srcs == None:
+        srcs = native.glob(["**/*.test.ts", "**/*.test.tsx"])
+
+    deps = deps + [
+        "//:node_modules/@playwright/test",
+    ]
+
+    ts_lint_and_format_test(
+        name = name,
+        srcs = srcs,
+        deps = deps,
+    )
+
+    ts_typecheck_test(
+        name = "{}_typecheck_test".format(name),
+        srcs = srcs,
+        deps = deps,
+    )
+
+    for src in srcs:
+        playwright_test(src = src)
+
+def playwright_test(src):
+    """
+    Generate Playwright test rules for the provided source file.
+
+    We generate one Playwright test rule for each platform we run tests on. So
+    Chromium, Firefox, WebKit desktop, and WebKit mobile.
+
+    Args:
+        src: The test source file.
+    """
+
+    if not src.endswith(".test.ts") and not src.endswith(".test.tsx"):
         fail("test source must end in `.test.{ts,tsx}`")
 
-    test_src_js = "{}.js".format(test_src[:len(test_src) - 4] if test_src.endswith(".test.tsx") else test_src[:len(test_src) - 3])
-    test_base_name = test_src_js[:len(test_src_js) - 8]
+    src_js = "{}.js".format(src[:len(src) - 4] if src.endswith(".test.tsx") else src[:len(src) - 3])
+    base_name = src_js[:len(src_js) - 8]
 
     swc_transpiler(
-        name = "{}_test_src".format(test_base_name),
-        srcs = [test_src],
-        js_outs = [test_src_js],
+        name = "{}_src".format(base_name),
+        srcs = [src],
+        js_outs = [src_js],
     )
 
-    shared_args = [
-        "test",
-        # Use our custom Playwright config.
-        "--config",
-        "playwright.config.js",
-        # Disable parallelism. Bazel is responsible for running tests in parallel.
-        "--workers",
-        "1",
-        # Each test only runs a single file and Bazel will run them in parallel. For
-        # whatever reason when we include the extension Playwright can't find the file?
-        "{}/{}.test".format(native.package_name(), test_base_name),
-    ]
-
-    data = [
-        "@playwright_browsers//:browsers",
-        "//:node_modules/@playwright/test",
-        "//:playwright_config_file",
-        "{}_test_src".format(test_base_name),
-    ]
-
-    env = {
-        # Bazel will strip colors when necessary.
-        "FORCE_COLOR": "true",
-        "PLAYWRIGHT_BROWSERS_PATH": "$(location @playwright_browsers//:browsers)",
-    }
-
-    bin.playwright_test(
-        name = "{}_chromium_test".format(test_base_name),
-        args = shared_args + [
-            "--project",
-            "chromium",
-        ],
-        data = data,
-        copy_data_to_bin = False,
-        env = env,
+    _playwright_project_test(
+        base_name = base_name,
+        project = "chromium",
     )
 
+    _playwright_project_test(
+        base_name = base_name,
+        project = "firefox",
+    )
+
+    _playwright_project_test(
+        base_name = base_name,
+        project = "webkit_desktop",
+    )
+
+    _playwright_project_test(
+        base_name = base_name,
+        project = "webkit_mobile",
+    )
+
+def _playwright_project_test(
+        base_name,
+        project):
+    workspace_relative_path = "." if native.package_name() == "" else "/".join([".." for segment in native.package_name().split("/")])
+
+    name = "{}_{}_test".format(base_name, project)
+
     bin.playwright_test(
-        name = "{}_firefox_test".format(test_base_name),
-        args = shared_args + [
+        name = name,
+        args = [
+            "test",
+            # Each test only runs a single file and Bazel will run them in parallel. For
+            # whatever reason when we include the extension Playwright can't find the file?
+            "{}/{}.test".format(native.package_name(), base_name),
+            # Use our custom Playwright config.
+            "--config",
+            "playwright.config.js",
+            # Write screenshots, videos, and traces taken by Playwright to Bazel's test
+            # output directory. These files will be available in `bazel-testlogs`.
+            #
+            # Ideally we would use the `$TEST_UNDECLARED_OUTPUTS_DIR` environment variable
+            # but we can't interpolate environment variables in this arg list. So instead
+            # hardcode the contents of `$TEST_UNDECLARED_OUTPUTS_DIR`.
+            "--output",
+            "{}/../../../testlogs/{}/{}/test.outputs".format(workspace_relative_path, native.package_name(), name),
+            # Disable parallelism. Bazel is responsible for running tests in parallel.
+            "--workers",
+            "1",
+            # Only run one project per test.
             "--project",
-            "firefox",
+            project,
         ],
-        data = data,
+        data = [
+            "@playwright_browsers//:browsers",
+            "//:node_modules/@playwright/test",
+            "//:playwright_config_file",
+            "{}_src".format(base_name),
+        ],
         copy_data_to_bin = False,
-        env = env,
+        env = {
+            # Bazel will strip colors when necessary.
+            "FORCE_COLOR": "true",
+            "PLAYWRIGHT_BROWSERS_PATH": "$(location @playwright_browsers//:browsers)",
+        },
         # Firefox creates sandboxes for web content and you can't nest sandboxes. So
         # disable the Bazel sandbox. Ideally we would disable Firefox's sandboxing at
         # runtime and have the entire Firefox process run in the Bazel sandbox but it's
@@ -67,27 +139,5 @@ def playwright_test(test_src):
         # Firefox sandbox.
         #
         # See: https://bugzilla.mozilla.org/show_bug.cgi?id=1415159
-        tags = ["no-sandbox"],
-    )
-
-    bin.playwright_test(
-        name = "{}_webkit_desktop_test".format(test_base_name),
-        args = shared_args + [
-            "--project",
-            "webkit_desktop",
-        ],
-        data = data,
-        copy_data_to_bin = False,
-        env = env,
-    )
-
-    bin.playwright_test(
-        name = "{}_webkit_mobile_test".format(test_base_name),
-        args = shared_args + [
-            "--project",
-            "webkit_mobile",
-        ],
-        data = data,
-        copy_data_to_bin = False,
-        env = env,
+        tags = ["no-sandbox"] if project == "firefox" else [],
     )

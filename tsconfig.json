@@ -5,6 +5,9 @@
         \* ========================================================================== */
 
         "noEmit": true,
+        // Always use pretty style for errors. Bazel will strip ansi codes when
+        // nessecary.
+        "pretty": true,
 
         /* ========================================================================== *\
          *                                 Language                                   *

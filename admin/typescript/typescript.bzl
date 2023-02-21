@@ -66,43 +66,14 @@ def ts_project(
     )
 
     if len(test_srcs) > 0:
-        workspace_relative_path = "." if native.package_name() == "" else "/".join([".." for segment in native.package_name().split("/")])
-
-        native.genrule(
-            name = "{}_tests_typecheck_tsconfig".format(name),
-            outs = ["{}_tsconfig_tests.json".format(name)],
-            srcs = ["//:tsconfig.bazel.json"] + test_srcs,
-            cmd = """\
-cat <<EOF >> $@
-{{
-    "extends": "{base_tsconfig_path}",
-    "compilerOptions": {{"noEmit": true}},
-    "include": [{include_paths}]
-}}
-EOF
-""".format(
-                base_tsconfig_path = "{}/tsconfig.bazel.json".format(workspace_relative_path),
-                include_paths = ", ".join(["\"{}\"".format(test_src) for test_src in test_srcs]),
-            ),
-        )
-
-        _ts_typings(
-            name = "{}_test_deps_typings".format(name),
-            srcs = test_deps,
-        )
-
-        typescript_bin.tsc_test(
+        ts_typecheck_test(
             name = "{}_tests_typecheck_test".format(name),
-            args = ["--project", "$(location :{}_tests_typecheck_tsconfig)".format(name)],
-            data = test_srcs + test_deps + [
+            srcs = test_srcs,
+            deps = [
+                name,
                 "//:node_modules/@types/jest",
                 "//:node_modules/@types/testing-library__jest-dom",
                 "//:node_modules/@testing-library/jest-dom",
-                "//:tsconfig_files",
-                ":{}_tests_typecheck_tsconfig".format(name),
-                ":{}_typecheck".format(name),
-                ":{}_deps_typings".format(name),
-                ":{}_test_deps_typings".format(name),
             ],
         )
 
@@ -237,6 +208,57 @@ def ts_lint_and_format_test(
             # lint rules.
             ":{}_deps_typings".format(name),
         ]),
+    )
+
+def ts_typecheck_test(
+        name,
+        srcs,
+        deps):
+    """
+    A test that runs type checking for the provided sources.
+
+    Args:
+        name: The name of the test. Should end with `_test`.
+        srcs: The TypeScript source files we're type checking.
+        deps: Dependencies of the TypeScript files we're type checking.
+    """
+
+    if not name.endswith("_test"):
+        fail("test rule name must end with `_test`")
+
+    workspace_relative_path = "." if native.package_name() == "" else "/".join([".." for segment in native.package_name().split("/")])
+
+    native.genrule(
+        name = "{}_tsconfig".format(name),
+        outs = ["{}_tsconfig.json".format(name)],
+        srcs = ["//:tsconfig.bazel.json"] + srcs,
+        cmd = """\
+cat <<EOF >> $@
+{{
+    "extends": "{base_tsconfig_path}",
+    "compilerOptions": {{"noEmit": true}},
+    "include": [{include_paths}]
+}}
+EOF
+""".format(
+            base_tsconfig_path = "{}/tsconfig.bazel.json".format(workspace_relative_path),
+            include_paths = ", ".join(["\"{}\"".format(src) for src in srcs]),
+        ),
+    )
+
+    _ts_typings(
+        name = "{}_deps_typings".format(name),
+        srcs = deps,
+    )
+
+    typescript_bin.tsc_test(
+        name = name,
+        args = ["--project", "$(location :{}_tsconfig)".format(name)],
+        data = srcs + deps + [
+            "//:tsconfig_files",
+            ":{}_tsconfig".format(name),
+            ":{}_deps_typings".format(name),
+        ],
     )
 
 def _dedupe_labels(labels):
