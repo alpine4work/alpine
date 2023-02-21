@@ -134,3 +134,14 @@ filegroup(
     sha256 = "4b3705c37747b772b317e868986f31b02cf7052cac7a9d536e63811d2972fd4a",
     url = "https://s3.us-west-2.amazonaws.com/dynamodb-local/dynamodb_local_2022-09-10.tar.gz",
 )
+
+# =========================================================================== #
+#                                Playwright                                   #
+# =========================================================================== #
+
+load("//admin/playwright:playwright_browsers.bzl", "playwright_browsers_repository")
+
+playwright_browsers_repository(
+    name = "playwright_browsers",
+    playwright_version = "1.30.0",
+)

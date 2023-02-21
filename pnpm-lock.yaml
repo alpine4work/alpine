@@ -76,6 +76,7 @@ specifiers:
   '@miniflare/http-server': ^2.11.0
   '@miniflare/runner-vm': ^2.11.0
   '@miniflare/web-sockets': ^2.11.0
+  '@playwright/test': ^1.30.0
   '@popperjs/core': ^2.11.6
   '@react-aria/interactions': ^3.12.0
   '@react-types/shared': ^3.16.0
@@ -175,6 +176,7 @@ specifiers:
   node-fetch: '2'
   outdent: 0.8.0
   phosphor-react: ^1.4.1
+  playwright-core: ^1.30.0
   prettier: ^2.7.1
   pretty-ms: '7'
   proper-lockfile: ^4.1.2
@@ -214,6 +216,7 @@ dependencies:
   '@miniflare/http-server': 2.11.0_ztiuxzlbgxjc73nj5w24no6ar4
   '@miniflare/runner-vm': 2.11.0_4sqfyt26snkgfwger7zzuolyhm
   '@miniflare/web-sockets': 2.11.0
+  '@playwright/test': 1.30.0
   '@popperjs/core': 2.11.6
   '@react-aria/interactions': 3.12.0_react@18.2.0
   '@react-types/shared': 3.16.0_react@18.2.0
@@ -313,6 +316,7 @@ dependencies:
   node-fetch: 2.6.7
   outdent: 0.8.0_ybnbpvk42g5zpvi2kytcsdr4wu
   phosphor-react: 1.4.1_react@18.2.0
+  playwright-core: 1.30.0
   prettier: 2.7.1
   pretty-ms: 7.0.1
   proper-lockfile: 4.1.2
@@ -3907,6 +3911,15 @@ packages:
       picocolors: 1.0.0
       tiny-glob: 0.2.9
       tslib: 2.4.0
+    dev: false
+
+  /@playwright/test/1.30.0:
+    resolution: {integrity: sha512-SVxkQw1xvn/Wk/EvBnqWIq6NLo1AppwbYOjNLmyU0R1RoQ3rLEBtmjTnElcnz8VEtn11fptj1ECxK0tgURhajw==}
+    engines: {node: '>=14'}
+    hasBin: true
+    dependencies:
+      '@types/node': 18.0.6
+      playwright-core: 1.30.0
     dev: false
 
   /@popperjs/core/2.11.6:
@@ -12484,6 +12497,12 @@ packages:
     engines: {node: '>=8'}
     dependencies:
       find-up: 4.1.0
+    dev: false
+
+  /playwright-core/1.30.0:
+    resolution: {integrity: sha512-7AnRmTCf+GVYhHbLJsGUtskWTE33SwMZkybJ0v6rqR1boxq2x36U7p1vDRV7HO2IwTZgmycracLxPEJI49wu4g==}
+    engines: {node: '>=14'}
+    hasBin: true
     dev: false
 
   /posix-character-classes/0.1.1:

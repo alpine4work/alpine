@@ -72,6 +72,12 @@ copy_to_bin(
 )
 
 copy_to_bin(
+    name = "playwright_config_file",
+    srcs = ["playwright.config.js"],
+    visibility = ["//visibility:public"],
+)
+
+copy_to_bin(
     name = "cdk_files",
     srcs = [
         "cdk.context.json",

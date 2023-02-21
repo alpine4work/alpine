@@ -142,7 +142,7 @@ EOF
                     "--config",
                     "jest.config.js",
                     # Each test run is only for a single file.
-                    test_src_js,
+                    "{}/{}".format(native.package_name(), test_src_js),
                 ],
                 data = _dedupe_labels(deps + test_deps + test_data + [
                                           "//:node_modules/@juggle/resize-observer",
