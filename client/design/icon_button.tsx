@@ -1,7 +1,8 @@
 import {PressEvent} from "@react-types/shared";
 import {IconContext} from "phosphor-react";
-import {Ref, forwardRef, useRef} from "react";
+import {Ref, forwardRef, useRef, ReactNode} from "react";
 import {AriaButtonProps, mergeProps, useButton, useHover} from "react-aria";
+import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
 import {OverlayPlacement} from "~/client/design/overlay";
 import {useShowToast} from "~/client/design/toast";
@@ -34,6 +35,11 @@ function IconButton(
          * Appears as a tooltip on hover and in the `aria-label`.
          */
         description: string;
+
+        /**
+         * A keybord shortcut that will display alongside the description in the tooltip.
+         */
+        keyboardShortcutHint?: ReactNode;
 
         /**
          * When the user presses a button we fire this event. Use it to perform
@@ -69,6 +75,7 @@ function IconButton(
 ) {
     const {
         description,
+        keyboardShortcutHint,
         onPress,
         variant = "quiet",
         size = "base",
@@ -157,7 +164,35 @@ function IconButton(
     return (
         <Tooltip
             placement={tooltipPlacement}
-            content={description}
+            content={
+                keyboardShortcutHint ? (
+                    <Box
+                        display="flex"
+                        alignItems="center"
+                        gap="1.5"
+                        style={{
+                            // tooltip has some padding and a 1px border, so we need to ditch that
+                            // so our keyboard shortcut divider covers the full height
+                            marginTop: `calc(-${spacing["0.5"]} - 1px)`,
+                            marginBottom: `calc(-${spacing["0.5"]} - 1px)`,
+                        }}
+                    >
+                        <Box paddingY="0.5">{description}</Box>
+                        <Box borderLeft="grey-10" paddingLeft="1.5" paddingY="0.5" color="grey-50">
+                            <IconContext.Provider
+                                value={{
+                                    color: "currentColor",
+                                    size: spacing["3"],
+                                }}
+                            >
+                                {keyboardShortcutHint}
+                            </IconContext.Provider>
+                        </Box>
+                    </Box>
+                ) : (
+                    description
+                )
+            }
             isDisabled={isDisabled || withoutTooltip}
         >
             <FocusRing>

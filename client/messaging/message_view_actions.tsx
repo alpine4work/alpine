@@ -1,27 +1,21 @@
-import {ArrowArcLeft, DotsThree} from "phosphor-react";
-import {MutableRefObject, useState} from "react";
+import {ArrowArcLeft, DotsThree, Check, X, KeyReturn, SpinnerGap} from "phosphor-react";
+import {MutableRefObject, useEffect, useState} from "react";
 import {useFocusVisible, useFocusWithin} from "react-aria";
 import {Box} from "~/client/design/box";
 import {IconButton} from "~/client/design/icon_button";
 import {MenuAction, MenuButton} from "~/client/design/menu_button";
 import {ModalDialog} from "~/client/design/modal_dialog";
+import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard";
 import {MessageEditing} from "~/client/messaging/message_editing";
 import {useSpaceContext} from "~/client/spaces/space_context";
+import {spacing} from "~/shared/design/spacing";
+import {createTimeout} from "~/shared/helpers/async/timeout";
+import {assert} from "~/shared/helpers/control/assert";
 import {MessageContentPayload, MessageInterface} from "~/shared/models/message_interface";
+import {spinAnimationClassName} from "~/shared/styles/styles";
 
-export function MessageViewActions<RoomKey extends string>({
-    messageNoun,
-    message,
-    messagePayload,
-    messageEditing,
-    isHovered,
-    onReplyToMessage,
-    onDeleteMessage,
-    isEditing,
-    shouldFocusMessageContentEditorRef,
-    getCopyLinkUrl,
-}: {
+interface MessageViewActionsProps<RoomKey extends string> {
     messageNoun: string;
     message: MessageInterface<RoomKey>;
     messagePayload: MessageContentPayload;
@@ -32,7 +26,90 @@ export function MessageViewActions<RoomKey extends string>({
     isEditing: boolean;
     shouldFocusMessageContentEditorRef: MutableRefObject<boolean>;
     getCopyLinkUrl: (messageIndex: number) => URL;
-}) {
+}
+export function MessageViewActions<RoomKey extends string>(
+    props: MessageViewActionsProps<RoomKey>,
+) {
+    if (props.isEditing) {
+        return <EditingMessageViewActions {...props} />;
+    }
+    return <StandardMessageViewActions {...props} />;
+}
+
+export function EditingMessageViewActions<RoomKey extends string>({
+    messageEditing,
+    messageNoun,
+}: MessageViewActionsProps<RoomKey>) {
+    assert(messageEditing.state.isEditing);
+    const isSaving = messageEditing.state.isSaving;
+
+    // We wait a bit before showing our pending spinner. Some actions are very fast so we
+    // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
+    const [_shouldShowSavingSpinner, setShouldShowSavingSpinner] = useState(false);
+    useEffect(() => {
+        if (!isSaving) {
+            setShouldShowSavingSpinner(false);
+            return;
+        }
+
+        const timeout = createTimeout(() => {
+            setShouldShowSavingSpinner(true);
+        }, delayLoadingIndicatorLimitMs);
+        return () => {
+            timeout.clear();
+        };
+    }, [isSaving]);
+
+    // Only show the saving spinner if we are actually saving.
+    const shouldShowSavingSpinner = _shouldShowSavingSpinner && isSaving;
+
+    return (
+        <Box display="flex">
+            {shouldShowSavingSpinner ? (
+                <SpinnerGap className={spinAnimationClassName} size={spacing["3"]} />
+            ) : (
+                <>
+                    <IconButton
+                        description="Save"
+                        keyboardShortcutHint={<KeyReturn />}
+                        size="sm"
+                        onPress={() => {
+                            messageEditing.dispatch({
+                                type: "SaveEditedContent",
+                                messageNoun,
+                            });
+                        }}
+                        isDisabled={isSaving}
+                    >
+                        <Check />
+                    </IconButton>
+                    <IconButton
+                        description="Cancel"
+                        keyboardShortcutHint="esc"
+                        size="sm"
+                        onPress={() => messageEditing.dispatch({type: "CancelEditing"})}
+                        isDisabled={isSaving}
+                    >
+                        <X />
+                    </IconButton>
+                </>
+            )}
+        </Box>
+    );
+}
+
+export function StandardMessageViewActions<RoomKey extends string>({
+    messageNoun,
+    message,
+    messagePayload,
+    messageEditing,
+    isHovered,
+    onReplyToMessage,
+    onDeleteMessage,
+    isEditing,
+    shouldFocusMessageContentEditorRef,
+    getCopyLinkUrl,
+}: MessageViewActionsProps<RoomKey>) {
     const {currentAccount} = useSpaceContext();
 
     const {isFocusVisible} = useFocusVisible({});
@@ -44,7 +121,7 @@ export function MessageViewActions<RoomKey extends string>({
     const [showDeleteConfirmationDialog, setShowDeleteConfirmationDialog] = useState(false);
 
     const isShowingActions =
-        !isEditing && (isHovered || (isFocusWithinActions && isFocusVisible) || isMoreMenuOpen);
+        isEditing || isHovered || (isFocusWithinActions && isFocusVisible) || isMoreMenuOpen;
 
     const actions: Array<MenuAction> = [];
 

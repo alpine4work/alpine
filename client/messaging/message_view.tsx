@@ -1,6 +1,7 @@
 import {differenceInMinutes} from "date-fns";
 import {ArrowArcLeft, SpinnerGap} from "phosphor-react";
 import {MutableRefObject, useEffect, useMemo, useRef, useState} from "react";
+import {useFocusWithin} from "react-aria";
 import {useNavigate} from "react-router-dom";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountShortName} from "~/client/accounts/account_short_name";
@@ -8,6 +9,7 @@ import {ContentView} from "~/client/content/content_view";
 import {ErrorIcon} from "~/client/design/error_icon";
 import {FocusRing} from "~/client/design/focus_ring";
 import {IconButton} from "~/client/design/icon_button";
+import {ModalDialog} from "~/client/design/modal_dialog";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {MessageEditing} from "~/client/messaging/message_editing";
@@ -166,11 +168,13 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
 
     const navigate = useNavigate();
 
-    const isEditing =
+    const messageEditingForThisMessage =
         messageEditing.state.isEditing &&
         messageEditing.state.messageRoomKey === message.getRoomKey() &&
         !message.isOptimistic &&
-        messageEditing.state.messageIndex === message.index;
+        messageEditing.state.messageIndex === message.index
+            ? messageEditing
+            : null;
 
     const shouldFocusMessageContentEditorRef = useRef(false);
 
@@ -431,6 +435,12 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
         );
     }, [messageStartOfSentenceNoun, navigate, onJumpToMessage, parentMessage]);
 
+    const {focusWithinProps: focusWithinMessageContentProps} = useFocusWithin({
+        onBlurWithin: () => {
+            messageEditingForThisMessage?.dispatch({type: "MaybeCancelEditing"});
+        },
+    });
+
     return (
         <div
             className={sprinkles({position: "relative", zIndex: "0"})}
@@ -514,8 +524,11 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
                     [message.author, shouldMergeWithNextMessage],
                 )}
                 {message.payload.type === "Content" ? (
-                    <>
-                        {!isEditing ? (
+                    <div
+                        className={sprinkles({display: "flex", position: "relative", zIndex: "10"})}
+                        {...focusWithinMessageContentProps}
+                    >
+                        {!messageEditingForThisMessage ? (
                             contentPayloadNode
                         ) : (
                             <MessageViewEditor
@@ -575,7 +588,7 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
                                             isHovered={isHovered}
                                             onReplyToMessage={onReplyToMessage}
                                             onDeleteMessage={onDeleteMessage}
-                                            isEditing={isEditing}
+                                            isEditing={!!messageEditingForThisMessage}
                                             shouldFocusMessageContentEditorRef={
                                                 shouldFocusMessageContentEditorRef
                                             }
@@ -585,11 +598,30 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
                                 )}
                             </div>
                         </div>
-                    </>
+                    </div>
                 ) : (
                     deletedPayloadNode
                 )}
             </div>
+            {messageEditingForThisMessage &&
+                messageEditingForThisMessage.state.isEditing &&
+                messageEditingForThisMessage.state.isConfirmingSave && (
+                    <ModalDialog
+                        title={`Save ${messageNoun}`}
+                        description={`Would you like to save the changes you made to this ${messageNoun}?`}
+                        onClose={() => {
+                            shouldFocusMessageContentEditorRef.current = true;
+                            messageEditingForThisMessage.dispatch({type: "CancelConfirmingSave"});
+                        }}
+                        primaryButtonLabel="Save"
+                        onPrimaryButtonPress={() => {
+                            messageEditing.dispatch({
+                                type: "SaveEditedContent",
+                                messageNoun,
+                            });
+                        }}
+                    />
+                )}
         </div>
     );
 }
