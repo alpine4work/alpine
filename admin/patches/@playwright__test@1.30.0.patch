@@ -1,0 +1,31 @@
+diff --git a/lib/reporters/base.js b/lib/reporters/base.js
+index 3bbd62e81d5dac376e9908ef05354a788b2f83da..2ed750c5b1e41870553612e80af81e4275d955b8 100644
+--- a/lib/reporters/base.js
++++ b/lib/reporters/base.js
+@@ -249,12 +249,24 @@ function formatFailure(config, test, options = {}) {
+         resultLines.push(_utilsBundle.colors.cyan(pad(`    attachment #${i + 1}: ${attachment.name} (${attachment.contentType})`, '-')));
+         if (attachment.path) {
+           const relativePath = _path.default.relative(process.cwd(), attachment.path);
+-          resultLines.push(_utilsBundle.colors.cyan(`    ${relativePath}`));
++          // NOTE(calebmer): The paths reported by Playwright for our test logs
++          // are very confusing and inaccessible since they're in a sandbox.
++          // Modify the reported to print a friendlier path to our developers.
++          const bazelTestlogsMatch = relativePath.match(/(?:^|\/)testlogs\/(.+)\/(.+)\/test\.outputs\/(.+)/);
++          if (!bazelTestlogsMatch) {
++            resultLines.push(_utilsBundle.colors.cyan(`    ${relativePath}`));
++          } else {
++            resultLines.push(_utilsBundle.colors.cyan(`    bazel-testlogs/${bazelTestlogsMatch[1]}/${bazelTestlogsMatch[2]}/test.outputs/outputs.zip contains ${bazelTestlogsMatch[3]}`));
++          }
+           // Make this extensible
+           if (attachment.name === 'trace') {
+             resultLines.push(_utilsBundle.colors.cyan(`    Usage:`));
+             resultLines.push('');
+-            resultLines.push(_utilsBundle.colors.cyan(`        npx playwright show-trace ${relativePath}`));
++            if (!bazelTestlogsMatch) {
++              resultLines.push(_utilsBundle.colors.cyan(`        npx playwright show-trace ${relativePath}`));
++            } else {
++              resultLines.push(_utilsBundle.colors.cyan(`        bazel run //${bazelTestlogsMatch[1]}:${bazelTestlogsMatch[2]}_show_trace -- ${bazelTestlogsMatch[3]}`));
++            }
+             resultLines.push('');
+           }
+         } else {

@@ -167,7 +167,8 @@
             "mjml-parser-xml@4.13.0": "admin/patches/mjml-parser-xml@4.13.0.patch",
             "@miniflare/runner-vm@2.11.0": "admin/patches/@miniflare__runner-vm@2.11.0.patch",
             "undici@5.9.1": "admin/patches/undici@5.9.1.patch",
-            "@types/functional-red-black-tree@1.0.1": "admin/patches/@types__functional-red-black-tree@1.0.1.patch"
+            "@types/functional-red-black-tree@1.0.1": "admin/patches/@types__functional-red-black-tree@1.0.1.patch",
+            "@playwright/test@1.30.0": "admin/patches/@playwright__test@1.30.0.patch"
         },
         "allowedDeprecatedVersions": {
             "@types/keyv": "4.2.0",
@@ -176,7 +177,8 @@
             "resolve-url": "0.2.1",
             "urix": "0.1.0",
             "source-map-url": "0.4.1",
-            "sane": "4.1.0"
+            "sane": "4.1.0",
+            "core-js": "2.6.12"
         },
         "peerDependencyRules": {
             "allowedVersions": {
