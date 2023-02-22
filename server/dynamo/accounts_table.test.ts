@@ -8,9 +8,9 @@ import {
     regenerateOneTimePasswordSignIn,
 } from "~/server/dynamo/accounts_table";
 import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
-import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context";
-import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session";
-import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space";
+import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
+import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
+import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
 import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address";
 import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";

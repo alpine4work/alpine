@@ -20,7 +20,6 @@ module.exports = {
                 ...baseJestConfig.testPathIgnorePatterns,
                 "<rootDir>/server/",
                 "<rootDir>/admin/",
-                "<rootDir>/integration_tests/",
             ],
             setupFilesAfterEnv: [require.resolve("./admin/jest/jest_setup_client.js")],
         },
@@ -30,19 +29,6 @@ module.exports = {
             testEnvironment: "node",
             testMatch: [`<rootDir>/server/${testMatch}`, `<rootDir>/admin/${testMatch}`],
             setupFilesAfterEnv: [require.resolve("./admin/jest/jest_setup_server.js")],
-        },
-        {
-            ...baseJestConfig,
-            displayName: "integration_tests",
-            preset: "jest-playwright-preset",
-            testMatch: [`<rootDir>/integration_tests/${testMatch}`],
-            setupFilesAfterEnv: [require.resolve("./admin/jest/jest_setup_integration_tests.js")],
-            testEnvironmentOptions: {
-                "jest-playwright": {
-                    launchType: "LAUNCH",
-                    // devices: ["Desktop Chrome", "Desktop Firefox"],
-                },
-            },
         },
     ],
 };

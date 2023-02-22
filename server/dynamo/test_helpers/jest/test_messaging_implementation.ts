@@ -1,7 +1,7 @@
 import {RequestContext} from "~/server/dynamo/context/request_context";
-import {TestContext} from "~/server/dynamo/test_helpers/create_test_context";
-import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session";
-import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space";
+import {TestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
+import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
+import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
 import {
     MessageContent,
     assertMessageContent,

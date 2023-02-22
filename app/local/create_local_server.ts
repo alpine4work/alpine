@@ -12,7 +12,7 @@ import {runfilesPath} from "~/admin/helpers/runfiles_path";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 import {assert} from "~/shared/helpers/control/assert";
 
-export type LocalApp = {
+export type LocalServer = {
     readonly miniflare: Miniflare;
     readonly server: http.Server;
     readonly webSocketServer: WebSocket.Server;
@@ -21,7 +21,7 @@ export type LocalApp = {
 /**
  * Creates an HTTP server for running our app web server locally.
  */
-export function createLocalApp({
+export function createLocalServer({
     bindings,
     globals,
     middleware = (req, res, next) => next(),
@@ -31,7 +31,7 @@ export function createLocalApp({
     globals?: {[key: string]: unknown};
     middleware?: (req: http.IncomingMessage, res: http.ServerResponse, next: () => void) => void;
     upgradeMiddleware?: (req: http.IncomingMessage, socket: net.Socket, next: () => void) => void;
-}): LocalApp {
+}): LocalServer {
     // NOTE(calebmer): [V8 and Node.js have a memory leak][1] with `vm` where
     // modules are never garbage collected. This means during development we get
     // the occasional memory leak. The only way to fix this until V8 fixes the

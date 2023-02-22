@@ -7,8 +7,8 @@ ts_project(
         "//admin:__subpackages__",
         "//app/dev:__pkg__",
         "//app/local:__pkg__",
-        "//integration_tests:__pkg__",
-        "//server/dynamo/test_helpers:__pkg__",
+        "//app/tests:__pkg__",
+        "//server/dynamo/test_helpers:__subpackages__",
     ],
     deps = [
         "//:node_modules/@types/fs-extra",

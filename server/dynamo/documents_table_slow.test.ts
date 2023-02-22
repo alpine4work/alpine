@@ -19,9 +19,9 @@ import {
     updateDocumentContent,
     updateDocumentSnapshotBeforeDeletingStepsTestCheckpoint,
 } from "~/server/dynamo/documents_table";
-import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context";
-import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session";
-import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space";
+import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
+import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
+import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
 import {
     emptyDocumentContent,
     DocumentContentProsemirrorSchema as schema,

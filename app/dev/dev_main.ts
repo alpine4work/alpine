@@ -5,10 +5,10 @@ import http from "http";
 import {networkInterfaces} from "os";
 import path from "path";
 import WebSocket from "ws";
-import {startLocalDynamo} from "~/admin/dynamo/local/start_local_dynamo";
+import {startDynamoLocal} from "~/admin/dynamo/local/start_dynamo_local";
 import {devEnvPaths} from "~/admin/helpers/dev_env_paths";
 import {parseDotenv} from "~/admin/helpers/parse_dotenv";
-import {createLocalApp} from "~/app/local/create_local_app";
+import {createLocalServer} from "~/app/local/create_local_server";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -18,13 +18,13 @@ const env = parseDotenv();
 
 const port = parseInt(assertExists(env.APP_PORT), 10);
 const devServerPort = parseInt(assertExists(env.DEV_SERVER_PORT), 10);
-const localDynamoPort = parseInt(assertExists(env.LOCAL_DYNAMO_PORT), 10);
+const dynamoLocalPort = parseInt(assertExists(env.DYNAMO_LOCAL_PORT), 10);
 
 /* ========================================================================== *\
  *                                Miniflare                                   *
 \* ========================================================================== */
 
-const localApp = createLocalApp({
+const localAppServer = createLocalServer({
     globals: {
         __writeDevTracerEvent: writeDevTracerEvent,
         __logOneTimePassword: ({
@@ -85,7 +85,7 @@ function reloadMiniflare() {
     const promiseResolver = createPromiseResolver();
     miniflareReloadPromiseResolver = promiseResolver;
 
-    localApp.miniflare.reload().then(
+    localAppServer.miniflare.reload().then(
         () => promiseResolver.resolve(),
         error => promiseResolver.reject(error),
     );
@@ -95,20 +95,21 @@ function reloadMiniflare() {
  *                                 DynamoDB                                   *
 \* ========================================================================== */
 
-const localDynamoDataDirectoryPath = path.join(devEnvPaths.data, "dynamo");
-const localDynamoPromiseResolver = createPromiseResolver();
+const dynamoDataDirectoryPath = path.join(devEnvPaths.data, "dynamo");
 
-startLocalDynamo({
-    dataPath: localDynamoDataDirectoryPath,
-    port: localDynamoPort,
+const dynamoLocalPromiseResolver = createPromiseResolver();
+
+startDynamoLocal({
+    dataPath: dynamoDataDirectoryPath,
+    port: dynamoLocalPort,
 }).then(
     () => {
-        localDynamoPromiseResolver.resolve();
+        dynamoLocalPromiseResolver.resolve();
     },
     error => {
         // eslint-disable-next-line no-console
         console.error(error);
-        localDynamoPromiseResolver.resolve();
+        dynamoLocalPromiseResolver.resolve();
     },
 );
 
@@ -164,8 +165,8 @@ function shouldWait(tryAgain: () => void) {
         devServerPromiseResolver.promise.finally(tryAgain);
         return true;
     }
-    if (!localDynamoPromiseResolver.isSettled()) {
-        localDynamoPromiseResolver.promise.finally(tryAgain);
+    if (!dynamoLocalPromiseResolver.isSettled()) {
+        dynamoLocalPromiseResolver.promise.finally(tryAgain);
         return true;
     }
     if (!bazelBuildPromiseResolver.isSettled()) {
@@ -180,7 +181,7 @@ function shouldWait(tryAgain: () => void) {
     return false;
 }
 
-localApp.server.listen(port, () => {
+localAppServer.server.listen(port, () => {
     const externalHost = (() => {
         for (const [name, nets] of Object.entries(networkInterfaces())) {
             if (!nets) continue;

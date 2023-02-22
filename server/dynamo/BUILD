@@ -6,12 +6,12 @@ ts_project(
     name = "dynamo",
     test_deps = [
         "//:node_modules/expect-type",
-        "//server/dynamo/test_helpers",
+        "//server/dynamo/test_helpers/jest",
+        "//server/dynamo/test_helpers/shared",
     ],
     visibility = [
         "//admin:__subpackages__",
         "//app:__subpackages__",
-        "//integration_tests:__subpackages__",
         "//server:__subpackages__",
     ],
     deps = [

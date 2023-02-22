@@ -14,6 +14,7 @@ NPM_PATCHES = {
     "@vanilla-extract/sprinkles@1.5.0": ["//admin/patches:@vanilla-extract__sprinkles@1.5.0.patch"],
     "browserify-zlib@0.1.4": ["//admin/patches:browserify-zlib@0.1.4.patch"],
     "clean-css@4.2.4": ["//admin/patches:clean-css@4.2.4.patch"],
+    "esbuild-jest@0.5.0": ["//admin/patches:esbuild-jest@0.5.0.patch"],
     "media-query-parser@2.0.2": ["//admin/patches:media-query-parser@2.0.2.patch"],
     "mjml-parser-xml@4.13.0": ["//admin/patches:mjml-parser-xml@4.13.0.patch"],
     "outdent@0.8.0": ["//admin/patches:outdent@0.8.0.patch"],

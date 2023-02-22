@@ -67,10 +67,10 @@ const SpacesTable = DynamoTableSchema.new({
 
 /**
  * We are not allowed to export our DynamoDB tables so instead export a
- * function that can only be used in a Jest environment.
+ * function that can only be used in test environments.
  */
 export function getSpacesTableForTest() {
-    assert(typeof jest !== "undefined");
+    assert(process.env.NODE_ENV === "test");
     return SpacesTable;
 }
 

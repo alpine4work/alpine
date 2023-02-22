@@ -30,8 +30,8 @@ export class DynamoContextModule<Modules extends {} = {}> extends ContextModuleB
         if (client !== null) {
             this._client = client;
         } else {
-            // May only run in a Jest environment.
-            assert(typeof jest !== "undefined");
+            // May only run in a test environment.
+            assert(process.env.NODE_ENV === "test");
 
             Object.defineProperty(this, "_client", {
                 configurable: true,
@@ -54,12 +54,12 @@ export class DynamoContextModule<Modules extends {} = {}> extends ContextModuleB
      * Create a DynamoDB context module for tests. You can lazily initialize the
      * DynamoDB client in a test.
      *
-     * May only run in a Jest environment.
+     * May only run in a test environment.
      */
     public static test(): DynamoContextModule & {
         initialize: (client: AwsClient, url: string) => void;
     } {
-        assert(typeof jest !== "undefined");
+        assert(process.env.NODE_ENV === "test");
 
         const contextModule = new DynamoContextModule(null, {
             defaultReadConsistency: "Eventual",
