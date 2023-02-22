@@ -85,3 +85,9 @@ copy_to_bin(
     ],
     visibility = ["//visibility:public"],
 )
+
+filegroup(
+    name = "env_files",
+    srcs = glob([".env*"]),
+    visibility = ["//visibility:public"],
+)

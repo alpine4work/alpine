@@ -40,7 +40,10 @@ export function createServerTracer({
 
             // In development, we write every event to a log file. This function is
             // provided to us by `dev_main.ts` setting a global.
-            if (process.env.NODE_ENV !== "production") {
+            if (
+                process.env.NODE_ENV !== "production" &&
+                typeof (globalThis as any).__writeDevTracerEvent === "function"
+            ) {
                 (globalThis as any).__writeDevTracerEvent({
                     time: event.time,
                     data: event.getFlatData(),

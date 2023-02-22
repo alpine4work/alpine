@@ -63,10 +63,10 @@ type SimpleChatMessageItem = DynamoTableItemType<typeof SimpleChatTable, "Simple
 
 /**
  * We are not allowed to export our DynamoDB tables so instead export a
- * function that can only be used in Jest tests.
+ * function that can only be used in test environments.
  */
 export function getSimpleChatTableForTest() {
-    assert(typeof jest !== "undefined");
+    assert(process.env.NODE_ENV === "test");
     return SimpleChatTable;
 }
 

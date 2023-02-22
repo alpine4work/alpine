@@ -6,7 +6,8 @@ ts_project(
     name = "dynamo",
     test_deps = [
         "//:node_modules/expect-type",
-        "//server/dynamo/test",
+        "//server/dynamo/test_helpers/jest",
+        "//server/dynamo/test_helpers/shared",
     ],
     visibility = [
         "//admin:__subpackages__",

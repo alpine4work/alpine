@@ -1,8 +1,10 @@
+import "~/server/dynamo/test_helpers/shared/test_setup";
+
 import {AwsClient} from "aws4fetch";
 import fs from "fs-extra";
 import getPort from "get-port";
 import path from "path";
-import {startDynamoLocal} from "~/admin/dynamo/local/start_dynamo_local";
+import {DynamoLocal, startDynamoLocal} from "~/admin/dynamo/local/start_dynamo_local";
 import {Session} from "~/server/dynamo/accounts_table";
 import {
     AuthenticatedAuthContextModule,
@@ -14,20 +16,25 @@ import {
     UnauthenticatedRequestContext,
 } from "~/server/dynamo/context/request_context";
 import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
-import {TestSession} from "~/server/dynamo/test/create_test_session";
+import {TestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
+import {testHooks} from "~/server/dynamo/test_helpers/shared/test_hooks";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module";
 import {CacheContextModule} from "~/shared/context/cache_context_module";
 import {Context} from "~/shared/context/context";
 import {ProcessContextModule} from "~/shared/context/process_context_module";
 import {TracerContextModule} from "~/shared/context/tracer_context_module";
+import {InternalError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {TracerRoot} from "~/shared/tracer/tracer_root";
 
-// This file runs in Node.js. We can only import it in Jest tests.
-assert(typeof jest !== "undefined");
+// This file should only run in a Node.js test environment. Either Jest
+// or Playwright.
+assert(process.release.name === "node");
+assert(process.env.NODE_ENV === "test");
 
 export type TestContext = ProcessContext & {
+    getDynamoLocalPort(): number;
     unauthenticatedRequest(): UnauthenticatedRequestContext;
     request(session: TestSession): RequestContext;
 };
@@ -45,7 +52,7 @@ export function createTestContext(): TestContext {
     //
     // NOTE(calebmer): I wish the `beforeAll()` calling `startDynamoLocal()` could
     // have a longer timeout than individual tests.
-    jest.setTimeout(1000 * 60);
+    if (typeof jest !== "undefined") jest.setTimeout(1000 * 60);
 
     const tracer = TracerRoot.new({
         serviceName: "Test",
@@ -67,6 +74,13 @@ export function createTestContext(): TestContext {
         email: new NoopEmailContextModule(),
     });
 
+    let dynamoLocal: DynamoLocal | null = null;
+
+    const getDynamoLocalPort = () => {
+        if (dynamoLocal === null) throw new InternalError("DynamoDB local has not started");
+        return dynamoLocal.port;
+    };
+
     const createUnauthenticatedRequestContext = (): UnauthenticatedRequestContext => {
         return context.clone({
             cache: new CacheContextModule(),
@@ -82,13 +96,12 @@ export function createTestContext(): TestContext {
     };
 
     const context = Object.assign(_context, {
+        getDynamoLocalPort,
         unauthenticatedRequest: createUnauthenticatedRequestContext,
         request: createRequestContext,
     });
 
-    let dynamoLocal: {stop: () => Promise<void>} | null = null;
-
-    beforeAll(async () => {
+    testHooks.beforeAll(async () => {
         const dataPath = await fs.mkdtemp(
             path.join(assertExists(process.env.TEST_TMPDIR), "dynamo_local_data_"),
         );
@@ -104,7 +117,7 @@ export function createTestContext(): TestContext {
         dynamoContextModule.initialize(awsClient, `http://localhost:${port}`);
     });
 
-    afterAll(async () => {
+    testHooks.afterAll(async () => {
         await dynamoLocal?.stop();
     });
 

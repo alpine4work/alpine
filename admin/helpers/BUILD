@@ -2,10 +2,13 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "helpers",
+    data = ["//:env_files"],
     visibility = [
         "//admin:__subpackages__",
         "//app/dev:__pkg__",
-        "//server/dynamo/test:__pkg__",
+        "//app/local:__pkg__",
+        "//app/tests:__pkg__",
+        "//server/dynamo/test_helpers:__subpackages__",
     ],
     deps = [
         "//:node_modules/@types/fs-extra",

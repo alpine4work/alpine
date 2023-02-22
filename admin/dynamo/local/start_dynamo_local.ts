@@ -24,6 +24,11 @@ const dynamoLocalJarPath = path.join(
 
 const originalSetTimeout = setTimeout;
 
+export type DynamoLocal = {
+    readonly port: number;
+    stop(): Promise<void>;
+};
+
 /**
  * Start running a [local DynamoDB][1] process with the database persisted to
  * the provided path and listening on the provided port.
@@ -36,7 +41,7 @@ export async function startDynamoLocal({
 }: {
     dataPath: string;
     port: number;
-}): Promise<{stop: () => Promise<void>}> {
+}): Promise<DynamoLocal> {
     await fs.ensureDir(dataPath);
 
     const javaPath = await javaPathPromise.get();
@@ -94,6 +99,7 @@ export async function startDynamoLocal({
     }
 
     return {
+        port,
         stop: async () => {
             subprocess.kill();
             await waitForProcessExit(subprocess);

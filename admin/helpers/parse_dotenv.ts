@@ -1,7 +1,7 @@
 import dotenv, {DotenvParseOutput} from "dotenv";
 import fs from "fs-extra";
 import path from "path";
-import {workspacePath} from "~/admin/helpers/workspace_path";
+import {runfilesPath} from "~/admin/helpers/runfiles_path";
 import {assert} from "~/shared/helpers/control/assert";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier";
 
@@ -16,9 +16,9 @@ export function parseDotenv(): DotenvParseOutput {
     assert(isIdentifier(nodeEnv));
 
     const files = [
-        loadDotenvFile(path.join(workspacePath, ".env")),
-        loadDotenvFile(path.join(workspacePath, `.env.${nodeEnv}`)),
-        loadDotenvFile(path.join(workspacePath, `.env.${nodeEnv}.local`)),
+        loadDotenvFile(path.join(runfilesPath, "cyberworlds/.env")),
+        loadDotenvFile(path.join(runfilesPath, `cyberworlds/.env.${nodeEnv}`)),
+        loadDotenvFile(path.join(runfilesPath, `cyberworlds/.env.${nodeEnv}.local`)),
     ];
 
     return Object.assign({}, ...files);

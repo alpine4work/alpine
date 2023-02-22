@@ -21,14 +21,14 @@ module.exports = {
                 "<rootDir>/server/",
                 "<rootDir>/admin/",
             ],
-            setupFilesAfterEnv: [require.resolve("./admin/jest/jest_setup_client_tests.js")],
+            setupFilesAfterEnv: [require.resolve("./admin/jest/jest_setup_client.js")],
         },
         {
             ...baseJestConfig,
             displayName: "server",
             testEnvironment: "node",
             testMatch: [`<rootDir>/server/${testMatch}`, `<rootDir>/admin/${testMatch}`],
-            setupFilesAfterEnv: [require.resolve("./admin/jest/jest_setup_server_tests.js")],
+            setupFilesAfterEnv: [require.resolve("./admin/jest/jest_setup_server.js")],
         },
     ],
 };

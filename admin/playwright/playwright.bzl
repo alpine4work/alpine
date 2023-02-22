@@ -3,12 +3,15 @@ Rules for generating Playwright tests.
 """
 
 load("@npm//:@playwright/test/package_json.bzl", "bin")
-load("//admin/typescript:typescript.bzl", "swc_transpiler", "ts_lint_and_format_test", "ts_typecheck_test")
+load("//admin/typescript:typescript.bzl", "swc_transpiler", "ts_lint_and_format_test", "ts_project", "ts_typecheck_test")
 
 def ts_playwright_tests(
         name,
         srcs = None,
-        deps = []):
+        lib_srcs = None,
+        deps = [],
+        data = [],
+        node_options = []):
     """
     Sets up Playwright tests for the provided test files.
 
@@ -19,12 +22,23 @@ def ts_playwright_tests(
 
     Args:
         name: The base name of our Playwright tests.
-        srcs: Sources to test. This defaults to all TypeScript files in the package.
+        srcs: Sources to test. This defaults to all TypeScript test files in
+        the package.
+        lib_srcs: Sources of non-test helper files. This defaults to all
+        TypeScript non-test files in the package.
         deps: Dependencies of the sources we're testing.
+        data: Data to be made available through the file system at runtime.
+        node_options: Extra options to pass to Node.js.
     """
 
     if srcs == None:
         srcs = native.glob(["**/*.test.ts", "**/*.test.tsx"])
+
+    if lib_srcs == None:
+        lib_srcs = native.glob(
+            ["**/*.ts", "**/*.tsx"],
+            exclude = ["**/*.test.ts", "**/*.test.tsx"],
+        )
 
     deps = deps + [
         "//:node_modules/@playwright/test",
@@ -32,9 +46,22 @@ def ts_playwright_tests(
 
     ts_lint_and_format_test(
         name = name,
-        srcs = srcs,
         deps = deps,
     )
+
+    if len(lib_srcs) > 0:
+        ts_project(
+            name = "{}_lib".format(name),
+            srcs = lib_srcs,
+            test_srcs = [],
+            # We lint and format everything with the above `ts_lint_and_format_test()`.
+            lint_and_format_srcs = [],
+            deps = deps,
+        )
+
+        deps = deps + [
+            "{}_lib".format(name),
+        ]
 
     ts_typecheck_test(
         name = "{}_typecheck_test".format(name),
@@ -43,9 +70,18 @@ def ts_playwright_tests(
     )
 
     for src in srcs:
-        playwright_test(src = src)
+        playwright_test(
+            src = src,
+            deps = deps,
+            data = data,
+            node_options = node_options,
+        )
 
-def playwright_test(src):
+def playwright_test(
+        src,
+        deps = [],
+        data = [],
+        node_options = []):
     """
     Generate Playwright test rules for the provided source file.
 
@@ -54,6 +90,9 @@ def playwright_test(src):
 
     Args:
         src: The test source file.
+        deps: Dependencies the test needs to run.
+        data: Data to be made available at runtime in runfiles.
+        node_options: Extra options to pass to Node.js.
     """
 
     if not src.endswith(".test.ts") and not src.endswith(".test.tsx"):
@@ -71,26 +110,41 @@ def playwright_test(src):
     _playwright_project_test(
         base_name = base_name,
         project = "chromium",
+        deps = deps,
+        data = data,
+        node_options = node_options,
     )
 
     _playwright_project_test(
         base_name = base_name,
         project = "firefox",
+        deps = deps,
+        data = data,
+        node_options = node_options,
     )
 
     _playwright_project_test(
         base_name = base_name,
         project = "webkit_desktop",
+        deps = deps,
+        data = data,
+        node_options = node_options,
     )
 
     _playwright_project_test(
         base_name = base_name,
         project = "webkit_mobile",
+        deps = deps,
+        data = data,
+        node_options = node_options,
     )
 
 def _playwright_project_test(
         base_name,
-        project):
+        project,
+        deps,
+        data,
+        node_options):
     workspace_relative_path = "." if native.package_name() == "" else "/".join([".." for segment in native.package_name().split("/")])
 
     name = "{}_{}_test".format(base_name, project)
@@ -122,16 +176,17 @@ def _playwright_project_test(
         ],
         data = [
             "@playwright_browsers//:browsers",
-            "//:node_modules/@playwright/test",
             "//:playwright_config_file",
             "{}_src".format(base_name),
-        ],
+        ] + deps + data,
         copy_data_to_bin = False,
         env = {
+            "NODE_ENV": "test",
             # Bazel will strip colors when necessary.
             "FORCE_COLOR": "true",
             "PLAYWRIGHT_BROWSERS_PATH": "$(location @playwright_browsers//:browsers)",
         },
+        node_options = node_options,
         # Firefox creates sandboxes for web content and you can't nest sandboxes. So
         # disable the Bazel sandbox. Ideally we would disable Firefox's sandboxing at
         # runtime and have the entire Firefox process run in the Bazel sandbox but it's

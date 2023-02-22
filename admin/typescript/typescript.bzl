@@ -164,6 +164,9 @@ def ts_lint_and_format_test(
             "**/*.md",
         ])
 
+    if len(srcs) == 0:
+        return
+
     prettier_bin.prettier_test(
         name = "{}_format_test".format(name),
         args = ["--check", native.package_name()],

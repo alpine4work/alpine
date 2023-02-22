@@ -4,22 +4,17 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "dev_lib",
     deps = [
-        "//:node_modules/@miniflare/http-server",
-        "//:node_modules/@miniflare/web-sockets",
         "//:node_modules/@types/express",
-        "//:node_modules/@types/serve-static",
         "//:node_modules/@types/ws",
         "//:node_modules/aws4fetch",
         "//:node_modules/chalk",
         "//:node_modules/express",
         "//:node_modules/fs-extra",
-        "//:node_modules/miniflare",
-        "//:node_modules/serve-static",
-        "//:node_modules/undici",
         "//:node_modules/ws",
         "//admin/aws",
         "//admin/dynamo/local",
         "//admin/helpers",
+        "//app/local",
         "//shared/helpers",
     ],
 )

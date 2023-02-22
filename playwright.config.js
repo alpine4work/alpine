@@ -1,8 +1,8 @@
 "use strict";
 
-const {devices} = require("@playwright/test");
+const {devices, defineConfig} = require("@playwright/test");
 
-module.exports = {
+module.exports = defineConfig({
     testMatch: ["**/*.test.js"],
     timeout: 10 * 1000,
     expect: {timeout: 1000},
@@ -31,4 +31,4 @@ module.exports = {
             use: {...devices["iPhone 12"]},
         },
     ],
-};
+});
