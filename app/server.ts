@@ -32,7 +32,7 @@ type AppWorkerEnv = {
     DocumentCollaborationDurableObjectNamespace: DurableObjectNamespace;
     PostRealtimeDurableObjectNamespace: DurableObjectNamespace;
     DEV_SERVER_PORT?: string;
-    DYNAMO_LOCAL_PORT?: string;
+    LOCAL_DYNAMO_PORT?: string;
     SESSION_COOKIE_SECRET?: string;
     AWS_SECRET_ACCESS_KEY?: string;
     AWS_ACCESS_KEY_ID?: string;

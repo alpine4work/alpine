@@ -5,7 +5,10 @@ ts_project(
     data = [
         "//app",
     ],
-    visibility = ["//app:__subpackages__"],
+    visibility = [
+        "//app:__subpackages__",
+        "//integration_tests:__subpackages__",
+    ],
     deps = [
         "//:node_modules/@miniflare/http-server",
         "//:node_modules/@miniflare/web-sockets",

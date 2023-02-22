@@ -20,7 +20,7 @@ export class ProcessContextModule extends ContextModuleBase {
      * Create an implementation of this context module for tests.
      */
     public static test() {
-        assert(process.env.NODE_ENV === "test");
+        assert(typeof jest !== "undefined");
         return new ProcessContextModule({
             waitUntil: promise => jestAfterEachPromises.push(promise),
         });

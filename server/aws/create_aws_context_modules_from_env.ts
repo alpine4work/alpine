@@ -12,7 +12,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
 export function createAwsContextModulesFromEnv(env: {
     AWS_ACCESS_KEY_ID?: string;
     AWS_SECRET_ACCESS_KEY?: string;
-    DYNAMO_LOCAL_PORT?: string;
+    LOCAL_DYNAMO_PORT?: string;
 }): {
     dynamo: DynamoContextModule;
     email: EmailContextModuleBase;
@@ -26,8 +26,8 @@ export function createAwsContextModulesFromEnv(env: {
                 ? "https://dynamodb.us-east-1.amazonaws.com"
                 : `http://localhost:${parseInt(
                       assertExists(
-                          env.DYNAMO_LOCAL_PORT,
-                          "Environment variable `DYNAMO_LOCAL_PORT` must be set when running DynamoDB locally",
+                          env.LOCAL_DYNAMO_PORT,
+                          "Environment variable `LOCAL_DYNAMO_PORT` must be set when running DynamoDB locally",
                       ),
                       10,
                   )}`,

@@ -9,8 +9,8 @@ import {
     updateSimpleChatMessageContent,
 } from "~/server/dynamo/simple_chat_table";
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
-import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
-import {testMessagingImplementation} from "~/server/dynamo/test_helpers/jest/test_messaging_implementation";
+import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context";
+import {testMessagingImplementation} from "~/server/dynamo/test_helpers/test_messaging_implementation";
 import {generateId} from "~/shared/id/id";
 import {SimpleChatId} from "~/shared/id/types/id_types";
 

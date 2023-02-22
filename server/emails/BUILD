@@ -4,6 +4,7 @@ ts_project(
     name = "emails",
     visibility = [
         "//app:__subpackages__",
+        "//integration_tests:__subpackages__",
         "//server:__subpackages__",
     ],
     deps = [

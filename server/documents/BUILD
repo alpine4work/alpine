@@ -2,7 +2,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "documents",
-    test_deps = ["//server/dynamo/test_helpers/shared"],
+    test_deps = ["//server/dynamo/test_helpers"],
     visibility = [
         "//app:__subpackages__",
         "//server:__subpackages__",

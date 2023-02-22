@@ -23,7 +23,6 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {quote} from "~/shared/helpers/string/quote";
 import {generateId} from "~/shared/id/id";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
@@ -193,10 +192,10 @@ const AccountsTable = DynamoTableSchema.new({
 
 /**
  * We are not allowed to export our DynamoDB tables so instead export a
- * function that can only be used in test environments.
+ * function that can only be used in Jest environments.
  */
 export function getAccountsTableForTest() {
-    assert(process.env.NODE_ENV === "test");
+    assert(typeof jest !== "undefined");
     return AccountsTable;
 }
 
@@ -655,10 +654,10 @@ export class Session {
 
     /**
      * Allow creating a session class directly from ID and database item object
-     * in tests. Can only run in test environments.
+     * in tests. Can only run in a Jest environment.
      */
     public static test(sessionId: SessionId, sessionItem: SessionItem) {
-        assert(process.env.NODE_ENV === "test");
+        assert(typeof jest !== "undefined");
         return new Session(sessionId, sessionItem, null);
     }
 

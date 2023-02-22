@@ -24,7 +24,7 @@ const dynamoLocalJarPath = path.join(
 
 const originalSetTimeout = setTimeout;
 
-export type DynamoLocal = {
+export type LocalDynamo = {
     readonly port: number;
     stop(): Promise<void>;
 };
@@ -35,13 +35,13 @@ export type DynamoLocal = {
  *
  * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DynamoDBLocal.html
  */
-export async function startDynamoLocal({
+export async function startLocalDynamo({
     dataPath,
     port,
 }: {
     dataPath: string;
     port: number;
-}): Promise<DynamoLocal> {
+}): Promise<LocalDynamo> {
     await fs.ensureDir(dataPath);
 
     const javaPath = await javaPathPromise.get();

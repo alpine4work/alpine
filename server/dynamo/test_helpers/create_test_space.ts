@@ -1,6 +1,5 @@
 import {getSpacesTableForTest} from "~/server/dynamo/spaces_table";
-import {TestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
-import {testHooks} from "~/server/dynamo/test_helpers/shared/test_hooks";
+import {TestContext} from "~/server/dynamo/test_helpers/create_test_context";
 import {generateId} from "~/shared/id/id";
 import {SpaceId} from "~/shared/id/types/id_types";
 
@@ -18,7 +17,7 @@ export function createTestSpace(context: TestContext): TestSpace {
     const SpacesTable = getSpacesTableForTest();
     const spaceId = generateId<SpaceId>();
 
-    testHooks.beforeAll(async () => {
+    beforeAll(async () => {
         await SpacesTable.createItem(context, {
             partitionType: "Space",
             sortRangeType: "Attributes",

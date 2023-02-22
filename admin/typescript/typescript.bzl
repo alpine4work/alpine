@@ -19,6 +19,7 @@ def ts_project(
         deps = [],
         test_deps = [],
         test_data = [],
+        test_node_options = [],
         **kwargs):
     """
     Macro for creating a TypeScript project that implements some codebase conventions.
@@ -35,6 +36,7 @@ def ts_project(
         deps: Any dependencies this project needs to run.
         test_deps: Any dependencies this project needs to run tests.
         test_data: Any data for this project that is only available in tests.
+        test_node_options: Additional arguments for the Node.js binary running the test process.
         **kwargs: Arguments that will be forwarded to `ts_project()` from `aspect_rules_ts`.
     """
 
@@ -66,15 +68,19 @@ def ts_project(
     )
 
     if len(test_srcs) > 0:
+        is_integration_test = native.package_name().startswith("integration_tests")
+        declaration_srcs = [src for src in srcs if src.endswith(".d.ts")]
+
         ts_typecheck_test(
             name = "{}_tests_typecheck_test".format(name),
-            srcs = test_srcs,
+            srcs = test_srcs + declaration_srcs,
             deps = [
                 name,
                 "//:node_modules/@types/jest",
+            ] + ([
                 "//:node_modules/@types/testing-library__jest-dom",
                 "//:node_modules/@testing-library/jest-dom",
-            ] + test_deps,
+            ] if not is_integration_test else []) + test_deps,
         )
 
         for test_src in test_srcs:
@@ -115,20 +121,36 @@ def ts_project(
                     # Each test run is only for a single file.
                     "{}/{}".format(native.package_name(), test_src_js),
                 ],
+                node_options = test_node_options,
+                copy_data_to_bin = False,
                 data = _dedupe_labels(deps + test_deps + test_data + [
                                           "//:node_modules/@juggle/resize-observer",
-                                          "//:node_modules/@testing-library/jest-dom",
                                           "//:node_modules/@types/jest",
-                                          "//:node_modules/@types/testing-library__jest-dom",
-                                          "//:node_modules/jest-environment-jsdom",
                                           "//:node_modules/node-fetch",
+                                          "//:node_modules/jest-environment-jsdom",
                                           "//:jest_config_file",
                                           "//admin/jest:jest_config_files",
                                           "{}_src".format(test_name),
                                           "{}_transpile".format(name),
                                       ] +
+                                      # Only include integration test dependencies in `integration_tests` folder.
+                                      ([
+                                          "//:node_modules/@testing-library/jest-dom",
+                                          "//:node_modules/@types/testing-library__jest-dom",
+                                      ] if not is_integration_test else [
+                                          #   "@playwright_browsers//:browsers",
+                                          "//:node_modules/@playwright/test",
+                                          "//:node_modules/jest-playwright-preset",
+                                          "//:node_modules/expect-playwright",
+                                          "//:node_modules/playwright-chromium",
+                                          "//:node_modules/playwright-firefox",
+                                          "//:node_modules/playwright-webkit",
+                                      ]) +
                                       # Will include a snapshot file if it exists.
                                       native.glob(["{}.snap".format(test_src_js[:len(test_src_js) - 3])])),
+                # env = {
+                #     "PLAYWRIGHT_BROWSERS_PATH": "$(location @playwright_browsers//:browsers)",
+                # } if is_integration_test else {},
             )
 
 def swc_transpiler(**kwargs):

@@ -1,12 +1,13 @@
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
-    name = "shared",
+    name = "test_helpers",
     visibility = [
-        "//app/tests:__subpackages__",
+        "//integration_tests:__subpackages__",
         "//server:__subpackages__",
     ],
     deps = [
+        "//:node_modules/@types/jest",
         "//:node_modules/@types/node",
         "//:node_modules/@types/node-fetch",
         "//:node_modules/aws4fetch",
@@ -16,6 +17,7 @@ ts_project(
         "//admin/dynamo/local",
         "//admin/helpers",
         "//server/dynamo",
+        "//shared/content",
         "//shared/context",
         "//shared/helpers",
         "//shared/models",

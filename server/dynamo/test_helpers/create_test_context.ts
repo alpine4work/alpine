@@ -1,10 +1,8 @@
-import "~/server/dynamo/test_helpers/shared/test_setup";
-
 import {AwsClient} from "aws4fetch";
 import fs from "fs-extra";
 import getPort from "get-port";
 import path from "path";
-import {DynamoLocal, startDynamoLocal} from "~/admin/dynamo/local/start_dynamo_local";
+import {LocalDynamo, startLocalDynamo} from "~/admin/dynamo/local/start_local_dynamo";
 import {Session} from "~/server/dynamo/accounts_table";
 import {
     AuthenticatedAuthContextModule,
@@ -16,8 +14,7 @@ import {
     UnauthenticatedRequestContext,
 } from "~/server/dynamo/context/request_context";
 import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
-import {TestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
-import {testHooks} from "~/server/dynamo/test_helpers/shared/test_hooks";
+import {TestSession} from "~/server/dynamo/test_helpers/create_test_session";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module";
 import {CacheContextModule} from "~/shared/context/cache_context_module";
 import {Context} from "~/shared/context/context";
@@ -28,13 +25,11 @@ import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {TracerRoot} from "~/shared/tracer/tracer_root";
 
-// This file should only run in a Node.js test environment. Either Jest
-// or Playwright.
-assert(process.release.name === "node");
-assert(process.env.NODE_ENV === "test");
+// This file should only run in a Jest environment.
+assert(typeof jest !== "undefined");
 
 export type TestContext = ProcessContext & {
-    getDynamoLocalPort(): number;
+    getLocalDynamoPort(): number;
     unauthenticatedRequest(): UnauthenticatedRequestContext;
     request(session: TestSession): RequestContext;
 };
@@ -50,9 +45,9 @@ export function createTestContext(): TestContext {
     // Increase Jest timeout for tests using a test context since these tests
     // need to interact with the database which may be slow.
     //
-    // NOTE(calebmer): I wish the `beforeAll()` calling `startDynamoLocal()` could
+    // NOTE(calebmer): I wish the `beforeAll()` calling `startLocalDynamo()` could
     // have a longer timeout than individual tests.
-    if (typeof jest !== "undefined") jest.setTimeout(1000 * 60);
+    jest.setTimeout(1000 * 60);
 
     const tracer = TracerRoot.new({
         serviceName: "Test",
@@ -74,11 +69,11 @@ export function createTestContext(): TestContext {
         email: new NoopEmailContextModule(),
     });
 
-    let dynamoLocal: DynamoLocal | null = null;
+    let localDynamo: LocalDynamo | null = null;
 
-    const getDynamoLocalPort = () => {
-        if (dynamoLocal === null) throw new InternalError("DynamoDB local has not started");
-        return dynamoLocal.port;
+    const getLocalDynamoPort = () => {
+        if (localDynamo === null) throw new InternalError("DynamoDB local has not started");
+        return localDynamo.port;
     };
 
     const createUnauthenticatedRequestContext = (): UnauthenticatedRequestContext => {
@@ -96,18 +91,18 @@ export function createTestContext(): TestContext {
     };
 
     const context = Object.assign(_context, {
-        getDynamoLocalPort,
+        getLocalDynamoPort,
         unauthenticatedRequest: createUnauthenticatedRequestContext,
         request: createRequestContext,
     });
 
-    testHooks.beforeAll(async () => {
+    beforeAll(async () => {
         const dataPath = await fs.mkdtemp(
             path.join(assertExists(process.env.TEST_TMPDIR), "dynamo_local_data_"),
         );
 
         const port = await getPort();
-        dynamoLocal = await startDynamoLocal({dataPath, port});
+        localDynamo = await startLocalDynamo({dataPath, port});
 
         const awsClient = new AwsClient({
             accessKeyId: "local",
@@ -117,8 +112,8 @@ export function createTestContext(): TestContext {
         dynamoContextModule.initialize(awsClient, `http://localhost:${port}`);
     });
 
-    testHooks.afterAll(async () => {
-        await dynamoLocal?.stop();
+    afterAll(async () => {
+        await localDynamo?.stop();
     });
 
     return context;

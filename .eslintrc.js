@@ -241,13 +241,10 @@ module.exports = {
                 "no-global-error": "off",
             },
         },
+        // Rules for all test and test helper files. All test files use Jest.
         {
-            files: ["**/*.test.*", "**/jest/**"],
-            extends: [
-                "plugin:jest/recommended",
-                "plugin:jest-dom/recommended",
-                "plugin:testing-library/react",
-            ],
+            files: ["**/*.test.*", "**/test/**", "**/tests/**", "**/test_helpers/**"],
+            extends: ["plugin:jest/recommended"],
             rules: {
                 // Avoid the describe/it style which creates a lot of indentation and is
                 // a little too prescriptive when it comes to test names.
@@ -279,9 +276,25 @@ module.exports = {
                 "jest/no-export": "error",
             },
         },
+        // Rules for all client tests. This covers all the tests in the client project
+        // in `jest.config.js`. Client tests are defined with an exclude. Every not a
+        // server test or integration test is a client test.
         {
-            files: ["**/*.spec.*"],
-            extends: ["plugin:playwright/playwright-test"],
+            files: ["**/*.test.*", "**/test/**", "**/tests/**", "**/test_helpers/**"],
+            excludedFiles: ["**/server/*", "**/admin/*", "**/integration_tests/*"],
+            extends: ["plugin:jest-dom/recommended", "plugin:testing-library/react"],
+            rules: {},
+        },
+        // Rules for integration tests which use Playwright instead of `jsdom` and
+        // `@testing-library/react`.
+        {
+            files: [
+                "integration_tests/**/*.test.*",
+                "integration_tests/**/test/**",
+                "integration_tests/**/tests/**",
+                "integration_tests/**/test_helpers/**",
+            ],
+            extends: ["plugin:playwright/jest-playwright"],
             rules: {},
         },
         {
@@ -302,7 +315,13 @@ module.exports = {
             },
         },
         {
-            files: ["app/**/*"],
+            files: [
+                "app/routes/**/*",
+                "app/entry.client.tsx",
+                "app/entry.server.tsx",
+                "app/root.tsx",
+                "app/server.tsx",
+            ],
             rules: {
                 // Remix uses default exports in the `./app` directory to figure out
                 // what to render.

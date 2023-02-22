@@ -29,7 +29,7 @@ import {DurableObjectServiceName, TracerRoot} from "~/shared/tracer/tracer_root"
  * Environment object provided to a Durable Object.
  */
 export type DurableObjectEnv = {
-    DYNAMO_LOCAL_PORT?: string;
+    LOCAL_DYNAMO_PORT?: string;
     SESSION_COOKIE_SECRET?: string;
     AWS_ACCESS_KEY_ID?: string;
     AWS_SECRET_ACCESS_KEY?: string;

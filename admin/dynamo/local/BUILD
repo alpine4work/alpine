@@ -10,7 +10,7 @@ ts_project(
     ],
     visibility = [
         "//app/dev:__pkg__",
-        "//server/dynamo/test_helpers:__subpackages__",
+        "//server/dynamo/test_helpers:__pkg__",
     ],
     deps = [
         "//:node_modules/aws4fetch",
