@@ -241,8 +241,11 @@ module.exports = {
                 "no-global-error": "off",
             },
         },
+        // Rules for all Jest test and helper files. Excludes Playwright test files or
+        // test files that are shared between Jest and Playwright.
         {
-            files: ["**/*.test.*", "**/jest/**"],
+            files: ["**/*.test.*", "**/test/**", "**/tests/**", "**/test_helpers/**"],
+            excludedFiles: ["**/integration_tests/**", "**/test_helpers/shared/**"],
             extends: [
                 "plugin:jest/recommended",
                 "plugin:jest-dom/recommended",
@@ -271,16 +274,19 @@ module.exports = {
                 "jest/no-export": "off",
             },
         },
+        // Rules for just Jest test files, not helper files.
         {
             files: ["**/*.test.*"],
+            excludedFiles: ["**/integration_tests/**", "**/test_helpers/shared/**"],
             extends: [],
             rules: {
                 // You should not export anything from test files.
                 "jest/no-export": "error",
             },
         },
+        // Rules for Playwright test files.
         {
-            files: ["**/*.spec.*"],
+            files: ["**/integration_tests/**"],
             extends: ["plugin:playwright/playwright-test"],
             rules: {},
         },

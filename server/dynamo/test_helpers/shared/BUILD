@@ -3,7 +3,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "shared",
     visibility = [
-        "//app/tests:__subpackages__",
+        "//app/integration_tests:__subpackages__",
         "//server:__subpackages__",
     ],
     deps = [

@@ -1,7 +1,7 @@
 load("//admin/playwright:playwright.bzl", "ts_playwright_tests")
 
 ts_playwright_tests(
-    name = "tests",
+    name = "integration_tests",
     data = ["//app"],
     node_options = [
         # Support for Cloudflare modules format.

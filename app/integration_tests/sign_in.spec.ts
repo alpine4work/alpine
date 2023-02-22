@@ -1,5 +1,5 @@
 import {expect, test} from "@playwright/test";
-import {createTestServer} from "~/app/tests/helpers/create_test_server";
+import {createTestServer} from "~/app/integration_tests/helpers/create_test_server";
 import {approveAlphaAccessRequest} from "~/server/dynamo/alpha_access_table";
 import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
 import {seedDynamo} from "~/server/dynamo/seed_dynamo";
