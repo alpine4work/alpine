@@ -15,10 +15,10 @@ import {
     updatePostCommentContent,
     updatePostContent,
 } from "~/server/dynamo/forum_table";
+import {testMessagingImplementation} from "~/server/dynamo/test_helpers/jest/test_messaging_implementation";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
 import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
 import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
-import {testMessagingImplementation} from "~/server/dynamo/test_helpers/jest/test_messaging_implementation";
 import {
     assertMessageContent,
     emptyMessageContent,

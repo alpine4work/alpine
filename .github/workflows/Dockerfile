@@ -3,7 +3,7 @@
 # To update run:
 #
 # ```
-# docker buildx build --platform linux/amd64 .github/workflows
+# docker buildx build --platform linux/amd64 .github/workflows --tag calebmer/cyberworlds-ci
 # docker push calebmer/cyberworlds-ci
 # ```
 #
