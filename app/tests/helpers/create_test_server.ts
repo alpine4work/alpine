@@ -4,7 +4,10 @@ import {LocalServer, createLocalServer} from "~/app/local/create_local_server";
 import {TestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
 import {assert} from "~/shared/helpers/control/assert";
 
-export function createTestServer(context: TestContext) {
+export function createTestServer(
+    context: TestContext,
+    {globals}: {globals?: {[key: string]: unknown}},
+) {
     let localServer: LocalServer | null = null;
     const portPromise = getPort();
 
@@ -20,8 +23,10 @@ export function createTestServer(context: TestContext) {
 
         const _localServer = createLocalServer({
             bindings: {
+                NODE_ENV: "test",
                 DYNAMO_LOCAL_PORT: context.getDynamoLocalPort(),
             },
+            globals,
         });
 
         await new Promise<void>(resolve => {

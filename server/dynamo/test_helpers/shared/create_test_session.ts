@@ -24,7 +24,11 @@ let accountNameCounter = 1;
  * The IDs are generated synchronously but the session is actually created in a
  * `beforeAll()` hook.
  */
-export function createTestSession(context: TestContext, space: TestSpace): TestSession {
+export function createTestSession(
+    context: TestContext,
+    space: TestSpace,
+    {hasInternalAccess}: {hasInternalAccess?: boolean} = {},
+): TestSession {
     const AccountsTable = getAccountsTableForTest();
     const SpacesTable = getSpacesTableForTest();
     const sessionId = generateId<SessionId>();
@@ -36,9 +40,7 @@ export function createTestSession(context: TestContext, space: TestSpace): TestS
         id: accountId,
         name: `Test ${accountNameCounter++}`,
         createdTime,
-        // The `getAccount()` function includes the `hasInternalAccess` property but
-        // sets it to undefined.
-        hasInternalAccess: undefined,
+        hasInternalAccess,
     });
 
     const sessionItem: SessionItem = {
@@ -59,6 +61,7 @@ export function createTestSession(context: TestContext, space: TestSpace): TestS
                 accountId,
                 name: account.name,
                 createdTime,
+                hasInternalAccess,
             }),
             AccountsTable.transactionCreateItem(sessionItem),
             SpacesTable.transactionCreateItem({

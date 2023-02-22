@@ -224,6 +224,7 @@ export default function SignInEmailCodePage() {
                             autoComplete="one-time-code"
                             autoFocus={true}
                             inputMode="numeric"
+                            aria-label="Sign in code"
                         />
                         <Box
                             position="absolute"

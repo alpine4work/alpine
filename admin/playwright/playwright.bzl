@@ -32,12 +32,12 @@ def ts_playwright_tests(
     """
 
     if srcs == None:
-        srcs = native.glob(["**/*.test.ts", "**/*.test.tsx"])
+        srcs = native.glob(["**/*.spec.ts", "**/*.spec.tsx"])
 
     if lib_srcs == None:
         lib_srcs = native.glob(
             ["**/*.ts", "**/*.tsx"],
-            exclude = ["**/*.test.ts", "**/*.test.tsx"],
+            exclude = ["**/*.spec.ts", "**/*.spec.tsx"],
         )
 
     deps = deps + [
@@ -95,16 +95,22 @@ def playwright_test(
         node_options: Extra options to pass to Node.js.
     """
 
-    if not src.endswith(".test.ts") and not src.endswith(".test.tsx"):
-        fail("test source must end in `.test.{ts,tsx}`")
+    if not src.endswith(".spec.ts") and not src.endswith(".spec.tsx"):
+        fail("test source must end in `.spec.{ts,tsx}`")
 
-    src_js = "{}.js".format(src[:len(src) - 4] if src.endswith(".test.tsx") else src[:len(src) - 3])
+    src_js = "{}.js".format(src[:len(src) - 4] if src.endswith(".spec.tsx") else src[:len(src) - 3])
     base_name = src_js[:len(src_js) - 8]
 
     swc_transpiler(
         name = "{}_src".format(base_name),
         srcs = [src],
         js_outs = [src_js],
+    )
+
+    # Alias that defaults to running our Chromium test for the file.
+    native.test_suite(
+        name = "{}_test".format(base_name),
+        tests = ["{}_chromium_test".format(base_name)],
     )
 
     _playwright_project_test(
@@ -155,7 +161,7 @@ def _playwright_project_test(
             "test",
             # Each test only runs a single file and Bazel will run them in parallel. For
             # whatever reason when we include the extension Playwright can't find the file?
-            "{}/{}.test".format(native.package_name(), base_name),
+            "{}/{}.spec".format(native.package_name(), base_name),
             # Use our custom Playwright config.
             "--config",
             "playwright.config.js",

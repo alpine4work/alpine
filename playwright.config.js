@@ -3,7 +3,7 @@
 const {devices, defineConfig} = require("@playwright/test");
 
 module.exports = defineConfig({
-    testMatch: ["**/*.test.js"],
+    testMatch: ["**/*.spec.js"],
     timeout: 10 * 1000,
     expect: {timeout: 1000},
     reporter: "list",

@@ -88,6 +88,7 @@
         "eslint-plugin-import": "^2.26.0",
         "eslint-plugin-jest": "^26.9.0",
         "eslint-plugin-jest-dom": "^4.0.2",
+        "eslint-plugin-playwright": "^0.12.0",
         "eslint-plugin-testing-library": "^5.9.1",
         "expect-type": "^0.14.2",
         "express": "^4.18.2",

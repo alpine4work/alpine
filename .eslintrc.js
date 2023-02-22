@@ -242,7 +242,7 @@ module.exports = {
             },
         },
         {
-            files: ["**/*.test.*", "**/test/**"],
+            files: ["**/*.test.*", "**/jest/**"],
             extends: [
                 "plugin:jest/recommended",
                 "plugin:jest-dom/recommended",
@@ -278,6 +278,11 @@ module.exports = {
                 // You should not export anything from test files.
                 "jest/no-export": "error",
             },
+        },
+        {
+            files: ["**/*.spec.*"],
+            extends: ["plugin:playwright/playwright-test"],
+            rules: {},
         },
         {
             files: ["**/types/**/*"],

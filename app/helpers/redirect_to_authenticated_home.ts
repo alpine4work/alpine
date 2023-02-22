@@ -8,6 +8,9 @@ import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
  */
 export async function redirectToAuthenticatedHome(context: DynamoContext) {
     const configuration = await getAlphaConfiguration(context);
-    // TODO(calebmer): Maybe add a good fallback URL to route to?
-    return redirect(configuration.authenticatedHomeUrl ?? "/404");
+    return redirect(
+        configuration.authenticatedHomeUrl ??
+            // TODO(calebmer): Maybe add a good fallback URL to route to?
+            (configuration.defaultSpaceId ? `/s/${configuration.defaultSpaceId}` : "/404"),
+    );
 }

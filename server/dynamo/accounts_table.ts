@@ -338,9 +338,13 @@ export async function regenerateOneTimePasswordSignIn(
         oneTimePasswordSignInEmailsForTest.push({emailAddress, oneTimePassword: password});
     }
 
-    if (process.env.NODE_ENV === "development") {
-        // eslint-disable-next-line no-console
-        console.log(quote`✉️  The one time password for ${emailAddress} is ${password}`);
+    // We allow integration tests to capture one time password emails by
+    // setting a global function.
+    if (
+        process.env.NODE_ENV !== "production" &&
+        typeof (globalThis as any).__logOneTimePassword === "function"
+    ) {
+        (globalThis as any).__logOneTimePassword({emailAddress, oneTimePassword: password});
     }
 
     await context.email.send({
@@ -651,10 +655,10 @@ export class Session {
 
     /**
      * Allow creating a session class directly from ID and database item object
-     * in tests. Can only run in Jest tests.
+     * in tests. Can only run in test environments.
      */
     public static test(sessionId: SessionId, sessionItem: SessionItem) {
-        assert(typeof jest !== "undefined");
+        assert(process.env.NODE_ENV === "test");
         return new Session(sessionId, sessionItem, null);
     }
 

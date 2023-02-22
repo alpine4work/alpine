@@ -12,6 +12,7 @@ import {createLocalServer} from "~/app/local/create_local_server";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {quote} from "~/shared/helpers/string/quote";
 
 const env = parseDotenv();
 
@@ -26,6 +27,16 @@ const dynamoLocalPort = parseInt(assertExists(env.DYNAMO_LOCAL_PORT), 10);
 const localAppServer = createLocalServer({
     globals: {
         __writeDevTracerEvent: writeDevTracerEvent,
+        __logOneTimePassword: ({
+            emailAddress,
+            oneTimePassword,
+        }: {
+            emailAddress: string;
+            oneTimePassword: string;
+        }) => {
+            // eslint-disable-next-line no-console
+            console.log(quote`✉️  The one time password for ${emailAddress} is ${oneTimePassword}`);
+        },
     },
     middleware: (req, res, next) => {
         run();
