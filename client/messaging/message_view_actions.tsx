@@ -106,7 +106,6 @@ export function StandardMessageViewActions<RoomKey extends string>({
     isHovered,
     onReplyToMessage,
     onDeleteMessage,
-    isEditing,
     shouldFocusMessageContentEditorRef,
     getCopyLinkUrl,
 }: MessageViewActionsProps<RoomKey>) {
@@ -121,7 +120,7 @@ export function StandardMessageViewActions<RoomKey extends string>({
     const [showDeleteConfirmationDialog, setShowDeleteConfirmationDialog] = useState(false);
 
     const isShowingActions =
-        isEditing || isHovered || (isFocusWithinActions && isFocusVisible) || isMoreMenuOpen;
+        isHovered || (isFocusWithinActions && isFocusVisible) || isMoreMenuOpen;
 
     const actions: Array<MenuAction> = [];
 
@@ -163,12 +162,7 @@ export function StandardMessageViewActions<RoomKey extends string>({
             style={{opacity: isShowingActions ? "1" : "0"}}
             {...focusWithinActionsProps}
         >
-            <IconButton
-                description="Reply"
-                size="sm"
-                isDisabled={isEditing}
-                onPress={onReplyToMessage}
-            >
+            <IconButton description="Reply" size="sm" onPress={onReplyToMessage}>
                 <ArrowArcLeft />
             </IconButton>
             {actions.length > 0 && (
@@ -176,7 +170,7 @@ export function StandardMessageViewActions<RoomKey extends string>({
                     actions={actions}
                     onStateChange={state => setIsMoreMenuOpen(state.isExpanded)}
                 >
-                    <IconButton description="More" size="sm" isDisabled={isEditing}>
+                    <IconButton description="More" size="sm">
                         <DotsThree />
                     </IconButton>
                 </MenuButton>
