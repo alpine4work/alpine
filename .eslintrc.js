@@ -288,7 +288,11 @@ module.exports = {
         {
             files: ["**/integration_tests/**"],
             extends: ["plugin:playwright/playwright-test"],
-            rules: {},
+            rules: {
+                // Conditionals are fine. Sometimes mobile needs to do something different
+                // than desktop.
+                "playwright/no-conditional-in-test": "off",
+            },
         },
         {
             files: ["**/types/**/*"],

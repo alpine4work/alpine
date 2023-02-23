@@ -318,7 +318,7 @@ export function PostCommentInput({
                                 state={state}
                                 onChange={setState}
                                 onNavigate={navigate}
-                                aria-label="Comment"
+                                aria-label="New comment"
                                 placeholder="Write a comment…"
                                 className={sprinkles({
                                     paddingX: messageViewBubblePaddingX,

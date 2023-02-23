@@ -27,7 +27,13 @@ let accountNameCounter = 1;
 export function createTestSession(
     context: TestContext,
     space: TestSpace,
-    {hasInternalAccess}: {hasInternalAccess?: boolean} = {},
+    {
+        name = `Test Account ${accountNameCounter++}`,
+        hasInternalAccess,
+    }: {
+        name?: string;
+        hasInternalAccess?: boolean;
+    } = {},
 ): TestSession {
     const AccountsTable = getAccountsTableForTest();
     const SpacesTable = getSpacesTableForTest();
@@ -38,7 +44,7 @@ export function createTestSession(
 
     const account = new AccountModel({
         id: accountId,
-        name: `Test ${accountNameCounter++}`,
+        name,
         createdTime,
         hasInternalAccess,
     });

@@ -2,14 +2,22 @@
 
 const {devices, defineConfig} = require("@playwright/test");
 
+const isExecutedByBazelTest = !process.env.BUILD_WORKSPACE_DIRECTORY;
+
+// Use higher timeouts when running with `bazel test` instead of `bazel run`.
+// `bazel run` is useful for debugging a single test so to have a fast
+// iteration cycle it's useful when tests fail fast.
+const timeout = isExecutedByBazelTest ? 60 * 1000 : 20 * 1000;
+const actionTimeout = isExecutedByBazelTest ? 10 * 1000 : 3 * 1000;
+
 module.exports = defineConfig({
     testDir: "./app/integration_tests",
     testMatch: ["**/*.spec.js"],
-    timeout: 30 * 1000,
-    expect: {timeout: 5 * 1000},
+    timeout,
+    expect: {timeout: actionTimeout},
     reporter: "list",
     use: {
-        actionTimeout: 5 * 1000,
+        actionTimeout: actionTimeout,
         screenshot: "only-on-failure",
         video: "retain-on-failure",
         trace: "retain-on-failure",
