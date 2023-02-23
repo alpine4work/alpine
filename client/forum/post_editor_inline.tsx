@@ -127,7 +127,7 @@ export function PostEditorInline({
                 >
                     <ContentEditor
                         ref={editorRef}
-                        aria-label="New post content"
+                        aria-label="New post"
                         state={state}
                         onNavigate={navigate}
                         placeholder="Share your ideas…"

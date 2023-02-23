@@ -2,11 +2,7 @@ import {RequestContext} from "~/server/dynamo/context/request_context";
 import {TestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
 import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
 import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
-import {
-    MessageContent,
-    assertMessageContent,
-    MessageContentProsemirrorSchema as schema,
-} from "~/shared/content/message_content_schema";
+import {MessageContent, createSimpleMessageContent} from "~/shared/content/message_content_schema";
 import {
     FailedPreconditionError,
     InternalError,
@@ -199,18 +195,10 @@ export function testMessagingImplementation<RoomKey>(
     const otherSpace = createTestSpace(context);
     const otherSession = createTestSession(context, otherSpace);
 
-    const content1 = assertMessageContent(
-        schema.node("doc", {}, [schema.node("paragraph", {}, [schema.text("test1")])]),
-    );
-    const content2 = assertMessageContent(
-        schema.node("doc", {}, [schema.node("paragraph", {}, [schema.text("test2")])]),
-    );
-    const content3 = assertMessageContent(
-        schema.node("doc", {}, [schema.node("paragraph", {}, [schema.text("test3")])]),
-    );
-    const content4 = assertMessageContent(
-        schema.node("doc", {}, [schema.node("paragraph", {}, [schema.text("test4")])]),
-    );
+    const content1 = createSimpleMessageContent("test1");
+    const content2 = createSimpleMessageContent("test2");
+    const content3 = createSimpleMessageContent("test3");
+    const content4 = createSimpleMessageContent("test4");
 
     function massageMessage(message: MessageInterface | null) {
         if (!message) return null;

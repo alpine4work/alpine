@@ -9,8 +9,8 @@ index 3bbd62e81d5dac376e9908ef05354a788b2f83da..2ed750c5b1e41870553612e80af81e42
 -          resultLines.push(_utilsBundle.colors.cyan(`    ${relativePath}`));
 +          // NOTE(calebmer): The paths reported by Playwright for our test logs
 +          // are very confusing and inaccessible since they're in a sandbox.
-+          // Modify the reported to print a friendlier path to our developers.
-+          const bazelTestlogsMatch = relativePath.match(/(?:^|\/)testlogs\/(.+)\/(.+)\/test\.outputs\/(.+)/);
++          // Modify the reporter to print a friendlier path to our developers.
++          const bazelTestlogsMatch = relativePath.match(/(?:^|\/)testlogs\/(.+\/integration_tests)\/(.+)\/test\.outputs\/(.+)/);
 +          if (!bazelTestlogsMatch) {
 +            resultLines.push(_utilsBundle.colors.cyan(`    ${relativePath}`));
 +          } else {

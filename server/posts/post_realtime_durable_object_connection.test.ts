@@ -8,14 +8,8 @@ import {
     postRealtimeBackfillCommentsBeforeFlushTestCheckpoint,
     postRealtimeCreateCommentBeforeSendTestCheckpoint,
 } from "~/server/posts/post_realtime_durable_object_connection";
-import {
-    MessageContentProsemirrorSchema,
-    assertMessageContent,
-} from "~/shared/content/message_content_schema";
-import {
-    PostContentProsemirrorSchema,
-    assertPostContent,
-} from "~/shared/content/post_content_schema";
+import {createSimpleMessageContent} from "~/shared/content/message_content_schema";
+import {createSimplePostContent} from "~/shared/content/post_content_schema";
 import {UnimplementedError} from "~/shared/error/error";
 import {PostRealtimeMessageFromServer} from "~/shared/posts/post_realtime_schema";
 
@@ -25,35 +19,11 @@ const session1 = createTestSession(context, space);
 const session2 = createTestSession(context, space);
 const session3 = createTestSession(context, space);
 
-const postContent = assertPostContent(
-    PostContentProsemirrorSchema.node("doc", {}, [
-        PostContentProsemirrorSchema.node("paragraph", {}, [
-            PostContentProsemirrorSchema.text("test"),
-        ]),
-    ]),
-);
+const postContent = createSimplePostContent("test");
 
-const content1 = assertMessageContent(
-    MessageContentProsemirrorSchema.node("doc", {}, [
-        MessageContentProsemirrorSchema.node("paragraph", {}, [
-            MessageContentProsemirrorSchema.text("test1"),
-        ]),
-    ]),
-);
-const content2 = assertMessageContent(
-    MessageContentProsemirrorSchema.node("doc", {}, [
-        MessageContentProsemirrorSchema.node("paragraph", {}, [
-            MessageContentProsemirrorSchema.text("test2"),
-        ]),
-    ]),
-);
-const content3 = assertMessageContent(
-    MessageContentProsemirrorSchema.node("doc", {}, [
-        MessageContentProsemirrorSchema.node("paragraph", {}, [
-            MessageContentProsemirrorSchema.text("test3"),
-        ]),
-    ]),
-);
+const content1 = createSimpleMessageContent("test1");
+const content2 = createSimpleMessageContent("test2");
+const content3 = createSimpleMessageContent("test3");
 
 function unimplemented() {
     throw new UnimplementedError("Unimplemented");

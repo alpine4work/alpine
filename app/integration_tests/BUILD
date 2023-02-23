@@ -11,13 +11,16 @@ ts_playwright_tests(
     deps = [
         "//:node_modules/@types/node",
         "//:node_modules/@types/serve-static",
+        "//:node_modules/@types/set-cookie-parser",
         "//:node_modules/@types/ws",
         "//:node_modules/get-port",
         "//:node_modules/miniflare",
         "//:node_modules/serve-static",
+        "//:node_modules/set-cookie-parser",
         "//:node_modules/ws",
         "//admin/helpers",
         "//app/local",
         "//server/dynamo/test_helpers/shared",
+        "//server/remix",
     ],
 )

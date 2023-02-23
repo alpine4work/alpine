@@ -122,6 +122,17 @@ def playwright_test(
         tests = ["{}_chromium_test".format(name)],
     )
 
+    # Alias that runs all platforms for this test file.
+    native.test_suite(
+        name = "{}_all_tests".format(name),
+        tests = [
+            "{}_chromium_test".format(name),
+            "{}_firefox_test".format(name),
+            "{}_webkit_desktop_test".format(name),
+            "{}_webkit_mobile_test".format(name),
+        ],
+    )
+
     _playwright_project_test(
         name = name,
         project = "chromium",

@@ -9,7 +9,7 @@ module.exports = defineConfig({
     expect: {timeout: 5 * 1000},
     reporter: "list",
     use: {
-        actionTimeout: 0,
+        actionTimeout: 5 * 1000,
         screenshot: "only-on-failure",
         video: "retain-on-failure",
         trace: "retain-on-failure",

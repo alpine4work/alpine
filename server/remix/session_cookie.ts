@@ -87,6 +87,29 @@ export class SessionCookieStorage {
         const sessionCookie = await SessionCookie[newMethod](this._storage, request);
         return sessionCookie.get();
     }
+
+    /**
+     * Get the cookie header for a browser with just a session cookie corresponding
+     * to the provided ids. Can only be run in test environments. This would be
+     * dangerous to run outside of a test environment.
+     */
+    public async getCookieHeaderForTest(
+        sessionId: SessionId,
+        sessionAccountId: AccountId,
+    ): Promise<string> {
+        assert(process.env.NODE_ENV === "test");
+
+        const data = SessionCookieDataSchema.serialize({
+            ...getDefaultSessionCookieData(),
+            sessionId,
+            sessionAccountId,
+        });
+
+        const rawSession = await this._storage.getSession();
+        for (const [key, value] of Object.entries(data)) rawSession.set(key, value);
+
+        return this._storage.commitSession(rawSession);
+    }
 }
 
 /**

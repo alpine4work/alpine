@@ -1,10 +1,7 @@
 import {PostList, PostListItem} from "~/client/forum/post_list";
 import {MessageList} from "~/client/messaging/message_list";
 import {emptyMessageContent} from "~/shared/content/message_content_schema";
-import {
-    assertPostContent,
-    PostContentProsemirrorSchema as schema,
-} from "~/shared/content/post_content_schema";
+import {createSimplePostContent} from "~/shared/content/post_content_schema";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length";
 import {shuffleArray} from "~/shared/helpers/array/shuffle_array";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -24,21 +21,11 @@ const account3 = new AccountModel({id: generateId(), name: "Test 3", createdTime
 const account4 = new AccountModel({id: generateId(), name: "Test 4", createdTime});
 const account5 = new AccountModel({id: generateId(), name: "Test 5", createdTime});
 
-const testContent1 = assertPostContent(
-    schema.node("doc", {}, [schema.node("paragraph", {}, [schema.text("test1")])]),
-);
-const testContent2 = assertPostContent(
-    schema.node("doc", {}, [schema.node("paragraph", {}, [schema.text("test2")])]),
-);
-const testContent3 = assertPostContent(
-    schema.node("doc", {}, [schema.node("paragraph", {}, [schema.text("test3")])]),
-);
-const testContent4 = assertPostContent(
-    schema.node("doc", {}, [schema.node("paragraph", {}, [schema.text("test4")])]),
-);
-const testContent5 = assertPostContent(
-    schema.node("doc", {}, [schema.node("paragraph", {}, [schema.text("test5")])]),
-);
+const testContent1 = createSimplePostContent("test1");
+const testContent2 = createSimplePostContent("test2");
+const testContent3 = createSimplePostContent("test3");
+const testContent4 = createSimplePostContent("test4");
+const testContent5 = createSimplePostContent("test5");
 
 /**
  * Get all items in the list as an array. Accesses the items in random order to

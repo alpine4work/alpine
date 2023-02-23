@@ -395,7 +395,7 @@ export function buildKeymapPlugin(schema: ContentProsemirrorSchema) {
 
             let nextNodeDepth = $from.depth;
             let nextNode = state.doc.resolve($from.after(nextNodeDepth)).nodeAfter;
-            while (!nextNode && nextNodeDepth >= 0) {
+            while (!nextNode && nextNodeDepth > 1) {
                 nextNodeDepth--;
                 nextNode = state.doc.resolve($from.after(nextNodeDepth)).nodeAfter;
             }
