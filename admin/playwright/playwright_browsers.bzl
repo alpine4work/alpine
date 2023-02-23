@@ -11,19 +11,6 @@ def _playwright_browsers_repository_impl(rctx):
     # installation. Magical!
     playwright_cli = rctx.path(Label("@npm__playwright-core__{}//:package/cli.js".format(rctx.attr.playwright_version)))
 
-    # This will globally install dependencies necessary to run our browsers.
-    # Necessary for CI.
-    rctx.execute(
-        [
-            node_bin,
-            playwright_cli,
-            "install-deps",
-        ],
-        environment = {
-            "PLAYWRIGHT_BROWSERS_PATH": "{}/browsers".format(rctx.path(".")),
-        },
-    )
-
     rctx.execute(
         [
             node_bin,
