@@ -1,5 +1,3 @@
-import "~/server/dynamo/test_helpers/shared/test_setup";
-
 import {AwsClient} from "aws4fetch";
 import fs from "fs-extra";
 import getPort from "get-port";
@@ -17,7 +15,7 @@ import {
 } from "~/server/dynamo/context/request_context";
 import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
 import {TestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
-import {testHooks} from "~/server/dynamo/test_helpers/shared/test_hooks";
+import {testSharedHooks} from "~/server/dynamo/test_helpers/shared/test_shared_hooks";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module";
 import {CacheContextModule} from "~/shared/context/cache_context_module";
 import {Context} from "~/shared/context/context";
@@ -101,7 +99,7 @@ export function createTestContext(): TestContext {
         request: createRequestContext,
     });
 
-    testHooks.beforeAll(async () => {
+    testSharedHooks.beforeAll(async () => {
         const dataPath = await fs.mkdtemp(
             path.join(assertExists(process.env.TEST_TMPDIR), "dynamo_local_data_"),
         );
@@ -117,7 +115,7 @@ export function createTestContext(): TestContext {
         dynamoContextModule.initialize(awsClient, `http://localhost:${port}`);
     });
 
-    testHooks.afterAll(async () => {
+    testSharedHooks.afterAll(async () => {
         await dynamoLocal?.stop();
     });
 

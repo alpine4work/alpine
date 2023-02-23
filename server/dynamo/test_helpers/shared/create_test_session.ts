@@ -3,7 +3,7 @@ import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {getSpacesTableForTest} from "~/server/dynamo/spaces_table";
 import {TestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
 import {TestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
-import {testHooks} from "~/server/dynamo/test_helpers/shared/test_hooks";
+import {testSharedHooks} from "~/server/dynamo/test_helpers/shared/test_shared_hooks";
 import {generateId} from "~/shared/id/id";
 import {AccountId, SessionId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
@@ -53,7 +53,7 @@ export function createTestSession(
         initialUserAgent: null,
     };
 
-    testHooks.beforeAll(async () => {
+    testSharedHooks.beforeAll(async () => {
         await DynamoTableSchema.executeTransaction(context, [
             AccountsTable.transactionCreateItem({
                 partitionType: "Account",
