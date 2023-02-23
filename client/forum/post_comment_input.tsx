@@ -167,7 +167,7 @@ export function PostCommentInput({
     };
 
     return (
-        <>
+        <Box data-testid={`PostCommentInput:${post.id}`}>
             {replyingToPostComment &&
                 (() => {
                     const height = addRemLengths(
@@ -347,6 +347,6 @@ export function PostCommentInput({
                     </Box>
                 </Box>
             </Box>
-        </>
+        </Box>
     );
 }

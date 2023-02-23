@@ -64,9 +64,9 @@ patchedDependencies:
   '@types/functional-red-black-tree@1.0.1':
     hash: zlhx626gqk2by4uqhm5vucpqwy
     path: admin/patches/@types__functional-red-black-tree@1.0.1.patch
-  '@playwright/test@1.30.0':
-    hash: hyszbf5cn55qatgxzmfa4eedda
-    path: admin/patches/@playwright__test@1.30.0.patch
+  '@playwright/test@1.31.1':
+    hash: 645z6zzf2yttz7gk24haek5rhi
+    path: admin/patches/@playwright__test@1.31.1.patch
 
 specifiers:
   '@aws-sdk/client-dynamodb': ^3.201.0
@@ -79,7 +79,7 @@ specifiers:
   '@miniflare/http-server': ^2.11.0
   '@miniflare/runner-vm': ^2.11.0
   '@miniflare/web-sockets': ^2.11.0
-  '@playwright/test': ^1.30.0
+  '@playwright/test': ^1.31.1
   '@popperjs/core': ^2.11.6
   '@react-aria/interactions': ^3.12.0
   '@react-types/shared': ^3.16.0
@@ -181,7 +181,7 @@ specifiers:
   node-fetch: '2'
   outdent: 0.8.0
   phosphor-react: ^1.4.1
-  playwright-core: ^1.30.0
+  playwright-core: ^1.31.1
   prettier: ^2.7.1
   pretty-ms: '7'
   proper-lockfile: ^4.1.2
@@ -223,7 +223,7 @@ dependencies:
   '@miniflare/http-server': 2.11.0_ztiuxzlbgxjc73nj5w24no6ar4
   '@miniflare/runner-vm': 2.11.0_4sqfyt26snkgfwger7zzuolyhm
   '@miniflare/web-sockets': 2.11.0
-  '@playwright/test': 1.30.0_hyszbf5cn55qatgxzmfa4eedda
+  '@playwright/test': 1.31.1_645z6zzf2yttz7gk24haek5rhi
   '@popperjs/core': 2.11.6
   '@react-aria/interactions': 3.12.0_react@18.2.0
   '@react-types/shared': 3.16.0_react@18.2.0
@@ -325,7 +325,7 @@ dependencies:
   node-fetch: 2.6.7
   outdent: 0.8.0_ybnbpvk42g5zpvi2kytcsdr4wu
   phosphor-react: 1.4.1_react@18.2.0
-  playwright-core: 1.30.0
+  playwright-core: 1.31.1
   prettier: 2.7.1
   pretty-ms: 7.0.1
   proper-lockfile: 4.1.2
@@ -3924,13 +3924,15 @@ packages:
       tslib: 2.4.0
     dev: false
 
-  /@playwright/test/1.30.0_hyszbf5cn55qatgxzmfa4eedda:
-    resolution: {integrity: sha512-SVxkQw1xvn/Wk/EvBnqWIq6NLo1AppwbYOjNLmyU0R1RoQ3rLEBtmjTnElcnz8VEtn11fptj1ECxK0tgURhajw==}
+  /@playwright/test/1.31.1_645z6zzf2yttz7gk24haek5rhi:
+    resolution: {integrity: sha512-IsytVZ+0QLDh1Hj83XatGp/GsI1CDJWbyDaBGbainsh0p2zC7F4toUocqowmjS6sQff2NGT3D9WbDj/3K2CJiA==}
     engines: {node: '>=14'}
     hasBin: true
     dependencies:
       '@types/node': 18.0.6
-      playwright-core: 1.30.0
+      playwright-core: 1.31.1
+    optionalDependencies:
+      fsevents: 2.3.2
     dev: false
     patched: true
 
@@ -12530,8 +12532,8 @@ packages:
       find-up: 4.1.0
     dev: false
 
-  /playwright-core/1.30.0:
-    resolution: {integrity: sha512-7AnRmTCf+GVYhHbLJsGUtskWTE33SwMZkybJ0v6rqR1boxq2x36U7p1vDRV7HO2IwTZgmycracLxPEJI49wu4g==}
+  /playwright-core/1.31.1:
+    resolution: {integrity: sha512-JTyX4kV3/LXsvpHkLzL2I36aCdml4zeE35x+G5aPc4bkLsiRiQshU5lWeVpHFAuC8xAcbI6FDcw/8z3q2xtJSQ==}
     engines: {node: '>=14'}
     hasBin: true
     dev: false

@@ -13,7 +13,7 @@
         "@miniflare/http-server": "^2.11.0",
         "@miniflare/runner-vm": "^2.11.0",
         "@miniflare/web-sockets": "^2.11.0",
-        "@playwright/test": "^1.30.0",
+        "@playwright/test": "^1.31.1",
         "@popperjs/core": "^2.11.6",
         "@react-aria/interactions": "^3.12.0",
         "@react-types/shared": "^3.16.0",
@@ -115,7 +115,7 @@
         "node-fetch": "2",
         "outdent": "0.8.0",
         "phosphor-react": "^1.4.1",
-        "playwright-core": "^1.30.0",
+        "playwright-core": "^1.31.1",
         "prettier": "^2.7.1",
         "pretty-ms": "7",
         "proper-lockfile": "^4.1.2",
@@ -171,7 +171,7 @@
             "@miniflare/runner-vm@2.11.0": "admin/patches/@miniflare__runner-vm@2.11.0.patch",
             "undici@5.9.1": "admin/patches/undici@5.9.1.patch",
             "@types/functional-red-black-tree@1.0.1": "admin/patches/@types__functional-red-black-tree@1.0.1.patch",
-            "@playwright/test@1.30.0": "admin/patches/@playwright__test@1.30.0.patch"
+            "@playwright/test@1.31.1": "admin/patches/@playwright__test@1.31.1.patch"
         },
         "allowedDeprecatedVersions": {
             "@types/keyv": "4.2.0",

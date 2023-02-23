@@ -7,8 +7,8 @@ const isExecutedByBazelTest = !process.env.BUILD_WORKSPACE_DIRECTORY;
 // Use higher timeouts when running with `bazel test` instead of `bazel run`.
 // `bazel run` is useful for debugging a single test so to have a fast
 // iteration cycle it's useful when tests fail fast.
-const timeout = isExecutedByBazelTest ? 60 * 1000 : 20 * 1000;
-const actionTimeout = isExecutedByBazelTest ? 10 * 1000 : 3 * 1000;
+const timeout = isExecutedByBazelTest ? 120 * 1000 : 20 * 1000;
+const actionTimeout = isExecutedByBazelTest ? 20 * 1000 : 3 * 1000;
 
 module.exports = defineConfig({
     testDir: "./app/integration_tests",

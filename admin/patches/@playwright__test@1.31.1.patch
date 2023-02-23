@@ -1,9 +1,9 @@
 diff --git a/lib/reporters/base.js b/lib/reporters/base.js
-index 3bbd62e81d5dac376e9908ef05354a788b2f83da..2ed750c5b1e41870553612e80af81e4275d955b8 100644
+index 970dab521dfae506bdb1ae45ae9cf82c1293dac6..c34930044735ac8afe1b33e518206d05aaa11ec5 100644
 --- a/lib/reporters/base.js
 +++ b/lib/reporters/base.js
-@@ -249,12 +249,24 @@ function formatFailure(config, test, options = {}) {
-         resultLines.push(_utilsBundle.colors.cyan(pad(`    attachment #${i + 1}: ${attachment.name} (${attachment.contentType})`, '-')));
+@@ -247,12 +247,24 @@ function formatFailure(config, test, options = {}) {
+         resultLines.push(_utilsBundle.colors.cyan(separator(`    attachment #${i + 1}: ${attachment.name} (${attachment.contentType})`)));
          if (attachment.path) {
            const relativePath = _path.default.relative(process.cwd(), attachment.path);
 -          resultLines.push(_utilsBundle.colors.cyan(`    ${relativePath}`));
