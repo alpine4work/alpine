@@ -1,7 +1,6 @@
 import {differenceInMinutes} from "date-fns";
 import {ArrowArcLeft, SpinnerGap} from "phosphor-react";
-import {MutableRefObject, useEffect, useMemo, useRef, useState} from "react";
-import {useFocusWithin} from "react-aria";
+import {Memo, MutableRefObject, useEffect, useMemo, useRef, useState} from "react";
 import {useNavigate} from "react-router-dom";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountShortName} from "~/client/accounts/account_short_name";
@@ -11,7 +10,6 @@ import {FocusRing} from "~/client/design/focus_ring";
 import {IconButton} from "~/client/design/icon_button";
 import {ModalDialog} from "~/client/design/modal_dialog";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
-import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {MessageEditing} from "~/client/messaging/message_editing";
 import {MessageList} from "~/client/messaging/message_list";
 import {MessageViewActions} from "~/client/messaging/message_view_actions";
@@ -113,7 +111,7 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
     messageEditing,
     disableExpensiveFeaturesDuringScroll,
     shouldHighlightRef,
-    onJumpToMessage: _onJumpToMessage,
+    onJumpToMessage,
     onReplyToMessage,
     onDeleteMessage,
     getCopyLinkUrl,
@@ -127,7 +125,7 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
     messageEditing: MessageEditing<RoomKey>;
     disableExpensiveFeaturesDuringScroll: boolean;
     shouldHighlightRef: MutableRefObject<boolean> | null;
-    onJumpToMessage: (messageIndex: number) => void;
+    onJumpToMessage: Memo<(roomKey: RoomKey, messageIndex: number) => void>;
     onReplyToMessage: () => void;
     onDeleteMessage: () => Promise<void>;
     getCopyLinkUrl: (messageIndex: number) => URL;
@@ -315,8 +313,6 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
         shouldMergeWithPreviousMessage,
     ]);
 
-    const onJumpToMessage = useEvent(_onJumpToMessage);
-
     const parentMessageNode = useMemo(() => {
         if (!parentMessage) return null;
 
@@ -391,17 +387,25 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
                                 transform: `scale(${messageViewPreviewScale})`,
                                 transformOrigin: "0% 0% 0",
                             }}
-                            onClick={() => onJumpToMessage(parentMessage.index)}
+                            onClick={() =>
+                                onJumpToMessage(parentMessage.getRoomKey(), parentMessage.index)
+                            }
                             onKeyDown={event => {
                                 if (event.key === "Enter") {
                                     event.preventDefault();
-                                    onJumpToMessage(parentMessage.index);
+                                    onJumpToMessage(
+                                        parentMessage.getRoomKey(),
+                                        parentMessage.index,
+                                    );
                                     return;
                                 }
 
                                 if (event.key === " ") {
                                     event.preventDefault();
-                                    onJumpToMessage(parentMessage.index);
+                                    onJumpToMessage(
+                                        parentMessage.getRoomKey(),
+                                        parentMessage.index,
+                                    );
                                     return;
                                 }
                             }}
@@ -435,11 +439,12 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
         );
     }, [messageStartOfSentenceNoun, navigate, onJumpToMessage, parentMessage]);
 
-    const {focusWithinProps: focusWithinMessageContentProps} = useFocusWithin({
-        onBlurWithin: () => {
-            messageEditingForThisMessage?.dispatch({type: "MaybeCancelEditing"});
-        },
-    });
+    // IMPORTANT(calebmer): Be careful about what you put in this component!
+    // `<MessageView>` needs to render fast for us to get good FPS when scrolling
+    // through messages. We've directly observed slow hook implementations or too
+    // many sub-components slowing down FPS. (Reason why we don't allow `<Box>` in
+    // this file.) Before adding new logic to this render function, consider
+    // whether you could add it to a child component. Or inline some of the logic.
 
     return (
         <div
@@ -529,7 +534,14 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
                 {message.payload.type === "Content" ? (
                     <div
                         className={sprinkles({display: "flex", position: "relative", zIndex: "10"})}
-                        {...focusWithinMessageContentProps}
+                        onBlur={event => {
+                            // Ignore blur events where focus is moving within the element.
+                            if (!event.currentTarget.contains(event.relatedTarget)) {
+                                messageEditingForThisMessage?.dispatch({
+                                    type: "MaybeCancelEditing",
+                                });
+                            }
+                        }}
                     >
                         {!messageEditingForThisMessage ? (
                             contentPayloadNode
