@@ -3,7 +3,7 @@ import {useNavigate} from "react-router-dom";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {Box} from "~/client/design/box";
-import {OverlayRef} from "~/client/design/overlay";
+import {FocusRing} from "~/client/design/focus_ring";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {MessageEditing} from "~/client/messaging/message_editing";
 import {
@@ -33,63 +33,52 @@ export function MessageViewEditor<RoomKey extends string>({
 }) {
     assert(messageEditing.state.isEditing);
 
-    const overlayRef = useRef<OverlayRef>(null);
-
     return (
-        <Box
-            maxWidth="160"
-            overflow="hidden"
-            display="inline-block"
-            paddingX="0.5"
-            paddingY="1.5"
-            backgroundColor="grey-0"
-            borderTopLeftRadius={
-                !shouldMergeWithPreviousMessage
-                    ? messageViewBubbleBorderRadius
-                    : messageViewBubbleMergedBorderRadius
-            }
-            borderTopRightRadius={messageViewBubbleBorderRadius}
-            borderBottomLeftRadius={
-                !shouldMergeWithNextMessage
-                    ? messageViewBubbleBorderRadius
-                    : messageViewBubbleMergedBorderRadius
-            }
-            borderBottomRightRadius={messageViewBubbleBorderRadius}
-            style={{
-                boxShadow: `inset 0 0 0 1px ${
-                    messageEditing.state.isConfirmingSave
-                        ? colorSchemeVars["grey-10"]
-                        : colorSchemeVars["theme-60"]
-                }`,
-            }}
-        >
-            <MessageContentEditor
-                messageStartOfSentenceNoun={messageStartOfSentenceNoun}
-                state={messageEditing.state.contentEditorState}
-                isSaving={messageEditing.state.isSaving}
-                onChange={state => {
-                    // Update the overlay position whenever our content state changes.
-                    // Needs to be in an animation frame to get the correct measurements.
-                    requestAnimationFrame(() => {
-                        const overlay = assertExists(overlayRef.current);
-                        overlay.forceUpdateOverlayPosition();
-                    });
-
-                    messageEditing.dispatch({
-                        type: "ContentEditorStateChange",
-                        contentEditorState: state,
-                    });
-                }}
-                onEscape={() => messageEditing.dispatch({type: "CancelEditing"})}
-                onSave={() =>
-                    messageEditing.dispatch({
-                        type: "SaveEditedContent",
-                        messageNoun,
-                    })
+        <FocusRing offset="border" isVisibleWhenFocusWithin={true} isVisibleFromAnyFocus={true}>
+            <Box
+                maxWidth="160"
+                overflow="hidden"
+                display="inline-block"
+                paddingX="0.5"
+                paddingY="1.5"
+                backgroundColor="grey-0"
+                borderTopLeftRadius={
+                    !shouldMergeWithPreviousMessage
+                        ? messageViewBubbleBorderRadius
+                        : messageViewBubbleMergedBorderRadius
                 }
-                shouldFocusMessageContentEditorRef={shouldFocusMessageContentEditorRef}
-            />
-        </Box>
+                borderTopRightRadius={messageViewBubbleBorderRadius}
+                borderBottomLeftRadius={
+                    !shouldMergeWithNextMessage
+                        ? messageViewBubbleBorderRadius
+                        : messageViewBubbleMergedBorderRadius
+                }
+                borderBottomRightRadius={messageViewBubbleBorderRadius}
+                style={{
+                    boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
+                }}
+            >
+                <MessageContentEditor
+                    messageStartOfSentenceNoun={messageStartOfSentenceNoun}
+                    state={messageEditing.state.contentEditorState}
+                    isSaving={messageEditing.state.isSaving}
+                    onChange={state => {
+                        messageEditing.dispatch({
+                            type: "ContentEditorStateChange",
+                            contentEditorState: state,
+                        });
+                    }}
+                    onEscape={() => messageEditing.dispatch({type: "CancelEditing"})}
+                    onSave={() =>
+                        messageEditing.dispatch({
+                            type: "SaveEditedContent",
+                            messageNoun,
+                        })
+                    }
+                    shouldFocusMessageContentEditorRef={shouldFocusMessageContentEditorRef}
+                />
+            </Box>
+        </FocusRing>
     );
 }
 

@@ -1,6 +1,6 @@
 import {PressEvent} from "@react-types/shared";
 import {IconContext} from "phosphor-react";
-import {Ref, forwardRef, useRef, ReactNode} from "react";
+import {ReactNode, Ref, forwardRef, useRef} from "react";
 import {AriaButtonProps, mergeProps, useButton, useHover} from "react-aria";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
@@ -166,19 +166,9 @@ function IconButton(
             placement={tooltipPlacement}
             content={
                 keyboardShortcutHint ? (
-                    <Box
-                        display="flex"
-                        alignItems="center"
-                        gap="1.5"
-                        style={{
-                            // tooltip has some padding and a 1px border, so we need to ditch that
-                            // so our keyboard shortcut divider covers the full height
-                            marginTop: `calc(-${spacing["0.5"]} - 1px)`,
-                            marginBottom: `calc(-${spacing["0.5"]} - 1px)`,
-                        }}
-                    >
-                        <Box paddingY="0.5">{description}</Box>
-                        <Box borderLeft="grey-10" paddingLeft="1.5" paddingY="0.5" color="grey-50">
+                    <Box display="flex" alignItems="center" gap="1">
+                        <Box>{description}</Box>
+                        <Box color="grey-20-const">
                             <IconContext.Provider
                                 value={{
                                     color: "currentColor",
