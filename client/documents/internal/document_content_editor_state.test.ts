@@ -561,7 +561,6 @@ test("can receive large step backfill with duplicate steps at end of backfill", 
                 {step: new ReplaceStep(20, 20, textSlice("g")), clientId: otherClientId},
                 {step: new ReplaceStep(21, 21, textSlice("g")), clientId: otherClientId},
             ],
-            acknowledgeMessageId: null,
         },
     ]);
 
@@ -645,7 +644,6 @@ test("can receive large step backfill with duplicate steps at beginning of backf
                 {step: new ReplaceStep(20, 20, textSlice("g")), clientId: otherClientId},
                 {step: new ReplaceStep(21, 21, textSlice("g")), clientId: otherClientId},
             ],
-            acknowledgeMessageId: null,
         },
     ]);
 
@@ -721,7 +719,6 @@ test("can receive large step backfill with duplicate steps in the middle of back
                 {step: new ReplaceStep(20, 20, textSlice("g")), clientId: otherClientId},
                 {step: new ReplaceStep(21, 21, textSlice("g")), clientId: otherClientId},
             ],
-            acknowledgeMessageId: null,
         },
     ]);
 

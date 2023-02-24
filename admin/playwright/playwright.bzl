@@ -176,14 +176,15 @@ def _playwright_project_test(
             # Bazel will strip colors when necessary.
             "FORCE_COLOR": "true",
         },
-        # Firefox creates sandboxes for web content and you can't nest sandboxes. So
-        # disable the Bazel sandbox. Ideally we would disable Firefox's sandboxing at
-        # runtime and have the entire Firefox process run in the Bazel sandbox but it's
-        # unclear if that's possible. Or if the Bazel sandbox is as strong as the
-        # Firefox sandbox.
-        #
-        # See: https://bugzilla.mozilla.org/show_bug.cgi?id=1415159
-        tags = ["no-sandbox"] if project == "firefox" else [],
+        tags = ["playwright"] +
+               # Firefox creates sandboxes for web content and you can't nest sandboxes. So
+               # disable the Bazel sandbox. Ideally we would disable Firefox's sandboxing at
+               # runtime and have the entire Firefox process run in the Bazel sandbox but it's
+               # unclear if that's possible. Or if the Bazel sandbox is as strong as the
+               # Firefox sandbox.
+               #
+               # See: https://bugzilla.mozilla.org/show_bug.cgi?id=1415159
+               ["no-sandbox"] if project == "firefox" else [],
     )
 
     native.sh_binary(

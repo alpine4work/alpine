@@ -3,6 +3,36 @@ on: push
 
 jobs:
     test:
+        name: Test
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout repo
+              uses: actions/checkout@v3
+
+            - name: Get date
+              id: date
+              shell: bash
+              run: |
+                  echo "date=$(/bin/date -u "+%Y-%m-%d")" >> $GITHUB_OUTPUT
+
+            - name: Cache Bazel output
+              id: bazel-cache
+              uses: actions/cache@v3
+              with:
+                  path: |
+                      ~/.cache/bazelisk
+                      ~/.cache/bazel
+                  key: test-${{ runner.os }}-${{ steps.date.outputs.date }}
+                  restore-keys: |
+                      test-${{ runner.os }}-
+
+            - name: Test
+              run: |
+                  "${GITHUB_WORKSPACE}/admin/bin/bazel" test //... --test_tag_filters=-playwright
+
+    test_playwright:
+        name: Test Playwright
         runs-on: ubuntu-latest
 
         steps:
@@ -29,10 +59,16 @@ jobs:
                   path: |
                       ~/.cache/bazelisk
                       ~/.cache/bazel
-                  key: ${{ runner.os }}-${{ steps.date.outputs.date }}
+                  key: test_playwright-${{ runner.os }}-${{ steps.date.outputs.date }}
                   restore-keys: |
-                      ${{ runner.os }}-
+                      test_playwright-${{ runner.os }}-
 
-            - name: Test
+            # Run Playwright tests sequentially instead of in parallel. The current
+            # machines running GitHub actions are resource constrained and frequently run
+            # into timeouts when executing Playwright tests. Running locally on my laptop,
+            # parallel execution of Playwright tests is fine. When we upgrade our GitHub
+            # Actions machines we can go back to executing these tests in parallel to
+            # speed up CI.
+            - name: Test Playwright
               run: |
-                  "${GITHUB_WORKSPACE}/admin/bin/bazel" test //... --local_ram_resources=HOST_RAM --local_cpu_resources=HOST_CPUS
+                  "${GITHUB_WORKSPACE}/admin/bin/bazel" test //... --test_tag_filters=playwright --jobs=1
