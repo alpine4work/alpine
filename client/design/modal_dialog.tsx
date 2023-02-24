@@ -26,6 +26,7 @@ export function ModalDialog({
     primaryButtonPressErrorTitle,
     onPrimaryButtonPress,
     cancelButtonLabel = "Cancel",
+    onCancelButtonPress,
     onClose,
 }: {
     title: string;
@@ -34,6 +35,7 @@ export function ModalDialog({
     primaryButtonPressErrorTitle?: string;
     onPrimaryButtonPress: () => void | Promise<void>;
     cancelButtonLabel?: string;
+    onCancelButtonPress?: () => void;
     onClose: () => void;
 }) {
     const descriptionId = useId();
@@ -55,6 +57,7 @@ export function ModalDialog({
             primaryButtonPressErrorTitle={primaryButtonPressErrorTitle}
             onPrimaryButtonPress={onPrimaryButtonPress}
             cancelButtonLabel={cancelButtonLabel}
+            onCancelButtonPress={onCancelButtonPress}
         >
             <Box
                 id={descriptionId}

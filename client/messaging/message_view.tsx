@@ -635,6 +635,10 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
                                 messageNoun,
                             });
                         }}
+                        cancelButtonLabel="Discard changes"
+                        onCancelButtonPress={() => {
+                            messageEditing.dispatch({type: "CancelEditing"});
+                        }}
                     />
                 )}
         </div>
