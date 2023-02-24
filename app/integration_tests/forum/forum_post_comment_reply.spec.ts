@@ -208,7 +208,7 @@ test("clicking a reply bubble will scroll to the comment", async ({
         await page.keyboard.down("End");
         // Small timeout to wait for React to render.
         // eslint-disable-next-line playwright/no-wait-for-timeout
-        await page.waitForTimeout(100);
+        await page.waitForTimeout(150);
         if (await page.getByTestId(`MessageView:${post.id}:100`).isVisible()) break;
     }
 
