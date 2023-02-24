@@ -29,13 +29,14 @@ jobs:
 
             - name: Test
               run: |
-                  "${GITHUB_WORKSPACE}/admin/bin/bazel" test //... --test_tag_filters=-playwright
+                  ${{ github.workspace }}/admin/bin/bazel test //... --test_tag_filters=-playwright
 
             - name: Upload Bazel test logs
+              if: failure()
               uses: actions/upload-artifact@v3
               with:
                   name: test_bazel_testlogs
-                  path: bazel-testlogs
+                  path: ${{ github.workspace }}/bazel-testlogs
 
     test_playwright:
         name: Test Playwright
@@ -77,10 +78,11 @@ jobs:
             # speed up CI.
             - name: Test Playwright
               run: |
-                  "${GITHUB_WORKSPACE}/admin/bin/bazel" test //... --test_tag_filters=playwright --jobs=1
+                  ${{ github.workspace }}/admin/bin/bazel test //... --test_tag_filters=playwright --jobs=1
 
             - name: Upload Bazel test logs
+              if: failure()
               uses: actions/upload-artifact@v3
               with:
                   name: test_playwright_bazel_testlogs
-                  path: bazel-testlogs
+                  path: ${{ github.workspace }}/bazel-testlogs
