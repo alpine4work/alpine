@@ -22,7 +22,7 @@ import {assert} from "~/shared/helpers/control/assert";
 const FocusRingForwardRef = forwardRef(FocusRing);
 export {FocusRingForwardRef as FocusRing};
 
-const handledFocusInEvents = new WeakSet<FocusEvent>();
+let currentActiveElement: HTMLElement | null = null;
 
 /**
  * Our focus ring component is modeled after how [Discord built their focus
@@ -36,6 +36,7 @@ function FocusRing(
     {
         offset,
         isVisibleWhenFocusWithin = false,
+        isVisibleFromAnyFocus = false,
         children,
     }: {
         /**
@@ -58,55 +59,70 @@ function FocusRing(
         isVisibleWhenFocusWithin?: boolean;
 
         /**
+         * Is this ring visible from any kind of focus? By default we only show the
+         * focus ring on keyboard focus.
+         */
+        isVisibleFromAnyFocus?: boolean;
+
+        /**
          * The focusable element we draw a ring around.
          */
         children: ReactElement;
     },
     foreignRef: Ref<HTMLElement>,
 ) {
-    const [focusState, setFocusState] = useState<
-        {isFocused: false} | {isFocused: true; isFocusVisible: boolean}
-    >({isFocused: false});
+    const [isActive, setIsActive] = useState(false);
     const targetRef = useRef<HTMLElement | null>(null);
 
     const targetLifecycleRef = useCallback(
         (targetElement: HTMLElement) => {
             targetRef.current = targetElement;
 
-            const handleFocusIn = (event: FocusEvent) => {
-                if (isVisibleWhenFocusWithin || event.target === event.currentTarget) {
-                    // If another `<FocusRing>` became visible because of this focus event then we
-                    // don't want to show a second focus ring.
-                    if (isVisibleWhenFocusWithin && handledFocusInEvents.has(event)) {
-                        return;
-                    }
+            const isActive = () =>
+                // If there is an element focused...
+                document.activeElement &&
+                // And there is not another element with a focus ring. This may happen when
+                // `isVisibleWhenFocusWithin` is true and we have a child with a `<FocusRing>`.
+                (!currentActiveElement || currentActiveElement === targetElement) &&
+                // Either:
+                //
+                // 1. We are the focused element
+                // 2. A child is focused and `isVisibleWhenFocusWithin` is true.
+                (document.activeElement === targetElement ||
+                    (isVisibleWhenFocusWithin && targetElement.contains(document.activeElement))) &&
+                // Only show the focus ring when we are in a keyboard interaction modality.
+                // (Unless otherwise specified.) We cache whether focus is visible instead of
+                // relying on a prop since if the interaction modality changes from keyboard
+                // to mouse we'd like to keep the ring.
+                (isVisibleFromAnyFocus || isFocusVisible());
 
-                    setFocusState({isFocused: true, isFocusVisible: isFocusVisible()});
-                    handledFocusInEvents.add(event);
+            const update = () => {
+                if (isActive()) {
+                    currentActiveElement = targetElement;
+                    setIsActive(true);
+                } else {
+                    if (currentActiveElement === targetElement) currentActiveElement = null;
+                    setIsActive(false);
                 }
             };
 
-            const handleFocusOut = (event: FocusEvent) => {
-                if (isVisibleWhenFocusWithin || event.target === event.currentTarget) {
-                    setFocusState({isFocused: false});
-                }
-            };
+            update();
 
             // Use `focusin`/`focusout` instead of `focus`/`blur` because the
             // former bubbles.
-            targetElement.addEventListener("focusin", handleFocusIn);
-            targetElement.addEventListener("focusout", handleFocusOut);
+            targetElement.addEventListener("focusin", update);
+            targetElement.addEventListener("focusout", update);
             return () => {
-                targetElement.removeEventListener("focusin", handleFocusIn);
-                targetElement.removeEventListener("focusout", handleFocusOut);
+                targetElement.removeEventListener("focusin", update);
+                targetElement.removeEventListener("focusout", update);
             };
         },
-        [isVisibleWhenFocusWithin],
+        [isVisibleFromAnyFocus, isVisibleWhenFocusWithin],
     );
 
     return (
         <Overlay
-            isVisible={focusState.isFocused && focusState.isFocusVisible}
+            isVisible={isActive}
             placement="center"
             preventOverflow={false}
             sameWidth={true}

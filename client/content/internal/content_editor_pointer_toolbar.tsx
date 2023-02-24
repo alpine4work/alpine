@@ -389,7 +389,7 @@ function ContentEditorPointerToolbarButtons({
         <>
             <ContentEditorPointerToolbarButton
                 description="Bold"
-                keyboardShortcut={isMac ? "⌘+B" : "Ctrl+B"}
+                keyboardShortcutHint={isMac ? "⌘+B" : "Ctrl+B"}
                 viewRef={viewRef}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                 isActive={isBold}
@@ -399,7 +399,7 @@ function ContentEditorPointerToolbarButtons({
             </ContentEditorPointerToolbarButton>
             <ContentEditorPointerToolbarButton
                 description="Italicize"
-                keyboardShortcut={isMac ? "⌘+I" : "Ctrl+I"}
+                keyboardShortcutHint={isMac ? "⌘+I" : "Ctrl+I"}
                 viewRef={viewRef}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                 isActive={isItalic}
@@ -409,7 +409,7 @@ function ContentEditorPointerToolbarButtons({
             </ContentEditorPointerToolbarButton>
             <ContentEditorPointerToolbarButton
                 description="Strikethrough"
-                keyboardShortcut={isMac ? "⌘+Shift+X" : "Ctrl+Shift+X"}
+                keyboardShortcutHint={isMac ? "⌘+Shift+X" : "Ctrl+Shift+X"}
                 viewRef={viewRef}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                 isActive={isStrike}
@@ -440,7 +440,7 @@ function ContentEditorPointerToolbarButtons({
             <ContentEditorPointerToolbarButton
                 dividerLeft
                 description="Bulleted list"
-                keyboardShortcut="- Hello"
+                keyboardShortcutHint="- Hello"
                 viewRef={viewRef}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                 isActive={useMemo(
@@ -459,7 +459,7 @@ function ContentEditorPointerToolbarButtons({
             <ContentEditorPointerToolbarButton
                 dividerRight={!state.schema.nodes.checkListItem && !!state.schema.nodes.heading}
                 description="Numbered list"
-                keyboardShortcut="1. Hello"
+                keyboardShortcutHint="1. Hello"
                 viewRef={viewRef}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                 isActive={useMemo(
@@ -479,7 +479,7 @@ function ContentEditorPointerToolbarButtons({
                 <ContentEditorPointerToolbarButton
                     dividerRight={!!state.schema.nodes.heading}
                     description="Check list"
-                    keyboardShortcut="[ ] Hello"
+                    keyboardShortcutHint="[ ] Hello"
                     viewRef={viewRef}
                     sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                     isActive={isCheckListActive}
@@ -493,7 +493,7 @@ function ContentEditorPointerToolbarButtons({
                     <ContentEditorPointerToolbarButton
                         dividerLeft
                         description="Heading 1"
-                        keyboardShortcut="# Hello"
+                        keyboardShortcutHint="# Hello"
                         viewRef={viewRef}
                         sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                         isActive={isHeadingLevel1Active}
@@ -505,7 +505,7 @@ function ContentEditorPointerToolbarButtons({
                     </ContentEditorPointerToolbarButton>
                     <ContentEditorPointerToolbarButton
                         description="Heading 2"
-                        keyboardShortcut="## Hello"
+                        keyboardShortcutHint="## Hello"
                         viewRef={viewRef}
                         sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                         isActive={isHeadingLevel2Active}
@@ -517,7 +517,7 @@ function ContentEditorPointerToolbarButtons({
                     </ContentEditorPointerToolbarButton>
                     <ContentEditorPointerToolbarButton
                         description="Heading 3"
-                        keyboardShortcut="### Hello"
+                        keyboardShortcutHint="### Hello"
                         viewRef={viewRef}
                         sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                         isActive={isHeadingLevel3Active}
@@ -535,7 +535,7 @@ function ContentEditorPointerToolbarButtons({
 
 function ContentEditorPointerToolbarButton({
     description,
-    keyboardShortcut,
+    keyboardShortcutHint,
     viewRef,
     sharedTooltipLifecycleRef,
     isActive,
@@ -547,7 +547,7 @@ function ContentEditorPointerToolbarButton({
     onTooltipStateChange,
 }: {
     description: string;
-    keyboardShortcut: string;
+    keyboardShortcutHint: string;
     viewRef: RefObject<EditorView | null>;
     sharedTooltipLifecycleRef: Memo<(tooltipRef: TooltipRef) => () => void>;
     isActive: boolean;
@@ -587,7 +587,7 @@ function ContentEditorPointerToolbarButton({
             content={
                 <Box paddingY="0.5">
                     {description}
-                    <Box color="grey-20-const">{keyboardShortcut}</Box>
+                    <Box color="grey-20-const">{keyboardShortcutHint}</Box>
                 </Box>
             }
             onStateChange={onTooltipStateChange}
@@ -720,7 +720,7 @@ function ContentEditorPointerToolbarLinkButton({
                     dividerLeft={dividerLeft}
                     dividerRight={dividerRight}
                     description="Link"
-                    keyboardShortcut={isMac ? "⌘+K" : "Ctrl+K"}
+                    keyboardShortcutHint={isMac ? "⌘+K" : "Ctrl+K"}
                     isActive={isLinkInputOpen || !!activeLinkMark}
                     isTooltipDisabled={isLinkInputOpen}
                     viewRef={viewRef}
@@ -810,7 +810,7 @@ function ContentEditorPointerToolbarHighlightButton({
                     dividerRight={dividerRight}
                     dividerLeft={dividerLeft}
                     description="Highlight"
-                    keyboardShortcut={isMac ? "⌘+Shift+H" : "Ctrl+Shift+H"}
+                    keyboardShortcutHint={isMac ? "⌘+Shift+H" : "Ctrl+Shift+H"}
                     isActive={isOpen || !!activeHighlightMark}
                     isTooltipDisabled={isOpen}
                     viewRef={viewRef}

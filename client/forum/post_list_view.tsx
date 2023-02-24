@@ -716,9 +716,7 @@ function PostListView(
                                             ? highlightPostComment.shouldHighlightRef
                                             : null
                                     }
-                                    onJumpToMessage={index =>
-                                        handleJumpToPostComment(item.post.id, index)
-                                    }
+                                    onJumpToMessage={handleJumpToPostComment}
                                     onReplyToMessage={() => {
                                         if (item.postComment.isOptimistic) return;
                                         const postCommentIndex = item.postComment.index;

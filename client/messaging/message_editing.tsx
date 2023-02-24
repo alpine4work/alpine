@@ -16,6 +16,8 @@ export type MessageEditingState<RoomKey extends string> =
           readonly messageRoomKey: RoomKey;
           readonly messageIndex: number;
           readonly contentEditorState: ContentEditorState<MessageContent>;
+          readonly initialContent: MessageContent;
+          readonly isConfirmingSave: boolean;
       } & (
           | {
                 readonly isSaving: false;
@@ -39,7 +41,7 @@ export type MessageEditingAction<RoomKey extends string> =
           readonly contentEditorState: ContentEditorState<MessageContent>;
       }
     | {
-          readonly type: "CancelEditing";
+          readonly type: "CancelEditing" | "MaybeCancelEditing" | "CancelConfirmingSave";
       }
     | {
           readonly type: "SaveEditedContent";
@@ -61,7 +63,9 @@ function reduce<RoomKey extends string>(
                 messageRoomKey: action.messageRoomKey,
                 messageIndex: action.messageIndex,
                 contentEditorState: ContentEditorState.create(action.messagePayload.content),
+                initialContent: action.messagePayload.content,
                 isSaving: false,
+                isConfirmingSave: false,
             };
         }
         case "ContentEditorStateChange": {
@@ -76,6 +80,23 @@ function reduce<RoomKey extends string>(
             return {
                 isEditing: false,
             };
+        }
+        case "MaybeCancelEditing": {
+            if (!state.isEditing || state.isSaving) return state;
+            if (state.contentEditorState.getContent() === state.initialContent) {
+                return {
+                    isEditing: false,
+                };
+            } else {
+                return {
+                    ...state,
+                    isConfirmingSave: true,
+                };
+            }
+        }
+        case "CancelConfirmingSave": {
+            if (!state.isEditing || state.isSaving || !state.isConfirmingSave) return state;
+            return {...state, isConfirmingSave: false};
         }
         case "SaveEditedContent": {
             if (!state.isEditing || state.isSaving) return state;
