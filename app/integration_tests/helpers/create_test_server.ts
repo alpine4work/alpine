@@ -67,6 +67,7 @@ export function createTestServer(
     test.afterAll(async () => {
         assert(localServer !== null);
         localServer.server.close();
+        await localServer.miniflare.dispose();
     });
 
     const sessionCookieSecret = assertExists(env.SESSION_COOKIE_SECRET);

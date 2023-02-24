@@ -26,6 +26,7 @@ const dynamoLocalPort = parseInt(assertExists(env.DYNAMO_LOCAL_PORT), 10);
 
 const localAppServer = createLocalServer({
     globals: {
+        __shouldSeedDynamo: true,
         __writeDevTracerEvent: writeDevTracerEvent,
         __logOneTimePassword: ({
             emailAddress,
