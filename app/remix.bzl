@@ -12,7 +12,8 @@ def _remix_app_impl(ctx):
 
     inputs = depset(
         ctx.files._remix_config_files,
-        transitive = [ctx.attr._app_lib[TsSourcesInfo].transitive_sources],
+        transitive = [ctx.attr._app_lib[TsSourcesInfo].transitive_sources] +
+                     [dep[JsInfo].transitive_npm_linked_package_files for dep in ctx.attr._remix_config_deps],
     )
 
     assets_build_output = ctx.actions.declare_directory("public/build")
@@ -47,6 +48,7 @@ remix_app = rule(
     attrs = {
         "_remix_compiler": attr.label(executable = True, cfg = "exec", default = "//app:remix_compiler"),
         "_remix_config_files": attr.label(default = "//:remix_config_files"),
+        "_remix_config_deps": attr.label_list(default = ["//:node_modules/dotenv", "//:node_modules/fs-extra"], providers = [JsInfo]),
         "_app_lib": attr.label(default = "//app:app_lib", providers = [JsInfo], aspects = [ts_sources_aspect]),
     },
 )

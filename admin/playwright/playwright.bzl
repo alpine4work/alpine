@@ -184,7 +184,7 @@ def _playwright_project_test(
                # Firefox sandbox.
                #
                # See: https://bugzilla.mozilla.org/show_bug.cgi?id=1415159
-               ["no-sandbox"] if project == "firefox" else [],
+               (["no-sandbox"] if project == "firefox" else []),
     )
 
     native.sh_binary(
