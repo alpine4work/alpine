@@ -169,7 +169,6 @@
             "uglify-js@3.17.4": "admin/patches/uglify-js@3.17.4.patch",
             "mjml-parser-xml@4.13.0": "admin/patches/mjml-parser-xml@4.13.0.patch",
             "@miniflare/runner-vm@2.11.0": "admin/patches/@miniflare__runner-vm@2.11.0.patch",
-            "undici@5.9.1": "admin/patches/undici@5.9.1.patch",
             "@types/functional-red-black-tree@1.0.1": "admin/patches/@types__functional-red-black-tree@1.0.1.patch",
             "@playwright/test@1.31.1": "admin/patches/@playwright__test@1.31.1.patch"
         },
