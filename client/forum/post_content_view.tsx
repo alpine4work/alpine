@@ -88,32 +88,18 @@ export function PostContentView({
                 onNavigate={useNavigate()}
                 className={sprinkles({paddingX: "3", paddingY: "5"})}
             />
-            <Box
-                marginX="5"
-                borderTop="grey-5"
-                borderBottom={
-                    postCommentsState !== "Closed" && postComments.getMessageCount() > 0
-                        ? "grey-5"
-                        : "transparent"
-                }
-                height="12"
-                display="flex"
-                alignItems="center"
-            >
-                <Box flexGrow="1" />
-                <PostCommentsToggleButton
-                    post={post}
-                    postComments={postComments}
-                    postCommentsState={postCommentsState}
-                    onTogglePostComments={onTogglePostComments}
-                    onLoadInitialPostComments={onLoadInitialPostComments}
-                />
-            </Box>
+            <PostContentViewFooter
+                post={post}
+                postComments={postComments}
+                postCommentsState={postCommentsState}
+                onTogglePostComments={onTogglePostComments}
+                onLoadInitialPostComments={onLoadInitialPostComments}
+            />
         </Box>
     );
 }
 
-function PostCommentsToggleButton({
+function PostContentViewFooter({
     post,
     postComments,
     postCommentsState,
@@ -127,82 +113,97 @@ function PostCommentsToggleButton({
     onLoadInitialPostComments: () => Promise<void>;
 }) {
     return (
-        <Box display="flex" alignItems="center" gap="1.5">
-            <PostCommentsAccountAvatarPile post={post} postComments={postComments} />
-            {postCommentsState === "AlwaysOpen" ? (
-                <Box paddingX="2">
-                    <PrettyNumber number={postComments.getMessageCount()} label="comment" />
-                </Box>
-            ) : (
-                <Button
-                    paddingX="2"
-                    icon={
-                        <CaretRight
-                            style={{
-                                transform:
-                                    postCommentsState !== "Closed"
-                                        ? "rotate(90deg)"
-                                        : "rotate(0deg)",
-                                transition: "transform 100ms ease",
-                            }}
-                        />
-                    }
-                    iconPlacement="end"
-                    pressErrorTitle="Couldn’t open comments"
-                    onPress={async () => {
-                        if (postCommentsState !== "Closed") {
-                            onTogglePostComments();
-                            return;
+        <Box
+            data-testid={`PostContentViewFooter:${post.id}`}
+            marginX="5"
+            borderTop="grey-5"
+            borderBottom={
+                postCommentsState !== "Closed" && postComments.getMessageCount() > 0
+                    ? "grey-5"
+                    : "transparent"
+            }
+            height="12"
+            display="flex"
+            alignItems="center"
+        >
+            <Box flexGrow="1" />
+            <Box display="flex" alignItems="center" gap="1.5">
+                <PostCommentsAccountAvatarPile post={post} postComments={postComments} />
+                {postCommentsState === "AlwaysOpen" ? (
+                    <Box paddingX="2">
+                        <PrettyNumber number={postComments.getMessageCount()} label="comment" />
+                    </Box>
+                ) : (
+                    <Button
+                        paddingX="2"
+                        icon={
+                            <CaretRight
+                                style={{
+                                    transform:
+                                        postCommentsState !== "Closed"
+                                            ? "rotate(90deg)"
+                                            : "rotate(0deg)",
+                                    transition: "transform 100ms ease",
+                                }}
+                            />
                         }
-
-                        const initialLoadMessageCount = getInitialLoadMessageCount(
-                            getClientInfoWithoutListening(),
-                        );
-
-                        let areAllInitialMessagesLoaded = true;
-                        for (
-                            let index = 0;
-                            index <
-                            Math.min(postComments.getMessageCount(), initialLoadMessageCount);
-                            index++
-                        ) {
-                            if (postComments.getMessage(index).type !== "Loaded") {
-                                areAllInitialMessagesLoaded = false;
-                                break;
+                        iconPlacement="end"
+                        pressErrorTitle="Couldn’t open comments"
+                        onPress={async () => {
+                            if (postCommentsState !== "Closed") {
+                                onTogglePostComments();
+                                return;
                             }
-                        }
 
-                        // Open comments immediately if:
-                        //
-                        // 1. There are more comments then our initial load request would fetch; AND
-                        // 2. All of those comments are loaded.
-                        //
-                        // We want to load comments again when we have less than the initial load count
-                        // because maybe some users added comments while the comment section was closed?
-                        if (
-                            postComments.getMessageCount() >= initialLoadMessageCount &&
-                            areAllInitialMessagesLoaded
-                        ) {
+                            const initialLoadMessageCount = getInitialLoadMessageCount(
+                                getClientInfoWithoutListening(),
+                            );
+
+                            let areAllInitialMessagesLoaded = true;
+                            for (
+                                let index = 0;
+                                index <
+                                Math.min(postComments.getMessageCount(), initialLoadMessageCount);
+                                index++
+                            ) {
+                                if (postComments.getMessage(index).type !== "Loaded") {
+                                    areAllInitialMessagesLoaded = false;
+                                    break;
+                                }
+                            }
+
+                            // Open comments immediately if:
+                            //
+                            // 1. There are more comments then our initial load request would fetch; AND
+                            // 2. All of those comments are loaded.
+                            //
+                            // We want to load comments again when we have less than the initial load count
+                            // because maybe some users added comments while the comment section was closed?
+                            if (
+                                postComments.getMessageCount() >= initialLoadMessageCount &&
+                                areAllInitialMessagesLoaded
+                            ) {
+                                onTogglePostComments();
+                                return;
+                            }
+
+                            const postCommentsPromise = onLoadInitialPostComments();
+
+                            // Open post comments once we get our data back. But if the data is taking a
+                            // long time to load, open post comments after a delay.
+                            await Promise.race([
+                                postCommentsPromise,
+                                wait(delayLoadingIndicatorLimitMs),
+                            ]);
                             onTogglePostComments();
-                            return;
-                        }
 
-                        const postCommentsPromise = onLoadInitialPostComments();
-
-                        // Open post comments once we get our data back. But if the data is taking a
-                        // long time to load, open post comments after a delay.
-                        await Promise.race([
-                            postCommentsPromise,
-                            wait(delayLoadingIndicatorLimitMs),
-                        ]);
-                        onTogglePostComments();
-
-                        await postCommentsPromise;
-                    }}
-                >
-                    <PrettyNumber number={postComments.getMessageCount()} label="comment" />
-                </Button>
-            )}
+                            await postCommentsPromise;
+                        }}
+                    >
+                        <PrettyNumber number={postComments.getMessageCount()} label="comment" />
+                    </Button>
+                )}
+            </Box>
         </Box>
     );
 }

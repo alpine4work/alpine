@@ -12,7 +12,7 @@ import {
 } from "~/shared/cloudflare/web_socket_schema";
 import {CacheContextModule} from "~/shared/context/cache_context_module";
 import {TracerContextModule} from "~/shared/context/tracer_context_module";
-import {FailedPreconditionError, InvalidArgumentError, NotFoundError} from "~/shared/error/error";
+import {InvalidArgumentError, NotFoundError} from "~/shared/error/error";
 import {isSystemError} from "~/shared/error/is_system_error_code";
 import {Interval, createInterval} from "~/shared/helpers/async/interval";
 import {assert} from "~/shared/helpers/control/assert";
@@ -201,11 +201,17 @@ export class WebSocketServer<
                         for (const connection of this._connections.values()) {
                             connection.maybeExpire(context, currentTimeMs);
 
-                            // In case the `close` event wasn't fired, look for closed connections in our
-                            // expiration interval loop and remove them from our connection set.
+                            // In case the `close` event hasn't fired yet (maybe the connection is in the
+                            // process of closing), look for closed connections in our expiration interval
+                            // loop and remove them from our connection set.
                             //
-                            // NOTE(calebmer): I'm observing the `close` event not firing after
+                            // NOTE(calebmer, 2022-12-27): I'm observing the `close` event not firing after
                             // `serverSocket.close()` and I'm not sure whether it is a bug or not.
+                            //
+                            // NOTE(calebmer, 2023-02-23): I think what's happening is the WebSocket moves
+                            // into the closing state (so `isClosed()` returns true) but it hasn't fully
+                            // closed yet so the `close` event doesn't fire. We could clean the code up a
+                            // bit with this knowledge if it's true.
                             if (connection.isClosed()) {
                                 this._handleConnectionClose(context, connection);
                             }
@@ -513,9 +519,7 @@ class WebSocketServerConnectionWrapper<
 
     public maybeExpire(context: ProcessContext, currentTimeMs: number) {
         // If our socket is already closed then we don't need to expire.
-        if (this.isClosed()) {
-            return;
-        }
+        if (this.isClosed()) return;
 
         // If we haven't gotten a message from the client in a while, close it. Maybe
         // the client's power went out and it silently went away without telling us.
@@ -554,8 +558,10 @@ class WebSocketServerConnectionWrapper<
         messageType: string,
         message: string,
     ) {
-        if (this.isClosed())
-            throw new FailedPreconditionError("Can not send message to closed WebSocket");
+        // Don't send messages to a closed WebSocket. The WebSocket may not have been
+        // cleaned up yet because it is closing. We will definitely cleanup the
+        // WebSocket on our expiration pass if missed the close event.
+        if (this.isClosed()) return;
 
         this._socket.send(message);
 
@@ -576,6 +582,9 @@ class WebSocketServerConnectionWrapper<
      * [1]: https://www.rfc-editor.org/rfc/rfc6455.html#section-7.4.1
      */
     public close(context: ProcessContext, code?: number, reason?: string) {
+        // WebSocket is already closed.
+        if (this.isClosed()) return;
+
         const previousContextForCloseEventListener = contextForCloseEventListener;
         contextForCloseEventListener = context;
         try {

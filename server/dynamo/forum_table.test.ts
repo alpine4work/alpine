@@ -15,19 +15,15 @@ import {
     updatePostCommentContent,
     updatePostContent,
 } from "~/server/dynamo/forum_table";
+import {testMessagingImplementation} from "~/server/dynamo/test_helpers/jest/test_messaging_implementation";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
 import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
 import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
-import {testMessagingImplementation} from "~/server/dynamo/test_helpers/jest/test_messaging_implementation";
 import {
-    assertMessageContent,
+    createSimpleMessageContent,
     emptyMessageContent,
-    MessageContentProsemirrorSchema as messageSchema,
 } from "~/shared/content/message_content_schema";
-import {
-    assertPostContent,
-    PostContentProsemirrorSchema as schema,
-} from "~/shared/content/post_content_schema";
+import {createSimplePostContent} from "~/shared/content/post_content_schema";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {generateId} from "~/shared/id/id";
@@ -46,26 +42,12 @@ const session8 = createTestSession(context, space);
 const otherSpace = createTestSpace(context);
 const otherSession = createTestSession(context, otherSpace);
 
-const testContent1 = assertPostContent(
-    schema.node("doc", {}, [schema.node("paragraph", {}, [schema.text("test1")])]),
-);
-const testContent2 = assertPostContent(
-    schema.node("doc", {}, [schema.node("paragraph", {}, [schema.text("test2")])]),
-);
-const testContent3 = assertPostContent(
-    schema.node("doc", {}, [schema.node("paragraph", {}, [schema.text("test3")])]),
-);
+const testContent1 = createSimplePostContent("test1");
+const testContent2 = createSimplePostContent("test2");
+const testContent3 = createSimplePostContent("test3");
 
-const testMessageContent1 = assertMessageContent(
-    messageSchema.node("doc", {}, [
-        messageSchema.node("paragraph", {}, [messageSchema.text("test1")]),
-    ]),
-);
-const testMessageContent2 = assertMessageContent(
-    messageSchema.node("doc", {}, [
-        messageSchema.node("paragraph", {}, [messageSchema.text("test2")]),
-    ]),
-);
+const testMessageContent1 = createSimpleMessageContent("test1");
+const testMessageContent2 = createSimpleMessageContent("test2");
 
 test("can not create a channel for a different space", async () => {
     await expect(

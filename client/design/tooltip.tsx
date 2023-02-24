@@ -17,7 +17,12 @@ import {
 } from "react";
 import {Box} from "~/client/design/box";
 import {setElementAttributesWithCleanup} from "~/client/design/helpers/set_element_attributes_with_cleanup";
-import {Overlay, OverlayPlacement, OverlayRef} from "~/client/design/overlay";
+import {
+    Overlay,
+    OverlayPlacement,
+    OverlayRef,
+    useIsOverlayPortalElementReady,
+} from "~/client/design/overlay";
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
@@ -306,6 +311,7 @@ function Tooltip(
     );
 
     const isMounted = useIsMounted();
+    const isOverlayPortalElementReady = useIsOverlayPortalElementReady();
 
     const tooltipId = useId();
     const tooltipRef = useRef<HTMLDivElement>(null);
@@ -482,7 +488,9 @@ function Tooltip(
                 "Expected the children of a `<Tooltip>` component to render an element with a ref to an HTML element",
             );
 
-            assert(!isVisible || tooltipRef.current);
+            // If the overlay portal element is not ready then `tooltipRef` will not have
+            // mounted yet.
+            assert(!isVisible || !isOverlayPortalElementReady || tooltipRef.current);
             const tooltipElement = tooltipRef.current;
 
             function handleMouseEnter(event: MouseEvent) {
@@ -687,6 +695,7 @@ function Tooltip(
         // need to rerun whenever this ref changes.
         [
             isVisible,
+            isOverlayPortalElementReady,
             tooltipSymbolAboutToFadeOutRef,
             getHasActiveTooltipSymbol,
             tooltipSymbol,

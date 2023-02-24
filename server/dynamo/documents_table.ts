@@ -29,6 +29,7 @@ import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {clamp} from "~/shared/helpers/number/clamp";
+import {Replace} from "~/shared/helpers/types/replace";
 import {ContentEditorClientId, DocumentId, SpaceId} from "~/shared/id/types/id_types";
 import {
     DocumentModel,
@@ -591,7 +592,13 @@ export class DocumentContentCacheForUpdate {
             // If the version in our cache is less than what's in the database, then let's
             // load the steps we are missing and apply them to our content.
             if (entry.version < attributes.version) {
-                const nullableEntry = await this._entries.setEntry(id, async () => {
+                const nullableEntry = await this._entries.updateEntry(id, async entry => {
+                    if (!entry) return null;
+
+                    // A concurrent updater may have moved our entry version all the way
+                    // forward already.
+                    if (entry.version >= attributes.version) return entry;
+
                     const steps = await getDocumentStepsBetweenValidatedVersionRange(context, {
                         id,
                         startVersion: entry.version,
@@ -638,20 +645,28 @@ export class DocumentContentCacheForUpdate {
             stepsAfterInitialSnapshot: entry.stepsAfterInitialSnapshot.slice(),
 
             updateCache: async ({newContent, newSteps, newInvertedSteps, clientId}) => {
-                for (let i = 0; i < newSteps.length; i++) {
-                    const step = newSteps[i]!;
-                    const invertedStep = newInvertedSteps[i];
-                    assert(invertedStep);
-                    entry.stepsAfterInitialSnapshot.push({step, invertedStep, clientId});
-                }
+                const updatedEntry = entry;
 
-                await this._entries.setEntry(id, async () => ({
-                    createdTime: entry.createdTime,
-                    spaceId: entry.spaceId,
-                    version: entry.version + newSteps.length,
-                    content: newContent,
-                    stepsAfterInitialSnapshot: entry.stepsAfterInitialSnapshot,
-                }));
+                await this._entries.updateEntry(id, async entry => {
+                    if (!entry) return null;
+
+                    if (entry.version !== updatedEntry.version) return entry;
+
+                    for (let i = 0; i < newSteps.length; i++) {
+                        const step = newSteps[i]!;
+                        const invertedStep = newInvertedSteps[i];
+                        assert(invertedStep);
+                        entry.stepsAfterInitialSnapshot.push({step, invertedStep, clientId});
+                    }
+
+                    return {
+                        createdTime: entry.createdTime,
+                        spaceId: entry.spaceId,
+                        version: entry.version + newSteps.length,
+                        content: newContent,
+                        stepsAfterInitialSnapshot: entry.stepsAfterInitialSnapshot,
+                    };
+                });
             },
         };
     }
@@ -680,6 +695,17 @@ type DocumentContentCacheForUpdateEntry = {
         readonly clientId: ContentEditorClientId;
     }>;
 };
+
+type ReadonlyDocumentContentCacheForUpdateEntry = Replace<
+    DocumentContentCacheForUpdateEntry,
+    {
+        readonly stepsAfterInitialSnapshot: PushOnlyArraySlice<{
+            readonly step: Step;
+            readonly invertedStep: Step;
+            readonly clientId: ContentEditorClientId;
+        }>;
+    }
+>;
 
 /**
  * Small helper for managing `DocumentContentCacheForUpdate` that handles
@@ -717,10 +743,22 @@ class DocumentContentCacheForUpdateEntries {
     public getOrSetEntry(
         id: DocumentId,
         getData: () => Promise<DocumentContentCacheForUpdateEntry | null>,
-    ): Promise<DocumentContentCacheForUpdateEntry | null> {
+    ): Promise<ReadonlyDocumentContentCacheForUpdateEntry | null> {
         const entry = this._entryByDocumentId.get(id);
-        if (!entry) return this.setEntry(id, getData);
-        return entry.promise;
+        if (!entry) return this.updateEntry(id, getData);
+
+        return entry.promise.then(entry => {
+            if (!entry) return null;
+            return {
+                ...entry,
+                // Create a slice of `stepsAfterInitialSnapshot` so that when we mutate the
+                // array from within this function, other code with a reference to the array
+                // won't see the new values.
+                //
+                // You can only push new values in the update callback.
+                stepsAfterInitialSnapshot: entry.stepsAfterInitialSnapshot.slice(),
+            };
+        });
     }
 
     /**
@@ -728,11 +766,15 @@ class DocumentContentCacheForUpdateEntries {
      * for the provided id then we will evict that entry. Calling this method will
      * start an eviction timer at which point the entry you added will be evicted
      * from the cache.
+     *
+     * The update callback is queued behind previous concurrent updates.
      */
-    public setEntry(
+    public updateEntry(
         id: DocumentId,
-        getEntry: () => Promise<DocumentContentCacheForUpdateEntry | null>,
-    ): Promise<DocumentContentCacheForUpdateEntry | null> {
+        update: (
+            entry: DocumentContentCacheForUpdateEntry | null,
+        ) => Promise<DocumentContentCacheForUpdateEntry | null>,
+    ): Promise<ReadonlyDocumentContentCacheForUpdateEntry | null> {
         // Evict the last entry before setting the new entry.
         const lastEntry = this._entryByDocumentId.get(id);
         lastEntry?.evict();
@@ -752,7 +794,7 @@ class DocumentContentCacheForUpdateEntries {
         const nextEntry = {
             evictionTimeout,
             evict,
-            promise: getEntry().then(
+            promise: (lastEntry?.promise ?? Promise.resolve(null)).then(update).then(
                 data => {
                     // Immediately evict if the document doesn't exist.
                     if (data === null) evict();
@@ -767,7 +809,18 @@ class DocumentContentCacheForUpdateEntries {
         };
         this._entryByDocumentId.set(id, nextEntry);
 
-        return nextEntry.promise;
+        return nextEntry.promise.then(entry => {
+            if (!entry) return null;
+            return {
+                ...entry,
+                // Create a slice of `stepsAfterInitialSnapshot` so that when we mutate the
+                // array from within this function, other code with a reference to the array
+                // won't see the new values.
+                //
+                // You can only push new values in the update callback.
+                stepsAfterInitialSnapshot: entry.stepsAfterInitialSnapshot.slice(),
+            };
+        });
     }
 
     /**

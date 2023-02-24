@@ -15,12 +15,7 @@ import {FailedPreconditionError, InternalError, InvalidArgumentError} from "~/sh
 import {isSystemError} from "~/shared/error/is_system_error_code";
 import {AsyncSequentialQueue} from "~/shared/helpers/async/async_sequential_queue";
 import {assert} from "~/shared/helpers/control/assert";
-import {
-    ContentEditorClientId,
-    DocumentCollaborationMessageId,
-    DocumentId,
-    WebSocketConnectionId,
-} from "~/shared/id/types/id_types";
+import {ContentEditorClientId, DocumentId, WebSocketConnectionId} from "~/shared/id/types/id_types";
 import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema";
 
 /**
@@ -128,7 +123,6 @@ export class DocumentCollaborationContentManager {
             version: number;
             steps: ReadonlyArray<Step>;
             clientId: ContentEditorClientId;
-            messageId: DocumentCollaborationMessageId;
             updateOurPresenceState: {state: DocumentCollaborationPresenceState | null};
         },
     ): Promise<{
@@ -199,7 +193,6 @@ export class DocumentCollaborationContentManager {
                 newVersion: oldVersion + steps.length,
                 steps,
                 clientId: update.clientId,
-                acknowledgeMessageId: update.messageId,
                 updateOtherPresenceState: {
                     connectionId,
                     state: presenceState,

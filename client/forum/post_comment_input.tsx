@@ -167,7 +167,7 @@ export function PostCommentInput({
     };
 
     return (
-        <>
+        <Box data-testid={`PostCommentInput:${post.id}`}>
             {replyingToPostComment &&
                 (() => {
                     const height = addRemLengths(
@@ -318,7 +318,7 @@ export function PostCommentInput({
                                 state={state}
                                 onChange={setState}
                                 onNavigate={navigate}
-                                aria-label="Comment"
+                                aria-label="New comment"
                                 placeholder="Write a comment…"
                                 className={sprinkles({
                                     paddingX: messageViewBubblePaddingX,
@@ -347,6 +347,6 @@ export function PostCommentInput({
                     </Box>
                 </Box>
             </Box>
-        </>
+        </Box>
     );
 }

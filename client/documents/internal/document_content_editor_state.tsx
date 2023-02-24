@@ -19,20 +19,12 @@
 import murmurhash from "murmurhash";
 import {Selection, TextSelection} from "prosemirror-state";
 import {Mapping, Step, StepMap} from "prosemirror-transform";
-import {
-    MutableRefObject,
-    useCallback,
-    useEffect,
-    useMemo,
-    useReducer,
-    useRef,
-    useState,
-} from "react";
-import {unstable_ImmediatePriority, unstable_runWithPriority} from "scheduler";
+import {useCallback, useEffect, useMemo, useReducer, useRef, useState} from "react";
 import {useWebSocket} from "~/client/cloudflare/use_web_socket";
 import {ContentEditorPhantomSelection} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {useDevConsoleTool} from "~/client/dev/dev_console";
+import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
 import {
     DocumentContent,
     DocumentContentProsemirrorSchema,
@@ -50,12 +42,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {Lazy} from "~/shared/helpers/control/lazy";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
-import {generateId} from "~/shared/id/id";
-import {
-    ContentEditorClientId,
-    DocumentCollaborationMessageId,
-    WebSocketConnectionId,
-} from "~/shared/id/types/id_types";
+import {ContentEditorClientId, WebSocketConnectionId} from "~/shared/id/types/id_types";
 import {DocumentModel} from "~/shared/models/document_model";
 import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema";
 
@@ -91,8 +78,6 @@ export type DocumentContentEditorState = {
         readonly steps: ReadonlyArray<Step>;
         readonly clientId: ContentEditorClientId;
         readonly version: number;
-        readonly messageId: DocumentCollaborationMessageId;
-        readonly shouldSendToServerRef: MutableRefObject<boolean>;
     } | null;
 
     /**
@@ -104,12 +89,9 @@ export type DocumentContentEditorState = {
      * to display it on their editor.
      */
     readonly ourPresenceState: {
-        readonly state: {
-            readonly version: number;
-            readonly selection: Selection;
-        } | null;
-        readonly shouldSendToServerRef: MutableRefObject<boolean>;
-    };
+        readonly version: number;
+        readonly selection: Selection;
+    } | null;
 
     /**
      * The presence state of other selected clients.
@@ -136,10 +118,7 @@ export function getInitialDocumentContentEditorState(
         editorState,
         rememberedSteps: [],
         pendingSendableSteps: null,
-        ourPresenceState: {
-            state: null,
-            shouldSendToServerRef: {current: false},
-        },
+        ourPresenceState: null,
         otherPresenceStateByConnectionId: ImmutableMap.empty(),
     };
 }
@@ -160,7 +139,6 @@ type ReceiveStepsDocumentContentEditorAction = {
     readonly type: "ReceiveSteps";
     readonly newVersion: number;
     readonly steps: ReadonlyArray<{readonly step: Step; readonly clientId: ContentEditorClientId}>;
-    readonly acknowledgeMessageId: DocumentCollaborationMessageId | null;
 };
 
 type AugmentRememberedStepsDocumentContentEditorAction = {
@@ -213,18 +191,13 @@ export function reduceDocumentContentEditorState(
                           steps: sendableSteps.steps,
                           version: sendableSteps.version,
                           clientId: sendableSteps.clientId,
-                          messageId: generateId(),
-                          shouldSendToServerRef: {current: true},
                       }
                     : null,
                 // Make sure our presence state is up-to-date as well since we will send it to
                 // the server along with our sendable steps.
                 ourPresenceState: {
-                    state: {
-                        version: state.editorState.getVersion(),
-                        selection: state.editorState.getSelection(),
-                    },
-                    shouldSendToServerRef: {current: true},
+                    version: state.editorState.getVersion(),
+                    selection: state.editorState.getSelection(),
                 },
             };
         }
@@ -302,11 +275,8 @@ function actuallyReduceDocumentContentEditorState(
                 ...oldState,
                 editorState: action.editorState,
                 ourPresenceState: {
-                    state: {
-                        version: action.editorState.getVersion(),
-                        selection: action.editorState.getSelection(),
-                    },
-                    shouldSendToServerRef: {current: true},
+                    version: action.editorState.getVersion(),
+                    selection: action.editorState.getSelection(),
                 },
             };
         }
@@ -391,7 +361,9 @@ function actuallyReduceDocumentContentEditorState(
                 editorState,
                 rememberedSteps,
                 pendingSendableSteps:
-                    oldState.pendingSendableSteps?.messageId === action.acknowledgeMessageId
+                    oldState.pendingSendableSteps &&
+                    action.steps.some(({clientId}) => clientId === editorState.getClientId()) &&
+                    action.newVersion >= oldState.pendingSendableSteps.version
                         ? null
                         : oldState.pendingSendableSteps,
             };
@@ -482,12 +454,12 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
         // immediately re-render the component with the new state so if a user types in
         // their ProseMirror `EditorView` it is applied on top of the `editorState` we
         // received from the server.
-        let priorityLevel: number | null = null;
+        let shouldRunWithImmediatePriority = false;
         for (const action of actions) {
             switch (action.type) {
                 case "Edit":
                 case "ReceiveSteps":
-                    priorityLevel = unstable_ImmediatePriority;
+                    shouldRunWithImmediatePriority = true;
                     break;
                 case "AugmentRememberedSteps":
                 case "SetAllOtherPresenceStates":
@@ -498,10 +470,10 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
             }
         }
 
-        if (priorityLevel === null) {
+        if (!shouldRunWithImmediatePriority) {
             _dispatch(actions);
         } else {
-            unstable_runWithPriority(priorityLevel, () => {
+            runWithImmediatePriority(() => {
                 _dispatch(actions);
             });
         }
@@ -539,7 +511,6 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
                         type: "ReceiveSteps",
                         newVersion: message.newVersion,
                         steps: message.steps,
-                        acknowledgeMessageId: null,
                     });
 
                     if (message.rememberInvertedSteps.length > 0) {
@@ -568,7 +539,6 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
                             step,
                             clientId: message.clientId,
                         })),
-                        acknowledgeMessageId: message.acknowledgeMessageId,
                     });
 
                     // If this was an acknowledgement message from our own client, don't add the
@@ -630,49 +600,68 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
         // only want to re-run this effect when the `isConnected` flag flips.
     }, [isConnected, sendMessage]);
 
+    const lastPendingSendableStepsVersionSentToServerRef = useRef<number | null>(null);
+    const lastOurPresenceStateSentToServerRef = useRef<{
+        readonly version: number;
+        readonly selection: Selection;
+    } | null>(null);
+
     // Send any updates we have in state to the server when we are connected! Only
     // sends each update to the server once. Tracks whether we have sent updates
     // with a ref.
     useEffect(() => {
         if (!isConnected) return;
 
-        if (state.pendingSendableSteps?.shouldSendToServerRef.current) {
+        if (
+            state.pendingSendableSteps &&
+            lastPendingSendableStepsVersionSentToServerRef.current !==
+                state.pendingSendableSteps.version
+        ) {
             sendMessage({
                 type: "UpdateContent",
                 version: state.pendingSendableSteps.version,
                 steps: state.pendingSendableSteps.steps,
                 clientId: state.pendingSendableSteps.clientId,
-                messageId: state.pendingSendableSteps.messageId,
                 updateOurPresenceState: {
-                    state: state.ourPresenceState.state
+                    state: state.ourPresenceState
                         ? {
-                              version: state.ourPresenceState.state.version,
+                              version: state.ourPresenceState.version,
                               selection: ProsemirrorSelectionWrapper.new(
-                                  state.ourPresenceState.state.selection,
+                                  state.ourPresenceState.selection,
                               ),
                           }
                         : null,
                 },
             }).catch(error => setErrorState({hasError: true, error}));
 
-            state.pendingSendableSteps.shouldSendToServerRef.current = false;
-            state.ourPresenceState.shouldSendToServerRef.current = false;
+            lastPendingSendableStepsVersionSentToServerRef.current =
+                state.pendingSendableSteps.version;
+            lastOurPresenceStateSentToServerRef.current = state.ourPresenceState;
         }
 
-        if (state.ourPresenceState.shouldSendToServerRef.current) {
+        if (
+            (lastOurPresenceStateSentToServerRef.current === null) !==
+                (state.ourPresenceState === null) ||
+            (lastOurPresenceStateSentToServerRef.current !== null &&
+                state.ourPresenceState !== null &&
+                (lastOurPresenceStateSentToServerRef.current.version !==
+                    state.ourPresenceState.version ||
+                    lastOurPresenceStateSentToServerRef.current.selection !==
+                        state.ourPresenceState.selection))
+        ) {
             sendMessage({
                 type: "UpdateOurPresenceState",
-                state: state.ourPresenceState.state
+                state: state.ourPresenceState
                     ? {
-                          version: state.ourPresenceState.state.version,
+                          version: state.ourPresenceState.version,
                           selection: ProsemirrorSelectionWrapper.new(
-                              state.ourPresenceState.state.selection,
+                              state.ourPresenceState.selection,
                           ),
                       }
                     : null,
             }).catch(error => setErrorState({hasError: true, error}));
 
-            state.ourPresenceState.shouldSendToServerRef.current = false;
+            lastOurPresenceStateSentToServerRef.current = state.ourPresenceState;
         }
     }, [isConnected, sendMessage, state.pendingSendableSteps, state.ourPresenceState]);
 
@@ -680,14 +669,13 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
     // bunch of cursors laying around the document.
     useEffect(() => {
         if (!isConnected) return;
-        if (!state.ourPresenceState.state) return;
+        if (!state.ourPresenceState) return;
 
         // We have a much shorter timeout if our presence state is just a cursor. If
         // the user has selected some text, we take longer to clear that timeout since
         // maybe the user was intentionally trying to highlight text to show someone?
         const cursorDisappearTimeoutMs =
-            state.ourPresenceState.state.selection.from ===
-            state.ourPresenceState.state.selection.to
+            state.ourPresenceState.selection.from === state.ourPresenceState.selection.to
                 ? 15 * 1000
                 : 15 * 60 * 1000;
 
@@ -701,7 +689,7 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
         return () => {
             timeout.clear();
         };
-    }, [isConnected, sendMessage, state.ourPresenceState.state]);
+    }, [isConnected, sendMessage, state.ourPresenceState]);
 
     // The presence states we get from our presence channel may be outdated because
     // when the document updates and the cursor needs to move, we do not send a

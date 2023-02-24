@@ -1229,80 +1229,67 @@ test("won't cache a corrupted document while updating", async () => {
 });
 
 test("updates made in parallel will only read the document once", async () => {
-    async function retryFlakyTest(action: () => Promise<void>): Promise<void> {
-        let retryCount = 10;
+    const documentId = generateId<DocumentId>();
 
-        while (retryCount > 0) {
-            retryCount--;
-
-            try {
-                await action();
-            } catch (error) {
-                // Ignore errors until the last run.
-                if (retryCount === 0) {
-                    throw error;
-                }
-            }
-        }
-    }
-
-    // TODO(calebmer): Should debug why this is flaky and fix the root cause.
-    //
-    // Maybe by the time you see this the test won't be flaky and you can remove
-    // this! Or there will be better flake detection and retry logic built by some
-    // team with a cool name. Wouldn't that be neat.
-    await retryFlakyTest(async () => {
-        const documentId = generateId<DocumentId>();
-
-        await createDocument(context.request(session), {
-            id: documentId,
-            spaceId: space.id,
-            content: emptyDocumentContent,
-        });
-
-        const {getCount} = getInternalDocumentTestCounter.recordForTest(documentId);
-        expect(getCount()).toEqual(0);
-
-        const request1Promise = updateDocumentContent(context.request(session), {
-            id: documentId,
-            version: 0,
-            steps: [new ReplaceStep(3, 3, textSlice("a"))],
-            clientId: generateId(),
-        });
-
-        const request2Promise = updateDocumentContent(context.request(session), {
-            id: documentId,
-            version: 0,
-            steps: [new ReplaceStep(3, 3, textSlice("b"))],
-            clientId: generateId(),
-        });
-
-        const request3Promise = updateDocumentContent(context.request(session), {
-            id: documentId,
-            version: 0,
-            steps: [new ReplaceStep(3, 3, textSlice("c"))],
-            clientId: generateId(),
-        });
-
-        const request4Promise = updateDocumentContent(context.request(session), {
-            id: documentId,
-            version: 0,
-            steps: [new ReplaceStep(3, 3, textSlice("d"))],
-            clientId: generateId(),
-        });
-
-        await runAllPromises([request1Promise, request2Promise, request3Promise, request4Promise]);
-
-        expect(getCount()).toEqual(1);
-
-        {
-            const document = await getDocument(context.request(session), documentId);
-            expect(document?.version).toEqual(4);
-            expect(document?.content.child(1).textContent.split("").sort().join("")).toEqual(
-                "abcd",
-            );
-        }
+    await createDocument(context.request(session), {
+        id: documentId,
+        spaceId: space.id,
+        content: emptyDocumentContent,
     });
+
+    const {getCount} = getInternalDocumentTestCounter.recordForTest(documentId);
+    expect(getCount()).toEqual(0);
+
+    const request1Promise = updateDocumentContent(context.request(session), {
+        id: documentId,
+        version: 0,
+        steps: [new ReplaceStep(3, 3, textSlice("a"))],
+        clientId: generateId(),
+    });
+
+    const request2Promise = updateDocumentContent(context.request(session), {
+        id: documentId,
+        version: 0,
+        steps: [new ReplaceStep(3, 3, textSlice("b")), new ReplaceStep(4, 4, textSlice("c"))],
+        clientId: generateId(),
+    });
+
+    const request3Promise = updateDocumentContent(context.request(session), {
+        id: documentId,
+        version: 0,
+        steps: [new ReplaceStep(3, 3, textSlice("d"))],
+        clientId: generateId(),
+    });
+
+    const request4Promise = updateDocumentContent(context.request(session), {
+        id: documentId,
+        version: 0,
+        steps: [new ReplaceStep(3, 3, textSlice("e"))],
+        clientId: generateId(),
+    });
+
+    const request5Promise = updateDocumentContent(context.request(session), {
+        id: documentId,
+        version: 0,
+        steps: [new ReplaceStep(3, 3, textSlice("f"))],
+        clientId: generateId(),
+    });
+
+    await runAllPromises([
+        request1Promise,
+        request2Promise,
+        request3Promise,
+        request4Promise,
+        request5Promise,
+    ]);
+
+    expect(getCount()).toEqual(1);
+
+    {
+        const document = await getDocument(context.request(session), documentId);
+        expect(document?.version).toEqual(6);
+        expect(document?.content.child(1).textContent.split("").sort().join("")).toEqual("abcdef");
+    }
 });
 
 test("if a document was deleted in the database then the cache will pick that up", async () => {

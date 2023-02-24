@@ -279,7 +279,11 @@ async function handleFetch(
                 async context => {
                     // The first time our server process runs in development, seed DynamoDB with
                     // some initial data. The seed function should be idempotent.
-                    if (process.env.NODE_ENV !== "production" && !hasSeededDynamo) {
+                    if (
+                        process.env.NODE_ENV !== "production" &&
+                        (globalThis as any).__shouldSeedDynamo &&
+                        !hasSeededDynamo
+                    ) {
                         hasSeededDynamo = true;
                         context.process.waitUntil(
                             (async () => {

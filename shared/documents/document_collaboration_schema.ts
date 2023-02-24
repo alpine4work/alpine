@@ -1,10 +1,6 @@
 import {DocumentContentStepSchema} from "~/shared/content/document_content_schema";
 import {ErrorSchema} from "~/shared/error/error_schema";
-import {
-    ContentEditorClientId,
-    DocumentCollaborationMessageId,
-    WebSocketConnectionId,
-} from "~/shared/id/types/id_types";
+import {ContentEditorClientId, WebSocketConnectionId} from "~/shared/id/types/id_types";
 import {ProsemirrorSelectionSchema} from "~/shared/prosemirror/prosemirror_selection_schema";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 
@@ -31,9 +27,6 @@ export const DocumentCollaborationMessageFromClientSchema = Schema.union({
         version: Schema.integer,
         steps: Schema.array(DocumentContentStepSchema),
         clientId: Schema.id<ContentEditorClientId>(),
-        // NOTE(calebmer): I wonder if message id should be a part of the
-        // `WebSocketServer` abstraction?
-        messageId: Schema.id<DocumentCollaborationMessageId>(),
         /**
          * Atomically update our presence state in the same action as we update
          * our content.
@@ -90,7 +83,6 @@ export const DocumentCollaborationMessageFromServerSchema = Schema.union({
         newVersion: Schema.integer,
         steps: Schema.array(DocumentContentStepSchema),
         clientId: Schema.id<ContentEditorClientId>(),
-        acknowledgeMessageId: Schema.id<DocumentCollaborationMessageId>(),
         /**
          * Atomically update this other presence state in the same action as we update
          * content.

@@ -26,6 +26,16 @@ export function assertMessageContent(node: Node): MessageContent {
     return node;
 }
 
+export function createSimpleMessageContent(text: string): MessageContent {
+    return assertMessageContent(
+        MessageContentProsemirrorSchema.node("doc", {}, [
+            MessageContentProsemirrorSchema.node("paragraph", {}, [
+                MessageContentProsemirrorSchema.text(text),
+            ]),
+        ]),
+    );
+}
+
 export const MessageContentProsemirrorSchema = new ProsemirrorSchema(
     messageContentProsemirrorSchemaSpec,
 );

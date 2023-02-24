@@ -28,6 +28,16 @@ export function assertPostContent(node: Node): PostContent {
     return node;
 }
 
+export function createSimplePostContent(text: string): PostContent {
+    return assertPostContent(
+        PostContentProsemirrorSchema.node("doc", {}, [
+            PostContentProsemirrorSchema.node("paragraph", {}, [
+                PostContentProsemirrorSchema.text(text),
+            ]),
+        ]),
+    );
+}
+
 export const PostContentProsemirrorSchema = new ProsemirrorSchema(postContentProsemirrorSchemaSpec);
 
 export const PostContentSchema = Schema.unknown.transform<PostContent>({

@@ -398,3 +398,12 @@ export function useOverlayRootPortalElement() {
     assert(overlaySink, "Expected a parent `<OverlayScopeContextProvider>` component");
     return overlaySink.rootPortalElement;
 }
+
+/**
+ * Is our portal overlay element available yet in context for mounting elements?
+ */
+export function useIsOverlayPortalElementReady() {
+    const overlaySink = useContext(OverlaySinkContext);
+    assert(overlaySink, "Expected a parent `<OverlayScopeContextProvider>` component");
+    return !!overlaySink.portalElement;
+}

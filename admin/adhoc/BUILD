@@ -6,6 +6,7 @@ ts_project(
     deps = [
         "//:node_modules/@types/node",
         "//server/dynamo",
+        "//shared/content",
         "//shared/error",
         "//shared/helpers",
         "//shared/schema",

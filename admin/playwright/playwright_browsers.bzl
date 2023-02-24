@@ -5,12 +5,16 @@ Repository rule for installing the browsers Playwright needs to execute tests.
 load("@aspect_bazel_lib//lib:repo_utils.bzl", "repo_utils")
 
 def _playwright_browsers_repository_impl(rctx):
+    node_bin = rctx.path(Label("@node_{}//:bin/node".format(repo_utils.platform(rctx))))
+
+    # Playwright has no dependencies so we don't need to do any `node_modules`
+    # installation. Magical!
+    playwright_cli = rctx.path(Label("@npm__playwright-core__{}//:package/cli.js".format(rctx.attr.playwright_version)))
+
     rctx.execute(
         [
-            rctx.path(Label("@node_{}//:bin/node".format(repo_utils.platform(rctx)))),
-            # Playwright has no dependencies so we don't need to do any `node_modules`
-            # installation. Magical!
-            rctx.path(Label("@npm__playwright-core__{}//:package/cli.js".format(rctx.attr.playwright_version))),
+            node_bin,
+            playwright_cli,
             "install",
         ],
         environment = {

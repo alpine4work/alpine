@@ -118,7 +118,7 @@ export function PostEditorModal({
                 </Box>
                 <ContentEditor
                     ref={editorRef}
-                    aria-label="Post content"
+                    aria-label="Post"
                     state={state}
                     onNavigate={navigate}
                     placeholder="Share your ideas…"

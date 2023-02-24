@@ -80,8 +80,6 @@ js_binary(
     data = [
         "//:node_modules/@bazel/worker",
         "//:node_modules/@remix-run/dev",
-        "//:node_modules/dotenv",
-        "//:node_modules/fs-extra",
     ],
     entry_point = "remix_compiler.js",
 )

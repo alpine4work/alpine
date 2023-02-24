@@ -3,6 +3,7 @@ import fs from "fs-extra";
 import path from "path";
 import {runfilesPath} from "~/admin/helpers/runfiles_path";
 import {assert} from "~/shared/helpers/control/assert";
+import {Lazy} from "~/shared/helpers/control/lazy";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier";
 
 /**
@@ -10,8 +11,14 @@ import {isIdentifier} from "~/shared/helpers/string/is_identifier";
  * resulting variables.
  *
  * This needs to be synchronous since we run it during module evaluation.
+ *
+ * Caches the result so subsequent calls will return the same thing.
  */
 export function parseDotenv(): DotenvParseOutput {
+    return env.get();
+}
+
+const env = new Lazy(() => {
     const nodeEnv = process.env.NODE_ENV ?? "development";
     assert(isIdentifier(nodeEnv));
 
@@ -22,7 +29,7 @@ export function parseDotenv(): DotenvParseOutput {
     ];
 
     return Object.assign({}, ...files);
-}
+});
 
 function loadDotenvFile(filePath: string): DotenvParseOutput {
     if (!fs.pathExistsSync(filePath)) return {};

@@ -449,6 +449,9 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
                     ? messageViewStyles.messageViewHighlightAnimation
                     : undefined,
             }}
+            data-testid={`MessageView:${message.getRoomKey()}:${
+                message.isOptimistic ? "optimistic" : message.index
+            }`}
         >
             {useMemo(
                 () =>

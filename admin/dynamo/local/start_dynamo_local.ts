@@ -17,6 +17,7 @@ const dynamoLocalLibPath = path.join(
     runfilesPath,
     "cyberworlds/external/dynamo_local/DynamoDBLocal_lib",
 );
+
 const dynamoLocalJarPath = path.join(
     runfilesPath,
     "cyberworlds/external/dynamo_local/DynamoDBLocal.jar",
@@ -83,7 +84,7 @@ export async function startDynamoLocal({
         // If DynamoDB hasn't started, try checking again with exponential backoff.
         const delayMs = 10 * 2 ** (attemptNumber - 1);
 
-        if (delayMs > 1000 * 20)
+        if (delayMs > 1000 * 40)
             throw DeadlineExceededError.from(
                 error,
                 `Timed out waiting for local DynamoDB to start listening on port ${port}`,
