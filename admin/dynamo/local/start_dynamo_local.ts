@@ -17,6 +17,7 @@ const dynamoLocalLibPath = path.join(
     runfilesPath,
     "cyberworlds/external/dynamo_local/DynamoDBLocal_lib",
 );
+
 const dynamoLocalJarPath = path.join(
     runfilesPath,
     "cyberworlds/external/dynamo_local/DynamoDBLocal.jar",

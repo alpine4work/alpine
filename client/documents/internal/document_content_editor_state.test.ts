@@ -9,7 +9,7 @@ import {
     DocumentContentProsemirrorSchema as schema,
 } from "~/shared/content/document_content_schema";
 import {generateId} from "~/shared/id/id";
-import {ContentEditorClientId, DocumentCollaborationMessageId} from "~/shared/id/types/id_types";
+import {ContentEditorClientId} from "~/shared/id/types/id_types";
 import {DocumentModel} from "~/shared/models/document_model";
 
 function textSlice(text: string) {
@@ -40,7 +40,6 @@ test("can receive steps one at a time", () => {
             type: "ReceiveSteps",
             newVersion: 11,
             steps: [{step: new ReplaceStep(6, 6, textSlice("d")), clientId: otherClientId}],
-            acknowledgeMessageId: generateId<DocumentCollaborationMessageId>(),
         },
     ]);
 
@@ -58,7 +57,6 @@ test("can receive steps one at a time", () => {
             type: "ReceiveSteps",
             newVersion: 12,
             steps: [{step: new ReplaceStep(7, 7, textSlice("e")), clientId: otherClientId}],
-            acknowledgeMessageId: generateId<DocumentCollaborationMessageId>(),
         },
     ]);
 
@@ -76,7 +74,6 @@ test("can receive steps one at a time", () => {
             type: "ReceiveSteps",
             newVersion: 13,
             steps: [{step: new ReplaceStep(8, 8, textSlice("f")), clientId: otherClientId}],
-            acknowledgeMessageId: generateId<DocumentCollaborationMessageId>(),
         },
     ]);
 
@@ -94,7 +91,6 @@ test("can receive steps one at a time", () => {
             type: "ReceiveSteps",
             newVersion: 14,
             steps: [{step: new ReplaceStep(9, 9, textSlice("g")), clientId: otherClientId}],
-            acknowledgeMessageId: generateId<DocumentCollaborationMessageId>(),
         },
     ]);
 
@@ -134,7 +130,6 @@ test("can receive multiple steps at a time", () => {
                 {step: new ReplaceStep(6, 6, textSlice("d")), clientId: otherClientId},
                 {step: new ReplaceStep(7, 7, textSlice("d")), clientId: otherClientId},
             ],
-            acknowledgeMessageId: generateId<DocumentCollaborationMessageId>(),
         },
     ]);
 
@@ -163,7 +158,6 @@ test("can receive multiple steps at a time", () => {
                 {step: new ReplaceStep(16, 16, textSlice("e")), clientId: otherClientId},
                 {step: new ReplaceStep(17, 17, textSlice("e")), clientId: otherClientId},
             ],
-            acknowledgeMessageId: generateId<DocumentCollaborationMessageId>(),
         },
     ]);
 
@@ -181,7 +175,6 @@ test("can receive multiple steps at a time", () => {
             type: "ReceiveSteps",
             newVersion: 23,
             steps: [{step: new ReplaceStep(18, 18, textSlice("f")), clientId: otherClientId}],
-            acknowledgeMessageId: generateId<DocumentCollaborationMessageId>(),
         },
     ]);
 
@@ -203,7 +196,6 @@ test("can receive multiple steps at a time", () => {
                 {step: new ReplaceStep(20, 20, textSlice("g")), clientId: otherClientId},
                 {step: new ReplaceStep(21, 21, textSlice("g")), clientId: otherClientId},
             ],
-            acknowledgeMessageId: generateId<DocumentCollaborationMessageId>(),
         },
     ]);
 
@@ -240,7 +232,6 @@ test("can receive steps out of order", () => {
             type: "ReceiveSteps",
             newVersion: 13,
             steps: [{step: new ReplaceStep(7, 7, textSlice("e")), clientId: otherClientId}],
-            acknowledgeMessageId: generateId<DocumentCollaborationMessageId>(),
         },
     ]);
 
@@ -259,7 +250,6 @@ test("can receive steps out of order", () => {
             type: "ReceiveSteps",
             newVersion: 15,
             steps: [{step: new ReplaceStep(9, 9, textSlice("g")), clientId: otherClientId}],
-            acknowledgeMessageId: generateId<DocumentCollaborationMessageId>(),
         },
     ]);
 
@@ -278,7 +268,6 @@ test("can receive steps out of order", () => {
             type: "ReceiveSteps",
             newVersion: 11,
             steps: [{step: new ReplaceStep(5, 5, textSlice("c")), clientId: otherClientId}],
-            acknowledgeMessageId: generateId<DocumentCollaborationMessageId>(),
         },
     ]);
 
@@ -297,7 +286,6 @@ test("can receive steps out of order", () => {
             type: "ReceiveSteps",
             newVersion: 12,
             steps: [{step: new ReplaceStep(6, 6, textSlice("d")), clientId: otherClientId}],
-            acknowledgeMessageId: generateId<DocumentCollaborationMessageId>(),
         },
     ]);
 
@@ -316,7 +304,6 @@ test("can receive steps out of order", () => {
             type: "ReceiveSteps",
             newVersion: 14,
             steps: [{step: new ReplaceStep(8, 8, textSlice("f")), clientId: otherClientId}],
-            acknowledgeMessageId: generateId<DocumentCollaborationMessageId>(),
         },
     ]);
 
@@ -354,7 +341,6 @@ test("can receive steps multiple times", () => {
             type: "ReceiveSteps",
             newVersion: 11,
             steps: [{step: new ReplaceStep(6, 6, textSlice("d")), clientId: otherClientId}],
-            acknowledgeMessageId: generateId<DocumentCollaborationMessageId>(),
         },
     ]);
 
@@ -373,7 +359,6 @@ test("can receive steps multiple times", () => {
             type: "ReceiveSteps",
             newVersion: 12,
             steps: [{step: new ReplaceStep(7, 7, textSlice("e")), clientId: otherClientId}],
-            acknowledgeMessageId: generateId<DocumentCollaborationMessageId>(),
         },
     ]);
 
@@ -392,7 +377,6 @@ test("can receive steps multiple times", () => {
             type: "ReceiveSteps",
             newVersion: 12,
             steps: [{step: new ReplaceStep(7, 7, textSlice("e")), clientId: otherClientId}],
-            acknowledgeMessageId: generateId<DocumentCollaborationMessageId>(),
         },
     ]);
 
@@ -411,7 +395,6 @@ test("can receive steps multiple times", () => {
             type: "ReceiveSteps",
             newVersion: 12,
             steps: [{step: new ReplaceStep(7, 7, textSlice("e")), clientId: otherClientId}],
-            acknowledgeMessageId: generateId<DocumentCollaborationMessageId>(),
         },
     ]);
 
@@ -430,7 +413,6 @@ test("can receive steps multiple times", () => {
             type: "ReceiveSteps",
             newVersion: 13,
             steps: [{step: new ReplaceStep(8, 8, textSlice("f")), clientId: otherClientId}],
-            acknowledgeMessageId: generateId<DocumentCollaborationMessageId>(),
         },
     ]);
 
@@ -449,7 +431,6 @@ test("can receive steps multiple times", () => {
             type: "ReceiveSteps",
             newVersion: 14,
             steps: [{step: new ReplaceStep(9, 9, textSlice("g")), clientId: otherClientId}],
-            acknowledgeMessageId: generateId<DocumentCollaborationMessageId>(),
         },
     ]);
 
@@ -468,7 +449,6 @@ test("can receive steps multiple times", () => {
             type: "ReceiveSteps",
             newVersion: 13,
             steps: [{step: new ReplaceStep(8, 8, textSlice("f")), clientId: otherClientId}],
-            acknowledgeMessageId: generateId<DocumentCollaborationMessageId>(),
         },
     ]);
 
@@ -487,7 +467,6 @@ test("can receive steps multiple times", () => {
             type: "ReceiveSteps",
             newVersion: 11,
             steps: [{step: new ReplaceStep(6, 6, textSlice("d")), clientId: otherClientId}],
-            acknowledgeMessageId: generateId<DocumentCollaborationMessageId>(),
         },
     ]);
 
@@ -525,7 +504,6 @@ test("can receive large step backfill with duplicate steps at end of backfill", 
             type: "ReceiveSteps",
             newVersion: 23,
             steps: [{step: new ReplaceStep(18, 18, textSlice("f")), clientId: otherClientId}],
-            acknowledgeMessageId: generateId<DocumentCollaborationMessageId>(),
         },
     ]);
 
@@ -548,7 +526,6 @@ test("can receive large step backfill with duplicate steps at end of backfill", 
                 {step: new ReplaceStep(20, 20, textSlice("g")), clientId: otherClientId},
                 {step: new ReplaceStep(21, 21, textSlice("g")), clientId: otherClientId},
             ],
-            acknowledgeMessageId: generateId<DocumentCollaborationMessageId>(),
         },
     ]);
 
@@ -633,7 +610,6 @@ test("can receive large step backfill with duplicate steps at beginning of backf
                 {step: new ReplaceStep(16, 16, textSlice("e")), clientId: otherClientId},
                 {step: new ReplaceStep(17, 17, textSlice("e")), clientId: otherClientId},
             ],
-            acknowledgeMessageId: generateId<DocumentCollaborationMessageId>(),
         },
     ]);
 
@@ -710,7 +686,6 @@ test("can receive large step backfill with duplicate steps in the middle of back
                 {step: new ReplaceStep(6, 6, textSlice("d")), clientId: otherClientId},
                 {step: new ReplaceStep(7, 7, textSlice("d")), clientId: otherClientId},
             ],
-            acknowledgeMessageId: generateId<DocumentCollaborationMessageId>(),
         },
     ]);
 
@@ -784,7 +759,6 @@ test("reproduce receive steps assertion failure", () => {
             type: "ReceiveSteps",
             newVersion: 1,
             steps: [{step: new ReplaceStep(3, 3, textSlice("h")), clientId: otherClientId}],
-            acknowledgeMessageId: generateId<DocumentCollaborationMessageId>(),
         },
     ]);
 
@@ -803,7 +777,6 @@ test("reproduce receive steps assertion failure", () => {
             type: "ReceiveSteps",
             newVersion: 2,
             steps: [{step: new ReplaceStep(4, 4, textSlice("e")), clientId: otherClientId}],
-            acknowledgeMessageId: generateId<DocumentCollaborationMessageId>(),
         },
     ]);
 
@@ -822,7 +795,6 @@ test("reproduce receive steps assertion failure", () => {
             type: "ReceiveSteps",
             newVersion: 3,
             steps: [{step: new ReplaceStep(5, 5, textSlice("l")), clientId: otherClientId}],
-            acknowledgeMessageId: generateId<DocumentCollaborationMessageId>(),
         },
     ]);
 
@@ -852,7 +824,6 @@ test("reproduce receive steps assertion failure", () => {
                 {step: new ReplaceStep(14, 14, textSlice("d")), clientId: otherClientId},
                 {step: new ReplaceStep(15, 15, textSlice("!")), clientId: otherClientId},
             ],
-            acknowledgeMessageId: generateId<DocumentCollaborationMessageId>(),
         },
     ]);
 

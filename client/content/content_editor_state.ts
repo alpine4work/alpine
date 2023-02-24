@@ -15,6 +15,7 @@ import {
 } from "~/client/content/internal/content_editor_plugin_keymap";
 import {trimSpacesFromRange} from "~/client/content/internal/content_editor_prosemirror_helpers";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema";
+import {InternalError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {generateId, isId} from "~/shared/id/id";
@@ -228,6 +229,19 @@ export class ContentEditorState<Content extends Node> {
         for (const {step, clientId} of steps) {
             stepsWithoutClientId.push(step);
             clientIds.push(clientId);
+        }
+
+        // Validation in development that if we're receiving steps from our client we
+        // do have steps we're waiting to receive. Otherwise ProseMirror ignores the
+        // steps and we can get into a bad state.
+        if (
+            process.env.NODE_ENV !== "production" &&
+            clientIds.includes(this.getClientId()) &&
+            !this.hasSendableSteps()
+        ) {
+            throw new InternalError(
+                "Receiving confirmed steps for our client but our client has no unconfirmed steps",
+            );
         }
 
         const transaction = receiveTransaction(this._state, stepsWithoutClientId, clientIds, {
