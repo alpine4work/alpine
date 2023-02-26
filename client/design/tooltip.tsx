@@ -51,7 +51,7 @@ import {
  * a tooltip because the user is taking quick action and doesn't appear to need
  * extra context.
  */
-export const tooltipDelayMs = 500;
+export const tooltipDelayMs = 1000;
 
 export type TooltipState =
     // Tooltip is definitely not visible.
