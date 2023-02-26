@@ -16,6 +16,7 @@ import {
 import {createPortal} from "react-dom";
 import {Box} from "~/client/design/box";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref";
 import {
@@ -23,6 +24,7 @@ import {
     removeResizeListenerForElement,
 } from "~/client/helpers/use_resize_observer";
 import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/spacing";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {assert} from "~/shared/helpers/control/assert";
 
 /**
@@ -131,8 +133,19 @@ export type OverlayProps = {
     /**
      * The element our overlay content will be rendered around. Must
      * provide a ref to an HTML element or we will throw an error.
+     *
+     * Can not provided this prop and `targetElement`.
      */
-    children: ReactElement;
+    children?: ReactElement;
+
+    /**
+     * The element our overlay content will be rendered next to. Use this prop when
+     * the element you're targeting is not managed by React. Otherwise prefer
+     * `children`.
+     *
+     * Can not provide this prop and `children`.
+     */
+    targetElement?: HTMLElement;
 };
 
 /**
@@ -163,9 +176,15 @@ function Overlay(
         sameWidth = false,
         sameHeight = false,
         children,
+        targetElement,
     }: OverlayProps,
     ref: Ref<OverlayRef>,
 ) {
+    assert(
+        (children && !targetElement) || (targetElement && !children),
+        "Can not provide both a `children` prop and `targetElement` prop to `<Overlay>`",
+    );
+
     const overlaySink = useContext(OverlaySinkContext);
     assert(overlaySink, "Expected a parent `<OverlayScopeContextProvider>` component");
 
@@ -323,6 +342,21 @@ function Overlay(
     );
 
     const overlay = useElementWithRef(actualOverlay, overlayRef);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (!targetElement) return;
+        return targetLifecycleRef(targetElement);
+    }, [targetElement, targetLifecycleRef]);
+
+    // Update popper every React re-render.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (!isVisible) return;
+        // Run in a microtask so that parent effects run before we update the
+        // popper position.
+        scheduleMicrotask(() => {
+            popperRef.current?.forceUpdate();
+        });
+    });
 
     return (
         <>

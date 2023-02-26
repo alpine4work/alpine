@@ -1,5 +1,7 @@
 import {globalStyle, style} from "@vanilla-extract/css";
+import {colorSchemeVars} from "~/shared/styles/internal/color_scheme.css";
 import {paragraphClassName, paragraphFontSize} from "~/shared/styles/internal/content_schema.css";
+import {fontSizes} from "~/shared/styles/internal/fonts.css";
 
 export const truncatedHeight = paragraphFontSize.lineHeight;
 
@@ -16,4 +18,10 @@ globalStyle(`${truncatedClassName} ${paragraphClassName}`, {
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
+});
+
+export const updatedNoteClassName = style({
+    ...fontSizes["50"],
+    color: colorSchemeVars["grey-50"],
+    cursor: "default",
 });

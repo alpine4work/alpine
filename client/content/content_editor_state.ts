@@ -66,7 +66,6 @@ export class ContentEditorState<Content extends Node> {
     public static createCollaborative<Content extends Node>({
         version,
         content,
-        selectionAt,
     }: {
         /**
          * The content version for collaborative editing.
@@ -78,11 +77,6 @@ export class ContentEditorState<Content extends Node> {
          * start with empty content.
          */
         content: Content;
-
-        /**
-         * Where to put the selection at in the editor.
-         */
-        selectionAt?: "start" | "end";
     }): ContentEditorState<Content> {
         assert(content.type.schema.topNodeType === content.type);
 
@@ -106,8 +100,6 @@ export class ContentEditorState<Content extends Node> {
             EditorState.create({
                 doc: content,
                 plugins,
-                selection:
-                    selectionAt === "end" ? Selection.atEnd(content) : Selection.atStart(content),
             }),
         );
 

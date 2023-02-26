@@ -27,6 +27,7 @@ import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref";
 import {Spacing} from "~/shared/design/spacing";
@@ -266,7 +267,14 @@ export type TooltipProps = {
      * The element our tooltip content will be rendered to point to. Must provide
      * a ref to an HTML element or we will throw an error.
      */
-    children: ReactElement | ((props: TooltipChildrenProps) => ReactElement);
+    children?: ReactElement | ((props: TooltipChildrenProps) => ReactElement);
+
+    /**
+     * The element our tooltip will be rendered to point to. Use this if your
+     * target element is not managed by React. Otherwise prefer `children`. Can not
+     * provide both `children` and `targetElement`.
+     */
+    targetElement?: HTMLElement;
 
     /**
      * Observe the tooltip's internal state.
@@ -294,6 +302,7 @@ function Tooltip(
         offset = defaultTooltipOffset,
         visibleWhenFocusWithin = false,
         children: actualChildren,
+        targetElement,
         onStateChange: _onStateChange,
     }: TooltipProps,
     ref: Ref<TooltipRef>,
@@ -717,6 +726,11 @@ function Tooltip(
         useLifecycleRef(targetLifecycleRef),
     );
 
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (!targetElement) return;
+        return targetLifecycleRef(targetElement);
+    }, [targetElement, targetLifecycleRef]);
+
     // Memoizing here because `TooltipCoordinationContext` forces us to re-render
     // all tooltips on the page whenever one tooltip is focused or hovered. We
     // want to minimize re-renders when that happens.
@@ -761,9 +775,9 @@ function Tooltip(
                         </Box>
                     </Box>
                 }
-            >
-                {children}
-            </Overlay>
+                children={children}
+                targetElement={targetElement}
+            />
         );
     }, [
         isVisible,
@@ -775,6 +789,7 @@ function Tooltip(
         state.isFadingIn,
         content,
         children,
+        targetElement,
     ]);
 }
 

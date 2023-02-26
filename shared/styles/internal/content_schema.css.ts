@@ -390,18 +390,22 @@ export const linkClassName = style({
 // Make sure the first child in our document never has top margin.
 const firstChildSelectors = [
     `${docClassName} > *:first-child`,
-    `${docClassName} > ${quoteBlockClassName}:first-child > *:first-child`,
     `${docClassName} > ${listItemClassName}:first-child > *:first-child`,
     `${docClassName} > ${listItemClassName}:first-child > ${checkListItemContentClassName} > *:first-child`,
+    `${docClassName} > ${quoteBlockClassName}:first-child > *:first-child`,
+    `${docClassName} > ${quoteBlockClassName}:first-child > ${listItemClassName}:first-child > *:first-child`,
+    `${docClassName} > ${quoteBlockClassName}:first-child > ${listItemClassName}:first-child > ${checkListItemContentClassName} > *:first-child`,
 ];
 firstChildSelectors.forEach(selector => globalStyle(selector, {marginTop: 0}));
 
 // Make sure the last child in our document never has bottom margin.
 const lastChildSelectors = [
     `${docClassName} > *:last-child`,
-    `${docClassName} > ${quoteBlockClassName}:last-child > *:last-child`,
     `${docClassName} > ${listItemClassName}:last-child > *:last-child`,
     `${docClassName} > ${listItemClassName}:last-child > ${checkListItemContentClassName} > *:last-child`,
+    `${docClassName} > ${quoteBlockClassName}:last-child > *:last-child`,
+    `${docClassName} > ${quoteBlockClassName}:last-child > ${listItemClassName}:last-child > *:last-child`,
+    `${docClassName} > ${quoteBlockClassName}:last-child > ${listItemClassName}:last-child > ${checkListItemContentClassName} > *:last-child`,
 ];
 lastChildSelectors.forEach(selector => globalStyle(selector, {marginBottom: 0}));
 

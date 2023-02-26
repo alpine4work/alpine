@@ -261,6 +261,7 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
             >
                 <ContentView
                     content={message.payload.content}
+                    contentUpdatedTime={message.payload.contentUpdatedTime}
                     onNavigate={navigate}
                     className={sprinkles({minWidth: messageViewBubbleMinWidth})}
                 />

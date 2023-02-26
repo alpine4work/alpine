@@ -11,7 +11,7 @@ import {useClientInfo} from "~/client/remix/client_info_context";
 export function PrettyAbsoluteDate({date}: {date: Date}) {
     const {timeZone} = useClientInfo();
 
-    const prettyDate = useMemo(() => {
+    const formattedDate = useMemo(() => {
         const isCurrentYear = new Date().getFullYear() === date.getFullYear();
 
         const formatter = new Intl.DateTimeFormat("en-US", {
@@ -25,7 +25,20 @@ export function PrettyAbsoluteDate({date}: {date: Date}) {
         return formatter.format(date);
     }, [date, timeZone]);
 
-    const fullDate = useMemo(() => {
+    return (
+        <Tooltip content={<PrettyAbsoluteDateTooltipContent date={date} />} placement="bottom">
+            <span>{formattedDate}</span>
+        </Tooltip>
+    );
+}
+
+/**
+ * The tooltip content of a `<PrettyAbsoluteDate>`.
+ */
+export function PrettyAbsoluteDateTooltipContent({date}: {date: Date}) {
+    const {timeZone} = useClientInfo();
+
+    const formattedDate = useMemo(() => {
         const formatter = new Intl.DateTimeFormat("en-US", {
             timeZone,
             calendar: "iso8601",
@@ -33,7 +46,7 @@ export function PrettyAbsoluteDate({date}: {date: Date}) {
             year: "numeric",
             month: "long",
             day: "numeric",
-            hour: "2-digit",
+            hour: "numeric",
             minute: "2-digit",
             hour12: true,
         });
@@ -41,9 +54,5 @@ export function PrettyAbsoluteDate({date}: {date: Date}) {
         return formatter.format(date);
     }, [date, timeZone]);
 
-    return (
-        <Tooltip content={fullDate} placement="bottom">
-            <span>{prettyDate}</span>
-        </Tooltip>
-    );
+    return <>{formattedDate}</>;
 }

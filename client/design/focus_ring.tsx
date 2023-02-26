@@ -1,4 +1,3 @@
-import {Instance, Rect, createPopper} from "@popperjs/core";
 import {isFocusVisible} from "@react-aria/interactions";
 import {
     ReactElement,
@@ -13,10 +12,13 @@ import {
 import {Box} from "~/client/design/box";
 import {useSpacingPx} from "~/client/design/helpers/use_spacing_px";
 import {Overlay} from "~/client/design/overlay";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
+import {assignRef} from "~/client/helpers/refs/assign_ref";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
 import {Spacing} from "~/shared/design/spacing";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {assert} from "~/shared/helpers/control/assert";
 
 const FocusRingForwardRef = forwardRef(FocusRing);
@@ -35,9 +37,11 @@ let currentActiveElement: HTMLElement | null = null;
 function FocusRing(
     {
         offset,
+        isVisible = false,
         isVisibleWhenFocusWithin = false,
         isVisibleFromAnyFocus = false,
         children,
+        targetElement,
     }: {
         /**
          * How far away to position the focus ring from the focusable element.
@@ -50,6 +54,16 @@ function FocusRing(
          * Setting to `inset` will render the focus ring inside of the element.
          */
         offset?: Spacing | "border" | "inset";
+
+        /**
+         * Is the focus ring always visible regardless of whether the target
+         * is focused?
+         *
+         * We have logic that only one focus ring may be visible at a time but this
+         * prop does not affect it. So another ring may be visible due to focus in
+         * addition to this one.
+         */
+        isVisible?: boolean;
 
         /**
          * By default, we only show the focus ring when the direct child is focused.
@@ -67,7 +81,14 @@ function FocusRing(
         /**
          * The focusable element we draw a ring around.
          */
-        children: ReactElement;
+        children?: ReactElement;
+
+        /**
+         * The focusable element we draw a ring around. Use this if your focusable
+         * element is not managed by React. Otherwise prefer `children`. Can not
+         * provide both `children` and `targetElement`.
+         */
+        targetElement?: HTMLElement;
     },
     foreignRef: Ref<HTMLElement>,
 ) {
@@ -120,9 +141,17 @@ function FocusRing(
         [isVisibleFromAnyFocus, isVisibleWhenFocusWithin],
     );
 
+    const mergedTargetRef = useMergedRefs(foreignRef, useLifecycleRef(targetLifecycleRef));
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (!targetElement) return;
+        assignRef(mergedTargetRef, targetElement);
+        return () => assignRef(mergedTargetRef, null);
+    }, [mergedTargetRef, targetElement]);
+
     return (
         <Overlay
-            isVisible={isActive}
+            isVisible={isVisible || isActive}
             placement="center"
             preventOverflow={false}
             sameWidth={true}
@@ -132,109 +161,9 @@ function FocusRing(
                     <FocusRingBox offset={offset} targetRef={targetRef} />
                 </Box>
             }
-        >
-            {useElementWithRef(
-                children,
-                useMergedRefs(foreignRef, useLifecycleRef(targetLifecycleRef)),
-            )}
-        </Overlay>
-    );
-}
-
-/**
- * A `<FocusRing>` but always visible and instead of targeting a React child it
- * targets a DOM node.
- */
-export function TargetedFocusRing({
-    offset,
-    targetElement,
-}: {
-    offset?: Spacing | "border";
-    targetElement: HTMLElement;
-}) {
-    const ringRef = useRef<HTMLDivElement>(null);
-    const popperRef = useRef<Instance | null>(null);
-
-    useLayoutEffect(() => {
-        assert(ringRef.current);
-
-        const popper = createPopper(targetElement, ringRef.current, {
-            placement: "top-start",
-            modifiers: [
-                {
-                    name: "preventOverflow",
-                    enabled: false,
-                },
-                {
-                    name: "flip",
-                    enabled: false,
-                },
-                {
-                    name: "offset",
-                    enabled: true,
-                    options: {
-                        offset: ({reference, popper}: {reference: Rect; popper: Rect}) => {
-                            return [
-                                reference.width / 2 - popper.width / 2,
-                                -popper.height / 2 - reference.height / 2,
-                            ];
-                        },
-                    },
-                },
-                {
-                    name: "sameWidth",
-                    enabled: true,
-                    phase: "beforeWrite",
-                    requires: ["computeStyles"],
-                    fn: ({state}) => {
-                        state.styles.popper!.width = `${state.rects.reference.width}px`;
-                    },
-                    effect: ({state}) => {
-                        state.elements.popper.style.width = `${
-                            (state.elements.reference as HTMLElement).offsetWidth
-                        }px`;
-                    },
-                },
-                {
-                    name: "sameHeight",
-                    enabled: true,
-                    phase: "beforeWrite",
-                    requires: ["computeStyles"],
-                    fn: ({state}) => {
-                        state.styles.popper!.height = `${state.rects.reference.height}px`;
-                    },
-                    effect: ({state}) => {
-                        state.elements.popper.style.height = `${
-                            (state.elements.reference as HTMLElement).offsetHeight
-                        }px`;
-                    },
-                },
-            ],
-        });
-
-        popperRef.current = popper;
-
-        return () => {
-            popperRef.current = null;
-            popper.destroy();
-        };
-    }, [targetElement]);
-
-    // Update popper every React re-render.
-    useLayoutEffect(() => {
-        assert(popperRef.current);
-        popperRef.current.forceUpdate();
-    });
-
-    const targetRef = useRef(targetElement);
-    useLayoutEffect(() => {
-        targetRef.current = targetElement;
-    });
-
-    return (
-        <Box ref={ringRef} pointerEvents="none">
-            <FocusRingBox offset={offset} targetRef={targetRef} />
-        </Box>
+            children={useElementWithRef(children, mergedTargetRef)}
+            targetElement={targetElement}
+        />
     );
 }
 
@@ -262,71 +191,83 @@ function FocusRingBox({
     if (offset === "inset") ringOffsetPx = -ringWidthPx;
 
     useLayoutEffect(() => {
-        assert(ringRef.current && targetRef.current);
+        const run = () => {
+            assert(ringRef.current && targetRef.current);
 
-        const targetStyle = getComputedStyle(targetRef.current);
+            const targetStyle = getComputedStyle(targetRef.current);
 
-        const ringStyle = {
-            borderTopLeftRadius: parseBorderRadius(targetStyle.borderTopLeftRadius),
-            borderTopRightRadius: parseBorderRadius(targetStyle.borderTopRightRadius),
-            borderBottomLeftRadius: parseBorderRadius(targetStyle.borderBottomLeftRadius),
-            borderBottomRightRadius: parseBorderRadius(targetStyle.borderBottomRightRadius),
+            const ringStyle = {
+                borderTopLeftRadius: parseBorderRadius(targetStyle.borderTopLeftRadius),
+                borderTopRightRadius: parseBorderRadius(targetStyle.borderTopRightRadius),
+                borderBottomLeftRadius: parseBorderRadius(targetStyle.borderBottomLeftRadius),
+                borderBottomRightRadius: parseBorderRadius(targetStyle.borderBottomRightRadius),
+            };
+
+            // Tweak border radius because of our ring offset. Using formula:
+            //
+            // ```
+            // outerRadius = innerRadius + (outerSize - innerSize) / 2
+            // ```
+            //
+            // In this case we know:
+            //
+            // ```
+            // outerSize = innerSize + ringOffset * 2 + ringWidth * 2
+            // ```
+            //
+            // So our formula simplifies as follows:
+            //
+            // ```
+            // outerRadius = innerRadius + (innerSize + ringOffset * 2 + ringWidth * 2 - innerSize) / 2
+            // outerRadius = innerRadius + (ringOffset * 2 + ringWidth * 2) / 2
+            // outerRadius = innerRadius + ringOffset + ringWidth
+            // ```
+            //
+            // Formula is from:
+            // https://twitter.com/joshwcomeau/status/1349782080021028865?lang=en
+
+            if (typeof ringStyle.borderTopLeftRadius === "number") {
+                ringRef.current.style.borderTopLeftRadius = `${
+                    ringStyle.borderTopLeftRadius + ringOffsetPx + ringWidthPx
+                }px`;
+            } else {
+                ringRef.current.style.borderTopLeftRadius = ringStyle.borderTopLeftRadius;
+            }
+
+            if (typeof ringStyle.borderTopRightRadius === "number") {
+                ringRef.current.style.borderTopRightRadius = `${
+                    ringStyle.borderTopRightRadius + ringOffsetPx + ringWidthPx
+                }px`;
+            } else {
+                ringRef.current.style.borderTopRightRadius = ringStyle.borderTopRightRadius;
+            }
+
+            if (typeof ringStyle.borderBottomLeftRadius === "number") {
+                ringRef.current.style.borderBottomLeftRadius = `${
+                    ringStyle.borderBottomLeftRadius + ringOffsetPx + ringWidthPx
+                }px`;
+            } else {
+                ringRef.current.style.borderBottomLeftRadius = ringStyle.borderBottomLeftRadius;
+            }
+
+            if (typeof ringStyle.borderBottomRightRadius === "number") {
+                ringRef.current.style.borderBottomRightRadius = `${
+                    ringStyle.borderBottomRightRadius + ringOffsetPx + ringWidthPx
+                }px`;
+            } else {
+                ringRef.current.style.borderBottomRightRadius = ringStyle.borderBottomRightRadius;
+            }
         };
 
-        // Tweak border radius because of our ring offset. Using formula:
-        //
-        // ```
-        // outerRadius = innerRadius + (outerSize - innerSize) / 2
-        // ```
-        //
-        // In this case we know:
-        //
-        // ```
-        // outerSize = innerSize + ringOffset * 2 + ringWidth * 2
-        // ```
-        //
-        // So our formula simplifies as follows:
-        //
-        // ```
-        // outerRadius = innerRadius + (innerSize + ringOffset * 2 + ringWidth * 2 - innerSize) / 2
-        // outerRadius = innerRadius + (ringOffset * 2 + ringWidth * 2) / 2
-        // outerRadius = innerRadius + ringOffset + ringWidth
-        // ```
-        //
-        // Formula is from:
-        // https://twitter.com/joshwcomeau/status/1349782080021028865?lang=en
-
-        if (typeof ringStyle.borderTopLeftRadius === "number") {
-            ringRef.current.style.borderTopLeftRadius = `${
-                ringStyle.borderTopLeftRadius + ringOffsetPx + ringWidthPx
-            }px`;
-        } else {
-            ringRef.current.style.borderTopLeftRadius = ringStyle.borderTopLeftRadius;
-        }
-
-        if (typeof ringStyle.borderTopRightRadius === "number") {
-            ringRef.current.style.borderTopRightRadius = `${
-                ringStyle.borderTopRightRadius + ringOffsetPx + ringWidthPx
-            }px`;
-        } else {
-            ringRef.current.style.borderTopRightRadius = ringStyle.borderTopRightRadius;
-        }
-
-        if (typeof ringStyle.borderBottomLeftRadius === "number") {
-            ringRef.current.style.borderBottomLeftRadius = `${
-                ringStyle.borderBottomLeftRadius + ringOffsetPx + ringWidthPx
-            }px`;
-        } else {
-            ringRef.current.style.borderBottomLeftRadius = ringStyle.borderBottomLeftRadius;
-        }
-
-        if (typeof ringStyle.borderBottomRightRadius === "number") {
-            ringRef.current.style.borderBottomRightRadius = `${
-                ringStyle.borderBottomRightRadius + ringOffsetPx + ringWidthPx
-            }px`;
-        } else {
-            ringRef.current.style.borderBottomRightRadius = ringStyle.borderBottomRightRadius;
-        }
+        // Run in a microtask so that parent effects which assign refs run first.
+        let isCancelled = false;
+        scheduleMicrotask(() => {
+            if (isCancelled) return;
+            run();
+        });
+        return () => {
+            isCancelled = true;
+        };
     }, [ringOffsetPx, targetRef]);
 
     return (

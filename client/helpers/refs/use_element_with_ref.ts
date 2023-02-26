@@ -50,14 +50,23 @@ import {assert} from "~/shared/helpers/control/assert";
 export function useElementWithRef<T>(
     element: ReactElement & {ref?: LegacyRef<T>},
     ref: Ref<T>,
-): ReactElement {
-    const elementRef = element.ref ?? null;
+): ReactElement;
+export function useElementWithRef<T>(
+    element: (ReactElement & {ref?: LegacyRef<T>}) | undefined,
+    ref: Ref<T>,
+): ReactElement | undefined;
+export function useElementWithRef<T>(
+    element: (ReactElement & {ref?: LegacyRef<T>}) | undefined,
+    ref: Ref<T>,
+): ReactElement | undefined {
+    const elementRef = element?.ref ?? null;
 
     assert(typeof elementRef !== "string", "Legacy React string refs are not supported");
 
     const mergedRef = useMergedRefs(elementRef, ref);
 
     return useMemo(() => {
+        if (!element) return null;
         return cloneElement(element, {ref: mergedRef});
     }, [element, mergedRef]);
 }
