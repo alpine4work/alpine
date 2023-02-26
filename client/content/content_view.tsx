@@ -18,7 +18,8 @@ import {
 } from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
 import {contentSchemaStyles, contentViewStyles} from "~/shared/styles/styles";
 
-const {docClassName, linkClassName, emptyTitleClassName, emptyBodyClassName} = contentSchemaStyles;
+const {docClassName, linkClassName, emptyTitleClassName, emptyBodyClassName, paragraphClassName} =
+    contentSchemaStyles;
 
 // TODO(calebmer): Focus rings around links in `<ContentView>`.
 
@@ -103,17 +104,31 @@ export function ContentView({
             const depthToLastParagraphChild =
                 lastTextblockChild?.type.name === "paragraph" ? depthToLastTextblockChild : null;
 
-            const updatedNoteHtml = new ElementHtmlGenerator("span");
-            updatedNoteHtml.setAttribute("id", contentUpdatedNoteId);
-            updatedNoteHtml.setAttribute("class", contentViewStyles.updatedNoteClassName);
-            updatedNoteHtml.appendChild(
-                new TextHtmlGenerator((depthToLastParagraphChild !== null ? " " : "") + "(edited)"),
-            );
+            let html: ElementHtmlGenerator;
+            if (depthToLastParagraphChild !== null) {
+                const updatedNoteHtml = new ElementHtmlGenerator("span");
+                updatedNoteHtml.setAttribute("id", contentUpdatedNoteId);
+                updatedNoteHtml.setAttribute("class", contentViewStyles.updatedNoteClassName);
+                updatedNoteHtml.appendChild(new TextHtmlGenerator(" (edited)"));
+
+                html = updatedNoteHtml;
+            } else {
+                const updatedNoteContainerHtml = new ElementHtmlGenerator("p");
+                updatedNoteContainerHtml.setAttribute("class", paragraphClassName);
+
+                const updatedNoteHtml = new ElementHtmlGenerator("span");
+                updatedNoteContainerHtml.appendChild(updatedNoteHtml);
+                updatedNoteHtml.setAttribute("id", contentUpdatedNoteId);
+                updatedNoteHtml.setAttribute("class", contentViewStyles.updatedNoteClassName);
+                updatedNoteHtml.appendChild(new TextHtmlGenerator("(edited)"));
+
+                html = updatedNoteContainerHtml;
+            }
 
             decorations.push({
                 type: "Widget",
                 pos: content.nodeSize - ((depthToLastParagraphChild ?? 0) + 1),
-                html: updatedNoteHtml,
+                html,
             });
         }
 

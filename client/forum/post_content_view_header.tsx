@@ -12,7 +12,7 @@ export function PostContentViewHeader({post}: {post: PostModel}) {
                     {post.author.name}
                 </Box>
                 <Box fontSize="50" fontStyle="truncate" color="grey-50">
-                    <PrettyAbsoluteDate date={post.createdTime} />
+                    <PrettyAbsoluteDate placement="bottom" date={post.createdTime} />
                 </Box>
             </Box>
         </Box>

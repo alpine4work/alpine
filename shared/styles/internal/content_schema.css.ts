@@ -311,12 +311,13 @@ export const checkListItemCheckboxPressedClassName = style({
 
 export const dividerClassName = style({
     ...blockStyles,
-    width: blockWidth,
+    width: `calc(100% - ${blockPaddingX} * 2)`,
+    maxWidth: blockWidth,
     paddingLeft: 0,
     paddingRight: 0,
     marginTop: headerTopMargin,
     marginBottom: headerTopMargin,
-    borderColor: colorSchemeVars["grey-20"],
+    borderColor: colorSchemeVars["grey-10"],
 });
 
 export const codeClassName = style({

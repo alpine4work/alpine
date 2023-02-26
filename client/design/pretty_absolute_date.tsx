@@ -1,4 +1,5 @@
 import {useMemo} from "react";
+import {OverlayPlacement} from "~/client/design/overlay";
 import {Tooltip} from "~/client/design/tooltip";
 import {useClientInfo} from "~/client/remix/client_info_context";
 
@@ -8,7 +9,7 @@ import {useClientInfo} from "~/client/remix/client_info_context";
  * Renders in an absolute style like "Jan 15, 2023". As opposed to rendering in
  * a relative style like "5 days ago".
  */
-export function PrettyAbsoluteDate({date}: {date: Date}) {
+export function PrettyAbsoluteDate({date, placement}: {date: Date; placement?: OverlayPlacement}) {
     const {timeZone} = useClientInfo();
 
     const formattedDate = useMemo(() => {
@@ -26,7 +27,7 @@ export function PrettyAbsoluteDate({date}: {date: Date}) {
     }, [date, timeZone]);
 
     return (
-        <Tooltip content={<PrettyAbsoluteDateTooltipContent date={date} />} placement="bottom">
+        <Tooltip content={<PrettyAbsoluteDateTooltipContent date={date} />} placement={placement}>
             <span>{formattedDate}</span>
         </Tooltip>
     );

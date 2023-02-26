@@ -87,6 +87,7 @@ export function PostContentView({
                 content={post.content}
                 onNavigate={useNavigate()}
                 className={sprinkles({paddingX: "3", paddingY: "5"})}
+                contentUpdatedTime={post.contentUpdatedTime}
             />
             <PostContentViewFooter
                 post={post}
