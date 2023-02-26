@@ -118,7 +118,7 @@ export function ContentEditorPointerToolbar({
     // NOTE(calebmer): This component was written before `<OverlayAnimated>`. It
     // has a bit of delay before the animation begins so it isn't quite feature
     // compatible but consider consolidating someday.
-    const [showState, setShowState] = useState<
+    const [_showState, setShowState] = useState<
         | {
               isShowing: true;
               pos: number;
@@ -128,21 +128,28 @@ export function ContentEditorPointerToolbar({
         | {isShowing: false; animation?: undefined}
     >({isShowing: false});
 
+    let showState = _showState;
+
     // Update our show state whenever the selection changes while the toolbar
     // is open.
     if (shouldShow && showState.isShowing && showState.pos !== state.selection.from) {
-        setShowState(prevState =>
-            prevState.isShowing
+        if (shouldShow) {
+            showState = showState.isShowing
                 ? {
-                      ...prevState,
+                      ...showState,
                       pos: state.selection.from,
                       animation:
-                          prevState.animation === "FadingOut" ? "FadingIn" : prevState.animation,
+                          showState.animation === "FadingOut" ? "FadingIn" : showState.animation,
                       // Close the link input when the selection changes.
                       isLinkInputOpen: false,
                   }
-                : prevState,
-        );
+                : showState;
+        }
+    }
+
+    // Close the toolbar if the position moves out of bounds.
+    if (showState.isShowing && showState.pos >= state.doc.nodeSize) {
+        showState = {isShowing: false};
     }
 
     // If we should stop showing then start the fade out animation.
@@ -154,8 +161,11 @@ export function ContentEditorPointerToolbar({
         // keyboard. Don't close the toolbar when this happens.
         !showState.isLinkInputOpen
     ) {
-        setShowState({...showState, animation: "FadingOut"});
+        showState = {...showState, animation: "FadingOut"};
     }
+
+    // Make sure we update our state with the new value.
+    if (showState !== _showState) setShowState(showState);
 
     useEffect(() => {
         if (
