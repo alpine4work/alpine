@@ -5,8 +5,15 @@ import {assert} from "~/shared/helpers/control/assert";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier";
 import {quote} from "~/shared/helpers/string/quote";
 
+/**
+ * Options for customizing ProseMirror HTML serialization. Similar set of
+ * options to the [ProseMirror editor options][1] so your content rendered to
+ * HTML can match content in a ProseMirror editor.
+ *
+ * [1]: https://prosemirror.net/docs/ref/#view.EditorProps
+ */
 export type ProsemirrorHtmlSerializationOptions = {
-    nodeRenderers?: {
+    readonly nodeRenderers?: {
         [nodeName: string]:
             | ((
                   node: Node,
@@ -17,7 +24,7 @@ export type ProsemirrorHtmlSerializationOptions = {
               })
             | undefined;
     };
-    markRenderers?: {
+    readonly markRenderers?: {
         [markName: string]: (
             mark: Mark,
             inline: boolean,
@@ -26,6 +33,43 @@ export type ProsemirrorHtmlSerializationOptions = {
             contentHtml?: ElementHtmlGenerator;
         };
     };
+    readonly decorations?: ReadonlyArray<ProsemirrorHtmlSerializationDecoration>;
+};
+
+type ProsemirrorHtmlSerializationContext = {
+    readonly nodeRenderers: {
+        [nodeName: string]:
+            | ((
+                  node: Node,
+                  pos: number,
+              ) => {
+                  html: HtmlGenerator;
+                  contentHtml?: ElementHtmlGenerator;
+              })
+            | undefined;
+    };
+    readonly markRenderers: {
+        [markName: string]: (
+            mark: Mark,
+            inline: boolean,
+        ) => {
+            html: ElementHtmlGenerator;
+            contentHtml?: ElementHtmlGenerator;
+        };
+    };
+    readonly decorationQueue: Array<ProsemirrorHtmlSerializationDecoration>;
+};
+
+/**
+ * Decorations to render within the content. Follows a similar API to the
+ * [ProseMirror editor `Decoration` class][1].
+ *
+ * [1]: https://prosemirror.net/docs/ref/#view.Decoration
+ */
+export type ProsemirrorHtmlSerializationDecoration = {
+    readonly type: "Widget";
+    readonly pos: number;
+    readonly html: ElementHtmlGenerator;
 };
 
 /**
@@ -39,7 +83,15 @@ export function serializeProsemirrorNodeToHtml(
     node: Node,
     options: ProsemirrorHtmlSerializationOptions = {},
 ): string {
-    return serializeProsemirrorNode(0, node, options).generateHtml();
+    const context: ProsemirrorHtmlSerializationContext = {
+        nodeRenderers: options.nodeRenderers ?? {},
+        markRenderers: options.markRenderers ?? {},
+        decorationQueue: Array.from(options.decorations ?? []).sort(
+            (decoration1, decoration2) => decoration2.pos - decoration1.pos,
+        ),
+    };
+
+    return serializeProsemirrorNode(0, node, context).generateHtml();
 }
 
 /**
@@ -53,21 +105,24 @@ export function serializeProsemirrorFragmentToHtml(
     fragment: Fragment,
     options: ProsemirrorHtmlSerializationOptions & {startPos?: number} = {},
 ): string {
+    const context: ProsemirrorHtmlSerializationContext = {
+        nodeRenderers: options.nodeRenderers ?? {},
+        markRenderers: options.markRenderers ?? {},
+        decorationQueue: Array.from(options.decorations ?? []).sort(
+            (decoration1, decoration2) => decoration2.pos - decoration1.pos,
+        ),
+    };
+
     return serializeProsemirrorFragment(
         options.startPos ?? 0,
         fragment,
-        new FragmentHTMLGenerator(),
-        options,
+        new FragmentHtmlGenerator(),
+        context,
     ).generateHtml();
 }
 
 type DOMOutputSpecArray = _DOMOutputSpecArray<DOMOutputSpec>;
 type _DOMOutputSpecArray<Spec extends DOMOutputSpec> = Spec extends Array<any> ? Spec : never;
-
-function defaultTextToDom(node: Node): DOMOutputSpec {
-    assert(node.isText);
-    return node.text!;
-}
 
 function isDomNode(structure: object): structure is globalThis.Node {
     return (structure as any).contentType != null;
@@ -83,23 +138,79 @@ function isDomNode(structure: object): structure is globalThis.Node {
 function serializeProsemirrorNode(
     pos: number, // Position at the start of the node
     node: Node,
-    options: ProsemirrorHtmlSerializationOptions,
+    context: ProsemirrorHtmlSerializationContext,
 ): HtmlGenerator {
     let html: HtmlGenerator;
     let contentHtml: ElementHtmlGenerator | undefined;
+    let prependDecorationHtml: HtmlGenerator | undefined;
+    let appendDecorationHtml: HtmlGenerator | undefined;
 
-    const nodeRenderer = options.nodeRenderers?.[node.type.name];
-    if (nodeRenderer) {
-        ({html, contentHtml} = nodeRenderer(node, pos));
-    } else {
-        const toDOM = node.type.spec.toDOM ?? (node.type.name === "text" ? defaultTextToDom : null);
-        assert(toDOM, `Could not find renderer for node type "${node.type.name}"`);
-        ({html, contentHtml} = renderProsemirrorDomOutputSpec(toDOM(node)));
+    if (context.decorationQueue[context.decorationQueue.length - 1]?.pos === pos) {
+        const decoration = context.decorationQueue.pop()!;
+        prependDecorationHtml = decoration.html;
     }
 
-    if (contentHtml !== undefined) {
-        assert(!node.isLeaf, "Content hole not allowed in a leaf node spec");
-        serializeProsemirrorFragment(pos + 1, node.content, contentHtml, options);
+    if (!node.isText) {
+        const nodeRenderer = context.nodeRenderers[node.type.name];
+        if (nodeRenderer) {
+            ({html, contentHtml} = nodeRenderer(node, pos));
+        } else {
+            const toDOM = node.type.spec.toDOM;
+            assert(toDOM, `Could not find renderer for node type "${node.type.name}"`);
+            ({html, contentHtml} = renderProsemirrorDomOutputSpec(toDOM(node)));
+        }
+
+        if (contentHtml !== undefined) {
+            assert(!node.isLeaf, "Content hole not allowed in a leaf node spec");
+            serializeProsemirrorFragment(pos + 1, node.content, contentHtml, context);
+        }
+    } else {
+        const text = node.text!;
+
+        const lastDecoration = context.decorationQueue[context.decorationQueue.length - 1];
+        if (
+            !lastDecoration ||
+            !(pos + 1 <= lastDecoration.pos && lastDecoration.pos <= pos + 1 + text.length)
+        ) {
+            html = new TextHtmlGenerator(text);
+        } else {
+            const fragmentHtml = new FragmentHtmlGenerator();
+            html = fragmentHtml;
+            let lastTextIndex = 0;
+
+            while (true) {
+                const lastDecoration = context.decorationQueue[context.decorationQueue.length - 1];
+                if (!lastDecoration) break;
+
+                if (!(pos < lastDecoration.pos && lastDecoration.pos <= pos + text.length)) break;
+
+                context.decorationQueue.pop();
+
+                const nextTextIndex = lastDecoration.pos - pos;
+                const textSlice = text.slice(lastTextIndex, nextTextIndex);
+                if (textSlice.length > 0)
+                    fragmentHtml.appendChild(new TextHtmlGenerator(textSlice));
+                fragmentHtml.appendChild(lastDecoration.html);
+                lastTextIndex = nextTextIndex;
+            }
+
+            const lastTextSlice = text.slice(lastTextIndex);
+            if (lastTextSlice.length > 0)
+                fragmentHtml.appendChild(new TextHtmlGenerator(lastTextSlice));
+        }
+    }
+
+    if (context.decorationQueue[context.decorationQueue.length - 1]?.pos === pos + node.nodeSize) {
+        const decoration = context.decorationQueue.pop()!;
+        appendDecorationHtml = decoration.html;
+    }
+
+    if (prependDecorationHtml || appendDecorationHtml) {
+        const htmlWithDecoration = new FragmentHtmlGenerator();
+        if (prependDecorationHtml) htmlWithDecoration.appendChild(prependDecorationHtml);
+        htmlWithDecoration.appendChild(html);
+        if (appendDecorationHtml) htmlWithDecoration.appendChild(appendDecorationHtml);
+        html = htmlWithDecoration;
     }
 
     return html;
@@ -115,12 +226,12 @@ function serializeProsemirrorNode(
 function serializeProsemirrorMark(
     mark: Mark,
     inline: boolean,
-    options: ProsemirrorHtmlSerializationOptions,
+    context: ProsemirrorHtmlSerializationContext,
 ): {html: ElementHtmlGenerator; contentHtml?: ElementHtmlGenerator} | null {
     let html: HtmlGenerator;
     let contentHtml: ElementHtmlGenerator | undefined;
 
-    const markRenderer = options.markRenderers?.[mark.type.name];
+    const markRenderer = context.markRenderers[mark.type.name];
     if (markRenderer) {
         ({html, contentHtml} = markRenderer(mark, inline));
     } else {
@@ -144,7 +255,7 @@ function serializeProsemirrorFragment(
     pos: number, // Position of the first node in the fragment
     fragment: Fragment,
     targetContainer: ContainerHtmlGenerator,
-    options: ProsemirrorHtmlSerializationOptions,
+    context: ProsemirrorHtmlSerializationContext,
 ) {
     let currentTargetContainer: ContainerHtmlGenerator = targetContainer;
     let activeMarkContainers: Array<[Mark, ContainerHtmlGenerator]> | null = null;
@@ -183,7 +294,7 @@ function serializeProsemirrorFragment(
 
             while (renderedMarks < node.marks.length) {
                 const newMark = node.marks[renderedMarks++]!;
-                const markHtml = serializeProsemirrorMark(newMark, node.isInline, options);
+                const markHtml = serializeProsemirrorMark(newMark, node.isInline, context);
                 if (markHtml) {
                     activeMarkContainers.push([newMark, currentTargetContainer]);
                     currentTargetContainer.appendChild(markHtml.html);
@@ -193,7 +304,7 @@ function serializeProsemirrorFragment(
             }
         }
 
-        currentTargetContainer.appendChild(serializeProsemirrorNode(pos + offset, node, options));
+        currentTargetContainer.appendChild(serializeProsemirrorNode(pos + offset, node, context));
     });
 
     return targetContainer;
@@ -345,7 +456,7 @@ export class ElementHtmlGenerator extends ContainerHtmlGenerator {
     }
 }
 
-export class FragmentHTMLGenerator extends ContainerHtmlGenerator {
+export class FragmentHtmlGenerator extends ContainerHtmlGenerator {
     generateHtml() {
         return this._generateChildrenHtml();
     }

@@ -2,6 +2,8 @@ import {DOMSerializer, Node, Schema} from "prosemirror-model";
 import {marks as basicMarks, nodes as basicNodes} from "prosemirror-schema-basic";
 import {assert} from "~/shared/helpers/control/assert";
 import {
+    ElementHtmlGenerator,
+    ProsemirrorHtmlSerializationDecoration,
     serializeProsemirrorFragmentToHtml,
     serializeProsemirrorNodeToHtml,
 } from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
@@ -200,3 +202,98 @@ for (const {name, node, html: expectedHtml} of testCases) {
         expect(expectedHTML).toEqual(testElement.innerHTML);
     });
 }
+
+test("can insert a decoration widget anywhere", () => {
+    const doc = node("doc", {}, [
+        node("paragraph", {}, [text("test1")]),
+        node("paragraph", {}, [text("test2")]),
+    ]);
+
+    const widgetHtml = new ElementHtmlGenerator("br");
+
+    const widget: Omit<ProsemirrorHtmlSerializationDecoration, "pos"> = {
+        type: "Widget",
+        html: widgetHtml,
+    };
+
+    expect(serializeProsemirrorNodeToHtml(doc)).toEqual("<div><p>test1</p><p>test2</p></div>");
+
+    expect(serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, pos: 0}]})).toEqual(
+        "<br><div><p>test1</p><p>test2</p></div>",
+    );
+    expect(serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, pos: 1}]})).toEqual(
+        "<div><br><p>test1</p><p>test2</p></div>",
+    );
+    expect(serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, pos: 2}]})).toEqual(
+        "<div><p><br>test1</p><p>test2</p></div>",
+    );
+    expect(serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, pos: 3}]})).toEqual(
+        "<div><p>t<br>est1</p><p>test2</p></div>",
+    );
+    expect(serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, pos: 4}]})).toEqual(
+        "<div><p>te<br>st1</p><p>test2</p></div>",
+    );
+    expect(serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, pos: 5}]})).toEqual(
+        "<div><p>tes<br>t1</p><p>test2</p></div>",
+    );
+    expect(serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, pos: 6}]})).toEqual(
+        "<div><p>test<br>1</p><p>test2</p></div>",
+    );
+    expect(serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, pos: 7}]})).toEqual(
+        "<div><p>test1<br></p><p>test2</p></div>",
+    );
+    expect(serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, pos: 8}]})).toEqual(
+        "<div><p>test1</p><br><p>test2</p></div>",
+    );
+    expect(serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, pos: 9}]})).toEqual(
+        "<div><p>test1</p><p><br>test2</p></div>",
+    );
+    expect(serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, pos: 10}]})).toEqual(
+        "<div><p>test1</p><p>t<br>est2</p></div>",
+    );
+    expect(serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, pos: 11}]})).toEqual(
+        "<div><p>test1</p><p>te<br>st2</p></div>",
+    );
+    expect(serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, pos: 12}]})).toEqual(
+        "<div><p>test1</p><p>tes<br>t2</p></div>",
+    );
+    expect(serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, pos: 13}]})).toEqual(
+        "<div><p>test1</p><p>test<br>2</p></div>",
+    );
+    expect(serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, pos: 14}]})).toEqual(
+        "<div><p>test1</p><p>test2<br></p></div>",
+    );
+    expect(serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, pos: 15}]})).toEqual(
+        "<div><p>test1</p><p>test2</p><br></div>",
+    );
+    expect(serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, pos: 16}]})).toEqual(
+        "<div><p>test1</p><p>test2</p></div><br>",
+    );
+});
+
+test("can insert multiple decoration widgets provided in any order", () => {
+    const doc = node("doc", {}, [
+        node("paragraph", {}, [text("test1")]),
+        node("paragraph", {}, [text("test2")]),
+    ]);
+
+    const widgetHtml = new ElementHtmlGenerator("br");
+
+    const widget: Omit<ProsemirrorHtmlSerializationDecoration, "pos"> = {
+        type: "Widget",
+        html: widgetHtml,
+    };
+
+    expect(serializeProsemirrorNodeToHtml(doc)).toEqual("<div><p>test1</p><p>test2</p></div>");
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget, pos: 8},
+                {...widget, pos: 0},
+                {...widget, pos: 15},
+                {...widget, pos: 5},
+            ],
+        }),
+    ).toEqual("<br><div><p>tes<br>t1</p><br><p>test2</p><br></div>");
+});

@@ -7,6 +7,7 @@ import {assert} from "~/shared/helpers/control/assert";
 import {omitObject} from "~/shared/helpers/object/omit_object";
 import {
     ElementHtmlGenerator,
+    ProsemirrorHtmlSerializationDecoration,
     renderProsemirrorDomOutputSpec,
     serializeProsemirrorFragmentToHtml,
 } from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
@@ -43,7 +44,15 @@ export function renderContentToHtml(topNode: Node, options?: {placeholder?: stri
  */
 export function renderContentFragmentToHtml(
     topNode: Node,
-    {placeholder, isInert}: {placeholder?: string; isInert?: boolean} = {},
+    {
+        placeholder,
+        isInert,
+        decorations,
+    }: {
+        placeholder?: string;
+        isInert?: boolean;
+        decorations?: ReadonlyArray<ProsemirrorHtmlSerializationDecoration>;
+    } = {},
 ): string {
     assert(topNode.type.schema.topNodeType === topNode.type);
 
@@ -90,6 +99,7 @@ export function renderContentFragmentToHtml(
 
     return serializeProsemirrorFragmentToHtml(topNode.content, {
         startPos: 1,
+        decorations,
 
         // IMPORTANT: If you have a custom renderer in `nodeRenderers` here you should
         // also have a matching custom view in `nodeViews` in `<ContentEditor>`.
