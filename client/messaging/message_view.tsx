@@ -10,6 +10,7 @@ import {FocusRing} from "~/client/design/focus_ring";
 import {IconButton} from "~/client/design/icon_button";
 import {ModalDialog} from "~/client/design/modal_dialog";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
+import {isElementOwnedBy} from "~/client/helpers/is_element_owned_by";
 import {MessageEditing} from "~/client/messaging/message_editing";
 import {MessageList} from "~/client/messaging/message_list";
 import {MessageViewActions} from "~/client/messaging/message_view_actions";
@@ -537,7 +538,13 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
                         className={sprinkles({display: "flex", position: "relative", zIndex: "10"})}
                         onBlur={event => {
                             // Ignore blur events where focus is moving within the element.
-                            if (!event.currentTarget.contains(event.relatedTarget)) {
+                            //
+                            // We need to use element ownership instead of `document.body.contains()` to
+                            // handle modals.
+                            if (
+                                !event.relatedTarget ||
+                                !isElementOwnedBy(event.currentTarget, event.relatedTarget)
+                            ) {
                                 messageEditingForThisMessage?.dispatch({
                                     type: "MaybeCancelEditing",
                                 });

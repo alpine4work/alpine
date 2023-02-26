@@ -8,6 +8,7 @@ import {
     useCallback,
     useContext,
     useEffect,
+    useId,
     useImperativeHandle,
     useMemo,
     useRef,
@@ -15,6 +16,7 @@ import {
 } from "react";
 import {createPortal} from "react-dom";
 import {Box} from "~/client/design/box";
+import {setElementAttributesWithCleanup} from "~/client/design/helpers/set_element_attributes_with_cleanup";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref";
@@ -26,6 +28,7 @@ import {
 import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/spacing";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {assert} from "~/shared/helpers/control/assert";
+import {noop} from "~/shared/helpers/control/noop";
 
 /**
  * Where should the overlay content be placed relative to the target element?
@@ -205,6 +208,8 @@ function Overlay(
         [],
     );
 
+    const defaultTargetElementId = useId();
+
     const targetLifecycleRef = useCallback(
         (targetElement: HTMLElement) => {
             assert(
@@ -323,10 +328,26 @@ function Overlay(
             const handleResize = () => popper.forceUpdate();
             addResizeListenerForElement(targetElement, handleResize);
 
+            const originalTargetElementId = targetElement.id;
+            const cleanupTargetElementAttributes = !originalTargetElementId
+                ? setElementAttributesWithCleanup(targetElement, {id: defaultTargetElementId})
+                : noop;
+
+            const cleanupOverlayElementAttributes = setElementAttributesWithCleanup(
+                overlayElement,
+                {
+                    "data-ownedby": originalTargetElementId
+                        ? originalTargetElementId
+                        : defaultTargetElementId,
+                },
+            );
+
             return () => {
                 popperRef.current = null;
                 popper.destroy();
                 removeResizeListenerForElement(targetElement, handleResize);
+                cleanupTargetElementAttributes();
+                cleanupOverlayElementAttributes();
             };
         },
         [
@@ -334,10 +355,11 @@ function Overlay(
             placement,
             preventOverflow,
             canFlip,
-            offset,
             offsetAlong,
+            offset,
             sameWidth,
             sameHeight,
+            defaultTargetElementId,
         ],
     );
 
