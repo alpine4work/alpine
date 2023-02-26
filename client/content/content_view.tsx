@@ -3,6 +3,7 @@ import {Node} from "prosemirror-model";
 import {useEffect, useId, useMemo, useRef, useState} from "react";
 import {To} from "react-router-dom";
 import {handleContentLinkClick} from "~/client/content/internal/handle_content_link_click";
+import {FocusRing} from "~/client/design/focus_ring";
 import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_date";
 import {Tooltip} from "~/client/design/tooltip";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
@@ -75,6 +76,8 @@ export function ContentView({
     isTruncated?: boolean;
 }) {
     const ref = useRef<HTMLDivElement>(null);
+
+    const [focusedLinkElement, setFocusedLinkElement] = useState<HTMLElement | null>(null);
 
     const contentUpdatedNoteId = useId();
     const [contentUpdatedNoteElement, setContentUpdatedNoteElement] =
@@ -155,6 +158,29 @@ export function ContentView({
     }, [html, isInert, onNavigateEvent]);
 
     useEffect(() => {
+        const element = assertExists(ref.current);
+
+        const handleFocusChange = () => {
+            if (
+                document.activeElement instanceof HTMLAnchorElement &&
+                document.activeElement?.classList.contains(linkClassName)
+            ) {
+                setFocusedLinkElement(document.activeElement);
+            } else {
+                setFocusedLinkElement(null);
+            }
+        };
+
+        // `focusin` and `focusout` bubble whereas `focus` and `blur` don't.
+        element.addEventListener("focusin", handleFocusChange);
+        element.addEventListener("focusout", handleFocusChange);
+        return () => {
+            element.removeEventListener("focusin", handleFocusChange);
+            element.removeEventListener("focusout", handleFocusChange);
+        };
+    }, []);
+
+    useEffect(() => {
         // Run-run whenever this prop changes.
         // eslint-disable-next-line @typescript-eslint/no-unused-expressions
         contentUpdatedTime;
@@ -176,6 +202,7 @@ export function ContentView({
                 aria-label={ariaLabel}
                 aria-labelledby={ariaLabelledBy}
             />
+            {focusedLinkElement && <FocusRing targetElement={focusedLinkElement} />}
             {contentUpdatedTime && contentUpdatedNoteElement && (
                 <Tooltip
                     content={<PrettyAbsoluteDateTooltipContent date={contentUpdatedTime} />}
