@@ -29,6 +29,7 @@ import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/spacing";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {assert} from "~/shared/helpers/control/assert";
 import {noop} from "~/shared/helpers/control/noop";
+import {sprinkles} from "~/shared/styles/styles";
 
 /**
  * Where should the overlay content be placed relative to the target element?
@@ -188,7 +189,7 @@ function Overlay(
         "Can not provide both a `children` prop and `targetElement` prop to `<Overlay>`",
     );
 
-    const overlaySink = useContext(OverlaySinkContext);
+    const overlaySink = useContext(OverlaySinkContext) ?? overlaySinkContextForTest;
     assert(overlaySink, "Expected a parent `<OverlayScopeContextProvider>` component");
 
     // Always hide overlays when we don't yet have the portal element. This means
@@ -442,6 +443,34 @@ export function OverlayScopeContextProvider({children}: {children: ReactNode}) {
     );
 }
 
+// In Jest tests, create a portal element in the JSDOM `<body>`.
+const overlaySinkContextForTest =
+    typeof jest !== "undefined"
+        ? (() => {
+              const portalElement = document.createElement("div");
+
+              portalElement.className = sprinkles({
+                  position: "absolute",
+                  top: "0",
+                  left: "0",
+                  right: "0",
+                  // The root portal element has a height of 0 because when you use it in a
+                  // nested scroll view we don't want the overlay height to extend from the top
+                  // to the bottom of the nested scroll view.
+                  height: "0",
+                  // Render above anything on the page.
+                  zIndex: "50",
+              });
+
+              document.body.appendChild(portalElement);
+
+              return {
+                  rootPortalElement: portalElement,
+                  portalElement,
+              };
+          })()
+        : null;
+
 /**
  * Get the overlay portal element at the root of our app. We may have nested
  * portal overlay elements in, for instance, scroll views so overlays move with
@@ -450,7 +479,7 @@ export function OverlayScopeContextProvider({children}: {children: ReactNode}) {
  * This allows you to portal into the root overlay element.
  */
 export function useOverlayRootPortalElement() {
-    const overlaySink = useContext(OverlaySinkContext);
+    const overlaySink = useContext(OverlaySinkContext) ?? overlaySinkContextForTest;
     assert(overlaySink, "Expected a parent `<OverlayScopeContextProvider>` component");
     return overlaySink.rootPortalElement;
 }
@@ -459,7 +488,7 @@ export function useOverlayRootPortalElement() {
  * Is our portal overlay element available yet in context for mounting elements?
  */
 export function useIsOverlayPortalElementReady() {
-    const overlaySink = useContext(OverlaySinkContext);
+    const overlaySink = useContext(OverlaySinkContext) ?? overlaySinkContextForTest;
     assert(overlaySink, "Expected a parent `<OverlayScopeContextProvider>` component");
     return !!overlaySink.portalElement;
 }
