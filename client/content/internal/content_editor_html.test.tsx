@@ -3,7 +3,7 @@ import {Mark, Node} from "prosemirror-model";
 import {useState} from "react";
 import {ContentEditor, getEditorViewForTest} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
-import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use_is_initial_app_render";
+import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {
     DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
@@ -114,14 +114,14 @@ for (const blockTestCase of blockTestCases) {
     test(`${blockTestCase.name} empty`, () => {
         const content = schema.node("doc", {}, [blockTestCase.build([])]);
         render(
-            <AppInitialRenderContextProvider>
+            <OverlayScopeContextProvider>
                 <ContentEditor
                     aria-label="Test"
                     state={ContentEditorState.create(content)}
                     onChange={() => {}}
                     onNavigate={cantNavigate}
                 />
-            </AppInitialRenderContextProvider>,
+            </OverlayScopeContextProvider>,
         );
 
         expect(screen.getByRole("textbox")).toHaveTextContent("");
@@ -142,12 +142,14 @@ for (const blockTestCase of blockTestCases) {
             blockTestCase.build([schema.text("Hello world!")]),
         ]);
         render(
-            <ContentEditor
-                aria-label="Test"
-                state={ContentEditorState.create(content)}
-                onChange={() => {}}
-                onNavigate={cantNavigate}
-            />,
+            <OverlayScopeContextProvider>
+                <ContentEditor
+                    aria-label="Test"
+                    state={ContentEditorState.create(content)}
+                    onChange={() => {}}
+                    onNavigate={cantNavigate}
+                />
+            </OverlayScopeContextProvider>,
         );
 
         expect(screen.getByRole("textbox")).toHaveTextContent("Hello world!");
@@ -170,12 +172,14 @@ for (const blockTestCase of blockTestCases) {
                 ]),
             ]);
             render(
-                <ContentEditor
-                    aria-label="Test"
-                    state={ContentEditorState.create(content)}
-                    onChange={() => {}}
-                    onNavigate={cantNavigate}
-                />,
+                <OverlayScopeContextProvider>
+                    <ContentEditor
+                        aria-label="Test"
+                        state={ContentEditorState.create(content)}
+                        onChange={() => {}}
+                        onNavigate={cantNavigate}
+                    />
+                </OverlayScopeContextProvider>,
             );
 
             expect(screen.getByRole("textbox")).toHaveTextContent("Hello world!");
@@ -197,12 +201,14 @@ for (const inlineTestCase of inlineTestCases) {
             ]),
         ]);
         render(
-            <ContentEditor
-                aria-label="Test"
-                state={ContentEditorState.create(content)}
-                onChange={() => {}}
-                onNavigate={cantNavigate}
-            />,
+            <OverlayScopeContextProvider>
+                <ContentEditor
+                    aria-label="Test"
+                    state={ContentEditorState.create(content)}
+                    onChange={() => {}}
+                    onNavigate={cantNavigate}
+                />
+            </OverlayScopeContextProvider>,
         );
 
         expect(screen.getByRole("textbox")).toHaveTextContent("Hello world!");
@@ -231,14 +237,14 @@ function expectClipboardRoundtripToWork() {
             ContentEditorState.create(emptyDocumentWithoutTitleContent),
         );
         return (
-            <AppInitialRenderContextProvider>
+            <OverlayScopeContextProvider>
                 <ContentEditor
                     aria-label="Test"
                     state={state}
                     onChange={setState}
                     onNavigate={cantNavigate}
                 />
-            </AppInitialRenderContextProvider>
+            </OverlayScopeContextProvider>
         );
     }
 
