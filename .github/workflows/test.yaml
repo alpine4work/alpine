@@ -31,12 +31,23 @@ jobs:
               run: |
                   ${{ github.workspace }}/admin/bin/bazel test //... --test_tag_filters=-playwright
 
-            - name: Upload Bazel test logs
-              if: failure()
+            # Currently `actions/upload-artifact` doesn't work with symlinked directories.
+            # A PR to fix this has been merged but hasn't been released. So read the actual path and
+            # put it in our output.
+            # https://github.com/actions/upload-artifact/issues/92
+            - if: failure()
+              name: Get Bazel test logs directory
+              id: bazel_test_logs_path
+              shell: bash
+              run: |
+                  echo "path=$(readlink -f ${{ github.workspace }}/bazel-testlogs)" >> $GITHUB_OUTPUT
+
+            - if: failure()
+              name: Upload Bazel test logs
               uses: actions/upload-artifact@v3
               with:
                   name: test_bazel_testlogs
-                  path: ${{ github.workspace }}/bazel-testlogs
+                  path: ${{ steps.bazel_test_logs_path.outputs.path }}
 
     test_playwright:
         name: Test Playwright
@@ -80,9 +91,20 @@ jobs:
               run: |
                   ${{ github.workspace }}/admin/bin/bazel test //... --test_tag_filters=playwright --jobs=1
 
-            - name: Upload Bazel test logs
-              if: failure()
+            # Currently `actions/upload-artifact` doesn't work with symlinked directories.
+            # A PR to fix this has been merged but hasn't been released. So read the actual path and
+            # put it in our output.
+            # https://github.com/actions/upload-artifact/issues/92
+            - if: failure()
+              name: Get Bazel test logs directory
+              id: bazel_test_logs_path
+              shell: bash
+              run: |
+                  echo "path=$(readlink -f ${{ github.workspace }}/bazel-testlogs)" >> $GITHUB_OUTPUT
+
+            - if: failure()
+              name: Upload Bazel test logs
               uses: actions/upload-artifact@v3
               with:
                   name: test_playwright_bazel_testlogs
-                  path: ${{ github.workspace }}/bazel-testlogs/**/*
+                  path: ${{ steps.bazel_test_logs_path.outputs.path }}
