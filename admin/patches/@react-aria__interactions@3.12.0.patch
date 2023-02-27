@@ -1,0 +1,57 @@
+diff --git a/dist/main.js b/dist/main.js
+index 0f276e6806a9de2d4603617dedca32c9907990de..bb5941a93c35c7e0642a0e9f036173510ad84b87 100644
+--- a/dist/main.js
++++ b/dist/main.js
+@@ -727,7 +727,13 @@ function $5cb73d0ce355b0dc$export$f8168d8dd8fd66e6(props) {
+ 
+ 
+ 
+-let $e77252a287ef94ab$var$currentModality = null;
++// NOTE(calebmer): Default modality to `pointer`. The types say modality is
++// non-null which isn't quite true. We expect pointer interaction to be the
++// dominant modality users use for our app. Also we found this fixes a bug with
++// our document editor when clicking in the sidebar jumps the cursor to the
++// start of the document because of a `useInteractionModality()` hook
++// scheduling a high priority update.
++let $e77252a287ef94ab$var$currentModality = 'pointer';
+ let $e77252a287ef94ab$var$changeHandlers = new Set();
+ let $e77252a287ef94ab$var$hasSetupGlobalListeners = false;
+ let $e77252a287ef94ab$var$hasEventBeforeFocus = false;
+diff --git a/dist/module.js b/dist/module.js
+index bb5ec5424a79bf1e9cf1b7719348035224bb75b6..01a36a934106fd70e2effd339a0c037fc38f7138 100644
+--- a/dist/module.js
++++ b/dist/module.js
+@@ -703,7 +703,13 @@ function $a1ea59d68270f0dd$export$f8168d8dd8fd66e6(props) {
+ 
+ 
+ 
+-let $507fabe10e71c6fb$var$currentModality = null;
++// NOTE(calebmer): Default modality to `pointer`. The types say modality is
++// non-null which isn't quite true. We expect pointer interaction to be the
++// dominant modality users use for our app. Also we found this fixes a bug with
++// our document editor when clicking in the sidebar jumps the cursor to the
++// start of the document because of a `useInteractionModality()` hook
++// scheduling a high priority update.
++let $507fabe10e71c6fb$var$currentModality = 'pointer';
+ let $507fabe10e71c6fb$var$changeHandlers = new Set();
+ let $507fabe10e71c6fb$var$hasSetupGlobalListeners = false;
+ let $507fabe10e71c6fb$var$hasEventBeforeFocus = false;
+diff --git a/src/useFocusVisible.ts b/src/useFocusVisible.ts
+index 3ff3761744e9e8d5cef3a67591792410691e19f3..74f0fa07dc3cceb846ffb843ee4cf6a3709e1a4f 100644
+--- a/src/useFocusVisible.ts
++++ b/src/useFocusVisible.ts
+@@ -34,7 +34,13 @@ export interface FocusVisibleResult {
+   isFocusVisible: boolean
+ }
+ 
+-let currentModality = null;
++// NOTE(calebmer): Default modality to `pointer`. The types say modality is
++// non-null which isn't quite true. We expect pointer interaction to be the
++// dominant modality users use for our app. Also we found this fixes a bug with
++// our document editor when clicking in the sidebar jumps the cursor to the
++// start of the document because of a `useInteractionModality()` hook
++// scheduling a high priority update.
++let currentModality = 'pointer';
+ let changeHandlers = new Set<Handler>();
+ let hasSetupGlobalListeners = false;
+ let hasEventBeforeFocus = false;

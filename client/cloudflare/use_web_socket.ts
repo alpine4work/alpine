@@ -33,7 +33,11 @@ export function useWebSocket<
     );
 
     const [shouldConnect, setShouldConnect] = useState(true);
-    const [isDocumentVisible, setIsDocumentVisible] = useState(true);
+    const [isDocumentVisible, setIsDocumentVisible] = useState(
+        // Will be different on client and server but shouldn't change what's in the
+        // DOM since this state only gets used in effects.
+        typeof document !== "undefined" && document.visibilityState === "visible",
+    );
     const [isConnected, setIsConnected] = useState(false);
     const actuallyHandleMessage = useEvent(handleMessage);
 

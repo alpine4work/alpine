@@ -22,4 +22,5 @@ NPM_PATCHES = {
     "prosemirror-view@1.27.2": ["//admin/patches:prosemirror-view@1.27.2.patch"],
     "uglify-js@3.17.4": ["//admin/patches:uglify-js@3.17.4.patch"],
     "wrangler@2.4.4": ["//admin/patches:wrangler@2.4.4.patch"],
+    "@react-aria/interactions@3.12.0": ["//admin/patches:@react-aria__interactions@3.12.0.patch"],
 }
