@@ -69,11 +69,6 @@ export type MenuAction = {
     readonly disabledReason?: string;
 
     /**
-     * Should we render this with a destructive action treatment?
-     */
-    readonly isDestructive?: boolean;
-
-    /**
      * When the user chooses this action through either the keyboard or mouse we
      * will call this handler.
      *
@@ -822,9 +817,9 @@ function MenuButtonInner({
                 paddingX="2"
                 paddingY="1"
                 borderRadius="base"
-                color={
-                    isVisuallyDisabled ? "grey-40" : action.isDestructive ? "red-50" : "grey-text"
-                }
+                // NOTE(calebmer): We don't have a red destructive menu item style because it
+                // seems silly to call attention to the destructive action with color.
+                color={isVisuallyDisabled ? "grey-40" : "grey-text"}
                 backgroundColor={
                     isPressed
                         ? {light: "grey-10", dark: "grey-20"}
@@ -837,11 +832,13 @@ function MenuButtonInner({
                 // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
                 aria-disabled={isDisabled ? true : undefined}
                 display="flex"
-                justifyContent="space-between"
+                alignItems="center"
             >
-                <Box fontStyle="truncate">{action.label}</Box>
+                <Box flexGrow="1" fontStyle="truncate">
+                    {action.label}
+                </Box>
                 {pendingState.shouldShowPendingSpinner && (
-                    <Box paddingLeft="2">
+                    <Box flexShrink="0" paddingLeft="2">
                         <SpinnerGap className={spinAnimationClassName} size={spacing["4"]} />
                     </Box>
                 )}
