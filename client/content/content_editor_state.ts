@@ -7,7 +7,10 @@ import {
     ContentEditorFloaterState,
     initialContentEditorFloaterState,
 } from "~/client/content/internal/content_editor_floater";
-import {buildInputRulesPlugin} from "~/client/content/internal/content_editor_plugin_input_rules";
+import {
+    buildInputRulesPlugin,
+    openMentionFloaterMetaKey,
+} from "~/client/content/internal/content_editor_plugin_input_rules";
 import {
     buildKeymapPlugin,
     openKeyboardHighlightFloaterMetaKey,
@@ -318,26 +321,116 @@ function contentEditorFloaterStatePlugin() {
                     };
                 }
 
-                // `PointerToolbar` is the only state which does not record its range.
+                // Double check that we can only open the `Mention` floater if the character
+                // preceding our selection is `@`.
+                if (transaction.getMeta(openMentionFloaterMetaKey) && newState.selection.head > 0) {
+                    const $from = newState.doc.resolve(newState.selection.head - 1);
+                    if (
+                        $from.parent.textBetween($from.parentOffset, $from.parentOffset + 1) === "@"
+                    ) {
+                        return {
+                            type: "Mention",
+                            range: {from: $from.pos, to: newState.selection.head},
+                            searchQuery: "",
+                        };
+                    }
+                }
+
+                // `PointerToolbar` is the only state which does not record its position.
                 if (floaterState.type === "PointerToolbar") return floaterState;
 
                 const newRangeFrom = transaction.mapping.map(floaterState.range.from);
                 const newRangeTo = transaction.mapping.map(floaterState.range.to);
-                if (
-                    floaterState.range.from === newRangeFrom &&
-                    floaterState.range.to === newRangeTo
-                ) {
-                    return floaterState;
-                }
 
                 // If the range collapsed into a single position (maybe the content was
                 // deleted?) reset to the initial state.
-                if (newRangeFrom === newRangeTo) return initialContentEditorFloaterState;
+                if (newRangeFrom === newRangeTo) {
+                    floaterState = initialContentEditorFloaterState;
+                } else if (
+                    floaterState.range.from !== newRangeFrom ||
+                    floaterState.range.to !== newRangeTo
+                ) {
+                    floaterState = {
+                        ...floaterState,
+                        range: {from: newRangeFrom, to: newRangeTo},
+                    };
+                }
 
-                return {
-                    ...floaterState,
-                    range: {from: newRangeFrom, to: newRangeTo},
-                };
+                // Adjust our mention range based on the selection's new position.
+                if (floaterState.type === "Mention") {
+                    const $from = newState.doc.resolve(floaterState.range.from);
+
+                    // If the mention no longer starts with `@` then reset our floater back to the
+                    // initial state.
+                    if (
+                        $from.parent.textBetween($from.parentOffset, $from.parentOffset + 1) !== "@"
+                    ) {
+                        floaterState = initialContentEditorFloaterState;
+                    }
+                    // If the head of our selection left the beginning of our mention range then
+                    // reset our floater back to the initial state.
+                    else if (newState.selection.head < floaterState.range.from) {
+                        floaterState = initialContentEditorFloaterState;
+                    }
+                    // If the head of our selection left the end of our mention range...
+                    else if (newState.selection.head > floaterState.range.to) {
+                        // We want to extend the mention range if the user is typing within the mention
+                        // and extending the search query. We want to cancel the mention range if the
+                        // user is explicitly moving their selection outside of the mention range.
+                        //
+                        // We use the heuristic that if both the document changed and the selection was
+                        // explicitly set in our transaction that indicates the user is typing (or
+                        // pasting or similar). This isn't perfect. Ideally we'd also check that this
+                        // came from our client (and not a collaborative edit) or that the document
+                        // change happened inside our mention range.
+                        //
+                        // If the user pasted multiple paragraphs of content then our floater state
+                        // will be cleaned up below.
+                        if (!transaction.selectionSet || !transaction.docChanged) {
+                            floaterState = initialContentEditorFloaterState;
+                        } else {
+                            floaterState = {
+                                ...floaterState,
+                                range: {from: floaterState.range.from, to: newState.selection.head},
+                            };
+                        }
+                    }
+                }
+
+                // Compute the new search query for our mention floater and put it in our
+                // state. If the mention range does not have a valid search query then we will
+                // reset our floater state here.
+                if (floaterState.type === "Mention") {
+                    const mentionSlice = newState.doc.slice(
+                        floaterState.range.from + 1,
+                        floaterState.range.to,
+                    );
+                    if (
+                        mentionSlice.openStart !== 0 ||
+                        mentionSlice.openEnd !== 0 ||
+                        mentionSlice.content.childCount > 1
+                    ) {
+                        floaterState = initialContentEditorFloaterState;
+                    } else {
+                        const child = mentionSlice.content.firstChild;
+                        if (child && child.type.name !== "text") {
+                            floaterState = initialContentEditorFloaterState;
+                        } else {
+                            const searchQuery = child?.text ?? "";
+
+                            if (searchQuery.includes("@")) {
+                                floaterState = initialContentEditorFloaterState;
+                            } else if (searchQuery !== floaterState.searchQuery) {
+                                floaterState = {
+                                    ...floaterState,
+                                    searchQuery,
+                                };
+                            }
+                        }
+                    }
+                }
+
+                return floaterState;
             },
         },
     });

@@ -10,6 +10,7 @@ import {
     ContentEditorHighlightSelectorRef,
 } from "~/client/content/internal/content_editor_highlight_selector";
 import {ContentEditorLinkInput} from "~/client/content/internal/content_editor_link_input";
+import {ContentEditorMentionFloater} from "~/client/content/internal/content_editor_mention_floater";
 import {ContentEditorPointerToolbar} from "~/client/content/internal/content_editor_pointer_toolbar";
 import {getMarksSpanningAcrossEntireRange} from "~/client/content/internal/content_editor_prosemirror_helpers";
 import {Box} from "~/client/design/box";
@@ -54,11 +55,29 @@ export type ContentEditorPointerLinkFloaterState = {
     readonly hasPointerLeftMark: boolean;
 };
 
+export type ContentEditorMentionFloaterState = {
+    readonly type: "Mention";
+    /**
+     * `from` should always be an `@` character. If it's not we should clear the
+     * floater. `to` should be the end of the mention search query. The user can
+     * move their selection within this range and make edits to the search query.
+     */
+    readonly range: {
+        readonly from: number;
+        readonly to: number;
+    };
+    /**
+     * The search query we will look for to pick a mention.
+     */
+    readonly searchQuery: string;
+};
+
 export type ContentEditorFloaterState =
     | ContentEditorPointerToolbarFloaterState
     | ContentEditorKeyboardHighlightFloaterState
     | ContentEditorKeyboardLinkFloaterState
-    | ContentEditorPointerLinkFloaterState;
+    | ContentEditorPointerLinkFloaterState
+    | ContentEditorMentionFloaterState;
 
 // We always revert back to the pointer toolbar floater since it controls when
 // it is visible and when it is not visible. (Much of the time it's not.)
@@ -121,6 +140,15 @@ export function ContentEditorFloater({
                     range={floaterState.range}
                     hasPointerLeftMark={floaterState.hasPointerLeftMark}
                     onClose={onFloaterStateReset}
+                />
+            );
+        }
+        case "Mention": {
+            return (
+                <ContentEditorMentionFloater
+                    state={state}
+                    viewRef={viewRef}
+                    range={floaterState.range}
                 />
             );
         }

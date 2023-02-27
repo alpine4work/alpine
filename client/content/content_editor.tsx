@@ -55,6 +55,7 @@ const {
     hideSelectionWhileUnfocusedClassName,
     inlineElementPaddingToLineHeightClassName,
     shiftKeyOrAltKeyDownClassName,
+    inlineMentionInputClassName,
 } = contentEditorStyles;
 
 // TODO(calebmer): Implement touch toolbar for mobile.
@@ -801,9 +802,6 @@ function ContentEditor<Content extends Node>(
         // Keep track of the element ProseMirror marks as selected with the
         // `ProseMirror-selectednode` CSS class so that we can render our own custom
         // ring around it.
-        //
-        // TODO(calebmer): Test that the selected element ring moves when
-        // collaboratively editing.
         const selectedNodeElement = viewElement.getElementsByClassName(
             "ProseMirror-selectednode",
         )[0];
@@ -877,6 +875,36 @@ function ContentEditor<Content extends Node>(
         };
     }, [phantomSelections]);
 
+    const floaterState = state.getFloaterState();
+
+    // If we have a mention floater, we also want to decorate the text the user is
+    // typing in so they know the boundaries of the mention.
+    useLayoutEffect(() => {
+        if (floaterState.type !== "Mention") return;
+
+        const decorationCallback = (decorationSet: DecorationSet, state: EditorState) => {
+            return decorationSet.add(state.doc, [
+                Decoration.inline(floaterState.range.from, floaterState.range.to, {
+                    class: inlineMentionInputClassName,
+                }),
+            ]);
+        };
+
+        setDecorationCallbacks(decorationCallbacks => {
+            const newDecorationCallbacks = new Set(decorationCallbacks);
+            newDecorationCallbacks.add(decorationCallback);
+            return newDecorationCallbacks;
+        });
+
+        return () => {
+            setDecorationCallbacks(decorationCallbacks => {
+                const newDecorationCallbacks = new Set(decorationCallbacks);
+                newDecorationCallbacks.delete(decorationCallback);
+                return newDecorationCallbacks;
+            });
+        };
+    }, [floaterState]);
+
     useContentEditorDebugTools(viewRef);
 
     return (
@@ -889,7 +917,7 @@ function ContentEditor<Content extends Node>(
             <ContentEditorFloater
                 state={unwrap(state)}
                 viewRef={viewRef}
-                floaterState={state.getFloaterState()}
+                floaterState={floaterState}
                 onFloaterStateReset={() => {
                     const view = assertExists(viewRef.current);
                     view.dispatch(

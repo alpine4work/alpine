@@ -1,5 +1,8 @@
 import {globalStyle, style} from "@vanilla-extract/css";
+import {spacing} from "~/shared/design/spacing";
+import {colorSchemeVars} from "~/shared/styles/internal/color_scheme.css";
 import {
+    codeClassName,
     headingLevel1ClassName,
     headingLevel1FontSize,
     headingLevel2ClassName,
@@ -91,4 +94,19 @@ export const shiftKeyOrAltKeyDownClassName = style({});
 // cursor instead of a pointer cursor.
 globalStyle(`${shiftKeyOrAltKeyDownClassName} ${linkClassName}`, {
     cursor: "inherit",
+});
+
+// TODO(calebmer): I don't love this style but moving on for now...
+export const inlineMentionInputClassName = style({
+    backgroundColor: colorSchemeVars["grey-5"],
+    paddingTop: spacing["0.5"],
+    paddingBottom: spacing["0.5"],
+    paddingLeft: spacing["1"],
+    paddingRight: spacing["1"],
+    borderRadius: spacing["1"],
+    selectors: {
+        [`${codeClassName} &`]: {
+            backgroundColor: colorSchemeVars["grey-10"],
+        },
+    },
 });

@@ -10,8 +10,19 @@ import {findWrapping} from "prosemirror-transform";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema";
 import {assert} from "~/shared/helpers/control/assert";
 
+export const openMentionFloaterMetaKey = "openMentionFloater";
+
 export function buildInputRulesPlugin(schema: ContentProsemirrorSchema) {
     const rules: Array<InputRule> = [];
+
+    // `@` opens a mention search/selector interface
+    rules.push(
+        new InputRule(/(?:^|\s)@$/, state =>
+            state.tr
+                .replaceSelectionWith(schema.text("@"))
+                .setMeta(openMentionFloaterMetaKey, true),
+        ),
+    );
 
     // "smart quotes"
     rules.push(...smartQuotes);

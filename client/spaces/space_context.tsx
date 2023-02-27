@@ -59,7 +59,7 @@ export function useSpaceContext() {
  * recommended that you use `usePreloadSpaceAccounts()` in some parent component so
  * that stale accounts are ready when this hook is called.
  */
-export function useLoadSpaceAccounts() {
+export function useExpensivelyLoadAllSpaceAccounts() {
     const spaceAccountsContext = useContext(SpaceAccountsContext);
     if (!spaceAccountsContext)
         throw new InternalError("Must be in a space route to get space accounts");
@@ -81,7 +81,7 @@ export function useLoadSpaceAccounts() {
  * Preload space accounts so that they are immediately available when you
  * call `useSpaceAccounts()` and you don't have to wait for a network request.
  */
-export function usePreloadSpaceAccounts() {
+export function useExpensivelyPreloadAllSpaceAccounts() {
     const spaceContext = useSpaceContext();
 
     // Preload space accounts on initial render.

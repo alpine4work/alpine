@@ -214,6 +214,16 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
             toDOM: () => ["br"],
             parseDOM: [{tag: "br"}],
         },
+
+        // TODO(calebmer): Implement!
+        //
+        // mention: {
+        //     inline: true,
+        //     group: "inline",
+        //     selectable: false,
+        //     // TODO(calebmer): Proper `toDOM` and `parseDOM`.
+        //     toDOM: () => ["div", {}, "Unknown mention"],
+        // },
     },
     marks: {
         // All of our marks are `inclusive` which means that typing before and after
