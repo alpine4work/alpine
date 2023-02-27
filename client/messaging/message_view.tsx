@@ -75,6 +75,8 @@ export const messageViewPreviewScale =
     fontSizesByPlatform["50"].desktop.fontSize / fontSizesByPlatform["100"].desktop.fontSize;
 export const messageViewReplyPreviewOpacity = 0.6;
 export const messageViewReplyPreviewBubbleOpacity = 0.7;
+export const messageViewMargin: Spacing = "3";
+export const messageViewMergedMargin: Spacing = "0.5";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders
@@ -90,7 +92,10 @@ export const messageViewReplyPreviewBubbleOpacity = 0.7;
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const Box = null;
 
-function shouldMergeMessages(
+/**
+ * Should two messages merge together?
+ */
+export function shouldMergeMessages(
     message1: MessageInterfaceBase,
     message2: MessageInterfaceBase,
 ): boolean {
@@ -504,7 +509,9 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
                 className={sprinkles({
                     display: "flex",
                     paddingX: "3",
-                    paddingBottom: !shouldMergeWithNextMessage ? "3" : "0.5",
+                    paddingBottom: !shouldMergeWithNextMessage
+                        ? messageViewMargin
+                        : messageViewMergedMargin,
                 })}
             >
                 {useMemo(

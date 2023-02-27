@@ -202,6 +202,24 @@ export type VirtualizedScrollViewRef = {
     peekRenderedRangeAfterScrollToIndex(
         index: number,
     ): {startIndex: number; endIndex: number} | null;
+
+    /**
+     * Get the current scroll offset for the scroll view.
+     */
+    getScrollOffset(): number;
+
+    /**
+     * Set the scroll offset to a new value.
+     */
+    setScrollOffset(scrollOffset: number): void;
+
+    /**
+     * Get the position of an item with the provided key if it exists.
+     */
+    getPositionByKeyIfExists(key: Key): {
+        offset: number;
+        height: number;
+    } | null;
 };
 
 const VirtualizedScrollViewForwardRef = forwardRef(VirtualizedScrollView);
@@ -1114,6 +1132,18 @@ function VirtualizedScrollView(
                 });
 
                 return peekState.getRenderedRange();
+            },
+            getScrollOffset: () => {
+                const scrollElement = assertExists(scrollRef.current);
+                return scrollElement.scrollTop;
+            },
+            setScrollOffset: (scrollOffset: number) => {
+                const scrollElement = assertExists(scrollRef.current);
+                scrollElement.scrollTop = scrollOffset;
+            },
+            getPositionByKeyIfExists: key => {
+                const state = stateRef.current.state;
+                return state.getPositionByKeyIfExists(key);
             },
         }),
         [],

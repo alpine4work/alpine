@@ -20,6 +20,7 @@ export type MessageListLoadedItem<Message extends MessageInterface> = {
 
 export type MessageListUnloadedItem = {
     readonly type: "Unloaded";
+    readonly message: null;
 };
 
 export type MessageListOptimisticItem = {
@@ -110,7 +111,7 @@ export class MessageList<Message extends MessageInterface> {
         }
 
         const message = this._messages.get(index);
-        return message ? {type: "Loaded", message} : {type: "Unloaded"};
+        return message ? {type: "Loaded", message} : {type: "Unloaded", message: null};
     }
 
     /**

@@ -17,7 +17,7 @@ import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
 import {Spacer} from "~/client/design/spacer";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {ChannelViewHeader, channelViewHeaderMinHeight} from "~/client/forum/channel_view_header";
-import {PostCommentInput} from "~/client/forum/post_comment_input";
+import {PostCommentInput, postCommentInputMinHeight} from "~/client/forum/post_comment_input";
 import {PostContentView, postContentViewMinHeight} from "~/client/forum/post_content_view";
 import {PostEditorModal} from "~/client/forum/post_editor_modal";
 import {
@@ -840,9 +840,9 @@ function PostListView(
                     return {
                         key:
                             item.type === "LoadedPostComment"
-                                ? `LoadedPostComment:${item.post.id}:${item.postComment.index}`
+                                ? `PostComment:${item.post.id}:${item.postComment.index}`
                                 : item.type === "OptimisticPostComment"
-                                ? `OptimisticPostComment:${item.post.id}:${item.optimisticPostCommentIndex}`
+                                ? `PostComment:${item.post.id}:${item.postCommentIndex}`
                                 : `UnloadedPostComment:${item.post.id}:${item.postCommentIndex}`,
                         minHeight: messageViewMinHeight,
                         renderAdditionalItemIndexes: [item.postCommentInputItemIndex],
@@ -899,6 +899,7 @@ function PostListView(
                     const inputNode = (
                         <PostCommentInput
                             post={item.post}
+                            viewRef={viewRef}
                             actionsRef={actions => {
                                 if (actions) {
                                     actionsByPostIdRef.current.set(item.post.id, actions);
@@ -937,7 +938,7 @@ function PostListView(
 
                     return {
                         key: `PostCommentInput:${item.post.id}`,
-                        minHeight: addRemLengths("3.5rem", spacing[marginBottom]),
+                        minHeight: addRemLengths(postCommentInputMinHeight, spacing[marginBottom]),
                         withManualLayout: true,
                         stayCompletelyVisibleAfterResize: true,
                         render: ({
