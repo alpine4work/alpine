@@ -220,6 +220,7 @@ export function ContentView({
             {focusedLinkElement && <FocusRing targetElement={focusedLinkElement} />}
             {contentUpdatedTime && contentUpdatedNoteElement && (
                 <Tooltip
+                    placement="bottom"
                     content={<PrettyAbsoluteDateTooltipContent date={contentUpdatedTime} />}
                     targetElement={contentUpdatedNoteElement}
                 />
