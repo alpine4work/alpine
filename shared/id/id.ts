@@ -24,11 +24,34 @@ let alphabetSet: Set<string>;
 export const idLength = 26;
 
 /**
+ * The minimum `Id` string we can generate.
+ */
+const minId = "00000000000000000000000000" as Id;
+
+/**
+ * Gets the minimum `Id` string we can generate.
+ *
+ * Generic so it can be used with any type in `id_type.ts`.
+ */
+export function getMinId<Value extends Id>(): Value {
+    return minId as Value;
+}
+
+/**
  * The maximum `Id` string we can generate. The 26 characters that make up an
  * ID can store 130 bits of information but we want to limit ourselves to 128
  * bits. That way we can represent the `Id` as an integer.
  */
-export const maxId = "zzzzzzzzzzzzzzzzzzzzzzzzzw" as Id;
+const maxId = "zzzzzzzzzzzzzzzzzzzzzzzzzw" as Id;
+
+/**
+ * Gets the maximum `Id` string we can generate.
+ *
+ * Generic so it can be used with any type in `id_type.ts`.
+ */
+export function getMaxId<Value extends Id>(): Value {
+    return maxId as Value;
+}
 
 /**
  * Is the provided string a valid `Id`?

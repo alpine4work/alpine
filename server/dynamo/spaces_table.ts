@@ -1,14 +1,21 @@
+import {getAccountOrThrow} from "~/server/dynamo/accounts_table";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
-import {UnauthenticatedRequestContext} from "~/server/dynamo/context/request_context";
+import {
+    RequestContext,
+    UnauthenticatedRequestContext,
+} from "~/server/dynamo/context/request_context";
 import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
-import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
+import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {ContextCache} from "~/shared/context/cache_context_module";
 import {PermissionDeniedError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {assert} from "~/shared/helpers/control/assert";
+import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array";
+import {getMaxId, getMinId} from "~/shared/id/id";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types";
+import {AccountModel} from "~/shared/models/account_model";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
 import {Schema} from "~/shared/schema/schema";
 
@@ -64,6 +71,8 @@ const SpacesTable = DynamoTableSchema.new({
         },
     },
 });
+
+type SpaceAccountItem = DynamoTableItemType<typeof SpacesTable, "Space", "Account">;
 
 /**
  * We are not allowed to export our DynamoDB tables so instead export a
@@ -125,6 +134,11 @@ export function createSpaceAccountForAlphaTransactionEntries({
     ];
 }
 
+const SpaceAccountContextCache = new ContextCache<
+    `${SpaceId}:${AccountId}`,
+    SpaceAccountItem | null
+>();
+
 /**
  * Is the `accountId` a member of the provided `spaceId`?
  */
@@ -133,14 +147,15 @@ export async function isAccountMemberOfSpace(
     spaceId: SpaceId,
     accountId: AccountId,
 ): Promise<boolean> {
-    const spaceAccountItem = await SpacesTable.getItem(context, {
-        partitionType: "Space",
-        sortRangeType: "Account",
-        spaceId,
-        accountId,
-    });
-
-    return !!spaceAccountItem;
+    const item = await SpaceAccountContextCache.get(context, `${spaceId}:${accountId}`, () =>
+        SpacesTable.getItem(context, {
+            partitionType: "Space",
+            sortRangeType: "Account",
+            spaceId,
+            accountId,
+        }),
+    );
+    return !!item;
 }
 
 const SpaceAuthorizationContextCache = new ContextCache<SpaceId, void>();
@@ -187,4 +202,46 @@ export function authorizeSpaceAccess(
             );
         }
     });
+}
+
+/**
+ * Gets all the accounts in our space.
+ *
+ * Expensive since there is no pagination to this method. Can get quite slow
+ * for spaces with many accounts. We may cache this list to improve
+ * performance. However, since right now this is used primarily to search for
+ * accounts the real solution is to setup ElasticSearch and use that for
+ * searching accounts.
+ *
+ * Returns in `AccountId` order.
+ */
+export async function expensivelyGetAllSpaceAccounts(
+    context: RequestContext,
+    spaceId: SpaceId,
+): Promise<Array<AccountModel>> {
+    await authorizeSpaceAccess(context, spaceId);
+
+    return parallelMapAsyncIterableToArray(
+        SpacesTable.query(context, {
+            partitionKey: {
+                partitionType: "Space",
+                spaceId,
+            },
+            startSortKey: {
+                sortRangeType: "Account",
+                accountId: getMinId<AccountId>(),
+            },
+            endSortKey: {
+                sortRangeType: "Account",
+                accountId: getMaxId<AccountId>(),
+            },
+            limit: "All",
+        }),
+        item => {
+            // Future calls to `isAccountMemberOfSpace()` should not need to load a space
+            // account item and should instead see the one we've already loaded here.
+            SpaceAccountContextCache.set(context, `${item.spaceId}:${item.accountId}`, item);
+            return getAccountOrThrow(context, item.spaceId, item.accountId);
+        },
+    );
 }

@@ -2,7 +2,6 @@ import {Context} from "~/shared/context/context";
 import {ContextModuleBase} from "~/shared/context/context_module_base";
 import {DefaultMap} from "~/shared/helpers/map/default_map";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
-import {generateId} from "~/shared/id/id";
 
 /**
  * A context module used for caching values for the lifetime of a context. Used
@@ -39,8 +38,15 @@ export class ContextCache<Key, Value> {
         getDefault: () => Promise<Value>,
     ): Promise<Value> {
         const cacheMap = context.cache._getCacheMap(this);
-        return getOrSetDefaultMapValue(cacheMap, key, () =>
-            Object.assign(getDefault(), {_debugId: generateId()}),
-        );
+        return getOrSetDefaultMapValue(cacheMap, key, () => getDefault());
+    }
+
+    /**
+     * Unconditionally sets a value in the cache. If a value already exists in the
+     * cache then this function will overwrite it.
+     */
+    public set(context: Context<{cache: CacheContextModule}>, key: Key, value: Value): void {
+        const cacheMap = context.cache._getCacheMap(this);
+        cacheMap.set(key, Promise.resolve(value));
     }
 }
