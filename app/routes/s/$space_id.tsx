@@ -13,6 +13,7 @@ import {Schema} from "~/shared/schema/schema";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
 
 const LoaderSchema = Schema.object({
+    spaceId: Schema.id<SpaceId>(),
     currentAccount: AccountModel.schema(),
 });
 
@@ -41,18 +42,18 @@ export async function loader({context, params}: LoaderArgs) {
         },
     };
 
-    return jsonWithSchema(LoaderSchema, {currentAccount}, {propagateEventData});
+    return jsonWithSchema(LoaderSchema, {spaceId, currentAccount}, {propagateEventData});
 }
 
 export default function SpaceLayout() {
-    const {currentAccount} = useLoaderDataWithSchema(LoaderSchema);
+    const {spaceId, currentAccount} = useLoaderDataWithSchema(LoaderSchema);
 
     useEffect(() => {
         attachDevConsoleForAccountInProduction(currentAccount);
     }, [currentAccount]);
 
     return (
-        <SpaceContextProvider currentAccount={currentAccount}>
+        <SpaceContextProvider spaceId={spaceId} currentAccount={currentAccount}>
             <Outlet />
         </SpaceContextProvider>
     );

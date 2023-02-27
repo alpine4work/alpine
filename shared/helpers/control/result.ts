@@ -1,7 +1,7 @@
 /**
  * An algebraic data type for propagating errors without throwing.
  */
-export type Result<T, E = Error> =
+export type Result<T, E = unknown> =
     | {
           readonly ok: true;
           readonly value: T;

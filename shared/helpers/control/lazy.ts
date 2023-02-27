@@ -13,7 +13,7 @@ import {Result} from "~/shared/helpers/control/result";
  * detail for improved efficiency of an otherwise immutable pointer.
  */
 export class Lazy<Value> {
-    private _result: Result<Value, unknown> | null;
+    private _result: Result<Value> | null;
     private _get: (() => Value) | null;
 
     constructor(get: () => Value) {

@@ -24,7 +24,7 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
  * immutability is important to you.
  */
 export class LazyMap<Key, Value> {
-    private readonly _map: Map<Key, Result<Value, unknown>>;
+    private readonly _map: Map<Key, Result<Value>>;
     private readonly _get: (key: Key) => Value;
 
     constructor(get: (key: Key) => Value) {

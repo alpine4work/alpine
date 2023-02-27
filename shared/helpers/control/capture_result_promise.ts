@@ -6,9 +6,7 @@ import {Result} from "~/shared/helpers/control/result";
  *
  * To replay a result use `unwrapResult()`.
  */
-export async function captureResultPromise<T>(
-    action: () => Promise<T>,
-): Promise<Result<T, unknown>> {
+export async function captureResultPromise<T>(action: () => Promise<T>): Promise<Result<T>> {
     try {
         const value = await action();
         return {ok: true, value};
@@ -24,7 +22,7 @@ export async function captureResultPromise<T>(
  * You could also use `unwrapResult()` if you're ok with synchronously
  * throwing.
  */
-export function unwrapResultPromise<T, E = Error>(result: Result<T, E>): Promise<T> {
+export function unwrapResultPromise<T, E = unknown>(result: Result<T, E>): Promise<T> {
     if (result.ok) {
         return Promise.resolve(result.value);
     } else {

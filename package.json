@@ -95,6 +95,7 @@
         "express": "^4.18.2",
         "fs-extra": "^10.1.0",
         "functional-red-black-tree": "^1.0.1",
+        "fuse.js": "^6.6.2",
         "get-port": "^5.1.1",
         "html-entities": "^2.3.3",
         "html-minifier": "^4.0.0",
