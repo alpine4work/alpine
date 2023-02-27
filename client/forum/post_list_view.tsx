@@ -37,7 +37,6 @@ import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
-import {useExpensivelyPreloadAllSpaceAccounts} from "~/client/spaces/space_context";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
@@ -163,10 +162,6 @@ function PostListView(
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const [viewContainerRef, viewSize] = useResizeObserver();
     const [asideRef, asideSize] = useResizeObserver();
-
-    // Preload space accounts when looking at a post. We'll need space accounts for
-    // mentions in a post creator or for mentions in a post comment input.
-    useExpensivelyPreloadAllSpaceAccounts();
 
     const lastScrollOffsetRef = useRef(0);
     const [scrollDirectionState, setScrollDirectionState] = useState<{

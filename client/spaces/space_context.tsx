@@ -163,7 +163,10 @@ export function SpaceContextProvider({
     useEffect(() => {
         const {spaceId} = spaceAccountsState;
 
-        if (!spaceAccountsState.isLoading) return;
+        if (!spaceAccountsState.isLoading) {
+            isActuallyLoadingAccountsForSpaceIdRef.current = null;
+            return;
+        }
         if (isActuallyLoadingAccountsForSpaceIdRef.current === spaceId) return;
         isActuallyLoadingAccountsForSpaceIdRef.current = spaceId;
 

@@ -332,6 +332,7 @@ function contentEditorFloaterStatePlugin() {
                             type: "Mention",
                             range: {from: $from.pos, to: newState.selection.head},
                             searchQuery: "",
+                            isClosing: false,
                         };
                     }
                 }
@@ -357,20 +358,19 @@ function contentEditorFloaterStatePlugin() {
                 }
 
                 // Adjust our mention range based on the selection's new position.
-                if (floaterState.type === "Mention") {
+                if (floaterState.type === "Mention" && !floaterState.isClosing) {
                     const $from = newState.doc.resolve(floaterState.range.from);
 
-                    // If the mention no longer starts with `@` then reset our floater back to the
-                    // initial state.
+                    // If the mention no longer starts with `@` then close our floater.
                     if (
                         $from.parent.textBetween($from.parentOffset, $from.parentOffset + 1) !== "@"
                     ) {
-                        floaterState = initialContentEditorFloaterState;
+                        floaterState = {...floaterState, isClosing: true};
                     }
                     // If the head of our selection left the beginning of our mention range then
                     // reset our floater back to the initial state.
                     else if (newState.selection.head < floaterState.range.from) {
-                        floaterState = initialContentEditorFloaterState;
+                        floaterState = {...floaterState, isClosing: true};
                     }
                     // If the head of our selection left the end of our mention range...
                     else if (newState.selection.head > floaterState.range.to) {
@@ -387,7 +387,7 @@ function contentEditorFloaterStatePlugin() {
                         // If the user pasted multiple paragraphs of content then our floater state
                         // will be cleaned up below.
                         if (!transaction.selectionSet || !transaction.docChanged) {
-                            floaterState = initialContentEditorFloaterState;
+                            floaterState = {...floaterState, isClosing: true};
                         } else {
                             floaterState = {
                                 ...floaterState,
@@ -400,7 +400,7 @@ function contentEditorFloaterStatePlugin() {
                 // Compute the new search query for our mention floater and put it in our
                 // state. If the mention range does not have a valid search query then we will
                 // reset our floater state here.
-                if (floaterState.type === "Mention") {
+                if (floaterState.type === "Mention" && !floaterState.isClosing) {
                     const mentionSlice = newState.doc.slice(
                         floaterState.range.from + 1,
                         floaterState.range.to,
@@ -410,16 +410,16 @@ function contentEditorFloaterStatePlugin() {
                         mentionSlice.openEnd !== 0 ||
                         mentionSlice.content.childCount > 1
                     ) {
-                        floaterState = initialContentEditorFloaterState;
+                        floaterState = {...floaterState, isClosing: true};
                     } else {
                         const child = mentionSlice.content.firstChild;
                         if (child && child.type.name !== "text") {
-                            floaterState = initialContentEditorFloaterState;
+                            floaterState = {...floaterState, isClosing: true};
                         } else {
                             const searchQuery = child?.text ?? "";
 
                             if (searchQuery.includes("@")) {
-                                floaterState = initialContentEditorFloaterState;
+                                floaterState = {...floaterState, isClosing: true};
                             } else if (searchQuery !== floaterState.searchQuery) {
                                 floaterState = {
                                     ...floaterState,

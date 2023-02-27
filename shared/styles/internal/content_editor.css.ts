@@ -96,17 +96,7 @@ globalStyle(`${shiftKeyOrAltKeyDownClassName} ${linkClassName}`, {
     cursor: "inherit",
 });
 
-// TODO(calebmer): I don't love this style but moving on for now...
-export const inlineMentionInputClassName = style({
-    backgroundColor: colorSchemeVars["grey-5"],
-    paddingTop: spacing["0.5"],
-    paddingBottom: spacing["0.5"],
-    paddingLeft: spacing["1"],
-    paddingRight: spacing["1"],
-    borderRadius: spacing["1"],
-    selectors: {
-        [`${codeClassName} &`]: {
-            backgroundColor: colorSchemeVars["grey-10"],
-        },
-    },
-});
+// TODO(calebmer): I feel like we should have some kind of style here to make
+// it clear where the end of the mention is? Or modify the mention logic so we
+// are less forgiving of spaces and arrow key movements.
+export const inlineMentionInputClassName = style({});

@@ -39,6 +39,7 @@ import {isMac} from "~/client/helpers/browser/is_mac";
 import {isVirtualKeyboardEvent} from "~/client/helpers/events/is_virtual_keyboard_event";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
+import {useExpensivelyPreloadAllSpaceAccounts} from "~/client/spaces/space_context";
 import {documentFallbackTitle} from "~/shared/content/document_fallback_title";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty";
 import {ThemeColor} from "~/shared/design/theme_colors";
@@ -261,6 +262,10 @@ function ContentEditor<Content extends Node>(
         onBlur,
         phantomSelections,
     } = props;
+
+    // Preload space accounts so when the user tries to mention one they
+    // are available.
+    useExpensivelyPreloadAllSpaceAccounts();
 
     // The props for the current React commit. We are integrating with a stateful
     // component (ProseMirror's `EditorView`) so we need to be able to

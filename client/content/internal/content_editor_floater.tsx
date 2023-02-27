@@ -70,6 +70,12 @@ export type ContentEditorMentionFloaterState = {
      * The search query we will look for to pick a mention.
      */
     readonly searchQuery: string;
+    /**
+     * Is the mention floater in the closing animation? Other floaters manage their
+     * closing animation state locally but we do it here since we close the floater
+     * from `ContentEditorState`.
+     */
+    readonly isClosing: boolean;
 };
 
 export type ContentEditorFloaterState =
@@ -149,6 +155,9 @@ export function ContentEditorFloater({
                     state={state}
                     viewRef={viewRef}
                     range={floaterState.range}
+                    searchQuery={floaterState.searchQuery}
+                    isClosing={floaterState.isClosing}
+                    onClose={onFloaterStateReset}
                 />
             );
         }
