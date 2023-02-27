@@ -4,7 +4,12 @@ import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/pro
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error";
 import {assert} from "~/shared/helpers/control/assert";
-import {RpcHttpInputSchema, RpcHttpOutputSchema} from "~/shared/rpc/helpers/rpc_http_schema";
+import {
+    RpcHttpBatchCallInputSchema,
+    RpcHttpBatchCallOutputSchema,
+    RpcHttpCallInputSchema,
+    RpcHttpCallOutputSchema,
+} from "~/shared/rpc/helpers/rpc_http_schema";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition";
 import {SchemaDeserializationError, SchemaSerializedValue} from "~/shared/schema/schema";
@@ -91,23 +96,35 @@ async function executeRpcs(callBatch: Array<RpcCall>): Promise<void> {
     // If this function throws any error, we want to reject all calls in our
     // batch with that error.
     try {
-        const input = {
-            calls: callBatch.map(call => ({
-                name: call.name,
-                input: call.input,
-            })),
-        };
-
         const [firstCall, ...otherCalls] = callBatch;
         assert(firstCall);
 
-        const {span, responsePromise} = fetchWithTracerAndReturnSpan(firstCall.span, "/api/rpc", {
-            method: "POST",
-            headers: {
-                "content-type": "application/json",
+        const {span, responsePromise} = fetchWithTracerAndReturnSpan(
+            firstCall.span,
+            otherCalls.length === 0 ? `/api/rpc/${firstCall.name}` : "/api/rpc/_batch",
+            {
+                method: "POST",
+                headers: {
+                    "content-type": "application/json",
+                },
+                body:
+                    otherCalls.length === 0
+                        ? JSON.stringify(
+                              RpcHttpCallInputSchema.serialize({
+                                  name: firstCall.name,
+                                  input: firstCall.input,
+                              }),
+                          )
+                        : JSON.stringify(
+                              RpcHttpBatchCallInputSchema.serialize({
+                                  calls: callBatch.map(call => ({
+                                      name: call.name,
+                                      input: call.input,
+                                  })),
+                              }),
+                          ),
             },
-            body: JSON.stringify(RpcHttpInputSchema.serialize(input)),
-        });
+        );
 
         // The first call is the parent of our HTTP execution. Link the other calls to
         // the HTTP execution span so we can see the causal relationship.
@@ -120,37 +137,57 @@ async function executeRpcs(callBatch: Array<RpcCall>): Promise<void> {
             throw new UnavailableError(error.message, {cause: error});
         });
 
-        const output = await response
-            .json()
-            .then((output: any) => RpcHttpOutputSchema.deserialize(output))
-            .catch(error => {
-                // If we fail to parse the response body as JSON, classify as `Internal`
-                // status code.
-                //
-                // Maybe an error is also thrown here for some network errors? If so we should
-                // classify network errors as the `Unavailable` status code.
-                throw new InternalError(error.message, {cause: error});
-            });
+        if (otherCalls.length === 0) {
+            const callOutput = await response
+                .json()
+                .then((output: any) => RpcHttpCallOutputSchema.deserialize(output))
+                .catch(error => {
+                    // If we fail to parse the response body as JSON, classify as `Internal`
+                    // status code.
+                    //
+                    // Maybe an error is also thrown here for some network errors? If so we should
+                    // classify network errors as the `Unavailable` status code.
+                    throw new InternalError(error.message, {cause: error});
+                });
 
-        if (!output.ok) {
-            throw output.error;
-        }
-
-        if (output.calls.length !== callBatch.length)
-            throw new InternalError(
-                `Expected ${callBatch.length} call outputs but received ${output.calls.length} call outputs`,
-            );
-
-        callBatch.forEach((call, index) => {
-            // If anything throws while processing the output for a single call,
-            // reject only that call's promise.
-            const callOutput = output.calls[index]!;
             if (!callOutput.ok) {
-                call.outputPromiseResolver.reject(callOutput.error);
+                firstCall.outputPromiseResolver.reject(callOutput.error);
             } else {
-                call.outputPromiseResolver.resolve(callOutput.output);
+                firstCall.outputPromiseResolver.resolve(callOutput.output);
             }
-        });
+        } else {
+            const output = await response
+                .json()
+                .then((output: any) => RpcHttpBatchCallOutputSchema.deserialize(output))
+                .catch(error => {
+                    // If we fail to parse the response body as JSON, classify as `Internal`
+                    // status code.
+                    //
+                    // Maybe an error is also thrown here for some network errors? If so we should
+                    // classify network errors as the `Unavailable` status code.
+                    throw new InternalError(error.message, {cause: error});
+                });
+
+            if (!output.ok) {
+                throw output.error;
+            }
+
+            if (output.calls.length !== callBatch.length)
+                throw new InternalError(
+                    `Expected ${callBatch.length} call outputs but received ${output.calls.length} call outputs`,
+                );
+
+            callBatch.forEach((call, index) => {
+                // If anything throws while processing the output for a single call,
+                // reject only that call's promise.
+                const callOutput = output.calls[index]!;
+                if (!callOutput.ok) {
+                    call.outputPromiseResolver.reject(callOutput.error);
+                } else {
+                    call.outputPromiseResolver.resolve(callOutput.output);
+                }
+            });
+        }
     } catch (error) {
         for (const call of callBatch) {
             call.outputPromiseResolver.reject(error);
