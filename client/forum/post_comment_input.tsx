@@ -1,4 +1,4 @@
-import {ArrowArcLeft, PaperPlaneRight, X} from "phosphor-react";
+import {ArrowArcLeft, ArrowUp, X} from "phosphor-react";
 import {Ref, useEffect, useMemo, useRef, useState} from "react";
 import {useNavigate} from "react-router-dom";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
@@ -165,6 +165,8 @@ export function PostCommentInput({
 
         createPostComment();
     };
+
+    const isSendButtonDisabled = isContentEmpty(state.getContent());
 
     return (
         <Box data-testid={`PostCommentInput:${post.id}`}>
@@ -334,14 +336,12 @@ export function PostCommentInput({
                         <IconButton
                             variant="accent"
                             description="Send comment"
-                            withoutTooltip={true}
-                            isDisabled={isContentEmpty(state.getContent())}
+                            isDisabled={isSendButtonDisabled}
                             onPress={submitPostComment}
                         >
-                            <PaperPlaneRight
+                            <ArrowUp
                                 size={spacing["4"]}
-                                weight="fill"
-                                style={{transform: "translateX(1px)"}}
+                                weight={!isSendButtonDisabled ? "bold" : undefined}
                             />
                         </IconButton>
                     </Box>
