@@ -1,4 +1,3 @@
-import classNames from "classnames";
 import {Link as LinkIcon, X} from "phosphor-react";
 import {Mark} from "prosemirror-model";
 import {EditorView} from "prosemirror-view";
@@ -7,28 +6,36 @@ import {useButton, useHover} from "react-aria";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
 import {Tooltip} from "~/client/design/tooltip";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {spacing} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
-import {
-    darkColorSchemeInputPlaceholderColorConstClassName,
-    sprinkles,
-} from "~/shared/styles/styles";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {sprinkles} from "~/shared/styles/styles";
 
 export function ContentEditorLinkInput({
     viewRef,
     range,
     mark,
     isDisabled = false,
+    autoFocus,
     onClose,
 }: {
     viewRef: RefObject<EditorView | null>;
     range: {from: number; to: number};
     mark: Mark | null;
     isDisabled?: boolean;
+    autoFocus?: boolean;
     onClose: () => void;
 }) {
     const inputRef = useRef<HTMLInputElement>(null);
     const [url, setUrl] = useState<string>(mark?.attrs.url ?? "");
+
+    const hasInitiallyRenderedRef = useRef(false);
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (hasInitiallyRenderedRef.current) return;
+        hasInitiallyRenderedRef.current = true;
+        if (autoFocus) assertExists(inputRef.current).focus();
+    }, [autoFocus]);
 
     const save = () => {
         if (url === "") {
@@ -74,10 +81,10 @@ export function ContentEditorLinkInput({
             // Maybe the width should grow with the URL length for a bit? Until a
             // max width?
             width={url.length > 40 ? "96" : "64"}
-            color="grey-0-const"
-            backgroundColor="grey-80-const"
-            border={{light: "grey-80-const", dark: "grey-70-const"}}
-            borderRadius="sm"
+            color="grey-text"
+            backgroundColor={{light: "grey-0", dark: "grey-5"}}
+            border={{light: "grey-0", dark: "grey-10"}}
+            borderRadius="md"
             boxShadow="elevation-20"
             position="relative"
             onKeyDown={event => {
@@ -92,7 +99,7 @@ export function ContentEditorLinkInput({
                 className={sprinkles({
                     pointerEvents: "none",
                     position: "absolute",
-                    color: "grey-20-const",
+                    color: "grey-70",
                     left: "2",
                     top: "2",
                 })}
@@ -100,18 +107,15 @@ export function ContentEditorLinkInput({
             <input
                 ref={inputRef}
                 type="text"
-                className={classNames(
-                    darkColorSchemeInputPlaceholderColorConstClassName,
-                    sprinkles({
-                        flex: "1",
-                        height: "full",
-                        paddingLeft: "8",
-                        paddingRight: "1",
-                        fontSize: "75",
-                        color: "grey-0-const",
-                        backgroundColor: "transparent",
-                    }),
-                )}
+                className={sprinkles({
+                    flex: "1",
+                    height: "full",
+                    paddingLeft: "8",
+                    paddingRight: "1",
+                    fontSize: "75",
+                    color: "grey-text",
+                    backgroundColor: "transparent",
+                })}
                 placeholder="https://example.com"
                 disabled={isDisabled}
                 value={url}
@@ -170,11 +174,11 @@ function ContentEditorLinkInputClearButton({
                             width: "5",
                             height: "5",
                             borderRadius: "base",
-                            color: isPressed ? "grey-0-const" : "grey-20-const",
+                            color: isPressed ? "grey-text" : "grey-70",
                             backgroundColor: isPressed
-                                ? "grey-60-const"
+                                ? {light: "grey-10", dark: "grey-20"}
                                 : isHovered
-                                ? "grey-70-const"
+                                ? {light: "grey-5", dark: "grey-10"}
                                 : undefined,
                         })}
                     >
@@ -200,7 +204,7 @@ function ContentEditorLinkInputSaveButton({
 
     return (
         <Box {...hoverProps} paddingY="1.5">
-            <Box paddingLeft="1" borderLeft="grey-70-const" marginLeft="1">
+            <Box paddingLeft="1" borderLeft={{light: "grey-5", dark: "grey-10"}} marginLeft="1">
                 <FocusRing offset="0">
                     <button
                         {...buttonProps}
@@ -212,11 +216,11 @@ function ContentEditorLinkInputSaveButton({
                             paddingX: "1.5",
                             height: "5",
                             borderRadius: "base",
-                            color: isPressed ? "grey-0-const" : "grey-20-const",
+                            color: isPressed ? "grey-text" : "grey-70",
                             backgroundColor: isPressed
-                                ? "grey-60-const"
+                                ? {light: "grey-10", dark: "grey-20"}
                                 : isHovered
-                                ? "grey-70-const"
+                                ? {light: "grey-5", dark: "grey-10"}
                                 : undefined,
                         })}
                     >

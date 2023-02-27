@@ -410,6 +410,14 @@ const lastChildSelectors = [
 ];
 lastChildSelectors.forEach(selector => globalStyle(selector, {marginBottom: 0}));
 
+const blockChildSelectors = [
+    `${listItemClassName} > ${paragraphClassName}`,
+    `${checkListItemContentClassName} > ${paragraphClassName}`,
+    `${quoteBlockClassName} > ${paragraphClassName}`,
+    `${quoteBlockClassName} > ${listItemClassName}`,
+];
+blockChildSelectors.forEach(selector => globalStyle(selector, {paddingRight: 0}));
+
 export const emptyTitleClassName = style({});
 
 globalStyle(`${emptyTitleClassName} > ${titleClassName}[data-placeholder]::before`, {

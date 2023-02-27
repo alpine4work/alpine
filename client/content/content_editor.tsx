@@ -880,13 +880,12 @@ function ContentEditor<Content extends Node>(
     useContentEditorDebugTools(viewRef);
 
     return (
-        <>
-            <div
-                ref={elementRef}
-                className={classNames(containerClassName, customContainerClassName)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-            />
+        <div
+            ref={elementRef}
+            className={classNames(containerClassName, customContainerClassName)}
+            onFocus={onFocus}
+            onBlur={onBlur}
+        >
             <ContentEditorFloater
                 state={unwrap(state)}
                 viewRef={viewRef}
@@ -918,7 +917,7 @@ function ContentEditor<Content extends Node>(
                     phantomSelection={phantomSelection}
                 />
             ))}
-        </>
+        </div>
     );
 }
 

@@ -17,7 +17,7 @@ import {Mark} from "prosemirror-model";
 import {Command, EditorState, TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {Memo, ReactNode, RefObject, useCallback, useEffect, useMemo, useRef, useState} from "react";
-import {FocusScope, mergeProps, useButton} from "react-aria";
+import {mergeProps, useButton} from "react-aria";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker";
 import {ContentEditorHighlightSelector} from "~/client/content/internal/content_editor_highlight_selector";
 import {ContentEditorLinkInput} from "~/client/content/internal/content_editor_link_input";
@@ -36,11 +36,13 @@ import {Overlay, OverlayRef} from "~/client/design/overlay";
 import {OverlayAnimated} from "~/client/design/overlay_animated";
 import {Tooltip, TooltipRef, TooltipState} from "~/client/design/tooltip";
 import {isMac} from "~/client/helpers/browser/is_mac";
+import {isElementOwnedBy} from "~/client/helpers/is_element_owned_by";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema";
 import {spacing} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {
     overlayAnimateContainerClassName,
     overlayAnimateFadeInClassName,
@@ -63,11 +65,8 @@ export function ContentEditorPointerToolbar({
 }) {
     const interactionModality = useInteractionModality();
 
-    const shouldShow =
+    const shouldShowIgnoringInteractionModality =
         isFocused &&
-        // The toolbar overlay is intended for pointer use only. You can use keyboard
-        // shortcuts to accomplish everything in the toolbar.
-        interactionModality === "pointer" &&
         // Make sure some characters are selected before showing the selection toolbar.
         state.selection.from !== state.selection.to &&
         // Only show the pointer toolbar for a text selection. This includes the
@@ -77,6 +76,12 @@ export function ContentEditorPointerToolbar({
         // can only be at the beginning of a document so checking whether
         // `selection.from` is in the title is sufficient for detecting overlap.
         state.selection.$from.parent.type.name !== "title";
+
+    const shouldShow =
+        shouldShowIgnoringInteractionModality &&
+        // The toolbar overlay is intended for pointer use only. You can use keyboard
+        // shortcuts to accomplish everything in the toolbar.
+        interactionModality === "pointer";
 
     const initialSelection = useConstant(() => state.selection);
 
@@ -123,7 +128,7 @@ export function ContentEditorPointerToolbar({
               isShowing: true;
               pos: number;
               animation: "FadingIn" | "FadingOut" | null;
-              isLinkInputOpen: boolean;
+              extraOverlay: "LinkInput" | "HighlightSelector" | null;
           }
         | {isShowing: false; animation?: undefined}
     >({isShowing: false});
@@ -141,7 +146,7 @@ export function ContentEditorPointerToolbar({
                       animation:
                           showState.animation === "FadingOut" ? "FadingIn" : showState.animation,
                       // Close the link input when the selection changes.
-                      isLinkInputOpen: false,
+                      extraOverlay: null,
                   }
                 : showState;
         }
@@ -153,13 +158,17 @@ export function ContentEditorPointerToolbar({
     }
 
     // If we should stop showing then start the fade out animation.
+    //
+    // Ignore interaction modality when determining whether to close the toolbar.
+    // If the toolbar opened in pointer interaction modality, we may switch to
+    // keyboard interaction modality when editing a link.
     if (
-        !shouldShow &&
+        !shouldShowIgnoringInteractionModality &&
         showState.isShowing &&
         !showState.animation &&
-        // If the link input is open then our interaction modality switches to
-        // keyboard. Don't close the toolbar when this happens.
-        !showState.isLinkInputOpen
+        // If the link input is open then our focus moves to the link input. Don't
+        // close the toolbar when this happens.
+        showState.extraOverlay !== "LinkInput"
     ) {
         showState = {...showState, animation: "FadingOut"};
     }
@@ -182,7 +191,7 @@ export function ContentEditorPointerToolbar({
                     isShowing: true,
                     pos: state.selection.from,
                     animation: "FadingIn",
-                    isLinkInputOpen: false,
+                    extraOverlay: null,
                 });
             }, overlayFadeInAnimationDurationMs);
 
@@ -228,15 +237,30 @@ export function ContentEditorPointerToolbar({
             viewRef={viewRef}
             pos={showState.pos}
             animation={showState.animation}
-            isLinkInputOpen={showState.isLinkInputOpen}
+            isLinkInputOpen={showState.extraOverlay === "LinkInput"}
             onLinkInputOpen={() =>
                 setShowState(prevState =>
-                    prevState.isShowing ? {...prevState, isLinkInputOpen: true} : prevState,
+                    prevState.isShowing
+                        ? {...prevState, extraOverlay: "LinkInput" as const}
+                        : prevState,
                 )
             }
             onLinkInputClose={() =>
                 setShowState(prevState =>
-                    prevState.isShowing ? {...prevState, isLinkInputOpen: false} : prevState,
+                    prevState.isShowing ? {...prevState, extraOverlay: null} : prevState,
+                )
+            }
+            isHighlightSelectorOpen={showState.extraOverlay === "HighlightSelector"}
+            onHighlightSelectorOpen={() =>
+                setShowState(prevState =>
+                    prevState.isShowing
+                        ? {...prevState, extraOverlay: "HighlightSelector" as const}
+                        : prevState,
+                )
+            }
+            onHighlightSelectorClose={() =>
+                setShowState(prevState =>
+                    prevState.isShowing ? {...prevState, extraOverlay: null} : prevState,
                 )
             }
         />
@@ -251,6 +275,9 @@ function ContentEditorPointerToolbarOverlay({
     isLinkInputOpen,
     onLinkInputOpen,
     onLinkInputClose,
+    isHighlightSelectorOpen,
+    onHighlightSelectorOpen,
+    onHighlightSelectorClose,
 }: {
     state: EditorState;
     viewRef: RefObject<EditorView | null>;
@@ -259,6 +286,9 @@ function ContentEditorPointerToolbarOverlay({
     isLinkInputOpen: boolean;
     onLinkInputOpen: () => void;
     onLinkInputClose: () => void;
+    isHighlightSelectorOpen: boolean;
+    onHighlightSelectorOpen: () => void;
+    onHighlightSelectorClose: () => void;
 }) {
     const overlayRef = useRef<OverlayRef>(null);
     const tooltipRefs = useRef<Set<TooltipRef>>(new Set());
@@ -284,10 +314,10 @@ function ContentEditorPointerToolbarOverlay({
                         display="flex"
                         paddingLeft="1"
                         paddingRight="0.5"
-                        color="grey-0-const"
-                        backgroundColor="grey-80-const"
-                        border={{light: "grey-80-const", dark: "grey-70-const"}}
-                        borderRadius="sm"
+                        color="grey-text"
+                        backgroundColor={{light: "grey-0", dark: "grey-5"}}
+                        border={{light: "grey-0", dark: "grey-10"}}
+                        borderRadius="md"
                         boxShadow="elevation-20"
                         className={
                             animation === "FadingIn"
@@ -306,6 +336,9 @@ function ContentEditorPointerToolbarOverlay({
                             isLinkInputOpen={isLinkInputOpen}
                             onLinkInputOpen={onLinkInputOpen}
                             onLinkInputClose={onLinkInputClose}
+                            isHighlightSelectorOpen={isHighlightSelectorOpen}
+                            onHighlightSelectorOpen={onHighlightSelectorOpen}
+                            onHighlightSelectorClose={onHighlightSelectorClose}
                         />
                     </Box>
                 </div>
@@ -337,6 +370,9 @@ function ContentEditorPointerToolbarButtons({
     isLinkInputOpen,
     onLinkInputOpen,
     onLinkInputClose,
+    isHighlightSelectorOpen,
+    onHighlightSelectorOpen,
+    onHighlightSelectorClose,
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<EditorView | null>;
@@ -345,7 +381,12 @@ function ContentEditorPointerToolbarButtons({
     isLinkInputOpen: boolean;
     onLinkInputOpen: () => void;
     onLinkInputClose: () => void;
+    isHighlightSelectorOpen: boolean;
+    onHighlightSelectorOpen: () => void;
+    onHighlightSelectorClose: () => void;
 }) {
+    const shouldDisableTooltips = isLinkInputOpen || isHighlightSelectorOpen;
+
     const {isBold, isItalic, isStrike, activeLinkMark, activeHighlightMark} = useMemo(() => {
         const marks = getMarksSpanningAcrossEntireRange(state.doc, state.selection);
 
@@ -401,6 +442,7 @@ function ContentEditorPointerToolbarButtons({
                 description="Bold"
                 keyboardShortcutHint={isMac ? "⌘+B" : "Ctrl+B"}
                 viewRef={viewRef}
+                isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                 isActive={isBold}
                 command={createToggleMarkCommand(state.schema.mark("bold"))}
@@ -411,6 +453,7 @@ function ContentEditorPointerToolbarButtons({
                 description="Italicize"
                 keyboardShortcutHint={isMac ? "⌘+I" : "Ctrl+I"}
                 viewRef={viewRef}
+                isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                 isActive={isItalic}
                 command={createToggleMarkCommand(state.schema.mark("italic"))}
@@ -421,6 +464,7 @@ function ContentEditorPointerToolbarButtons({
                 description="Strikethrough"
                 keyboardShortcutHint={isMac ? "⌘+Shift+X" : "Ctrl+Shift+X"}
                 viewRef={viewRef}
+                isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                 isActive={isStrike}
                 command={createToggleMarkCommand(state.schema.mark("strike"))}
@@ -431,6 +475,7 @@ function ContentEditorPointerToolbarButtons({
                 dividerRight={!state.schema.marks.highlight}
                 state={state}
                 viewRef={viewRef}
+                isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                 isToolbarFadingOut={isFadingOut}
                 activeLinkMark={activeLinkMark}
@@ -442,9 +487,13 @@ function ContentEditorPointerToolbarButtons({
                 <ContentEditorPointerToolbarHighlightButton
                     dividerRight
                     viewRef={viewRef}
+                    isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
                     sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                     isToolbarFadingOut={isFadingOut}
                     activeHighlightMark={activeHighlightMark}
+                    isHighlightSelectorOpen={isHighlightSelectorOpen}
+                    onHighlightSelectorOpen={onHighlightSelectorOpen}
+                    onHighlightSelectorClose={onHighlightSelectorClose}
                 />
             )}
             <ContentEditorPointerToolbarButton
@@ -452,6 +501,7 @@ function ContentEditorPointerToolbarButtons({
                 description="Bulleted list"
                 keyboardShortcutHint="- Hello"
                 viewRef={viewRef}
+                isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                 isActive={useMemo(
                     () =>
@@ -471,6 +521,7 @@ function ContentEditorPointerToolbarButtons({
                 description="Numbered list"
                 keyboardShortcutHint="1. Hello"
                 viewRef={viewRef}
+                isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                 isActive={useMemo(
                     () =>
@@ -491,6 +542,7 @@ function ContentEditorPointerToolbarButtons({
                     description="Check list"
                     keyboardShortcutHint="[ ] Hello"
                     viewRef={viewRef}
+                    isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
                     sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                     isActive={isCheckListActive}
                     command={createToggleListItemsCommand(state.schema.nodes.checkListItem)}
@@ -505,6 +557,7 @@ function ContentEditorPointerToolbarButtons({
                         description="Heading 1"
                         keyboardShortcutHint="# Hello"
                         viewRef={viewRef}
+                        isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
                         sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                         isActive={isHeadingLevel1Active}
                         command={createToggleBlockTypeCommand(state.schema.nodes.heading, {
@@ -517,6 +570,7 @@ function ContentEditorPointerToolbarButtons({
                         description="Heading 2"
                         keyboardShortcutHint="## Hello"
                         viewRef={viewRef}
+                        isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
                         sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                         isActive={isHeadingLevel2Active}
                         command={createToggleBlockTypeCommand(state.schema.nodes.heading, {
@@ -529,6 +583,7 @@ function ContentEditorPointerToolbarButtons({
                         description="Heading 3"
                         keyboardShortcutHint="### Hello"
                         viewRef={viewRef}
+                        isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
                         sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                         isActive={isHeadingLevel3Active}
                         command={createToggleBlockTypeCommand(state.schema.nodes.heading, {
@@ -547,9 +602,9 @@ function ContentEditorPointerToolbarButton({
     description,
     keyboardShortcutHint,
     viewRef,
+    isTooltipDisabledWithoutAnimation,
     sharedTooltipLifecycleRef,
     isActive,
-    isTooltipDisabled,
     command,
     children,
     dividerLeft,
@@ -559,9 +614,9 @@ function ContentEditorPointerToolbarButton({
     description: string;
     keyboardShortcutHint: string;
     viewRef: RefObject<EditorView | null>;
+    isTooltipDisabledWithoutAnimation: boolean;
     sharedTooltipLifecycleRef: Memo<(tooltipRef: TooltipRef) => () => void>;
     isActive: boolean;
-    isTooltipDisabled?: boolean;
     command: Command;
     children: ReactNode;
     dividerLeft?: boolean;
@@ -590,14 +645,14 @@ function ContentEditorPointerToolbarButton({
     return (
         <Tooltip
             ref={useLifecycleRef(sharedTooltipLifecycleRef)}
-            isDisabled={isTooltipDisabled}
+            isDisabledWithoutAnimation={isTooltipDisabledWithoutAnimation}
             placement="top"
             // Don't allow flipping the tooltip down into selection content.
             canFlip={false}
             content={
                 <Box paddingY="0.5">
                     {description}
-                    <Box color="grey-20-const">{keyboardShortcutHint}</Box>
+                    <Box color="grey-50">{keyboardShortcutHint}</Box>
                 </Box>
             }
             onStateChange={onTooltipStateChange}
@@ -623,18 +678,18 @@ function ContentEditorPointerToolbarButton({
                     // right over our toolbar the tooltips immediately disappear/reappear because
                     // there is no gap in between the hovered elements.
                     paddingRight={dividerRight ? "1" : "0.5"}
-                    borderRight={dividerRight ? "grey-70-const" : undefined}
+                    borderRight={dividerRight ? {light: "grey-5", dark: "grey-10"} : undefined}
                     paddingLeft={dividerLeft ? "1" : undefined}
                 >
                     <Box
                         padding="1"
                         borderRadius="base"
-                        color={isPressed || isActive ? "grey-0-const" : "grey-20-const"}
+                        color={isPressed || isActive ? "grey-text" : "grey-70"}
                         backgroundColor={
                             isPressed || isActive
-                                ? "grey-60-const"
+                                ? {light: "grey-10", dark: "grey-20"}
                                 : isHovered
-                                ? "grey-70-const"
+                                ? {light: "grey-5", dark: "grey-10"}
                                 : undefined
                         }
                     >
@@ -656,6 +711,7 @@ function ContentEditorPointerToolbarButton({
 function ContentEditorPointerToolbarLinkButton({
     state,
     viewRef,
+    isTooltipDisabledWithoutAnimation,
     sharedTooltipLifecycleRef,
     isToolbarFadingOut,
     activeLinkMark,
@@ -667,6 +723,7 @@ function ContentEditorPointerToolbarLinkButton({
 }: {
     state: EditorState;
     viewRef: RefObject<EditorView | null>;
+    isTooltipDisabledWithoutAnimation: boolean;
     sharedTooltipLifecycleRef: Memo<(tooltipRef: TooltipRef) => () => void>;
     isToolbarFadingOut: boolean;
     activeLinkMark: Mark | null;
@@ -696,32 +753,38 @@ function ContentEditorPointerToolbarLinkButton({
             disableAnimation={isTooltipOpenAndNotAnimating}
             overlay={
                 <Box
-                    ref={useOutsidePress(() => {
+                    ref={useOutsidePress(event => {
+                        const view = assertExists(viewRef.current);
+                        if (
+                            event.target instanceof Element &&
+                            isElementOwnedBy(assertExists(view.dom.parentElement), event.target)
+                        ) {
+                            view.dom.focus();
+                        }
+
                         onLinkInputClose();
                         wasJustClosedByOverlayRef.current = true;
                         setTimeout(() => {
                             wasJustClosedByOverlayRef.current = false;
                         }, 0);
                     })}
+                    onBlur={event => {
+                        // If focus left the link input then close the link input.
+                        if (!event.currentTarget.contains(event.relatedTarget)) {
+                            onLinkInputClose();
+                        }
+                    }}
                 >
-                    {!isLinkInputOpen ? (
-                        <ContentEditorLinkInput
-                            viewRef={viewRef}
-                            range={range}
-                            mark={activeLinkMark}
-                            isDisabled={true}
-                            onClose={onLinkInputClose}
-                        />
-                    ) : (
-                        <FocusScope contain restoreFocus autoFocus>
-                            <ContentEditorLinkInput
-                                viewRef={viewRef}
-                                range={range}
-                                mark={activeLinkMark}
-                                onClose={onLinkInputClose}
-                            />
-                        </FocusScope>
-                    )}
+                    <ContentEditorLinkInput
+                        viewRef={viewRef}
+                        range={range}
+                        mark={activeLinkMark}
+                        autoFocus={true}
+                        onClose={() => {
+                            assertExists(viewRef.current).dom.focus();
+                            onLinkInputClose();
+                        }}
+                    />
                 </Box>
             }
         >
@@ -732,7 +795,9 @@ function ContentEditorPointerToolbarLinkButton({
                     description="Link"
                     keyboardShortcutHint={isMac ? "⌘+K" : "Ctrl+K"}
                     isActive={isLinkInputOpen || !!activeLinkMark}
-                    isTooltipDisabled={isLinkInputOpen}
+                    isTooltipDisabledWithoutAnimation={
+                        isTooltipDisabledWithoutAnimation || isLinkInputOpen
+                    }
                     viewRef={viewRef}
                     sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                     command={() => {
@@ -766,30 +831,34 @@ function ContentEditorPointerToolbarLinkButton({
 
 function ContentEditorPointerToolbarHighlightButton({
     viewRef,
+    isTooltipDisabledWithoutAnimation,
     sharedTooltipLifecycleRef,
     isToolbarFadingOut,
     activeHighlightMark,
+    isHighlightSelectorOpen,
+    onHighlightSelectorOpen,
+    onHighlightSelectorClose,
     dividerRight,
     dividerLeft,
 }: {
     viewRef: RefObject<EditorView | null>;
+    isTooltipDisabledWithoutAnimation: boolean;
     sharedTooltipLifecycleRef: Memo<(tooltipRef: TooltipRef) => () => void>;
     isToolbarFadingOut: boolean;
     activeHighlightMark: Mark | null;
+    isHighlightSelectorOpen: boolean;
+    onHighlightSelectorOpen: () => void;
+    onHighlightSelectorClose: () => void;
     dividerRight?: boolean;
     dividerLeft?: boolean;
 }) {
-    const [_isOpen, setIsOpen] = useState(false);
-    const isOpen = _isOpen && !isToolbarFadingOut;
-    if (_isOpen !== isOpen) setIsOpen(isOpen);
-
     const wasJustClosedByOverlayRef = useRef(false);
 
     const [isTooltipOpenAndNotAnimating, setIsTooltipOpenAndNotAnimating] = useState(false);
 
     return (
         <OverlayAnimated
-            isVisible={isOpen}
+            isVisible={isHighlightSelectorOpen && !isToolbarFadingOut}
             placement="top"
             canFlip={false}
             offset="1.5"
@@ -799,7 +868,7 @@ function ContentEditorPointerToolbarHighlightButton({
             overlay={
                 <Box
                     ref={useOutsidePress(() => {
-                        setIsOpen(false);
+                        onHighlightSelectorClose();
                         wasJustClosedByOverlayRef.current = true;
                         setTimeout(() => {
                             wasJustClosedByOverlayRef.current = false;
@@ -810,7 +879,7 @@ function ContentEditorPointerToolbarHighlightButton({
                         viewRef={viewRef}
                         mark={activeHighlightMark}
                         isFocusable={false}
-                        onClose={() => setIsOpen(false)}
+                        onClose={onHighlightSelectorClose}
                     />
                 </Box>
             }
@@ -821,8 +890,10 @@ function ContentEditorPointerToolbarHighlightButton({
                     dividerLeft={dividerLeft}
                     description="Highlight"
                     keyboardShortcutHint={isMac ? "⌘+Shift+H" : "Ctrl+Shift+H"}
-                    isActive={isOpen || !!activeHighlightMark}
-                    isTooltipDisabled={isOpen}
+                    isActive={isHighlightSelectorOpen || !!activeHighlightMark}
+                    isTooltipDisabledWithoutAnimation={
+                        isTooltipDisabledWithoutAnimation || isHighlightSelectorOpen
+                    }
                     viewRef={viewRef}
                     sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                     command={() => {
@@ -850,7 +921,11 @@ function ContentEditorPointerToolbarHighlightButton({
                         // overlay. We want the overlay to stay closed so we need to coordinate with
                         // a ref.
                         if (!wasJustClosedByOverlayRef.current) {
-                            setIsOpen(!isOpen);
+                            if (isHighlightSelectorOpen) {
+                                onHighlightSelectorClose();
+                            } else {
+                                onHighlightSelectorOpen();
+                            }
                         }
                         return false;
                     }}

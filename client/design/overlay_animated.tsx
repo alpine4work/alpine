@@ -75,7 +75,7 @@ function OverlayAnimated(
         if (state.isAnimating) {
             const timeoutId = setTimeout(
                 () => {
-                    setState(prevState => ({...prevState, animating: false}));
+                    setState(prevState => ({...prevState, isAnimating: false}));
                 },
                 state.isVisible
                     ? overlayFadeInAnimationDurationMs

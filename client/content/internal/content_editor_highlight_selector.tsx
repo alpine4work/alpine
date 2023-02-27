@@ -90,10 +90,10 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
         <Box
             display="flex"
             paddingX="1"
-            color="grey-0-const"
-            backgroundColor="grey-80-const"
-            border={{light: "grey-80-const", dark: "grey-70-const"}}
-            borderRadius="sm"
+            color="grey-text"
+            backgroundColor={{light: "grey-0", dark: "grey-5"}}
+            border={{light: "grey-0", dark: "grey-10"}}
+            borderRadius="md"
             boxShadow="elevation-20"
             role="toolbar"
             aria-label="Highlight color selector"
@@ -256,7 +256,7 @@ function ContentEditorHighlightSelectorButton({
                     // right over our toolbar the tooltips immediately disappear/reappear because
                     // there is no gap in between the hovered elements.
                     paddingRight={dividerRight ? "1" : "0"}
-                    borderRight={dividerRight ? "grey-70-const" : undefined}
+                    borderRight={dividerRight ? {light: "grey-5", dark: "grey-10"} : undefined}
                     paddingLeft={dividerLeft ? "1" : "0"}
                 >
                     <FocusRing offset="0">
@@ -267,9 +267,9 @@ function ContentEditorHighlightSelectorButton({
                             borderRadius="base"
                             backgroundColor={
                                 isPressed || isActive
-                                    ? "grey-60-const"
+                                    ? {light: "grey-10", dark: "grey-20"}
                                     : isHovered
-                                    ? "grey-70-const"
+                                    ? {light: "grey-5", dark: "grey-10"}
                                     : undefined
                             }
                             tabIndex={isFocusable ? (wasLastFocused ? 0 : -1) : undefined}
@@ -282,7 +282,7 @@ function ContentEditorHighlightSelectorButton({
                                 width="4"
                                 height="4"
                                 borderRadius="sm"
-                                color={highlightColor ? "grey-text" : "grey-0-const"}
+                                color="grey-text"
                                 backgroundColor={
                                     highlightColor
                                         ? colorByHighlightColor[highlightColor]

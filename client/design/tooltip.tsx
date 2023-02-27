@@ -236,6 +236,12 @@ export type TooltipProps = {
     isDisabled?: boolean;
 
     /**
+     * Same as `isDisabled` but when we set this to `true` if a tooltip already
+     * exists it will disappear immediately instead of animating out.
+     */
+    isDisabledWithoutAnimation?: boolean;
+
+    /**
      * Where should the tooltip content be placed relative to the target element?
      * Defaults to `top`.
      */
@@ -297,6 +303,7 @@ function Tooltip(
     {
         content,
         isDisabled = false,
+        isDisabledWithoutAnimation = false,
         placement = "top",
         canFlip = true,
         offset = defaultTooltipOffset,
@@ -339,7 +346,7 @@ function Tooltip(
     // Controls whether the tooltip is actually visible or not. Only one tooltip
     // can be visible on screen at once and that is managed by our tooltip
     // coordination context.
-    const isVisible = tooltipSymbol === activeTooltipSymbol;
+    const isVisible = !isDisabledWithoutAnimation && tooltipSymbol === activeTooltipSymbol;
     const hasActiveTooltipSymbol = activeTooltipSymbol !== null;
     const getHasActiveTooltipSymbol = useEvent(() => hasActiveTooltipSymbol);
 
@@ -758,9 +765,9 @@ function Tooltip(
                             paddingX="1.5"
                             paddingY="0.5"
                             fontSize="50"
-                            color="grey-0-const"
-                            backgroundColor="grey-80-const"
-                            border={{light: "grey-80-const", dark: "grey-70-const"}}
+                            color="grey-text"
+                            backgroundColor={{light: "grey-0", dark: "grey-5"}}
+                            border={{light: "grey-0", dark: "grey-10"}}
                             borderRadius="sm"
                             boxShadow="elevation-20"
                             className={

@@ -123,7 +123,7 @@ function IconButton(
         quiet: !isDisabled
             ? {
                   backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
-                  color: isPressed ? "grey-90" : "grey-70",
+                  color: isPressed ? "grey-text" : "grey-70",
               }
             : {
                   backgroundColor: undefined,
@@ -168,7 +168,7 @@ function IconButton(
                 keyboardShortcutHint ? (
                     <Box display="flex" alignItems="center" gap="1">
                         <Box>{description}</Box>
-                        <Box color="grey-20-const">
+                        <Box color="grey-50">
                             <IconContext.Provider
                                 value={{
                                     color: "currentColor",
