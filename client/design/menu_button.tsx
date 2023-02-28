@@ -561,6 +561,26 @@ const Menu = forwardRef(function Menu(
                             menuItemRefs[nextIndex]!.current?.focus();
                             break;
                         }
+                        // Moves focus to the first item in the current menu. Technically, the spec
+                        // says only implement if arrow key wrapping is not supported but it's easy
+                        // to support so why not.
+                        //
+                        // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
+                        case "Home": {
+                            event.preventDefault(); // Don't scroll
+                            menuItemRefs[0]!.current?.focus();
+                            break;
+                        }
+                        // Moves focus to the last item in the current menu. Technically, the spec
+                        // says only implement if arrow key wrapping is not supported but it's easy
+                        // to support so why not.
+                        //
+                        // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
+                        case "End": {
+                            event.preventDefault(); // Don't scroll
+                            menuItemRefs[menuItemRefs.length - 1]!.current?.focus();
+                            break;
+                        }
                         // Close the menu that contains focus and return focus to the element
                         // or context, e.g., menu button, from which the menu was opened.
                         //

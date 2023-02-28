@@ -38,6 +38,7 @@ function FocusRing(
     {
         offset,
         isVisible = false,
+        shouldIgnoreFocusEvents = false,
         isVisibleWhenFocusWithin = false,
         isVisibleFromAnyFocus = false,
         children,
@@ -64,6 +65,12 @@ function FocusRing(
          * addition to this one.
          */
         isVisible?: boolean;
+
+        /**
+         * Should ignore focus events on our target element. If this is true then only
+         * `isVisible` controls whether the focus ring is visible or not.
+         */
+        shouldIgnoreFocusEvents?: boolean;
 
         /**
          * By default, we only show the focus ring when the direct child is focused.
@@ -98,6 +105,12 @@ function FocusRing(
     const targetLifecycleRef = useCallback(
         (targetElement: HTMLElement) => {
             targetRef.current = targetElement;
+
+            if (shouldIgnoreFocusEvents) {
+                if (currentActiveElement === targetElement) currentActiveElement = null;
+                setIsActive(false);
+                return;
+            }
 
             const isActive = () =>
                 // If there is an element focused...
@@ -138,7 +151,7 @@ function FocusRing(
                 targetElement.removeEventListener("focusout", update);
             };
         },
-        [isVisibleFromAnyFocus, isVisibleWhenFocusWithin],
+        [isVisibleFromAnyFocus, isVisibleWhenFocusWithin, shouldIgnoreFocusEvents],
     );
 
     const mergedTargetRef = useMergedRefs(foreignRef, useLifecycleRef(targetLifecycleRef));

@@ -25,10 +25,7 @@ import {ContentView} from "~/client/content/content_view";
 import {createContentEditorCheckListItemNodeView} from "~/client/content/internal/content_editor_check_list_item_node_view";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer";
 import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser";
-import {
-    ContentEditorFloater,
-    initialContentEditorFloaterState,
-} from "~/client/content/internal/content_editor_floater";
+import {ContentEditorFloater} from "~/client/content/internal/content_editor_floater";
 import {createContentEditorMarkNodeViewConstructor} from "~/client/content/internal/content_editor_link_node_view";
 import {createContentEditorOrderedListItemNodeView} from "~/client/content/internal/content_editor_ordered_list_item_node_view";
 import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/content_editor_phantom_selection_cursor";
@@ -397,6 +394,13 @@ function ContentEditor<Content extends Node>(
             handlePaste,
 
             handleKeyDown(_view, event) {
+                // Implement keyboard shortcuts when the mention floater is open:
+                const floaterState = getContentEditorFloaterState(view.state);
+                if (floaterState.type === "Mention") {
+                    floaterState.handleKeyDownRef.current?.(event);
+                    if (event.defaultPrevented) return true;
+                }
+
                 if (
                     typeof propsRef.current.onModEnter === "function" &&
                     event.key === "Enter" &&
@@ -923,14 +927,9 @@ function ContentEditor<Content extends Node>(
                 state={unwrap(state)}
                 viewRef={viewRef}
                 floaterState={floaterState}
-                onFloaterStateReset={() => {
+                setFloaterState={floaterState => {
                     const view = assertExists(viewRef.current);
-                    view.dispatch(
-                        setContentEditorFloaterState(
-                            view.state.tr,
-                            initialContentEditorFloaterState,
-                        ),
-                    );
+                    view.dispatch(setContentEditorFloaterState(view.state.tr, floaterState));
                 }}
                 isFocused={isFocused}
                 lastSelectionChangeTransactionTime={lastSelectionChangeTransactionTime}

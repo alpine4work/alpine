@@ -332,6 +332,7 @@ function contentEditorFloaterStatePlugin() {
                             type: "Mention",
                             range: {from: $from.pos, to: newState.selection.head},
                             searchQuery: "",
+                            handleKeyDownRef: {current: null},
                             isClosing: false,
                         };
                     }

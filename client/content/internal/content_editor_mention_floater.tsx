@@ -1,11 +1,21 @@
+import {isFocusVisible as getIsFocusVisible} from "@react-aria/interactions";
 import {MagnifyingGlass, SpinnerGap} from "phosphor-react";
 import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
-import {RefObject, useEffect, useMemo, useRef, useState} from "react";
+import {
+    RefObject,
+    useEffect,
+    useImperativeHandle,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker";
 import {Box} from "~/client/design/box";
+import {FocusRing} from "~/client/design/focus_ring";
 import {OverlayRef} from "~/client/design/overlay";
 import {OverlayAnimated} from "~/client/design/overlay_animated";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
@@ -13,7 +23,10 @@ import {useConstant} from "~/client/helpers/lifecycle/use_constant";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/space_context";
 import {spacing} from "~/shared/design/spacing";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {createTimeout} from "~/shared/helpers/async/timeout";
+import {assert} from "~/shared/helpers/control/assert";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {AccountModel} from "~/shared/models/account_model";
 import {overlayFadeOutAnimationDurationMs, spinAnimationClassName} from "~/shared/styles/styles";
 
@@ -22,29 +35,42 @@ export function ContentEditorMentionFloater({
     viewRef,
     range,
     searchQuery,
+    handleKeyDownRef,
+    isFocused,
     isClosing,
-    onClose: _onActuallyClose,
+    onCloseWithoutAnimation: _onCloseWithoutAnimation,
+    onCloseWithAnimation: _onCloseWithAnimation,
 }: {
     state: EditorState;
     viewRef: RefObject<EditorView | null>;
     range: {from: number; to: number};
     searchQuery: string;
+    handleKeyDownRef: RefObject<((event: KeyboardEvent) => void) | null>;
+    isFocused: boolean;
     isClosing: boolean;
-    onClose: () => void;
+    onCloseWithoutAnimation: () => void;
+    onCloseWithAnimation: () => void;
 }) {
     const overlayRef = useRef<OverlayRef>(null);
+    const menuRef = useRef<HTMLDivElement>(null);
 
-    const onActuallyClose = useEvent(_onActuallyClose);
+    const onCloseWithoutAnimation = useEvent(_onCloseWithoutAnimation);
+    const onCloseWithAnimation = useEvent(_onCloseWithAnimation);
+
+    useLayoutEffect(() => {
+        if (!isFocused) onCloseWithAnimation();
+    }, [isFocused, onCloseWithAnimation]);
+
     useEffect(() => {
         if (isClosing) {
             const timeoutId = setTimeout(() => {
-                onActuallyClose();
+                onCloseWithoutAnimation();
             }, overlayFadeOutAnimationDurationMs);
             return () => {
                 clearTimeout(timeoutId);
             };
         }
-    }, [isClosing, onActuallyClose]);
+    }, [isClosing, onCloseWithoutAnimation]);
 
     const allAccounts = useExpensivelyLoadAllSpaceAccounts();
 
@@ -53,6 +79,125 @@ export function ContentEditorMentionFloater({
         if (searchQuery.length === 0) return allAccounts.accounts;
         return allAccounts.fuse.search(searchQuery).map(({item}) => item);
     }, [allAccounts, searchQuery]);
+
+    const [_selectionState, setSelectionState] = useState<{
+        searchQuery: string;
+        index: number | null;
+        isFocusVisible: boolean;
+    }>({
+        searchQuery,
+        index: null,
+        isFocusVisible: false,
+    });
+
+    const selectionState =
+        _selectionState.searchQuery !== searchQuery ||
+        (_selectionState.index !== null && _selectionState.index >= searchedAccounts.length)
+            ? {searchQuery, index: null, isFocusVisible: false}
+            : _selectionState;
+
+    useImperativeHandle(handleKeyDownRef, () => event => {
+        switch (event.key) {
+            // Moves focus to the next item, optionally wrapping from the last to
+            // the first.
+            //
+            // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
+            case "ArrowDown": {
+                event.preventDefault(); // Don't scroll or move cursor
+                if (searchedAccounts.length > 0) {
+                    setSelectionState({
+                        searchQuery,
+                        index:
+                            selectionState.index === null ||
+                            selectionState.index === searchedAccounts.length - 1
+                                ? 0
+                                : selectionState.index + 1,
+                        isFocusVisible: getIsFocusVisible(),
+                    });
+                }
+                break;
+            }
+            // Moves focus to the previous item, optionally wrapping from the first to
+            // the last.
+            //
+            // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
+            case "ArrowUp": {
+                event.preventDefault(); // Don't scroll or move cursor
+                if (searchedAccounts.length > 0) {
+                    setSelectionState({
+                        searchQuery,
+                        index:
+                            selectionState.index === null || selectionState.index === 0
+                                ? searchedAccounts.length - 1
+                                : selectionState.index - 1,
+                        isFocusVisible: getIsFocusVisible(),
+                    });
+                }
+                break;
+            }
+            // Moves focus to the first item in the current menu. Technically, the spec
+            // says only implement if arrow key wrapping is not supported but it's easy
+            // to support so why not.
+            //
+            // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
+            case "Home": {
+                event.preventDefault(); // Don't scroll
+                if (searchedAccounts.length > 0) {
+                    setSelectionState({
+                        searchQuery,
+                        index: 0,
+                        isFocusVisible: getIsFocusVisible(),
+                    });
+                }
+                break;
+            }
+            // Moves focus to the last item in the current menu. Technically, the spec
+            // says only implement if arrow key wrapping is not supported but it's easy
+            // to support so why not.
+            //
+            // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
+            case "End": {
+                event.preventDefault(); // Don't scroll
+                if (searchedAccounts.length > 0) {
+                    setSelectionState({
+                        searchQuery,
+                        index: searchedAccounts.length - 1,
+                        isFocusVisible: getIsFocusVisible(),
+                    });
+                }
+                break;
+            }
+            // Escape closes the menu with focus and returns focus to the context the menu
+            // was opened. Given focus always stays in the content editor we just close
+            // the floater.
+            //
+            // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
+            case "Escape": {
+                event.preventDefault(); // Close the mention floater, not
+                onCloseWithAnimation();
+                break;
+            }
+            // When focus is on an item activate the item and close the menu.
+            //
+            // Space may also do this in the menu ARIA pattern but because we are in a text
+            // editor, space inserts...well...a space.
+            //
+            // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
+            case "Enter": {
+                event.preventDefault();
+                if (
+                    selectionState.index !== null &&
+                    selectionState.index < searchedAccounts.length
+                ) {
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                    const account = searchedAccounts[selectionState.index]!;
+                    // TODO(calebmer): Implement
+                    onCloseWithoutAnimation();
+                }
+                break;
+            }
+        }
+    });
 
     const isLoading = allAccounts === null;
     const wasInitiallyLoading = useConstant(() => isLoading);
@@ -88,13 +233,18 @@ export function ContentEditorMentionFloater({
                 // TODO(calebmer): This should eventually be virtualized. Probably at the same
                 // time we add a proper search backend for mentions?
                 <Box
+                    ref={menuRef}
+                    position="relative"
                     width="48"
                     maxHeight="64"
-                    overflowY="scroll"
+                    // Hide the scrollbar while animating closed by setting overflow to `hidden`
+                    // while animating.
+                    overflowX="hidden"
+                    overflowY={!isClosing ? "scroll" : "hidden"}
                     borderRadius="md"
                     padding="1"
                     backgroundColor={{light: "grey-0", dark: "grey-5"}}
-                    border={{light: "grey-0", dark: "grey-10"}}
+                    border={{dark: "grey-10"}}
                     boxShadow="elevation-20"
                 >
                     {isLoading && shouldShowLoadingIndicatorIfLoading ? (
@@ -116,8 +266,41 @@ export function ContentEditorMentionFloater({
                             <Box>No results</Box>
                         </Box>
                     ) : (
-                        searchedAccounts?.map(account => (
-                            <ContentEditorMentionAccountItem key={account.id} account={account} />
+                        searchedAccounts?.map((account, index) => (
+                            <ContentEditorMentionAccountItem
+                                key={account.id}
+                                account={account}
+                                menuRef={menuRef}
+                                isClosing={isClosing}
+                                isFocusVisible={selectionState.isFocusVisible}
+                                isSelected={selectionState.index === index}
+                                onSelect={() =>
+                                    setSelectionState({
+                                        searchQuery,
+                                        index,
+                                        isFocusVisible: getIsFocusVisible(),
+                                    })
+                                }
+                                onDeselect={() =>
+                                    setSelectionState(selectionState => {
+                                        if (
+                                            selectionState.searchQuery !== searchQuery ||
+                                            selectionState.index !== index
+                                        ) {
+                                            return selectionState;
+                                        }
+                                        return {
+                                            searchQuery,
+                                            index: null,
+                                            isFocusVisible: false,
+                                        };
+                                    })
+                                }
+                                onPress={() => {
+                                    // TODO(calebmer): Implement
+                                    onCloseWithoutAnimation();
+                                }}
+                            />
                         ))
                     )}
                 </Box>
@@ -133,32 +316,111 @@ export function ContentEditorMentionFloater({
     );
 }
 
-function ContentEditorMentionAccountItem({account}: {account: AccountModel}) {
-    const {isHovered, hoverProps} = useHover({});
+function ContentEditorMentionAccountItem({
+    account,
+    menuRef,
+    isClosing,
+    isFocusVisible,
+    isSelected,
+    onSelect,
+    onDeselect,
+    onPress,
+}: {
+    account: AccountModel;
+    menuRef: RefObject<HTMLDivElement>;
+    isClosing: boolean;
+    isFocusVisible: boolean;
+    isSelected: boolean;
+    onSelect: () => void;
+    onDeselect: () => void;
+    onPress: () => void;
+}) {
+    const itemRef = useRef<HTMLDivElement>(null);
 
-    const {isPressed, pressProps} = usePress({
-        onPress: () => {},
+    const {isHovered, hoverProps} = useHover({
+        onHoverStart: onSelect,
+        onHoverEnd: onDeselect,
     });
 
-    return (
-        <Box
-            {...mergeProps(hoverProps, pressProps)}
-            paddingX="1.5"
-            paddingY="1.5"
-            borderRadius="base"
-            display="flex"
-            alignItems="center"
-            gap="2"
-            backgroundColor={
-                isPressed
-                    ? {light: "grey-10", dark: "grey-20"}
-                    : isHovered
-                    ? {light: "grey-5", dark: "grey-10"}
-                    : undefined
+    const {isPressed, pressProps} = usePress({
+        onPress,
+    });
+
+    // Scroll our item into view when it is focused using the keyboard. We manually
+    // implement scrolling since `scrollIntoView()` has weird behavior.
+    const wasScrolledInRef = useRef(false);
+    useLayoutEffect(() => {
+        const run = () => {
+            const menuElement = assertExists(menuRef.current);
+            const itemElement = assertExists(itemRef.current);
+            assert(itemElement.offsetParent === menuElement);
+
+            if (!isSelected || !isFocusVisible) {
+                wasScrolledInRef.current = false;
+                return;
             }
+
+            if (wasScrolledInRef.current) return;
+            wasScrolledInRef.current = true;
+
+            if (itemElement.offsetTop < menuElement.scrollTop) {
+                // First item scrolls us all the way to the top.
+                if (!itemElement.previousSibling) {
+                    menuElement.scrollTop = 0;
+                } else {
+                    menuElement.scrollTop = itemElement.offsetTop;
+                }
+            } else if (
+                itemElement.offsetTop + itemElement.clientHeight >
+                menuElement.scrollTop + menuElement.clientHeight
+            ) {
+                // Last item scrolls us all the way to the end.
+                if (!itemElement.nextSibling) {
+                    menuElement.scrollTop = menuElement.scrollHeight - menuElement.clientHeight;
+                } else {
+                    menuElement.scrollTop =
+                        itemElement.offsetTop + itemElement.clientHeight - menuElement.clientHeight;
+                }
+            }
+        };
+
+        // Run after a microtask so the parent `menuRef` can be populated.
+        let isCancelled = false;
+        scheduleMicrotask(() => {
+            if (isCancelled) return;
+            run();
+        });
+        return () => {
+            isCancelled = true;
+        };
+    }, [isFocusVisible, isSelected, menuRef]);
+
+    return (
+        <FocusRing
+            offset="0"
+            isVisible={isSelected && isFocusVisible && !isClosing}
+            shouldIgnoreFocusEvents={true}
         >
-            <AccountAvatar account={account} size="6" />
-            <Box fontStyle="truncate">{account.name}</Box>
-        </Box>
+            <Box
+                {...mergeProps(hoverProps, pressProps)}
+                ref={itemRef}
+                paddingX="1.5"
+                paddingY="1.5"
+                borderRadius="base"
+                display="flex"
+                alignItems="center"
+                gap="2"
+                backgroundColor={
+                    isPressed
+                        ? {light: "grey-10", dark: "grey-20"}
+                        : isHovered
+                        ? {light: "grey-5", dark: "grey-10"}
+                        : undefined
+                }
+            >
+                <AccountAvatar account={account} size="6" />
+                <Box fontStyle="truncate">{account.name}</Box>
+            </Box>
+        </FocusRing>
     );
 }

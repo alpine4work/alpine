@@ -71,6 +71,13 @@ export type ContentEditorMentionFloaterState = {
      */
     readonly searchQuery: string;
     /**
+     * The `<ContentEditorMentionFloater>` component will `useImperativeHandle()`
+     * to provide an implementation of this function which the content editor
+     * should call. If `event.preventDefault()` was called then this function has
+     * handled the event.
+     */
+    readonly handleKeyDownRef: RefObject<((event: KeyboardEvent) => void) | null>;
+    /**
      * Is the mention floater in the closing animation? Other floaters manage their
      * closing animation state locally but we do it here since we close the floater
      * from `ContentEditorState`.
@@ -93,14 +100,14 @@ export function ContentEditorFloater({
     state,
     viewRef,
     floaterState,
-    onFloaterStateReset,
+    setFloaterState,
     isFocused,
     lastSelectionChangeTransactionTime,
 }: {
     state: EditorState;
     viewRef: RefObject<EditorView | null>;
     floaterState: ContentEditorFloaterState;
-    onFloaterStateReset: () => void;
+    setFloaterState: (floaterState: ContentEditorFloaterState) => void;
     isFocused: boolean;
     lastSelectionChangeTransactionTime: number | null;
 }) {
@@ -121,7 +128,7 @@ export function ContentEditorFloater({
                     state={state}
                     viewRef={viewRef}
                     range={floaterState.range}
-                    onClose={onFloaterStateReset}
+                    onClose={() => setFloaterState(initialContentEditorFloaterState)}
                 />
             );
         }
@@ -131,7 +138,7 @@ export function ContentEditorFloater({
                     state={state}
                     viewRef={viewRef}
                     range={floaterState.range}
-                    onClose={onFloaterStateReset}
+                    onClose={() => setFloaterState(initialContentEditorFloaterState)}
                 />
             );
         }
@@ -145,7 +152,7 @@ export function ContentEditorFloater({
                     mark={floaterState.mark}
                     range={floaterState.range}
                     hasPointerLeftMark={floaterState.hasPointerLeftMark}
-                    onClose={onFloaterStateReset}
+                    onClose={() => setFloaterState(initialContentEditorFloaterState)}
                 />
             );
         }
@@ -156,8 +163,13 @@ export function ContentEditorFloater({
                     viewRef={viewRef}
                     range={floaterState.range}
                     searchQuery={floaterState.searchQuery}
+                    handleKeyDownRef={floaterState.handleKeyDownRef}
+                    isFocused={isFocused}
                     isClosing={floaterState.isClosing}
-                    onClose={onFloaterStateReset}
+                    onCloseWithoutAnimation={() =>
+                        setFloaterState(initialContentEditorFloaterState)
+                    }
+                    onCloseWithAnimation={() => setFloaterState({...floaterState, isClosing: true})}
                 />
             );
         }
