@@ -10,6 +10,7 @@ import {ContentEditor, getEditorViewForTest} from "~/client/content/content_edit
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {TooltipCoordinationContextProvider} from "~/client/design/tooltip";
+import {emptyContentReferences} from "~/shared/content/content_references";
 import {
     DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
@@ -22,7 +23,10 @@ const schema = DocumentWithoutTitleContentProsemirrorSchema;
 
 function TestContentEditor({initialContent}: {initialContent?: Node}) {
     const [state, setState] = useState(() =>
-        ContentEditorState.create(initialContent ?? emptyDocumentWithoutTitleContent),
+        ContentEditorState.create({
+            doc: initialContent ?? emptyDocumentWithoutTitleContent,
+            references: emptyContentReferences,
+        }),
     );
     return (
         <OverlayScopeContextProvider>

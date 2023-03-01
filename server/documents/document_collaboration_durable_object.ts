@@ -52,7 +52,7 @@ class DocumentCollaborationDurableObject {
             spaceId: document.spaceId,
             id: document.id,
             initialVersion: document.version,
-            initialContent: document.content,
+            initialContent: document.content.doc,
             destroy,
         });
     }

@@ -9,8 +9,9 @@ import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schem
 import {getSimpleChat} from "~/server/dynamo/simple_chat_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
+import {emptyContentReferences} from "~/shared/content/content_references";
 import {isContentEmpty} from "~/shared/content/is_content_empty";
-import {emptyMessageContent} from "~/shared/content/message_content_schema";
+import {MessageContent, emptyMessageContent} from "~/shared/content/message_content_schema";
 import {NotFoundError} from "~/shared/error/error";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 import {SimpleChatId} from "~/shared/id/types/id_types";
@@ -56,7 +57,12 @@ export default function SimpleChatRoute() {
     const context = useAppContext();
     const {simpleChat, simpleChatMessages, otherReferencedSimpleChatMessages} =
         useLoaderDataWithSchema(schema);
-    const [state, setState] = useState(ContentEditorState.create(emptyMessageContent));
+    const [state, setState] = useState(() =>
+        ContentEditorState.create<MessageContent>({
+            doc: emptyMessageContent,
+            references: emptyContentReferences,
+        }),
+    );
     const [isSaving, setIsSaving] = useState(false);
 
     return (
@@ -114,7 +120,7 @@ export default function SimpleChatRoute() {
                     placeholder="Type a message here…"
                     className={sprinkles({paddingY: "4"})}
                     onEnterFromPhysicalKeyboard={() => {
-                        if (isContentEmpty(state.getContent())) return;
+                        if (isContentEmpty(state.getDoc())) return;
 
                         runPromiseWithoutAwaiting(async () => {
                             setIsSaving(true);
@@ -122,9 +128,14 @@ export default function SimpleChatRoute() {
                                 await createSimpleChatMessage(context, {
                                     simpleChatId: simpleChat.id,
                                     parentMessageIndex: null,
-                                    content: state.getContent(),
+                                    content: state.getDoc(),
                                 });
-                                setState(ContentEditorState.create(emptyMessageContent));
+                                setState(
+                                    ContentEditorState.create({
+                                        doc: emptyMessageContent,
+                                        references: emptyContentReferences,
+                                    }),
+                                );
                             } catch (error) {
                                 // TODO(calebmer): This shows nothing to the user?
                                 context.tracer

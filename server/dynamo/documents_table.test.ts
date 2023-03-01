@@ -53,7 +53,7 @@ function massageDocument(document: DocumentModel | null) {
     if (!document) return null;
     return {
         version: document.version,
-        content: document.content.toJSON(),
+        content: document.content.doc.toJSON(),
     };
 }
 
@@ -1307,7 +1307,9 @@ test("updates made in parallel will only read the document once", async () => {
     {
         const document = await getDocument(context.request(session), documentId);
         expect(document?.version).toEqual(6);
-        expect(document?.content.child(1).textContent.split("").sort().join("")).toEqual("abcdef");
+        expect(document?.content.doc.child(1).textContent.split("").sort().join("")).toEqual(
+            "abcdef",
+        );
     }
 });
 

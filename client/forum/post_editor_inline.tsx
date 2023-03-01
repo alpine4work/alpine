@@ -12,7 +12,7 @@ import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_prio
 import {useResizeObserver} from "~/client/helpers/use_resize_observer";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {isContentEmpty} from "~/shared/content/is_content_empty";
-import {emptyPostContent} from "~/shared/content/post_content_schema";
+import {PostContent, emptyPostContentWithReferences} from "~/shared/content/post_content_schema";
 import {RemLength} from "~/shared/design/spacing";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -41,12 +41,14 @@ export function PostEditorInline({
     const [inlineButtonRef, inlineButtonSize] = useResizeObserver();
     const [phantomContentRef, phantomContentSize] = useResizeObserver();
     const editorRef = useRef<ContentEditorRef>(null);
-    const [state, setState] = useState(() => ContentEditorState.create(emptyPostContent));
+    const [state, setState] = useState(() =>
+        ContentEditorState.create<PostContent>(emptyPostContentWithReferences),
+    );
     const [isPending, setIsPending] = useState(false);
 
     const content = state.getContent();
     const isContentSingleParagraph =
-        content.childCount === 1 && content.child(0).type.name === "paragraph";
+        content.doc.childCount === 1 && content.doc.child(0).type.name === "paragraph";
 
     const isPostButtonInline =
         isContentSingleParagraph &&
@@ -69,10 +71,10 @@ export function PostEditorInline({
 
             const {post} = await createPost(context, {
                 channelId,
-                content,
+                content: content.doc,
             });
 
-            setState(ContentEditorState.create(emptyPostContent));
+            setState(ContentEditorState.create(emptyPostContentWithReferences));
 
             onCreatePost(
                 new PostModel({
@@ -101,7 +103,7 @@ export function PostEditorInline({
             // We want to draw the user's attention to the post editor to encourage them
             // to post.
             variant="accent-even-when-disabled"
-            isDisabled={isContentEmpty(state.getContent())}
+            isDisabled={isContentEmpty(state.getDoc())}
             isPending={isPending}
             pressErrorTitle={errorTitle}
             onPress={handleCreatePost}

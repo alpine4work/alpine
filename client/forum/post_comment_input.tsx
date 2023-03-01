@@ -31,7 +31,10 @@ import {
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {VirtualizedScrollViewRef} from "~/client/virtualized/virtualized_scroll_view";
 import {isContentEmpty} from "~/shared/content/is_content_empty";
-import {emptyMessageContent} from "~/shared/content/message_content_schema";
+import {
+    MessageContent,
+    emptyMessageContentWithReferences,
+} from "~/shared/content/message_content_schema";
 import {
     RemLength,
     addRemLengths,
@@ -75,7 +78,9 @@ export function PostCommentInput({
     const showToast = useShowToast();
     const {currentAccount} = useSpaceContext();
     const editorRef = useRef<ContentEditorRef>(null);
-    const [state, setState] = useState(ContentEditorState.create(emptyMessageContent));
+    const [state, setState] = useState(() =>
+        ContentEditorState.create<MessageContent>(emptyMessageContentWithReferences),
+    );
 
     // We connect to realtime in our `<PostCommentInput>` component. When comments
     // are open this component is always rendered and we only want to connect to
@@ -109,7 +114,7 @@ export function PostCommentInput({
 
     const submitPostComment = () => {
         const content = state.getContent();
-        if (isContentEmpty(content)) return;
+        if (isContentEmpty(content.doc)) return;
 
         const optimisticComment: OptimisticMessageInterface = {
             isOptimistic: true,
@@ -128,7 +133,7 @@ export function PostCommentInput({
 
         onUpdatePostComments(postComments => postComments.addOptimisticMessage(optimisticComment));
 
-        setState(ContentEditorState.create(emptyMessageContent));
+        setState(ContentEditorState.create(emptyMessageContentWithReferences));
         onClearReplyingToPostComment();
 
         const createPostComment = () => {
@@ -136,7 +141,7 @@ export function PostCommentInput({
                 try {
                     await actions.createPostComment({
                         parentCommentIndex: replyingToPostComment?.comment.index ?? null,
-                        content,
+                        content: content.doc,
                     });
                 } catch (error) {
                     // TODO(calebmer): If you scroll away form the post and `usePostRealtime()`
@@ -279,7 +284,7 @@ export function PostCommentInput({
         };
     }, [post.id, postComments, viewRef]);
 
-    const isSendButtonDisabled = isContentEmpty(state.getContent());
+    const isSendButtonDisabled = isContentEmpty(state.getDoc());
 
     return (
         <Box data-testid={`PostCommentInput:${post.id}`}>

@@ -1,4 +1,7 @@
-import {MessageContentSchema} from "~/shared/content/message_content_schema";
+import {
+    MessageContentSchema,
+    MessageContentWithReferencesSchema,
+} from "~/shared/content/message_content_schema";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {Id} from "~/shared/id/id";
 import {AccountModel} from "~/shared/models/account_model";
@@ -20,7 +23,7 @@ export interface MessageInterfaceBase<RoomKey extends string = string> {
      * The message payload. Determines the contents of the message and how it
      * will be rendered.
      */
-    readonly payload: MessagePayload;
+    readonly payload: MessagePayloadModel;
     /**
      * Get a key for the room the message is in.
      */
@@ -108,20 +111,51 @@ export const MessagePayloadSchema = Schema.union({
     Deleted: MessageDeletedPayloadSchema,
 });
 
+export type MessagePayloadModel = SchemaType<typeof MessagePayloadModelSchema>;
+export type MessageContentPayloadModel = SchemaType<typeof MessageContentPayloadModelSchema>;
+export type MessageDeletedPayloadModel = SchemaType<typeof MessageDeletedPayloadModelSchema>;
+
+const MessageContentPayloadModelSchema = Schema.object({
+    type: Schema.value("Content"),
+    parentMessageIndex: Schema.integer.nullable(),
+    content: MessageContentWithReferencesSchema,
+    contentUpdatedTime: Schema.date.nullable(),
+});
+
+const MessageDeletedPayloadModelSchema = Schema.object({
+    type: Schema.value("Deleted"),
+    deletedTime: Schema.date,
+});
+
+/**
+ * `MessagePayloadModel` is different from `MessagePayload` in that
+ * `MessagePayloadModel` is what we send to the client whereas `MessagePayload`
+ * is what we store in the database. So `MessagePayloadModel` typically has
+ * extra data for the client we don't need in the database.
+ *
+ * We expect that `MessagePayloadModel` is a supertype of `MessagePayload`. So
+ * anywhere that expects a `MessagePayload` could also get
+ * a `MessagePayloadModel`.
+ */
+export const MessagePayloadModelSchema = Schema.union({
+    Content: MessageContentPayloadModelSchema,
+    Deleted: MessageDeletedPayloadModelSchema,
+});
+
 /**
  * Determines if the two message payloads are deeply equal to each other. For
  * ProseMirror content we need to use the `eq()` method.
  */
-export function areMessagePayloadsEqual(
-    payload1: MessagePayload,
-    payload2: MessagePayload,
+export function areMessagePayloadModelsEqual(
+    payload1: MessagePayloadModel,
+    payload2: MessagePayloadModel,
 ): boolean {
     switch (payload1.type) {
         case "Content": {
             if (payload2.type !== "Content") return false;
             return (
                 payload1.parentMessageIndex === payload2.parentMessageIndex &&
-                payload1.content.eq(payload2.content) &&
+                payload1.content.doc.eq(payload2.content.doc) &&
                 payload1.contentUpdatedTime?.getTime() === payload2.contentUpdatedTime?.getTime()
             );
         }

@@ -2,6 +2,8 @@ import {getAccountOrThrow} from "~/server/dynamo/accounts_table";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {RequestContext} from "~/server/dynamo/context/request_context";
 import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
+import {createMessagePayloadModel} from "~/server/dynamo/helpers/create_message_payload_model";
+import {getContentReferences} from "~/server/dynamo/helpers/get_content_references";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry_dynamo_condition_check_errors";
@@ -180,7 +182,10 @@ export async function seedTestChannels(context: DynamoContext) {
 export async function createChannel(
     context: RequestContext,
     {spaceId, name}: {spaceId: SpaceId; name: string},
-): Promise<ChannelModel> {
+): Promise<{
+    id: ChannelId;
+    createdTime: Date;
+}> {
     await authorizeSpaceAccess(context, spaceId);
 
     const channelItem: ChannelAttributesItem = {
@@ -194,7 +199,11 @@ export async function createChannel(
     };
 
     await ForumTable.createItem(context, channelItem);
-    return createChannelModelFromItem(channelItem);
+
+    return {
+        id: channelItem.channelId,
+        createdTime: channelItem.createdTime,
+    };
 }
 
 async function getChannelItem(
@@ -223,16 +232,26 @@ export async function getChannel(
 ): Promise<ChannelModel | null> {
     const channelItem = await getChannelItem(context, id);
     if (!channelItem) return null;
-    return createChannelModelFromItem(channelItem);
+    return createChannelModelFromItem(context, channelItem);
 }
 
-function createChannelModelFromItem(channelItem: ChannelAttributesItem): ChannelModel {
+async function createChannelModelFromItem(
+    context: RequestContext,
+    channelItem: ChannelAttributesItem,
+): Promise<ChannelModel> {
     return new ChannelModel({
         id: channelItem.channelId,
         spaceId: channelItem.spaceId,
         createdTime: channelItem.createdTime,
         name: channelItem.name,
-        description: channelItem.description,
+        description: {
+            doc: channelItem.description,
+            references: await getContentReferences(
+                context,
+                channelItem.spaceId,
+                channelItem.description,
+            ),
+        },
     });
 }
 
@@ -435,7 +454,7 @@ async function createPostModelFromItem(
     context: RequestContext,
     item: PostAttributesItem,
 ): Promise<PostModel> {
-    const [author, previewCommentAuthors] = await runAllPromises([
+    const [author, previewCommentAuthors, contentReferences] = await runAllPromises([
         getAccountOrThrow(context, item.spaceId, item.authorId),
         runAllPromises(
             Array.from(
@@ -447,6 +466,7 @@ async function createPostModelFromItem(
                 accountId => getAccountOrThrow(context, item.spaceId, accountId),
             ),
         ),
+        getContentReferences(context, item.spaceId, item.content),
     ]);
 
     return new PostModel({
@@ -455,7 +475,10 @@ async function createPostModelFromItem(
         channelId: item.channelId,
         createdTime: item.createdTime,
         author,
-        content: item.content,
+        content: {
+            doc: item.content,
+            references: contentReferences,
+        },
         contentUpdatedTime: item.contentUpdatedTime,
         commentCount: reduceIterable(
             item.commentsSummary.commentCountByAuthorId.values(),
@@ -692,12 +715,17 @@ async function createPostCommentModelFromItem(
     spaceId: SpaceId,
     item: PostCommentItem,
 ): Promise<PostCommentModel> {
+    const [author, payload] = await runAllPromises([
+        getAccountOrThrow(context, spaceId, item.authorId),
+        createMessagePayloadModel(context, spaceId, item.payload),
+    ]);
+
     return new PostCommentModel({
         postId: item.postId,
         index: item.commentIndex,
-        author: await getAccountOrThrow(context, spaceId, item.authorId),
+        author,
         createdTime: item.createdTime,
-        payload: item.payload,
+        payload,
     });
 }
 

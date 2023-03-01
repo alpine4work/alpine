@@ -1,5 +1,6 @@
 import {DOMOutputSpec, Node} from "prosemirror-model";
 import {contentCheckListItemIconSvg} from "~/shared/content/content_check_list_item_icon_svg";
+import {ContentWithReferences} from "~/shared/content/content_references";
 import {clampListItemIndentation} from "~/shared/content/content_schema";
 import {documentFallbackTitle} from "~/shared/content/document_fallback_title";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty";
@@ -25,8 +26,11 @@ const {
  * custom node renderers as `<ContentEditor>` so you get the same HTML as you
  * saw in the editor.
  */
-export function renderContentToHtml(topNode: Node, options?: {placeholder?: string}): string {
-    const fragmentHtml = renderContentFragmentToHtml(topNode, options);
+export function renderContentToHtml(
+    content: ContentWithReferences,
+    options?: {placeholder?: string},
+): string {
+    const fragmentHtml = renderContentFragmentToHtml(content, options);
     return `<div class="${docClassName}">${fragmentHtml}</div>`;
 }
 
@@ -43,7 +47,7 @@ export function renderContentToHtml(topNode: Node, options?: {placeholder?: stri
  * links, are made non clickable or focusable. But visually the stay the same.
  */
 export function renderContentFragmentToHtml(
-    topNode: Node,
+    content: ContentWithReferences,
     {
         placeholder,
         isInert,
@@ -54,10 +58,10 @@ export function renderContentFragmentToHtml(
         decorations?: ReadonlyArray<ProsemirrorHtmlSerializationDecoration>;
     } = {},
 ): string {
-    assert(topNode.type.schema.topNodeType === topNode.type);
+    assert(content.doc.type.schema.topNodeType === content.doc.type);
 
-    const isTitleEmpty = isContentTitleEmpty(topNode);
-    const isBodyEmpty = isContentBodyEmpty(topNode);
+    const isTitleEmpty = isContentTitleEmpty(content.doc);
+    const isBodyEmpty = isContentBodyEmpty(content.doc);
 
     const orderedListItemNumberByNode = new Map<Node, number>();
 
@@ -97,7 +101,7 @@ export function renderContentFragmentToHtml(
         });
     };
 
-    return serializeProsemirrorFragmentToHtml(topNode.content, {
+    return serializeProsemirrorFragmentToHtml(content.doc.content, {
         startPos: 1,
         decorations,
 
@@ -116,7 +120,7 @@ export function renderContentFragmentToHtml(
                 // all list items in this node's parent and try checking for the number again.
                 // The number must be present.
                 if (listItemNumber === undefined) {
-                    const $pos = topNode.resolve(pos);
+                    const $pos = content.doc.resolve(pos);
                     assert($pos.parent === node && $pos.parentOffset === 0);
 
                     const parentNode = $pos.node($pos.depth - 1);

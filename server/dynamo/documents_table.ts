@@ -2,6 +2,7 @@ import {Node} from "prosemirror-model";
 import {Mapping, Step} from "prosemirror-transform";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {RequestContext} from "~/server/dynamo/context/request_context";
+import {getContentReferences} from "~/server/dynamo/helpers/get_content_references";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
@@ -438,7 +439,10 @@ async function getInternalDocument(
             createdTime: attributes.createdTime,
             spaceId: attributes.spaceId,
             version: attributes.version,
-            content,
+            content: {
+                doc: content,
+                references: await getContentReferences(context, attributes.spaceId, content),
+            },
         }),
     };
 }
@@ -520,7 +524,7 @@ export class DocumentContentCacheForUpdate {
                 createdTime: internalDocument.model.createdTime,
                 spaceId: internalDocument.model.spaceId,
                 version: internalDocument.model.version,
-                content: internalDocument.model.content,
+                content: internalDocument.model.content.doc,
                 stepsAfterInitialSnapshot: new PushOnlyArray(
                     flatMapIterable(
                         internalDocument.stepTransactionsAfterSnapshot,

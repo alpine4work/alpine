@@ -1,6 +1,7 @@
 import {assignInlineVars} from "@vanilla-extract/dynamic";
 import classNames from "classnames";
 import {Node, Schema as ProsemirrorSchema} from "prosemirror-model";
+import {ContentReferencesSchema} from "~/shared/content/content_references";
 import {
     ContentSchemaListItemIndentSchema,
     clampListItemIndentation,
@@ -13,7 +14,7 @@ import {contentStructuralProsemirrorNodeSpecs} from "~/shared/content/content_sc
 import {HighlightColor, isHighlightColor} from "~/shared/design/highlight_color";
 import {assert} from "~/shared/helpers/control/assert";
 import {createSchemaForProsemirrorSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema";
-import {Schema} from "~/shared/schema/schema";
+import {Schema, SchemaType} from "~/shared/schema/schema";
 import {contentSchemaStyles} from "~/shared/styles/styles";
 
 const {
@@ -252,3 +253,10 @@ export const emptyDocumentContent = DocumentContentProsemirrorSchema.node("doc",
     DocumentContentProsemirrorSchema.node("title"),
     DocumentContentProsemirrorSchema.node("paragraph"),
 ]) as DocumentContent;
+
+export type DocumentContentWithReferences = SchemaType<typeof DocumentContentWithReferencesSchema>;
+
+export const DocumentContentWithReferencesSchema = Schema.object({
+    doc: DocumentContentSchema,
+    references: ContentReferencesSchema,
+});

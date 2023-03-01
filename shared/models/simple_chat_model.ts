@@ -1,6 +1,6 @@
 import {SimpleChatId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
-import {MessageInterface, MessagePayloadSchema} from "~/shared/models/message_interface";
+import {MessageInterface, MessagePayloadModelSchema} from "~/shared/models/message_interface";
 import {Model} from "~/shared/models/model";
 import {Schema} from "~/shared/schema/schema";
 
@@ -19,7 +19,7 @@ export class SimpleChatMessageModel
             index: Schema.integer,
             author: AccountModel.schema(),
             createdTime: Schema.date,
-            payload: MessagePayloadSchema,
+            payload: MessagePayloadModelSchema,
         }),
     )
     implements MessageInterface<SimpleChatId>

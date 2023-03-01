@@ -41,7 +41,7 @@ export function ChannelView({
                         });
                     }}
                     aside={
-                        !isContentEmpty(channel.description) && (
+                        !isContentEmpty(channel.description.doc) && (
                             <ChannelViewAside channel={channel} />
                         )
                     }

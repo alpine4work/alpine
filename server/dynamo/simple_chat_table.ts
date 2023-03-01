@@ -2,6 +2,7 @@ import {getAccountOrThrow} from "~/server/dynamo/accounts_table";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {RequestContext} from "~/server/dynamo/context/request_context";
 import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
+import {createMessagePayloadModel} from "~/server/dynamo/helpers/create_message_payload_model";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry_dynamo_condition_check_errors";
@@ -221,12 +222,17 @@ async function createSimpleChatMessageModelFromItem(
     spaceId: SpaceId,
     item: SimpleChatMessageItem,
 ): Promise<SimpleChatMessageModel> {
+    const [author, payload] = await runAllPromises([
+        getAccountOrThrow(context, spaceId, item.authorId),
+        createMessagePayloadModel(context, spaceId, item.payload),
+    ]);
+
     return new SimpleChatMessageModel({
         simpleChatId: item.simpleChatId,
         index: item.messageIndex,
-        author: await getAccountOrThrow(context, spaceId, item.authorId),
+        author,
         createdTime: item.createdTime,
-        payload: item.payload,
+        payload,
     });
 }
 

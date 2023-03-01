@@ -7,7 +7,12 @@ import {
     DocumentCollaborationMessageFromServer,
     DocumentCollaborationPresenceState,
 } from "~/shared/documents/document_collaboration_schema";
-import {FailedPreconditionError, InternalError, NotFoundError} from "~/shared/error/error";
+import {
+    FailedPreconditionError,
+    InternalError,
+    NotFoundError,
+    UnimplementedError,
+} from "~/shared/error/error";
 import {AsyncSequentialQueue} from "~/shared/helpers/async/async_sequential_queue";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
@@ -183,6 +188,9 @@ export class DocumentCollaborationDurableObjectConnection {
                                 state: this._presenceState,
                             });
                         }
+
+                        // TODO(calebmer): We need to send new content references to everyone!
+                        throw new UnimplementedError("TODO");
                         return;
                     }
                     case "UpdateOurPresenceState": {

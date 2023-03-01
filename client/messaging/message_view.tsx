@@ -15,9 +15,10 @@ import {MessageEditing} from "~/client/messaging/message_editing";
 import {MessageList} from "~/client/messaging/message_list";
 import {MessageViewActions} from "~/client/messaging/message_view_actions";
 import {MessageViewEditor} from "~/client/messaging/message_view_editor";
+import {emptyContentReferences} from "~/shared/content/content_references";
 import {
-    MessageContent,
     MessageContentProsemirrorSchema,
+    MessageContentWithReferences,
     assertMessageContent,
 } from "~/shared/content/message_content_schema";
 import {
@@ -671,21 +672,24 @@ export function getTruncatedMessageContentForReplyPreview({
 }: {
     message: MessageInterface;
     messageStartOfSentenceNoun: string;
-}): MessageContent {
+}): MessageContentWithReferences {
     switch (message.payload.type) {
         case "Content": {
-            return assertMessageContent(
-                message.payload.content.cut(
-                    0,
-                    Math.min(
-                        message.payload.content.content.size,
-                        // Arbitrarily picked as close to the number of characters in a string of only
-                        // "x"s that wraps to two lines on my wide monitor. Rounded up to the nearest
-                        // 100 to count for structural nodes.
-                        600,
+            return {
+                doc: assertMessageContent(
+                    message.payload.content.doc.cut(
+                        0,
+                        Math.min(
+                            message.payload.content.doc.content.size,
+                            // Arbitrarily picked as close to the number of characters in a string of only
+                            // "x"s that wraps to two lines on my wide monitor. Rounded up to the nearest
+                            // 100 to count for structural nodes.
+                            600,
+                        ),
                     ),
                 ),
-            );
+                references: message.payload.content.references,
+            };
         }
         case "Deleted": {
             // NOTE(calebmer): We render deleted messages with the same style as a normal
@@ -693,16 +697,19 @@ export function getTruncatedMessageContentForReplyPreview({
             // background, 1px border) it's just too light when scaled down and made
             // translucent. The user can click on the reply to jump to the actual message
             // with the correct treatment.
-            return assertMessageContent(
-                MessageContentProsemirrorSchema.node("doc", {}, [
-                    MessageContentProsemirrorSchema.node("paragraph", {}, [
-                        MessageContentProsemirrorSchema.text(
-                            `${messageStartOfSentenceNoun} deleted`,
-                            [MessageContentProsemirrorSchema.mark("italic")],
-                        ),
+            return {
+                doc: assertMessageContent(
+                    MessageContentProsemirrorSchema.node("doc", {}, [
+                        MessageContentProsemirrorSchema.node("paragraph", {}, [
+                            MessageContentProsemirrorSchema.text(
+                                `${messageStartOfSentenceNoun} deleted`,
+                                [MessageContentProsemirrorSchema.mark("italic")],
+                            ),
+                        ]),
                     ]),
-                ]),
-            );
+                ),
+                references: emptyContentReferences,
+            };
         }
         default:
             throw exhaustive(message.payload);

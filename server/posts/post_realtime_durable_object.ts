@@ -67,6 +67,7 @@ class PostRealtimeDurableObject {
             PostRealtimeMessageFromServerSchema,
             ({sendMessage, iterateOtherConnections}) =>
                 new PostRealtimeDurableObjectConnection({
+                    spaceId,
                     postId,
                     sendMessage,
                     sendMessageToAll: (context, message) =>

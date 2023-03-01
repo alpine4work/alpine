@@ -1,5 +1,4 @@
 import classNames from "classnames";
-import {Node} from "prosemirror-model";
 import {useEffect, useId, useMemo, useRef, useState} from "react";
 import {To} from "react-router-dom";
 import {handleContentLinkClick} from "~/client/content/internal/handle_content_link_click";
@@ -7,6 +6,7 @@ import {FocusRing} from "~/client/design/focus_ring";
 import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_date";
 import {Tooltip} from "~/client/design/tooltip";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
+import {ContentWithReferences} from "~/shared/content/content_references";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty";
 import {renderContentFragmentToHtml} from "~/shared/content/render_content_to_html";
 import {assert} from "~/shared/helpers/control/assert";
@@ -38,7 +38,7 @@ export function ContentView({
     isInert,
     isTruncated,
 }: {
-    content: Node;
+    content: ContentWithReferences;
     onNavigate: (to: To) => void;
 
     /**
@@ -89,7 +89,7 @@ export function ContentView({
 
         if (contentUpdatedTime) {
             let depthToLastTextblockChild = null;
-            let lastTextblockChild = content.lastChild;
+            let lastTextblockChild = content.doc.lastChild;
             let depth = 1;
 
             while (lastTextblockChild !== null) {
@@ -127,15 +127,15 @@ export function ContentView({
 
             decorations.push({
                 type: "Widget",
-                pos: content.nodeSize - ((depthToLastParagraphChild ?? 0) + 1),
+                pos: content.doc.nodeSize - ((depthToLastParagraphChild ?? 0) + 1),
                 html,
             });
         }
 
         return {
             html: renderContentFragmentToHtml(content, {placeholder, isInert, decorations}),
-            isTitleEmpty: isContentTitleEmpty(content),
-            isBodyEmpty: isContentBodyEmpty(content),
+            isTitleEmpty: isContentTitleEmpty(content.doc),
+            isBodyEmpty: isContentBodyEmpty(content.doc),
         };
     }, [content, contentUpdatedNoteId, contentUpdatedTime, isInert, placeholder]);
 

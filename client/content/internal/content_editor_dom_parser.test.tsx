@@ -3,12 +3,16 @@ import {EditorView} from "prosemirror-view";
 import React, {useState} from "react";
 import {ContentEditor, getEditorViewForTest} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
+import {emptyContentReferences} from "~/shared/content/content_references";
 import {emptyDocumentWithoutTitleContent} from "~/shared/content/document_content_schema";
 import {UnimplementedError} from "~/shared/error/error";
 
 function TestContentEditor() {
     const [state, setState] = useState(() =>
-        ContentEditorState.create(emptyDocumentWithoutTitleContent),
+        ContentEditorState.create({
+            doc: emptyDocumentWithoutTitleContent,
+            references: emptyContentReferences,
+        }),
     );
     return (
         <ContentEditor

@@ -3,6 +3,7 @@ import {Mark, Node} from "prosemirror-model";
 import {useState} from "react";
 import {ContentEditor, getEditorViewForTest} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
+import {emptyContentReferences} from "~/shared/content/content_references";
 import {
     DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
@@ -115,7 +116,10 @@ for (const blockTestCase of blockTestCases) {
         render(
             <ContentEditor
                 aria-label="Test"
-                state={ContentEditorState.create(content)}
+                state={ContentEditorState.create({
+                    doc: content,
+                    references: emptyContentReferences,
+                })}
                 onChange={() => {}}
                 onNavigate={cantNavigate}
             />,
@@ -141,7 +145,10 @@ for (const blockTestCase of blockTestCases) {
         render(
             <ContentEditor
                 aria-label="Test"
-                state={ContentEditorState.create(content)}
+                state={ContentEditorState.create({
+                    doc: content,
+                    references: emptyContentReferences,
+                })}
                 onChange={() => {}}
                 onNavigate={cantNavigate}
             />,
@@ -169,7 +176,10 @@ for (const blockTestCase of blockTestCases) {
             render(
                 <ContentEditor
                     aria-label="Test"
-                    state={ContentEditorState.create(content)}
+                    state={ContentEditorState.create({
+                        doc: content,
+                        references: emptyContentReferences,
+                    })}
                     onChange={() => {}}
                     onNavigate={cantNavigate}
                 />,
@@ -196,7 +206,10 @@ for (const inlineTestCase of inlineTestCases) {
         render(
             <ContentEditor
                 aria-label="Test"
-                state={ContentEditorState.create(content)}
+                state={ContentEditorState.create({
+                    doc: content,
+                    references: emptyContentReferences,
+                })}
                 onChange={() => {}}
                 onNavigate={cantNavigate}
             />,
@@ -225,7 +238,10 @@ function expectClipboardRoundtripToWork() {
 
     function TestContentEditor() {
         const [state, setState] = useState(() =>
-            ContentEditorState.create(emptyDocumentWithoutTitleContent),
+            ContentEditorState.create({
+                doc: emptyDocumentWithoutTitleContent,
+                references: emptyContentReferences,
+            }),
         );
         return (
             <ContentEditor
@@ -264,9 +280,12 @@ test("heading cannot have a level lower than 1", () => {
     const {rerender} = render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(
-                schema.node("doc", {}, [schema.node("heading", {level: 0}, [schema.text("Test")])]),
-            )}
+            state={ContentEditorState.create({
+                doc: schema.node("doc", {}, [
+                    schema.node("heading", {level: 0}, [schema.text("Test")]),
+                ]),
+                references: emptyContentReferences,
+            })}
             onChange={() => {}}
             onNavigate={cantNavigate}
         />,
@@ -277,11 +296,12 @@ test("heading cannot have a level lower than 1", () => {
     rerender(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(
-                schema.node("doc", {}, [
+            state={ContentEditorState.create({
+                doc: schema.node("doc", {}, [
                     schema.node("heading", {level: -42}, [schema.text("Test")]),
                 ]),
-            )}
+                references: emptyContentReferences,
+            })}
             onChange={() => {}}
             onNavigate={cantNavigate}
         />,
@@ -294,9 +314,12 @@ test("heading cannot have a level greater than 3", () => {
     const {rerender} = render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(
-                schema.node("doc", {}, [schema.node("heading", {level: 4}, [schema.text("Test")])]),
-            )}
+            state={ContentEditorState.create({
+                doc: schema.node("doc", {}, [
+                    schema.node("heading", {level: 4}, [schema.text("Test")]),
+                ]),
+                references: emptyContentReferences,
+            })}
             onChange={() => {}}
             onNavigate={cantNavigate}
         />,
@@ -307,11 +330,12 @@ test("heading cannot have a level greater than 3", () => {
     rerender(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(
-                schema.node("doc", {}, [
+            state={ContentEditorState.create({
+                doc: schema.node("doc", {}, [
                     schema.node("heading", {level: 42}, [schema.text("Test")]),
                 ]),
-            )}
+                references: emptyContentReferences,
+            })}
             onChange={() => {}}
             onNavigate={cantNavigate}
         />,
@@ -324,11 +348,12 @@ test("heading cannot be the wrong type", () => {
     const {rerender} = render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(
-                schema.node("doc", {}, [
+            state={ContentEditorState.create({
+                doc: schema.node("doc", {}, [
                     schema.node("heading", {level: ""}, [schema.text("Test")]),
                 ]),
-            )}
+                references: emptyContentReferences,
+            })}
             onChange={() => {}}
             onNavigate={cantNavigate}
         />,
@@ -339,11 +364,12 @@ test("heading cannot be the wrong type", () => {
     rerender(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(
-                schema.node("doc", {}, [
+            state={ContentEditorState.create({
+                doc: schema.node("doc", {}, [
                     schema.node("heading", {level: "secondary"}, [schema.text("Test")]),
                 ]),
-            )}
+                references: emptyContentReferences,
+            })}
             onChange={() => {}}
             onNavigate={cantNavigate}
         />,
@@ -354,11 +380,12 @@ test("heading cannot be the wrong type", () => {
     rerender(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(
-                schema.node("doc", {}, [
+            state={ContentEditorState.create({
+                doc: schema.node("doc", {}, [
                     schema.node("heading", {level: true}, [schema.text("Test")]),
                 ]),
-            )}
+                references: emptyContentReferences,
+            })}
             onChange={() => {}}
             onNavigate={cantNavigate}
         />,
@@ -371,11 +398,12 @@ test("heading is converted into an integer", () => {
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(
-                schema.node("doc", {}, [
+            state={ContentEditorState.create({
+                doc: schema.node("doc", {}, [
                     schema.node("heading", {level: 2.5}, [schema.text("Test")]),
                 ]),
-            )}
+                references: emptyContentReferences,
+            })}
             onChange={() => {}}
             onNavigate={cantNavigate}
         />,
@@ -388,8 +416,8 @@ test("link with a non-HTTP scheme is blocked", () => {
     const {rerender} = render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(
-                schema.node("doc", {}, [
+            state={ContentEditorState.create({
+                doc: schema.node("doc", {}, [
                     schema.node("paragraph", {}, [
                         schema.text("Test", [
                             schema.mark("link", {
@@ -399,7 +427,8 @@ test("link with a non-HTTP scheme is blocked", () => {
                         ]),
                     ]),
                 ]),
-            )}
+                references: emptyContentReferences,
+            })}
             onChange={() => {}}
             onNavigate={cantNavigate}
         />,
@@ -410,8 +439,8 @@ test("link with a non-HTTP scheme is blocked", () => {
     rerender(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(
-                schema.node("doc", {}, [
+            state={ContentEditorState.create({
+                doc: schema.node("doc", {}, [
                     schema.node("paragraph", {}, [
                         schema.text("Test", [
                             schema.mark("link", {
@@ -420,7 +449,8 @@ test("link with a non-HTTP scheme is blocked", () => {
                         ]),
                     ]),
                 ]),
-            )}
+                references: emptyContentReferences,
+            })}
             onChange={() => {}}
             onNavigate={cantNavigate}
         />,
@@ -431,13 +461,14 @@ test("link with a non-HTTP scheme is blocked", () => {
     rerender(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(
-                schema.node("doc", {}, [
+            state={ContentEditorState.create({
+                doc: schema.node("doc", {}, [
                     schema.node("paragraph", {}, [
                         schema.text("Test", [schema.mark("link", {url: "tel:+123456789"})]),
                     ]),
                 ]),
-            )}
+                references: emptyContentReferences,
+            })}
             onChange={() => {}}
             onNavigate={cantNavigate}
         />,
@@ -467,7 +498,7 @@ test("bullet list with multiple items", () => {
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(content)}
+            state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             onNavigate={cantNavigate}
         />,
@@ -487,7 +518,7 @@ test("ordered list with multiple items", () => {
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(content)}
+            state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             onNavigate={cantNavigate}
         />,
@@ -519,7 +550,7 @@ test("check list with multiple items", () => {
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(content)}
+            state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             onNavigate={cantNavigate}
         />,
@@ -556,7 +587,7 @@ test("bullet list with sub-list", () => {
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(content)}
+            state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             onNavigate={cantNavigate}
         />,
@@ -593,7 +624,7 @@ test("ordered list with sub-list", () => {
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(content)}
+            state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             onNavigate={cantNavigate}
         />,
@@ -630,7 +661,7 @@ test("check list with sub-list", () => {
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(content)}
+            state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             onNavigate={cantNavigate}
         />,
@@ -667,7 +698,7 @@ test("bullet list with sub-list of another type", () => {
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(content)}
+            state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             onNavigate={cantNavigate}
         />,
@@ -704,7 +735,7 @@ test("ordered list with sub-list of another type", () => {
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(content)}
+            state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             onNavigate={cantNavigate}
         />,
@@ -741,7 +772,7 @@ test("check list with sub-list of another type", () => {
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(content)}
+            state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             onNavigate={cantNavigate}
         />,
@@ -763,7 +794,7 @@ test("can put hard breaks inside paragraphs", () => {
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(content)}
+            state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             onNavigate={cantNavigate}
         />,
@@ -787,7 +818,7 @@ test("can put hard breaks inside list items", () => {
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(content)}
+            state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             onNavigate={cantNavigate}
         />,
@@ -808,7 +839,7 @@ test("can put multiple paragraphs inside list items", () => {
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(content)}
+            state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             onNavigate={cantNavigate}
         />,

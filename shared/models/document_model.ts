@@ -1,4 +1,7 @@
-import {DocumentContent, DocumentContentSchema} from "~/shared/content/document_content_schema";
+import {
+    DocumentContent,
+    DocumentContentWithReferencesSchema,
+} from "~/shared/content/document_content_schema";
 import {documentFallbackTitle} from "~/shared/content/document_fallback_title";
 import {assert} from "~/shared/helpers/control/assert";
 import {DocumentId, SpaceId} from "~/shared/id/types/id_types";
@@ -23,17 +26,17 @@ export class DocumentModel
             spaceId: Schema.id<SpaceId>(),
             createdTime: Schema.date,
             version: Schema.integer,
-            content: DocumentContentSchema,
+            content: DocumentContentWithReferencesSchema,
         }),
     )
     implements DocumentPreviewInterface
 {
     public getTitle() {
-        return getDocumentContentTitle(this.content);
+        return getDocumentContentTitle(this.content.doc);
     }
 
     public getTitleWithoutFallback() {
-        return getDocumentContentTitleWithoutFallback(this.content);
+        return getDocumentContentTitleWithoutFallback(this.content.doc);
     }
 }
 

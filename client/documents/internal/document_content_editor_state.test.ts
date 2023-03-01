@@ -4,6 +4,7 @@ import {
     getInitialDocumentContentEditorState,
     reduceDocumentContentEditorState,
 } from "~/client/documents/internal/document_content_editor_state";
+import {emptyContentReferences} from "~/shared/content/content_references";
 import {
     assertDocumentContent,
     DocumentContentProsemirrorSchema as schema,
@@ -26,12 +27,15 @@ test("can receive steps one at a time", () => {
             createdTime: new Date(),
             spaceId: generateId(),
             version: 10,
-            content: assertDocumentContent(
-                schema.node("doc", {}, [
-                    schema.node("title", {}, []),
-                    schema.node("paragraph", {}, [schema.text("abc")]),
-                ]),
-            ),
+            content: {
+                doc: assertDocumentContent(
+                    schema.node("doc", {}, [
+                        schema.node("title", {}, []),
+                        schema.node("paragraph", {}, [schema.text("abc")]),
+                    ]),
+                ),
+                references: emptyContentReferences,
+            },
         }),
     );
 
@@ -43,7 +47,7 @@ test("can receive steps one at a time", () => {
         },
     ]);
 
-    expect(state.editorState.getContent().toJSON()).toEqual(
+    expect(state.editorState.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -60,7 +64,7 @@ test("can receive steps one at a time", () => {
         },
     ]);
 
-    expect(state.editorState.getContent().toJSON()).toEqual(
+    expect(state.editorState.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -77,7 +81,7 @@ test("can receive steps one at a time", () => {
         },
     ]);
 
-    expect(state.editorState.getContent().toJSON()).toEqual(
+    expect(state.editorState.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -94,7 +98,7 @@ test("can receive steps one at a time", () => {
         },
     ]);
 
-    expect(state.editorState.getContent().toJSON()).toEqual(
+    expect(state.editorState.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -113,12 +117,15 @@ test("can receive multiple steps at a time", () => {
             createdTime: new Date(),
             spaceId: generateId(),
             version: 10,
-            content: assertDocumentContent(
-                schema.node("doc", {}, [
-                    schema.node("title", {}, []),
-                    schema.node("paragraph", {}, [schema.text("abc")]),
-                ]),
-            ),
+            content: {
+                doc: assertDocumentContent(
+                    schema.node("doc", {}, [
+                        schema.node("title", {}, []),
+                        schema.node("paragraph", {}, [schema.text("abc")]),
+                    ]),
+                ),
+                references: emptyContentReferences,
+            },
         }),
     );
 
@@ -133,7 +140,7 @@ test("can receive multiple steps at a time", () => {
         },
     ]);
 
-    expect(state.editorState.getContent().toJSON()).toEqual(
+    expect(state.editorState.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -161,7 +168,7 @@ test("can receive multiple steps at a time", () => {
         },
     ]);
 
-    expect(state.editorState.getContent().toJSON()).toEqual(
+    expect(state.editorState.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -178,7 +185,7 @@ test("can receive multiple steps at a time", () => {
         },
     ]);
 
-    expect(state.editorState.getContent().toJSON()).toEqual(
+    expect(state.editorState.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -199,7 +206,7 @@ test("can receive multiple steps at a time", () => {
         },
     ]);
 
-    expect(state.editorState.getContent().toJSON()).toEqual(
+    expect(state.editorState.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -218,12 +225,15 @@ test("can receive steps out of order", () => {
             createdTime: new Date(),
             spaceId: generateId(),
             version: 10,
-            content: assertDocumentContent(
-                schema.node("doc", {}, [
-                    schema.node("title", {}, []),
-                    schema.node("paragraph", {}, [schema.text("ab")]),
-                ]),
-            ),
+            content: {
+                doc: assertDocumentContent(
+                    schema.node("doc", {}, [
+                        schema.node("title", {}, []),
+                        schema.node("paragraph", {}, [schema.text("ab")]),
+                    ]),
+                ),
+                references: emptyContentReferences,
+            },
         }),
     );
 
@@ -236,7 +246,7 @@ test("can receive steps out of order", () => {
     ]);
 
     expect(state.editorState.getVersion()).toEqual(10);
-    expect(state.editorState.getContent().toJSON()).toEqual(
+    expect(state.editorState.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -254,7 +264,7 @@ test("can receive steps out of order", () => {
     ]);
 
     expect(state.editorState.getVersion()).toEqual(10);
-    expect(state.editorState.getContent().toJSON()).toEqual(
+    expect(state.editorState.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -272,7 +282,7 @@ test("can receive steps out of order", () => {
     ]);
 
     expect(state.editorState.getVersion()).toEqual(11);
-    expect(state.editorState.getContent().toJSON()).toEqual(
+    expect(state.editorState.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -290,7 +300,7 @@ test("can receive steps out of order", () => {
     ]);
 
     expect(state.editorState.getVersion()).toEqual(13);
-    expect(state.editorState.getContent().toJSON()).toEqual(
+    expect(state.editorState.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -308,7 +318,7 @@ test("can receive steps out of order", () => {
     ]);
 
     expect(state.editorState.getVersion()).toEqual(15);
-    expect(state.editorState.getContent().toJSON()).toEqual(
+    expect(state.editorState.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -327,12 +337,15 @@ test("can receive steps multiple times", () => {
             createdTime: new Date(),
             spaceId: generateId(),
             version: 10,
-            content: assertDocumentContent(
-                schema.node("doc", {}, [
-                    schema.node("title", {}, []),
-                    schema.node("paragraph", {}, [schema.text("abc")]),
-                ]),
-            ),
+            content: {
+                doc: assertDocumentContent(
+                    schema.node("doc", {}, [
+                        schema.node("title", {}, []),
+                        schema.node("paragraph", {}, [schema.text("abc")]),
+                    ]),
+                ),
+                references: emptyContentReferences,
+            },
         }),
     );
 
@@ -345,7 +358,7 @@ test("can receive steps multiple times", () => {
     ]);
 
     expect(state.editorState.getVersion()).toEqual(11);
-    expect(state.editorState.getContent().toJSON()).toEqual(
+    expect(state.editorState.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -363,7 +376,7 @@ test("can receive steps multiple times", () => {
     ]);
 
     expect(state.editorState.getVersion()).toEqual(12);
-    expect(state.editorState.getContent().toJSON()).toEqual(
+    expect(state.editorState.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -381,7 +394,7 @@ test("can receive steps multiple times", () => {
     ]);
 
     expect(state.editorState.getVersion()).toEqual(12);
-    expect(state.editorState.getContent().toJSON()).toEqual(
+    expect(state.editorState.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -399,7 +412,7 @@ test("can receive steps multiple times", () => {
     ]);
 
     expect(state.editorState.getVersion()).toEqual(12);
-    expect(state.editorState.getContent().toJSON()).toEqual(
+    expect(state.editorState.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -417,7 +430,7 @@ test("can receive steps multiple times", () => {
     ]);
 
     expect(state.editorState.getVersion()).toEqual(13);
-    expect(state.editorState.getContent().toJSON()).toEqual(
+    expect(state.editorState.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -435,7 +448,7 @@ test("can receive steps multiple times", () => {
     ]);
 
     expect(state.editorState.getVersion()).toEqual(14);
-    expect(state.editorState.getContent().toJSON()).toEqual(
+    expect(state.editorState.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -453,7 +466,7 @@ test("can receive steps multiple times", () => {
     ]);
 
     expect(state.editorState.getVersion()).toEqual(14);
-    expect(state.editorState.getContent().toJSON()).toEqual(
+    expect(state.editorState.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -471,7 +484,7 @@ test("can receive steps multiple times", () => {
     ]);
 
     expect(state.editorState.getVersion()).toEqual(14);
-    expect(state.editorState.getContent().toJSON()).toEqual(
+    expect(state.editorState.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -490,12 +503,15 @@ test("can receive large step backfill with duplicate steps at end of backfill", 
             createdTime: new Date(),
             spaceId: generateId(),
             version: 10,
-            content: assertDocumentContent(
-                schema.node("doc", {}, [
-                    schema.node("title", {}, []),
-                    schema.node("paragraph", {}, [schema.text("abc")]),
-                ]),
-            ),
+            content: {
+                doc: assertDocumentContent(
+                    schema.node("doc", {}, [
+                        schema.node("title", {}, []),
+                        schema.node("paragraph", {}, [schema.text("abc")]),
+                    ]),
+                ),
+                references: emptyContentReferences,
+            },
         }),
     );
 
@@ -508,7 +524,7 @@ test("can receive large step backfill with duplicate steps at end of backfill", 
     ]);
 
     expect(state.editorState.getVersion()).toEqual(10);
-    expect(state.editorState.getContent().toJSON()).toEqual(
+    expect(state.editorState.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -530,7 +546,7 @@ test("can receive large step backfill with duplicate steps at end of backfill", 
     ]);
 
     expect(state.editorState.getVersion()).toEqual(10);
-    expect(state.editorState.getContent().toJSON()).toEqual(
+    expect(state.editorState.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -565,7 +581,7 @@ test("can receive large step backfill with duplicate steps at end of backfill", 
     ]);
 
     expect(state.editorState.getVersion()).toEqual(26);
-    expect(state.editorState.getContent().toJSON()).toEqual(
+    expect(state.editorState.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -584,12 +600,15 @@ test("can receive large step backfill with duplicate steps at beginning of backf
             createdTime: new Date(),
             spaceId: generateId(),
             version: 10,
-            content: assertDocumentContent(
-                schema.node("doc", {}, [
-                    schema.node("title", {}, []),
-                    schema.node("paragraph", {}, [schema.text("abc")]),
-                ]),
-            ),
+            content: {
+                doc: assertDocumentContent(
+                    schema.node("doc", {}, [
+                        schema.node("title", {}, []),
+                        schema.node("paragraph", {}, [schema.text("abc")]),
+                    ]),
+                ),
+                references: emptyContentReferences,
+            },
         }),
     );
 
@@ -613,7 +632,7 @@ test("can receive large step backfill with duplicate steps at beginning of backf
     ]);
 
     expect(state.editorState.getVersion()).toEqual(10);
-    expect(state.editorState.getContent().toJSON()).toEqual(
+    expect(state.editorState.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -648,7 +667,7 @@ test("can receive large step backfill with duplicate steps at beginning of backf
     ]);
 
     expect(state.editorState.getVersion()).toEqual(26);
-    expect(state.editorState.getContent().toJSON()).toEqual(
+    expect(state.editorState.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -667,12 +686,15 @@ test("can receive large step backfill with duplicate steps in the middle of back
             createdTime: new Date(),
             spaceId: generateId(),
             version: 10,
-            content: assertDocumentContent(
-                schema.node("doc", {}, [
-                    schema.node("title", {}, []),
-                    schema.node("paragraph", {}, [schema.text("abc")]),
-                ]),
-            ),
+            content: {
+                doc: assertDocumentContent(
+                    schema.node("doc", {}, [
+                        schema.node("title", {}, []),
+                        schema.node("paragraph", {}, [schema.text("abc")]),
+                    ]),
+                ),
+                references: emptyContentReferences,
+            },
         }),
     );
 
@@ -688,7 +710,7 @@ test("can receive large step backfill with duplicate steps in the middle of back
     ]);
 
     expect(state.editorState.getVersion()).toEqual(12);
-    expect(state.editorState.getContent().toJSON()).toEqual(
+    expect(state.editorState.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -723,7 +745,7 @@ test("can receive large step backfill with duplicate steps in the middle of back
     ]);
 
     expect(state.editorState.getVersion()).toEqual(26);
-    expect(state.editorState.getContent().toJSON()).toEqual(
+    expect(state.editorState.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -742,12 +764,15 @@ test("reproduce receive steps assertion failure", () => {
             createdTime: new Date(),
             spaceId: generateId(),
             version: 0,
-            content: assertDocumentContent(
-                schema.node("doc", {}, [
-                    schema.node("title", {}, []),
-                    schema.node("paragraph", {}, []),
-                ]),
-            ),
+            content: {
+                doc: assertDocumentContent(
+                    schema.node("doc", {}, [
+                        schema.node("title", {}, []),
+                        schema.node("paragraph", {}, []),
+                    ]),
+                ),
+                references: emptyContentReferences,
+            },
         }),
     );
 
@@ -760,7 +785,7 @@ test("reproduce receive steps assertion failure", () => {
     ]);
 
     expect(state.editorState.getVersion()).toEqual(1);
-    expect(state.editorState.getContent().toJSON()).toEqual(
+    expect(state.editorState.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -778,7 +803,7 @@ test("reproduce receive steps assertion failure", () => {
     ]);
 
     expect(state.editorState.getVersion()).toEqual(2);
-    expect(state.editorState.getContent().toJSON()).toEqual(
+    expect(state.editorState.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -796,7 +821,7 @@ test("reproduce receive steps assertion failure", () => {
     ]);
 
     expect(state.editorState.getVersion()).toEqual(3);
-    expect(state.editorState.getContent().toJSON()).toEqual(
+    expect(state.editorState.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -825,7 +850,7 @@ test("reproduce receive steps assertion failure", () => {
     ]);
 
     expect(state.editorState.getVersion()).toEqual(13);
-    expect(state.editorState.getContent().toJSON()).toEqual(
+    expect(state.editorState.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),

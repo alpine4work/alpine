@@ -53,7 +53,7 @@ export function ChannelViewTopBar({
                     display="flex"
                     alignItems="center"
                     style={{
-                        maxWidth: !isContentEmpty(channel.description)
+                        maxWidth: !isContentEmpty(channel.description.doc)
                             ? addRemLengths(
                                   spacing[postListViewMarginX],
                                   spacing[postViewMaxWidth],
@@ -238,7 +238,7 @@ function ChannelEditDescriptionModal({
 
                     await updateChannelDescription(context, {
                         channelId: channel.id,
-                        description,
+                        description: description.doc,
                     });
 
                     onUpdateChannel(channel => channel.clone({description}));

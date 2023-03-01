@@ -8,6 +8,7 @@ import React, {useCallback, useState} from "react";
 import {act} from "react-dom/test-utils";
 import {ContentEditor, getEditorViewForTest} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
+import {emptyContentReferences} from "~/shared/content/content_references";
 import {
     DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
@@ -20,7 +21,10 @@ function cantNavigate() {
 
 function TestContentEditor() {
     const [state, setState] = useState(() =>
-        ContentEditorState.create(emptyDocumentWithoutTitleContent),
+        ContentEditorState.create({
+            doc: emptyDocumentWithoutTitleContent,
+            references: emptyContentReferences,
+        }),
     );
     return (
         <ContentEditor
@@ -60,7 +64,10 @@ test("renders an empty document", () => {
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(emptyDocumentWithoutTitleContent)}
+            state={ContentEditorState.create({
+                doc: emptyDocumentWithoutTitleContent,
+                references: emptyContentReferences,
+            })}
             onChange={() => {}}
             onNavigate={cantNavigate}
         />,
@@ -83,7 +90,7 @@ test("renders an initial editor state", () => {
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(content)}
+            state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             onNavigate={cantNavigate}
         />,
@@ -109,7 +116,7 @@ test("rerenders with a changed document", () => {
     const {rerender} = render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(doc1)}
+            state={ContentEditorState.create({doc: doc1, references: emptyContentReferences})}
             onChange={onTransaction}
             onNavigate={cantNavigate}
         />,
@@ -120,7 +127,7 @@ test("rerenders with a changed document", () => {
     rerender(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create(doc2)}
+            state={ContentEditorState.create({doc: doc2, references: emptyContentReferences})}
             onChange={onTransaction}
             onNavigate={cantNavigate}
         />,
@@ -161,7 +168,12 @@ test("will optimistically update the DOM synchronously", () => {
 
 test("will revert optimistic update if it doesn't match props", () => {
     function NoopContentEditor() {
-        const [state] = useState(() => ContentEditorState.create(emptyDocumentWithoutTitleContent));
+        const [state] = useState(() =>
+            ContentEditorState.create({
+                doc: emptyDocumentWithoutTitleContent,
+                references: emptyContentReferences,
+            }),
+        );
         return (
             <ContentEditor
                 aria-label="Test"

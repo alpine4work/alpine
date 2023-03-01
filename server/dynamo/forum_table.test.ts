@@ -312,7 +312,7 @@ test("can get a post", async () => {
         content: testContent1,
     });
 
-    expect((await getPost(context.request(session1), post.id))?.content.toJSON()).toEqual(
+    expect((await getPost(context.request(session1), post.id))?.content.doc.toJSON()).toEqual(
         testContent1.toJSON(),
     );
 });

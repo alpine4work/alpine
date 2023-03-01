@@ -1,7 +1,7 @@
-import {PostContentSchema} from "~/shared/content/post_content_schema";
+import {PostContentWithReferencesSchema} from "~/shared/content/post_content_schema";
 import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
-import {MessageInterface, MessagePayloadSchema} from "~/shared/models/message_interface";
+import {MessageInterface, MessagePayloadModelSchema} from "~/shared/models/message_interface";
 import {Model} from "~/shared/models/model";
 import {Schema} from "~/shared/schema/schema";
 
@@ -22,7 +22,7 @@ export class PostModel extends Model(
         channelId: Schema.id<ChannelId>(),
         createdTime: Schema.date,
         author: AccountModel.schema(),
-        content: PostContentSchema,
+        content: PostContentWithReferencesSchema,
         contentUpdatedTime: Schema.date.nullable(),
         /**
          * The total number of comments on the post.
@@ -53,7 +53,7 @@ export class PostCommentModel
             index: Schema.integer,
             author: AccountModel.schema(),
             createdTime: Schema.date,
-            payload: MessagePayloadSchema,
+            payload: MessagePayloadModelSchema,
         }),
     )
     implements MessageInterface<PostId>

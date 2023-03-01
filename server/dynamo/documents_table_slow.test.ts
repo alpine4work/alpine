@@ -98,7 +98,7 @@ test(
 
                 const document = await getDocument(context.request(session), documentId);
                 expect(document?.version).toEqual(i);
-                expect(document?.content.toJSON()).toEqual(
+                expect(document?.content.doc.toJSON()).toEqual(
                     schema
                         .node("doc", {}, [
                             schema.node("title", {}, []),
@@ -233,7 +233,7 @@ test(
 
             const document = await getDocument(context.request(session), documentId);
             expect(document?.version).toEqual(i + 5);
-            expect(document?.content.toJSON()).toEqual(
+            expect(document?.content.doc.toJSON()).toEqual(
                 schema
                     .node("doc", {}, [
                         schema.node("title", {}, []),
@@ -306,7 +306,7 @@ test(
             // deleted yet.
             const document = await getDocument(context.request(session), documentId);
             expect(document?.version).toEqual(i + 5);
-            expect(document?.content.toJSON()).toEqual(
+            expect(document?.content.doc.toJSON()).toEqual(
                 schema
                     .node("doc", {}, [
                         schema.node("title", {}, []),
@@ -401,7 +401,7 @@ test(
             // deleted yet.
             const document = await getDocument(context.request(session), documentId);
             expect(document?.version).toEqual(i + 5);
-            expect(document?.content.toJSON()).toEqual(
+            expect(document?.content.doc.toJSON()).toEqual(
                 schema
                     .node("doc", {}, [
                         schema.node("title", {}, []),

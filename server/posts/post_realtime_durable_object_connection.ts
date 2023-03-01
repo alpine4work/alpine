@@ -6,11 +6,13 @@ import {
     getPostCommentsFromStart,
     updatePostCommentContent,
 } from "~/server/dynamo/forum_table";
+import {getContentReferences} from "~/server/dynamo/helpers/get_content_references";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint";
 import {AsyncSequentialQueue} from "~/shared/helpers/async/async_sequential_queue";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {PostId, SessionId} from "~/shared/id/types/id_types";
+import {PostId, SessionId, SpaceId} from "~/shared/id/types/id_types";
 import {PostCommentModel} from "~/shared/models/post_model";
 import {
     PostRealtimeMessageFromClient,
@@ -23,6 +25,7 @@ export const postRealtimeBackfillCommentsBeforeFlushTestCheckpoint =
 export const postRealtimeCreateCommentBeforeSendTestCheckpoint = new TestCheckpoint<SessionId>();
 
 export class PostRealtimeDurableObjectConnection {
+    private readonly _spaceId: SpaceId;
     private readonly _postId: PostId;
     private readonly _sendMessage: (
         context: ProcessContext,
@@ -47,16 +50,19 @@ export class PostRealtimeDurableObjectConnection {
     private _queuedComments: Array<PostCommentModel> = [];
 
     constructor({
+        spaceId,
         postId,
         sendMessage,
         sendMessageToAll,
         iterateOtherConnections,
     }: {
+        spaceId: SpaceId;
         postId: PostId;
         sendMessage: (context: ProcessContext, message: PostRealtimeMessageFromServer) => void;
         sendMessageToAll: (context: ProcessContext, message: PostRealtimeMessageFromServer) => void;
         iterateOtherConnections: () => Iterable<PostRealtimeDurableObjectConnection>;
     }) {
+        this._spaceId = spaceId;
         this._postId = postId;
         this._sendMessage = sendMessage;
         this._sendMessageToAll = sendMessageToAll;
@@ -167,20 +173,27 @@ export class PostRealtimeDurableObjectConnection {
                 break;
             }
             case "CreatePostComment": {
-                const {index, createdTime} = await createPostComment(context, {
-                    ...message,
-                    postId: this._postId,
-                });
+                const [{index, createdTime}, author, contentReferences] = await runAllPromises([
+                    createPostComment(context, {
+                        ...message,
+                        postId: this._postId,
+                    }),
+                    context.auth.getAccount(),
+                    getContentReferences(context, this._spaceId, message.content),
+                ]);
 
                 const comment = new PostCommentModel({
                     postId: this._postId,
                     index,
                     createdTime,
-                    author: await context.auth.getAccount(),
+                    author,
                     payload: {
                         type: "Content",
                         parentMessageIndex: message.parentCommentIndex,
-                        content: message.content,
+                        content: {
+                            doc: message.content,
+                            references: contentReferences,
+                        },
                         contentUpdatedTime: null,
                     },
                 });
@@ -197,15 +210,21 @@ export class PostRealtimeDurableObjectConnection {
                 break;
             }
             case "UpdatePostCommentContent": {
-                const {contentUpdatedTime} = await updatePostCommentContent(context, {
-                    ...message,
-                    postId: this._postId,
-                });
+                const [{contentUpdatedTime}, contentReferences] = await runAllPromises([
+                    updatePostCommentContent(context, {
+                        ...message,
+                        postId: this._postId,
+                    }),
+                    getContentReferences(context, this._spaceId, message.content),
+                ]);
 
                 this._sendMessageToAll(context, {
                     type: "UpdatedPostCommentContent",
                     commentIndex: message.commentIndex,
-                    content: message.content,
+                    content: {
+                        doc: message.content,
+                        references: contentReferences,
+                    },
                     contentUpdatedTime,
                 });
                 break;

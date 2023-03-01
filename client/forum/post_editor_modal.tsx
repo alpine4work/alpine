@@ -59,7 +59,7 @@ export function PostEditorModal({
 
             const {contentUpdatedTime} = await updatePostContent(context, {
                 postId: post.id,
-                content,
+                content: content.doc,
             });
 
             onUpdatePost(post => post.clone({content, contentUpdatedTime}));
@@ -103,7 +103,7 @@ export function PostEditorModal({
                     >
                         <Button
                             variant="accent"
-                            isDisabled={isContentEmpty(state.getContent())}
+                            isDisabled={isContentEmpty(state.getDoc())}
                             isPending={isPending}
                             pressErrorTitle={errorTitle}
                             onPress={handleUpdatePost}

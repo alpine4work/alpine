@@ -1,6 +1,7 @@
 import {assignInlineVars} from "@vanilla-extract/dynamic";
 import classNames from "classnames";
 import {Node, ParseRule, Schema as ProsemirrorSchema, SchemaSpec} from "prosemirror-model";
+import {ContentMentionSchema} from "~/shared/content/content_mention";
 import {clamp} from "~/shared/helpers/number/clamp";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol";
 import {Schema} from "~/shared/schema/schema";
@@ -232,18 +233,27 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
             parseDOM: [{tag: "br"}],
         },
 
-        // TODO(calebmer): Implement!
-        //
-        // mention: {
-        //     inline: true,
-        //     group: "inline",
-        //     selectable: false,
-        //     attrs: {
-        //         mention: {},
-        //     },
-        //     // TODO(calebmer): Proper `toDOM` and `parseDOM`.
-        //     toDOM: () => ["div", {}, "Unknown mention"],
-        // },
+        /**
+         * A mention is an inline reference to an account. Mentioning an account also
+         * sends a notification to the account to get their attention.
+         *
+         * A mention node alone in content does not include all the data we need to
+         * render it. When sending content to the client we need to load extra related
+         * data. In the case of an account, their name and avatar.
+         */
+        mention: {
+            inline: true,
+            group: "inline",
+            selectable: false,
+            attrs: {
+                mention: {
+                    schema: ContentMentionSchema,
+                },
+            },
+            // The rendering of mentions is entirely managed with a custom renderer since
+            // we need to get data from `ContentReferences`.
+            toDOM: () => ["span", {}, "@Unknown"],
+        },
     },
     marks: {
         // NOTE(calebmer, 2022-08-13): All of our marks are `inclusive` which means

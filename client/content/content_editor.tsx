@@ -660,8 +660,8 @@ function ContentEditor<Content extends Node>(
         }
     }, [ariaLabel, ariaLabelledBy]);
 
-    const isTitleEmpty = isContentTitleEmpty(state.getContent());
-    const isBodyEmpty = isContentBodyEmpty(state.getContent());
+    const isTitleEmpty = isContentTitleEmpty(state.getDoc());
+    const isBodyEmpty = isContentBodyEmpty(state.getDoc());
 
     // Set `aria-placeholder` on the editor for accessibility and then
     // `data-placeholder` on nodes which need to render placeholders.

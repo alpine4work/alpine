@@ -108,7 +108,7 @@ export type DocumentContentEditorState = {
 export function getInitialDocumentContentEditorState(
     initialDocument: DocumentModel,
 ): DocumentContentEditorState {
-    const editorState = ContentEditorState.createCollaborative({
+    const editorState = ContentEditorState.createCollaborative<DocumentContent>({
         version: initialDocument.version,
         content: initialDocument.content,
     });
@@ -780,14 +780,14 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
         // state.
         const sendableSteps = state.editorState.sendableSteps();
         if (sendableSteps) {
-            const content = state.editorState.getContent();
+            const doc = state.editorState.getDoc();
 
             const mapping = new Mapping();
             for (const step of sendableSteps.steps) mapping.appendMap(step.getMap());
 
             presenceStates = presenceStates.map(presenceState => ({
                 connectionId: presenceState.connectionId,
-                selection: presenceState.selection.map(content, mapping),
+                selection: presenceState.selection.map(doc, mapping),
             }));
         }
 

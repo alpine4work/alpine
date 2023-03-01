@@ -61,6 +61,7 @@ test("will backfill comments when requested", async () => {
     let connection1Messages: Array<PostRealtimeMessageFromServer> = [];
 
     const connection1 = new PostRealtimeDurableObjectConnection({
+        spaceId: space.id,
         postId: post.id,
         sendMessage: (context, message) => connection1Messages.push(message),
         sendMessageToAll: unimplemented,
@@ -230,6 +231,7 @@ test("will send comments from other connections", async () => {
 
     const connection1: PostRealtimeDurableObjectConnection =
         new PostRealtimeDurableObjectConnection({
+            spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection1Messages.push(message),
             sendMessageToAll: unimplemented,
@@ -238,6 +240,7 @@ test("will send comments from other connections", async () => {
 
     const connection2: PostRealtimeDurableObjectConnection =
         new PostRealtimeDurableObjectConnection({
+            spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection2Messages.push(message),
             sendMessageToAll: unimplemented,
@@ -246,6 +249,7 @@ test("will send comments from other connections", async () => {
 
     const connection3: PostRealtimeDurableObjectConnection =
         new PostRealtimeDurableObjectConnection({
+            spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection3Messages.push(message),
             sendMessageToAll: unimplemented,
@@ -452,6 +456,7 @@ test("will send comments from other connections when those comments are added du
 
     const connection1: PostRealtimeDurableObjectConnection =
         new PostRealtimeDurableObjectConnection({
+            spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection1Messages.push(message),
             sendMessageToAll: unimplemented,
@@ -460,6 +465,7 @@ test("will send comments from other connections when those comments are added du
 
     const connection2: PostRealtimeDurableObjectConnection =
         new PostRealtimeDurableObjectConnection({
+            spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection2Messages.push(message),
             sendMessageToAll: unimplemented,
@@ -468,6 +474,7 @@ test("will send comments from other connections when those comments are added du
 
     const connection3: PostRealtimeDurableObjectConnection =
         new PostRealtimeDurableObjectConnection({
+            spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection3Messages.push(message),
             sendMessageToAll: unimplemented,
@@ -688,6 +695,7 @@ test("will send comments our connection when those comments are added during bac
 
     const connection1: PostRealtimeDurableObjectConnection =
         new PostRealtimeDurableObjectConnection({
+            spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection1Messages.push(message),
             sendMessageToAll: unimplemented,
@@ -696,6 +704,7 @@ test("will send comments our connection when those comments are added during bac
 
     const connection2: PostRealtimeDurableObjectConnection =
         new PostRealtimeDurableObjectConnection({
+            spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection2Messages.push(message),
             sendMessageToAll: unimplemented,
@@ -704,6 +713,7 @@ test("will send comments our connection when those comments are added during bac
 
     const connection3: PostRealtimeDurableObjectConnection =
         new PostRealtimeDurableObjectConnection({
+            spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection3Messages.push(message),
             sendMessageToAll: unimplemented,
@@ -858,6 +868,7 @@ test("will send comments from other connections in order", async () => {
 
     const connection1: PostRealtimeDurableObjectConnection =
         new PostRealtimeDurableObjectConnection({
+            spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection1Messages.push(message),
             sendMessageToAll: unimplemented,
@@ -866,6 +877,7 @@ test("will send comments from other connections in order", async () => {
 
     const connection2: PostRealtimeDurableObjectConnection =
         new PostRealtimeDurableObjectConnection({
+            spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection2Messages.push(message),
             sendMessageToAll: unimplemented,
@@ -874,6 +886,7 @@ test("will send comments from other connections in order", async () => {
 
     const connection3: PostRealtimeDurableObjectConnection =
         new PostRealtimeDurableObjectConnection({
+            spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection3Messages.push(message),
             sendMessageToAll: unimplemented,
@@ -1046,6 +1059,7 @@ test("will send comments from other connections in order even if it is wacky", a
 
     const connection1: PostRealtimeDurableObjectConnection =
         new PostRealtimeDurableObjectConnection({
+            spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection1Messages.push(message),
             sendMessageToAll: unimplemented,
@@ -1054,6 +1068,7 @@ test("will send comments from other connections in order even if it is wacky", a
 
     const connection2: PostRealtimeDurableObjectConnection =
         new PostRealtimeDurableObjectConnection({
+            spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection2Messages.push(message),
             sendMessageToAll: unimplemented,
@@ -1062,6 +1077,7 @@ test("will send comments from other connections in order even if it is wacky", a
 
     const connection3: PostRealtimeDurableObjectConnection =
         new PostRealtimeDurableObjectConnection({
+            spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection3Messages.push(message),
             sendMessageToAll: unimplemented,
@@ -1249,6 +1265,7 @@ test("will ignore new messages if they are part of the backfill", async () => {
 
     const connection1: PostRealtimeDurableObjectConnection =
         new PostRealtimeDurableObjectConnection({
+            spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection1Messages.push(message),
             sendMessageToAll: unimplemented,
@@ -1257,6 +1274,7 @@ test("will ignore new messages if they are part of the backfill", async () => {
 
     const connection2: PostRealtimeDurableObjectConnection =
         new PostRealtimeDurableObjectConnection({
+            spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection2Messages.push(message),
             sendMessageToAll: unimplemented,
@@ -1376,6 +1394,7 @@ test("will ignore new messages if they are queued but part of the backfill", asy
 
     const connection1: PostRealtimeDurableObjectConnection =
         new PostRealtimeDurableObjectConnection({
+            spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection1Messages.push(message),
             sendMessageToAll: unimplemented,
@@ -1384,6 +1403,7 @@ test("will ignore new messages if they are queued but part of the backfill", asy
 
     const connection2: PostRealtimeDurableObjectConnection =
         new PostRealtimeDurableObjectConnection({
+            spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection2Messages.push(message),
             sendMessageToAll: unimplemented,

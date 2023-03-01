@@ -5,7 +5,7 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {MessageContent} from "~/shared/content/message_content_schema";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {omitObject} from "~/shared/helpers/object/omit_object";
-import {MessageContentPayload} from "~/shared/models/message_interface";
+import {MessageContentPayloadModel} from "~/shared/models/message_interface";
 
 export type MessageEditingState<RoomKey extends string> =
     | {
@@ -34,7 +34,7 @@ export type MessageEditingAction<RoomKey extends string> =
           readonly type: "StartEditing";
           readonly messageRoomKey: RoomKey;
           readonly messageIndex: number;
-          readonly messagePayload: MessageContentPayload;
+          readonly messagePayload: MessageContentPayloadModel;
       }
     | {
           readonly type: "ContentEditorStateChange";
@@ -63,7 +63,7 @@ function reduce<RoomKey extends string>(
                 messageRoomKey: action.messageRoomKey,
                 messageIndex: action.messageIndex,
                 contentEditorState: ContentEditorState.create(action.messagePayload.content),
-                initialContent: action.messagePayload.content,
+                initialContent: action.messagePayload.content.doc,
                 isSaving: false,
                 isConfirmingSave: false,
             };
@@ -83,7 +83,7 @@ function reduce<RoomKey extends string>(
         }
         case "MaybeCancelEditing": {
             if (!state.isEditing || state.isSaving) return state;
-            if (state.contentEditorState.getContent() === state.initialContent) {
+            if (state.contentEditorState.getDoc() === state.initialContent) {
                 return {
                     isEditing: false,
                 };
@@ -170,7 +170,7 @@ export function useMessageEditing<RoomKey extends string>({
         onUpdateMessageContent({
             roomKey: state.messageRoomKey,
             messageIndex: state.messageIndex,
-            content: state.contentEditorState.getContent(),
+            content: state.contentEditorState.getDoc(),
         }).then(
             () => {
                 dispatch({type: "FinishedSavingContent", shouldCancelEditing: true});

@@ -13,6 +13,7 @@ import {ColorSchemeToggleButton} from "~/client/design/playground/color_scheme_t
 import {TextInput} from "~/client/design/text_input";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer";
+import {emptyContentReferences} from "~/shared/content/content_references";
 import {dummyDocumentContent} from "~/shared/content/dummy_document_content";
 import {themeColors} from "~/shared/design/theme_colors";
 import {UnimplementedError} from "~/shared/error/error";
@@ -65,7 +66,9 @@ function DocumentBlobsPreview({settings}: {settings: DocumentBlobFactorySettings
     const id = useId().replace(/:/g, "_");
     const [containerRef, containerRect] = useResizeObserver();
 
-    const editorState = useConstant(() => ContentEditorState.create(documentContent));
+    const editorState = useConstant(() =>
+        ContentEditorState.create({doc: documentContent, references: emptyContentReferences}),
+    );
 
     return (
         <Box

@@ -22,6 +22,7 @@ import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/space_context";
+import {ContentMention} from "~/shared/content/content_mention";
 import {spacing} from "~/shared/design/spacing";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {createTimeout} from "~/shared/helpers/async/timeout";
@@ -95,6 +96,24 @@ export function ContentEditorMentionFloater({
         (_selectionState.index !== null && _selectionState.index >= searchedAccounts.length)
             ? {searchQuery, index: null, isFocusVisible: false}
             : _selectionState;
+
+    const saveMention = (account: AccountModel) => {
+        const view = assertExists(viewRef.current);
+
+        const mention: ContentMention = {
+            accountId: account.id,
+        };
+
+        view.dispatch(
+            view.state.tr.replaceRangeWith(
+                range.from,
+                range.to,
+                view.state.schema.node("mention", {mention}),
+            ),
+        );
+
+        onCloseWithoutAnimation();
+    };
 
     useImperativeHandle(handleKeyDownRef, () => event => {
         switch (event.key) {
@@ -189,10 +208,8 @@ export function ContentEditorMentionFloater({
                     selectionState.index !== null &&
                     selectionState.index < searchedAccounts.length
                 ) {
-                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
                     const account = searchedAccounts[selectionState.index]!;
-                    // TODO(calebmer): Implement
-                    onCloseWithoutAnimation();
+                    saveMention(account);
                 }
                 break;
             }
@@ -296,10 +313,7 @@ export function ContentEditorMentionFloater({
                                         };
                                     })
                                 }
-                                onPress={() => {
-                                    // TODO(calebmer): Implement
-                                    onCloseWithoutAnimation();
-                                }}
+                                onPress={() => saveMention(account)}
                             />
                         ))
                     )}

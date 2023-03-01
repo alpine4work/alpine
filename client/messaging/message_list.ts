@@ -5,7 +5,7 @@ import {Id} from "~/shared/id/id";
 import {
     MessageInterface,
     OptimisticMessageInterface,
-    areMessagePayloadsEqual,
+    areMessagePayloadModelsEqual,
 } from "~/shared/models/message_interface";
 
 export type MessageListItem<Message extends MessageInterface> =
@@ -236,7 +236,7 @@ export class MessageList<Message extends MessageInterface> {
             const optimisticMessage = optimisticMessages.find(
                 optimisticMessage =>
                     optimisticMessage.author.id === message.author.id &&
-                    areMessagePayloadsEqual(optimisticMessage.payload, message.payload),
+                    areMessagePayloadModelsEqual(optimisticMessage.payload, message.payload),
             );
             if (optimisticMessage)
                 optimisticMessages = optimisticMessages.filter(
