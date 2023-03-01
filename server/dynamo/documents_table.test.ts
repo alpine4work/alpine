@@ -1,5 +1,5 @@
 import {Fragment, Slice} from "prosemirror-model";
-import {ReplaceStep, Step} from "prosemirror-transform";
+import {ReplaceAroundStep, ReplaceStep, Step} from "prosemirror-transform";
 import {
     DocumentContentCacheForUpdate,
     createDocument,
@@ -23,6 +23,7 @@ import {
 import {
     DataLossError,
     FailedPreconditionError,
+    InvalidArgumentError,
     NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error";
@@ -99,6 +100,24 @@ test("can not create a document with the same id twice", async () => {
             content,
         });
     }).rejects.toThrow(FailedPreconditionError);
+});
+
+test("can not create a document with invalid format", async () => {
+    const id = generateId<DocumentId>();
+
+    const content = schema.nodes.doc.create({}, [
+        schema.nodes.title.create({}, [schema.text("Foo bar")]),
+        schema.nodes.unorderedListItem.create({}, [schema.text("Hello, world!")]),
+    ]);
+    assert(isDocumentContent(content));
+
+    await expect(
+        createDocument(context.request(session), {
+            id,
+            spaceId: space.id,
+            content,
+        }),
+    ).rejects.toThrowError(InvalidArgumentError);
 });
 
 test("can idempotently create a document twice", async () => {
@@ -2550,4 +2569,301 @@ test("can update a cached document after rejecting an update in a different spac
             ])
             .toJSON(),
     });
+});
+
+test("can not update a document with an invalid step", async () => {
+    {
+        const id = generateId<DocumentId>();
+
+        await createDocument(context.request(session), {
+            id,
+            spaceId: space.id,
+            content: emptyDocumentContent,
+        });
+
+        await updateDocumentContent(context.request(session), {
+            id,
+            version: 0,
+            steps: [
+                new ReplaceStep(
+                    2,
+                    4,
+                    new Slice(
+                        Fragment.from(
+                            schema.node("unorderedListItem", {}, [
+                                schema.node("paragraph", {}, [schema.text("test")]),
+                            ]),
+                        ),
+                        0,
+                        0,
+                    ),
+                ),
+            ],
+            clientId: generateId(),
+        });
+
+        expect(massageDocument(await getDocument(context.request(session), id))).toEqual({
+            version: 1,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("unorderedListItem", {}, [
+                        schema.node("paragraph", {}, [schema.text("test")]),
+                    ]),
+                ])
+                .toJSON(),
+        });
+    }
+
+    {
+        const id = generateId<DocumentId>();
+
+        await createDocument(context.request(session), {
+            id,
+            spaceId: space.id,
+            content: emptyDocumentContent,
+        });
+
+        await expect(
+            updateDocumentContent(context.request(session), {
+                id,
+                version: 0,
+                steps: [
+                    new ReplaceStep(
+                        2,
+                        4,
+                        new Slice(
+                            Fragment.from(
+                                schema.nodes.unorderedListItem.create({}, [schema.text("test")]),
+                            ),
+                            0,
+                            0,
+                        ),
+                    ),
+                ],
+                clientId: generateId(),
+            }),
+        ).rejects.toThrow(
+            new FailedPreconditionError(
+                'Updated content for "unorderedListItem" node is not valid',
+            ),
+        );
+    }
+});
+
+test("can not update a document such that it would have invalid content", async () => {
+    {
+        const id = generateId<DocumentId>();
+
+        await createDocument(context.request(session), {
+            id,
+            spaceId: space.id,
+            content: emptyDocumentContent,
+        });
+
+        await updateDocumentContent(context.request(session), {
+            id,
+            version: 0,
+            steps: [
+                new ReplaceStep(
+                    2,
+                    4,
+                    new Slice(
+                        Fragment.from(
+                            schema.node("unorderedListItem", {}, [
+                                schema.node("paragraph", {}, [schema.text("test")]),
+                            ]),
+                        ),
+                        0,
+                        0,
+                    ),
+                ),
+            ],
+            clientId: generateId(),
+        });
+
+        await updateDocumentContent(context.request(session), {
+            id,
+            version: 1,
+            steps: [
+                new ReplaceAroundStep(
+                    2,
+                    10,
+                    3,
+                    9,
+                    new Slice(Fragment.from([schema.nodes.orderedListItem.create()]), 0, 0),
+                    1,
+                    true,
+                ),
+            ],
+            clientId: generateId(),
+        });
+
+        expect(massageDocument(await getDocument(context.request(session), id))).toEqual({
+            version: 2,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("orderedListItem", {}, [
+                        schema.node("paragraph", {}, [schema.text("test")]),
+                    ]),
+                ])
+                .toJSON(),
+        });
+    }
+
+    {
+        const id = generateId<DocumentId>();
+
+        await createDocument(context.request(session), {
+            id,
+            spaceId: space.id,
+            content: emptyDocumentContent,
+        });
+
+        await updateDocumentContent(context.request(session), {
+            id,
+            version: 0,
+            steps: [
+                new ReplaceStep(
+                    2,
+                    4,
+                    new Slice(
+                        Fragment.from(
+                            schema.node("quoteBlock", {}, [
+                                schema.node("unorderedListItem", {}, [
+                                    schema.node("paragraph", {}, [schema.text("test")]),
+                                ]),
+                            ]),
+                        ),
+                        0,
+                        0,
+                    ),
+                ),
+            ],
+            clientId: generateId(),
+        });
+
+        await expect(
+            updateDocumentContent(context.request(session), {
+                id,
+                version: 1,
+                steps: [
+                    new ReplaceAroundStep(
+                        2,
+                        12,
+                        3,
+                        11,
+                        new Slice(Fragment.from([schema.nodes.orderedListItem.create()]), 0, 0),
+                        1,
+                        true,
+                    ),
+                ],
+                clientId: generateId(),
+            }),
+        ).rejects.toThrow(
+            new FailedPreconditionError('Updated content for "orderedListItem" node is not valid'),
+        );
+    }
+});
+
+test("can not update a document with an invalid step even when there is a concurrent update", async () => {
+    const id = generateId<DocumentId>();
+
+    await createDocument(context.request(session), {
+        id,
+        spaceId: space.id,
+        content: emptyDocumentContent,
+    });
+
+    await updateDocumentContent(context.request(session), {
+        id,
+        version: 0,
+        steps: [new ReplaceStep(3, 3, textSlice("test"))],
+        clientId: generateId(),
+    });
+
+    await expect(
+        updateDocumentContent(context.request(session), {
+            id,
+            version: 0,
+            steps: [
+                new ReplaceStep(
+                    2,
+                    4,
+                    new Slice(
+                        Fragment.from(
+                            schema.nodes.unorderedListItem.create({}, [schema.text("test")]),
+                        ),
+                        0,
+                        0,
+                    ),
+                ),
+            ],
+            clientId: generateId(),
+        }),
+    ).rejects.toThrow(
+        new FailedPreconditionError('Updated content for "unorderedListItem" node is not valid'),
+    );
+});
+
+test("can not update a document such that it would have invalid content even when there is a concurrent update", async () => {
+    const id = generateId<DocumentId>();
+
+    await createDocument(context.request(session), {
+        id,
+        spaceId: space.id,
+        content: emptyDocumentContent,
+    });
+
+    await updateDocumentContent(context.request(session), {
+        id,
+        version: 0,
+        steps: [
+            new ReplaceStep(
+                2,
+                4,
+                new Slice(
+                    Fragment.from(
+                        schema.node("quoteBlock", {}, [
+                            schema.node("unorderedListItem", {}, [
+                                schema.node("paragraph", {}, [schema.text("test")]),
+                            ]),
+                        ]),
+                    ),
+                    0,
+                    0,
+                ),
+            ),
+        ],
+        clientId: generateId(),
+    });
+
+    await updateDocumentContent(context.request(session), {
+        id,
+        version: 1,
+        steps: [new ReplaceStep(7, 7, textSlice("eeeee"))],
+        clientId: generateId(),
+    });
+
+    await expect(
+        updateDocumentContent(context.request(session), {
+            id,
+            version: 1,
+            steps: [
+                new ReplaceAroundStep(
+                    2,
+                    12,
+                    3,
+                    11,
+                    new Slice(Fragment.from([schema.nodes.orderedListItem.create()]), 0, 0),
+                    1,
+                    true,
+                ),
+            ],
+            clientId: generateId(),
+        }),
+    ).rejects.toThrow(
+        new FailedPreconditionError('Updated content for "orderedListItem" node is not valid'),
+    );
 });

@@ -63,7 +63,7 @@ test("can edit a post comment", async ({page, context: browserContext, isMobile}
     if (!isMobile) {
         await page.getByRole("textbox", {name: "Comment", exact: true}).press("Enter");
     } else {
-        await page.getByText("Save").click();
+        await page.getByRole("button", {name: "Save"}).click();
     }
     await expect(page.getByRole("textbox", {name: "Comment", exact: true})).toBeHidden();
 
@@ -155,7 +155,7 @@ test("can see a post comment edited in realtime", async ({
     if (!isMobile) {
         await page2.getByRole("textbox", {name: "Comment", exact: true}).press("Enter");
     } else {
-        await page2.getByText("Save").click();
+        await page2.getByRole("button", {name: "Save"}).click();
     }
 
     await expect(page1.getByText("1 comment")).toBeVisible();

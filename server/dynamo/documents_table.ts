@@ -1,3 +1,4 @@
+import {Node} from "prosemirror-model";
 import {Mapping, Step} from "prosemirror-transform";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {RequestContext} from "~/server/dynamo/context/request_context";
@@ -25,6 +26,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
@@ -36,6 +38,7 @@ import {
     DocumentPreviewModel,
     getDocumentContentTitleWithoutFallback,
 } from "~/shared/models/document_model";
+import {ExhaustiveStep} from "~/shared/prosemirror/prosemirror_exhaustive_step";
 import {Schema} from "~/shared/schema/schema";
 
 const DocumentsTable = DynamoTableSchema.new({
@@ -1175,6 +1178,8 @@ export async function getUpdateDocumentContentResult({
         clientId: ContentEditorClientId;
     }>;
     clientContent: DocumentContent;
+    // Mapping from client positions to positions in the final document. Will
+    // not map anything if there were no conflicting steps.
     mapping: Mapping;
 }> {
     assert(clientVersion >= 0);
@@ -1306,6 +1311,91 @@ export async function getUpdateDocumentContentResult({
         }
 
         steps = rebasedSteps;
+    }
+
+    // Validate that our steps left the document in a good state.
+    //
+    // We collect all ranges touched by a step and we validate the content of
+    // the nodes in those ranges.
+    {
+        const rangesToValidate: Array<{start: number; end: number}> = [];
+        const mapping = new Mapping(steps.map(step => step.getMap()));
+
+        for (const [stepIndex, _step] of steps.entries()) {
+            const step = _step as ExhaustiveStep;
+            const remainingMapping = mapping.slice(stepIndex);
+
+            const addRangeToValidate = (start: number, end: number) => {
+                // Make sure start/end represent positions in our new content.
+                start = remainingMapping.map(start, -1);
+                end = remainingMapping.map(end, 1);
+                assert(start <= end);
+
+                let hasInsertedRange = false;
+
+                for (const [rangeIndex, range] of rangesToValidate.entries()) {
+                    assert(range.start <= range.end);
+
+                    if (areRangesOverlapping(range.start, range.end, start, end)) {
+                        range.start = Math.min(range.start, start);
+                        range.end = Math.min(range.end, end);
+                        hasInsertedRange = true;
+                        break;
+                    }
+
+                    if (end < range.start) {
+                        rangesToValidate.splice(rangeIndex, 0, {start, end: end});
+                        hasInsertedRange = true;
+                        break;
+                    }
+                }
+
+                if (!hasInsertedRange) rangesToValidate.push({start, end});
+            };
+
+            switch (step.jsonID) {
+                case "attr":
+                case "addNodeMark":
+                case "removeNodeMark": {
+                    addRangeToValidate(step.pos, step.pos);
+                    break;
+                }
+                case "addMark":
+                case "removeMark":
+                case "replace":
+                case "replaceAround": {
+                    addRangeToValidate(step.from, step.to);
+                    break;
+                }
+                default:
+                    throw exhaustive(step);
+            }
+        }
+
+        const validatedNodes = new Set<Node>();
+        for (const range of rangesToValidate) {
+            content.nodesBetween(range.start, range.end, (node, pos, parentNode) => {
+                // Make sure we validate the parent nodes of any updated nodes as well. In case
+                // changing the type of our node made it unacceptable for its parent's content.
+                if (parentNode && !validatedNodes.has(parentNode)) {
+                    validatedNodes.add(parentNode);
+
+                    if (!parentNode.type.validContent(parentNode.content))
+                        throw new FailedPreconditionError(
+                            `Updated content for "${parentNode.type.name}" node is not valid`,
+                        );
+                }
+
+                // If we have already validated this node in a different range, don't validate again.
+                if (validatedNodes.has(node)) return false;
+                validatedNodes.add(node);
+
+                if (!node.type.validContent(node.content))
+                    throw new FailedPreconditionError(
+                        `Updated content for "${node.type.name}" node is not valid`,
+                    );
+            });
+        }
     }
 
     return {

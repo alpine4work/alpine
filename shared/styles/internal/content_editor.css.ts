@@ -1,8 +1,5 @@
 import {globalStyle, style} from "@vanilla-extract/css";
-import {spacing} from "~/shared/design/spacing";
-import {colorSchemeVars} from "~/shared/styles/internal/color_scheme.css";
 import {
-    codeClassName,
     headingLevel1ClassName,
     headingLevel1FontSize,
     headingLevel2ClassName,

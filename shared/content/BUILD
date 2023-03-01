@@ -13,6 +13,7 @@ ts_project(
         "//shared/design",
         "//shared/helpers",
         "//shared/prosemirror",
+        "//shared/schema",
         "//shared/styles",
     ],
 )

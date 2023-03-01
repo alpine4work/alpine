@@ -11,14 +11,10 @@
  */
 export type SchemaSerializedValueDescription =
     | SchemaSerializedScalarValueDescription
-    | SchemaSerializedNullableValueDescription
-    | SchemaSerializedArrayValueDescription
-    | SchemaSerializedObjectValueDescription
-    | SchemaSerializedUnionValueDescription
-    | SchemaSerializedResultValueDescription
-    | SchemaSerializedSetValueDescription
-    | SchemaSerializedMapValueDescription;
+    | SchemaSerializedCompositeValueDescription;
 
+// Schema descriptions that don't recursively reference other
+// schema descriptions.
 export type SchemaSerializedScalarValueDescription =
     | {readonly type: "Unknown"}
     | {readonly type: "Boolean"}
@@ -28,7 +24,19 @@ export type SchemaSerializedScalarValueDescription =
     | {readonly type: "Id"}
     | {readonly type: "Bytes"}
     | {readonly type: "Date"}
-    | {readonly type: "Value"; readonly value: number | boolean | string};
+    | {readonly type: "Value"; readonly value: number | boolean | string}
+    | {readonly type: "Enum"; readonly values: ReadonlyArray<string | number>};
+
+// Schema descriptions which are composed of multiple recursively nested
+// schema descriptions.
+export type SchemaSerializedCompositeValueDescription =
+    | SchemaSerializedNullableValueDescription
+    | SchemaSerializedArrayValueDescription
+    | SchemaSerializedObjectValueDescription
+    | SchemaSerializedUnionValueDescription
+    | SchemaSerializedResultValueDescription
+    | SchemaSerializedSetValueDescription
+    | SchemaSerializedMapValueDescription;
 
 export type SchemaSerializedNullableValueDescription = {
     readonly type: "Nullable";
@@ -54,7 +62,8 @@ export type SchemaSerializedObjectValuePropertyDescription = {
 
 export type SchemaSerializedUnionValueDescription = {
     readonly type: "Union";
-    readonly variantSchemaByType: {
+    readonly typeKey: string;
+    readonly variantSchemaByTypeValue: {
         readonly [type: string]: SchemaSerializedValueDescription;
     };
 };

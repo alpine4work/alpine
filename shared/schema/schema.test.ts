@@ -593,8 +593,8 @@ test("union requires variant objects to have a type property of the same name", 
     Schema.union({
         // @ts-expect-error
         foo: Schema.object({
-            type: Schema.value("bar"),
-        }).originalUnionType("qux"),
+            type: Schema.value("bar").originalValue("qux"),
+        }),
     });
 });
 
@@ -643,8 +643,8 @@ test("union variants can be renamed", () => {
             type: Schema.value("foo"),
         }),
         bar: Schema.object({
-            type: Schema.value("bar"),
-        }).originalUnionType("qux"),
+            type: Schema.value("bar").originalValue("qux"),
+        }),
     });
 
     expect(schema.deserialize({type: "foo"})).toEqual({type: "foo"});

@@ -19,7 +19,10 @@ function testCase<LastValue, NextValue>({
 }) {
     if (isBackwardsCompatible) {
         expect(() => {
-            checkSchemaBackwardsCompatibility(lastSchema.description, nextSchema.description);
+            checkSchemaBackwardsCompatibility(
+                lastSchema.getDescription(),
+                nextSchema.getDescription(),
+            );
         }).not.toThrow();
 
         for (const sampleValue of sampleValues) {
@@ -29,7 +32,10 @@ function testCase<LastValue, NextValue>({
         }
     } else {
         expect(() => {
-            checkSchemaBackwardsCompatibility(lastSchema.description, nextSchema.description);
+            checkSchemaBackwardsCompatibility(
+                lastSchema.getDescription(),
+                nextSchema.getDescription(),
+            );
         }).toThrow(SchemaBackwardsIncompatibleError);
 
         for (const sampleValue of sampleValues) {
@@ -636,9 +642,9 @@ test("union schema variants can be renamed with original variant name", () => {
                 foo: Schema.integer,
             }),
             qux: Schema.object({
-                type: Schema.value("qux"),
+                type: Schema.value("qux").originalValue("bar"),
                 bar: Schema.integer,
-            }).originalUnionType("bar"),
+            }),
         }),
         sampleValues: [
             {type: "foo", foo: 1},
@@ -679,9 +685,9 @@ test("union schema variants can be renamed with original variant name", () => {
                 foo: Schema.integer,
             }),
             qux: Schema.object({
-                type: Schema.value("qux"),
+                type: Schema.value("qux").originalValue("bar"),
                 bar: Schema.integer,
-            }).originalUnionType("bar"),
+            }),
         }),
         nextSchema: Schema.union({
             foo: Schema.object({
@@ -990,5 +996,44 @@ test("map schema is backwards compatible if its entries are backwards compatible
                 [3, 1],
             ]),
         ],
+    });
+});
+
+test("enum may add values but not remove them", () => {
+    testCase({
+        isBackwardsCompatible: true,
+        lastSchema: Schema.enum([1, 2, 3] as const),
+        nextSchema: Schema.enum([1, 2, 3, 4, 5] as const),
+        sampleValues: [1, 2, 3],
+    });
+
+    testCase({
+        isBackwardsCompatible: false,
+        lastSchema: Schema.enum([1, 2, 3, 4, 5] as const),
+        nextSchema: Schema.enum([1, 2, 3] as const),
+        sampleValues: [4, 5],
+    });
+});
+
+test("value schema may change over time", () => {
+    testCase({
+        isBackwardsCompatible: false,
+        lastSchema: Schema.value("foo"),
+        nextSchema: Schema.value("bar"),
+        sampleValues: ["foo"],
+    });
+
+    testCase({
+        isBackwardsCompatible: true,
+        lastSchema: Schema.value("foo"),
+        nextSchema: Schema.value("bar").originalValue("foo"),
+        sampleValues: ["foo"],
+    });
+
+    testCase({
+        isBackwardsCompatible: true,
+        lastSchema: Schema.value("foo").originalValue("bar"),
+        nextSchema: Schema.value("bar"),
+        sampleValues: ["foo"],
     });
 });

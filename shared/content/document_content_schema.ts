@@ -1,8 +1,8 @@
 import {assignInlineVars} from "@vanilla-extract/dynamic";
 import classNames from "classnames";
 import {Node, Schema as ProsemirrorSchema} from "prosemirror-model";
-import {Step} from "prosemirror-transform";
 import {
+    ContentSchemaListItemIndentSchema,
     clampListItemIndentation,
     contentBaseProsemirrorSchemaSpec,
     createListItemParseRule,
@@ -12,7 +12,8 @@ import {
 import {contentStructuralProsemirrorNodeSpecs} from "~/shared/content/content_schema_extra";
 import {HighlightColor, isHighlightColor} from "~/shared/design/highlight_color";
 import {assert} from "~/shared/helpers/control/assert";
-import {Schema, SchemaDeserializationError} from "~/shared/schema/schema";
+import {createSchemaForProsemirrorSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema";
+import {Schema} from "~/shared/schema/schema";
 import {contentSchemaStyles} from "~/shared/styles/styles";
 
 const {
@@ -41,8 +42,14 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
             group: "block listItem",
             content: "paragraph+",
             attrs: {
-                indent: {default: 0},
-                checked: {default: false},
+                indent: {
+                    schema: ContentSchemaListItemIndentSchema,
+                    default: 0,
+                },
+                checked: {
+                    schema: Schema.boolean,
+                    default: false,
+                },
             },
             defining: true,
             // TODO(calebmer): Test that copying a check list from a document and pasting
@@ -104,7 +111,9 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
          */
         highlight: {
             attrs: {
-                color: {},
+                color: {
+                    schema: Schema.enum(HighlightColor),
+                },
             },
             inclusive: false,
             toDOM: node => {
@@ -158,37 +167,14 @@ export const DocumentWithoutTitleContentProsemirrorSchema = new ProsemirrorSchem
     documentWithoutTitleContentProsemirrorSchemaSpec,
 );
 
+const documentWithoutTitleSchemas = createSchemaForProsemirrorSchema(
+    DocumentWithoutTitleContentProsemirrorSchema,
+);
+
 export const DocumentWithoutTitleContentSchema =
-    Schema.unknown.transform<DocumentWithoutTitleContent>({
-        serialize: content => content.toJSON(),
-        deserialize: unknownValue => {
-            let content;
-            try {
-                content = DocumentWithoutTitleContentProsemirrorSchema.nodeFromJSON(unknownValue);
-            } catch {
-                throw new SchemaDeserializationError("Invalid document content");
-            }
+    documentWithoutTitleSchemas.TopNodeType as Schema<any> as Schema<DocumentWithoutTitleContent>;
 
-            if (!isDocumentWithoutTitleContent(content))
-                throw new SchemaDeserializationError("Invalid document content");
-
-            return content;
-        },
-    });
-
-export const DocumentWithoutTitleContentStepSchema = Schema.unknown.transform<Step>({
-    serialize: step => step.toJSON(),
-    deserialize: unknownValue => {
-        let content;
-        try {
-            content = Step.fromJSON(DocumentWithoutTitleContentProsemirrorSchema, unknownValue);
-        } catch {
-            throw new SchemaDeserializationError("Invalid document content step");
-        }
-
-        return content;
-    },
-});
+export const DocumentWithoutTitleContentStepSchema = documentWithoutTitleSchemas.createStepSchema();
 
 export const emptyDocumentWithoutTitleContent = DocumentWithoutTitleContentProsemirrorSchema.node(
     "doc",
@@ -255,36 +241,12 @@ export const DocumentContentProsemirrorSchema = new ProsemirrorSchema(
     documentContentProsemirrorSchemaSpec,
 );
 
-export const DocumentContentSchema = Schema.unknown.transform<DocumentContent>({
-    serialize: content => content.toJSON(),
-    deserialize: unknownValue => {
-        let content;
-        try {
-            content = DocumentContentProsemirrorSchema.nodeFromJSON(unknownValue);
-        } catch {
-            throw new SchemaDeserializationError("Invalid document content");
-        }
+const documentSchemas = createSchemaForProsemirrorSchema(DocumentContentProsemirrorSchema);
 
-        if (!isDocumentContent(content))
-            throw new SchemaDeserializationError("Invalid document content");
+export const DocumentContentSchema =
+    documentSchemas.TopNodeType as Schema<any> as Schema<DocumentContent>;
 
-        return content;
-    },
-});
-
-export const DocumentContentStepSchema = Schema.unknown.transform<Step>({
-    serialize: step => step.toJSON(),
-    deserialize: unknownValue => {
-        let content;
-        try {
-            content = Step.fromJSON(DocumentContentProsemirrorSchema, unknownValue);
-        } catch {
-            throw new SchemaDeserializationError("Invalid document content step");
-        }
-
-        return content;
-    },
-});
+export const DocumentContentStepSchema = documentSchemas.createStepSchema();
 
 export const emptyDocumentContent = DocumentContentProsemirrorSchema.node("doc", {}, [
     DocumentContentProsemirrorSchema.node("title"),

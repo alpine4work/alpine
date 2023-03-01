@@ -2301,7 +2301,7 @@ function getAndCheckDynamoTableSchemaDescriptions(
                                 sortRangeConfig.sortKeyAttributes,
                                 keyAttribute => keyAttribute.description,
                             ),
-                            attributesSchema: sortRangeConfig.attributes.description,
+                            attributesSchema: sortRangeConfig.attributes.getDescription(),
                         }),
                     ),
                 };

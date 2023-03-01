@@ -20,11 +20,17 @@ import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test
 import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
 import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
 import {
+    MessageContentProsemirrorSchema,
+    assertMessageContent,
     createSimpleMessageContent,
     emptyMessageContent,
 } from "~/shared/content/message_content_schema";
-import {createSimplePostContent} from "~/shared/content/post_content_schema";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error";
+import {
+    PostContentProsemirrorSchema,
+    assertPostContent,
+    createSimplePostContent,
+} from "~/shared/content/post_content_schema";
+import {InvalidArgumentError, NotFoundError, PermissionDeniedError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {generateId} from "~/shared/id/id";
 import {PostId} from "~/shared/id/types/id_types";
@@ -192,6 +198,55 @@ test("can not update the description of a channel that does not exist", async ()
     ).rejects.toThrow(NotFoundError);
 });
 
+test("can not update a channel's description with invalid content", async () => {
+    const channel = await createChannel(context.request(session1), {
+        spaceId: space.id,
+        name: "Test 1",
+    });
+
+    expect((await getChannel(context.request(session1), channel.id))?.description).toEqual(
+        emptyMessageContent,
+    );
+
+    await updateChannelDescription(context.request(session1), {
+        channelId: channel.id,
+        description: testMessageContent1,
+    });
+
+    expect((await getChannel(context.request(session1), channel.id))?.description).toEqual(
+        testMessageContent1,
+    );
+
+    await expect(
+        updateChannelDescription(context.request(session1), {
+            channelId: channel.id,
+            description: assertMessageContent(
+                MessageContentProsemirrorSchema.nodes.doc.create({}, [
+                    MessageContentProsemirrorSchema.nodes.unorderedListItem.create({}, [
+                        MessageContentProsemirrorSchema.text("Hello, world!"),
+                    ]),
+                ]),
+            ),
+        }),
+    ).rejects.toThrow(InvalidArgumentError);
+
+    expect((await getChannel(context.request(session1), channel.id))?.description).toEqual(
+        testMessageContent1,
+    );
+});
+
+test("can create a post", async () => {
+    const channel = await createChannel(context.request(session1), {
+        spaceId: space.id,
+        name: "Test",
+    });
+
+    await createPost(context.request(session1), {
+        channelId: channel.id,
+        content: testContent1,
+    });
+});
+
 test("can not create a post for a different space", async () => {
     const channel = await createChannel(context.request(session1), {
         spaceId: space.id,
@@ -206,16 +261,24 @@ test("can not create a post for a different space", async () => {
     ).rejects.toThrow(PermissionDeniedError);
 });
 
-test("can create a post", async () => {
+test("can not create a post with invalid content", async () => {
     const channel = await createChannel(context.request(session1), {
         spaceId: space.id,
         name: "Test",
     });
 
-    await createPost(context.request(session1), {
-        channelId: channel.id,
-        content: testContent1,
-    });
+    await expect(
+        createPost(context.request(session1), {
+            channelId: channel.id,
+            content: assertPostContent(
+                PostContentProsemirrorSchema.nodes.doc.create({}, [
+                    PostContentProsemirrorSchema.nodes.unorderedListItem.create({}, [
+                        PostContentProsemirrorSchema.text("Hello, world!"),
+                    ]),
+                ]),
+            ),
+        }),
+    ).rejects.toThrow(InvalidArgumentError);
 });
 
 test("can not get a post that does not exist", async () => {
@@ -1008,12 +1071,38 @@ test("can not update another account's post", async () => {
         content: testContent1,
     });
 
+    expect(await getPost(context.request(session1), post.id)).toEqual({
+        id: post.id,
+        spaceId: space.id,
+        channelId: channel.id,
+        createdTime: expect.any(Date),
+        author: session1.account,
+        content: testContent1,
+        contentUpdatedTime: null,
+        commentCount: 0,
+        commentAuthorCount: 0,
+        previewCommentAuthors: [],
+    });
+
     await expect(
         updatePostContent(context.request(session2), {
             postId: post.id,
             content: testContent2,
         }),
     ).rejects.toThrow(PermissionDeniedError);
+
+    expect(await getPost(context.request(session1), post.id)).toEqual({
+        id: post.id,
+        spaceId: space.id,
+        channelId: channel.id,
+        createdTime: expect.any(Date),
+        author: session1.account,
+        content: testContent1,
+        contentUpdatedTime: null,
+        commentCount: 0,
+        commentAuthorCount: 0,
+        previewCommentAuthors: [],
+    });
 });
 
 test("can not update another space's post", async () => {
@@ -1027,12 +1116,89 @@ test("can not update another space's post", async () => {
         content: testContent1,
     });
 
+    expect(await getPost(context.request(session1), post.id)).toEqual({
+        id: post.id,
+        spaceId: space.id,
+        channelId: channel.id,
+        createdTime: expect.any(Date),
+        author: session1.account,
+        content: testContent1,
+        contentUpdatedTime: null,
+        commentCount: 0,
+        commentAuthorCount: 0,
+        previewCommentAuthors: [],
+    });
+
     await expect(
         updatePostContent(context.request(otherSession), {
             postId: post.id,
             content: testContent2,
         }),
     ).rejects.toThrow(PermissionDeniedError);
+
+    expect(await getPost(context.request(session1), post.id)).toEqual({
+        id: post.id,
+        spaceId: space.id,
+        channelId: channel.id,
+        createdTime: expect.any(Date),
+        author: session1.account,
+        content: testContent1,
+        contentUpdatedTime: null,
+        commentCount: 0,
+        commentAuthorCount: 0,
+        previewCommentAuthors: [],
+    });
+});
+
+test("can not update a post with invalid content", async () => {
+    const channel = await createChannel(context.request(session1), {
+        spaceId: space.id,
+        name: "Test",
+    });
+
+    const post = await createPost(context.request(session1), {
+        channelId: channel.id,
+        content: testContent1,
+    });
+
+    expect(await getPost(context.request(session1), post.id)).toEqual({
+        id: post.id,
+        spaceId: space.id,
+        channelId: channel.id,
+        createdTime: expect.any(Date),
+        author: session1.account,
+        content: testContent1,
+        contentUpdatedTime: null,
+        commentCount: 0,
+        commentAuthorCount: 0,
+        previewCommentAuthors: [],
+    });
+
+    await expect(
+        updatePostContent(context.request(session1), {
+            postId: post.id,
+            content: assertPostContent(
+                PostContentProsemirrorSchema.nodes.doc.create({}, [
+                    PostContentProsemirrorSchema.nodes.unorderedListItem.create({}, [
+                        PostContentProsemirrorSchema.text("Hello, world!"),
+                    ]),
+                ]),
+            ),
+        }),
+    ).rejects.toThrow(InvalidArgumentError);
+
+    expect(await getPost(context.request(session1), post.id)).toEqual({
+        id: post.id,
+        spaceId: space.id,
+        channelId: channel.id,
+        createdTime: expect.any(Date),
+        author: session1.account,
+        content: testContent1,
+        contentUpdatedTime: null,
+        commentCount: 0,
+        commentAuthorCount: 0,
+        previewCommentAuthors: [],
+    });
 });
 
 test("if time hasn't moved forward updating a post will set it to +1ms of the last update time", async () => {

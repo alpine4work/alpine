@@ -6,6 +6,8 @@ ts_project(
     deps = [
         "//admin/helpers",
         "//server/dynamo",
+        "//shared/helpers",
+        "//shared/schema",
     ],
 )
 

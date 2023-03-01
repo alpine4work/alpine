@@ -9,6 +9,7 @@ import {
     useRef,
     useState,
 } from "react";
+import {unstable_IdlePriority, unstable_scheduleCallback} from "scheduler";
 import {useAppContext} from "~/client/context/app_context";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted";
@@ -138,12 +139,15 @@ export function SpaceContextProvider({
         );
     }, []);
 
-    // Add a low priority tasks to preload accounts. If we have already loaded some
+    // Add a low priority task to preload accounts. If we have already loaded some
     // accounts then this does nothing.
     const preloadSpaceAccounts = useEvent(() => {
         if (spaceAccountsState.data) return;
 
-        requestIdleCallback(() => {
+        // If we get some time preload accounts. `requestIdleCallback()` is not
+        // implemented on Safari. Generally we recommend using the React scheduler
+        // since it has centralized knowledge of all our tasks.
+        unstable_scheduleCallback(unstable_IdlePriority, () => {
             if (!isMounted()) return;
 
             setSpaceAccountsState(spaceAccountsState =>

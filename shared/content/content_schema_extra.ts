@@ -1,4 +1,5 @@
 import {NodeSpec} from "prosemirror-model";
+import {Schema} from "~/shared/schema/schema";
 import {contentSchemaStyles} from "~/shared/styles/styles";
 
 const {dividerClassName, headingLevel1ClassName, headingLevel2ClassName, headingLevel3ClassName} =
@@ -36,7 +37,10 @@ export const contentStructuralProsemirrorNodeSpecs = createProsemirrorNodesSpec(
         group: "block",
         content: "inline*",
         attrs: {
-            level: {default: 1},
+            level: {
+                schema: Schema.integer.min(1).max(3),
+                default: 1,
+            },
         },
         toDOM: node => {
             const unknownLevel: unknown = node.attrs.level;

@@ -262,7 +262,13 @@ function ContentEditor<Content extends Node>(
 
     // Preload space accounts so when the user tries to mention one they
     // are available.
-    useExpensivelyPreloadAllSpaceAccounts();
+    //
+    // Only preload space accounts outside of Jest unit tests! That way we don't
+    // depend on space context in unit tests.
+    if (typeof jest === "undefined") {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        useExpensivelyPreloadAllSpaceAccounts();
+    }
 
     // The props for the current React commit. We are integrating with a stateful
     // component (ProseMirror's `EditorView`) so we need to be able to

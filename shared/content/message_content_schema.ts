@@ -4,7 +4,8 @@ import {
     createProsemirrorSchemaSpec,
 } from "~/shared/content/content_schema";
 import {assert} from "~/shared/helpers/control/assert";
-import {Schema, SchemaDeserializationError} from "~/shared/schema/schema";
+import {createSchemaForProsemirrorSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema";
+import {Schema} from "~/shared/schema/schema";
 
 const messageContentProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
     nodes: {
@@ -40,22 +41,10 @@ export const MessageContentProsemirrorSchema = new ProsemirrorSchema(
     messageContentProsemirrorSchemaSpec,
 );
 
-export const MessageContentSchema = Schema.unknown.transform<MessageContent>({
-    serialize: content => content.toJSON(),
-    deserialize: unknownValue => {
-        let content;
-        try {
-            content = MessageContentProsemirrorSchema.nodeFromJSON(unknownValue);
-        } catch {
-            throw new SchemaDeserializationError("Invalid message content");
-        }
+const messageContentSchemas = createSchemaForProsemirrorSchema(MessageContentProsemirrorSchema);
 
-        if (!isMessageContent(content))
-            throw new SchemaDeserializationError("Invalid message content");
-
-        return content;
-    },
-});
+export const MessageContentSchema =
+    messageContentSchemas.TopNodeType as Schema<any> as Schema<MessageContent>;
 
 export const emptyMessageContent = MessageContentProsemirrorSchema.node("doc", {}, [
     MessageContentProsemirrorSchema.node("paragraph"),

@@ -1,9 +1,18 @@
 import {assignInlineVars} from "@vanilla-extract/dynamic";
 import classNames from "classnames";
-import {Node, ParseRule, Schema, SchemaSpec} from "prosemirror-model";
+import {Node, ParseRule, Schema as ProsemirrorSchema, SchemaSpec} from "prosemirror-model";
 import {clamp} from "~/shared/helpers/number/clamp";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol";
+import {Schema} from "~/shared/schema/schema";
 import {contentSchemaStyles} from "~/shared/styles/styles";
+
+declare module "prosemirror-model" {
+    interface AttributeSpec {
+        // We expect every attribute to come with a schema from our schema framework.
+        // `createSchemaForProsemirrorSchema()` will use this.
+        schema: Schema<any>;
+    }
+}
 
 const {
     boldClassName,
@@ -24,6 +33,8 @@ const {
  */
 export const maxListItemIndentation = 5;
 
+export const ContentSchemaListItemIndentSchema = Schema.integer.min(0).max(maxListItemIndentation);
+
 export function clampListItemIndentation(indent: unknown): number {
     return typeof indent === "number" ? clamp(0, Math.floor(indent), maxListItemIndentation) : 0;
 }
@@ -39,7 +50,7 @@ export function createProsemirrorSchemaSpec<Schema extends SchemaSpec<string, st
     return schema;
 }
 
-export type ContentProsemirrorSchema = Schema<
+export type ContentProsemirrorSchema = ProsemirrorSchema<
     keyof typeof contentBaseProsemirrorSchemaSpec["nodes"],
     keyof typeof contentBaseProsemirrorSchemaSpec["marks"]
 >;
@@ -155,7 +166,10 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
             group: "block listItem simpleListItem",
             content: "paragraph+",
             attrs: {
-                indent: {default: 0},
+                indent: {
+                    schema: ContentSchemaListItemIndentSchema,
+                    default: 0,
+                },
             },
             defining: true,
             toDOM: node => {
@@ -180,7 +194,10 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
             group: "block listItem simpleListItem",
             content: "paragraph+",
             attrs: {
-                indent: {default: 0},
+                indent: {
+                    schema: ContentSchemaListItemIndentSchema,
+                    default: 0,
+                },
             },
             defining: true,
             toDOM: node => {
@@ -221,17 +238,21 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
         //     inline: true,
         //     group: "inline",
         //     selectable: false,
+        //     attrs: {
+        //         mention: {},
+        //     },
         //     // TODO(calebmer): Proper `toDOM` and `parseDOM`.
         //     toDOM: () => ["div", {}, "Unknown mention"],
         // },
     },
     marks: {
-        // All of our marks are `inclusive` which means that typing before and after
-        // the marked text will not inherit the style. We believe this to be an
-        // optimal behavior for a text editor. When you style text we assume the
-        // user's intent is that the styling is final. We assume that the user
-        // prefers editing the plain text around the marked text instead of assuming
-        // the user prefers extending the marked text from the front or end.
+        // NOTE(calebmer, 2022-08-13): All of our marks are `inclusive` which means
+        // that typing before and after the marked text will not inherit the style. We
+        // believe this to be an optimal behavior for a text editor. When you style
+        // text we assume the user's intent is that the styling is final. We assume
+        // that the user prefers editing the plain text around the marked text instead
+        // of assuming the user prefers extending the marked text from the front
+        // or end.
         //
         // Another intuition here is that if you don't use keyboard shortcuts then
         // going to the styling toolbar should always be an additive experience. The
@@ -240,6 +261,15 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
         //
         // This is based on my (Caleb's) own personal nits when using rich text
         // editors. I often find myself frustrated by the inherited styles.
+        //
+        // NOTE(calebmer, 2023-02-28): I recently discovered that the [Bike text
+        // editor][1] (and some others) have what is known as "typing affinity" or
+        // "directional cursors" as a solution to this problem. When your cursor is at
+        // the edge of some style it indicates which style it will use and you may use
+        // the arrow keys to change that style. I like this a lot and would like us to
+        // implement it someday.
+        //
+        // [1]: https://www.hogbaysoftware.com/posts/bike-rich-text/
 
         /**
          * Text written in a monospace font with a background of the same color as a
@@ -265,7 +295,9 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
         // hover link preview.
         link: {
             attrs: {
-                url: {},
+                url: {
+                    schema: Schema.string,
+                },
             },
             inclusive: false,
             toDOM: node => {

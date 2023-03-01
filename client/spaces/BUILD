@@ -10,7 +10,10 @@ ts_project(
         "//:node_modules/@types/react",
         "//:node_modules/fuse.js",
         "//:node_modules/react",
+        "//client/context",
+        "//client/helpers",
         "//shared/helpers",
         "//shared/models",
+        "//shared/rpc",
     ],
 )

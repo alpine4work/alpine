@@ -5,6 +5,7 @@ import {InternalError, InvalidArgumentError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type";
 import {assert} from "~/shared/helpers/control/assert";
+import {cast} from "~/shared/helpers/control/cast";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";
@@ -78,7 +79,7 @@ export type SchemaSerializedArrayValue = ReadonlyArray<SchemaSerializedValue>;
  * [1]: https://en.wikipedia.org/wiki/Covariance_and_contravariance_(computer_science)
  */
 export interface SchemaWithOnlySerialization<Value> {
-    readonly description: SchemaSerializedValueDescription;
+    getDescription(): SchemaSerializedValueDescription;
     serialize(value: Value): SchemaSerializedValue;
 }
 
@@ -90,9 +91,14 @@ export interface SchemaWithOnlySerialization<Value> {
  * [1]: https://en.wikipedia.org/wiki/Covariance_and_contravariance_(computer_science)
  */
 export interface SchemaWithOnlyDeserialization<Value> {
-    readonly description: SchemaSerializedValueDescription;
+    getDescription(): SchemaSerializedValueDescription;
     deserialize(serializedValue: SchemaSerializedValue): Value;
 }
+
+type SchemaDescriptionRecursionState =
+    | {type: "Entered"}
+    | {type: "Circular"; stubDescription: any}
+    | null;
 
 /**
  * The schema class is a type-safe combinator-style utility for validating and
@@ -105,11 +111,6 @@ export interface SchemaWithOnlyDeserialization<Value> {
  * version.
  */
 export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
-    /**
-     * The description of the serialized value returned by this schema.
-     */
-    public readonly description: SchemaSerializedValueDescription;
-
     /**
      * Serializes a value into a format we can send across process boundaries.
      *
@@ -180,20 +181,82 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     // [2]: https://serde.rs
 
     protected constructor({
-        description,
+        getDescription,
         serialize,
         deserialize,
         validate,
     }: {
-        description: SchemaSerializedValueDescription;
+        getDescription: () => SchemaSerializedValueDescription;
         serialize: (value: Value) => SchemaSerializedValue;
         deserialize: (serializedValue: SchemaSerializedValue) => Value;
         validate: ((value: Value) => void) | null;
     }) {
-        this.description = description;
+        this._getDescription = getDescription;
         this.serialize = serialize;
         this.deserialize = deserialize;
         this.validate = validate;
+    }
+
+    private readonly _getDescription: () => SchemaSerializedValueDescription;
+    private _description: SchemaSerializedValueDescription | null = null;
+    private _descriptionRecursionState: SchemaDescriptionRecursionState = null;
+
+    /**
+     * Get the description of the serialized value returned by this schema.
+     *
+     * Computed lazily and then cached so you get the same value every time you
+     * call this function. Lazily computed since we don't always know the
+     * description of a schema during initialization.
+     */
+    public getDescription(): SchemaSerializedValueDescription {
+        if (this._description === null) {
+            // If we are calling this function recursively, return a stub that we will
+            // mutate at the top of the stack to the right value. This will make the
+            // description option circular so you have to take care when stringifying.
+            if (this._descriptionRecursionState) {
+                let stubDescription: any;
+                if (this._descriptionRecursionState.type === "Circular") {
+                    stubDescription = this._descriptionRecursionState.stubDescription;
+                } else {
+                    stubDescription = {};
+                    Object.defineProperty(stubDescription, "type", {
+                        configurable: true,
+                        get: () => {
+                            throw new InternalError(
+                                "Can not access properties on uninitialized circular schema description",
+                            );
+                        },
+                    });
+                    this._descriptionRecursionState = {type: "Circular", stubDescription};
+                }
+                return stubDescription;
+            }
+
+            this._descriptionRecursionState = cast<SchemaDescriptionRecursionState>({
+                type: "Entered",
+            });
+
+            try {
+                const description = this._getDescription();
+
+                if (this._descriptionRecursionState?.type !== "Circular") {
+                    this._descriptionRecursionState = null;
+                    this._description = description;
+                } else {
+                    const stubDescription = this._descriptionRecursionState.stubDescription;
+                    this._descriptionRecursionState = null;
+                    delete stubDescription.type;
+                    Object.assign(stubDescription, description);
+                    this._description = stubDescription as SchemaSerializedValueDescription;
+                }
+            } catch (error) {
+                // Make sure to reset our recursion state.
+                this._descriptionRecursionState = null;
+                throw error;
+            }
+        }
+
+        return this._description;
     }
 
     /**
@@ -203,7 +266,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      * yourself.
      */
     public static unknown = new Schema<SchemaSerializedValue>({
-        description: {type: "Unknown"},
+        getDescription: () => ({type: "Unknown"}),
         serialize: value => value,
         deserialize: value => value,
         validate: null,
@@ -213,7 +276,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      * Accept a boolean value.
      */
     public static boolean = new Schema<boolean>({
-        description: {type: "Boolean"},
+        getDescription: () => ({type: "Boolean"}),
         serialize: value => value,
         deserialize: value => {
             if (typeof value !== "boolean")
@@ -231,7 +294,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      * [1]: https://en.wikipedia.org/wiki/IEEE_754
      */
     public static float = new Schema<number>({
-        description: {type: "Float"},
+        getDescription: () => ({type: "Float"}),
         serialize: value => value,
         deserialize: value => {
             if (typeof value !== "number") throw new SchemaDeserializationError("Expected number");
@@ -264,7 +327,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     }
 
     private static _id = new Schema<Id>({
-        description: {type: "Id"},
+        getDescription: () => ({type: "Id"}),
         serialize: value => value,
         deserialize: value => {
             if (typeof value !== "string") throw new SchemaDeserializationError("Expected string");
@@ -283,7 +346,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      * treat the string as base64 binary encoded data.
      */
     public static bytes = new Schema<Uint8Array>({
-        description: {type: "Bytes"},
+        getDescription: () => ({type: "Bytes"}),
         serialize: value => {
             return new JsonStringifiableUint8Array(value);
         },
@@ -310,7 +373,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      * [1]: https://en.wikipedia.org/wiki/ISO_8601
      */
     public static date = new Schema<Date>({
-        description: {type: "Date"},
+        getDescription: () => ({type: "Date"}),
         serialize: value => {
             assert(isValidDate(value));
 
@@ -339,10 +402,10 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
         const {validate} = this;
 
         return new Schema({
-            description: {
+            getDescription: () => ({
                 type: "Nullable",
-                schema: this.description,
-            },
+                schema: this.getDescription(),
+            }),
             serialize: value => {
                 if (value === null) return null;
                 return this.serialize(value);
@@ -381,9 +444,13 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
             valueSet = new Set(Object.values(values));
         }
 
-        return Schema.unknown.transform({
-            serialize: (value: Value): SchemaSerializedValue => value,
-            deserialize: (value): Value => {
+        return new Schema({
+            getDescription: () => ({
+                type: "Enum",
+                values: Array.from(valueSet),
+            }),
+            serialize: value => value,
+            deserialize: value => {
                 if (valueSet.has(value as Value)) {
                     return value as Value;
                 }
@@ -391,6 +458,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
                     `Expected one of ${Array.from(valueSet, v => JSON.stringify(v)).join(", ")}`,
                 );
             },
+            validate: null,
         });
     }
 
@@ -466,9 +534,9 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      * If we receive an object with an unknown `type` property then we throw. This
      * is one case where we aren't future compatible.
      */
-    public static union<Config extends UnionSchemaConfigBase<Config>>(
+    public static union<Config extends UnionSchemaObjectConfigBase<Config>>(
         config: Config,
-    ): UnionSchema<UnionSchemaConfigType<Config>> {
+    ): UnionSchema<UnionSchemaObjectConfigType<Config>> {
         return UnionSchema._new(config);
     }
 
@@ -496,11 +564,11 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
         const {validate: validateError} = errorSchema;
 
         return new Schema<SchemaType<OkSchema> | SchemaType<ErrorSchema>>({
-            description: {
+            getDescription: () => ({
                 type: "Result",
-                okSchema: okSchema.description,
-                errorSchema: errorSchema.description,
-            },
+                okSchema: okSchema.getDescription(),
+                errorSchema: errorSchema.getDescription(),
+            }),
             serialize: value => {
                 if ((value as any).ok) {
                     return okSchema.serialize(value);
@@ -597,7 +665,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
         const {validate} = this;
 
         return new Schema({
-            description: this.description,
+            getDescription: () => this.getDescription(),
             serialize: newValue => {
                 const value = serialize(newValue);
                 return this.serialize(value);
@@ -612,6 +680,89 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
                       validate(value);
                   }
                 : null,
+        });
+    }
+
+    /**
+     * Migrates a serialized value into the format our schema expects. Use this to
+     * perform more complicated data shape migrations.
+     *
+     * This runs in the opposite order of `transform()`. It runs before all other
+     * deserialization and after all other serialization.
+     */
+    public migrate({
+        serialize,
+        deserialize,
+    }: {
+        serialize: (value: SchemaSerializedValue) => SchemaSerializedValue;
+        deserialize: (value: SchemaSerializedValue) => SchemaSerializedValue;
+    }): Schema<Value> {
+        return new Schema({
+            getDescription: () => this.getDescription(),
+            serialize: value => {
+                const serializedValue = this.serialize(value);
+                return serialize(serializedValue);
+            },
+            deserialize: serializedValue => {
+                const migratedValue = deserialize(serializedValue);
+                return this.deserialize(migratedValue);
+            },
+            validate: this.validate,
+        });
+    }
+
+    /**
+     * Declare a schema that you will define later. Trying to use the schema before
+     * you've defined it will throw an error. You can only define schemas once.
+     *
+     * You use this schema combinator to build recursive schemas.
+     */
+    public static declare<Value>(): Schema<Value> & {define(schema: Schema<Value>): void} {
+        let schema: Schema<Value> | null = null;
+
+        const declaredSchema = new Schema<Value>({
+            getDescription: () => {
+                if (schema === null)
+                    throw new InternalError("Declared schema has not been defined yet");
+
+                return schema.getDescription();
+            },
+            serialize: value => {
+                if (schema === null)
+                    throw new InternalError("Declared schema has not been defined yet");
+
+                return schema.serialize(value);
+            },
+            deserialize: value => {
+                if (schema === null)
+                    throw new InternalError("Declared schema has not been defined yet");
+
+                return schema.deserialize(value);
+            },
+            validate: value => {
+                if (schema === null)
+                    throw new InternalError("Declared schema has not been defined yet");
+
+                schema.validate?.(value);
+            },
+        });
+
+        return Object.assign(declaredSchema, {
+            define: (definedSchema: Schema<Value>) => {
+                if (schema !== null)
+                    throw new InternalError("Declared schema has already been defined");
+
+                // Optimization: Set `validate` to null if it is null in the defined schema so
+                // we won't have to recursively validate. Even though it is marked as
+                // `readonly`. This shouldn't change semantics just performance so we're ok
+                // with breaking the `readonly` contract.
+                if (definedSchema.validate === null) {
+                    cast<{validate: ((value: Value) => void) | null}>(declaredSchema).validate =
+                        null;
+                }
+
+                schema = definedSchema;
+            },
         });
     }
 }
@@ -650,10 +801,10 @@ export class ArraySchema<Value> extends Schema<ReadonlyArray<Value>> {
         const {validate} = itemSchema;
 
         return new ArraySchema({
-            description: {
+            getDescription: () => ({
                 type: "Array",
-                itemSchema: itemSchema.description,
-            },
+                itemSchema: itemSchema.getDescription(),
+            }),
             serialize: value => value.map(item => itemSchema.serialize(item)),
             deserialize: value => {
                 if (!Array.isArray(value))
@@ -687,7 +838,7 @@ export class ArraySchema<Value> extends Schema<ReadonlyArray<Value>> {
         const {validate: oldValidate} = this;
 
         return new ArraySchema({
-            description: this.description,
+            getDescription: () => this.getDescription(),
             serialize: newValue => {
                 const value = serialize(newValue);
                 return this.serialize(value);
@@ -823,15 +974,15 @@ export class ObjectSchema<Value> extends Schema<Value> {
     private constructor(
         propertySchemaByKey: ReadonlyMap<string, ObjectPropertySchema<unknown, unknown>>,
     ) {
-        const description: SchemaSerializedValueDescription = {
+        const getDescription = (): SchemaSerializedValueDescription => ({
             type: "Object",
             propertySchemaByKey: Object.fromEntries(
                 Array.from(propertySchemaByKey, ([key, schema]) => [
                     schema.serializedKey ?? key,
-                    schema.description,
+                    schema.getDescription(),
                 ]),
             ),
-        };
+        });
 
         const serializeInto = (value: Value, target: {[key: string]: SchemaSerializedValue}) => {
             for (const [key, schema] of propertySchemaByKey) {
@@ -871,7 +1022,7 @@ export class ObjectSchema<Value> extends Schema<Value> {
         );
 
         super({
-            description,
+            getDescription,
             serialize: value => {
                 const newValue: {[key: string]: SchemaSerializedValue} = {};
                 serializeInto(value, newValue);
@@ -929,18 +1080,6 @@ export class ObjectSchema<Value> extends Schema<Value> {
 
         return new ObjectSchema(propertySchemaByKey);
     }
-
-    /**
-     * If you want to rename a union variant's type name, use this combinator to
-     * provide the old name. We will serialize and deserialize the object with this
-     * name instead of the one in the `Schema.union()` definition.
-     */
-    public originalUnionType<Value extends {readonly type: string}>(
-        this: ObjectSchema<Value>,
-        serializedType: string,
-    ): UnionSchemaVariant<Value> {
-        return new UnionSchemaVariant({schema: this, serializedType});
-    }
 }
 
 export class ObjectPropertySchema<Value, SchemaValue extends Value> {
@@ -952,10 +1091,20 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
      */
     public readonly serializedKey: string | null;
 
+    private readonly _getDescription: () => SchemaSerializedObjectValuePropertyDescription;
+    private _description: SchemaSerializedObjectValuePropertyDescription | null = null;
+
     /**
-     * The description of the serialized property written by this schema.
+     * Get the description of the serialized property written by this schema.
+     *
+     * Computed lazily and then cached so you get the same value every time you
+     * call this function. Lazily computed since we don't always know the
+     * description of a schema during initialization.
      */
-    readonly description: SchemaSerializedObjectValuePropertyDescription;
+    public getDescription(): SchemaSerializedObjectValuePropertyDescription {
+        if (this._description === null) this._description = this._getDescription();
+        return this._description;
+    }
 
     /**
      * The schema for our underlying value. Useful for static analysis.
@@ -1002,14 +1151,14 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
     private constructor({
         serializedKey,
         valueSchema,
-        description,
+        getDescription,
         serializeProperty,
         deserializeProperty,
         validateProperty,
     }: {
         serializedKey: string | null;
         valueSchema: Schema<SchemaValue>;
-        description: SchemaSerializedObjectValuePropertyDescription;
+        getDescription: () => SchemaSerializedObjectValuePropertyDescription;
         serializeProperty: (
             object: {[key: string]: SchemaSerializedValue | undefined},
             key: string,
@@ -1020,7 +1169,7 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
     }) {
         this.serializedKey = serializedKey;
         this.valueSchema = valueSchema;
-        this.description = description;
+        this._getDescription = getDescription;
         this.serializeProperty = serializeProperty;
         this.deserializeProperty = deserializeProperty;
         this.validateProperty = validateProperty;
@@ -1033,10 +1182,10 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
         return new ObjectPropertySchema({
             serializedKey: null,
             valueSchema: schema,
-            description: {
-                valueSchema: schema.description,
+            getDescription: () => ({
+                valueSchema: schema.getDescription(),
                 optional: false,
-            },
+            }),
             serializeProperty: (object, key, value) => {
                 object[key] = schema.serialize(value);
             },
@@ -1061,10 +1210,10 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
         return new ObjectPropertySchema({
             serializedKey: this.serializedKey,
             valueSchema: this.valueSchema,
-            description: {
-                ...this.description,
+            getDescription: () => ({
+                ...this.getDescription(),
                 optional: true,
-            },
+            }),
             serializeProperty: (object, key, value) => {
                 if (value === undefined) return;
                 this.serializeProperty(object, key, value);
@@ -1085,13 +1234,16 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
 
     /** @see Schema.default */
     public default(defaultValue: Value): ObjectPropertySchema<Value, SchemaValue> {
+        // Validate that the default value actually matches our schema.
+        this.validateProperty?.(defaultValue);
+
         return new ObjectPropertySchema({
             serializedKey: this.serializedKey,
             valueSchema: this.valueSchema,
-            description: {
-                ...this.description,
+            getDescription: () => ({
+                ...this.getDescription(),
                 optional: true,
-            },
+            }),
             serializeProperty: (object, key, value) => {
                 this.serializeProperty(object, key, value);
             },
@@ -1110,7 +1262,7 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
         return new ObjectPropertySchema({
             serializedKey: originalKey,
             valueSchema: this.valueSchema,
-            description: this.description,
+            getDescription: () => this.getDescription(),
             serializeProperty: this.serializeProperty,
             deserializeProperty: this.deserializeProperty,
             validateProperty: this.validateProperty,
@@ -1125,66 +1277,76 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
  */
 export class ValueSchema<Value extends string | number | boolean> extends Schema<Value> {
     /**
-     * The only value this schema permits.
+     * The only value this schema permits. This is the value at runtime and may not
+     * be the value that is serialized.
      *
      * Useful for static analysis.
      */
     public readonly value: Value;
 
-    private constructor(value: Value) {
+    /**
+     * The value that is serialized. May be the same as our runtime value or may
+     * be different.
+     */
+    public readonly serializedValue: string | number | boolean;
+
+    private constructor(value: Value, serializedValue: string | number | boolean) {
         super({
-            description: {type: "Value", value},
-            serialize: value => value,
+            getDescription: () => ({
+                type: "Value",
+                value: serializedValue,
+            }),
+            serialize: () => serializedValue,
             deserialize: actualValue => {
-                if (!Object.is(value, actualValue))
+                if (!Object.is(actualValue, serializedValue))
                     throw new SchemaDeserializationError(
-                        `Expected value to be ${JSON.stringify(value)}`,
+                        `Expected value to be ${JSON.stringify(serializedValue)}`,
                     );
-                return actualValue as Value;
+                return value;
             },
             validate: null,
         });
         this.value = value;
+        this.serializedValue = serializedValue;
     }
 
     /**
      * Prefer `Schema.value()` which directly calls this method.
      */
     public static _new<Value extends string | number | boolean>(value: Value) {
-        return new ValueSchema(value);
+        return new ValueSchema(value, value);
+    }
+
+    /**
+     * The original value of this schema. We will use the original value in
+     * serialization and deserialization to not break old types.
+     */
+    public originalValue(serializedValue: string | number | boolean): ValueSchema<Value> {
+        return new ValueSchema(this.value, serializedValue);
     }
 }
 
 /**
  * You need to recursively pass this type into itself when declaring. So
- * `Config extends UnionSchemaConfigBase<Config>`.
+ * `Config extends UnionSchemaObjectConfigBase<Config>`.
  */
-export type UnionSchemaConfigBase<Config> = {
-    [Key in keyof Config]:
-        | (ObjectSchema<any> & {
-              // We need to put our `Key` type constraint on `deserialize` instead of the
-              // type parameter so the object type can be covariant instead of invariant.
-              deserialize: (value: SchemaSerializedValue) => {type: Key};
-          })
-        | (UnionSchemaVariant<any> & {
-              schema: {
-                  // We need to put our `Key` type constraint on `deserialize` instead of the
-                  // type parameter so the object type can be covariant instead of invariant.
-                  deserialize: (value: SchemaSerializedValue) => {type: Key};
-              };
-          });
+export type UnionSchemaObjectConfigBase<Config> = {
+    [Key in keyof Config]: ObjectSchema<any> & {
+        // We need to put our `Key` type constraint on `deserialize` instead of the
+        // type parameter so the object type can be covariant instead of invariant.
+        deserialize: (value: SchemaSerializedValue) => {type: Key};
+    };
 };
 
-export type UnionSchemaConfigType<Config extends UnionSchemaConfigBase<Config>> = SchemaType<
-    Config[keyof Config]
->;
+export type UnionSchemaObjectConfigType<Config extends UnionSchemaObjectConfigBase<Config>> =
+    SchemaType<Config[keyof Config]>;
 
 /**
  * Schema for a union object value.
  *
  * You should only create this with `Schema.union()`.
  */
-export class UnionSchema<Value extends {readonly type: string}> extends Schema<Value> {
+export class UnionSchema<Value> extends Schema<Value> {
     /**
      * The schema for every union variant in our object.
      *
@@ -1192,26 +1354,23 @@ export class UnionSchema<Value extends {readonly type: string}> extends Schema<V
      *
      * Types must be valid identifiers (according to `isIdentifier()`).
      */
-    public readonly variantSchemaByType: ReadonlyMap<
-        string,
-        UnionSchemaVariant<{readonly type: string}>
-    >;
+    public readonly variantSchemaByType: ReadonlyMap<string, UnionSchemaVariant<Value>>;
 
     private constructor({
         variantSchemaByType,
-        description,
+        getDescription,
         serialize,
         deserialize,
         validate,
     }: {
-        variantSchemaByType: ReadonlyMap<string, UnionSchemaVariant<{readonly type: string}>>;
-        description: SchemaSerializedValueDescription;
+        variantSchemaByType: ReadonlyMap<string, UnionSchemaVariant<Value>>;
+        getDescription: () => SchemaSerializedValueDescription;
         serialize: (value: Value) => SchemaSerializedValue;
         deserialize: (serializedValue: SchemaSerializedValue) => Value;
         validate: ((value: Value) => void) | null;
     }) {
         super({
-            description,
+            getDescription,
             serialize,
             deserialize,
             validate,
@@ -1221,82 +1380,111 @@ export class UnionSchema<Value extends {readonly type: string}> extends Schema<V
 
     /**
      * Prefer `Schema.union()` which directly calls this method.
+     *
+     * By convention `Schema.union()` only supports `ObjectSchema`s which we
+     * can introspect. If you want to build a union with non-`ObjectSchema`s then
+     * you may use this method which allows you to customize how the is type is
+     * found on arbitrary values.
      */
-    public static _new<Config extends UnionSchemaConfigBase<Config>>(
+    public static _new<Config extends UnionSchemaObjectConfigBase<Config>>(
         config: Config,
-    ): UnionSchema<UnionSchemaConfigType<Config>> {
-        const schemaEntries = Object.entries(config) as Array<
-            [string, ObjectSchema<{type: string}> | UnionSchemaVariant<{type: string}>]
-        >;
+        options?: {
+            getType?: undefined;
+            serializedTypeKey?: string;
+        },
+    ): UnionSchema<UnionSchemaObjectConfigType<Config>>;
+    public static _new<Config extends {[key: string]: Schema<any> | UnionSchemaVariant<any>}>(
+        config: Config,
+        options: {
+            getType: (value: SchemaType<Config[keyof Config]>) => keyof Config;
+            serializedTypeKey?: string;
+        },
+    ): UnionSchema<SchemaType<Config[keyof Config]>>;
+    public static _new<Config extends {[key: string]: Schema<any> | UnionSchemaVariant<any>}>(
+        config: Config,
+        {
+            getType,
+            serializedTypeKey = "type",
+        }: {
+            getType?: (value: SchemaType<Config[keyof Config]>) => keyof Config;
+            serializedTypeKey?: string;
+        } = {},
+    ): UnionSchema<SchemaType<Config[keyof Config]>> {
+        const schemaEntries = Object.entries(config);
 
-        const schemaByType = new Map<string, UnionSchemaVariant<{type: string}>>(
+        const schemaByType = new Map<string, UnionSchemaVariant<SchemaType<Config[keyof Config]>>>(
             schemaEntries.map(([type, schema]) => {
                 assert(isIdentifier(type));
-                return [
-                    type,
-                    schema instanceof UnionSchemaVariant
-                        ? schema
-                        : new UnionSchemaVariant({schema, serializedType: null}),
-                ];
+
+                if (schema instanceof UnionSchemaVariant) {
+                    assert(schema.serializedTypeKey === serializedTypeKey);
+                    return [type, schema];
+                } else if (getType === undefined && schema instanceof ObjectSchema) {
+                    // If the developer did not provide a custom type lookup and gave us an object
+                    // schema, we can inspect the object schema for information about the serialized
+                    // type in its `type` property.
+                    const variant = UnionSchemaVariant.fromObject(schema);
+                    assert(variant.serializedTypeKey === serializedTypeKey);
+                    return [type, variant];
+                } else {
+                    return [
+                        type,
+                        new UnionSchemaVariant({
+                            schema,
+                            type,
+                            serializedTypeKey,
+                            serializedTypeValue: null,
+                        }),
+                    ];
+                }
             }),
         );
 
-        const schemaBySerializedType = new Map<string, UnionSchemaVariant<{type: string}>>(
-            Array.from(schemaByType, ([type, schema]) => [schema.serializedType, schema]),
-        );
+        const schemaBySerializedTypeValue = new Map<
+            string,
+            UnionSchemaVariant<SchemaType<Config[keyof Config]>>
+        >(Array.from(schemaByType, ([type, schema]) => [schema.serializedTypeValue, schema]));
 
-        const validateByType = new Map<string, (value: {type: string}) => void>(
+        const validateByType = new Map<string, (value: SchemaType<Config[keyof Config]>) => void>(
             filterMapIterable(schemaByType, ([type, {schema}]) => {
                 if (schema.validate === null) return null;
                 return [type, schema.validate];
             }),
         );
 
-        return new UnionSchema<UnionSchemaConfigType<Config>>({
+        return new UnionSchema<SchemaType<Config[keyof Config]>>({
             variantSchemaByType: schemaByType,
-            description: {
+            getDescription: () => ({
                 type: "Union",
-                variantSchemaByType: Object.fromEntries(
-                    Array.from(schemaByType, ([type, {schema, serializedType}]) => [
-                        serializedType,
-                        // If the serialized type is different then the type at runtime, make sure to
-                        // update the schema description for this union with the correct type name.
-                        serializedType !== type &&
-                        schema.description.type === "Object" &&
-                        schema.description.propertySchemaByKey.type &&
-                        schema.description.propertySchemaByKey.type.valueSchema.type === "Value" &&
-                        schema.description.propertySchemaByKey.type.valueSchema.value === type
-                            ? {
-                                  ...schema.description,
-                                  propertySchemaByKey: {
-                                      ...schema.description.propertySchemaByKey,
-                                      type: {
-                                          valueSchema: {type: "Value", value: serializedType},
-                                          optional:
-                                              schema.description.propertySchemaByKey.type.optional,
-                                      },
-                                  },
-                              }
-                            : schema.description,
+                typeKey: serializedTypeKey,
+                variantSchemaByTypeValue: Object.fromEntries(
+                    Array.from(schemaByType, ([type, {schema, serializedTypeValue}]) => [
+                        serializedTypeValue,
+                        schema.getDescription(),
                     ]),
                 ),
-            },
+            }),
             serialize: value => {
-                const schema = schemaByType.get(value.type);
+                const type = getType !== undefined ? getType(value) : (value as any).type;
+                const schema = schemaByType.get(type);
                 assert(schema);
-                const serializedValue = schema.schema.serialize(value);
-                (serializedValue as any).type = schema.serializedType;
-                return serializedValue;
+                return schema.serialize(value);
             },
             deserialize: value => {
                 if (typeof value !== "object" || value === null)
                     throw new SchemaDeserializationError("Expected an object");
 
-                if (!hasOwnProperty(value, "type") || typeof value.type !== "string")
-                    throw new SchemaDeserializationError("Required property `type` not found");
+                if (
+                    !hasOwnProperty(value, serializedTypeKey) ||
+                    typeof value[serializedTypeKey] !== "string"
+                ) {
+                    throw new SchemaDeserializationError(
+                        `Required property \`${serializedTypeKey}\` not found`,
+                    );
+                }
 
                 // Use the type to select the schema we'll use to parse the value.
-                const serializedType: string = value.type;
+                const serializedTypeValue = value[serializedTypeKey] as string;
 
                 // Always use the serialized type name, never use the current type name in
                 // code. We don't have code that will serialize using the current type name.
@@ -1306,7 +1494,7 @@ export class UnionSchema<Value extends {readonly type: string}> extends Schema<V
                 //
                 // We may want to consider a migration path in the future where both types are
                 // temporarily allowed until one type fully replaces the other.
-                const schema = schemaBySerializedType.get(serializedType);
+                const schema = schemaBySerializedTypeValue.get(serializedTypeValue);
                 if (schema === undefined) throw new SchemaDeserializationError("Unknown type");
 
                 return schema.deserialize(value) as any;
@@ -1314,7 +1502,8 @@ export class UnionSchema<Value extends {readonly type: string}> extends Schema<V
             validate:
                 validateByType.size > 0
                     ? value => {
-                          const validate = validateByType.get(value.type);
+                          const type = getType !== undefined ? getType(value) : (value as any).type;
+                          const validate = validateByType.get(type);
                           validate?.(value);
                       }
                     : null,
@@ -1325,11 +1514,11 @@ export class UnionSchema<Value extends {readonly type: string}> extends Schema<V
 /**
  * An intermediate object we use for renaming union schema variants.
  */
-export class UnionSchemaVariant<Value extends {readonly type: string}> {
+export class UnionSchemaVariant<Value> {
     /**
      * The underlying schema for the union variant.
      */
-    public readonly schema: ObjectSchema<Value>;
+    public readonly schema: Schema<Value>;
 
     /**
      * The value we use when at runtime for the `type` property.
@@ -1337,19 +1526,41 @@ export class UnionSchemaVariant<Value extends {readonly type: string}> {
     public readonly type: string;
 
     /**
-     * The value we use when we serialize the `type` property.
+     * The key we use for the serialized type property.
      */
-    public readonly serializedType: string;
+    public readonly serializedTypeKey: string;
+
+    /**
+     * The value we use when we serialize the type property.
+     */
+    public readonly serializedTypeValue: string;
 
     constructor({
         schema,
-        serializedType,
+        type,
+        serializedTypeKey,
+        serializedTypeValue,
     }: {
-        schema: ObjectSchema<Value>;
-        serializedType: string | null;
+        schema: Schema<Value>;
+        type: string;
+        serializedTypeKey: string | null;
+        serializedTypeValue: string | null;
     }) {
-        assert(!serializedType || isIdentifier(serializedType));
+        assert(isIdentifier(type));
+        assert(!serializedTypeValue || isIdentifier(serializedTypeValue));
 
+        this.schema = schema;
+        this.type = type;
+        this.serializedTypeKey = serializedTypeKey ?? "type";
+        this.serializedTypeValue = serializedTypeValue ?? type;
+    }
+
+    /**
+     * Infers the `type` from an object schema's properties.
+     */
+    public static fromObject<Value extends {readonly type: string}>(
+        schema: ObjectSchema<Value>,
+    ): UnionSchemaVariant<Value> {
         const typePropertySchema = schema.propertySchemaByKey.get("type");
         assert(
             typePropertySchema?.valueSchema instanceof ValueSchema,
@@ -1357,19 +1568,28 @@ export class UnionSchemaVariant<Value extends {readonly type: string}> {
         );
 
         const type = typePropertySchema.valueSchema.value;
+        const serializedTypeKey = typePropertySchema.serializedKey ?? "type";
+        const serializedTypeValue = typePropertySchema.valueSchema.serializedValue;
         assert(
             typeof type === "string" && isIdentifier(type),
             "Expected type to be an identifier string",
         );
+        assert(
+            typeof serializedTypeValue === "string" && isIdentifier(serializedTypeValue),
+            "Expected serialized type to be an identifier string",
+        );
 
-        this.schema = schema;
-        this.type = type;
-        this.serializedType = serializedType ?? type;
+        return new UnionSchemaVariant({
+            schema,
+            type,
+            serializedTypeKey,
+            serializedTypeValue,
+        });
     }
 
     public serialize(value: Value): SchemaSerializedValue {
         const serializedValue = this.schema.serialize(value);
-        (serializedValue as any).type = this.serializedType;
+        (serializedValue as any)[this.serializedTypeKey] = this.serializedTypeValue;
         return serializedValue;
     }
 
@@ -1377,36 +1597,43 @@ export class UnionSchemaVariant<Value extends {readonly type: string}> {
         if (typeof value !== "object" || value === null)
             throw new SchemaDeserializationError("Expected an object");
 
-        if (!hasOwnProperty(value, "type") || typeof value.type !== "string")
-            throw new SchemaDeserializationError("Required property `type` not found");
-
-        if (value.type !== this.serializedType)
+        if (!hasOwnProperty(value, this.serializedTypeKey))
             throw new SchemaDeserializationError(
-                `Expected \`type\` property to equal ${JSON.stringify(this.serializedType)}`,
+                `Required property \`${this.serializedTypeKey}\` not found`,
+            );
+
+        if (value[this.serializedTypeKey] !== this.serializedTypeValue)
+            throw new SchemaDeserializationError(
+                `Expected \`${this.serializedTypeKey}\` property to equal ${JSON.stringify(
+                    this.serializedTypeValue,
+                )}`,
             );
 
         return withSchemaDeserializationStackFrame(
-            {type: "UnionVariant", typeKey: "type", typeValue: this.type},
-            () => {
-                return this.schema.deserialize(
-                    value.type !== this.type ? ({...value, type: this.type} as any) : value,
-                ) as any;
+            {
+                type: "UnionVariant",
+                // Ideally this would be the deserialized type key not `serializedTypeKey`.
+                typeKey: "type",
+                typeValue: this.type,
             },
+            () => this.schema.deserialize(value) as any,
         );
     }
 
-    /** @see Schema.originalUnionType */
-    public originalUnionType(serializedType: string) {
+    public originalUnionType(serializedTypeValue: string) {
         return new UnionSchemaVariant({
             schema: this.schema,
-            serializedType,
+            type: this.type,
+            serializedTypeKey: this.serializedTypeKey,
+            serializedTypeValue,
         });
     }
 }
 
-class StringSchema extends Schema<string> {
+// Needs to be exported so `.d.ts` generation can find it.
+export class StringSchema extends Schema<string> {
     public static override string = new StringSchema({
-        description: {type: "String"},
+        getDescription: () => ({type: "String"}),
         serialize: value => value,
         deserialize: value => {
             if (typeof value !== "string") throw new SchemaDeserializationError("Expected string");
@@ -1420,19 +1647,19 @@ class StringSchema extends Schema<string> {
         | null;
 
     protected constructor({
-        description,
+        getDescription,
         serialize,
         deserialize,
         validate,
     }: {
-        description: SchemaSerializedValueDescription;
+        getDescription: () => SchemaSerializedValueDescription;
         serialize: (value: string) => SchemaSerializedValue;
         deserialize: (serializedValue: SchemaSerializedValue) => string;
         validate:
             | ((value: string, options?: {errorDisplayMessagePrefix?: ErrorDisplayMessage}) => void)
             | null;
     }) {
-        super({description, serialize, deserialize, validate});
+        super({getDescription, serialize, deserialize, validate});
         this.validate = validate;
     }
 
@@ -1450,7 +1677,7 @@ class StringSchema extends Schema<string> {
         const {validate: oldValidate} = this;
 
         return new StringSchema({
-            description: this.description,
+            getDescription: () => this.getDescription(),
             serialize: newValue => {
                 const value = serialize(newValue);
                 return this.serialize(value);
@@ -1651,9 +1878,10 @@ class StringSchema extends Schema<string> {
 // Avoid circular dependency between `Schema` and `StringSchema`.
 Schema.string = StringSchema.string;
 
-class IntegerSchema extends Schema<number> {
+// Needs to be exported so `.d.ts` generation can find it.
+export class IntegerSchema extends Schema<number> {
     public static override integer = new IntegerSchema({
-        description: {type: "Integer"},
+        getDescription: () => ({type: "Integer"}),
         serialize: value => {
             if (!Number.isSafeInteger(value)) throw new InvalidArgumentError("Expected integer");
 
@@ -1684,7 +1912,7 @@ class IntegerSchema extends Schema<number> {
         const {validate: oldValidate} = this;
 
         return new IntegerSchema({
-            description: this.description,
+            getDescription: () => this.getDescription(),
             serialize: newValue => {
                 const value = serialize(newValue);
                 return this.serialize(value);
@@ -1786,10 +2014,10 @@ export class SetSchema<Value> extends Schema<ReadonlySet<Value>> {
         const {validate} = itemSchema;
 
         return new SetSchema<Value>({
-            description: {
+            getDescription: () => ({
                 type: "Set",
-                valueSchema: itemSchema.description,
-            },
+                valueSchema: itemSchema.getDescription(),
+            }),
             serialize: value => {
                 return Array.from(value, item => itemSchema.serialize(item));
             },
@@ -1821,7 +2049,7 @@ export class SetSchema<Value> extends Schema<ReadonlySet<Value>> {
         const {validate: oldValidate} = this;
 
         return new SetSchema({
-            description: this.description,
+            getDescription: () => this.getDescription(),
             serialize: newValue => {
                 const value = serialize(newValue);
                 return this.serialize(value);
@@ -1922,11 +2150,11 @@ export class MapSchema<Key, Value> extends Schema<ReadonlyMap<Key, Value>> {
         const {validate: validateValue} = valueSchema;
 
         return new MapSchema<Key, Value>({
-            description: {
+            getDescription: () => ({
                 type: "Map",
-                keySchema: keySchema.description,
-                valueSchema: valueSchema.description,
-            },
+                keySchema: keySchema.getDescription(),
+                valueSchema: valueSchema.getDescription(),
+            }),
             serialize: value => {
                 return Array.from(value, ([key, keyValue]) => [
                     keySchema.serialize(key),
@@ -1972,7 +2200,7 @@ export class MapSchema<Key, Value> extends Schema<ReadonlyMap<Key, Value>> {
         const {validate: oldValidate} = this;
 
         return new MapSchema({
-            description: this.description,
+            getDescription: () => this.getDescription(),
             serialize: newValue => {
                 const value = serialize(newValue);
                 return this.serialize(value);

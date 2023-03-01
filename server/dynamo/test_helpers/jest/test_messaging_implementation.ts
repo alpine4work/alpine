@@ -2,10 +2,16 @@ import {RequestContext} from "~/server/dynamo/context/request_context";
 import {TestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
 import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
 import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
-import {MessageContent, createSimpleMessageContent} from "~/shared/content/message_content_schema";
+import {
+    MessageContent,
+    MessageContentProsemirrorSchema,
+    assertMessageContent,
+    createSimpleMessageContent,
+} from "~/shared/content/message_content_schema";
 import {
     FailedPreconditionError,
     InternalError,
+    InvalidArgumentError,
     NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error";
@@ -408,6 +414,25 @@ export function testMessagingImplementation<RoomKey>(
             ).rejects.toThrow(new PermissionDeniedError("Account does not have access to space"));
         });
 
+        test("can not create message with invalid content", async () => {
+            const room = await createRoom(context.request(session1), space.id);
+
+            const schema = MessageContentProsemirrorSchema;
+            const content = assertMessageContent(
+                schema.nodes.doc.create({}, [
+                    schema.nodes.unorderedListItem.create({}, [schema.text("Hello, world!")]),
+                ]),
+            );
+
+            await expect(
+                createMessage(context.request(session2), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: content,
+                }),
+            ).rejects.toThrow(InvalidArgumentError);
+        });
+
         test("can not get a message which doesn't exist", async () => {
             const room = await createRoom(context.request(session1), space.id);
 
@@ -722,6 +747,59 @@ export function testMessagingImplementation<RoomKey>(
                     content: content2,
                 }),
             ).rejects.toThrow(new PermissionDeniedError("Account does not have access to space"));
+
+            expect(
+                massageMessage(
+                    await getMessage(context.request(session1), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    }),
+                ),
+            ).toEqual({
+                author: session1.account,
+                parentMessageIndex: null,
+                content: content1,
+                hasContentUpdated: false,
+            });
+        });
+
+        test("can not update message with invalid content", async () => {
+            const room = await createRoom(context.request(session1), space.id);
+
+            const schema = MessageContentProsemirrorSchema;
+            const invalidContent = assertMessageContent(
+                schema.nodes.doc.create({}, [
+                    schema.nodes.unorderedListItem.create({}, [schema.text("Hello, world!")]),
+                ]),
+            );
+
+            const message = await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            expect(
+                massageMessage(
+                    await getMessage(context.request(session1), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    }),
+                ),
+            ).toEqual({
+                author: session1.account,
+                parentMessageIndex: null,
+                content: content1,
+                hasContentUpdated: false,
+            });
+
+            await expect(
+                updateMessageContent(context.request(session1), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    content: invalidContent,
+                }),
+            ).rejects.toThrow(InvalidArgumentError);
 
             expect(
                 massageMessage(

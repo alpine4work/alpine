@@ -5,7 +5,8 @@ import {
 } from "~/shared/content/content_schema";
 import {contentStructuralProsemirrorNodeSpecs} from "~/shared/content/content_schema_extra";
 import {assert} from "~/shared/helpers/control/assert";
-import {Schema, SchemaDeserializationError} from "~/shared/schema/schema";
+import {createSchemaForProsemirrorSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema";
+import {Schema} from "~/shared/schema/schema";
 
 const postContentProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
     nodes: {
@@ -40,21 +41,10 @@ export function createSimplePostContent(text: string): PostContent {
 
 export const PostContentProsemirrorSchema = new ProsemirrorSchema(postContentProsemirrorSchemaSpec);
 
-export const PostContentSchema = Schema.unknown.transform<PostContent>({
-    serialize: content => content.toJSON(),
-    deserialize: unknownValue => {
-        let content;
-        try {
-            content = PostContentProsemirrorSchema.nodeFromJSON(unknownValue);
-        } catch {
-            throw new SchemaDeserializationError("Invalid post content");
-        }
+const postContentSchemas = createSchemaForProsemirrorSchema(PostContentProsemirrorSchema);
 
-        if (!isPostContent(content)) throw new SchemaDeserializationError("Invalid post content");
-
-        return content;
-    },
-});
+export const PostContentSchema =
+    postContentSchemas.TopNodeType as Schema<any> as Schema<PostContent>;
 
 export const emptyPostContent = PostContentProsemirrorSchema.node("doc", {}, [
     PostContentProsemirrorSchema.node("paragraph"),

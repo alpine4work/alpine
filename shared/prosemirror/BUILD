@@ -2,7 +2,10 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "prosemirror",
-    test_deps = ["//:node_modules/prosemirror-schema-basic"],
+    test_deps = [
+        "//:node_modules/prosemirror-schema-basic",
+        "//shared/content",
+    ],
     visibility = ["//visibility:public"],
     deps = [
         "//:node_modules/@types/escape-html",
@@ -10,6 +13,7 @@ ts_project(
         "//:node_modules/html-tags",
         "//:node_modules/prosemirror-model",
         "//:node_modules/prosemirror-state",
+        "//:node_modules/prosemirror-transform",
         "//shared/error",
         "//shared/schema",
     ],
