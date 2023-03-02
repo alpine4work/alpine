@@ -4,10 +4,10 @@ import {
     RemLength,
     mobilePlatformMediaQuery,
     parseRemLengthNumber,
-    remPxByPlatform,
     spacing,
 } from "~/shared/design/spacing";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
+import {borderRadius} from "~/shared/styles/internal/border_radius.css";
 import {CssVarFunction, colorSchemeVars} from "~/shared/styles/internal/color_scheme.css";
 import {fontSizes, fontStyles} from "~/shared/styles/internal/fonts.css";
 import {inputPlaceholderColor} from "~/shared/styles/internal/input_placeholder_color.css";
@@ -320,22 +320,45 @@ export const dividerClassName = style({
     borderColor: colorSchemeVars["grey-10"],
 });
 
+// Our code doesn't have a background color! This is an intentional design
+// decision but also has some technical justification.
+//
+// The design justification is that putting a background color on inline
+// code:
+//
+// - Makes it stand out. Applying a code style to text should not be like
+//   applying bold or italics. Your eye should not be drawn to the inline code
+//   style. Your eye will be drawn to a different font but less than a
+//   background color.
+// - Hard to distinguish with a mention bubble. If both mentions and code use a
+//   bubble style they start to get a little tricky to distinguish.
+// - Clashes with the speech bubble background color for messages.
+//
+// From a technical perspective, if we add background color then we also
+// probably want to add `paddingLeft` and `paddingRight` to give the code a
+// little space. The problem is text highlighting does not highlight the
+// horizontal padding of inline elements! This gives you a janky feeling when
+// highlighting code where the beginning and end aren't highlighted. Cursor
+// highlights aren't the only way to highlight code:
+//
+// - Cursor highlight as you drag to select text
+// - Highlight style in documents (e.g. highlight red)
+// - Phantom selections from other collaborative document users
+//
+// All of these have gaps around the horizontal padding in code.
+//
+// If in the future we try to give code a background color please consider how
+// to technically implement continuous selection. One option could be to use
+// `box-shadow` to extend the bounds of the inline code. This won't change the
+// layout but it creates a similar effect. Another option is to insert
+// invisible backtick (`) characters in the DOM. When you copy/paste content
+// you'd get text that looks like markdown styles and correct selection. Seems
+// like a reasonable tradeoff.
 export const codeClassName = style({
     ...fontStyles.code,
-    fontSize: `${(remPxByPlatform.desktop - 1) / remPxByPlatform.desktop}em`,
-    // The line height isn't `fontSize.base.lineHeight` because I've
-    // observed that it grows the paragraph container as a whole to a larger height
-    // than `fontSize.base.lineHeight`. But 1em seems to inherit the block
-    // element's line height?
-    lineHeight: "1em",
-    backgroundColor: colorSchemeVars["grey-5"],
     wordWrap: "break-word",
     boxDecorationBreak: "clone",
-    paddingTop: spacing["0.5"],
-    paddingBottom: spacing["0.5"],
-    paddingLeft: spacing["1"],
-    paddingRight: spacing["1"],
-    borderRadius: spacing["1"],
+    borderRadius: borderRadius["base"],
 });
 
 export const boldClassName = style({
@@ -384,6 +407,29 @@ export const linkClassName = style({
             // Links use a pointer cursor. See:
             // https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
             cursor: "pointer",
+        },
+    },
+});
+
+export const mentionClassName = style({
+    position: "relative",
+    paddingTop: `${parseRemLengthNumber(spacing["0.5"]) / 2}rem`,
+    paddingBottom: `${parseRemLengthNumber(spacing["0.5"]) / 2}rem`,
+    cursor: "default",
+    selectors: {
+        "&::after": {
+            // Background is in a pseudo-element because we want to give it a low z-index
+            // so it renders under highlights and cursor selections. But we want our text
+            // to render on top of highlights and cursor selections.
+            position: "absolute",
+            zIndex: "-10",
+            content: "''",
+            top: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
+            backgroundColor: colorSchemeVars["grey-10"],
+            borderRadius: borderRadius["full"],
         },
     },
 });

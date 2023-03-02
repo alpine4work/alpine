@@ -1,7 +1,7 @@
 import {assignInlineVars} from "@vanilla-extract/dynamic";
 import classNames from "classnames";
 import {Node, ParseRule, Schema as ProsemirrorSchema, SchemaSpec} from "prosemirror-model";
-import {ContentMentionSchema, missingAccountMentionName} from "~/shared/content/content_mention";
+import {ContentMentionSchema} from "~/shared/content/content_mention";
 import {clamp} from "~/shared/helpers/number/clamp";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol";
 import {Schema} from "~/shared/schema/schema";
@@ -252,7 +252,7 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
             },
             // The rendering of mentions is entirely managed with a custom renderer since
             // we need to get data from `ContentReferences`.
-            toDOM: () => ["span", {}, `@${missingAccountMentionName}`],
+            toDOM: () => ["span", {}, ""],
         },
     },
     marks: {

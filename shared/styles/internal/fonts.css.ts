@@ -11,17 +11,52 @@ import {RemLength, mobilePlatformMediaQuery} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
 
+// Font metrics taken from:
+// https://opentype.js.org/font-inspector.html
+const interFontAscender = 2728;
+const interFontDescender = 680;
+const interFontAscenderPercentage = interFontAscender / (interFontAscender + interFontDescender);
+const interFontDescenderPercentage = interFontDescender / (interFontAscender + interFontDescender);
+
+const formatPercentage = (percentage: number) => `${Math.round(percentage * 100 * 1000) / 1000}%`;
+
+/**
+ * The percentage you multiply your `font-size` by to get the height rendered by
+ * `background-color` in the browser.
+ */
+export const backgroundFontSizePercentage =
+    interFontAscenderPercentage + interFontDescenderPercentage + interFontDescenderPercentage;
+
 // TODO(calebmer): Now that I've bought Untitled UI, give their premium font
 // recommendations a look to see if we can do better than Inter.
 const interFontFace = fontFace({
     src: "url(/fonts/inter.woff2) format('woff2')",
     fontStyle: "normal",
     fontWeight: "100 900",
+    // It appears browsers add an extra descent to the font's ascent metric.
+    // Presumably so that `background-color` appears centered around the text.
+    ascentOverride: formatPercentage(interFontAscenderPercentage + interFontDescenderPercentage),
+    descentOverride: formatPercentage(interFontDescenderPercentage),
 });
 
-const interFallbackFontFace = fontFace({
+const firaCodeFontFace = fontFace({
+    src: "url(/fonts/fira-code.woff2) format('woff2')",
+    fontStyle: "normal",
+    fontWeight: "300 700",
+    // Give Fira Code the same ascent/descent metrics as Inter. This means
+    // `background-color`s, font sizes, line heights, everything set on the two
+    // fonts line up when next to each other.
+    ascentOverride: formatPercentage(interFontAscenderPercentage + interFontDescenderPercentage),
+    descentOverride: formatPercentage(interFontDescenderPercentage),
+});
+
+const fallbackFontFace = fontFace({
     src: 'local("Arial")',
-    // Values taken from the fallback font `@next/font` generates. See:
+    // Values taken from the fallback font `@next/font` generates for Inter.
+    // We use the same fallback font for Inter and Fira Code because Fira Code
+    // is resized to the same size as Inter.
+    //
+    // See:
     // https://beta.nextjs.org/docs/optimizing/fonts
     // https://github.com/vercel/next.js/blob/a6b40317294308f2d67240b789a8bbfcca694703/packages/font/src/google/loader.ts#L138-L148
     ascentOverride: "90.00%",
@@ -30,25 +65,8 @@ const interFallbackFontFace = fontFace({
     sizeAdjust: "107.64%",
 });
 
-const firaCodeFontFace = fontFace({
-    src: "url(/fonts/fira-code.woff2) format('woff2')",
-    fontStyle: "normal",
-    fontWeight: "300 700",
-});
-
-const firaCodeFallbackFontFace = fontFace({
-    src: 'local("Arial")',
-    // Values taken from the fallback font `@next/font` generates. See:
-    // https://beta.nextjs.org/docs/optimizing/fonts
-    // https://github.com/vercel/next.js/blob/a6b40317294308f2d67240b789a8bbfcca694703/packages/font/src/google/loader.ts#L138-L148
-    ascentOverride: "75.29%",
-    descentOverride: "24.49%",
-    lineGapOverride: "0.00%",
-    sizeAdjust: "131.49%",
-});
-
-const interFontFamily = `${interFontFace}, ${interFallbackFontFace}`;
-const firaCodeFontFamily = `${firaCodeFontFace}, ${firaCodeFallbackFontFace}`;
+const interFontFamily = `${interFontFace}, ${fallbackFontFace}`;
+const firaCodeFontFamily = `${firaCodeFontFace}, ${fallbackFontFace}`;
 
 /**
  * The typography styles available in our product.

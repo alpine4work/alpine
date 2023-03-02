@@ -1,4 +1,5 @@
 import {Node} from "prosemirror-model";
+import {ContentMention, missingAccountContentMentionName} from "~/shared/content/content_mention";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables";
 import {AccountId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
@@ -48,4 +49,26 @@ export function mergeContentReferences(
             concatIterables(contentReferences1.accountById, contentReferences2.accountById),
         ),
     };
+}
+
+/**
+ * Get the text to display for a content mention.
+ */
+export function getContentMentionText(
+    references: ContentReferences,
+    mention: ContentMention,
+): string {
+    const account = references.accountById.get(mention.accountId);
+    const accountName = account?.name ?? missingAccountContentMentionName;
+
+    // Replace spaces in the account name with no-break spaces. We want the entire
+    // pill to stay together and not wrap when we reach the end of a line of text.
+    //
+    // We also use non-breaking spaces instead of horizontal padding so that
+    // browser selection covers the entire mention instead of covering some of the
+    // mention and leaving `paddingLeft`/`paddingRight` areas alone. Spaces also
+    // scale up with the font size which is a nice side effect.
+    //
+    // https://graphemica.com/%C2%A0
+    return `\u00A0\u00A0${accountName.replace(/\s/g, "\u00A0")}\u00A0\u00A0`;
 }

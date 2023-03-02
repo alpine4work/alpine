@@ -1,12 +1,12 @@
 import {DOMOutputSpec, Node} from "prosemirror-model";
 import {contentCheckListItemIconSvg} from "~/shared/content/content_check_list_item_icon_svg";
-import {ContentMention, missingAccountMentionName} from "~/shared/content/content_mention";
+import {ContentMention} from "~/shared/content/content_mention";
 import {clampListItemIndentation} from "~/shared/content/content_schema";
 import {documentFallbackTitle} from "~/shared/content/document_fallback_title";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty";
 import {assert} from "~/shared/helpers/control/assert";
 import {omitObject} from "~/shared/helpers/object/omit_object";
-import {ContentWithReferences} from "~/shared/models/content_references";
+import {ContentWithReferences, getContentMentionText} from "~/shared/models/content_references";
 import {
     ElementHtmlGenerator,
     ProsemirrorHtmlSerializationDecoration,
@@ -21,6 +21,7 @@ const {
     checkListItemCheckboxContainerClassName,
     checkListItemCheckboxClassName,
     checkListItemContentClassName,
+    mentionClassName,
 } = contentSchemaStyles;
 
 /**
@@ -159,18 +160,18 @@ export function renderContentFragmentToHtml(
                 return {html, contentHtml};
             },
             mention: node => {
-                const {html} = renderProsemirrorDomOutputSpec(node.type.spec.toDOM!(node));
-                assert(html instanceof ElementHtmlGenerator);
-
                 const mention: ContentMention = node.attrs.mention;
-                const account = content.references.accountById.get(mention.accountId);
 
-                html.removeAllChildren();
-                html.appendChild(
-                    new TextHtmlGenerator(`@${account?.name ?? missingAccountMentionName}`),
+                const containerElement = new ElementHtmlGenerator("span");
+
+                const element = new ElementHtmlGenerator("span");
+                containerElement.appendChild(element);
+                element.setAttribute("class", mentionClassName);
+                element.appendChild(
+                    new TextHtmlGenerator(getContentMentionText(content.references, mention)),
                 );
 
-                return {html};
+                return {html: containerElement};
             },
 
             // Add custom renderers which add the `data-placeholder` attribute when our

@@ -14,4 +14,4 @@ export const ContentMentionSchema = Schema.object({
  * The name to use in a mention when we can't find an associated account in
  * our `ContentReferences`.
  */
-export const missingAccountMentionName = "Unknown";
+export const missingAccountContentMentionName = "Unknown";
