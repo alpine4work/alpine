@@ -1,5 +1,4 @@
 import {Node, Schema as ProsemirrorSchema} from "prosemirror-model";
-import {ContentReferencesSchema, emptyContentReferences} from "~/shared/content/content_references";
 import {
     contentBaseProsemirrorSchemaSpec,
     createProsemirrorSchemaSpec,
@@ -7,7 +6,7 @@ import {
 import {contentStructuralProsemirrorNodeSpecs} from "~/shared/content/content_schema_extra";
 import {assert} from "~/shared/helpers/control/assert";
 import {createSchemaForProsemirrorSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema";
-import {Schema, SchemaType} from "~/shared/schema/schema";
+import {Schema} from "~/shared/schema/schema";
 
 const postContentProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
     nodes: {
@@ -50,15 +49,3 @@ export const PostContentSchema =
 export const emptyPostContent = PostContentProsemirrorSchema.node("doc", {}, [
     PostContentProsemirrorSchema.node("paragraph"),
 ]) as PostContent;
-
-export type PostContentWithReferences = SchemaType<typeof PostContentWithReferencesSchema>;
-
-export const PostContentWithReferencesSchema = Schema.object({
-    doc: PostContentSchema,
-    references: ContentReferencesSchema,
-});
-
-export const emptyPostContentWithReferences: PostContentWithReferences = {
-    doc: emptyPostContent,
-    references: emptyContentReferences,
-};

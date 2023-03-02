@@ -3,7 +3,7 @@ import {Step} from "prosemirror-transform";
 import {getAccountOrThrow} from "~/server/dynamo/accounts_table";
 import {RequestContext} from "~/server/dynamo/context/request_context";
 import {ContentMention} from "~/shared/content/content_mention";
-import {ContentReferences} from "~/shared/content/content_references";
+import {ContentReferences} from "~/shared/models/content_references";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";

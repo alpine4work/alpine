@@ -25,7 +25,7 @@ import {ContentEditorPhantomSelection} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {useDevConsoleTool} from "~/client/dev/dev_console";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
-import {ContentReferences} from "~/shared/content/content_references";
+import {ContentReferences} from "~/shared/models/content_references";
 import {
     DocumentContent,
     DocumentContentProsemirrorSchema,

@@ -1,7 +1,7 @@
-import {ContentReferencesSchema} from "~/shared/content/content_references";
 import {DocumentContentStepSchema} from "~/shared/content/document_content_schema";
 import {ErrorSchema} from "~/shared/error/error_schema";
 import {ContentEditorClientId, WebSocketConnectionId} from "~/shared/id/types/id_types";
+import {ContentReferencesSchema} from "~/shared/models/content_references";
 import {ProsemirrorSelectionSchema} from "~/shared/prosemirror/prosemirror_selection_schema";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 

@@ -257,6 +257,7 @@ export function ContentEditorMentionFloater({
                 // TODO(calebmer): This should eventually be virtualized. Probably at the same
                 // time we add a proper search backend for mentions?
                 <Box
+                    data-testid="ContentEditorMentionFloater"
                     ref={menuRef}
                     position="relative"
                     width="48"

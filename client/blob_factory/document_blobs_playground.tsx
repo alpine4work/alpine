@@ -13,7 +13,7 @@ import {ColorSchemeToggleButton} from "~/client/design/playground/color_scheme_t
 import {TextInput} from "~/client/design/text_input";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer";
-import {emptyContentReferences} from "~/shared/content/content_references";
+import {emptyContentReferences} from "~/shared/models/content_references";
 import {dummyDocumentContent} from "~/shared/content/dummy_document_content";
 import {themeColors} from "~/shared/design/theme_colors";
 import {UnimplementedError} from "~/shared/error/error";

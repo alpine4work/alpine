@@ -15,10 +15,8 @@ import {MessageEditing} from "~/client/messaging/message_editing";
 import {MessageList} from "~/client/messaging/message_list";
 import {MessageViewActions} from "~/client/messaging/message_view_actions";
 import {MessageViewEditor} from "~/client/messaging/message_view_editor";
-import {emptyContentReferences} from "~/shared/content/content_references";
 import {
     MessageContentProsemirrorSchema,
-    MessageContentWithReferences,
     assertMessageContent,
 } from "~/shared/content/message_content_schema";
 import {
@@ -31,7 +29,9 @@ import {
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {emptyContentReferences} from "~/shared/models/content_references";
 import {
+    MessageContentWithReferences,
     MessageInterface,
     MessageInterfaceBase,
     OptimisticMessageInterface,

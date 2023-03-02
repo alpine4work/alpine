@@ -31,10 +31,7 @@ import {
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {VirtualizedScrollViewRef} from "~/client/virtualized/virtualized_scroll_view";
 import {isContentEmpty} from "~/shared/content/is_content_empty";
-import {
-    MessageContent,
-    emptyMessageContentWithReferences,
-} from "~/shared/content/message_content_schema";
+import {MessageContent} from "~/shared/content/message_content_schema";
 import {
     RemLength,
     addRemLengths,
@@ -47,7 +44,10 @@ import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping";
 import {generateId} from "~/shared/id/id";
-import {OptimisticMessageInterface} from "~/shared/models/message_interface";
+import {
+    OptimisticMessageInterface,
+    emptyMessageContentWithReferences,
+} from "~/shared/models/message_interface";
 import {PostCommentModel, PostModel} from "~/shared/models/post_model";
 import {contentViewStyles, sprinkles} from "~/shared/styles/styles";
 

@@ -1,6 +1,6 @@
-import {emptyContentReferences} from "~/shared/content/content_references";
+import {renderContentToHtml} from "~/client/content/render_content_to_html";
 import {DocumentWithoutTitleContentProsemirrorSchema as schema} from "~/shared/content/document_content_schema";
-import {renderContentToHtml} from "~/shared/content/render_content_to_html";
+import {emptyContentReferences} from "~/shared/models/content_references";
 
 test("will properly number list items", () => {
     expect(

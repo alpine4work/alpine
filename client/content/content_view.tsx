@@ -2,15 +2,15 @@ import classNames from "classnames";
 import {useEffect, useId, useMemo, useRef, useState} from "react";
 import {To} from "react-router-dom";
 import {handleContentLinkClick} from "~/client/content/internal/handle_content_link_click";
+import {renderContentFragmentToHtml} from "~/client/content/render_content_to_html";
 import {FocusRing} from "~/client/design/focus_ring";
 import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_date";
 import {Tooltip} from "~/client/design/tooltip";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {ContentWithReferences} from "~/shared/content/content_references";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty";
-import {renderContentFragmentToHtml} from "~/shared/content/render_content_to_html";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {ContentWithReferences} from "~/shared/models/content_references";
 import {
     ElementHtmlGenerator,
     ProsemirrorHtmlSerializationDecoration,

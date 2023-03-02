@@ -1,7 +1,5 @@
-import {
-    MessageContentSchema,
-    MessageContentWithReferencesSchema,
-} from "~/shared/content/message_content_schema";
+import {MessageContentSchema} from "~/shared/content/message_content_schema";
+import {MessageContentWithReferencesSchema} from "~/shared/models/message_interface";
 import {PostCommentModel} from "~/shared/models/post_model";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 

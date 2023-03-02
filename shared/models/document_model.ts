@@ -1,12 +1,17 @@
-import {
-    DocumentContent,
-    DocumentContentWithReferencesSchema,
-} from "~/shared/content/document_content_schema";
+import {DocumentContent, DocumentContentSchema} from "~/shared/content/document_content_schema";
 import {documentFallbackTitle} from "~/shared/content/document_fallback_title";
 import {assert} from "~/shared/helpers/control/assert";
 import {DocumentId, SpaceId} from "~/shared/id/types/id_types";
+import {ContentReferencesSchema} from "~/shared/models/content_references";
 import {Model} from "~/shared/models/model";
-import {Schema} from "~/shared/schema/schema";
+import {Schema, SchemaType} from "~/shared/schema/schema";
+
+export type DocumentContentWithReferences = SchemaType<typeof DocumentContentWithReferencesSchema>;
+
+export const DocumentContentWithReferencesSchema = Schema.object({
+    doc: DocumentContentSchema,
+    references: ContentReferencesSchema,
+});
 
 /**
  * A rich text, collaboratively editable, document.

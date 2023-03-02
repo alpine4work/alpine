@@ -4,7 +4,7 @@ import {
     getInitialDocumentContentEditorState,
     reduceDocumentContentEditorState,
 } from "~/client/documents/internal/document_content_editor_state";
-import {emptyContentReferences} from "~/shared/content/content_references";
+import {emptyContentReferences} from "~/shared/models/content_references";
 import {
     assertDocumentContent,
     DocumentContentProsemirrorSchema as schema,

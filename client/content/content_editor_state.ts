@@ -21,7 +21,7 @@ import {
     ContentReferences,
     ContentWithReferences,
     mergeContentReferences,
-} from "~/shared/content/content_references";
+} from "~/shared/models/content_references";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema";
 import {InternalError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";

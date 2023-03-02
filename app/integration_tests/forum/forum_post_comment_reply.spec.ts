@@ -63,6 +63,9 @@ test("can reply to a comment", async ({page, context: browserContext, isMobile})
         ).toBeVisible();
 
         await page.getByRole("textbox", {name: "New comment"}).type("Test post comment content 3");
+        await expect(page.getByRole("textbox", {name: "New comment"})).toHaveText(
+            "Test post comment content 3",
+        );
         if (!isMobile) {
             await page.getByRole("textbox", {name: "New comment"}).press("Enter");
         } else {
@@ -134,6 +137,9 @@ test("can reply to a comment", async ({page, context: browserContext, isMobile})
         ).toBeVisible();
 
         await page.getByRole("textbox", {name: "New comment"}).type("Test post comment content 4");
+        await expect(page.getByRole("textbox", {name: "New comment"})).toHaveText(
+            "Test post comment content 4",
+        );
         if (!isMobile) {
             await page.getByRole("textbox", {name: "New comment"}).press("Enter");
         } else {

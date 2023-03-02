@@ -141,6 +141,9 @@ test("can comment on a post", async ({page, context: browserContext, isMobile}) 
     await expect(page.getByRole("button", {name: "1 comment"})).toBeHidden();
     await expect(page.getByRole("button", {name: "Send comment"})).toBeDisabled();
     await page.getByRole("textbox", {name: "New comment"}).type("Test post comment content 1");
+    await expect(page.getByRole("textbox", {name: "New comment"})).toHaveText(
+        "Test post comment content 1",
+    );
     await expect(page.getByRole("button", {name: "Send comment"})).toBeEnabled();
     if (!isMobile) {
         await page.getByRole("textbox", {name: "New comment"}).press("Enter");
@@ -159,6 +162,9 @@ test("can comment on a post", async ({page, context: browserContext, isMobile}) 
     await expect(page.getByRole("button", {name: "1 comment"})).toBeVisible();
     await expect(page.getByRole("button", {name: "2 comments"})).toBeHidden();
     await page.getByRole("textbox", {name: "New comment"}).type("Test post comment content 2");
+    await expect(page.getByRole("textbox", {name: "New comment"})).toHaveText(
+        "Test post comment content 2",
+    );
     if (!isMobile) {
         await page.getByRole("textbox", {name: "New comment"}).press("Enter");
     } else {
@@ -207,6 +213,9 @@ test("can see comments appear in realtime", async ({
     await page2.goto(`/s/${space.id}/posts/${post.id}`);
 
     await page2.getByRole("textbox", {name: "New comment"}).type("Test post comment content 1");
+    await expect(page2.getByRole("textbox", {name: "New comment"})).toHaveText(
+        "Test post comment content 1",
+    );
     if (!isMobile) {
         await page2.getByRole("textbox", {name: "New comment"}).press("Enter");
     } else {
@@ -230,6 +239,9 @@ test("can see comments appear in realtime", async ({
     await page3.goto(`/s/${space.id}/posts/${post.id}`);
 
     await page3.getByRole("textbox", {name: "New comment"}).type("Test post comment content 2");
+    await expect(page3.getByRole("textbox", {name: "New comment"})).toHaveText(
+        "Test post comment content 2",
+    );
     if (!isMobile) {
         await page3.getByRole("textbox", {name: "New comment"}).press("Enter");
     } else {
@@ -249,6 +261,9 @@ test("can see comments appear in realtime", async ({
     await expect(page1.getByText("Test post comment content 4")).toBeHidden();
 
     await page2.getByRole("textbox", {name: "New comment"}).type("Test post comment content 3");
+    await expect(page2.getByRole("textbox", {name: "New comment"})).toHaveText(
+        "Test post comment content 3",
+    );
     if (!isMobile) {
         await page2.getByRole("textbox", {name: "New comment"}).press("Enter");
     } else {
@@ -268,6 +283,9 @@ test("can see comments appear in realtime", async ({
     await expect(page1.getByText("Test post comment content 4")).toBeHidden();
 
     await page1.getByRole("textbox", {name: "New comment"}).type("Test post comment content 4");
+    await expect(page1.getByRole("textbox", {name: "New comment"})).toHaveText(
+        "Test post comment content 4",
+    );
     if (!isMobile) {
         await page1.getByRole("textbox", {name: "New comment"}).press("Enter");
     } else {
@@ -324,6 +342,9 @@ test("can see new comments when opening post comments", async ({
     await page2.goto(`/s/${space.id}/posts/${post.id}`);
 
     await page2.getByRole("textbox", {name: "New comment"}).type("Test post comment content 1");
+    await expect(page2.getByRole("textbox", {name: "New comment"})).toHaveText(
+        "Test post comment content 1",
+    );
     if (!isMobile) {
         await page2.getByRole("textbox", {name: "New comment"}).press("Enter");
     } else {
@@ -360,6 +381,9 @@ test("can see new comments when opening post comments", async ({
     await page3.goto(`/s/${space.id}/posts/${post.id}`);
 
     await page3.getByRole("textbox", {name: "New comment"}).type("Test post comment content 2");
+    await expect(page3.getByRole("textbox", {name: "New comment"})).toHaveText(
+        "Test post comment content 2",
+    );
     if (!isMobile) {
         await page3.getByRole("textbox", {name: "New comment"}).press("Enter");
     } else {
@@ -378,6 +402,9 @@ test("can see new comments when opening post comments", async ({
     await expect(page1.getByText("Test post comment content 4")).toBeHidden();
 
     await page2.getByRole("textbox", {name: "New comment"}).type("Test post comment content 3");
+    await expect(page2.getByRole("textbox", {name: "New comment"})).toHaveText(
+        "Test post comment content 3",
+    );
     if (!isMobile) {
         await page2.getByRole("textbox", {name: "New comment"}).press("Enter");
     } else {
@@ -410,6 +437,9 @@ test("can see new comments when opening post comments", async ({
     await expect(page1.getByText("Test post comment content 4")).toBeHidden();
 
     await page1.getByRole("textbox", {name: "New comment"}).type("Test post comment content 4");
+    await expect(page1.getByRole("textbox", {name: "New comment"})).toHaveText(
+        "Test post comment content 4",
+    );
     if (!isMobile) {
         await page1.getByRole("textbox", {name: "New comment"}).press("Enter");
     } else {
