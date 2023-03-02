@@ -2,18 +2,15 @@ import {DocumentCollaborationContentManager} from "~/server/documents/document_c
 import {ProcessContext} from "~/server/dynamo/context/process_context";
 import {RequestContext} from "~/server/dynamo/context/request_context";
 import {getDocumentPreview} from "~/server/dynamo/documents_table";
+import {getContentReferencesFromSteps} from "~/server/dynamo/helpers/get_content_references";
 import {
     DocumentCollaborationMessageFromClient,
     DocumentCollaborationMessageFromServer,
     DocumentCollaborationPresenceState,
 } from "~/shared/documents/document_collaboration_schema";
-import {
-    FailedPreconditionError,
-    InternalError,
-    NotFoundError,
-    UnimplementedError,
-} from "~/shared/error/error";
+import {FailedPreconditionError, InternalError, NotFoundError} from "~/shared/error/error";
 import {AsyncSequentialQueue} from "~/shared/helpers/async/async_sequential_queue";
+import {runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {WebSocketConnectionId} from "~/shared/id/types/id_types";
@@ -147,21 +144,34 @@ export class DocumentCollaborationDurableObjectConnection {
                             }),
                         );
 
-                        const steps = await this._contentManager.stepCache.getSteps(
-                            context,
-                            message.version,
-                            version,
-                        );
+                        const [{steps, stepsContentReferences}, rememberSteps] =
+                            await runAllPromiseThunks(
+                                async () => {
+                                    const steps = await this._contentManager.stepCache.getSteps(
+                                        context,
+                                        message.version,
+                                        version,
+                                    );
 
-                        const rememberSteps =
-                            smallestPresenceStateVersion &&
-                            smallestPresenceStateVersion < message.version
-                                ? await this._contentManager.stepCache.getSteps(
-                                      context,
-                                      smallestPresenceStateVersion,
-                                      message.version,
-                                  )
-                                : [];
+                                    const stepsContentReferences =
+                                        await getContentReferencesFromSteps(
+                                            context,
+                                            this._contentManager.spaceId,
+                                            steps.map(({step}) => step),
+                                        );
+
+                                    return {steps, stepsContentReferences};
+                                },
+                                async () =>
+                                    smallestPresenceStateVersion &&
+                                    smallestPresenceStateVersion < message.version
+                                        ? await this._contentManager.stepCache.getSteps(
+                                              context,
+                                              smallestPresenceStateVersion,
+                                              message.version,
+                                          )
+                                        : [],
+                            );
 
                         // Load steps from our store and send them to the client to catch
                         // the client up...
@@ -169,6 +179,7 @@ export class DocumentCollaborationDurableObjectConnection {
                             type: "BackfillResponse",
                             newVersion: version,
                             steps,
+                            stepsContentReferences,
                             presenceStates,
                             rememberInvertedSteps: rememberSteps.map(
                                 ({invertedStep}) => invertedStep,
@@ -188,9 +199,6 @@ export class DocumentCollaborationDurableObjectConnection {
                                 state: this._presenceState,
                             });
                         }
-
-                        // TODO(calebmer): We need to send new content references to everyone!
-                        throw new UnimplementedError("TODO");
                         return;
                     }
                     case "UpdateOurPresenceState": {

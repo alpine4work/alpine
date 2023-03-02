@@ -2,7 +2,7 @@ import {Node} from "prosemirror-model";
 import {Mapping, Step} from "prosemirror-transform";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {RequestContext} from "~/server/dynamo/context/request_context";
-import {getContentReferences} from "~/server/dynamo/helpers/get_content_references";
+import {getContentReferencesFromNode} from "~/server/dynamo/helpers/get_content_references";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
@@ -441,7 +441,11 @@ async function getInternalDocument(
             version: attributes.version,
             content: {
                 doc: content,
-                references: await getContentReferences(context, attributes.spaceId, content),
+                references: await getContentReferencesFromNode(
+                    context,
+                    attributes.spaceId,
+                    content,
+                ),
             },
         }),
     };

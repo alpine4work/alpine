@@ -79,6 +79,7 @@ class DocumentCollaborationDurableObject {
         this.spaceId = spaceId;
         this.id = id;
         this._contentManager = new DocumentCollaborationContentManager({
+            spaceId,
             id,
             initialVersion,
             initialContent,

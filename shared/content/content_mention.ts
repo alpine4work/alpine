@@ -3,6 +3,15 @@ import {Schema, SchemaType} from "~/shared/schema/schema";
 
 export type ContentMention = SchemaType<typeof ContentMentionSchema>;
 
+/**
+ * A mention references some entity, like an account, inline in content.
+ */
 export const ContentMentionSchema = Schema.object({
     accountId: Schema.id<AccountId>(),
 });
+
+/**
+ * The name to use in a mention when we can't find an associated account in
+ * our `ContentReferences`.
+ */
+export const missingAccountMentionName = "Unknown";

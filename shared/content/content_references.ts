@@ -1,4 +1,5 @@
 import {Node} from "prosemirror-model";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables";
 import {AccountId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
 import {Schema, SchemaType} from "~/shared/schema/schema";
@@ -33,3 +34,18 @@ export type ContentWithReferences = {
 export const emptyContentReferences: ContentReferences = {
     accountById: new Map(),
 };
+
+/**
+ * Merge two `ContentReferences` into one. References in the second object will
+ * override references in the first.
+ */
+export function mergeContentReferences(
+    contentReferences1: ContentReferences,
+    contentReferences2: ContentReferences,
+): ContentReferences {
+    return {
+        accountById: new Map(
+            concatIterables(contentReferences1.accountById, contentReferences2.accountById),
+        ),
+    };
+}

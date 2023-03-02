@@ -17,7 +17,11 @@ import {
     openKeyboardLinkFloaterMetaKey,
 } from "~/client/content/internal/content_editor_plugin_keymap";
 import {trimSpacesFromRange} from "~/client/content/internal/content_editor_prosemirror_helpers";
-import {ContentReferences, ContentWithReferences} from "~/shared/content/content_references";
+import {
+    ContentReferences,
+    ContentWithReferences,
+    mergeContentReferences,
+} from "~/shared/content/content_references";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema";
 import {InternalError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
@@ -129,7 +133,7 @@ export class ContentEditorState<Content extends Node> {
     public getContent(): ContentWithReferences & {doc: Content} {
         return {
             doc: this._state.doc as Content,
-            references: assertExists(contentEditorReferencesPluginKey.getState(this._state)),
+            references: getContentEditorReferences(this._state),
         };
     }
 
@@ -221,11 +225,50 @@ export class ContentEditorState<Content extends Node> {
     /**
      * Receive steps that originated from a `sendableSteps()` call.
      *
+     * We also expect new `ContentReferences` associated with the new steps.
+     *
      * May only call this method if the content editor state is collaborative.
      * (Can check with `isCollab()`.)
      */
     public receiveSteps(
         steps: Iterable<{step: Step; clientId: ContentEditorClientId}>,
+        // We require you to pass in content references because if you have user
+        // generated steps then there may also be references associated with those
+        // steps you need to provide.
+        stepsContentReferences: ContentReferences,
+    ): ContentEditorState<Content> {
+        let state: ContentEditorState<Content> = this;
+        let stepTransaction: Array<{step: Step; clientId: ContentEditorClientId}> = [];
+
+        // `prosemirror-collab` needs steps from our `clientId` to be at the beginning
+        // of the `receiveSteps()` call. So call `receiveSteps()` whenever the
+        // `clientId` of our steps change.
+        //
+        // Arguably, this is a bug in `prosemirror-collab`.
+        //
+        // Here is the code which requires our steps to be first this:
+        // https://github.com/ProseMirror/prosemirror-collab/blob/94df0cc9288960e7e64dc9721abbf8f656df444f/src/collab.ts#L125-L129
+        for (const {step, clientId} of steps) {
+            if (
+                stepTransaction.length > 0 &&
+                stepTransaction[stepTransaction.length - 1]!.clientId !== clientId
+            ) {
+                state = state._receiveSteps(stepTransaction, null);
+                stepTransaction = [];
+            }
+
+            stepTransaction.push({step, clientId});
+        }
+
+        state = state._receiveSteps(stepTransaction, stepsContentReferences);
+        stepTransaction = [];
+
+        return state;
+    }
+
+    private _receiveSteps(
+        steps: Iterable<{step: Step; clientId: ContentEditorClientId}>,
+        stepsContentReferences: ContentReferences | null,
     ): ContentEditorState<Content> {
         assert(this.isCollaborative());
 
@@ -255,6 +298,12 @@ export class ContentEditorState<Content extends Node> {
             // of backwards compatibility.
             mapSelectionBackward: true,
         });
+
+        if (stepsContentReferences !== null) {
+            updateContentEditorReferences(transaction, contentReferences =>
+                mergeContentReferences(contentReferences, stepsContentReferences),
+            );
+        }
 
         return new ContentEditorState(this._state.apply(transaction));
     }
@@ -470,7 +519,24 @@ function contentEditorReferencesPlugin(initialContentReferences: ContentReferenc
         key: contentEditorReferencesPluginKey,
         state: {
             init: () => initialContentReferences,
-            apply: (transaction, contentReferences, oldState, newState) => contentReferences,
+            apply: (transaction, contentReferences, oldState, newState) => {
+                const transactionUpdate:
+                    | ((contentReferences: ContentReferences) => ContentReferences)
+                    | undefined = transaction.getMeta(contentEditorReferencesPluginKey);
+
+                return transactionUpdate ? transactionUpdate(contentReferences) : contentReferences;
+            },
         },
     });
+}
+
+export function getContentEditorReferences(state: EditorState): ContentReferences {
+    return assertExists(contentEditorReferencesPluginKey.getState(state));
+}
+
+export function updateContentEditorReferences(
+    transaction: Transaction,
+    update: (contentReferences: ContentReferences) => ContentReferences,
+): Transaction {
+    return transaction.setMeta(contentEditorReferencesPluginKey, update);
 }

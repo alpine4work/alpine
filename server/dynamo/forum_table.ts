@@ -3,7 +3,7 @@ import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {RequestContext} from "~/server/dynamo/context/request_context";
 import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
 import {createMessagePayloadModel} from "~/server/dynamo/helpers/create_message_payload_model";
-import {getContentReferences} from "~/server/dynamo/helpers/get_content_references";
+import {getContentReferencesFromNode} from "~/server/dynamo/helpers/get_content_references";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry_dynamo_condition_check_errors";
@@ -246,7 +246,7 @@ async function createChannelModelFromItem(
         name: channelItem.name,
         description: {
             doc: channelItem.description,
-            references: await getContentReferences(
+            references: await getContentReferencesFromNode(
                 context,
                 channelItem.spaceId,
                 channelItem.description,
@@ -466,7 +466,7 @@ async function createPostModelFromItem(
                 accountId => getAccountOrThrow(context, item.spaceId, accountId),
             ),
         ),
-        getContentReferences(context, item.spaceId, item.content),
+        getContentReferencesFromNode(context, item.spaceId, item.content),
     ]);
 
     return new PostModel({

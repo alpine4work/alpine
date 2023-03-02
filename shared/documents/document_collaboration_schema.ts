@@ -1,3 +1,4 @@
+import {ContentReferencesSchema} from "~/shared/content/content_references";
 import {DocumentContentStepSchema} from "~/shared/content/document_content_schema";
 import {ErrorSchema} from "~/shared/error/error_schema";
 import {ContentEditorClientId, WebSocketConnectionId} from "~/shared/id/types/id_types";
@@ -63,6 +64,7 @@ export const DocumentCollaborationMessageFromServerSchema = Schema.union({
                 clientId: Schema.id<ContentEditorClientId>(),
             }),
         ),
+        stepsContentReferences: ContentReferencesSchema,
         presenceStates: Schema.array(
             Schema.object({
                 connectionId: Schema.id<WebSocketConnectionId>(),
@@ -77,11 +79,21 @@ export const DocumentCollaborationMessageFromServerSchema = Schema.union({
      *
      * Don't tell the user that their changes have saved until you see a
      * `PersistedContent` message.
+     *
+     * You have no ordering guarantees around this message! Usually you will get
+     * these messages in ascending version order and usually this message will
+     * occur before the `PersistedContent` message for the same version. However,
+     * usually is the operative word! We can not send this message until we load
+     * `ContentReferences` and loading `ContentReferences` does not block other
+     * updates. So client implementations need to handle receiving this message
+     * out-of-order. A recommend implementation is if you get a future message, put
+     * it in a queue until you get earlier messages needed to process it.
      */
-    UpdateContentBeforePersistence: Schema.object({
-        type: Schema.value("UpdateContentBeforePersistence"),
+    UpdateContentWithoutPersistence: Schema.object({
+        type: Schema.value("UpdateContentWithoutPersistence"),
         newVersion: Schema.integer,
         steps: Schema.array(DocumentContentStepSchema),
+        stepsContentReferences: ContentReferencesSchema,
         clientId: Schema.id<ContentEditorClientId>(),
         /**
          * Atomically update this other presence state in the same action as we update

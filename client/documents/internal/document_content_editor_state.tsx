@@ -25,6 +25,7 @@ import {ContentEditorPhantomSelection} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {useDevConsoleTool} from "~/client/dev/dev_console";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
+import {ContentReferences} from "~/shared/content/content_references";
 import {
     DocumentContent,
     DocumentContentProsemirrorSchema,
@@ -139,6 +140,7 @@ type ReceiveStepsDocumentContentEditorAction = {
     readonly type: "ReceiveSteps";
     readonly newVersion: number;
     readonly steps: ReadonlyArray<{readonly step: Step; readonly clientId: ContentEditorClientId}>;
+    readonly stepsContentReferences: ContentReferences;
 };
 
 type AugmentRememberedStepsDocumentContentEditorAction = {
@@ -304,31 +306,10 @@ function actuallyReduceDocumentContentEditorState(
             // If we've already seen all the steps, no change is needed.
             if (steps.length === 0) return oldState;
 
-            let editorState = oldState.editorState;
-            let stepTransaction: Array<{step: Step; clientId: ContentEditorClientId}> = [];
-
-            // `prosemirror-collab` needs steps from our `clientId` to be at the beginning
-            // of the `receiveSteps()` call. So call `receiveSteps()` whenever the
-            // `clientId` of our steps change.
-            //
-            // Arguably, this is a bug in `prosemirror-collab`.
-            //
-            // Here is the code which requires our steps to be first this:
-            // https://github.com/ProseMirror/prosemirror-collab/blob/94df0cc9288960e7e64dc9721abbf8f656df444f/src/collab.ts#L125-L129
-            for (const {step, clientId} of steps) {
-                if (
-                    stepTransaction.length > 0 &&
-                    stepTransaction[stepTransaction.length - 1]!.clientId !== clientId
-                ) {
-                    editorState = editorState.receiveSteps(stepTransaction);
-                    stepTransaction = [];
-                }
-
-                stepTransaction.push({step, clientId});
-            }
-
-            editorState = editorState.receiveSteps(stepTransaction);
-            stepTransaction = [];
+            const editorState = oldState.editorState.receiveSteps(
+                steps,
+                action.stepsContentReferences,
+            );
 
             // Whenever we receive steps, we add them to our `rememberedSteps` array.
             // We discard steps when we don't need them to rebase presence states.
@@ -511,6 +492,7 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
                         type: "ReceiveSteps",
                         newVersion: message.newVersion,
                         steps: message.steps,
+                        stepsContentReferences: message.stepsContentReferences,
                     });
 
                     if (message.rememberInvertedSteps.length > 0) {
@@ -529,7 +511,7 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
                     dispatch(actions);
                     break;
                 }
-                case "UpdateContentBeforePersistence": {
+                case "UpdateContentWithoutPersistence": {
                     const actions: Array<DocumentContentEditorAction> = [];
 
                     actions.push({
@@ -539,6 +521,7 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
                             step,
                             clientId: message.clientId,
                         })),
+                        stepsContentReferences: message.stepsContentReferences,
                     });
 
                     // If this was an acknowledgement message from our own client, don't add the

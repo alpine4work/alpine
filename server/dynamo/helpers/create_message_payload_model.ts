@@ -1,5 +1,5 @@
 import {RequestContext} from "~/server/dynamo/context/request_context";
-import {getContentReferences} from "~/server/dynamo/helpers/get_content_references";
+import {getContentReferencesFromNode} from "~/server/dynamo/helpers/get_content_references";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {SpaceId} from "~/shared/id/types/id_types";
 import {MessagePayload, MessagePayloadModel} from "~/shared/models/message_interface";
@@ -19,7 +19,11 @@ export async function createMessagePayloadModel(
                 ...payload,
                 content: {
                     doc: payload.content,
-                    references: await getContentReferences(context, spaceId, payload.content),
+                    references: await getContentReferencesFromNode(
+                        context,
+                        spaceId,
+                        payload.content,
+                    ),
                 },
             };
         }

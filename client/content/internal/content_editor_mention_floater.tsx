@@ -13,6 +13,7 @@ import {
 } from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
+import {updateContentEditorReferences} from "~/client/content/content_editor_state";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
@@ -105,10 +106,16 @@ export function ContentEditorMentionFloater({
         };
 
         view.dispatch(
-            view.state.tr.replaceRangeWith(
-                range.from,
-                range.to,
-                view.state.schema.node("mention", {mention}),
+            updateContentEditorReferences(
+                view.state.tr.replaceRangeWith(
+                    range.from,
+                    range.to,
+                    view.state.schema.node("mention", {mention}),
+                ),
+                contentReferences => ({
+                    ...contentReferences,
+                    accountById: new Map([...contentReferences.accountById, [account.id, account]]),
+                }),
             ),
         );
 

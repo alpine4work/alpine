@@ -27,6 +27,7 @@ import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/con
 import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser";
 import {ContentEditorFloater} from "~/client/content/internal/content_editor_floater";
 import {createContentEditorMarkNodeViewConstructor} from "~/client/content/internal/content_editor_link_node_view";
+import {createContentEditorMentionNodeView} from "~/client/content/internal/content_editor_mention_node_view";
 import {createContentEditorOrderedListItemNodeView} from "~/client/content/internal/content_editor_ordered_list_item_node_view";
 import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/content_editor_phantom_selection_cursor";
 import {trimSpacesFromRange} from "~/client/content/internal/content_editor_prosemirror_helpers";
@@ -353,6 +354,7 @@ function ContentEditor<Content extends Node>(
             nodeViews: {
                 orderedListItem: createContentEditorOrderedListItemNodeView,
                 checkListItem: createContentEditorCheckListItemNodeView,
+                mention: createContentEditorMentionNodeView,
             },
 
             // IMPORTANT: If you have a custom view in `markViews` here you should also

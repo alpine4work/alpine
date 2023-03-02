@@ -398,6 +398,10 @@ abstract class ContainerHtmlGenerator implements HtmlGenerator {
         this._children.push(node);
     }
 
+    removeAllChildren() {
+        this._children = [];
+    }
+
     protected _generateChildrenHtml() {
         let html = "";
 

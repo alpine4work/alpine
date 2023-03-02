@@ -6,7 +6,7 @@ import {
     getPostCommentsFromStart,
     updatePostCommentContent,
 } from "~/server/dynamo/forum_table";
-import {getContentReferences} from "~/server/dynamo/helpers/get_content_references";
+import {getContentReferencesFromNode} from "~/server/dynamo/helpers/get_content_references";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint";
 import {AsyncSequentialQueue} from "~/shared/helpers/async/async_sequential_queue";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
@@ -179,7 +179,7 @@ export class PostRealtimeDurableObjectConnection {
                         postId: this._postId,
                     }),
                     context.auth.getAccount(),
-                    getContentReferences(context, this._spaceId, message.content),
+                    getContentReferencesFromNode(context, this._spaceId, message.content),
                 ]);
 
                 const comment = new PostCommentModel({
@@ -215,7 +215,7 @@ export class PostRealtimeDurableObjectConnection {
                         ...message,
                         postId: this._postId,
                     }),
-                    getContentReferences(context, this._spaceId, message.content),
+                    getContentReferencesFromNode(context, this._spaceId, message.content),
                 ]);
 
                 this._sendMessageToAll(context, {
