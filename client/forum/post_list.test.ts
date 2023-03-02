@@ -1,6 +1,5 @@
 import {PostList, PostListItem} from "~/client/forum/post_list";
 import {MessageList} from "~/client/messaging/message_list";
-import {emptyContentReferences} from "~/shared/models/content_references";
 import {emptyMessageContent} from "~/shared/content/message_content_schema";
 import {createSimplePostContent} from "~/shared/content/post_content_schema";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length";
@@ -10,6 +9,7 @@ import {generateId} from "~/shared/id/id";
 import {ChannelId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
 import {ChannelModel} from "~/shared/models/channel_model";
+import {emptyContentReferences} from "~/shared/models/content_references";
 import {PostModel} from "~/shared/models/post_model";
 
 const spaceId = generateId<SpaceId>();

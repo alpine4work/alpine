@@ -129,6 +129,7 @@ def ts_project(
                                       ] +
                                       # Will include a snapshot file if it exists.
                                       native.glob(["{}.snap".format(test_src_js[:len(test_src_js) - 3])])),
+                size = "small",
             )
 
 def swc_transpiler(**kwargs):
@@ -175,6 +176,7 @@ def ts_lint_and_format_test(
             "//:prettier.config.js",
             "//:.prettierignore",
         ]),
+        size = "small",
     )
 
     _ts_typings(
@@ -212,6 +214,7 @@ def ts_lint_and_format_test(
             # lint rules.
             ":{}_deps_typings".format(name),
         ]),
+        size = "small",
     )
 
 def ts_typecheck_test(
@@ -263,6 +266,7 @@ EOF
             ":{}_tsconfig".format(name),
             ":{}_deps_typings".format(name),
         ],
+        size = "small",
     )
 
 def _dedupe_labels(labels):

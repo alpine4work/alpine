@@ -29,7 +29,7 @@ jobs:
 
             - name: Test
               run: |
-                  ${{ github.workspace }}/admin/bin/bazel test //... --test_tag_filters=-playwright
+                  admin/bin/bazel test //... --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc --test_tag_filters=-playwright
 
             # Currently `actions/upload-artifact` doesn't work with symlinked directories.
             # A PR to fix this has been merged but hasn't been released. So read the actual path and
@@ -40,7 +40,7 @@ jobs:
               id: bazel_test_logs_path
               shell: bash
               run: |
-                  echo "path=$(readlink -f ${{ github.workspace }}/bazel-testlogs)" >> $GITHUB_OUTPUT
+                  echo "path=$(readlink -f bazel-testlogs)" >> $GITHUB_OUTPUT
 
             - if: failure()
               name: Upload Bazel test logs
@@ -89,7 +89,7 @@ jobs:
             # speed up CI.
             - name: Test Playwright
               run: |
-                  ${{ github.workspace }}/admin/bin/bazel test //... --test_tag_filters=playwright --jobs=1
+                  admin/bin/bazel test //... --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc --test_tag_filters=playwright --jobs=1
 
             # Currently `actions/upload-artifact` doesn't work with symlinked directories.
             # A PR to fix this has been merged but hasn't been released. So read the actual path and
@@ -100,7 +100,7 @@ jobs:
               id: bazel_test_logs_path
               shell: bash
               run: |
-                  echo "path=$(readlink -f ${{ github.workspace }}/bazel-testlogs)" >> $GITHUB_OUTPUT
+                  echo "path=$(readlink -f bazel-testlogs)" >> $GITHUB_OUTPUT
 
             - if: failure()
               name: Upload Bazel test logs

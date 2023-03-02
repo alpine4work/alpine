@@ -8,12 +8,12 @@ import React, {useCallback, useState} from "react";
 import {act} from "react-dom/test-utils";
 import {ContentEditor, getEditorViewForTest} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
-import {emptyContentReferences} from "~/shared/models/content_references";
 import {
     DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
 } from "~/shared/content/document_content_schema";
 import {UnimplementedError} from "~/shared/error/error";
+import {emptyContentReferences} from "~/shared/models/content_references";
 
 function cantNavigate() {
     throw new UnimplementedError("Can not navigate in test");

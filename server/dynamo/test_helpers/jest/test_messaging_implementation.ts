@@ -214,7 +214,7 @@ export function testMessagingImplementation<RoomKey>(
                 return {
                     author: message.author,
                     parentMessageIndex: message.payload.parentMessageIndex,
-                    content: message.payload.content,
+                    content: message.payload.content.doc,
                     hasContentUpdated: message.payload.contentUpdatedTime !== null,
                 };
             }

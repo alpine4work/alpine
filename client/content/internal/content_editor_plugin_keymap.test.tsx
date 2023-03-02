@@ -8,10 +8,10 @@ import React, {useState} from "react";
 import {act} from "react-dom/test-utils";
 import {ContentEditor, getEditorViewForTest} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
-import {emptyContentReferences} from "~/shared/models/content_references";
 import {emptyDocumentWithoutTitleContent} from "~/shared/content/document_content_schema";
 import {UnimplementedError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
+import {emptyContentReferences} from "~/shared/models/content_references";
 
 function TestContentEditor() {
     const [state, setState] = useState(() =>

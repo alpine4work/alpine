@@ -1,5 +1,4 @@
 import jsonStableStringify from "json-stable-stringify";
-import {CancelledError} from "~/shared/error/error";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
 import {assert} from "~/shared/helpers/control/assert";
 import {SchemaSerializedValue} from "~/shared/schema/schema";
@@ -17,17 +16,22 @@ export class TestCheckpoint<
     private _promiseResolverByKey = new Map<string, PromiseResolver<PromiseResolver<void>>>();
 
     constructor() {
-        // At the end of every test, cancel all our checkpoint promises if they haven't
+        // At the end of every test, resolve all our checkpoint promises if they haven't
         // settled yet and clear our checkpoint map so we don't have a memory leak.
+        //
+        // Rejecting the checkpoints can cause unhandled promise exceptions we don't
+        // want tests to need to think about.
         if (typeof jest !== "undefined") {
             afterEach(() => {
                 for (const [, promiseResolver1] of this._promiseResolverByKey) {
                     if (!promiseResolver1.isSettled()) {
-                        promiseResolver1.reject(new CancelledError("Test finished"));
+                        const promiseResolver2 = createPromiseResolver();
+                        promiseResolver1.resolve(promiseResolver2);
+                        promiseResolver2.resolve();
                     } else {
                         void promiseResolver1.promise.then(promiseResolver2 => {
                             if (!promiseResolver2.isSettled()) {
-                                promiseResolver2.reject(new CancelledError("Test finished"));
+                                promiseResolver2.resolve();
                             }
                         });
                     }

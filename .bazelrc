@@ -1,22 +1,20 @@
-# Performance: Don't check if output files have changed when determining whether
-# to rebuild. When this is on, noop builds sometimes take ~5s.
-#
-# Learned about this option here:
-# https://groups.google.com/g/bazel-discuss/c/E_0F1t4FITE
-build --noexperimental_check_output_files
-
-# Show the stdout/stderr of failed tests for debugging why they failed.
-test --test_output=errors
+# Import Aspect bazelrc presets
+import %workspace%/admin/bazel/aspect_bazelrc/bazel6.bazelrc
+import %workspace%/admin/bazel/aspect_bazelrc/convenience.bazelrc
+import %workspace%/admin/bazel/aspect_bazelrc/correctness.bazelrc
+import %workspace%/admin/bazel/aspect_bazelrc/debug.bazelrc
+import %workspace%/admin/bazel/aspect_bazelrc/javascript.bazelrc
+import %workspace%/admin/bazel/aspect_bazelrc/performance.bazelrc
 
 # We only want to build tests when testing multiple targets. For example
-# `bazel test //...` shouldn’t build the iOS app.
+# `bazel test //...` shouldn't build the iOS app.
 test --build_tests_only
 
 # Java versions to use. By default, Bazel uses the local Java version for some
 # operations. To make sure we get hermetic builds we want to override to a
 # remote version of Java which Bazel will download.
 # https://bazel.build/docs/bazel-and-java#hermetic-testing
-build --java_language_version=15
-build --java_runtime_version=remotejdk_15
-build --tool_java_language_version=15
-build --tool_java_runtime_version=remotejdk_15
+build --java_language_version=18
+build --java_runtime_version=remotejdk_18
+build --tool_java_language_version=18
+build --tool_java_runtime_version=remotejdk_18

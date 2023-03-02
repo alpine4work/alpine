@@ -17,17 +17,17 @@ import {
     openKeyboardLinkFloaterMetaKey,
 } from "~/client/content/internal/content_editor_plugin_keymap";
 import {trimSpacesFromRange} from "~/client/content/internal/content_editor_prosemirror_helpers";
-import {
-    ContentReferences,
-    ContentWithReferences,
-    mergeContentReferences,
-} from "~/shared/models/content_references";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema";
 import {InternalError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {generateId, isId} from "~/shared/id/id";
 import {ContentEditorClientId} from "~/shared/id/types/id_types";
+import {
+    ContentReferences,
+    ContentWithReferences,
+    mergeContentReferences,
+} from "~/shared/models/content_references";
 
 function buildPlugins(schema: ContentProsemirrorSchema, contentReferences: ContentReferences) {
     return [

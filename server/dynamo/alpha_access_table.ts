@@ -194,9 +194,9 @@ export async function requestAlphaAccess(
     // NOTE(calebmer): Send an email to me whenever someone requests alpha access
     // so I know to approve it immediately.
     //
-    // TODO(calebmer): Temporarily disable in Jest tests so we don't have to
-    // validate the email address.
-    if (typeof jest === "undefined") {
+    // Don't run outside of production so we don't have to validate the email
+    // address with a network request.
+    if (process.env.NODE_ENV === "production") {
         await context.email.send({
             fromEmailAddress: FromEmailAddress.Alpha,
             toEmailAddress: await validateEmailAddress(context, "calebmeredith8@gmail.com"),

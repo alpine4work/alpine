@@ -25,7 +25,6 @@ import {ContentEditorPhantomSelection} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {useDevConsoleTool} from "~/client/dev/dev_console";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
-import {ContentReferences} from "~/shared/models/content_references";
 import {
     DocumentContent,
     DocumentContentProsemirrorSchema,
@@ -44,6 +43,7 @@ import {Lazy} from "~/shared/helpers/control/lazy";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {ContentEditorClientId, WebSocketConnectionId} from "~/shared/id/types/id_types";
+import {ContentReferences} from "~/shared/models/content_references";
 import {DocumentModel} from "~/shared/models/document_model";
 import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema";
 

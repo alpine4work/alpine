@@ -9,12 +9,12 @@ import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schem
 import {getSimpleChat} from "~/server/dynamo/simple_chat_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
-import {emptyContentReferences} from "~/shared/models/content_references";
 import {isContentEmpty} from "~/shared/content/is_content_empty";
 import {MessageContent, emptyMessageContent} from "~/shared/content/message_content_schema";
 import {NotFoundError} from "~/shared/error/error";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 import {SimpleChatId} from "~/shared/id/types/id_types";
+import {emptyContentReferences} from "~/shared/models/content_references";
 import {SimpleChatMessageModel, SimpleChatModel} from "~/shared/models/simple_chat_model";
 import {
     createSimpleChatMessage,

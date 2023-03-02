@@ -10,12 +10,12 @@ import {ContentEditor, getEditorViewForTest} from "~/client/content/content_edit
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {TooltipCoordinationContextProvider} from "~/client/design/tooltip";
-import {emptyContentReferences} from "~/shared/models/content_references";
 import {
     DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
 } from "~/shared/content/document_content_schema";
 import {UnimplementedError} from "~/shared/error/error";
+import {emptyContentReferences} from "~/shared/models/content_references";
 
 jest.useFakeTimers();
 

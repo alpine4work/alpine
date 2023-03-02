@@ -11,6 +11,8 @@ import {
 import {createSimpleMessageContent} from "~/shared/content/message_content_schema";
 import {createSimplePostContent} from "~/shared/content/post_content_schema";
 import {UnimplementedError} from "~/shared/error/error";
+import {emptyContentReferences} from "~/shared/models/content_references";
+import {MessageContentWithReferences} from "~/shared/models/message_interface";
 import {PostRealtimeMessageFromServer} from "~/shared/posts/post_realtime_schema";
 
 const context = createTestContext();
@@ -24,6 +26,19 @@ const postContent = createSimplePostContent("test");
 const content1 = createSimpleMessageContent("test1");
 const content2 = createSimpleMessageContent("test2");
 const content3 = createSimpleMessageContent("test3");
+
+const content1WithReferences: MessageContentWithReferences = {
+    doc: content1,
+    references: emptyContentReferences,
+};
+const content2WithReferences: MessageContentWithReferences = {
+    doc: content2,
+    references: emptyContentReferences,
+};
+const content3WithReferences: MessageContentWithReferences = {
+    doc: content3,
+    references: emptyContentReferences,
+};
 
 function unimplemented() {
     throw new UnimplementedError("Unimplemented");
@@ -89,7 +104,7 @@ test("will backfill comments when requested", async () => {
                     payload: {
                         type: "Content",
                         parentMessageIndex: null,
-                        content: content1,
+                        content: content1WithReferences,
                         contentUpdatedTime: null,
                     },
                 },
@@ -101,7 +116,7 @@ test("will backfill comments when requested", async () => {
                     payload: {
                         type: "Content",
                         parentMessageIndex: null,
-                        content: content2,
+                        content: content2WithReferences,
                         contentUpdatedTime: null,
                     },
                 },
@@ -113,7 +128,7 @@ test("will backfill comments when requested", async () => {
                     payload: {
                         type: "Content",
                         parentMessageIndex: null,
-                        content: content3,
+                        content: content3WithReferences,
                         contentUpdatedTime: null,
                     },
                 },
@@ -142,7 +157,7 @@ test("will backfill comments when requested", async () => {
                     payload: {
                         type: "Content",
                         parentMessageIndex: null,
-                        content: content2,
+                        content: content2WithReferences,
                         contentUpdatedTime: null,
                     },
                 },
@@ -154,7 +169,7 @@ test("will backfill comments when requested", async () => {
                     payload: {
                         type: "Content",
                         parentMessageIndex: null,
-                        content: content3,
+                        content: content3WithReferences,
                         contentUpdatedTime: null,
                     },
                 },
@@ -183,7 +198,7 @@ test("will backfill comments when requested", async () => {
                     payload: {
                         type: "Content",
                         parentMessageIndex: null,
-                        content: content1,
+                        content: content1WithReferences,
                         contentUpdatedTime: null,
                     },
                 },
@@ -195,7 +210,7 @@ test("will backfill comments when requested", async () => {
                     payload: {
                         type: "Content",
                         parentMessageIndex: null,
-                        content: content2,
+                        content: content2WithReferences,
                         contentUpdatedTime: null,
                     },
                 },
@@ -310,7 +325,7 @@ test("will send comments from other connections", async () => {
                 payload: {
                     type: "Content",
                     parentMessageIndex: null,
-                    content: content2,
+                    content: content2WithReferences,
                     contentUpdatedTime: null,
                 },
             },
@@ -327,7 +342,7 @@ test("will send comments from other connections", async () => {
                 payload: {
                     type: "Content",
                     parentMessageIndex: null,
-                    content: content2,
+                    content: content2WithReferences,
                     contentUpdatedTime: null,
                 },
             },
@@ -355,7 +370,7 @@ test("will send comments from other connections", async () => {
                 payload: {
                     type: "Content",
                     parentMessageIndex: null,
-                    content: content3,
+                    content: content3WithReferences,
                     contentUpdatedTime: null,
                 },
             },
@@ -372,7 +387,7 @@ test("will send comments from other connections", async () => {
                 payload: {
                     type: "Content",
                     parentMessageIndex: null,
-                    content: content3,
+                    content: content3WithReferences,
                     contentUpdatedTime: null,
                 },
             },
@@ -404,7 +419,7 @@ test("will send comments from other connections", async () => {
                     payload: {
                         type: "Content",
                         parentMessageIndex: null,
-                        content: content2,
+                        content: content2WithReferences,
                         contentUpdatedTime: null,
                     },
                 },
@@ -416,7 +431,7 @@ test("will send comments from other connections", async () => {
                     payload: {
                         type: "Content",
                         parentMessageIndex: null,
-                        content: content3,
+                        content: content3WithReferences,
                         contentUpdatedTime: null,
                     },
                 },
@@ -547,7 +562,7 @@ test("will send comments from other connections when those comments are added du
                 payload: {
                     type: "Content",
                     parentMessageIndex: null,
-                    content: content2,
+                    content: content2WithReferences,
                     contentUpdatedTime: null,
                 },
             },
@@ -564,7 +579,7 @@ test("will send comments from other connections when those comments are added du
                 payload: {
                     type: "Content",
                     parentMessageIndex: null,
-                    content: content2,
+                    content: content2WithReferences,
                     contentUpdatedTime: null,
                 },
             },
@@ -592,7 +607,7 @@ test("will send comments from other connections when those comments are added du
                 payload: {
                     type: "Content",
                     parentMessageIndex: null,
-                    content: content3,
+                    content: content3WithReferences,
                     contentUpdatedTime: null,
                 },
             },
@@ -609,7 +624,7 @@ test("will send comments from other connections when those comments are added du
                 payload: {
                     type: "Content",
                     parentMessageIndex: null,
-                    content: content3,
+                    content: content3WithReferences,
                     contentUpdatedTime: null,
                 },
             },
@@ -642,7 +657,7 @@ test("will send comments from other connections when those comments are added du
                 payload: {
                     type: "Content",
                     parentMessageIndex: null,
-                    content: content2,
+                    content: content2WithReferences,
                     contentUpdatedTime: null,
                 },
             },
@@ -657,7 +672,7 @@ test("will send comments from other connections when those comments are added du
                 payload: {
                     type: "Content",
                     parentMessageIndex: null,
-                    content: content3,
+                    content: content3WithReferences,
                     contentUpdatedTime: null,
                 },
             },
@@ -786,7 +801,7 @@ test("will send comments our connection when those comments are added during bac
                 payload: {
                     type: "Content",
                     parentMessageIndex: null,
-                    content: content2,
+                    content: content2WithReferences,
                     contentUpdatedTime: null,
                 },
             },
@@ -803,7 +818,7 @@ test("will send comments our connection when those comments are added during bac
                 payload: {
                     type: "Content",
                     parentMessageIndex: null,
-                    content: content2,
+                    content: content2WithReferences,
                     contentUpdatedTime: null,
                 },
             },
@@ -836,7 +851,7 @@ test("will send comments our connection when those comments are added during bac
                 payload: {
                     type: "Content",
                     parentMessageIndex: null,
-                    content: content2,
+                    content: content2WithReferences,
                     contentUpdatedTime: null,
                 },
             },
@@ -995,7 +1010,7 @@ test("will send comments from other connections in order", async () => {
                 payload: {
                     type: "Content",
                     parentMessageIndex: null,
-                    content: content1,
+                    content: content1WithReferences,
                     contentUpdatedTime: null,
                 },
             },
@@ -1010,7 +1025,7 @@ test("will send comments from other connections in order", async () => {
                 payload: {
                     type: "Content",
                     parentMessageIndex: null,
-                    content: content2,
+                    content: content2WithReferences,
                     contentUpdatedTime: null,
                 },
             },
@@ -1025,7 +1040,7 @@ test("will send comments from other connections in order", async () => {
                 payload: {
                     type: "Content",
                     parentMessageIndex: null,
-                    content: content3,
+                    content: content3WithReferences,
                     contentUpdatedTime: null,
                 },
             },
@@ -1202,7 +1217,7 @@ test("will send comments from other connections in order even if it is wacky", a
                 payload: {
                     type: "Content",
                     parentMessageIndex: null,
-                    content: content1,
+                    content: content1WithReferences,
                     contentUpdatedTime: null,
                 },
             },
@@ -1217,7 +1232,7 @@ test("will send comments from other connections in order even if it is wacky", a
                 payload: {
                     type: "Content",
                     parentMessageIndex: null,
-                    content: content2,
+                    content: content2WithReferences,
                     contentUpdatedTime: null,
                 },
             },
@@ -1232,7 +1247,7 @@ test("will send comments from other connections in order even if it is wacky", a
                 payload: {
                     type: "Content",
                     parentMessageIndex: null,
-                    content: content3,
+                    content: content3WithReferences,
                     contentUpdatedTime: null,
                 },
             },
@@ -1339,7 +1354,7 @@ test("will ignore new messages if they are part of the backfill", async () => {
                     payload: {
                         type: "Content",
                         parentMessageIndex: null,
-                        content: content1,
+                        content: content1WithReferences,
                         contentUpdatedTime: null,
                     },
                 },
@@ -1364,7 +1379,7 @@ test("will ignore new messages if they are part of the backfill", async () => {
                 payload: {
                     type: "Content",
                     parentMessageIndex: null,
-                    content: content1,
+                    content: content1WithReferences,
                     contentUpdatedTime: null,
                 },
             },
@@ -1479,7 +1494,7 @@ test("will ignore new messages if they are queued but part of the backfill", asy
                 payload: {
                     type: "Content",
                     parentMessageIndex: null,
-                    content: content1,
+                    content: content1WithReferences,
                     contentUpdatedTime: null,
                 },
             },
@@ -1506,7 +1521,7 @@ test("will ignore new messages if they are queued but part of the backfill", asy
                     payload: {
                         type: "Content",
                         parentMessageIndex: null,
-                        content: content1,
+                        content: content1WithReferences,
                         contentUpdatedTime: null,
                     },
                 },

@@ -10,6 +10,11 @@ const isExecutedByBazelTest = !process.env.BUILD_WORKSPACE_DIRECTORY;
 //
 // Timeouts align with Bazel's test timeouts:
 // https://bazel.build/reference/test-encyclopedia
+//
+// TODO(calebmer): I'd really like to have the same fast timeouts between
+// `bazel build` and `bazel test` but increase the timeouts in CI. Slow
+// timeouts hide real issues! Or use better machines for CI so they can use the
+// same timeouts we use locally.
 const timeout = isExecutedByBazelTest ? 300 * 1000 : 20 * 1000;
 const actionTimeout = isExecutedByBazelTest ? 60 * 1000 : 3 * 1000;
 

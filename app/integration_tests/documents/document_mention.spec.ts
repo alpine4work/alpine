@@ -62,7 +62,10 @@ test("can see a mention added by another user", async ({
     page: page1,
     context: browserContext1,
     browser,
+    viewport,
 }) => {
+    assert(viewport);
+
     const documentId = generateId<DocumentId>();
 
     await createDocument(context.request(session1), {

@@ -5,23 +5,18 @@ import {runfilesPath} from "~/admin/helpers/runfiles_path";
 import {waitForProcessExit} from "~/admin/helpers/wait_for_process_exit";
 import {waitForProcessSpawn} from "~/admin/helpers/wait_for_process_spawn";
 import {DeadlineExceededError} from "~/shared/error/error";
+import {assert} from "~/shared/helpers/control/assert";
 import {Lazy} from "~/shared/helpers/control/lazy";
 
 const javaPathPromise = new Lazy(async () => {
     const javaPathPath = path.join(runfilesPath, "cyberworlds/admin/dynamo/local/java_path.txt");
     const javaPath = (await fs.readFile(javaPathPath, "utf8")).trim();
-    return path.join(runfilesPath, "cyberworlds", javaPath);
+    assert(javaPath.startsWith("external/"));
+    return path.join(runfilesPath, javaPath.slice("external/".length));
 });
 
-const dynamoLocalLibPath = path.join(
-    runfilesPath,
-    "cyberworlds/external/dynamo_local/DynamoDBLocal_lib",
-);
-
-const dynamoLocalJarPath = path.join(
-    runfilesPath,
-    "cyberworlds/external/dynamo_local/DynamoDBLocal.jar",
-);
+const dynamoLocalLibPath = path.join(runfilesPath, "dynamo_local/DynamoDBLocal_lib");
+const dynamoLocalJarPath = path.join(runfilesPath, "dynamo_local/DynamoDBLocal.jar");
 
 const originalSetTimeout = setTimeout;
 
