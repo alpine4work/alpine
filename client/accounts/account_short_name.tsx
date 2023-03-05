@@ -1,15 +1,26 @@
 import {useMemo} from "react";
 import {parseAccountName} from "~/client/accounts/internal/parse_account_name";
+import {Tooltip} from "~/client/design/tooltip";
 import {AccountModel} from "~/shared/models/account_model";
 
-/**
- * Shorter version of the account's name. If the account has a name formatted
- * like most English names this will just be the first name.
- */
 export function AccountShortName({account}: {account: AccountModel}) {
-    const firstName = useMemo(() => parseAccountName(account).firstName, [account]);
+    const shortName = useMemo(() => getAccountShortNameWithoutFullNameTooltip(account), [account]);
 
     // NOTE(calebmer): Someday I'd like to have an account card that shows up on
     // hover of avatar or name.
-    return <span>{firstName}</span>;
+    return (
+        <Tooltip content={account.name}>
+            <span>{shortName}</span>
+        </Tooltip>
+    );
+}
+
+/**
+ * Shorter version of the account's name. If the account has a name formatted
+ * like most English names this will just be the first name. We may allow this
+ * to be configurable in the future.
+ */
+export function getAccountShortNameWithoutFullNameTooltip(account: AccountModel): string {
+    const {firstName} = parseAccountName(account);
+    return firstName;
 }

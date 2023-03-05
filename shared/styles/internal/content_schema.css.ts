@@ -483,6 +483,12 @@ export const mentionClassName = style({
     },
 });
 
+export const mentionAvatarClassName = style({
+    position: "absolute",
+    top: `${parseRemLengthNumber(spacing["0.5"]) / 2}rem`,
+    left: `${parseRemLengthNumber(spacing["0.5"]) / 2}rem`,
+});
+
 // Make sure the first child in our document never has top margin.
 const firstChildSelectors = [
     `${docClassName} > *:first-child`,

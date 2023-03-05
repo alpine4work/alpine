@@ -12,10 +12,15 @@ require("@testing-library/jest-dom");
 
 const crypto = require("crypto");
 const {ResizeObserver: ResizeObserverPolyfill} = require("@juggle/resize-observer");
+const {TextEncoder, TextDecoder} = require("util");
 
 // Set the Node.js `webcrypto` implementation to the `crypto` global so that
 // client code which runs in a browser has access to the web Crypto API.
 globalThis.crypto = crypto.webcrypto;
+
+// Polyfill text encoder/decoders.
+globalThis.TextEncoder = TextEncoder;
+globalThis.TextDecoder = TextDecoder;
 
 // Pretend we are on a Mac for tests. Most of our programmers use Mac for
 // development so it's more natural to use those platform conventions.
