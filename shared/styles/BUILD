@@ -7,8 +7,10 @@ ts_project(
     visibility = ["//visibility:public"],
     deps = [
         ":styles_bundle",
+        "//:node_modules/@types/color",
         "//:node_modules/@vanilla-extract/css",
         "//:node_modules/@vanilla-extract/sprinkles",
+        "//:node_modules/color",
         "//shared/design",
         "//shared/error",
         "//shared/helpers",
@@ -41,7 +43,9 @@ esbuild(
     platform = "neutral",
     splitting = False,
     deps = [
+        "//:node_modules/@types/color",
         "//:node_modules/@vanilla-extract/esbuild-plugin",
+        "//:node_modules/color",
         "//shared/design",
         "//shared/error",
         "//shared/helpers",

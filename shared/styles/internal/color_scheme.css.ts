@@ -83,6 +83,8 @@ const invertedColorsWithShade = Object.fromEntries<string>(
     ).flat(),
 ) as {readonly [C in Color & `${string}-${number}`]: `#${string}`};
 
+export {invertedColorsWithShade as invertedColors};
+
 const selectionColors = Object.fromEntries(
     [...themeColors, "grey" as const].map(themeColor => {
         const selectionAlpha = 1 / 2;

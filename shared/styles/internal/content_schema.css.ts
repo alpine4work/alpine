@@ -1,4 +1,6 @@
 import {createVar, globalStyle, style} from "@vanilla-extract/css";
+import Color from "color";
+import {colors} from "~/shared/design/colors";
 import {colorByHighlightColor} from "~/shared/design/highlight_color";
 import {
     RemLength,
@@ -6,9 +8,16 @@ import {
     parseRemLengthNumber,
     spacing,
 } from "~/shared/design/spacing";
+import {assert} from "~/shared/helpers/control/assert";
+import {lerp} from "~/shared/helpers/number/lerp";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
 import {borderRadius} from "~/shared/styles/internal/border_radius.css";
-import {CssVarFunction, colorSchemeVars} from "~/shared/styles/internal/color_scheme.css";
+import {
+    CssVarFunction,
+    colorSchemeVars,
+    darkColorSchemeSelector,
+    invertedColors,
+} from "~/shared/styles/internal/color_scheme.css";
 import {fontSizes, fontStyles} from "~/shared/styles/internal/fonts.css";
 import {inputPlaceholderColor} from "~/shared/styles/internal/input_placeholder_color.css";
 
@@ -382,12 +391,52 @@ export const strikeClassName = style({
     textDecorationThickness: 1,
 });
 
+const highlightOpacity = 2 / 3;
+
+// We want the highlight color to equal a color in our color scheme. We also
+// want the color to be somewhat transparent so if we're highlighting an element/
+// with a background shape (like mentions) you can see the background shape
+// through the highlight. We accomplish this by extrapolating a color that when
+// rendered on top of our background color will equal the target
+// highlight color.
 export const highlightClassNameByColor = mapObjectValues(colorByHighlightColor, color =>
     style({
         color: "inherit",
-        backgroundColor: colorSchemeVars[color],
+        backgroundColor: extrapolateHighlightColor(
+            colors["grey-0"],
+            colors[color],
+            highlightOpacity,
+        ),
+        selectors: {
+            [`${darkColorSchemeSelector} &`]: {
+                backgroundColor: extrapolateHighlightColor(
+                    invertedColors["grey-0"],
+                    invertedColors[color],
+                    highlightOpacity,
+                ),
+            },
+        },
     }),
 );
+
+function extrapolateHighlightColor(
+    _backgroundColor: string,
+    _targetColor: string,
+    opacity: number,
+): string {
+    const backgroundColor = Color(_backgroundColor);
+    const targetColor = Color(_targetColor);
+
+    const red = lerp(backgroundColor.red(), targetColor.red(), 1 / opacity);
+    const green = lerp(backgroundColor.green(), targetColor.green(), 1 / opacity);
+    const blue = lerp(backgroundColor.blue(), targetColor.blue(), 1 / opacity);
+
+    assert(0 <= red && red <= 255, "Can not extrapolate outside RGB color space");
+    assert(0 <= green && green <= 255, "Can not extrapolate outside RGB color space");
+    assert(0 <= blue && blue <= 255, "Can not extrapolate outside RGB color space");
+
+    return Color.rgb(red, green, blue, opacity).hexa();
+}
 
 export const linkClassName = style({
     color: colorSchemeVars["theme-60"],

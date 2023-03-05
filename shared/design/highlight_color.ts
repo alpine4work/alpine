@@ -22,7 +22,9 @@ export function isHighlightColor(string: string): string is HighlightColor {
     return highlightColorSet.has(string as any);
 }
 
-export const colorByHighlightColor: {readonly [K in HighlightColor]: Color} = {
+export const colorByHighlightColor: {
+    readonly [K in HighlightColor]: Color & `${string}-${number}`;
+} = {
     [HighlightColor.Red]: "red-20",
     [HighlightColor.Orange]: "orange-20",
     [HighlightColor.Green]: "green-20",
