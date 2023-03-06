@@ -3,6 +3,7 @@ import {parseAccountName} from "~/client/accounts/internal/parse_account_name";
 import {Box} from "~/client/design/box";
 import {spacing} from "~/shared/design/spacing";
 import {AccountModel} from "~/shared/models/account_model";
+import {fontStyles} from "~/shared/styles/styles";
 
 export type AccountAvatarProps = {
     account: AccountModel;
@@ -29,7 +30,7 @@ export function AccountAvatar({account, size = "8"}: AccountAvatarProps) {
         return {firstInitial, lastInitial};
     }, [account]);
 
-    const actualSize = size.endsWith("em") ? size : (spacing as any)[size];
+    const actualSize = isEmLength(size) ? size : spacing[size];
 
     return (
         <Box
@@ -53,7 +54,6 @@ export function AccountAvatar({account, size = "8"}: AccountAvatarProps) {
                 display="flex"
                 justifyContent="center"
                 alignItems="center"
-                fontStyle="normal"
                 color="grey-80-const"
                 position="relative"
                 zIndex="0"
@@ -63,15 +63,27 @@ export function AccountAvatar({account, size = "8"}: AccountAvatarProps) {
                     height: actualSize,
                 }}
             >
-                <Box
-                    fontSize="75"
-                    style={{transform: `scale(${parseInt(size, 10) / 8})`}}
-                    aria-hidden="true"
-                >
-                    {firstInitial.toUpperCase()}
-                    {lastInitial?.toUpperCase()}
-                </Box>
+                <svg viewBox="0 0 32 32" fill="currentColor" width={actualSize} height={actualSize}>
+                    <text
+                        x="16"
+                        y="15.5"
+                        textAnchor="middle"
+                        dominantBaseline="central"
+                        style={{
+                            ...fontStyles["normal"],
+                            fontSize: 12,
+                            letterSpacing: 0,
+                            lineHeight: 1,
+                        }}
+                    >
+                        {`${firstInitial.toUpperCase()}${lastInitial?.toUpperCase() ?? ""}`}
+                    </text>
+                </svg>
             </Box>
         </Box>
     );
+}
+
+function isEmLength(string: string): string is `${number}em` {
+    return string.endsWith("em");
 }
