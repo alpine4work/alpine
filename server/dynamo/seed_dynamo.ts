@@ -2,7 +2,6 @@ import {seedTestAccounts} from "~/server/dynamo/accounts_table";
 import {seedTestAlphaConfiguration} from "~/server/dynamo/alpha_access_table";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {seedTestChannels} from "~/server/dynamo/forum_table";
-import {seedTestSimpleChats} from "~/server/dynamo/simple_chat_table";
 import {seedTestSpaces} from "~/server/dynamo/spaces_table";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
@@ -21,7 +20,6 @@ export function seedDynamo(context: DynamoContext): Promise<void> {
             seedTestAccounts(context),
             seedTestSpaces(context),
             seedTestChannels(context),
-            seedTestSimpleChats(context),
         ]);
     });
 }
