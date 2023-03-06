@@ -1,6 +1,9 @@
-import {DOMSerializer, Fragment, Mark, Node, Schema} from "prosemirror-model";
+import {DOMOutputSpec, DOMSerializer, Fragment, Mark, Node, Schema} from "prosemirror-model";
+import {getContentMentionText} from "~/client/accounts/get_content_mention_text";
+import {ContentMention} from "~/shared/content/content_mention";
 import {clampListItemIndentation} from "~/shared/content/content_schema";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every";
+import {ContentReferences} from "~/shared/models/content_references";
 
 // Augment with types for some internal methods from:
 // https://github.com/ProseMirror/prosemirror-model/blob/26c634ffff8ad6544fda12ed70c99f12a65959f3/src/to_dom.ts#L27
@@ -25,15 +28,26 @@ declare module "prosemirror-model" {
  * to HTML.
  */
 export class ContentEditorDomClipboardSerializer extends DOMSerializer {
-    static override fromSchema(schema: Schema): ContentEditorDomClipboardSerializer {
-        return (
-            schema.cached.contentEditorDomClipboardSerializer ||
-            (schema.cached.contentEditorDomClipboardSerializer =
-                new ContentEditorDomClipboardSerializer(
-                    this.nodesFromSchema(schema),
-                    this.marksFromSchema(schema),
-                ))
+    static fromSchemaWithContentReferences(
+        schema: Schema,
+        getContentReferences: () => ContentReferences,
+    ): ContentEditorDomClipboardSerializer {
+        return new ContentEditorDomClipboardSerializer(
+            this.nodesFromSchema(schema),
+            this.marksFromSchema(schema),
+            getContentReferences,
         );
+    }
+
+    private readonly _getContentReferences: () => ContentReferences;
+
+    protected constructor(
+        nodes: {[node: string]: (node: Node) => DOMOutputSpec},
+        marks: {[mark: string]: (mark: Mark, inline: boolean) => DOMOutputSpec},
+        getContentReferences: () => ContentReferences,
+    ) {
+        super(nodes, marks);
+        this._getContentReferences = getContentReferences;
     }
 
     override serializeNodeInner(node: Node, options: {document?: Document}): globalThis.Node {
@@ -55,6 +69,16 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                 ...options,
                 prependContentDom: checkboxDom,
             });
+        }
+
+        if (node.type.name === "mention") {
+            const dom = document.createElement("span");
+            const mention: ContentMention = node.attrs.mention;
+            const mentionText = getContentMentionText(this._getContentReferences(), mention);
+            dom.dataset.mentionAccount = mention.accountId;
+            if (mention.isShort) dom.dataset.mentionShort = "true";
+            dom.textContent = `@${mentionText}`;
+            return dom;
         }
 
         const dom = super.serializeNodeInner(node, options);

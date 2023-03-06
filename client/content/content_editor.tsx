@@ -30,6 +30,7 @@ import {createContentEditorMentionNodeViewConstructor} from "~/client/content/in
 import {createContentEditorOrderedListItemNodeView} from "~/client/content/internal/content_editor_ordered_list_item_node_view";
 import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/content_editor_phantom_selection_cursor";
 import {trimSpacesFromRange} from "~/client/content/internal/content_editor_prosemirror_helpers";
+import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools";
 import {FocusRing} from "~/client/design/focus_ring";
 import {isMac} from "~/client/helpers/browser/is_mac";
@@ -352,7 +353,16 @@ function ContentEditor<Content extends Node>(
             },
 
             domParser: ContentEditorDomParser.fromSchema(schema),
-            clipboardSerializer: ContentEditorDomClipboardSerializer.fromSchema(schema),
+            clipboardSerializer:
+                ContentEditorDomClipboardSerializer.fromSchemaWithContentReferences(
+                    schema,
+                    () => propsRef.current.state.getContent().references,
+                ),
+            clipboardTextSerializer: slice =>
+                contentEditorTextClipboardSerializer(
+                    slice,
+                    () => propsRef.current.state.getContent().references,
+                ),
 
             // IMPORTANT: If you have a custom view in `nodeViews` here you should also
             // have a matching custom renderer in `nodeRenderers` in

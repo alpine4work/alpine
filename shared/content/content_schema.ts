@@ -1,9 +1,11 @@
 import {assignInlineVars} from "@vanilla-extract/dynamic";
 import classNames from "classnames";
 import {Node, ParseRule, Schema as ProsemirrorSchema, SchemaSpec} from "prosemirror-model";
-import {ContentMentionSchema} from "~/shared/content/content_mention";
+import {ContentMention, ContentMentionSchema} from "~/shared/content/content_mention";
 import {clamp} from "~/shared/helpers/number/clamp";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol";
+import {isId} from "~/shared/id/id";
+import {AccountId} from "~/shared/id/types/id_types";
 import {Schema} from "~/shared/schema/schema";
 import {contentSchemaStyles} from "~/shared/styles/styles";
 
@@ -253,6 +255,26 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
             // The rendering of mentions is entirely managed with a custom renderer since
             // we need to get data from `ContentReferences`.
             toDOM: () => ["span", {}, ""],
+            parseDOM: [
+                {
+                    tag: "span",
+                    getAttrs: node => {
+                        if (!(node instanceof HTMLElement)) return false;
+
+                        const accountId = node.dataset.mentionAccount;
+                        const isShort = node.dataset.mentionShort === "true";
+
+                        if (!accountId || !isId<AccountId>(accountId)) return false;
+
+                        const mention: ContentMention = {
+                            accountId,
+                            isShort,
+                        };
+
+                        return {mention};
+                    },
+                },
+            ],
         },
     },
     marks: {

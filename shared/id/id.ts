@@ -56,7 +56,7 @@ export function getMaxId<Value extends Id>(): Value {
 /**
  * Is the provided string a valid `Id`?
  */
-export function isId(string: string): string is Id {
+export function isId<Value extends Id>(string: string): string is Value {
     if (string.length !== idLength) return false;
 
     // Lazily initialize the alphabet set.

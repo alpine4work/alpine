@@ -175,6 +175,8 @@ export function renderContentFragmentToHtml(
                 // mention element may have a background color when mentioning the
                 // current account.
                 const containerElement = new ElementHtmlGenerator("span");
+                containerElement.setAttribute("data-mention-account", mention.accountId);
+                if (mention.isShort) containerElement.setAttribute("data-mention-short", "true");
 
                 const element = new ElementHtmlGenerator("span");
                 containerElement.appendChild(element);
