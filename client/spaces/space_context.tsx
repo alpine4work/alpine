@@ -185,7 +185,7 @@ export function SpaceContextProvider({
                 );
 
                 // Build Fuse search index...
-                const fuse = new Fuse(sortedAccounts, {keys: ["name"]});
+                const fuse = new Fuse(sortedAccounts, {keys: ["name"], includeScore: true});
 
                 // Don't set state if the component unmounted...
                 if (isMounted()) {

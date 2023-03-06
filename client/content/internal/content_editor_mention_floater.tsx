@@ -109,7 +109,10 @@ export function ContentEditorMentionFloater({
         // names then we will insert a short mention by default. The user can undo
         // (cmd-z) to get the long version of the mention.
         const isShortNameAmbiguous = allAccounts
-            ? allAccounts.fuse.search(getAccountShortNameWithoutFullNameTooltip(account)).length > 1
+            ? allAccounts.fuse
+                  .search(getAccountShortNameWithoutFullNameTooltip(account))
+                  .filter(result => typeof result.score !== "number" || result.score < 0.25)
+                  .length > 1
             : true;
 
         const mention: ContentMention = {

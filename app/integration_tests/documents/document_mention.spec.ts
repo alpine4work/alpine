@@ -40,22 +40,23 @@ test("can search for an account in mention menu", async ({
         .click({position: {x: viewport.width / 2, y: viewport.height - 100}});
 
     await expect(page.getByTestId("ContentEditorMentionFloater")).toBeHidden();
-    await expect(page.getByText("Siobahn Roy")).toBeHidden();
-    await expect(page.getByText("Kendall Roy")).toBeHidden();
+    await expect(page.getByText("Siobahn Roy", {exact: true})).toBeHidden();
+    await expect(page.getByText("Kendall Roy", {exact: true})).toBeHidden();
     await page.getByRole("textbox", {name: "Document"}).type("@");
     await expect(page.getByTestId("ContentEditorMentionFloater")).toBeVisible();
-    await expect(page.getByText("Siobahn Roy")).toBeVisible();
-    await expect(page.getByText("Kendall Roy")).toBeVisible();
+    await expect(page.getByText("Siobahn Roy", {exact: true})).toBeVisible();
+    await expect(page.getByText("Kendall Roy", {exact: true})).toBeVisible();
     await page.getByRole("textbox", {name: "Document"}).type("Siobahn");
     await expect(page.getByTestId("ContentEditorMentionFloater")).toBeVisible();
-    await expect(page.getByText("Siobahn Roy")).toBeVisible();
-    await expect(page.getByText("Kendall Roy")).toBeHidden();
+    await expect(page.getByText("Siobahn Roy", {exact: true})).toBeVisible();
+    await expect(page.getByText("Kendall Roy", {exact: true})).toBeHidden();
     await page.getByRole("textbox", {name: "Document"}).press("ArrowDown");
     await page.getByRole("textbox", {name: "Document"}).press("Enter");
     await expect(page.getByTestId("ContentEditorMentionFloater")).toBeHidden();
 
-    await expect(page.getByText("Siobahn Roy")).toBeVisible();
-    await expect(page.getByText("Kendall Roy")).toBeHidden();
+    await expect(page.getByText("Siobahn", {exact: true})).toBeVisible();
+    await expect(page.getByText("Siobahn Roy", {exact: true})).toBeHidden();
+    await expect(page.getByText("Kendall Roy", {exact: true})).toBeHidden();
 });
 
 test("can see a mention added by another user", async ({
@@ -92,37 +93,45 @@ test("can see a mention added by another user", async ({
     await page2.getByRole("textbox", {name: "Document"}).focus();
 
     await expect(page1.getByTestId("ContentEditorMentionFloater")).toBeHidden();
-    await expect(page1.getByText("Siobahn Roy")).toBeHidden();
-    await expect(page1.getByText("Kendall Roy")).toBeHidden();
+    await expect(page1.getByText("Siobahn Roy", {exact: true})).toBeHidden();
+    await expect(page1.getByText("Kendall Roy", {exact: true})).toBeHidden();
+    await expect(page1.getByText("Siobahn", {exact: true})).toBeHidden();
     await expect(page2.getByTestId("ContentEditorMentionFloater")).toBeHidden();
-    await expect(page2.getByText("Siobahn Roy")).toBeHidden();
-    await expect(page2.getByText("Kendall Roy")).toBeHidden();
+    await expect(page2.getByText("Siobahn Roy", {exact: true})).toBeHidden();
+    await expect(page2.getByText("Kendall Roy", {exact: true})).toBeHidden();
+    await expect(page2.getByText("Siobahn", {exact: true})).toBeHidden();
 
     await page1.getByRole("textbox", {name: "Document"}).type("@");
 
     await expect(page1.getByTestId("ContentEditorMentionFloater")).toBeVisible();
-    await expect(page1.getByText("Siobahn Roy")).toBeVisible();
-    await expect(page1.getByText("Kendall Roy")).toBeVisible();
+    await expect(page1.getByText("Siobahn Roy", {exact: true})).toBeVisible();
+    await expect(page1.getByText("Kendall Roy", {exact: true})).toBeVisible();
+    await expect(page1.getByText("Siobahn", {exact: true})).toBeHidden();
     await expect(page2.getByTestId("ContentEditorMentionFloater")).toBeHidden();
-    await expect(page2.getByText("Siobahn Roy")).toBeHidden();
-    await expect(page2.getByText("Kendall Roy")).toBeHidden();
+    await expect(page2.getByText("Siobahn Roy", {exact: true})).toBeHidden();
+    await expect(page2.getByText("Kendall Roy", {exact: true})).toBeHidden();
+    await expect(page2.getByText("Siobahn", {exact: true})).toBeHidden();
 
     await page1.getByRole("textbox", {name: "Document"}).type("Siobahn");
 
     await expect(page1.getByTestId("ContentEditorMentionFloater")).toBeVisible();
-    await expect(page1.getByText("Siobahn Roy")).toBeVisible();
-    await expect(page1.getByText("Kendall Roy")).toBeHidden();
+    await expect(page1.getByText("Siobahn Roy", {exact: true})).toBeVisible();
+    await expect(page1.getByText("Kendall Roy", {exact: true})).toBeHidden();
+    await expect(page1.getByText("Siobahn", {exact: true})).toBeHidden();
     await expect(page2.getByTestId("ContentEditorMentionFloater")).toBeHidden();
-    await expect(page2.getByText("Siobahn Roy")).toBeHidden();
-    await expect(page2.getByText("Kendall Roy")).toBeHidden();
+    await expect(page2.getByText("Siobahn Roy", {exact: true})).toBeHidden();
+    await expect(page2.getByText("Kendall Roy", {exact: true})).toBeHidden();
+    await expect(page2.getByText("Siobahn", {exact: true})).toBeHidden();
 
     await page1.getByRole("textbox", {name: "Document"}).press("ArrowDown");
     await page1.getByRole("textbox", {name: "Document"}).press("Enter");
 
     await expect(page1.getByTestId("ContentEditorMentionFloater")).toBeHidden();
-    await expect(page1.getByText("Siobahn Roy")).toBeVisible();
-    await expect(page1.getByText("Kendall Roy")).toBeHidden();
+    await expect(page1.getByText("Siobahn", {exact: true})).toBeVisible();
+    await expect(page1.getByText("Siobahn Roy", {exact: true})).toBeHidden();
+    await expect(page1.getByText("Kendall Roy", {exact: true})).toBeHidden();
     await expect(page2.getByTestId("ContentEditorMentionFloater")).toBeHidden();
-    await expect(page2.getByText("Siobahn Roy")).toBeVisible();
-    await expect(page2.getByText("Kendall Roy")).toBeHidden();
+    await expect(page2.getByText("Siobahn", {exact: true})).toBeVisible();
+    await expect(page2.getByText("Siobahn Roy", {exact: true})).toBeHidden();
+    await expect(page2.getByText("Kendall Roy", {exact: true})).toBeHidden();
 });
