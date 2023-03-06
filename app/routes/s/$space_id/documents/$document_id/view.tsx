@@ -34,7 +34,10 @@ export default function DocumentViewRoute() {
 
     // TODO(calebmer): Get this to work good...
     return (
-        <main id={id} className={sprinkles({height: "full"})}>
+        <main
+            id={id}
+            className={sprinkles({height: "full", backgroundColor: "grey-0", overflowY: "scroll"})}
+        >
             <DocumentContentView document={document} />
         </main>
     );

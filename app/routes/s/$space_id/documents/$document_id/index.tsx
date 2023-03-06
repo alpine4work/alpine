@@ -33,7 +33,7 @@ export default function DocumentRoute() {
     const {document} = useLoaderDataWithSchema(schema);
 
     return (
-        <main id={id} className={sprinkles({height: "full"})}>
+        <main id={id} className={sprinkles({height: "full", overflowY: "scroll"})}>
             <DocumentContentEditor document={document} />
         </main>
     );

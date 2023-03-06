@@ -9,13 +9,15 @@ import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {ContextCache} from "~/shared/context/cache_context_module";
-import {PermissionDeniedError} from "~/shared/error/error";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array";
 import {getMaxId, getMinId} from "~/shared/id/id";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
+import {SpaceModel} from "~/shared/models/space_model";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
 import {Schema} from "~/shared/schema/schema";
 
@@ -201,6 +203,34 @@ export function authorizeSpaceAccess(
                 "Optimistic session account ID does not match actual session account ID",
             );
         }
+    });
+}
+
+/**
+ * Get the space with the specified ID.
+ *
+ * As a performance optimization, you may provide `optimisticSessionAccountId`
+ * which is passed to `authorizeSpaceAccess()`. See the documentation of that
+ * function for the purpose of `optimisticSessionAccountId`.
+ */
+export async function getSpace(
+    context: UnauthenticatedRequestContext,
+    spaceId: SpaceId,
+    optimisticSessionAccountId?: AccountId,
+): Promise<SpaceModel> {
+    const [spaceItem] = await runAllPromises([
+        SpacesTable.getItem(context, {
+            partitionType: "Space",
+            sortRangeType: "Attributes",
+            spaceId,
+        }),
+        authorizeSpaceAccess(context, spaceId, optimisticSessionAccountId),
+    ]);
+    if (!spaceItem) throw new NotFoundError("Space does not exist");
+
+    return new SpaceModel({
+        id: spaceItem.spaceId,
+        name: spaceItem.name,
     });
 }
 

@@ -11,7 +11,7 @@ export function AccountAvatar({
     size = "8",
 }: {
     account: AccountModel;
-    size?: "6" | "7" | "8" | "10";
+    size?: "5" | "6" | "7" | "8" | "10";
 }) {
     const {firstInitial, lastInitial} = useMemo(() => {
         const {firstName, lastName} = parseAccountName(account);

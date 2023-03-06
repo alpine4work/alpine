@@ -6,19 +6,17 @@ import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
 import {OverlayPlacement} from "~/client/design/overlay";
 import {useShowToast} from "~/client/design/toast";
-import {Tooltip} from "~/client/design/tooltip";
+import {Tooltip, defaultTooltipOffset} from "~/client/design/tooltip";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
-import {spacing} from "~/shared/design/spacing";
+import {Spacing, spacing} from "~/shared/design/spacing";
 import {Sprinkles, sprinkles} from "~/shared/styles/styles";
-
-// TODO(calebmer): Disabled styles and other style variants
 
 const IconButtonForwardRef = forwardRef(IconButton);
 export {IconButtonForwardRef as IconButton};
 
 type IconButtonVariant = "accent" | "quiet" | "quiet-on-grey-5-dark-background";
 
-type IconButtonSize = "base" | "sm" | "xs";
+type IconButtonSize = "base" | "md" | "sm" | "xs";
 
 /**
  * A button represented by a single icon.
@@ -70,6 +68,13 @@ function IconButton(
          * Defaults to `bottom-start`.
          */
         tooltipPlacement?: OverlayPlacement;
+
+        /**
+         * How far to offset the tooltip?
+         *
+         * Defaults to `1.5`.
+         */
+        tooltipOffset?: Spacing;
     },
     foreignRef: Ref<HTMLButtonElement>,
 ) {
@@ -83,6 +88,7 @@ function IconButton(
         isDisabled = false,
         withoutTooltip = false,
         tooltipPlacement = "bottom-start",
+        tooltipOffset = defaultTooltipOffset,
     } = props;
     const localRef = useRef<HTMLButtonElement>(null);
     const showToast = useShowToast();
@@ -150,6 +156,10 @@ function IconButton(
                 buttonSize: "7",
                 iconSize: "5",
             },
+            md: {
+                buttonSize: "6",
+                iconSize: "4",
+            },
             sm: {
                 buttonSize: "5",
                 iconSize: "4",
@@ -164,6 +174,7 @@ function IconButton(
     return (
         <Tooltip
             placement={tooltipPlacement}
+            offset={tooltipOffset}
             content={
                 keyboardShortcutHint ? (
                     <Box display="flex" alignItems="center" gap="1">
@@ -201,6 +212,7 @@ function IconButton(
                         // https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
                         cursor: "default",
                         position: "relative",
+                        zIndex: "0",
                         ...stylesByVariant[variant],
                     })}
                 >
@@ -218,6 +230,7 @@ function IconButton(
                         <span
                             className={sprinkles({
                                 position: "absolute",
+                                zIndex: "50",
                                 inset: "0",
                                 backgroundColor: "grey-dark",
                                 pointerEvents: "none",
