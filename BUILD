@@ -36,12 +36,13 @@ ts_lint_and_format_test(
             "**/*.md",
         ],
         exclude = [
-            "node_modules",
+            "node_modules/**/*",
             "bazel-*/**/*",
             "public/**/*",
             "functions/**/*",
             ".cache/**/*",
             ".local/**/*",
+            "external/**/*",
         ],
     ),
 )

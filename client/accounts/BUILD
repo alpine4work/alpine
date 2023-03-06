@@ -2,6 +2,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "accounts",
+    test_deps = ["//:node_modules/@types/node"],
     visibility = [
         "//app:__subpackages__",
         "//client:__subpackages__",

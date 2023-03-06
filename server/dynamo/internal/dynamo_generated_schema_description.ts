@@ -2325,8 +2325,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                         }
                                                     }
                                                 }
-                                            },
-                                            "referenceId": "318f2642"
+                                            }
                                         },
                                         "optional": false
                                     },
