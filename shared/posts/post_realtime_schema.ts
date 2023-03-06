@@ -1,5 +1,5 @@
 import {MessageContentSchema} from "~/shared/content/message_content_schema";
-import {MessageContentWithReferencesSchema} from "~/shared/models/message_interface";
+import {MessageChangeSchema} from "~/shared/messaging/message_change_schema";
 import {PostCommentModel} from "~/shared/models/post_model";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 
@@ -18,8 +18,9 @@ export const PostRealtimeMessageFromClientSchema = Schema.union({
      */
     BackfillPostCommentsRequest: Schema.object({
         type: Schema.value("BackfillPostCommentsRequest"),
-        currentCommentCount: Schema.integer,
-        backfillCommentLimit: Schema.integer,
+        clientPostCommentCount: Schema.integer,
+        clientLastPostCommentChangeTime: Schema.date.nullable(),
+        newPostCommentLimit: Schema.integer,
     }),
     /**
      * Create a new post comment and send a realtime message to all other connected
@@ -27,7 +28,7 @@ export const PostRealtimeMessageFromClientSchema = Schema.union({
      */
     CreatePostComment: Schema.object({
         type: Schema.value("CreatePostComment"),
-        parentCommentIndex: Schema.integer.nullable(),
+        parentPostCommentIndex: Schema.integer.nullable(),
         content: MessageContentSchema,
     }),
     /**
@@ -36,7 +37,7 @@ export const PostRealtimeMessageFromClientSchema = Schema.union({
      */
     UpdatePostCommentContent: Schema.object({
         type: Schema.value("UpdatePostCommentContent"),
-        commentIndex: Schema.integer,
+        postCommentIndex: Schema.integer,
         content: MessageContentSchema,
     }),
     /**
@@ -45,7 +46,7 @@ export const PostRealtimeMessageFromClientSchema = Schema.union({
      */
     DeletePostComment: Schema.object({
         type: Schema.value("DeletePostComment"),
-        commentIndex: Schema.integer,
+        postCommentIndex: Schema.integer,
     }),
 });
 
@@ -61,9 +62,19 @@ export const PostRealtimeMessageFromServerSchema = Schema.union({
      */
     BackfillPostCommentsResponse: Schema.object({
         type: Schema.value("BackfillPostCommentsResponse"),
-        commentCount: Schema.integer,
-        comments: Schema.array(PostCommentModel.schema()),
-        otherReferencedComments: Schema.array(PostCommentModel.schema()),
+        postCommentCount: Schema.integer,
+        lastPostCommentChangeTime: Schema.date.nullable(),
+        newPostComments: Schema.array(PostCommentModel.schema()),
+        newOtherReferencedPostComments: Schema.array(PostCommentModel.schema()),
+        postCommentChangesResult: Schema.union({
+            Available: Schema.object({
+                type: Schema.value("Available"),
+                changes: Schema.array(MessageChangeSchema),
+            }),
+            Unavailable: Schema.object({
+                type: Schema.value("Unavailable"),
+            }),
+        }),
     }),
     /**
      * A new comment was created! The comment could have been created by our
@@ -77,34 +88,18 @@ export const PostRealtimeMessageFromServerSchema = Schema.union({
      */
     NewPostComment: Schema.object({
         type: Schema.value("NewPostComment"),
-        comment: PostCommentModel.schema(),
+        postComment: PostCommentModel.schema(),
     }),
     /**
-     * A comment was updated.
+     * A comment was changed.
      *
      * Ordering guarantee: There are no ordering guarantees. You may receive an
      * update message at any time in any order. You should make sure to only show
-     * the update with the greatest `contentUpdatedTime`. `contentUpdatedTime` will
-     * increase after every update.
+     * the update with the greatest change time. Change time will increase
+     * monotonically for each message on each update.
      */
-    UpdatedPostCommentContent: Schema.object({
-        type: Schema.value("UpdatedPostCommentContent"),
-        commentIndex: Schema.integer,
-        content: MessageContentWithReferencesSchema,
-        contentUpdatedTime: Schema.date,
-    }),
-    /**
-     * A comment was deleted.
-     *
-     * Ordering guarantee: There are no ordering guarantees. You may receive a
-     * delete message at any time in any order. Use `deletedTime` and compare it to
-     * `contentUpdatedTime`. The latest update between deletes and updates can be
-     * determined through the timestamp. You can not restore a comment that was
-     * deleted with an update, though.
-     */
-    DeletedPostComment: Schema.object({
-        type: Schema.value("DeletedPostComment"),
-        commentIndex: Schema.integer,
-        deletedTime: Schema.date,
+    ChangePostComment: Schema.object({
+        type: Schema.value("ChangePostComment"),
+        change: MessageChangeSchema,
     }),
 });

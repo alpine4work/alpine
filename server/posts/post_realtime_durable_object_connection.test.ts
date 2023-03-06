@@ -1,4 +1,4 @@
-import {createChannel} from "~/server/dynamo/forum_table";
+import {createChannel, updatePostCommentContent} from "~/server/dynamo/forum_table";
 import {createPost, createPostComment} from "~/server/dynamo/forum_table";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
 import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
@@ -10,9 +10,8 @@ import {
 } from "~/server/posts/post_realtime_durable_object_connection";
 import {createSimpleMessageContent} from "~/shared/content/message_content_schema";
 import {createSimplePostContent} from "~/shared/content/post_content_schema";
-import {UnimplementedError} from "~/shared/error/error";
 import {emptyContentReferences} from "~/shared/models/content_references";
-import {MessageContentWithReferences} from "~/shared/models/message_interface";
+import {MessageContentWithReferences} from "~/shared/models/message_model";
 import {PostRealtimeMessageFromServer} from "~/shared/posts/post_realtime_schema";
 
 const context = createTestContext();
@@ -40,10 +39,6 @@ const content3WithReferences: MessageContentWithReferences = {
     references: emptyContentReferences,
 };
 
-function unimplemented() {
-    throw new UnimplementedError("Unimplemented");
-}
-
 test("will backfill comments when requested", async () => {
     const channel = await createChannel(context.request(session1), {
         spaceId: space.id,
@@ -57,19 +52,19 @@ test("will backfill comments when requested", async () => {
 
     await createPostComment(context.request(session1), {
         postId: post.id,
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: content1,
     });
 
     await createPostComment(context.request(session2), {
         postId: post.id,
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: content2,
     });
 
     await createPostComment(context.request(session3), {
         postId: post.id,
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: content3,
     });
 
@@ -79,7 +74,6 @@ test("will backfill comments when requested", async () => {
         spaceId: space.id,
         postId: post.id,
         sendMessage: (context, message) => connection1Messages.push(message),
-        sendMessageToAll: unimplemented,
         iterateOtherConnections: () => [],
     });
 
@@ -87,15 +81,17 @@ test("will backfill comments when requested", async () => {
 
     await connection1.handleMessage(context.request(session1), {
         type: "BackfillPostCommentsRequest",
-        currentCommentCount: 0,
-        backfillCommentLimit: 100,
+        clientPostCommentCount: 0,
+        clientLastPostCommentChangeTime: null,
+        newPostCommentLimit: 100,
     });
 
     expect(connection1Messages).toEqual([
         {
             type: "BackfillPostCommentsResponse",
-            commentCount: 3,
-            comments: [
+            postCommentCount: 3,
+            lastPostCommentChangeTime: null,
+            newPostComments: [
                 {
                     postId: post.id,
                     index: 0,
@@ -133,22 +129,25 @@ test("will backfill comments when requested", async () => {
                     },
                 },
             ],
-            otherReferencedComments: [],
+            newOtherReferencedPostComments: [],
+            postCommentChangesResult: {type: "Available", changes: []},
         },
     ]);
     connection1Messages = [];
 
     await connection1.handleMessage(context.request(session1), {
         type: "BackfillPostCommentsRequest",
-        currentCommentCount: 1,
-        backfillCommentLimit: 100,
+        clientPostCommentCount: 1,
+        clientLastPostCommentChangeTime: null,
+        newPostCommentLimit: 100,
     });
 
     expect(connection1Messages).toEqual([
         {
             type: "BackfillPostCommentsResponse",
-            commentCount: 3,
-            comments: [
+            postCommentCount: 3,
+            lastPostCommentChangeTime: null,
+            newPostComments: [
                 {
                     postId: post.id,
                     index: 1,
@@ -174,22 +173,25 @@ test("will backfill comments when requested", async () => {
                     },
                 },
             ],
-            otherReferencedComments: [],
+            newOtherReferencedPostComments: [],
+            postCommentChangesResult: {type: "Available", changes: []},
         },
     ]);
     connection1Messages = [];
 
     await connection1.handleMessage(context.request(session2), {
         type: "BackfillPostCommentsRequest",
-        currentCommentCount: 0,
-        backfillCommentLimit: 2,
+        clientPostCommentCount: 0,
+        clientLastPostCommentChangeTime: null,
+        newPostCommentLimit: 2,
     });
 
     expect(connection1Messages).toEqual([
         {
             type: "BackfillPostCommentsResponse",
-            commentCount: 3,
-            comments: [
+            postCommentCount: 3,
+            lastPostCommentChangeTime: null,
+            newPostComments: [
                 {
                     postId: post.id,
                     index: 0,
@@ -215,7 +217,8 @@ test("will backfill comments when requested", async () => {
                     },
                 },
             ],
-            otherReferencedComments: [],
+            newOtherReferencedPostComments: [],
+            postCommentChangesResult: {type: "Available", changes: []},
         },
     ]);
     connection1Messages = [];
@@ -236,7 +239,7 @@ test("will send comments from other connections", async () => {
 
     await createPostComment(context.request(session1), {
         postId: post.id,
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: content1,
     });
 
@@ -249,7 +252,6 @@ test("will send comments from other connections", async () => {
             spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection1Messages.push(message),
-            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection2, connection3],
         });
 
@@ -258,7 +260,6 @@ test("will send comments from other connections", async () => {
             spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection2Messages.push(message),
-            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection1, connection3],
         });
 
@@ -267,7 +268,6 @@ test("will send comments from other connections", async () => {
             spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection3Messages.push(message),
-            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection1, connection2],
         });
 
@@ -277,30 +277,36 @@ test("will send comments from other connections", async () => {
 
     await connection1.handleMessage(context.request(session1), {
         type: "BackfillPostCommentsRequest",
-        currentCommentCount: 1,
-        backfillCommentLimit: 100,
+        clientPostCommentCount: 1,
+        clientLastPostCommentChangeTime: null,
+        newPostCommentLimit: 100,
     });
 
     await connection2.handleMessage(context.request(session2), {
         type: "BackfillPostCommentsRequest",
-        currentCommentCount: 1,
-        backfillCommentLimit: 100,
+        clientPostCommentCount: 1,
+        clientLastPostCommentChangeTime: null,
+        newPostCommentLimit: 100,
     });
 
     expect(connection1Messages).toEqual([
         {
             type: "BackfillPostCommentsResponse",
-            commentCount: 1,
-            comments: [],
-            otherReferencedComments: [],
+            postCommentCount: 1,
+            lastPostCommentChangeTime: null,
+            newPostComments: [],
+            newOtherReferencedPostComments: [],
+            postCommentChangesResult: {type: "Available", changes: []},
         },
     ]);
     expect(connection2Messages).toEqual([
         {
             type: "BackfillPostCommentsResponse",
-            commentCount: 1,
-            comments: [],
-            otherReferencedComments: [],
+            postCommentCount: 1,
+            lastPostCommentChangeTime: null,
+            newPostComments: [],
+            newOtherReferencedPostComments: [],
+            postCommentChangesResult: {type: "Available", changes: []},
         },
     ]);
     expect(connection3Messages).toEqual([]);
@@ -310,14 +316,14 @@ test("will send comments from other connections", async () => {
 
     await connection2.handleMessage(context.request(session2), {
         type: "CreatePostComment",
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: content2,
     });
 
     expect(connection1Messages).toEqual([
         {
             type: "NewPostComment",
-            comment: {
+            postComment: {
                 postId: post.id,
                 index: 1,
                 author: session2.account,
@@ -334,7 +340,7 @@ test("will send comments from other connections", async () => {
     expect(connection2Messages).toEqual([
         {
             type: "NewPostComment",
-            comment: {
+            postComment: {
                 postId: post.id,
                 index: 1,
                 author: session2.account,
@@ -355,14 +361,14 @@ test("will send comments from other connections", async () => {
 
     await connection2.handleMessage(context.request(session2), {
         type: "CreatePostComment",
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: content3,
     });
 
     expect(connection1Messages).toEqual([
         {
             type: "NewPostComment",
-            comment: {
+            postComment: {
                 postId: post.id,
                 index: 2,
                 author: session2.account,
@@ -379,7 +385,7 @@ test("will send comments from other connections", async () => {
     expect(connection2Messages).toEqual([
         {
             type: "NewPostComment",
-            comment: {
+            postComment: {
                 postId: post.id,
                 index: 2,
                 author: session2.account,
@@ -400,8 +406,9 @@ test("will send comments from other connections", async () => {
 
     await connection3.handleMessage(context.request(session3), {
         type: "BackfillPostCommentsRequest",
-        currentCommentCount: 1,
-        backfillCommentLimit: 100,
+        clientPostCommentCount: 1,
+        clientLastPostCommentChangeTime: null,
+        newPostCommentLimit: 100,
     });
 
     expect(connection1Messages).toEqual([]);
@@ -409,8 +416,9 @@ test("will send comments from other connections", async () => {
     expect(connection3Messages).toEqual([
         {
             type: "BackfillPostCommentsResponse",
-            commentCount: 3,
-            comments: [
+            postCommentCount: 3,
+            lastPostCommentChangeTime: null,
+            newPostComments: [
                 {
                     postId: post.id,
                     index: 1,
@@ -436,7 +444,8 @@ test("will send comments from other connections", async () => {
                     },
                 },
             ],
-            otherReferencedComments: [],
+            newOtherReferencedPostComments: [],
+            postCommentChangesResult: {type: "Available", changes: []},
         },
     ]);
     connection1Messages = [];
@@ -461,7 +470,7 @@ test("will send comments from other connections when those comments are added du
 
     await createPostComment(context.request(session1), {
         postId: post.id,
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: content1,
     });
 
@@ -474,7 +483,6 @@ test("will send comments from other connections when those comments are added du
             spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection1Messages.push(message),
-            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection2, connection3],
         });
 
@@ -483,7 +491,6 @@ test("will send comments from other connections when those comments are added du
             spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection2Messages.push(message),
-            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection1, connection3],
         });
 
@@ -492,7 +499,6 @@ test("will send comments from other connections when those comments are added du
             spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection3Messages.push(message),
-            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection1, connection2],
         });
 
@@ -502,14 +508,16 @@ test("will send comments from other connections when those comments are added du
 
     await connection1.handleMessage(context.request(session1), {
         type: "BackfillPostCommentsRequest",
-        currentCommentCount: 1,
-        backfillCommentLimit: 100,
+        clientPostCommentCount: 1,
+        clientLastPostCommentChangeTime: null,
+        newPostCommentLimit: 100,
     });
 
     await connection2.handleMessage(context.request(session2), {
         type: "BackfillPostCommentsRequest",
-        currentCommentCount: 1,
-        backfillCommentLimit: 100,
+        clientPostCommentCount: 1,
+        clientLastPostCommentChangeTime: null,
+        newPostCommentLimit: 100,
     });
 
     const pausePromise = postRealtimeBackfillCommentsBeforeFlushTestCheckpoint.pauseForTest(
@@ -518,8 +526,9 @@ test("will send comments from other connections when those comments are added du
 
     const connection3BackfillPromise = connection3.handleMessage(context.request(session3), {
         type: "BackfillPostCommentsRequest",
-        currentCommentCount: 1,
-        backfillCommentLimit: 100,
+        clientPostCommentCount: 1,
+        clientLastPostCommentChangeTime: null,
+        newPostCommentLimit: 100,
     });
 
     const {unpause} = await pausePromise;
@@ -527,17 +536,21 @@ test("will send comments from other connections when those comments are added du
     expect(connection1Messages).toEqual([
         {
             type: "BackfillPostCommentsResponse",
-            commentCount: 1,
-            comments: [],
-            otherReferencedComments: [],
+            postCommentCount: 1,
+            lastPostCommentChangeTime: null,
+            newPostComments: [],
+            newOtherReferencedPostComments: [],
+            postCommentChangesResult: {type: "Available", changes: []},
         },
     ]);
     expect(connection2Messages).toEqual([
         {
             type: "BackfillPostCommentsResponse",
-            commentCount: 1,
-            comments: [],
-            otherReferencedComments: [],
+            postCommentCount: 1,
+            lastPostCommentChangeTime: null,
+            newPostComments: [],
+            newOtherReferencedPostComments: [],
+            postCommentChangesResult: {type: "Available", changes: []},
         },
     ]);
     expect(connection3Messages).toEqual([]);
@@ -547,14 +560,14 @@ test("will send comments from other connections when those comments are added du
 
     await connection2.handleMessage(context.request(session2), {
         type: "CreatePostComment",
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: content2,
     });
 
     expect(connection1Messages).toEqual([
         {
             type: "NewPostComment",
-            comment: {
+            postComment: {
                 postId: post.id,
                 index: 1,
                 author: session2.account,
@@ -571,7 +584,7 @@ test("will send comments from other connections when those comments are added du
     expect(connection2Messages).toEqual([
         {
             type: "NewPostComment",
-            comment: {
+            postComment: {
                 postId: post.id,
                 index: 1,
                 author: session2.account,
@@ -592,14 +605,14 @@ test("will send comments from other connections when those comments are added du
 
     await connection2.handleMessage(context.request(session2), {
         type: "CreatePostComment",
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: content3,
     });
 
     expect(connection1Messages).toEqual([
         {
             type: "NewPostComment",
-            comment: {
+            postComment: {
                 postId: post.id,
                 index: 2,
                 author: session2.account,
@@ -616,7 +629,7 @@ test("will send comments from other connections when those comments are added du
     expect(connection2Messages).toEqual([
         {
             type: "NewPostComment",
-            comment: {
+            postComment: {
                 postId: post.id,
                 index: 2,
                 author: session2.account,
@@ -643,13 +656,15 @@ test("will send comments from other connections when those comments are added du
     expect(connection3Messages).toEqual([
         {
             type: "BackfillPostCommentsResponse",
-            commentCount: 1,
-            comments: [],
-            otherReferencedComments: [],
+            postCommentCount: 1,
+            lastPostCommentChangeTime: null,
+            newPostComments: [],
+            newOtherReferencedPostComments: [],
+            postCommentChangesResult: {type: "Available", changes: []},
         },
         {
             type: "NewPostComment",
-            comment: {
+            postComment: {
                 postId: post.id,
                 index: 1,
                 author: session2.account,
@@ -664,7 +679,7 @@ test("will send comments from other connections when those comments are added du
         },
         {
             type: "NewPostComment",
-            comment: {
+            postComment: {
                 postId: post.id,
                 index: 2,
                 author: session2.account,
@@ -700,7 +715,7 @@ test("will send comments our connection when those comments are added during bac
 
     await createPostComment(context.request(session1), {
         postId: post.id,
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: content1,
     });
 
@@ -713,7 +728,6 @@ test("will send comments our connection when those comments are added during bac
             spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection1Messages.push(message),
-            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection2, connection3],
         });
 
@@ -722,7 +736,6 @@ test("will send comments our connection when those comments are added during bac
             spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection2Messages.push(message),
-            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection1, connection3],
         });
 
@@ -731,7 +744,6 @@ test("will send comments our connection when those comments are added during bac
             spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection3Messages.push(message),
-            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection1, connection2],
         });
 
@@ -741,14 +753,16 @@ test("will send comments our connection when those comments are added during bac
 
     await connection1.handleMessage(context.request(session1), {
         type: "BackfillPostCommentsRequest",
-        currentCommentCount: 1,
-        backfillCommentLimit: 100,
+        clientPostCommentCount: 1,
+        clientLastPostCommentChangeTime: null,
+        newPostCommentLimit: 100,
     });
 
     await connection2.handleMessage(context.request(session2), {
         type: "BackfillPostCommentsRequest",
-        currentCommentCount: 1,
-        backfillCommentLimit: 100,
+        clientPostCommentCount: 1,
+        clientLastPostCommentChangeTime: null,
+        newPostCommentLimit: 100,
     });
 
     const pausePromise = postRealtimeBackfillCommentsBeforeFlushTestCheckpoint.pauseForTest(
@@ -757,8 +771,9 @@ test("will send comments our connection when those comments are added during bac
 
     const connection3BackfillPromise = connection3.handleMessage(context.request(session3), {
         type: "BackfillPostCommentsRequest",
-        currentCommentCount: 1,
-        backfillCommentLimit: 100,
+        clientPostCommentCount: 1,
+        clientLastPostCommentChangeTime: null,
+        newPostCommentLimit: 100,
     });
 
     const {unpause} = await pausePromise;
@@ -766,17 +781,21 @@ test("will send comments our connection when those comments are added during bac
     expect(connection1Messages).toEqual([
         {
             type: "BackfillPostCommentsResponse",
-            commentCount: 1,
-            comments: [],
-            otherReferencedComments: [],
+            postCommentCount: 1,
+            lastPostCommentChangeTime: null,
+            newPostComments: [],
+            newOtherReferencedPostComments: [],
+            postCommentChangesResult: {type: "Available", changes: []},
         },
     ]);
     expect(connection2Messages).toEqual([
         {
             type: "BackfillPostCommentsResponse",
-            commentCount: 1,
-            comments: [],
-            otherReferencedComments: [],
+            postCommentCount: 1,
+            lastPostCommentChangeTime: null,
+            newPostComments: [],
+            newOtherReferencedPostComments: [],
+            postCommentChangesResult: {type: "Available", changes: []},
         },
     ]);
     expect(connection3Messages).toEqual([]);
@@ -786,14 +805,14 @@ test("will send comments our connection when those comments are added during bac
 
     await connection3.handleMessage(context.request(session3), {
         type: "CreatePostComment",
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: content2,
     });
 
     expect(connection1Messages).toEqual([
         {
             type: "NewPostComment",
-            comment: {
+            postComment: {
                 postId: post.id,
                 index: 1,
                 author: session3.account,
@@ -810,7 +829,7 @@ test("will send comments our connection when those comments are added during bac
     expect(connection2Messages).toEqual([
         {
             type: "NewPostComment",
-            comment: {
+            postComment: {
                 postId: post.id,
                 index: 1,
                 author: session3.account,
@@ -837,13 +856,15 @@ test("will send comments our connection when those comments are added during bac
     expect(connection3Messages).toEqual([
         {
             type: "BackfillPostCommentsResponse",
-            commentCount: 1,
-            comments: [],
-            otherReferencedComments: [],
+            postCommentCount: 1,
+            lastPostCommentChangeTime: null,
+            newPostComments: [],
+            newOtherReferencedPostComments: [],
+            postCommentChangesResult: {type: "Available", changes: []},
         },
         {
             type: "NewPostComment",
-            comment: {
+            postComment: {
                 postId: post.id,
                 index: 1,
                 author: session3.account,
@@ -886,7 +907,6 @@ test("will send comments from other connections in order", async () => {
             spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection1Messages.push(message),
-            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection2, connection3],
         });
 
@@ -895,7 +915,6 @@ test("will send comments from other connections in order", async () => {
             spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection2Messages.push(message),
-            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection1, connection3],
         });
 
@@ -904,7 +923,6 @@ test("will send comments from other connections in order", async () => {
             spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection3Messages.push(message),
-            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection1, connection2],
         });
 
@@ -914,44 +932,53 @@ test("will send comments from other connections in order", async () => {
 
     await connection1.handleMessage(context.request(session1), {
         type: "BackfillPostCommentsRequest",
-        currentCommentCount: 0,
-        backfillCommentLimit: 100,
+        clientPostCommentCount: 0,
+        clientLastPostCommentChangeTime: null,
+        newPostCommentLimit: 100,
     });
 
     await connection2.handleMessage(context.request(session2), {
         type: "BackfillPostCommentsRequest",
-        currentCommentCount: 0,
-        backfillCommentLimit: 100,
+        clientPostCommentCount: 0,
+        clientLastPostCommentChangeTime: null,
+        newPostCommentLimit: 100,
     });
 
     await connection3.handleMessage(context.request(session2), {
         type: "BackfillPostCommentsRequest",
-        currentCommentCount: 0,
-        backfillCommentLimit: 100,
+        clientPostCommentCount: 0,
+        clientLastPostCommentChangeTime: null,
+        newPostCommentLimit: 100,
     });
 
     expect(connection1Messages).toEqual([
         {
             type: "BackfillPostCommentsResponse",
-            commentCount: 0,
-            comments: [],
-            otherReferencedComments: [],
+            postCommentCount: 0,
+            lastPostCommentChangeTime: null,
+            newPostComments: [],
+            newOtherReferencedPostComments: [],
+            postCommentChangesResult: {type: "Available", changes: []},
         },
     ]);
     expect(connection2Messages).toEqual([
         {
             type: "BackfillPostCommentsResponse",
-            commentCount: 0,
-            comments: [],
-            otherReferencedComments: [],
+            postCommentCount: 0,
+            lastPostCommentChangeTime: null,
+            newPostComments: [],
+            newOtherReferencedPostComments: [],
+            postCommentChangesResult: {type: "Available", changes: []},
         },
     ]);
     expect(connection3Messages).toEqual([
         {
             type: "BackfillPostCommentsResponse",
-            commentCount: 0,
-            comments: [],
-            otherReferencedComments: [],
+            postCommentCount: 0,
+            lastPostCommentChangeTime: null,
+            newPostComments: [],
+            newOtherReferencedPostComments: [],
+            postCommentChangesResult: {type: "Available", changes: []},
         },
     ]);
     connection1Messages = [];
@@ -964,7 +991,7 @@ test("will send comments from other connections in order", async () => {
 
     const connection1CreateMessagePromise = connection1.handleMessage(context.request(session1), {
         type: "CreatePostComment",
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: content1,
     });
 
@@ -979,13 +1006,13 @@ test("will send comments from other connections in order", async () => {
 
     await connection2.handleMessage(context.request(session2), {
         type: "CreatePostComment",
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: content2,
     });
 
     await connection3.handleMessage(context.request(session3), {
         type: "CreatePostComment",
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: content3,
     });
 
@@ -1002,7 +1029,7 @@ test("will send comments from other connections in order", async () => {
     expect(connection1Messages).toEqual([
         {
             type: "NewPostComment",
-            comment: {
+            postComment: {
                 postId: post.id,
                 index: 0,
                 author: session1.account,
@@ -1017,7 +1044,7 @@ test("will send comments from other connections in order", async () => {
         },
         {
             type: "NewPostComment",
-            comment: {
+            postComment: {
                 postId: post.id,
                 index: 1,
                 author: session2.account,
@@ -1032,7 +1059,7 @@ test("will send comments from other connections in order", async () => {
         },
         {
             type: "NewPostComment",
-            comment: {
+            postComment: {
                 postId: post.id,
                 index: 2,
                 author: session3.account,
@@ -1077,7 +1104,6 @@ test("will send comments from other connections in order even if it is wacky", a
             spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection1Messages.push(message),
-            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection2, connection3],
         });
 
@@ -1086,7 +1112,6 @@ test("will send comments from other connections in order even if it is wacky", a
             spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection2Messages.push(message),
-            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection1, connection3],
         });
 
@@ -1095,7 +1120,6 @@ test("will send comments from other connections in order even if it is wacky", a
             spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection3Messages.push(message),
-            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection1, connection2],
         });
 
@@ -1105,44 +1129,53 @@ test("will send comments from other connections in order even if it is wacky", a
 
     await connection1.handleMessage(context.request(session1), {
         type: "BackfillPostCommentsRequest",
-        currentCommentCount: 0,
-        backfillCommentLimit: 100,
+        clientPostCommentCount: 0,
+        clientLastPostCommentChangeTime: null,
+        newPostCommentLimit: 100,
     });
 
     await connection2.handleMessage(context.request(session2), {
         type: "BackfillPostCommentsRequest",
-        currentCommentCount: 0,
-        backfillCommentLimit: 100,
+        clientPostCommentCount: 0,
+        clientLastPostCommentChangeTime: null,
+        newPostCommentLimit: 100,
     });
 
     await connection3.handleMessage(context.request(session2), {
         type: "BackfillPostCommentsRequest",
-        currentCommentCount: 0,
-        backfillCommentLimit: 100,
+        clientPostCommentCount: 0,
+        clientLastPostCommentChangeTime: null,
+        newPostCommentLimit: 100,
     });
 
     expect(connection1Messages).toEqual([
         {
             type: "BackfillPostCommentsResponse",
-            commentCount: 0,
-            comments: [],
-            otherReferencedComments: [],
+            postCommentCount: 0,
+            lastPostCommentChangeTime: null,
+            newPostComments: [],
+            newOtherReferencedPostComments: [],
+            postCommentChangesResult: {type: "Available", changes: []},
         },
     ]);
     expect(connection2Messages).toEqual([
         {
             type: "BackfillPostCommentsResponse",
-            commentCount: 0,
-            comments: [],
-            otherReferencedComments: [],
+            postCommentCount: 0,
+            lastPostCommentChangeTime: null,
+            newPostComments: [],
+            newOtherReferencedPostComments: [],
+            postCommentChangesResult: {type: "Available", changes: []},
         },
     ]);
     expect(connection3Messages).toEqual([
         {
             type: "BackfillPostCommentsResponse",
-            commentCount: 0,
-            comments: [],
-            otherReferencedComments: [],
+            postCommentCount: 0,
+            lastPostCommentChangeTime: null,
+            newPostComments: [],
+            newOtherReferencedPostComments: [],
+            postCommentChangesResult: {type: "Available", changes: []},
         },
     ]);
     connection1Messages = [];
@@ -1155,7 +1188,7 @@ test("will send comments from other connections in order even if it is wacky", a
 
     const connection1CreateMessagePromise = connection1.handleMessage(context.request(session1), {
         type: "CreatePostComment",
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: content1,
     });
 
@@ -1174,7 +1207,7 @@ test("will send comments from other connections in order even if it is wacky", a
 
     const connection2CreateMessagePromise = connection2.handleMessage(context.request(session2), {
         type: "CreatePostComment",
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: content2,
     });
 
@@ -1182,7 +1215,7 @@ test("will send comments from other connections in order even if it is wacky", a
 
     await connection3.handleMessage(context.request(session3), {
         type: "CreatePostComment",
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: content3,
     });
 
@@ -1209,7 +1242,7 @@ test("will send comments from other connections in order even if it is wacky", a
     expect(connection1Messages).toEqual([
         {
             type: "NewPostComment",
-            comment: {
+            postComment: {
                 postId: post.id,
                 index: 0,
                 author: session1.account,
@@ -1224,7 +1257,7 @@ test("will send comments from other connections in order even if it is wacky", a
         },
         {
             type: "NewPostComment",
-            comment: {
+            postComment: {
                 postId: post.id,
                 index: 1,
                 author: session2.account,
@@ -1239,7 +1272,7 @@ test("will send comments from other connections in order even if it is wacky", a
         },
         {
             type: "NewPostComment",
-            comment: {
+            postComment: {
                 postId: post.id,
                 index: 2,
                 author: session3.account,
@@ -1283,7 +1316,6 @@ test("will ignore new messages if they are part of the backfill", async () => {
             spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection1Messages.push(message),
-            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection2],
         });
 
@@ -1292,7 +1324,6 @@ test("will ignore new messages if they are part of the backfill", async () => {
             spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection2Messages.push(message),
-            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection1],
         });
 
@@ -1301,16 +1332,19 @@ test("will ignore new messages if they are part of the backfill", async () => {
 
     await connection1.handleMessage(context.request(session1), {
         type: "BackfillPostCommentsRequest",
-        currentCommentCount: 0,
-        backfillCommentLimit: 100,
+        clientPostCommentCount: 0,
+        clientLastPostCommentChangeTime: null,
+        newPostCommentLimit: 100,
     });
 
     expect(connection1Messages).toEqual([
         {
             type: "BackfillPostCommentsResponse",
-            commentCount: 0,
-            comments: [],
-            otherReferencedComments: [],
+            postCommentCount: 0,
+            lastPostCommentChangeTime: null,
+            newPostComments: [],
+            newOtherReferencedPostComments: [],
+            postCommentChangesResult: {type: "Available", changes: []},
         },
     ]);
     expect(connection2Messages).toEqual([]);
@@ -1323,7 +1357,7 @@ test("will ignore new messages if they are part of the backfill", async () => {
 
     const connection1CreateMessagePromise = connection1.handleMessage(context.request(session1), {
         type: "CreatePostComment",
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: content1,
     });
 
@@ -1336,16 +1370,18 @@ test("will ignore new messages if they are part of the backfill", async () => {
 
     await connection2.handleMessage(context.request(session2), {
         type: "BackfillPostCommentsRequest",
-        currentCommentCount: 0,
-        backfillCommentLimit: 100,
+        clientPostCommentCount: 0,
+        clientLastPostCommentChangeTime: null,
+        newPostCommentLimit: 100,
     });
 
     expect(connection1Messages).toEqual([]);
     expect(connection2Messages).toEqual([
         {
             type: "BackfillPostCommentsResponse",
-            commentCount: 1,
-            comments: [
+            postCommentCount: 1,
+            lastPostCommentChangeTime: null,
+            newPostComments: [
                 {
                     postId: post.id,
                     index: 0,
@@ -1359,7 +1395,8 @@ test("will ignore new messages if they are part of the backfill", async () => {
                     },
                 },
             ],
-            otherReferencedComments: [],
+            newOtherReferencedPostComments: [],
+            postCommentChangesResult: {type: "Available", changes: []},
         },
     ]);
     connection1Messages = [];
@@ -1371,7 +1408,7 @@ test("will ignore new messages if they are part of the backfill", async () => {
     expect(connection1Messages).toEqual([
         {
             type: "NewPostComment",
-            comment: {
+            postComment: {
                 postId: post.id,
                 index: 0,
                 author: session1.account,
@@ -1412,7 +1449,6 @@ test("will ignore new messages if they are queued but part of the backfill", asy
             spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection1Messages.push(message),
-            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection2],
         });
 
@@ -1421,7 +1457,6 @@ test("will ignore new messages if they are queued but part of the backfill", asy
             spaceId: space.id,
             postId: post.id,
             sendMessage: (context, message) => connection2Messages.push(message),
-            sendMessageToAll: unimplemented,
             iterateOtherConnections: () => [connection1],
         });
 
@@ -1430,16 +1465,19 @@ test("will ignore new messages if they are queued but part of the backfill", asy
 
     await connection1.handleMessage(context.request(session1), {
         type: "BackfillPostCommentsRequest",
-        currentCommentCount: 0,
-        backfillCommentLimit: 100,
+        clientPostCommentCount: 0,
+        clientLastPostCommentChangeTime: null,
+        newPostCommentLimit: 100,
     });
 
     expect(connection1Messages).toEqual([
         {
             type: "BackfillPostCommentsResponse",
-            commentCount: 0,
-            comments: [],
-            otherReferencedComments: [],
+            postCommentCount: 0,
+            lastPostCommentChangeTime: null,
+            newPostComments: [],
+            newOtherReferencedPostComments: [],
+            postCommentChangesResult: {type: "Available", changes: []},
         },
     ]);
     expect(connection2Messages).toEqual([]);
@@ -1452,7 +1490,7 @@ test("will ignore new messages if they are queued but part of the backfill", asy
 
     const connection1CreateMessagePromise = connection1.handleMessage(context.request(session1), {
         type: "CreatePostComment",
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: content1,
     });
 
@@ -1469,8 +1507,9 @@ test("will ignore new messages if they are queued but part of the backfill", asy
 
     const connection2BackfillPromise = connection2.handleMessage(context.request(session2), {
         type: "BackfillPostCommentsRequest",
-        currentCommentCount: 0,
-        backfillCommentLimit: 100,
+        clientPostCommentCount: 0,
+        clientLastPostCommentChangeTime: null,
+        newPostCommentLimit: 100,
     });
 
     const {unpause: unpause2} = await pausePromise2;
@@ -1486,7 +1525,7 @@ test("will ignore new messages if they are queued but part of the backfill", asy
     expect(connection1Messages).toEqual([
         {
             type: "NewPostComment",
-            comment: {
+            postComment: {
                 postId: post.id,
                 index: 0,
                 author: session1.account,
@@ -1511,8 +1550,9 @@ test("will ignore new messages if they are queued but part of the backfill", asy
     expect(connection2Messages).toEqual([
         {
             type: "BackfillPostCommentsResponse",
-            commentCount: 1,
-            comments: [
+            postCommentCount: 1,
+            lastPostCommentChangeTime: null,
+            newPostComments: [
                 {
                     postId: post.id,
                     index: 0,
@@ -1526,7 +1566,8 @@ test("will ignore new messages if they are queued but part of the backfill", asy
                     },
                 },
             ],
-            otherReferencedComments: [],
+            newOtherReferencedPostComments: [],
+            postCommentChangesResult: {type: "Available", changes: []},
         },
     ]);
     connection1Messages = [];
@@ -1534,4 +1575,565 @@ test("will ignore new messages if they are queued but part of the backfill", asy
 
     expect(connection1Messages).toEqual([]);
     expect(connection2Messages).toEqual([]);
+});
+
+test("will backfill changes when requested", async () => {
+    const channel = await createChannel(context.request(session1), {
+        spaceId: space.id,
+        name: "Test",
+    });
+
+    const post = await createPost(context.request(session1), {
+        channelId: channel.id,
+        content: postContent,
+    });
+
+    const postComment1 = await createPostComment(context.request(session1), {
+        postId: post.id,
+        parentPostCommentIndex: null,
+        content: content1,
+    });
+
+    await createPostComment(context.request(session2), {
+        postId: post.id,
+        parentPostCommentIndex: null,
+        content: content1,
+    });
+
+    const postComment3 = await createPostComment(context.request(session3), {
+        postId: post.id,
+        parentPostCommentIndex: null,
+        content: content1,
+    });
+
+    const updatedPostComment3 = await updatePostCommentContent(context.request(session3), {
+        postId: post.id,
+        postCommentIndex: postComment3.index,
+        content: content2,
+    });
+
+    const updatedPostComment1 = await updatePostCommentContent(context.request(session1), {
+        postId: post.id,
+        postCommentIndex: postComment1.index,
+        content: content2,
+    });
+
+    let connection1Messages: Array<PostRealtimeMessageFromServer> = [];
+
+    const connection1 = new PostRealtimeDurableObjectConnection({
+        spaceId: space.id,
+        postId: post.id,
+        sendMessage: (context, message) => connection1Messages.push(message),
+        iterateOtherConnections: () => [],
+    });
+
+    expect(connection1Messages.length).toEqual(0);
+
+    await connection1.handleMessage(context.request(session1), {
+        type: "BackfillPostCommentsRequest",
+        clientPostCommentCount: 3,
+        clientLastPostCommentChangeTime: null,
+        newPostCommentLimit: 100,
+    });
+
+    expect(connection1Messages).toEqual([
+        {
+            type: "BackfillPostCommentsResponse",
+            postCommentCount: 3,
+            lastPostCommentChangeTime: updatedPostComment1.contentUpdatedTime,
+            newPostComments: [],
+            newOtherReferencedPostComments: [],
+            postCommentChangesResult: {
+                type: "Available",
+                changes: [
+                    {
+                        type: "UpdateContent",
+                        index: postComment3.index,
+                        content: content2WithReferences,
+                        contentUpdatedTime: updatedPostComment3.contentUpdatedTime,
+                    },
+                    {
+                        type: "UpdateContent",
+                        index: postComment1.index,
+                        content: content2WithReferences,
+                        contentUpdatedTime: updatedPostComment1.contentUpdatedTime,
+                    },
+                ],
+            },
+        },
+    ]);
+    connection1Messages = [];
+
+    await connection1.handleMessage(context.request(session1), {
+        type: "BackfillPostCommentsRequest",
+        clientPostCommentCount: 3,
+        clientLastPostCommentChangeTime: updatedPostComment3.contentUpdatedTime,
+        newPostCommentLimit: 100,
+    });
+
+    expect(connection1Messages).toEqual([
+        {
+            type: "BackfillPostCommentsResponse",
+            postCommentCount: 3,
+            lastPostCommentChangeTime: updatedPostComment1.contentUpdatedTime,
+            newPostComments: [],
+            newOtherReferencedPostComments: [],
+            postCommentChangesResult: {
+                type: "Available",
+                changes: [
+                    {
+                        type: "UpdateContent",
+                        index: postComment1.index,
+                        content: content2WithReferences,
+                        contentUpdatedTime: updatedPostComment1.contentUpdatedTime,
+                    },
+                ],
+            },
+        },
+    ]);
+    connection1Messages = [];
+
+    await connection1.handleMessage(context.request(session2), {
+        type: "BackfillPostCommentsRequest",
+        clientPostCommentCount: 3,
+        clientLastPostCommentChangeTime: updatedPostComment1.contentUpdatedTime,
+        newPostCommentLimit: 100,
+    });
+
+    expect(connection1Messages).toEqual([
+        {
+            type: "BackfillPostCommentsResponse",
+            postCommentCount: 3,
+            lastPostCommentChangeTime: updatedPostComment1.contentUpdatedTime,
+            newPostComments: [],
+            newOtherReferencedPostComments: [],
+            postCommentChangesResult: {type: "Available", changes: []},
+        },
+    ]);
+    connection1Messages = [];
+
+    expect(connection1Messages.length).toEqual(0);
+});
+
+test("will send changes from other connections", async () => {
+    const channel = await createChannel(context.request(session1), {
+        spaceId: space.id,
+        name: "Test",
+    });
+
+    const post = await createPost(context.request(session1), {
+        channelId: channel.id,
+        content: postContent,
+    });
+
+    await createPostComment(context.request(session1), {
+        postId: post.id,
+        parentPostCommentIndex: null,
+        content: content1,
+    });
+
+    const postComment2 = await createPostComment(context.request(session2), {
+        postId: post.id,
+        parentPostCommentIndex: null,
+        content: content1,
+    });
+
+    await createPostComment(context.request(session3), {
+        postId: post.id,
+        parentPostCommentIndex: null,
+        content: content1,
+    });
+
+    let connection1Messages: Array<PostRealtimeMessageFromServer> = [];
+    let connection2Messages: Array<PostRealtimeMessageFromServer> = [];
+    let connection3Messages: Array<PostRealtimeMessageFromServer> = [];
+
+    const connection1: PostRealtimeDurableObjectConnection =
+        new PostRealtimeDurableObjectConnection({
+            spaceId: space.id,
+            postId: post.id,
+            sendMessage: (context, message) => connection1Messages.push(message),
+            iterateOtherConnections: () => [connection2, connection3],
+        });
+
+    const connection2: PostRealtimeDurableObjectConnection =
+        new PostRealtimeDurableObjectConnection({
+            spaceId: space.id,
+            postId: post.id,
+            sendMessage: (context, message) => connection2Messages.push(message),
+            iterateOtherConnections: () => [connection1, connection3],
+        });
+
+    const connection3: PostRealtimeDurableObjectConnection =
+        new PostRealtimeDurableObjectConnection({
+            spaceId: space.id,
+            postId: post.id,
+            sendMessage: (context, message) => connection3Messages.push(message),
+            iterateOtherConnections: () => [connection1, connection2],
+        });
+
+    expect(connection1Messages).toEqual([]);
+    expect(connection2Messages).toEqual([]);
+    expect(connection3Messages).toEqual([]);
+
+    await connection1.handleMessage(context.request(session1), {
+        type: "BackfillPostCommentsRequest",
+        clientPostCommentCount: 3,
+        clientLastPostCommentChangeTime: null,
+        newPostCommentLimit: 100,
+    });
+
+    await connection2.handleMessage(context.request(session2), {
+        type: "BackfillPostCommentsRequest",
+        clientPostCommentCount: 3,
+        clientLastPostCommentChangeTime: null,
+        newPostCommentLimit: 100,
+    });
+
+    expect(connection1Messages).toEqual([
+        {
+            type: "BackfillPostCommentsResponse",
+            postCommentCount: 3,
+            lastPostCommentChangeTime: null,
+            newPostComments: [],
+            newOtherReferencedPostComments: [],
+            postCommentChangesResult: {type: "Available", changes: []},
+        },
+    ]);
+    expect(connection2Messages).toEqual([
+        {
+            type: "BackfillPostCommentsResponse",
+            postCommentCount: 3,
+            lastPostCommentChangeTime: null,
+            newPostComments: [],
+            newOtherReferencedPostComments: [],
+            postCommentChangesResult: {type: "Available", changes: []},
+        },
+    ]);
+    expect(connection3Messages).toEqual([]);
+    connection1Messages = [];
+    connection2Messages = [];
+    connection3Messages = [];
+
+    await connection2.handleMessage(context.request(session2), {
+        type: "UpdatePostCommentContent",
+        postCommentIndex: postComment2.index,
+        content: content2,
+    });
+
+    expect(connection1Messages).toEqual([
+        {
+            type: "ChangePostComment",
+            change: {
+                type: "UpdateContent",
+                index: postComment2.index,
+                content: content2WithReferences,
+                contentUpdatedTime: expect.any(Date),
+            },
+        },
+    ]);
+    expect(connection2Messages).toEqual([
+        {
+            type: "ChangePostComment",
+            change: {
+                type: "UpdateContent",
+                index: postComment2.index,
+                content: content2WithReferences,
+                contentUpdatedTime: expect.any(Date),
+            },
+        },
+    ]);
+    expect(connection3Messages).toEqual([]);
+    connection1Messages = [];
+    connection2Messages = [];
+    connection3Messages = [];
+
+    await connection2.handleMessage(context.request(session2), {
+        type: "DeletePostComment",
+        postCommentIndex: postComment2.index,
+    });
+
+    expect(connection1Messages).toEqual([
+        {
+            type: "ChangePostComment",
+            change: {
+                type: "Delete",
+                index: postComment2.index,
+                deletedTime: expect.any(Date),
+            },
+        },
+    ]);
+    expect(connection2Messages).toEqual([
+        {
+            type: "ChangePostComment",
+            change: {
+                type: "Delete",
+                index: postComment2.index,
+                deletedTime: expect.any(Date),
+            },
+        },
+    ]);
+    expect(connection3Messages).toEqual([]);
+    connection1Messages = [];
+    connection2Messages = [];
+    connection3Messages = [];
+
+    await connection3.handleMessage(context.request(session3), {
+        type: "BackfillPostCommentsRequest",
+        clientPostCommentCount: 3,
+        clientLastPostCommentChangeTime: null,
+        newPostCommentLimit: 100,
+    });
+
+    expect(connection1Messages).toEqual([]);
+    expect(connection2Messages).toEqual([]);
+    expect(connection3Messages).toEqual([
+        {
+            type: "BackfillPostCommentsResponse",
+            postCommentCount: 3,
+            lastPostCommentChangeTime: expect.any(Date),
+            newPostComments: [],
+            newOtherReferencedPostComments: [],
+            postCommentChangesResult: {
+                type: "Available",
+                changes: [
+                    {
+                        type: "UpdateContent",
+                        index: postComment2.index,
+                        content: content2WithReferences,
+                        contentUpdatedTime: expect.any(Date),
+                    },
+                    {
+                        type: "Delete",
+                        index: postComment2.index,
+                        deletedTime: expect.any(Date),
+                    },
+                ],
+            },
+        },
+    ]);
+    connection1Messages = [];
+    connection2Messages = [];
+    connection3Messages = [];
+
+    expect(connection1Messages).toEqual([]);
+    expect(connection2Messages).toEqual([]);
+    expect(connection3Messages).toEqual([]);
+});
+
+test("will send changes from other connections when those changes are added during backfill", async () => {
+    const channel = await createChannel(context.request(session1), {
+        spaceId: space.id,
+        name: "Test",
+    });
+
+    const post = await createPost(context.request(session1), {
+        channelId: channel.id,
+        content: postContent,
+    });
+
+    await createPostComment(context.request(session1), {
+        postId: post.id,
+        parentPostCommentIndex: null,
+        content: content1,
+    });
+
+    const postComment2 = await createPostComment(context.request(session2), {
+        postId: post.id,
+        parentPostCommentIndex: null,
+        content: content1,
+    });
+
+    await createPostComment(context.request(session3), {
+        postId: post.id,
+        parentPostCommentIndex: null,
+        content: content1,
+    });
+
+    let connection1Messages: Array<PostRealtimeMessageFromServer> = [];
+    let connection2Messages: Array<PostRealtimeMessageFromServer> = [];
+    let connection3Messages: Array<PostRealtimeMessageFromServer> = [];
+
+    const connection1: PostRealtimeDurableObjectConnection =
+        new PostRealtimeDurableObjectConnection({
+            spaceId: space.id,
+            postId: post.id,
+            sendMessage: (context, message) => connection1Messages.push(message),
+            iterateOtherConnections: () => [connection2, connection3],
+        });
+
+    const connection2: PostRealtimeDurableObjectConnection =
+        new PostRealtimeDurableObjectConnection({
+            spaceId: space.id,
+            postId: post.id,
+            sendMessage: (context, message) => connection2Messages.push(message),
+            iterateOtherConnections: () => [connection1, connection3],
+        });
+
+    const connection3: PostRealtimeDurableObjectConnection =
+        new PostRealtimeDurableObjectConnection({
+            spaceId: space.id,
+            postId: post.id,
+            sendMessage: (context, message) => connection3Messages.push(message),
+            iterateOtherConnections: () => [connection1, connection2],
+        });
+
+    expect(connection1Messages).toEqual([]);
+    expect(connection2Messages).toEqual([]);
+    expect(connection3Messages).toEqual([]);
+
+    await connection1.handleMessage(context.request(session1), {
+        type: "BackfillPostCommentsRequest",
+        clientPostCommentCount: 3,
+        clientLastPostCommentChangeTime: null,
+        newPostCommentLimit: 100,
+    });
+
+    await connection2.handleMessage(context.request(session2), {
+        type: "BackfillPostCommentsRequest",
+        clientPostCommentCount: 3,
+        clientLastPostCommentChangeTime: null,
+        newPostCommentLimit: 100,
+    });
+
+    const pausePromise = postRealtimeBackfillCommentsBeforeFlushTestCheckpoint.pauseForTest(
+        session3.id,
+    );
+
+    const connection3BackfillPromise = connection3.handleMessage(context.request(session3), {
+        type: "BackfillPostCommentsRequest",
+        clientPostCommentCount: 3,
+        clientLastPostCommentChangeTime: null,
+        newPostCommentLimit: 100,
+    });
+
+    const {unpause} = await pausePromise;
+
+    expect(connection1Messages).toEqual([
+        {
+            type: "BackfillPostCommentsResponse",
+            postCommentCount: 3,
+            lastPostCommentChangeTime: null,
+            newPostComments: [],
+            newOtherReferencedPostComments: [],
+            postCommentChangesResult: {type: "Available", changes: []},
+        },
+    ]);
+    expect(connection2Messages).toEqual([
+        {
+            type: "BackfillPostCommentsResponse",
+            postCommentCount: 3,
+            lastPostCommentChangeTime: null,
+            newPostComments: [],
+            newOtherReferencedPostComments: [],
+            postCommentChangesResult: {type: "Available", changes: []},
+        },
+    ]);
+    expect(connection3Messages).toEqual([]);
+    connection1Messages = [];
+    connection2Messages = [];
+    connection3Messages = [];
+
+    await connection2.handleMessage(context.request(session2), {
+        type: "UpdatePostCommentContent",
+        postCommentIndex: postComment2.index,
+        content: content2,
+    });
+
+    expect(connection1Messages).toEqual([
+        {
+            type: "ChangePostComment",
+            change: {
+                type: "UpdateContent",
+                index: postComment2.index,
+                content: content2WithReferences,
+                contentUpdatedTime: expect.any(Date),
+            },
+        },
+    ]);
+    expect(connection2Messages).toEqual([
+        {
+            type: "ChangePostComment",
+            change: {
+                type: "UpdateContent",
+                index: postComment2.index,
+                content: content2WithReferences,
+                contentUpdatedTime: expect.any(Date),
+            },
+        },
+    ]);
+    expect(connection3Messages).toEqual([]);
+    connection1Messages = [];
+    connection2Messages = [];
+    connection3Messages = [];
+
+    await connection2.handleMessage(context.request(session2), {
+        type: "DeletePostComment",
+        postCommentIndex: postComment2.index,
+    });
+
+    expect(connection1Messages).toEqual([
+        {
+            type: "ChangePostComment",
+            change: {
+                type: "Delete",
+                index: postComment2.index,
+                deletedTime: expect.any(Date),
+            },
+        },
+    ]);
+    expect(connection2Messages).toEqual([
+        {
+            type: "ChangePostComment",
+            change: {
+                type: "Delete",
+                index: postComment2.index,
+                deletedTime: expect.any(Date),
+            },
+        },
+    ]);
+    expect(connection3Messages).toEqual([]);
+    connection1Messages = [];
+    connection2Messages = [];
+    connection3Messages = [];
+
+    unpause();
+    await connection3BackfillPromise;
+
+    expect(connection1Messages).toEqual([]);
+    expect(connection2Messages).toEqual([]);
+    expect(connection3Messages).toEqual([
+        {
+            type: "BackfillPostCommentsResponse",
+            postCommentCount: 3,
+            lastPostCommentChangeTime: null,
+            newPostComments: [],
+            newOtherReferencedPostComments: [],
+            postCommentChangesResult: {type: "Available", changes: []},
+        },
+        {
+            type: "ChangePostComment",
+            change: {
+                type: "UpdateContent",
+                index: postComment2.index,
+                content: content2WithReferences,
+                contentUpdatedTime: expect.any(Date),
+            },
+        },
+        {
+            type: "ChangePostComment",
+            change: {
+                type: "Delete",
+                index: postComment2.index,
+                deletedTime: expect.any(Date),
+            },
+        },
+    ]);
+    connection1Messages = [];
+    connection2Messages = [];
+    connection3Messages = [];
+
+    expect(connection1Messages).toEqual([]);
+    expect(connection2Messages).toEqual([]);
+    expect(connection3Messages).toEqual([]);
 });

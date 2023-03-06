@@ -12,7 +12,7 @@ import {
 import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {StableRandom} from "~/shared/helpers/number/stable_random";
-import {MessageInterface, MessageInterfaceBase} from "~/shared/models/message_interface";
+import {MessageModel, MessageModelBase} from "~/shared/models/message_model";
 import {
     contentSchemaStyles,
     fontSizes,
@@ -79,7 +79,7 @@ const shouldMergeMessageShimmerProbability = 0.5;
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const Box = null;
 
-export function MessageShimmer<Message extends MessageInterface>({
+export function MessageShimmer<Message extends MessageModel>({
     randomSeed,
     index,
     previousMessage,
@@ -88,8 +88,8 @@ export function MessageShimmer<Message extends MessageInterface>({
 }: {
     randomSeed: string;
     index: number;
-    previousMessage: MessageInterfaceBase | null;
-    nextMessage: MessageInterfaceBase | null;
+    previousMessage: MessageModelBase | null;
+    nextMessage: MessageModelBase | null;
     messages: MessageList<Message>;
 }) {
     const shimmerRef = useRef<HTMLDivElement>(null);

@@ -32,10 +32,10 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {emptyContentReferences} from "~/shared/models/content_references";
 import {
     MessageContentWithReferences,
-    MessageInterface,
-    MessageInterfaceBase,
-    OptimisticMessageInterface,
-} from "~/shared/models/message_interface";
+    MessageModel,
+    MessageModelBase,
+    OptimisticMessageModel,
+} from "~/shared/models/message_model";
 import {
     colorSchemeVars,
     contentSchemaStyles,
@@ -97,8 +97,8 @@ const Box = null;
  * Should two messages merge together?
  */
 export function shouldMergeMessages(
-    message1: MessageInterfaceBase,
-    message2: MessageInterfaceBase,
+    message1: MessageModelBase,
+    message2: MessageModelBase,
 ): boolean {
     return (
         message1.author.id === message2.author.id &&
@@ -108,7 +108,7 @@ export function shouldMergeMessages(
     );
 }
 
-export function MessageView<RoomKey extends string, Message extends MessageInterface<RoomKey>>({
+export function MessageView<RoomKey extends string, Message extends MessageModel<RoomKey>>({
     messageNoun = "message",
     messageStartOfSentenceNoun = messageNoun.slice(0, 1).toUpperCase() + messageNoun.slice(1),
     message,
@@ -125,9 +125,9 @@ export function MessageView<RoomKey extends string, Message extends MessageInter
 }: {
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
-    message: Message | OptimisticMessageInterface;
-    previousMessage: MessageInterfaceBase | null;
-    nextMessage: MessageInterfaceBase | null;
+    message: Message | OptimisticMessageModel;
+    previousMessage: MessageModelBase | null;
+    nextMessage: MessageModelBase | null;
     messages: MessageList<Message>;
     messageEditing: MessageEditing<RoomKey>;
     disableExpensiveFeaturesDuringScroll: boolean;
@@ -670,7 +670,7 @@ export function getTruncatedMessageContentForReplyPreview({
     message,
     messageStartOfSentenceNoun,
 }: {
-    message: MessageInterface;
+    message: MessageModel;
     messageStartOfSentenceNoun: string;
 }): MessageContentWithReferences {
     switch (message.payload.type) {

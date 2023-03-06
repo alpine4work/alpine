@@ -539,6 +539,58 @@ export class DynamoClientInternal {
             return output;
         });
     }
+
+    /**
+     * DynamoDB [`DescribeTimeToLive`][1] action.
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DescribeTimeToLive.html
+     */
+    public DescribeTimeToLive(
+        tracer: TracerBase,
+        input: types.DescribeTimeToLiveCommandInput,
+    ): Promise<types.DescribeTimeToLiveCommandOutput> {
+        return tracer.withSpan("DynamoDB DescribeTimeToLive", async span => {
+            span.addData({
+                dynamodb: {
+                    action: "DescribeTimeToLive",
+                    tableName: input.TableName ?? "",
+                },
+            });
+
+            const output = await this._execute<
+                types.DescribeTimeToLiveCommandInput,
+                types.DescribeTimeToLiveCommandOutput
+            >(span, "DescribeTimeToLive", input);
+
+            return output;
+        });
+    }
+
+    /**
+     * DynamoDB [`UpdateTimeToLive`][1] action.
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_UpdateTimeToLive.html
+     */
+    public UpdateTimeToLive(
+        tracer: TracerBase,
+        input: types.UpdateTimeToLiveCommandInput,
+    ): Promise<types.UpdateTimeToLiveCommandOutput> {
+        return tracer.withSpan("DynamoDB UpdateTimeToLive", async span => {
+            span.addData({
+                dynamodb: {
+                    action: "UpdateTimeToLive",
+                    tableName: input.TableName ?? "",
+                },
+            });
+
+            const output = await this._execute<
+                types.UpdateTimeToLiveCommandInput,
+                types.UpdateTimeToLiveCommandOutput
+            >(span, "UpdateTimeToLive", input);
+
+            return output;
+        });
+    }
 }
 
 function getConsumedCapacityTracerEventData(

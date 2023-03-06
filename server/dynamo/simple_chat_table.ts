@@ -2,7 +2,7 @@ import {getAccountOrThrow} from "~/server/dynamo/accounts_table";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {RequestContext} from "~/server/dynamo/context/request_context";
 import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
-import {createMessagePayloadModel} from "~/server/dynamo/helpers/create_message_payload_model";
+import {createMessagePayloadModel} from "~/server/dynamo/helpers/messaging/create_message_payload_model";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry_dynamo_condition_check_errors";
@@ -20,7 +20,7 @@ import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator";
 import {AccountId, SimpleChatId, SpaceId} from "~/shared/id/types/id_types";
-import {MessagePayloadSchema} from "~/shared/models/message_interface";
+import {MessagePayloadSchema} from "~/shared/models/message_model";
 import {SimpleChatMessageModel, SimpleChatModel} from "~/shared/models/simple_chat_model";
 import {Schema} from "~/shared/schema/schema";
 

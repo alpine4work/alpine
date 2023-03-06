@@ -1,6 +1,6 @@
 import {SimpleChatId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
-import {MessageInterface, MessagePayloadModelSchema} from "~/shared/models/message_interface";
+import {MessageModel, MessagePayloadModelSchema} from "~/shared/models/message_model";
 import {Model} from "~/shared/models/model";
 import {Schema} from "~/shared/schema/schema";
 
@@ -22,7 +22,7 @@ export class SimpleChatMessageModel
             payload: MessagePayloadModelSchema,
         }),
     )
-    implements MessageInterface<SimpleChatId>
+    implements MessageModel<SimpleChatId>
 {
     public getRoomKey() {
         return this.simpleChatId;

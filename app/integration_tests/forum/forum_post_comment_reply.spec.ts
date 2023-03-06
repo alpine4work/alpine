@@ -26,13 +26,13 @@ test("can reply to a comment", async ({page, context: browserContext, isMobile})
 
     await createPostComment(context.request(session1), {
         postId: post.id,
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
     });
 
     await createPostComment(context.request(session2), {
         postId: post.id,
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 2"),
     });
 
@@ -181,7 +181,7 @@ test("clicking a reply bubble will scroll to the comment", async ({
     for (let i = 0; i < 100; i++) {
         await createPostComment(context.request(session1), {
             postId: post.id,
-            parentCommentIndex: null,
+            parentPostCommentIndex: null,
             content: createSimpleMessageContent(
                 `Test post comment content ${
                     i + 1
@@ -192,7 +192,7 @@ test("clicking a reply bubble will scroll to the comment", async ({
 
     await createPostComment(context.request(session1), {
         postId: post.id,
-        parentCommentIndex: 49,
+        parentPostCommentIndex: 49,
         content: createSimpleMessageContent("Test post comment content 101"),
     });
 

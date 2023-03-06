@@ -12,12 +12,12 @@ import {useSpaceContext} from "~/client/spaces/space_context";
 import {spacing} from "~/shared/design/spacing";
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
-import {MessageContentPayloadModel, MessageInterface} from "~/shared/models/message_interface";
+import {MessageContentPayloadModel, MessageModel} from "~/shared/models/message_model";
 import {spinAnimationClassName} from "~/shared/styles/styles";
 
 interface MessageViewActionsProps<RoomKey extends string> {
     messageNoun: string;
-    message: MessageInterface<RoomKey>;
+    message: MessageModel<RoomKey>;
     messagePayload: MessageContentPayloadModel;
     messageEditing: MessageEditing<RoomKey>;
     isHovered: boolean;

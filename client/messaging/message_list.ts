@@ -1,19 +1,21 @@
 import createTree, {Tree} from "functional-red-black-tree";
 import {InvalidArgumentError, OutOfRangeError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
+import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {Id} from "~/shared/id/id";
+import {MessageChange} from "~/shared/messaging/message_change_schema";
 import {
-    MessageInterface,
-    OptimisticMessageInterface,
+    MessageModel,
+    OptimisticMessageModel,
     areMessagePayloadModelsEqual,
-} from "~/shared/models/message_interface";
+} from "~/shared/models/message_model";
 
-export type MessageListItem<Message extends MessageInterface> =
+export type MessageListItem<Message extends MessageModel> =
     | MessageListLoadedItem<Message>
     | MessageListUnloadedItem
     | MessageListOptimisticItem;
 
-export type MessageListLoadedItem<Message extends MessageInterface> = {
+export type MessageListLoadedItem<Message extends MessageModel> = {
     readonly type: "Loaded";
     readonly message: Message;
 };
@@ -25,7 +27,7 @@ export type MessageListUnloadedItem = {
 
 export type MessageListOptimisticItem = {
     readonly type: "Optimistic";
-    readonly message: OptimisticMessageInterface;
+    readonly message: OptimisticMessageModel;
     /**
      * What is the index of this message relative to other optimistic messages? For
      * example, if this is the second optimistic message and we have 10 loaded
@@ -39,19 +41,22 @@ export type MessageListOptimisticItem = {
  * Immutable state for keeping track of a list of messages. The message list
  * may be partially loaded at any time with gaps between messages.
  */
-export class MessageList<Message extends MessageInterface> {
-    private readonly _messageCount: number;
+export class MessageList<Message extends MessageModel> {
+    private readonly _messageCountExcludingOptimisticMessages: number;
     private readonly _messages: Tree<number, Message>;
-    private readonly _optimisticMessages: ReadonlyArray<OptimisticMessageInterface>;
+    private readonly _optimisticMessages: ReadonlyArray<OptimisticMessageModel>;
+    private readonly _lastMessageChangeTime: Date | null;
 
     private constructor({
-        messageCount,
+        messageCountExcludingOptimisticMessages,
         messages,
         optimisticMessages,
+        lastMessageChangeTime,
     }: {
-        messageCount: number;
+        messageCountExcludingOptimisticMessages: number;
         messages: Tree<number, Message>;
-        optimisticMessages: ReadonlyArray<OptimisticMessageInterface>;
+        optimisticMessages: ReadonlyArray<OptimisticMessageModel>;
+        lastMessageChangeTime: Date | null;
     }) {
         if (process.env.NODE_ENV !== "production") {
             assert(
@@ -59,23 +64,30 @@ export class MessageList<Message extends MessageInterface> {
                 "Out of bounds message in message list",
             );
             assert(
-                !messages.end.node || messages.end.node.key < messageCount,
+                !messages.end.node ||
+                    messages.end.node.key < messageCountExcludingOptimisticMessages,
                 "Out of bounds message in message list",
             );
         }
 
-        this._messageCount = messageCount;
+        this._messageCountExcludingOptimisticMessages = messageCountExcludingOptimisticMessages;
         this._messages = messages;
         this._optimisticMessages = optimisticMessages;
+        this._lastMessageChangeTime = lastMessageChangeTime;
     }
 
-    public static new<Message extends MessageInterface>(
-        messageCount: number,
-    ): MessageList<Message> {
+    public static new<Message extends MessageModel>({
+        messageCount,
+        lastMessageChangeTime,
+    }: {
+        messageCount: number;
+        lastMessageChangeTime: Date | null;
+    }): MessageList<Message> {
         return new MessageList({
-            messageCount,
+            messageCountExcludingOptimisticMessages: messageCount,
             messages: createTree(),
             optimisticMessages: [],
+            lastMessageChangeTime,
         });
     }
 
@@ -84,14 +96,22 @@ export class MessageList<Message extends MessageInterface> {
      * have loaded.
      */
     public getMessageCount(): number {
-        return this._messageCount + this._optimisticMessages.length;
+        return this._messageCountExcludingOptimisticMessages + this._optimisticMessages.length;
     }
 
     /**
      * Get the number of messages in the list excluding any optimistic messages.
      */
     public getMessageCountExcludingOptimisticMessages(): number {
-        return this._messageCount;
+        return this._messageCountExcludingOptimisticMessages;
+    }
+
+    /**
+     * Get the last message change time our list knows about. We will use this to
+     * backfill changes the list doesn't know about.
+     */
+    public getLastMessageChangeTime(): Date | null {
+        return this._lastMessageChangeTime;
     }
 
     /**
@@ -104,8 +124,8 @@ export class MessageList<Message extends MessageInterface> {
         if (index < 0 || index >= this.getMessageCount())
             throw new OutOfRangeError("Message index out of bounds");
 
-        if (index >= this._messageCount) {
-            const optimisticMessageIndex = index - this._messageCount;
+        if (index >= this._messageCountExcludingOptimisticMessages) {
+            const optimisticMessageIndex = index - this._messageCountExcludingOptimisticMessages;
             const message = this._optimisticMessages[optimisticMessageIndex]!;
             return {type: "Optimistic", message, optimisticMessageIndex};
         }
@@ -195,19 +215,45 @@ export class MessageList<Message extends MessageInterface> {
      *
      * Excludes message count from optimistic messages.
      */
-    private _setMessageCount(messageCount: number): MessageList<Message> {
+    private _setMessageCountExcludingOptimisticMessages(
+        messageCount: number,
+    ): MessageList<Message> {
         assert(Number.isSafeInteger(messageCount), "Message count is not an integer");
         assert(messageCount >= 0, "Message count should be positive");
 
         // If we have messages at a higher index then the message count won't change.
-        messageCount = Math.max(messageCount, this._messageCount);
+        messageCount = Math.max(messageCount, this._messageCountExcludingOptimisticMessages);
 
-        if (messageCount === this._messageCount) return this;
+        if (messageCount === this._messageCountExcludingOptimisticMessages) return this;
 
         return new MessageList({
-            messageCount,
+            messageCountExcludingOptimisticMessages: messageCount,
             messages: this._messages,
             optimisticMessages: this._optimisticMessages,
+            lastMessageChangeTime: this._lastMessageChangeTime,
+        });
+    }
+
+    /**
+     * Increase last message change time for this list. If the last change time is
+     * less than the current last change time we won't change anything.
+     */
+    public setLastMessageChangeTime(lastMessageChangeTime: Date | null): MessageList<Message> {
+        if (
+            !(
+                (!lastMessageChangeTime && this._lastMessageChangeTime) ||
+                !this._lastMessageChangeTime ||
+                (lastMessageChangeTime && this._lastMessageChangeTime < lastMessageChangeTime)
+            )
+        ) {
+            return this;
+        }
+
+        return new MessageList({
+            messageCountExcludingOptimisticMessages: this._messageCountExcludingOptimisticMessages,
+            messages: this._messages,
+            optimisticMessages: this._optimisticMessages,
+            lastMessageChangeTime,
         });
     }
 
@@ -219,7 +265,7 @@ export class MessageList<Message extends MessageInterface> {
     private _setMessages(newMessages: ReadonlyArray<Message>): MessageList<Message> {
         if (newMessages.length === 0) return this;
 
-        let messageCount = this._messageCount;
+        let messageCount = this._messageCountExcludingOptimisticMessages;
         let messages = this._messages;
         let optimisticMessages = this._optimisticMessages;
 
@@ -245,9 +291,10 @@ export class MessageList<Message extends MessageInterface> {
         }
 
         return new MessageList({
-            messageCount,
+            messageCountExcludingOptimisticMessages: messageCount,
             messages,
             optimisticMessages,
+            lastMessageChangeTime: this._lastMessageChangeTime,
         });
     }
 
@@ -268,7 +315,7 @@ export class MessageList<Message extends MessageInterface> {
         messages: ReadonlyArray<Message>;
         otherReferencedMessages: ReadonlyArray<Message>;
     }): MessageList<Message> {
-        return this._setMessageCount(messageCount)
+        return this._setMessageCountExcludingOptimisticMessages(messageCount)
             ._setMessages(messages)
             ._setMessages(otherReferencedMessages);
     }
@@ -288,11 +335,12 @@ export class MessageList<Message extends MessageInterface> {
      * The optimistic message will be cleared when a new message is added
      * that's equal.
      */
-    public addOptimisticMessage(message: OptimisticMessageInterface): MessageList<Message> {
+    public addOptimisticMessage(message: OptimisticMessageModel): MessageList<Message> {
         return new MessageList({
-            messageCount: this._messageCount,
+            messageCountExcludingOptimisticMessages: this._messageCountExcludingOptimisticMessages,
             messages: this._messages,
             optimisticMessages: [...this._optimisticMessages, message],
+            lastMessageChangeTime: this._lastMessageChangeTime,
         });
     }
 
@@ -303,19 +351,71 @@ export class MessageList<Message extends MessageInterface> {
      * Excludes optimistic messages. If the index is an optimistic message we will
      * ignore and do nothing.
      */
-    public updateLoadedMessage(
-        messageIndex: number,
-        update: (message: Message) => Message,
-    ): MessageList<Message> {
-        const iterator = this._messages.find(messageIndex);
+    public changeLoadedMessage(change: MessageChange): MessageList<Message> {
+        const iterator = this._messages.find(change.index);
         if (!iterator.value) return this;
-        const newMessage = update(iterator.value);
-        if (newMessage === iterator.value) return this;
-        return new MessageList({
-            messageCount: this._messageCount,
-            messages: iterator.update(newMessage),
-            optimisticMessages: this._optimisticMessages,
-        });
+        const message = iterator.value;
+
+        switch (change.type) {
+            case "UpdateContent": {
+                // Do nothing if the message is deleted or the comment was updated at a later
+                // time then our message. There are no ordering guarantees for
+                // `changeLoadedMessage()`! So we have to enforce ordering with
+                // `contentUpdatedTime`.
+                if (
+                    message.payload.type !== "Content" ||
+                    (message.payload.contentUpdatedTime !== null &&
+                        change.contentUpdatedTime.getTime() <
+                            message.payload.contentUpdatedTime.getTime())
+                ) {
+                    return this;
+                }
+
+                const newMessage = message.clone({
+                    payload: {
+                        ...message.payload,
+                        content: change.content,
+                        contentUpdatedTime: change.contentUpdatedTime,
+                    },
+                });
+
+                return new MessageList({
+                    messageCountExcludingOptimisticMessages:
+                        this._messageCountExcludingOptimisticMessages,
+                    messages: iterator.update(newMessage),
+                    optimisticMessages: this._optimisticMessages,
+                    lastMessageChangeTime:
+                        !this._lastMessageChangeTime ||
+                        change.contentUpdatedTime > this._lastMessageChangeTime
+                            ? change.contentUpdatedTime
+                            : this._lastMessageChangeTime,
+                });
+            }
+            case "Delete": {
+                if (message.payload.type !== "Content") return this;
+
+                const newMessage = message.clone({
+                    payload: {
+                        type: "Deleted",
+                        deletedTime: change.deletedTime,
+                    },
+                });
+
+                return new MessageList({
+                    messageCountExcludingOptimisticMessages:
+                        this._messageCountExcludingOptimisticMessages,
+                    messages: iterator.update(newMessage),
+                    optimisticMessages: this._optimisticMessages,
+                    lastMessageChangeTime:
+                        !this._lastMessageChangeTime ||
+                        change.deletedTime > this._lastMessageChangeTime
+                            ? change.deletedTime
+                            : this._lastMessageChangeTime,
+                });
+            }
+            default:
+                throw exhaustive(change);
+        }
     }
 
     /**
@@ -324,16 +424,17 @@ export class MessageList<Message extends MessageInterface> {
      */
     public updateOptimisticMessage(
         optimisticId: Id,
-        update: (message: OptimisticMessageInterface) => OptimisticMessageInterface,
+        update: (message: OptimisticMessageModel) => OptimisticMessageModel,
     ) {
         return new MessageList({
-            messageCount: this._messageCount,
+            messageCountExcludingOptimisticMessages: this._messageCountExcludingOptimisticMessages,
             messages: this._messages,
             optimisticMessages: this._optimisticMessages.map(optimisticMessage =>
                 optimisticMessage.optimisticId === optimisticId
                     ? update(optimisticMessage)
                     : optimisticMessage,
             ),
+            lastMessageChangeTime: this._lastMessageChangeTime,
         });
     }
 }

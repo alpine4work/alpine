@@ -1,4 +1,5 @@
 import {RequestContext} from "~/server/dynamo/context/request_context";
+import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/dynamo/helpers/messaging/get_message_change_log_expiration_time_from_change_time";
 import {TestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
 import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
 import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
@@ -18,7 +19,8 @@ import {
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {SpaceId} from "~/shared/id/types/id_types";
-import {MessageInterface} from "~/shared/models/message_interface";
+import {MessageChange} from "~/shared/messaging/message_change_schema";
+import {MessageModel} from "~/shared/models/message_model";
 
 /**
  * Wherever we want to create some space for conversation in our product we use
@@ -94,7 +96,7 @@ export type MessagingImplementation<RoomKey> = {
             roomKey: RoomKey;
             messageIndex: number;
         },
-    ) => Promise<MessageInterface | null>;
+    ) => Promise<MessageModel | null>;
 
     /**
      * Update the content of a message.
@@ -122,7 +124,9 @@ export type MessagingImplementation<RoomKey> = {
             roomKey: RoomKey;
             messageIndex: number;
         },
-    ) => Promise<void>;
+    ) => Promise<{
+        deletedTime: Date;
+    }>;
 
     /**
      * Load a range of messages starting from the beginning of the room (or
@@ -138,8 +142,9 @@ export type MessagingImplementation<RoomKey> = {
         },
     ): Promise<{
         messageCount: number;
-        messages: Array<MessageInterface>;
-        otherReferencedMessages: Array<MessageInterface>;
+        messages: Array<MessageModel>;
+        otherReferencedMessages: Array<MessageModel>;
+        lastMessageChangeTime: Date | null;
     }>;
 
     /**
@@ -156,8 +161,38 @@ export type MessagingImplementation<RoomKey> = {
         },
     ): Promise<{
         messageCount: number;
-        messages: Array<MessageInterface>;
-        otherReferencedMessages: Array<MessageInterface>;
+        messages: Array<MessageModel>;
+        otherReferencedMessages: Array<MessageModel>;
+        lastMessageChangeTime: Date | null;
+    }>;
+
+    /**
+     * Backfill messages and message changes the client is missing. Realtime could
+     * be implemented by polling this method. However, this method is also
+     * important for implementing push-based realtime as it fills the gap between
+     * when data was loaded and when we connected to our realtime WebSocket.
+     */
+    backfillMessages(
+        context: RequestContext,
+        options: {
+            roomKey: RoomKey;
+            clientMessageCount: number;
+            clientLastMessageChangeTime: Date | null;
+            newMessageLimit: number;
+        },
+    ): Promise<{
+        messageCount: number;
+        lastMessageChangeTime: Date | null;
+        newMessages: Array<MessageModel>;
+        newOtherReferencedMessages: Array<MessageModel>;
+        messageChangesResult:
+            | {
+                  type: "Available";
+                  changes: Array<MessageChange>;
+              }
+            | {
+                  type: "Unavailable";
+              };
     }>;
 };
 
@@ -173,6 +208,10 @@ export type RoomInterface<RoomKey> = {
      * The space the room is a part of.
      */
     readonly spaceId: SpaceId;
+    /**
+     * When was this room created?
+     */
+    readonly createdTime: Date;
     /**
      * The count of messages in the room. Incremented when we create a message and
      * decremented when we delete a message.
@@ -192,6 +231,7 @@ export function testMessagingImplementation<RoomKey>(
         getMessagesFromEnd,
         updateMessageContent,
         deleteMessage,
+        backfillMessages,
     }: MessagingImplementation<RoomKey>,
 ) {
     const space = createTestSpace(context);
@@ -206,7 +246,7 @@ export function testMessagingImplementation<RoomKey>(
     const content3 = createSimpleMessageContent("test3");
     const content4 = createSimpleMessageContent("test4");
 
-    function massageMessage(message: MessageInterface | null) {
+    function massageMessage(message: MessageModel | null) {
         if (!message) return null;
 
         switch (message.payload.type) {
@@ -229,10 +269,32 @@ export function testMessagingImplementation<RoomKey>(
         }
     }
 
+    function massageMessageChange(message: MessageChange) {
+        if (!message) return null;
+
+        switch (message.type) {
+            case "UpdateContent": {
+                return {
+                    type: "UpdateContent",
+                    index: message.index,
+                    content: message.content.doc,
+                };
+            }
+            case "Delete": {
+                return {
+                    type: "Delete",
+                    index: message.index,
+                };
+            }
+            default:
+                throw exhaustive(message);
+        }
+    }
+
     function massageMessages(result: {
         messageCount: number;
-        messages: Array<MessageInterface>;
-        otherReferencedMessages: Array<MessageInterface>;
+        messages: Array<MessageModel>;
+        otherReferencedMessages: Array<MessageModel>;
     }) {
         return {
             messageCount: result.messageCount,
@@ -240,6 +302,40 @@ export function testMessagingImplementation<RoomKey>(
             ...(result.otherReferencedMessages.length > 0
                 ? {otherReferencedMessages: result.otherReferencedMessages.map(massageMessage)}
                 : {}),
+        };
+    }
+
+    function massageMessageBackfill(result: {
+        messageCount: number;
+        lastMessageChangeTime: Date | null;
+        newMessages: Array<MessageModel>;
+        newOtherReferencedMessages: Array<MessageModel>;
+        messageChangesResult:
+            | {
+                  type: "Available";
+                  changes: Array<MessageChange>;
+              }
+            | {
+                  type: "Unavailable";
+              };
+    }) {
+        return {
+            messageCount: result.messageCount,
+            lastMessageChangeTime: result.lastMessageChangeTime,
+            newMessages: result.newMessages.map(massageMessage),
+            ...(result.newOtherReferencedMessages.length > 0
+                ? {
+                      newOtherReferencedMessages:
+                          result.newOtherReferencedMessages.map(massageMessage),
+                  }
+                : {}),
+            messageChangesResult:
+                result.messageChangesResult.type === "Available"
+                    ? {
+                          type: "Available",
+                          changes: result.messageChangesResult.changes.map(massageMessageChange),
+                      }
+                    : {type: "Unavailable"},
         };
     }
 
@@ -3997,6 +4093,81 @@ export function testMessagingImplementation<RoomKey>(
             });
         });
 
+        test("if time hasn't moved forward updating a message will set it to +1ms of the room creation time", async () => {
+            const originalDateNow = Date.now;
+            const mockTime = 1675809808692;
+            Date.now = () => mockTime;
+
+            try {
+                const room = await createRoom(context.request(session1), space.id);
+
+                expect(room.createdTime).toEqual(new Date(mockTime));
+
+                const message = await createMessage(context.request(session1), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: content1,
+                });
+
+                Date.now = () => mockTime - 1000 * 60;
+
+                await updateMessageContent(context.request(session1), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    content: content2,
+                });
+
+                {
+                    const updatedMessage = await getMessage(context.request(session1), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    });
+                    assert(updatedMessage?.payload.type === "Content");
+                    expect(updatedMessage.payload.contentUpdatedTime).toEqual(
+                        new Date(mockTime + 1),
+                    );
+                }
+            } finally {
+                Date.now = originalDateNow;
+            }
+        });
+
+        test("if time hasn't moved forward deleting a message will set it to +1ms of the room creation time", async () => {
+            const originalDateNow = Date.now;
+            const mockTime = 1675809808692;
+            Date.now = () => mockTime;
+
+            try {
+                const room = await createRoom(context.request(session1), space.id);
+
+                expect(room.createdTime).toEqual(new Date(mockTime));
+
+                const message = await createMessage(context.request(session1), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: content1,
+                });
+
+                Date.now = () => mockTime - 1000 * 60;
+
+                await deleteMessage(context.request(session1), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                });
+
+                {
+                    const updatedMessage = await getMessage(context.request(session1), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    });
+                    assert(updatedMessage?.payload.type === "Deleted");
+                    expect(updatedMessage.payload.deletedTime).toEqual(new Date(mockTime + 1));
+                }
+            } finally {
+                Date.now = originalDateNow;
+            }
+        });
+
         test("if time hasn't moved forward updating a message will set it to +1ms of the last update time", async () => {
             const originalDateNow = Date.now;
             const mockTime = 1675809808692;
@@ -4004,6 +4175,8 @@ export function testMessagingImplementation<RoomKey>(
 
             try {
                 const room = await createRoom(context.request(session1), space.id);
+
+                expect(room.createdTime).toEqual(new Date(mockTime));
 
                 const message = await createMessage(context.request(session1), {
                     roomKey: room.key,
@@ -4023,7 +4196,9 @@ export function testMessagingImplementation<RoomKey>(
                         messageIndex: message.index,
                     });
                     assert(updatedMessage?.payload.type === "Content");
-                    expect(updatedMessage.payload.contentUpdatedTime).toEqual(new Date(mockTime));
+                    expect(updatedMessage.payload.contentUpdatedTime).toEqual(
+                        new Date(mockTime + 1),
+                    );
                 }
 
                 await updateMessageContent(context.request(session1), {
@@ -4039,7 +4214,7 @@ export function testMessagingImplementation<RoomKey>(
                     });
                     assert(updatedMessage?.payload.type === "Content");
                     expect(updatedMessage.payload.contentUpdatedTime).toEqual(
-                        new Date(mockTime + 1),
+                        new Date(mockTime + 2),
                     );
                 }
 
@@ -4058,7 +4233,7 @@ export function testMessagingImplementation<RoomKey>(
                     });
                     assert(updatedMessage?.payload.type === "Content");
                     expect(updatedMessage.payload.contentUpdatedTime).toEqual(
-                        new Date(mockTime + 2),
+                        new Date(mockTime + 3),
                     );
                 }
             } finally {
@@ -4073,6 +4248,8 @@ export function testMessagingImplementation<RoomKey>(
 
             try {
                 const room = await createRoom(context.request(session1), space.id);
+
+                expect(room.createdTime).toEqual(new Date(mockTime));
 
                 const message = await createMessage(context.request(session1), {
                     roomKey: room.key,
@@ -4092,7 +4269,9 @@ export function testMessagingImplementation<RoomKey>(
                         messageIndex: message.index,
                     });
                     assert(updatedMessage?.payload.type === "Content");
-                    expect(updatedMessage.payload.contentUpdatedTime).toEqual(new Date(mockTime));
+                    expect(updatedMessage.payload.contentUpdatedTime).toEqual(
+                        new Date(mockTime + 1),
+                    );
                 }
 
                 await deleteMessage(context.request(session1), {
@@ -4106,7 +4285,236 @@ export function testMessagingImplementation<RoomKey>(
                         messageIndex: message.index,
                     });
                     assert(updatedMessage?.payload.type === "Deleted");
+                    expect(updatedMessage.payload.deletedTime).toEqual(new Date(mockTime + 2));
+                }
+            } finally {
+                Date.now = originalDateNow;
+            }
+        });
+
+        test("if time hasn't moved forward updating a message will set it to +1ms of the last update time for a different message", async () => {
+            const originalDateNow = Date.now;
+            const mockTime = 1675809808692;
+            Date.now = () => mockTime;
+
+            try {
+                const room = await createRoom(context.request(session1), space.id);
+
+                expect(room.createdTime).toEqual(new Date(mockTime));
+
+                const message1 = await createMessage(context.request(session1), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: content1,
+                });
+
+                const message2 = await createMessage(context.request(session1), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: content2,
+                });
+
+                const message3 = await createMessage(context.request(session1), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: content3,
+                });
+
+                await updateMessageContent(context.request(session1), {
+                    roomKey: room.key,
+                    messageIndex: message1.index,
+                    content: content4,
+                });
+
+                {
+                    const updatedMessage = await getMessage(context.request(session1), {
+                        roomKey: room.key,
+                        messageIndex: message1.index,
+                    });
+                    assert(updatedMessage?.payload.type === "Content");
+                    expect(updatedMessage.payload.contentUpdatedTime).toEqual(
+                        new Date(mockTime + 1),
+                    );
+                }
+
+                await updateMessageContent(context.request(session1), {
+                    roomKey: room.key,
+                    messageIndex: message2.index,
+                    content: content4,
+                });
+
+                {
+                    const updatedMessage = await getMessage(context.request(session1), {
+                        roomKey: room.key,
+                        messageIndex: message2.index,
+                    });
+                    assert(updatedMessage?.payload.type === "Content");
+                    expect(updatedMessage.payload.contentUpdatedTime).toEqual(
+                        new Date(mockTime + 2),
+                    );
+                }
+
+                Date.now = () => mockTime - 1000 * 60;
+
+                await updateMessageContent(context.request(session1), {
+                    roomKey: room.key,
+                    messageIndex: message3.index,
+                    content: content4,
+                });
+
+                {
+                    const updatedMessage = await getMessage(context.request(session1), {
+                        roomKey: room.key,
+                        messageIndex: message3.index,
+                    });
+                    assert(updatedMessage?.payload.type === "Content");
+                    expect(updatedMessage.payload.contentUpdatedTime).toEqual(
+                        new Date(mockTime + 3),
+                    );
+                }
+            } finally {
+                Date.now = originalDateNow;
+            }
+        });
+
+        test("if time hasn't moved forward deleting a message will set it to +1ms of the last update time for a different message", async () => {
+            const originalDateNow = Date.now;
+            const mockTime = 1675809808692;
+            Date.now = () => mockTime;
+
+            try {
+                const room = await createRoom(context.request(session1), space.id);
+
+                expect(room.createdTime).toEqual(new Date(mockTime));
+
+                const message1 = await createMessage(context.request(session1), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: content1,
+                });
+
+                const message2 = await createMessage(context.request(session1), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: content2,
+                });
+
+                const message3 = await createMessage(context.request(session1), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: content3,
+                });
+
+                await updateMessageContent(context.request(session1), {
+                    roomKey: room.key,
+                    messageIndex: message1.index,
+                    content: content4,
+                });
+
+                {
+                    const updatedMessage = await getMessage(context.request(session1), {
+                        roomKey: room.key,
+                        messageIndex: message1.index,
+                    });
+                    assert(updatedMessage?.payload.type === "Content");
+                    expect(updatedMessage.payload.contentUpdatedTime).toEqual(
+                        new Date(mockTime + 1),
+                    );
+                }
+
+                await deleteMessage(context.request(session1), {
+                    roomKey: room.key,
+                    messageIndex: message2.index,
+                });
+
+                {
+                    const updatedMessage = await getMessage(context.request(session1), {
+                        roomKey: room.key,
+                        messageIndex: message2.index,
+                    });
+                    assert(updatedMessage?.payload.type === "Deleted");
+                    expect(updatedMessage.payload.deletedTime).toEqual(new Date(mockTime + 2));
+                }
+
+                Date.now = () => mockTime - 1000 * 60;
+
+                await deleteMessage(context.request(session1), {
+                    roomKey: room.key,
+                    messageIndex: message3.index,
+                });
+
+                {
+                    const updatedMessage = await getMessage(context.request(session1), {
+                        roomKey: room.key,
+                        messageIndex: message3.index,
+                    });
+                    assert(updatedMessage?.payload.type === "Deleted");
+                    expect(updatedMessage.payload.deletedTime).toEqual(new Date(mockTime + 3));
+                }
+            } finally {
+                Date.now = originalDateNow;
+            }
+        });
+
+        test("if time hasn't moved forward updating a message will set it to +1ms of the last delete time for a different message", async () => {
+            const originalDateNow = Date.now;
+            const mockTime = 1675809808692;
+            Date.now = () => mockTime;
+
+            try {
+                const room = await createRoom(context.request(session1), space.id);
+
+                expect(room.createdTime).toEqual(new Date(mockTime));
+
+                await createMessage(context.request(session1), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: content1,
+                });
+
+                const message2 = await createMessage(context.request(session1), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: content2,
+                });
+
+                const message3 = await createMessage(context.request(session1), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: content3,
+                });
+
+                await deleteMessage(context.request(session1), {
+                    roomKey: room.key,
+                    messageIndex: message2.index,
+                });
+
+                {
+                    const updatedMessage = await getMessage(context.request(session1), {
+                        roomKey: room.key,
+                        messageIndex: message2.index,
+                    });
+                    assert(updatedMessage?.payload.type === "Deleted");
                     expect(updatedMessage.payload.deletedTime).toEqual(new Date(mockTime + 1));
+                }
+
+                Date.now = () => mockTime - 1000 * 60;
+
+                await updateMessageContent(context.request(session1), {
+                    roomKey: room.key,
+                    messageIndex: message3.index,
+                    content: content4,
+                });
+
+                {
+                    const updatedMessage = await getMessage(context.request(session1), {
+                        roomKey: room.key,
+                        messageIndex: message3.index,
+                    });
+                    assert(updatedMessage?.payload.type === "Content");
+                    expect(updatedMessage.payload.contentUpdatedTime).toEqual(
+                        new Date(mockTime + 2),
+                    );
                 }
             } finally {
                 Date.now = originalDateNow;
@@ -4604,6 +5012,1009 @@ export function testMessagingImplementation<RoomKey>(
                     },
                 ],
             });
+        });
+
+        test("get from start returns the last time any message was updated even if it is not visible", async () => {
+            const room = await createRoom(context.request(session1), space.id);
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            const message2 = await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+            });
+
+            const message5 = await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+            });
+
+            await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+            });
+
+            expect(
+                (
+                    await getMessagesFromStart(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 3,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
+                    })
+                ).lastMessageChangeTime,
+            ).toEqual(null);
+
+            const updatedMessage2 = await updateMessageContent(context.request(session2), {
+                roomKey: room.key,
+                messageIndex: message2.index,
+                content: content2,
+            });
+
+            expect(
+                (
+                    await getMessagesFromStart(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 3,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
+                    })
+                ).lastMessageChangeTime,
+            ).toEqual(updatedMessage2.contentUpdatedTime);
+
+            const updatedMessage5 = await updateMessageContent(context.request(session2), {
+                roomKey: room.key,
+                messageIndex: message5.index,
+                content: content1,
+            });
+
+            expect(
+                (
+                    await getMessagesFromStart(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 3,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
+                    })
+                ).lastMessageChangeTime,
+            ).toEqual(updatedMessage5.contentUpdatedTime);
+        });
+
+        test("get from end returns the last time any message was updated even if it is not visible", async () => {
+            const room = await createRoom(context.request(session1), space.id);
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            const message2 = await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+            });
+
+            const message5 = await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+            });
+
+            await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+            });
+
+            expect(
+                (
+                    await getMessagesFromEnd(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 3,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
+                    })
+                ).lastMessageChangeTime,
+            ).toEqual(null);
+
+            const updatedMessage5 = await updateMessageContent(context.request(session2), {
+                roomKey: room.key,
+                messageIndex: message5.index,
+                content: content1,
+            });
+
+            expect(
+                (
+                    await getMessagesFromEnd(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 3,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
+                    })
+                ).lastMessageChangeTime,
+            ).toEqual(updatedMessage5.contentUpdatedTime);
+
+            const updatedMessage2 = await updateMessageContent(context.request(session2), {
+                roomKey: room.key,
+                messageIndex: message2.index,
+                content: content2,
+            });
+
+            expect(
+                (
+                    await getMessagesFromEnd(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 3,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
+                    })
+                ).lastMessageChangeTime,
+            ).toEqual(updatedMessage2.contentUpdatedTime);
+        });
+
+        test("get from start returns the last time any message was deleted even if it is not visible", async () => {
+            const room = await createRoom(context.request(session1), space.id);
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            const message2 = await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+            });
+
+            const message5 = await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+            });
+
+            await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+            });
+
+            expect(
+                (
+                    await getMessagesFromStart(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 3,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
+                    })
+                ).lastMessageChangeTime,
+            ).toEqual(null);
+
+            const deletedMessage2 = await deleteMessage(context.request(session2), {
+                roomKey: room.key,
+                messageIndex: message2.index,
+            });
+
+            expect(
+                (
+                    await getMessagesFromStart(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 3,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
+                    })
+                ).lastMessageChangeTime,
+            ).toEqual(deletedMessage2.deletedTime);
+
+            const deletedMessage5 = await deleteMessage(context.request(session2), {
+                roomKey: room.key,
+                messageIndex: message5.index,
+            });
+
+            expect(
+                (
+                    await getMessagesFromStart(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 3,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
+                    })
+                ).lastMessageChangeTime,
+            ).toEqual(deletedMessage5.deletedTime);
+        });
+
+        test("get from end returns the last time any message was deleted even if it is not visible", async () => {
+            const room = await createRoom(context.request(session1), space.id);
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            const message2 = await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+            });
+
+            const message5 = await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+            });
+
+            await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+            });
+
+            expect(
+                (
+                    await getMessagesFromEnd(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 3,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
+                    })
+                ).lastMessageChangeTime,
+            ).toEqual(null);
+
+            const deletedMessage5 = await deleteMessage(context.request(session2), {
+                roomKey: room.key,
+                messageIndex: message5.index,
+            });
+
+            expect(
+                (
+                    await getMessagesFromEnd(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 3,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
+                    })
+                ).lastMessageChangeTime,
+            ).toEqual(deletedMessage5.deletedTime);
+
+            const deletedMessage2 = await deleteMessage(context.request(session2), {
+                roomKey: room.key,
+                messageIndex: message2.index,
+            });
+
+            expect(
+                (
+                    await getMessagesFromEnd(context.request(session1), {
+                        roomKey: room.key,
+                        limit: 3,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
+                    })
+                ).lastMessageChangeTime,
+            ).toEqual(deletedMessage2.deletedTime);
+        });
+
+        test("backfill returns nothing if client is up-to-date", async () => {
+            const room = await createRoom(context.request(session1), space.id);
+
+            expect(
+                massageMessageBackfill(
+                    await backfillMessages(context.request(session1), {
+                        roomKey: room.key,
+                        clientMessageCount: 0,
+                        clientLastMessageChangeTime: null,
+                        newMessageLimit: 100,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 0,
+                lastMessageChangeTime: null,
+                newMessages: [],
+                messageChangesResult: {type: "Available", changes: []},
+            });
+
+            const message1 = await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            const message3 = await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            expect(
+                massageMessageBackfill(
+                    await backfillMessages(context.request(session1), {
+                        roomKey: room.key,
+                        clientMessageCount: 3,
+                        clientLastMessageChangeTime: null,
+                        newMessageLimit: 100,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 3,
+                lastMessageChangeTime: null,
+                newMessages: [],
+                messageChangesResult: {type: "Available", changes: []},
+            });
+
+            await updateMessageContent(context.request(session3), {
+                roomKey: room.key,
+                messageIndex: message3.index,
+                content: content2,
+            });
+
+            const updatedMessage1 = await updateMessageContent(context.request(session1), {
+                roomKey: room.key,
+                messageIndex: message1.index,
+                content: content2,
+            });
+
+            expect(
+                massageMessageBackfill(
+                    await backfillMessages(context.request(session1), {
+                        roomKey: room.key,
+                        clientMessageCount: 3,
+                        clientLastMessageChangeTime: updatedMessage1.contentUpdatedTime,
+                        newMessageLimit: 100,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 3,
+                lastMessageChangeTime: updatedMessage1.contentUpdatedTime,
+                newMessages: [],
+                messageChangesResult: {type: "Available", changes: []},
+            });
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content3,
+            });
+
+            const deletedMessage1 = await deleteMessage(context.request(session1), {
+                roomKey: room.key,
+                messageIndex: message1.index,
+            });
+
+            expect(
+                massageMessageBackfill(
+                    await backfillMessages(context.request(session1), {
+                        roomKey: room.key,
+                        clientMessageCount: 4,
+                        clientLastMessageChangeTime: deletedMessage1.deletedTime,
+                        newMessageLimit: 100,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 4,
+                lastMessageChangeTime: deletedMessage1.deletedTime,
+                newMessages: [],
+                messageChangesResult: {type: "Available", changes: []},
+            });
+        });
+
+        test("backfill returns missing changes", async () => {
+            const room = await createRoom(context.request(session1), space.id);
+
+            const message1 = await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            const message3 = await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            expect(
+                massageMessageBackfill(
+                    await backfillMessages(context.request(session1), {
+                        roomKey: room.key,
+                        clientMessageCount: 0,
+                        clientLastMessageChangeTime: null,
+                        newMessageLimit: 100,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 3,
+                lastMessageChangeTime: null,
+                newMessages: [
+                    {
+                        author: session1.account,
+                        parentMessageIndex: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageIndex: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session3.account,
+                        parentMessageIndex: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                ],
+                messageChangesResult: {type: "Available", changes: []},
+            });
+
+            const updatedMessage3 = await updateMessageContent(context.request(session3), {
+                roomKey: room.key,
+                messageIndex: message3.index,
+                content: content2,
+            });
+
+            const updatedMessage1 = await updateMessageContent(context.request(session1), {
+                roomKey: room.key,
+                messageIndex: message1.index,
+                content: content2,
+            });
+
+            expect(
+                massageMessageBackfill(
+                    await backfillMessages(context.request(session1), {
+                        roomKey: room.key,
+                        clientMessageCount: 0,
+                        clientLastMessageChangeTime: null,
+                        newMessageLimit: 100,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 3,
+                lastMessageChangeTime: updatedMessage1.contentUpdatedTime,
+                newMessages: [
+                    {
+                        author: session1.account,
+                        parentMessageIndex: null,
+                        content: content2,
+                        hasContentUpdated: true,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageIndex: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session3.account,
+                        parentMessageIndex: null,
+                        content: content2,
+                        hasContentUpdated: true,
+                    },
+                ],
+                messageChangesResult: {
+                    type: "Available",
+                    changes: [
+                        {type: "UpdateContent", index: message3.index, content: content2},
+                        {type: "UpdateContent", index: message1.index, content: content2},
+                    ],
+                },
+            });
+
+            expect(
+                massageMessageBackfill(
+                    await backfillMessages(context.request(session1), {
+                        roomKey: room.key,
+                        clientMessageCount: 1,
+                        clientLastMessageChangeTime: null,
+                        newMessageLimit: 100,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 3,
+                lastMessageChangeTime: updatedMessage1.contentUpdatedTime,
+                newMessages: [
+                    {
+                        author: session2.account,
+                        parentMessageIndex: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session3.account,
+                        parentMessageIndex: null,
+                        content: content2,
+                        hasContentUpdated: true,
+                    },
+                ],
+                messageChangesResult: {
+                    type: "Available",
+                    changes: [
+                        {type: "UpdateContent", index: message3.index, content: content2},
+                        {type: "UpdateContent", index: message1.index, content: content2},
+                    ],
+                },
+            });
+
+            expect(
+                massageMessageBackfill(
+                    await backfillMessages(context.request(session1), {
+                        roomKey: room.key,
+                        clientMessageCount: 3,
+                        clientLastMessageChangeTime: null,
+                        newMessageLimit: 100,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 3,
+                lastMessageChangeTime: updatedMessage1.contentUpdatedTime,
+                newMessages: [],
+                messageChangesResult: {
+                    type: "Available",
+                    changes: [
+                        {type: "UpdateContent", index: message3.index, content: content2},
+                        {type: "UpdateContent", index: message1.index, content: content2},
+                    ],
+                },
+            });
+
+            expect(
+                massageMessageBackfill(
+                    await backfillMessages(context.request(session1), {
+                        roomKey: room.key,
+                        clientMessageCount: 3,
+                        clientLastMessageChangeTime: updatedMessage3.contentUpdatedTime,
+                        newMessageLimit: 100,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 3,
+                lastMessageChangeTime: updatedMessage1.contentUpdatedTime,
+                newMessages: [],
+                messageChangesResult: {
+                    type: "Available",
+                    changes: [{type: "UpdateContent", index: message1.index, content: content2}],
+                },
+            });
+
+            expect(
+                massageMessageBackfill(
+                    await backfillMessages(context.request(session1), {
+                        roomKey: room.key,
+                        clientMessageCount: 2,
+                        clientLastMessageChangeTime: updatedMessage3.contentUpdatedTime,
+                        newMessageLimit: 100,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 3,
+                lastMessageChangeTime: updatedMessage1.contentUpdatedTime,
+                newMessages: [
+                    {
+                        author: session3.account,
+                        parentMessageIndex: null,
+                        content: content2,
+                        hasContentUpdated: true,
+                    },
+                ],
+                messageChangesResult: {
+                    type: "Available",
+                    changes: [{type: "UpdateContent", index: message1.index, content: content2}],
+                },
+            });
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content3,
+            });
+
+            const deletedMessage1 = await deleteMessage(context.request(session1), {
+                roomKey: room.key,
+                messageIndex: message1.index,
+            });
+
+            expect(
+                massageMessageBackfill(
+                    await backfillMessages(context.request(session1), {
+                        roomKey: room.key,
+                        clientMessageCount: 0,
+                        clientLastMessageChangeTime: null,
+                        newMessageLimit: 100,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 4,
+                lastMessageChangeTime: deletedMessage1.deletedTime,
+                newMessages: [
+                    {
+                        author: session1.account,
+                        isDeleted: true,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageIndex: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session3.account,
+                        parentMessageIndex: null,
+                        content: content2,
+                        hasContentUpdated: true,
+                    },
+                    {
+                        author: session1.account,
+                        parentMessageIndex: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                ],
+                messageChangesResult: {
+                    type: "Available",
+                    changes: [
+                        {type: "UpdateContent", index: message3.index, content: content2},
+                        {type: "UpdateContent", index: message1.index, content: content2},
+                        {type: "Delete", index: message1.index},
+                    ],
+                },
+            });
+
+            expect(
+                massageMessageBackfill(
+                    await backfillMessages(context.request(session1), {
+                        roomKey: room.key,
+                        clientMessageCount: 3,
+                        clientLastMessageChangeTime: null,
+                        newMessageLimit: 100,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 4,
+                lastMessageChangeTime: deletedMessage1.deletedTime,
+                newMessages: [
+                    {
+                        author: session1.account,
+                        parentMessageIndex: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                ],
+                messageChangesResult: {
+                    type: "Available",
+                    changes: [
+                        {type: "UpdateContent", index: message3.index, content: content2},
+                        {type: "UpdateContent", index: message1.index, content: content2},
+                        {type: "Delete", index: message1.index},
+                    ],
+                },
+            });
+
+            expect(
+                massageMessageBackfill(
+                    await backfillMessages(context.request(session1), {
+                        roomKey: room.key,
+                        clientMessageCount: 3,
+                        clientLastMessageChangeTime: updatedMessage1.contentUpdatedTime,
+                        newMessageLimit: 100,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 4,
+                lastMessageChangeTime: deletedMessage1.deletedTime,
+                newMessages: [
+                    {
+                        author: session1.account,
+                        parentMessageIndex: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                ],
+                messageChangesResult: {
+                    type: "Available",
+                    changes: [{type: "Delete", index: message1.index}],
+                },
+            });
+        });
+
+        test("limits the number of new messages when backfilling", async () => {
+            const room = await createRoom(context.request(session1), space.id);
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+            });
+
+            await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+            });
+
+            await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+            });
+
+            expect(
+                massageMessageBackfill(
+                    await backfillMessages(context.request(session1), {
+                        roomKey: room.key,
+                        clientMessageCount: 0,
+                        clientLastMessageChangeTime: null,
+                        newMessageLimit: 3,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 6,
+                lastMessageChangeTime: null,
+                newMessages: [
+                    {
+                        author: session1.account,
+                        parentMessageIndex: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageIndex: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session3.account,
+                        parentMessageIndex: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                ],
+                messageChangesResult: {
+                    type: "Available",
+                    changes: [],
+                },
+            });
+
+            expect(
+                massageMessageBackfill(
+                    await backfillMessages(context.request(session1), {
+                        roomKey: room.key,
+                        clientMessageCount: 2,
+                        clientLastMessageChangeTime: null,
+                        newMessageLimit: 3,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 6,
+                lastMessageChangeTime: null,
+                newMessages: [
+                    {
+                        author: session3.account,
+                        parentMessageIndex: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session1.account,
+                        parentMessageIndex: null,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageIndex: null,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                ],
+                messageChangesResult: {
+                    type: "Available",
+                    changes: [],
+                },
+            });
+        });
+
+        test("changes are not available for backfill after a certain amount of time", async () => {
+            const room = await createRoom(context.request(session1), space.id);
+
+            const message1 = await createMessage(context.request(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            await createMessage(context.request(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            const message3 = await createMessage(context.request(session3), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            const updatedMessage3 = await updateMessageContent(context.request(session3), {
+                roomKey: room.key,
+                messageIndex: message3.index,
+                content: content2,
+            });
+
+            const updatedMessage1 = await updateMessageContent(context.request(session1), {
+                roomKey: room.key,
+                messageIndex: message1.index,
+                content: content2,
+            });
+
+            expect(
+                massageMessageBackfill(
+                    await backfillMessages(context.request(session1), {
+                        roomKey: room.key,
+                        clientMessageCount: 3,
+                        clientLastMessageChangeTime: null,
+                        newMessageLimit: 100,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 3,
+                lastMessageChangeTime: updatedMessage1.contentUpdatedTime,
+                newMessages: [],
+                messageChangesResult: {
+                    type: "Available",
+                    changes: [
+                        {type: "UpdateContent", index: message3.index, content: content2},
+                        {type: "UpdateContent", index: message1.index, content: content2},
+                    ],
+                },
+            });
+
+            const originalDateNow = Date.now;
+            const mockTime = getMessageChangeLogExpirationTimeFromChangeTime(
+                updatedMessage1.contentUpdatedTime,
+            );
+            Date.now = () => mockTime.getTime();
+
+            try {
+                expect(
+                    massageMessageBackfill(
+                        await backfillMessages(context.request(session1), {
+                            roomKey: room.key,
+                            clientMessageCount: 3,
+                            clientLastMessageChangeTime: null,
+                            newMessageLimit: 100,
+                        }),
+                    ),
+                ).toEqual({
+                    messageCount: 3,
+                    lastMessageChangeTime: updatedMessage1.contentUpdatedTime,
+                    newMessages: [],
+                    messageChangesResult: {type: "Unavailable"},
+                });
+
+                expect(
+                    massageMessageBackfill(
+                        await backfillMessages(context.request(session1), {
+                            roomKey: room.key,
+                            clientMessageCount: 3,
+                            clientLastMessageChangeTime: updatedMessage3.contentUpdatedTime,
+                            newMessageLimit: 100,
+                        }),
+                    ),
+                ).toEqual({
+                    messageCount: 3,
+                    lastMessageChangeTime: updatedMessage1.contentUpdatedTime,
+                    newMessages: [],
+                    messageChangesResult: {type: "Unavailable"},
+                });
+
+                expect(
+                    massageMessageBackfill(
+                        await backfillMessages(context.request(session1), {
+                            roomKey: room.key,
+                            clientMessageCount: 3,
+                            clientLastMessageChangeTime: updatedMessage1.contentUpdatedTime,
+                            newMessageLimit: 100,
+                        }),
+                    ),
+                ).toEqual({
+                    messageCount: 3,
+                    lastMessageChangeTime: updatedMessage1.contentUpdatedTime,
+                    newMessages: [],
+                    messageChangesResult: {
+                        type: "Available",
+                        changes: [],
+                    },
+                });
+            } finally {
+                Date.now = originalDateNow;
+            }
         });
     });
 }

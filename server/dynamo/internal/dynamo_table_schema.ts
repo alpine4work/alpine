@@ -77,6 +77,17 @@ const DynamoTableItemSharedAttributesSchema: ObjectSchema<DynamoTableSchemaTypes
         updateLockVersion: Schema.integer.min(1).optional(),
     });
 
+/**
+ * The DynamoDB TTL attribute needs to be serialized as a [Unix epoch timestamp
+ * measured in seconds][1].
+ *
+ * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/time-to-live-ttl-before-you-start.html
+ */
+const DynamoTableItemSharedExpirationTimeAttributeSchema = Schema.integer.transform<Date>({
+    serialize: date => Math.floor(date.getTime() / 1000),
+    deserialize: time => new Date(time * 1000),
+});
+
 type DynamoTableSchemaInitializationState =
     | {
           readonly isInitialized: false;
@@ -223,9 +234,18 @@ export class DynamoTableSchema<
             partitions: mapObjectValues(
                 config.partitions,
                 (partitionConfig): DynamoTableSchemaTypes.Partition.ConfigBase => {
+                    // Use the type system to make sure we write out all the shared attribute names.
+                    const sharedAttributeNames: {
+                        [K in keyof DynamoTableSchemaTypes.ItemSharedAttributes]: true;
+                    } = {
+                        updateLockVersion: true,
+                    };
+
                     const partitionAttributeNames = new Set<string>([
                         "partitionType",
                         "sortRangeType",
+                        "expirationTime",
+                        ...Object.keys(sharedAttributeNames),
                     ]);
 
                     const assertValidAttributeName = (attributeName: string) => {
@@ -285,11 +305,30 @@ export class DynamoTableSchema<
                                     sortRangeAttributeNames.add(attributeName);
                                 }
 
+                                let attributesSchema = sortRangeConfig.attributes.merge(
+                                    DynamoTableItemSharedAttributesSchema,
+                                );
+
+                                attributesSchema =
+                                    sortRangeConfig.withExpirationTime === "Optional"
+                                        ? attributesSchema.merge(
+                                              Schema.object({
+                                                  expirationTime:
+                                                      DynamoTableItemSharedExpirationTimeAttributeSchema.optional(),
+                                              }),
+                                          )
+                                        : sortRangeConfig.withExpirationTime === "Required"
+                                        ? attributesSchema.merge(
+                                              Schema.object({
+                                                  expirationTime:
+                                                      DynamoTableItemSharedExpirationTimeAttributeSchema,
+                                              }),
+                                          )
+                                        : attributesSchema;
+
                                 return {
                                     ...sortRangeConfig,
-                                    attributes: sortRangeConfig.attributes.merge(
-                                        DynamoTableItemSharedAttributesSchema,
-                                    ),
+                                    attributes: attributesSchema,
                                 };
                             },
                         ),
@@ -398,7 +437,7 @@ export class DynamoTableSchema<
             const internalClient = client.getInternalClient();
             if (internalClient.isLocal()) {
                 if (!this._ensureTablePromise)
-                    this._ensureTablePromise = this._ensureTable(context);
+                    this._ensureTablePromise = this._ensureLocalTable(context);
                 await this._ensureTablePromise;
             }
         }
@@ -407,9 +446,9 @@ export class DynamoTableSchema<
     }
 
     /**
-     * Ensures that our table exists in DynamoDB.
+     * Ensures that our table exists in DynamoDB local.
      */
-    private async _ensureTable(context: DynamoContext): Promise<void> {
+    private async _ensureLocalTable(context: DynamoContext): Promise<void> {
         assert(this._initializationState.isInitialized, "Schema has not finished initializing");
 
         const client = getDynamoClient(context);
@@ -421,83 +460,99 @@ export class DynamoTableSchema<
         assert(internalClient.isLocal());
 
         let doesTableExist;
+        let isTimeToLiveEnabled;
         try {
-            await internalClient.DescribeTable(context.tracer.getTracer(), {
+            const output = await internalClient.DescribeTimeToLive(context.tracer.getTracer(), {
                 TableName: tableName,
             });
             doesTableExist = true;
+            isTimeToLiveEnabled = output.TimeToLiveDescription?.TimeToLiveStatus !== "DISABLED";
         } catch (error) {
             if (isDynamoResourceNotFoundError(error)) {
                 doesTableExist = false;
+                isTimeToLiveEnabled = false;
             } else {
                 throw error;
             }
         }
 
-        // If our table already exists, we don't have to create it.
-        if (doesTableExist) return;
+        if (!doesTableExist) {
+            await internalClient.CreateTable(context.tracer.getTracer(), {
+                TableName: tableName,
+                AttributeDefinitions: [
+                    {
+                        AttributeName: "partitionKey",
+                        AttributeType: "S",
+                    },
+                    {
+                        AttributeName: "sortKey",
+                        AttributeType: "S",
+                    },
+                    ...this._initializationState.description.indexes.flatMap(
+                        (indexDescription, i) => {
+                            const indexNumber = i + 1;
 
-        await internalClient.CreateTable(context.tracer.getTracer(), {
-            TableName: tableName,
-            AttributeDefinitions: [
-                {
-                    AttributeName: "partitionKey",
-                    AttributeType: "S",
-                },
-                {
-                    AttributeName: "sortKey",
-                    AttributeType: "S",
-                },
-                ...this._initializationState.description.indexes.flatMap((indexDescription, i) => {
-                    const indexNumber = i + 1;
-
-                    return [
-                        {
-                            AttributeName: `index${indexNumber}PartitionKey`,
-                            AttributeType: "S",
+                            return [
+                                {
+                                    AttributeName: `index${indexNumber}PartitionKey`,
+                                    AttributeType: "S",
+                                },
+                                {
+                                    AttributeName: `index${indexNumber}SortKey`,
+                                    AttributeType: "S",
+                                },
+                            ];
                         },
-                        {
-                            AttributeName: `index${indexNumber}SortKey`,
-                            AttributeType: "S",
-                        },
-                    ];
-                }),
-            ],
-            KeySchema: [
-                {
-                    AttributeName: "partitionKey",
-                    KeyType: "HASH",
-                },
-                {
-                    AttributeName: "sortKey",
-                    KeyType: "RANGE",
-                },
-            ],
-            BillingMode: "PAY_PER_REQUEST",
-            GlobalSecondaryIndexes:
-                this._initializationState.description.indexes.length > 0
-                    ? this._initializationState.description.indexes.map((indexDescription, i) => {
-                          const indexNumber = i + 1;
+                    ),
+                ],
+                KeySchema: [
+                    {
+                        AttributeName: "partitionKey",
+                        KeyType: "HASH",
+                    },
+                    {
+                        AttributeName: "sortKey",
+                        KeyType: "RANGE",
+                    },
+                ],
+                BillingMode: "PAY_PER_REQUEST",
+                GlobalSecondaryIndexes:
+                    this._initializationState.description.indexes.length > 0
+                        ? this._initializationState.description.indexes.map(
+                              (indexDescription, i) => {
+                                  const indexNumber = i + 1;
 
-                          return {
-                              IndexName: `Index${indexNumber}`,
-                              KeySchema: [
-                                  {
-                                      AttributeName: `index${indexNumber}PartitionKey`,
-                                      KeyType: "HASH",
-                                  },
-                                  {
-                                      AttributeName: `index${indexNumber}SortKey`,
-                                      KeyType: "RANGE",
-                                  },
-                              ],
-                              Projection: {
-                                  ProjectionType: "KEYS_ONLY",
+                                  return {
+                                      IndexName: `Index${indexNumber}`,
+                                      KeySchema: [
+                                          {
+                                              AttributeName: `index${indexNumber}PartitionKey`,
+                                              KeyType: "HASH",
+                                          },
+                                          {
+                                              AttributeName: `index${indexNumber}SortKey`,
+                                              KeyType: "RANGE",
+                                          },
+                                      ],
+                                      Projection: {
+                                          ProjectionType: "KEYS_ONLY",
+                                      },
+                                  };
                               },
-                          };
-                      })
-                    : undefined,
-        });
+                          )
+                        : undefined,
+            });
+        }
+
+        if (!isTimeToLiveEnabled) {
+            await internalClient.UpdateTimeToLive(context.tracer.getTracer(), {
+                TableName: tableName,
+                TimeToLiveSpecification: {
+                    Enabled: true,
+                    AttributeName: "expirationTime",
+                },
+            });
+        }
     }
 
     private _serializePartitionKey(key: Types["PartitionKey"]): string {
@@ -1297,6 +1352,16 @@ export class DynamoTableSchema<
      * succeeds or fails.
      *
      * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
+     *
+     * WARNING: Carefully consider concurrent writers when using this method. If
+     * two users are writing to the same item at the same time this method will
+     * clobber one of the user's updates. You may want to merge the updates
+     * instead. You may also clobber locks added by `updateItem()`.
+     *
+     * This is the most resource efficient update method! Since it does not require
+     * a [read capacity unit (RCU) only a write capacity unit (WCU)][1].
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadWriteCapacityMode.html
      */
     public transactionCreateOrReplaceItem<Item extends Types["Item"]>(
         item: Item,

@@ -2,7 +2,7 @@ import {RequestContext} from "~/server/dynamo/context/request_context";
 import {getContentReferencesFromNode} from "~/server/dynamo/helpers/get_content_references";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {SpaceId} from "~/shared/id/types/id_types";
-import {MessagePayload, MessagePayloadModel} from "~/shared/models/message_interface";
+import {MessagePayload, MessagePayloadModel} from "~/shared/models/message_model";
 
 /**
  * Create a `MessagePayloadModel` (what we send to the client) from a

@@ -1,4 +1,5 @@
 import {
+    backfillPostComments,
     createChannel,
     createPost,
     createPostComment,
@@ -349,7 +350,7 @@ test("can get the comment authors on a post", async () => {
 
     await createPostComment(context.request(session1), {
         postId: post.id,
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: testMessageContent1,
     });
 
@@ -359,13 +360,13 @@ test("can get the comment authors on a post", async () => {
 
     await createPostComment(context.request(session2), {
         postId: post.id,
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: testMessageContent1,
     });
 
     await createPostComment(context.request(session3), {
         postId: post.id,
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: testMessageContent1,
     });
 
@@ -375,31 +376,31 @@ test("can get the comment authors on a post", async () => {
 
     await createPostComment(context.request(session4), {
         postId: post.id,
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: testMessageContent1,
     });
 
     await createPostComment(context.request(session5), {
         postId: post.id,
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: testMessageContent1,
     });
 
     await createPostComment(context.request(session6), {
         postId: post.id,
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: testMessageContent1,
     });
 
     await createPostComment(context.request(session7), {
         postId: post.id,
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: testMessageContent1,
     });
 
     await createPostComment(context.request(session8), {
         postId: post.id,
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: testMessageContent1,
     });
 
@@ -418,7 +419,7 @@ test("can get the comment authors on a post", async () => {
 
     await deletePostComment(context.request(session3), {
         postId: post.id,
-        commentIndex: 2,
+        postCommentIndex: 2,
     });
 
     expect(
@@ -462,7 +463,7 @@ test("can not get the comment authors in another space", async () => {
 
     await createPostComment(context.request(session2), {
         postId: post.id,
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: testMessageContent1,
     });
 
@@ -1273,6 +1274,7 @@ testMessagingImplementation<PostId>(context, {
         return {
             key: post.id,
             spaceId,
+            createdTime: post.createdTime,
             messageCount: 0,
         };
     },
@@ -1283,6 +1285,7 @@ testMessagingImplementation<PostId>(context, {
         return {
             key: post.id,
             spaceId: post.spaceId,
+            createdTime: post.createdTime,
             messageCount: post.commentCount,
         };
     },
@@ -1291,11 +1294,11 @@ testMessagingImplementation<PostId>(context, {
     },
     async createMessage(
         context,
-        {roomKey: postId, parentMessageIndex: parentCommentIndex, content},
+        {roomKey: postId, parentMessageIndex: parentPostCommentIndex, content},
     ) {
         const comment = await createPostComment(context, {
             postId,
-            parentCommentIndex,
+            parentPostCommentIndex,
             content,
         });
 
@@ -1304,41 +1307,47 @@ testMessagingImplementation<PostId>(context, {
             createdTime: comment.createdTime,
         };
     },
-    async getMessage(context, {roomKey: postId, messageIndex: commentIndex}) {
-        return getPostComment(context, {postId, commentIndex});
+    async getMessage(context, {roomKey: postId, messageIndex: postCommentIndex}) {
+        return getPostComment(context, {postId, postCommentIndex});
     },
-    async updateMessageContent(context, {roomKey: postId, messageIndex: commentIndex, content}) {
+    async updateMessageContent(
+        context,
+        {roomKey: postId, messageIndex: postCommentIndex, content},
+    ) {
         return updatePostCommentContent(context, {
             postId,
-            commentIndex,
+            postCommentIndex,
             content,
         });
     },
-    async deleteMessage(context, {roomKey: postId, messageIndex: commentIndex}) {
-        await deletePostComment(context, {postId, commentIndex});
+    async deleteMessage(context, {roomKey: postId, messageIndex: postCommentIndex}) {
+        return deletePostComment(context, {postId, postCommentIndex});
     },
     async getMessagesFromStart(
         context,
         {
             roomKey: postId,
             limit,
-            afterMessageIndex: afterCommentIndex,
-            beforeMessageIndex: beforeCommentIndex,
+            afterMessageIndex: afterPostCommentIndex,
+            beforeMessageIndex: beforePostCommentIndex,
         },
     ) {
-        const {commentCount, comments, otherReferencedComments} = await getPostCommentsFromStart(
-            context,
-            {
-                postId,
-                limit,
-                afterCommentIndex,
-                beforeCommentIndex,
-            },
-        );
+        const {
+            postCommentCount,
+            postComments,
+            otherReferencedPostComments,
+            lastPostCommentChangeTime,
+        } = await getPostCommentsFromStart(context, {
+            postId,
+            limit,
+            afterPostCommentIndex,
+            beforePostCommentIndex,
+        });
         return {
-            messageCount: commentCount,
-            messages: comments,
-            otherReferencedMessages: otherReferencedComments,
+            messageCount: postCommentCount,
+            messages: postComments,
+            otherReferencedMessages: otherReferencedPostComments,
+            lastMessageChangeTime: lastPostCommentChangeTime,
         };
     },
     async getMessagesFromEnd(
@@ -1346,23 +1355,55 @@ testMessagingImplementation<PostId>(context, {
         {
             roomKey: postId,
             limit,
-            afterMessageIndex: afterCommentIndex,
-            beforeMessageIndex: beforeCommentIndex,
+            afterMessageIndex: afterPostCommentIndex,
+            beforeMessageIndex: beforePostCommentIndex,
         },
     ) {
-        const {commentCount, comments, otherReferencedComments} = await getPostCommentsFromEnd(
-            context,
-            {
-                postId,
-                limit,
-                afterCommentIndex,
-                beforeCommentIndex,
-            },
-        );
+        const {
+            postCommentCount,
+            postComments,
+            otherReferencedPostComments,
+            lastPostCommentChangeTime,
+        } = await getPostCommentsFromEnd(context, {
+            postId,
+            limit,
+            afterPostCommentIndex,
+            beforePostCommentIndex,
+        });
         return {
-            messageCount: commentCount,
-            messages: comments,
-            otherReferencedMessages: otherReferencedComments,
+            messageCount: postCommentCount,
+            messages: postComments,
+            otherReferencedMessages: otherReferencedPostComments,
+            lastMessageChangeTime: lastPostCommentChangeTime,
+        };
+    },
+    async backfillMessages(
+        context,
+        {
+            roomKey: postId,
+            clientMessageCount: clientPostCommentCount,
+            clientLastMessageChangeTime: clientLastPostCommentChangeTime,
+            newMessageLimit: newPostCommentLimit,
+        },
+    ) {
+        const {
+            postCommentCount,
+            lastPostCommentChangeTime,
+            newPostComments,
+            newOtherReferencedPostComments,
+            postCommentChangesResult,
+        } = await backfillPostComments(context, {
+            postId,
+            clientPostCommentCount,
+            clientLastPostCommentChangeTime,
+            newPostCommentLimit,
+        });
+        return {
+            messageCount: postCommentCount,
+            lastMessageChangeTime: lastPostCommentChangeTime,
+            newMessages: newPostComments,
+            newOtherReferencedMessages: newOtherReferencedPostComments,
+            messageChangesResult: postCommentChangesResult,
         };
     },
 });

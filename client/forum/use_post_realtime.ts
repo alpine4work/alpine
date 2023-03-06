@@ -15,11 +15,14 @@ import {
 
 export type PostRealtimeActions = {
     createPostComment(input: {
-        parentCommentIndex: number | null;
+        parentPostCommentIndex: number | null;
         content: MessageContent;
     }): Promise<void>;
-    updatePostCommentContent(input: {commentIndex: number; content: MessageContent}): Promise<void>;
-    deletePostComment(input: {commentIndex: number}): Promise<void>;
+    updatePostCommentContent(input: {
+        postCommentIndex: number;
+        content: MessageContent;
+    }): Promise<void>;
+    deletePostComment(input: {postCommentIndex: number}): Promise<void>;
 };
 
 /**
@@ -52,58 +55,52 @@ export function usePostRealtime({
         message => {
             switch (message.type) {
                 case "BackfillPostCommentsResponse": {
-                    onUpdatePostComments(postComments =>
-                        postComments.loadMessages({
-                            messageCount: message.commentCount,
-                            messages: message.comments,
-                            otherReferencedMessages: message.otherReferencedComments,
-                        }),
-                    );
+                    onUpdatePostComments(postComments => {
+                        switch (message.postCommentChangesResult.type) {
+                            case "Available": {
+                                postComments = postComments.loadMessages({
+                                    messageCount: message.postCommentCount,
+                                    messages: message.newPostComments,
+                                    otherReferencedMessages: message.newOtherReferencedPostComments,
+                                });
+
+                                postComments = postComments.setLastMessageChangeTime(
+                                    message.lastPostCommentChangeTime,
+                                );
+
+                                postComments = message.postCommentChangesResult.changes.reduce(
+                                    (postComments, change) =>
+                                        postComments.changeLoadedMessage(change),
+                                    postComments,
+                                );
+
+                                return postComments;
+                            }
+                            // If comment changes are unavailable then fully reset the comment list since
+                            // we don't know if any loaded comments are correct. `<PostListView>` should
+                            // then be able to see we have rendered unloaded messages and kick off a new
+                            // network request.
+                            case "Unavailable": {
+                                return MessageList.new({
+                                    messageCount: message.postCommentCount,
+                                    lastMessageChangeTime: message.lastPostCommentChangeTime,
+                                });
+                            }
+                            default:
+                                throw exhaustive(message.postCommentChangesResult);
+                        }
+                    });
                     break;
                 }
                 case "NewPostComment": {
-                    onUpdatePostComments(postComments => postComments.addMessage(message.comment));
-                    break;
-                }
-                case "UpdatedPostCommentContent": {
                     onUpdatePostComments(postComments =>
-                        postComments.updateLoadedMessage(message.commentIndex, comment => {
-                            // Do nothing if the comment is deleted or the comment was updated at a later
-                            // time then our message. There are no ordering guarantees for
-                            // `UpdatedPostCommentContent`! So we have to enforce ordering with
-                            // `contentUpdatedTime`.
-                            if (
-                                comment.payload.type !== "Content" ||
-                                (comment.payload.contentUpdatedTime !== null &&
-                                    message.contentUpdatedTime.getTime() <
-                                        comment.payload.contentUpdatedTime.getTime())
-                            ) {
-                                return comment;
-                            }
-
-                            return comment.clone({
-                                payload: {
-                                    ...comment.payload,
-                                    content: message.content,
-                                    contentUpdatedTime: message.contentUpdatedTime,
-                                },
-                            });
-                        }),
+                        postComments.addMessage(message.postComment),
                     );
                     break;
                 }
-                case "DeletedPostComment": {
+                case "ChangePostComment": {
                     onUpdatePostComments(postComments =>
-                        postComments.updateLoadedMessage(message.commentIndex, comment => {
-                            if (comment.payload.type !== "Content") return comment;
-
-                            return comment.clone({
-                                payload: {
-                                    type: "Deleted",
-                                    deletedTime: message.deletedTime,
-                                },
-                            });
-                        }),
+                        postComments.changeLoadedMessage(message.change),
                     );
                     break;
                 }
@@ -125,9 +122,10 @@ export function usePostRealtime({
         if (isConnected) {
             sendMessage({
                 type: "BackfillPostCommentsRequest",
-                currentCommentCount:
+                clientPostCommentCount:
                     postCommentsRef.current.getMessageCountExcludingOptimisticMessages(),
-                backfillCommentLimit: getInitialLoadMessageCount(getClientInfoWithoutListening()),
+                clientLastPostCommentChangeTime: postCommentsRef.current.getLastMessageChangeTime(),
+                newPostCommentLimit: getInitialLoadMessageCount(getClientInfoWithoutListening()),
             }).catch(error => setErrorState({hasError: true, error}));
         }
     }, [isConnected, sendMessage]);

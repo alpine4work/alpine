@@ -30,7 +30,7 @@ test("can edit a post comment", async ({page, context: browserContext, isMobile}
 
     const comment = await createPostComment(context.request(session1), {
         postId: post.id,
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
     });
 
@@ -86,7 +86,7 @@ test("can not edit a post comment that's not yours", async ({page, context: brow
 
     const comment = await createPostComment(context.request(session2), {
         postId: post.id,
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
     });
 
@@ -123,7 +123,7 @@ test("can see a post comment edited in realtime", async ({
 
     const comment = await createPostComment(context.request(session2), {
         postId: post.id,
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
     });
 
@@ -177,7 +177,7 @@ test("can delete a post comment", async ({page, context: browserContext}) => {
 
     const comment = await createPostComment(context.request(session1), {
         postId: post.id,
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
     });
 
@@ -226,7 +226,7 @@ test("can not delete a post comment that's not yours", async ({page, context: br
 
     const comment = await createPostComment(context.request(session2), {
         postId: post.id,
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
     });
 
@@ -262,7 +262,7 @@ test("can see a post comment deleted in realtime", async ({
 
     const comment = await createPostComment(context.request(session2), {
         postId: post.id,
-        parentCommentIndex: null,
+        parentPostCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
     });
 
@@ -294,4 +294,120 @@ test("can see a post comment deleted in realtime", async ({
     await expect(getAvatarInPileByInitials(page1, "SR")).toBeVisible();
     await expect(page1.getByText("Test post comment content 1")).toBeHidden();
     await expect(page1.getByText("Comment deleted")).toBeVisible();
+});
+
+test("will backfill an edit in realtime when comments are reopened", async ({
+    page: page1,
+    context: browserContext1,
+    browser,
+    isMobile,
+}) => {
+    const channel = await createChannel(context.request(session1), {
+        spaceId: space.id,
+        name: "Test Channel",
+    });
+
+    const post = await createPost(context.request(session1), {
+        channelId: channel.id,
+        content: createSimplePostContent("Test post content 1"),
+    });
+
+    const comment = await createPostComment(context.request(session2), {
+        postId: post.id,
+        parentPostCommentIndex: null,
+        content: createSimpleMessageContent("Test post comment content 1"),
+    });
+
+    await server.signIn(browserContext1, session2);
+    await page1.goto(`/s/${space.id}/channels/${channel.id}`);
+
+    const browserContext2 = await browser.newContext();
+    await server.signIn(browserContext2, session2);
+    const page2 = await browserContext2.newPage();
+    await page2.goto(`/s/${space.id}/posts/${post.id}`);
+
+    await page2
+        .getByTestId(`MessageView:${post.id}:${comment.index}`)
+        .getByRole("button", {name: "More"})
+        .press("Enter");
+
+    await page2.getByRole("menuitem", {name: "Edit"}).click();
+
+    await expect(page1.getByText("Test post comment content 1")).toBeHidden();
+    await expect(page1.getByText("Test post comment content 2")).toBeHidden();
+    await page1.getByRole("button", {name: "1 comment"}).click();
+    await expect(page1.getByText("Test post comment content 1")).toBeVisible();
+    await expect(page1.getByText("Test post comment content 2")).toBeHidden();
+    await page1.getByRole("button", {name: "1 comment"}).click();
+    await expect(page1.getByText("Test post comment content 1")).toBeHidden();
+    await expect(page1.getByText("Test post comment content 2")).toBeHidden();
+
+    await page2.getByRole("textbox", {name: "Comment", exact: true}).press("ArrowRight");
+    await page2.getByRole("textbox", {name: "Comment", exact: true}).press("Backspace");
+    await page2.getByRole("textbox", {name: "Comment", exact: true}).press("2");
+    if (!isMobile) {
+        await page2.getByRole("textbox", {name: "Comment", exact: true}).press("Enter");
+    } else {
+        await page2.getByRole("button", {name: "Save"}).click();
+    }
+
+    await expect(page1.getByText("Test post comment content 1")).toBeHidden();
+    await expect(page1.getByText("Test post comment content 2")).toBeHidden();
+    await page1.getByRole("button", {name: "1 comment"}).click();
+    await expect(page1.getByText("Test post comment content 2")).toBeVisible();
+    await expect(page1.getByText("Test post comment content 1")).toBeHidden();
+});
+
+test("will backfill a delete in realtime when comments are reopened", async ({
+    page: page1,
+    context: browserContext1,
+    browser,
+}) => {
+    const channel = await createChannel(context.request(session1), {
+        spaceId: space.id,
+        name: "Test Channel",
+    });
+
+    const post = await createPost(context.request(session1), {
+        channelId: channel.id,
+        content: createSimplePostContent("Test post content 1"),
+    });
+
+    const comment = await createPostComment(context.request(session2), {
+        postId: post.id,
+        parentPostCommentIndex: null,
+        content: createSimpleMessageContent("Test post comment content 1"),
+    });
+
+    await server.signIn(browserContext1, session2);
+    await page1.goto(`/s/${space.id}/channels/${channel.id}`);
+
+    const browserContext2 = await browser.newContext();
+    await server.signIn(browserContext2, session2);
+    const page2 = await browserContext2.newPage();
+    await page2.goto(`/s/${space.id}/posts/${post.id}`);
+
+    await expect(page1.getByText("Test post comment content 1")).toBeHidden();
+    await expect(page1.getByText("Comment deleted")).toBeHidden();
+    await page1.getByRole("button", {name: "1 comment"}).click();
+    await expect(page1.getByText("Test post comment content 1")).toBeVisible();
+    await expect(page1.getByText("Comment deleted")).toBeHidden();
+    await page1.getByRole("button", {name: "1 comment"}).click();
+    await expect(page1.getByText("Test post comment content 1")).toBeHidden();
+    await expect(page1.getByText("Comment deleted")).toBeHidden();
+
+    await page2
+        .getByTestId(`MessageView:${post.id}:${comment.index}`)
+        .getByRole("button", {name: "More"})
+        .press("Enter");
+
+    await page2.getByRole("menuitem", {name: "Delete"}).click();
+    await expect(page2.getByRole("alertdialog", {name: "Delete comment"})).toBeVisible();
+    await page2.getByRole("button", {name: "Delete"}).click();
+
+    await expect(page1.getByText("Test post comment content 1")).toBeHidden();
+    await expect(page1.getByText("Comment deleted")).toBeHidden();
+    await page1.getByRole("button", {name: "1 comment"}).click();
+    await expect(page1.getByText("Comment deleted")).toBeVisible();
+    await expect(page1.getByText("Test post comment content 1")).toBeHidden();
 });

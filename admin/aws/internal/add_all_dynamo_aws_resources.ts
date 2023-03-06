@@ -24,6 +24,7 @@ export async function addAllDynamoAwsResources(scope: Construct) {
                 name: "sortKey",
                 type: cdk.aws_dynamodb.AttributeType.STRING,
             },
+            timeToLiveAttribute: "expirationTime",
 
             // If we have predictable traffic patterns then provisioned billing mode may be
             // cheaper. If we're consistently utilizing 100% provisioned capacity (very

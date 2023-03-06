@@ -29,7 +29,7 @@ jobs:
 
             - name: Test
               run: |
-                  admin/bin/bazel test //... --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc --test_tag_filters=-playwright
+                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --test_tag_filters=-playwright
 
             # Currently `actions/upload-artifact` doesn't work with symlinked directories.
             # A PR to fix this has been merged but hasn't been released. So read the actual path and
@@ -89,7 +89,7 @@ jobs:
             # speed up CI.
             - name: Test Playwright
               run: |
-                  admin/bin/bazel test //... --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc --test_tag_filters=playwright --jobs=1
+                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --test_tag_filters=playwright --jobs=1
 
             # Currently `actions/upload-artifact` doesn't work with symlinked directories.
             # A PR to fix this has been merged but hasn't been released. So read the actual path and

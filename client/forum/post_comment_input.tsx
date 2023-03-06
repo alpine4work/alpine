@@ -45,9 +45,9 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping";
 import {generateId} from "~/shared/id/id";
 import {
-    OptimisticMessageInterface,
+    OptimisticMessageModel,
     emptyMessageContentWithReferences,
-} from "~/shared/models/message_interface";
+} from "~/shared/models/message_model";
 import {PostCommentModel, PostModel} from "~/shared/models/post_model";
 import {contentViewStyles, sprinkles} from "~/shared/styles/styles";
 
@@ -116,7 +116,7 @@ export function PostCommentInput({
         const content = state.getContent();
         if (isContentEmpty(content.doc)) return;
 
-        const optimisticComment: OptimisticMessageInterface = {
+        const optimisticComment: OptimisticMessageModel = {
             isOptimistic: true,
             optimisticId: generateId(),
             optimisticRequestErrorState: {hasError: false},
@@ -140,7 +140,7 @@ export function PostCommentInput({
             runPromiseWithoutAwaiting(async () => {
                 try {
                     await actions.createPostComment({
-                        parentCommentIndex: replyingToPostComment?.comment.index ?? null,
+                        parentPostCommentIndex: replyingToPostComment?.comment.index ?? null,
                         content: content.doc,
                     });
                 } catch (error) {

@@ -7,6 +7,7 @@ import {
     isDateString,
     serializeDateString,
 } from "~/shared/helpers/date/date_string";
+import {maxIsoLexicographicallySortableDate} from "~/shared/helpers/date/max_date";
 import {
     ElenFloat,
     decodeElenFloatIfPossible,
@@ -173,14 +174,27 @@ export class DynamoKeyAttributeSchema<Value> {
      *
      * [1]: https://en.wikipedia.org/wiki/ISO_8601
      */
-    public static date = new DynamoKeyAttributeSchema<Date>({
-        description: {type: "Date"},
-        serialize: serializeDateString,
-        deserialize: keyAttribute => {
-            assert(isDateString(keyAttribute));
-            return deserializeDateString(keyAttribute);
+    public static date = Object.assign(
+        new DynamoKeyAttributeSchema<Date>({
+            description: {type: "Date"},
+            serialize: date => {
+                // If the date is larger than `maxIsoLexicographicallySortableDate` it won't be
+                // sorted properly by DynamoDB.
+                assert(
+                    date.getTime() <= maxIsoLexicographicallySortableDate.getTime(),
+                    "DynamoDB date key attribute too large",
+                );
+                return serializeDateString(date);
+            },
+            deserialize: keyAttribute => {
+                assert(isDateString(keyAttribute));
+                return deserializeDateString(keyAttribute);
+            },
+        }),
+        {
+            maxValue: maxIsoLexicographicallySortableDate,
         },
-    });
+    );
 
     /**
      * Integers are serialized to an `ElenInteger`.

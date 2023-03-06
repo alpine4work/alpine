@@ -238,7 +238,7 @@ function PostListView(
                 const view = assertExists(viewRef.current);
 
                 let nextIndex = renderedRange.startIndex;
-                while (nextIndex <= renderedRange.startIndex) {
+                while (nextIndex <= renderedRange.endIndex) {
                     const item = posts.getPostContentItem(nextIndex);
 
                     // Skip non-posts (like channel header)
@@ -289,31 +289,31 @@ function PostListView(
                             endIndex: renderedPostCommentRangeEndIndex,
                         },
                         loadFromStart: async ({afterMessageIndex, beforeMessageIndex, limit}) => {
-                            const {commentCount, comments, otherReferencedComments} =
+                            const {postCommentCount, postComments, otherReferencedPostComments} =
                                 await getPostCommentsFromStart(context, {
                                     postId: item.post.id,
-                                    afterCommentIndex: afterMessageIndex,
-                                    beforeCommentIndex: beforeMessageIndex,
+                                    afterPostCommentIndex: afterMessageIndex,
+                                    beforePostCommentIndex: beforeMessageIndex,
                                     limit,
                                 });
                             return {
-                                messageCount: commentCount,
-                                messages: comments,
-                                otherReferencedMessages: otherReferencedComments,
+                                messageCount: postCommentCount,
+                                messages: postComments,
+                                otherReferencedMessages: otherReferencedPostComments,
                             };
                         },
                         loadFromEnd: async ({afterMessageIndex, beforeMessageIndex, limit}) => {
-                            const {commentCount, comments, otherReferencedComments} =
+                            const {postCommentCount, postComments, otherReferencedPostComments} =
                                 await getPostCommentsFromEnd(context, {
                                     postId: item.post.id,
-                                    afterCommentIndex: afterMessageIndex,
-                                    beforeCommentIndex: beforeMessageIndex,
+                                    afterPostCommentIndex: afterMessageIndex,
+                                    beforePostCommentIndex: beforeMessageIndex,
                                     limit,
                                 });
                             return {
-                                messageCount: commentCount,
-                                messages: comments,
-                                otherReferencedMessages: otherReferencedComments,
+                                messageCount: postCommentCount,
+                                messages: postComments,
+                                otherReferencedMessages: otherReferencedPostComments,
                             };
                         },
                     });
@@ -409,11 +409,11 @@ function PostListView(
                 const lastLoadedMessage = item.postComments.getLastLoadedMessageBefore(limit);
 
                 if (lastLoadedMessage === null || lastLoadedMessage.index < limit - 1) {
-                    const {commentCount, comments, otherReferencedComments} =
+                    const {postCommentCount, postComments, otherReferencedPostComments} =
                         await getPostCommentsFromStart(context, {
                             postId: item.post.id,
-                            afterCommentIndex: lastLoadedMessage?.index ?? null,
-                            beforeCommentIndex: null,
+                            afterPostCommentIndex: lastLoadedMessage?.index ?? null,
+                            beforePostCommentIndex: null,
                             limit:
                                 lastLoadedMessage !== null
                                     ? limit - (lastLoadedMessage.index + 1)
@@ -421,11 +421,11 @@ function PostListView(
                         });
 
                     setPosts(posts =>
-                        posts.updatePostComments(item.post.id, postComments =>
-                            postComments.loadMessages({
-                                messageCount: commentCount,
-                                messages: comments,
-                                otherReferencedMessages: otherReferencedComments,
+                        posts.updatePostComments(item.post.id, list =>
+                            list.loadMessages({
+                                messageCount: postCommentCount,
+                                messages: postComments,
+                                otherReferencedMessages: otherReferencedPostComments,
                             }),
                         ),
                     );
@@ -459,7 +459,7 @@ function PostListView(
             if (!actions) throw new InternalError("Post realtime hook isn't mounted");
 
             await actions.updatePostCommentContent({
-                commentIndex: messageIndex,
+                postCommentIndex: messageIndex,
                 content,
             });
         },
@@ -743,7 +743,7 @@ function PostListView(
                                             );
 
                                         await actions.deletePostComment({
-                                            commentIndex: item.postCommentIndex,
+                                            postCommentIndex: item.postCommentIndex,
                                         });
                                     }}
                                     disableExpensiveFeaturesDuringScroll={

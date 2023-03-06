@@ -382,6 +382,18 @@ export namespace DynamoTableSchemaTypes {
         export type ConfigBase = {
             readonly sortKeyAttributes: KeyAttributes.ConfigBase;
             readonly attributes: ObjectSchema<any>;
+            /**
+             * Enables the use of the `expirationTime` property for setting a [DynamoDB TTL
+             * on items][1].
+             *
+             * If not provided, items will never expire `expirationTime`. If set to
+             * `Required` then you must provide an `expirationTime` property with every
+             * item. If set to `Optional` then you may provide an `expirationTime` with
+             * an item.
+             *
+             * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/time-to-live-ttl-how-to.html
+             */
+            readonly withExpirationTime?: "Optional" | "Required";
         };
 
         export type Description = {
@@ -399,7 +411,15 @@ export namespace DynamoTableSchemaTypes {
         export type ItemType<Config extends ConfigBase> = KeyAttributes.Type<
             Config["sortKeyAttributes"]
         > &
-            SchemaType<Config["attributes"]>;
+            SchemaType<Config["attributes"]> &
+            ExpirationTimeType<Config["withExpirationTime"]>;
+
+        type ExpirationTimeType<Config extends "Optional" | "Required" | undefined> =
+            Config extends "Optional"
+                ? {readonly expirationTime?: Date}
+                : Config extends "Required"
+                ? {readonly expirationTime: Date}
+                : {};
     }
 
     export namespace Index {

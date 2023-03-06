@@ -2,7 +2,7 @@ import {PostContentSchema, emptyPostContent} from "~/shared/content/post_content
 import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
 import {ContentReferencesSchema, emptyContentReferences} from "~/shared/models/content_references";
-import {MessageInterface, MessagePayloadModelSchema} from "~/shared/models/message_interface";
+import {MessageModel, MessagePayloadModelSchema} from "~/shared/models/message_model";
 import {Model} from "~/shared/models/model";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 
@@ -42,6 +42,10 @@ export class PostModel extends Model(
          */
         commentCount: Schema.integer,
         /**
+         * The last time a comment on this post changed.
+         */
+        lastCommentChangeTime: Schema.date.nullable(),
+        /**
          * The number of accounts who authored a comment on this post.
          */
         commentAuthorCount: Schema.integer,
@@ -69,7 +73,7 @@ export class PostCommentModel
             payload: MessagePayloadModelSchema,
         }),
     )
-    implements MessageInterface<PostId>
+    implements MessageModel<PostId>
 {
     // Make sure this property is available on this type and not just the
     // interface.

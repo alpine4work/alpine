@@ -98,6 +98,7 @@ test("can insert some posts into the end", () => {
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 5,
+        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
     });
@@ -111,6 +112,7 @@ test("can insert some posts into the end", () => {
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 0,
+        lastCommentChangeTime: null,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
     });
@@ -124,6 +126,7 @@ test("can insert some posts into the end", () => {
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 20,
+        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
     });
@@ -137,6 +140,7 @@ test("can insert some posts into the end", () => {
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 1,
+        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
     });
@@ -150,6 +154,7 @@ test("can insert some posts into the end", () => {
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 0,
+        lastCommentChangeTime: null,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
     });
@@ -207,6 +212,7 @@ test("can insert some posts into the start", () => {
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 5,
+        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
     });
@@ -220,6 +226,7 @@ test("can insert some posts into the start", () => {
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 0,
+        lastCommentChangeTime: null,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
     });
@@ -233,6 +240,7 @@ test("can insert some posts into the start", () => {
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 20,
+        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
     });
@@ -246,6 +254,7 @@ test("can insert some posts into the start", () => {
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 1,
+        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
     });
@@ -259,6 +268,7 @@ test("can insert some posts into the start", () => {
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 0,
+        lastCommentChangeTime: null,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
     });
@@ -316,6 +326,7 @@ test("can insert some posts into the end and others at the start", () => {
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 5,
+        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
     });
@@ -329,6 +340,7 @@ test("can insert some posts into the end and others at the start", () => {
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 0,
+        lastCommentChangeTime: null,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
     });
@@ -342,6 +354,7 @@ test("can insert some posts into the end and others at the start", () => {
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 20,
+        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
     });
@@ -355,6 +368,7 @@ test("can insert some posts into the end and others at the start", () => {
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 1,
+        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
     });
@@ -368,6 +382,7 @@ test("can insert some posts into the end and others at the start", () => {
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 0,
+        lastCommentChangeTime: null,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
     });
@@ -425,6 +440,7 @@ test("can toggle the comments for a post open", () => {
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 5,
+        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
     });
@@ -438,6 +454,7 @@ test("can toggle the comments for a post open", () => {
         content: testContent2WithReferences,
         contentUpdatedTime: null,
         commentCount: 0,
+        lastCommentChangeTime: null,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
     });
@@ -451,6 +468,7 @@ test("can toggle the comments for a post open", () => {
         content: testContent3WithReferences,
         contentUpdatedTime: null,
         commentCount: 20,
+        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
     });
@@ -464,6 +482,7 @@ test("can toggle the comments for a post open", () => {
         content: testContent4WithReferences,
         contentUpdatedTime: null,
         commentCount: 1,
+        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
     });
@@ -477,6 +496,7 @@ test("can toggle the comments for a post open", () => {
         content: testContent5WithReferences,
         contentUpdatedTime: null,
         commentCount: 0,
+        lastCommentChangeTime: null,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
     });
@@ -691,6 +711,7 @@ test("can insert some posts into the end with already open comments", () => {
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 1,
+        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
     });
@@ -704,6 +725,7 @@ test("can insert some posts into the end with already open comments", () => {
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 0,
+        lastCommentChangeTime: null,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
     });
@@ -717,6 +739,7 @@ test("can insert some posts into the end with already open comments", () => {
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 5,
+        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
     });
@@ -730,6 +753,7 @@ test("can insert some posts into the end with already open comments", () => {
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 20,
+        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
     });
@@ -743,6 +767,7 @@ test("can insert some posts into the end with already open comments", () => {
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 0,
+        lastCommentChangeTime: null,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
     });
@@ -818,6 +843,7 @@ test("can insert some posts into the start with already open comments", () => {
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 1,
+        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
     });
@@ -831,6 +857,7 @@ test("can insert some posts into the start with already open comments", () => {
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 0,
+        lastCommentChangeTime: null,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
     });
@@ -844,6 +871,7 @@ test("can insert some posts into the start with already open comments", () => {
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 5,
+        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
     });
@@ -857,6 +885,7 @@ test("can insert some posts into the start with already open comments", () => {
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 20,
+        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
     });
@@ -870,6 +899,7 @@ test("can insert some posts into the start with already open comments", () => {
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 0,
+        lastCommentChangeTime: null,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
     });
@@ -945,6 +975,7 @@ test("can update the post comments list", () => {
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 1,
+        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
     });
@@ -958,6 +989,7 @@ test("can update the post comments list", () => {
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 0,
+        lastCommentChangeTime: null,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
     });
@@ -971,6 +1003,7 @@ test("can update the post comments list", () => {
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 5,
+        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
     });
@@ -984,6 +1017,7 @@ test("can update the post comments list", () => {
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 20,
+        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
     });
@@ -997,6 +1031,7 @@ test("can update the post comments list", () => {
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 0,
+        lastCommentChangeTime: null,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
     });
@@ -1021,7 +1056,9 @@ test("can update the post comments list", () => {
         {type: "PostContent", post: post5, postCommentsState: "Closed"},
     ]);
 
-    list = list.updatePostComments(post3.id, () => MessageList.new(3));
+    list = list.updatePostComments(post3.id, () =>
+        MessageList.new({messageCount: 3, lastMessageChangeTime: null}),
+    );
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post1, postCommentsState: "Closed"},
@@ -1035,7 +1072,9 @@ test("can update the post comments list", () => {
         {type: "PostContent", post: post5, postCommentsState: "Closed"},
     ]);
 
-    list = list.updatePostComments(post3.id, () => MessageList.new(7));
+    list = list.updatePostComments(post3.id, () =>
+        MessageList.new({messageCount: 7, lastMessageChangeTime: null}),
+    );
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post1, postCommentsState: "Closed"},
@@ -1077,6 +1116,7 @@ test("can add a channel header at the beginning", () => {
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 5,
+        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
     });
@@ -1090,6 +1130,7 @@ test("can add a channel header at the beginning", () => {
         content: testContent2WithReferences,
         contentUpdatedTime: null,
         commentCount: 0,
+        lastCommentChangeTime: null,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
     });
@@ -1103,6 +1144,7 @@ test("can add a channel header at the beginning", () => {
         content: testContent3WithReferences,
         contentUpdatedTime: null,
         commentCount: 5,
+        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
     });
@@ -1116,6 +1158,7 @@ test("can add a channel header at the beginning", () => {
         content: testContent4WithReferences,
         contentUpdatedTime: null,
         commentCount: 1,
+        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
     });
@@ -1129,6 +1172,7 @@ test("can add a channel header at the beginning", () => {
         content: testContent5WithReferences,
         contentUpdatedTime: null,
         commentCount: 0,
+        lastCommentChangeTime: null,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
     });
@@ -1199,6 +1243,7 @@ test("can add an unloaded posts section at the end", () => {
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 5,
+        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
     });
@@ -1212,6 +1257,7 @@ test("can add an unloaded posts section at the end", () => {
         content: testContent2WithReferences,
         contentUpdatedTime: null,
         commentCount: 0,
+        lastCommentChangeTime: null,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
     });
@@ -1225,6 +1271,7 @@ test("can add an unloaded posts section at the end", () => {
         content: testContent3WithReferences,
         contentUpdatedTime: null,
         commentCount: 5,
+        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
     });
@@ -1238,6 +1285,7 @@ test("can add an unloaded posts section at the end", () => {
         content: testContent4WithReferences,
         contentUpdatedTime: null,
         commentCount: 1,
+        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
     });
@@ -1251,6 +1299,7 @@ test("can add an unloaded posts section at the end", () => {
         content: testContent5WithReferences,
         contentUpdatedTime: null,
         commentCount: 0,
+        lastCommentChangeTime: null,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
     });

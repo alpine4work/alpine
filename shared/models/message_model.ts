@@ -17,10 +17,13 @@ export const emptyMessageContentWithReferences: MessageContentWithReferences = {
     references: emptyContentReferences,
 };
 
-export type MessageRoomKeyType<Message extends MessageInterfaceBase> =
-    Message extends MessageInterface<infer RoomKey> ? RoomKey : never;
+export type MessageRoomKeyType<Message extends MessageModelBase> = Message extends MessageModel<
+    infer RoomKey
+>
+    ? RoomKey
+    : never;
 
-export interface MessageInterfaceBase<RoomKey extends string = string> {
+export interface MessageModelBase<RoomKey extends string = string> {
     /**
      * The account who created this message.
      */
@@ -43,8 +46,7 @@ export interface MessageInterfaceBase<RoomKey extends string = string> {
 /**
  * The interface for a message to be rendered by our messaging UI.
  */
-export interface MessageInterface<RoomKey extends string = string>
-    extends MessageInterfaceBase<RoomKey> {
+export interface MessageModel<RoomKey extends string = string> extends MessageModelBase<RoomKey> {
     /**
      * Message indexes are positive integers that are unique within a room and are
      * incremented sequentially.
@@ -62,6 +64,11 @@ export interface MessageInterface<RoomKey extends string = string>
     readonly index: number;
     // Available for TypeScript to access this property on a union.
     readonly isOptimistic?: undefined;
+    /**
+     * Clone the model object, replacing any values with those provided in the
+     * partial value.
+     */
+    clone(partialValue: {payload?: MessagePayloadModel}): this;
 }
 
 /**
@@ -69,8 +76,8 @@ export interface MessageInterface<RoomKey extends string = string>
  * not yet been confirmed on the server. Which means the server has not yet
  * assigned it an index.
  */
-export interface OptimisticMessageInterface<RoomKey extends string = string>
-    extends MessageInterfaceBase<RoomKey> {
+export interface OptimisticMessageModel<RoomKey extends string = string>
+    extends MessageModelBase<RoomKey> {
     readonly isOptimistic: true;
     /**
      * An identifier for an optimistic message on the client.

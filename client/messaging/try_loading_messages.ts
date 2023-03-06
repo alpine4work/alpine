@@ -3,7 +3,7 @@ import {MessageList} from "~/client/messaging/message_list";
 import {messageViewMinHeight} from "~/client/messaging/message_view";
 import {convertRemLengthToPx} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
-import {MessageInterface} from "~/shared/models/message_interface";
+import {MessageModel} from "~/shared/models/message_model";
 
 /**
  * Helper function for loading messages in a given range for a messaging view.
@@ -12,7 +12,7 @@ import {MessageInterface} from "~/shared/models/message_interface";
  *
  * The `range` is designed to be a `<VirtualizedScrollView>`s rendered range.
  */
-export function tryLoadingMessages<Message extends MessageInterface>({
+export function tryLoadingMessages<Message extends MessageModel>({
     viewHeight,
     messages,
     range,

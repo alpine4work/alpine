@@ -86,6 +86,7 @@ export function PostEditorInline({
                     content,
                     contentUpdatedTime: null,
                     commentCount: 0,
+                    lastCommentChangeTime: null,
                     commentAuthorCount: 0,
                     previewCommentAuthors: [],
                 }),

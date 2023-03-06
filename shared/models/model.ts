@@ -24,6 +24,7 @@ export type Model<Value> = Readonly<Value> & ModelInterface<Value>;
 interface ModelInterface<Value> {
     /**
      * Clone the model object, replacing any values with those provided in the
+     * partial value.
      */
     clone(partialValue: Partial<Value>): this;
 }

@@ -5,7 +5,7 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {MessageContent} from "~/shared/content/message_content_schema";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {omitObject} from "~/shared/helpers/object/omit_object";
-import {MessageContentPayloadModel} from "~/shared/models/message_interface";
+import {MessageContentPayloadModel} from "~/shared/models/message_model";
 
 export type MessageEditingState<RoomKey extends string> =
     | {

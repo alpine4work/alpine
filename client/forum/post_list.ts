@@ -19,7 +19,7 @@ import {
 } from "~/shared/helpers/sort/order_key";
 import {PostId} from "~/shared/id/types/id_types";
 import {ChannelModel} from "~/shared/models/channel_model";
-import {OptimisticMessageInterface} from "~/shared/models/message_interface";
+import {OptimisticMessageModel} from "~/shared/models/message_model";
 import {PostCommentModel, PostModel} from "~/shared/models/post_model";
 
 export type PostListChannelHeader = {
@@ -545,7 +545,10 @@ export class PostList {
             this._postByOrderKey.getFirstEntry()?.[0] ?? null,
         );
 
-        let postComments = MessageList.new<PostCommentModel>(post.commentCount);
+        let postComments = MessageList.new<PostCommentModel>({
+            messageCount: post.commentCount,
+            lastMessageChangeTime: post.lastCommentChangeTime,
+        });
         if (initialLoadPostComments) {
             postComments = postComments.loadMessages({
                 messageCount: post.commentCount,
@@ -602,7 +605,10 @@ export class PostList {
             null,
         );
 
-        let postComments = MessageList.new<PostCommentModel>(post.commentCount);
+        let postComments = MessageList.new<PostCommentModel>({
+            messageCount: post.commentCount,
+            lastMessageChangeTime: post.lastCommentChangeTime,
+        });
         if (initialLoadPostComments) {
             postComments = postComments.loadMessages({
                 messageCount: post.commentCount,
@@ -658,7 +664,10 @@ export class PostList {
 
             postByOrderKey = postByOrderKey.set(postOrderKey, {
                 post,
-                postComments: MessageList.new(post.commentCount),
+                postComments: MessageList.new({
+                    messageCount: post.commentCount,
+                    lastMessageChangeTime: post.lastCommentChangeTime,
+                }),
             });
 
             orderKeyByPostId = orderKeyByPostId.update(post.id, lastOrderKey => {
@@ -699,7 +708,10 @@ export class PostList {
 
             postByOrderKey = postByOrderKey.set(postOrderKey, {
                 post,
-                postComments: MessageList.new(post.commentCount),
+                postComments: MessageList.new({
+                    messageCount: post.commentCount,
+                    lastMessageChangeTime: post.lastCommentChangeTime,
+                }),
             });
 
             orderKeyByPostId = orderKeyByPostId.update(post.id, lastOrderKey => {
@@ -931,7 +943,7 @@ export type PostListOptimisticPostCommentItem = {
      * post index may move but this will stay stable.
      */
     readonly postCommentIndex: number;
-    readonly postComment: OptimisticMessageInterface;
+    readonly postComment: OptimisticMessageModel;
     /**
      * If the comment section is open, this will be the index of the post comment
      * input in the full `PostList`.

@@ -8,7 +8,7 @@ import {
     getInitialVirtualizedScrollViewRenderedItemCount,
 } from "~/client/virtualized/virtualized_scroll_view";
 import {UnimplementedError} from "~/shared/error/error";
-import {MessageInterface} from "~/shared/models/message_interface";
+import {MessageModel} from "~/shared/models/message_model";
 import {ClientInfo} from "~/shared/remix/client_info";
 
 /**
@@ -18,7 +18,7 @@ export function getInitialLoadMessageCount(clientInfo: ClientInfo) {
     return getInitialVirtualizedScrollViewRenderedItemCount(clientInfo, messageViewMinHeight);
 }
 
-export function MessagingView<Message extends MessageInterface>({
+export function MessagingView<Message extends MessageModel>({
     initialState,
     shimmerRandomSeed,
     onLoadFromStart,
@@ -58,12 +58,9 @@ export function MessagingView<Message extends MessageInterface>({
             list: MessageList<Message>;
             isLoading: boolean;
             errorState: {hasError: false} | {hasError: true; error: unknown};
-        } => ({
-            initialScrollOffset: initialState.initialScrollOffset,
-            list: MessageList.new<Message>(initialState.messageCount).loadMessages(initialState),
-            isLoading: false,
-            errorState: {hasError: false},
-        }),
+        } => {
+            throw new UnimplementedError("TODO");
+        },
     );
 
     // Escalate network errors to component errors.

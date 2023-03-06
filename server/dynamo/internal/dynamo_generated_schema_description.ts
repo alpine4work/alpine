@@ -2209,6 +2209,15 @@ export const dynamoGeneratedSchemaDescription: {
                                                     },
                                                     "optional": false
                                                 },
+                                                "lastChangeTime": {
+                                                    "valueSchema": {
+                                                        "type": "Nullable",
+                                                        "schema": {
+                                                            "type": "Date"
+                                                        }
+                                                    },
+                                                    "optional": true
+                                                },
                                                 "commentCountByAuthorId": {
                                                     "valueSchema": {
                                                         "type": "Map",
@@ -2326,6 +2335,77 @@ export const dynamoGeneratedSchemaDescription: {
                                             "type": "Integer"
                                         },
                                         "optional": true
+                                    }
+                                }
+                            }
+                        },
+                        "CommentChangeLog": {
+                            "orderKey": "a2",
+                            "sortKeyAttributeByKey": {
+                                "changeTime": {
+                                    "type": "Date"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "commentIndex": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "change": {
+                                        "valueSchema": {
+                                            "type": "Union",
+                                            "typeKey": "type",
+                                            "variantSchemaByTypeValue": {
+                                                "UpdateContent": {
+                                                    "type": "Object",
+                                                    "propertySchemaByKey": {
+                                                        "type": {
+                                                            "valueSchema": {
+                                                                "type": "Value",
+                                                                "value": "UpdateContent"
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "content": {
+                                                            "valueSchema": {
+                                                                "type": "Reference",
+                                                                "reuseReferenceId": "55327404"
+                                                            },
+                                                            "optional": false
+                                                        }
+                                                    }
+                                                },
+                                                "Delete": {
+                                                    "type": "Object",
+                                                    "propertySchemaByKey": {
+                                                        "type": {
+                                                            "valueSchema": {
+                                                                "type": "Value",
+                                                                "value": "Delete"
+                                                            },
+                                                            "optional": false
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    },
+                                    "expirationTime": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
                                     }
                                 }
                             }
