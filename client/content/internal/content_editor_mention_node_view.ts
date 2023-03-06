@@ -24,6 +24,7 @@ export function createContentEditorMentionNodeView(node: Node, view: EditorView)
     element.appendChild(avatarElement);
     avatarElement.className = mentionAvatarClassName;
     avatarElement.innerHTML = renderAccountAvatarToHtml({
+        // @ts-expect-error: NOCOMMIT(calebmer): Should use the missing account name + missing avatar!
         account: contentReferences.accountById.get(mention.accountId),
         size: `${Math.round(backgroundFontSizePercentage * 100) / 100}em`,
     });
