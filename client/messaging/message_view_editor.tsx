@@ -1,5 +1,4 @@
 import {MutableRefObject, useRef} from "react";
-import {useNavigate} from "react-router-dom";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {Box} from "~/client/design/box";
@@ -122,7 +121,6 @@ function MessageContentEditor({
             // With no content the message bubble will be at its min-width so only render
             // an en-dash as a placeholder.
             placeholder={"\u2013"}
-            onNavigate={useNavigate()}
             className={sprinkles({minWidth: messageViewBubbleMinWidth})}
             onEscape={onEscape}
             onEnterFromPhysicalKeyboard={onSave}

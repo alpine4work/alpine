@@ -15,7 +15,6 @@ import {useConstant} from "~/client/helpers/lifecycle/use_constant";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer";
 import {dummyDocumentContent} from "~/shared/content/dummy_document_content";
 import {themeColors} from "~/shared/design/theme_colors";
-import {UnimplementedError} from "~/shared/error/error";
 import {noop} from "~/shared/helpers/control/noop";
 import {generateId} from "~/shared/id/id";
 import {emptyContentReferences} from "~/shared/models/content_references";
@@ -110,11 +109,6 @@ function DocumentBlobsPreview({settings}: {settings: DocumentBlobFactorySettings
                             aria-label="Document editor"
                             placeholder="Share your ideas…"
                             className={sprinkles({paddingBottom: "24"})}
-                            onNavigate={() => {
-                                throw new UnimplementedError(
-                                    "Should not be able to navigate from content preview",
-                                );
-                            }}
                         />
                     </div>
                 )}

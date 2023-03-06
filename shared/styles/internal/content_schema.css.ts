@@ -462,31 +462,48 @@ export const linkClassName = style({
 
 export const mentionClassName = style({
     position: "relative",
-    paddingTop: `${parseRemLengthNumber(spacing["0.5"]) / 2}rem`,
-    paddingBottom: `${parseRemLengthNumber(spacing["0.5"]) / 2}rem`,
-    cursor: "default",
+});
+
+export const currentAccountMentionClassName = style({
+    color: colorSchemeVars["theme-60"],
     selectors: {
+        // Put the background color in an absolutely positioned element so the
+        // highlight color renders on top of it.
         "&::after": {
-            // Background is in a pseudo-element because we want to give it a low z-index
-            // so it renders under highlights and cursor selections. But we want our text
-            // to render on top of highlights and cursor selections.
-            position: "absolute",
-            zIndex: "-10",
             content: "''",
+            position: "absolute",
+            zIndex: -10,
             top: 0,
             bottom: 0,
-            left: 0,
-            right: 0,
-            backgroundColor: colorSchemeVars["grey-10"],
-            borderRadius: borderRadius["full"],
+            left: `-${spacing["0.5"]}`,
+            right: `-${spacing["0.5"]}`,
+            backgroundColor: colorSchemeVars["theme-10"],
+            opacity: 0.6,
+            borderRadius: borderRadius["base"],
+        },
+        [`${darkColorSchemeSelector} &`]: {
+            color: colorSchemeVars["theme-80"],
+        },
+        [`${darkColorSchemeSelector} &::after`]: {
+            backgroundColor: colorSchemeVars["theme-50"],
+            opacity: 0.4,
         },
     },
 });
 
-export const mentionAvatarClassName = style({
-    position: "absolute",
-    top: `${parseRemLengthNumber(spacing["0.5"]) / 2}rem`,
-    left: `${parseRemLengthNumber(spacing["0.5"]) / 2}rem`,
+export const mentionAtClassName = style({
+    fontFeatureSettings: '"case" 1',
+});
+
+export const mentionTextClassName = style({
+    fontWeight: fontStyles["semi-bold"].fontWeight,
+    selectors: {
+        // Inherit font weight if we are in a container that is bolder than us.
+        [`${boldClassName} &`]: {fontWeight: "inherit"},
+        [`${headingLevel1ClassName} &`]: {fontWeight: "inherit"},
+        [`${headingLevel2ClassName} &`]: {fontWeight: "inherit"},
+        [`${headingLevel3ClassName} &`]: {fontWeight: "inherit"},
+    },
 });
 
 // Make sure the first child in our document never has top margin.

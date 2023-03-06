@@ -106,10 +106,6 @@ const inlineTestCases: Array<{
     },
 ];
 
-function cantNavigate() {
-    throw new UnimplementedError("Can not navigate in test");
-}
-
 for (const blockTestCase of blockTestCases) {
     test(`${blockTestCase.name} empty`, () => {
         const content = schema.node("doc", {}, [blockTestCase.build([])]);
@@ -121,7 +117,6 @@ for (const blockTestCase of blockTestCases) {
                     references: emptyContentReferences,
                 })}
                 onChange={() => {}}
-                onNavigate={cantNavigate}
             />,
         );
 
@@ -150,7 +145,6 @@ for (const blockTestCase of blockTestCases) {
                     references: emptyContentReferences,
                 })}
                 onChange={() => {}}
-                onNavigate={cantNavigate}
             />,
         );
 
@@ -181,7 +175,6 @@ for (const blockTestCase of blockTestCases) {
                         references: emptyContentReferences,
                     })}
                     onChange={() => {}}
-                    onNavigate={cantNavigate}
                 />,
             );
 
@@ -211,7 +204,6 @@ for (const inlineTestCase of inlineTestCases) {
                     references: emptyContentReferences,
                 })}
                 onChange={() => {}}
-                onNavigate={cantNavigate}
             />,
         );
 
@@ -243,14 +235,7 @@ function expectClipboardRoundtripToWork() {
                 references: emptyContentReferences,
             }),
         );
-        return (
-            <ContentEditor
-                aria-label="Test"
-                state={state}
-                onChange={setState}
-                onNavigate={cantNavigate}
-            />
-        );
+        return <ContentEditor aria-label="Test" state={state} onChange={setState} />;
     }
 
     const {container, unmount} = render(<TestContentEditor />);
@@ -287,7 +272,6 @@ test("heading cannot have a level lower than 1", () => {
                 references: emptyContentReferences,
             })}
             onChange={() => {}}
-            onNavigate={cantNavigate}
         />,
     );
 
@@ -303,7 +287,6 @@ test("heading cannot have a level lower than 1", () => {
                 references: emptyContentReferences,
             })}
             onChange={() => {}}
-            onNavigate={cantNavigate}
         />,
     );
 
@@ -321,7 +304,6 @@ test("heading cannot have a level greater than 3", () => {
                 references: emptyContentReferences,
             })}
             onChange={() => {}}
-            onNavigate={cantNavigate}
         />,
     );
 
@@ -337,7 +319,6 @@ test("heading cannot have a level greater than 3", () => {
                 references: emptyContentReferences,
             })}
             onChange={() => {}}
-            onNavigate={cantNavigate}
         />,
     );
 
@@ -355,7 +336,6 @@ test("heading cannot be the wrong type", () => {
                 references: emptyContentReferences,
             })}
             onChange={() => {}}
-            onNavigate={cantNavigate}
         />,
     );
 
@@ -371,7 +351,6 @@ test("heading cannot be the wrong type", () => {
                 references: emptyContentReferences,
             })}
             onChange={() => {}}
-            onNavigate={cantNavigate}
         />,
     );
 
@@ -387,7 +366,6 @@ test("heading cannot be the wrong type", () => {
                 references: emptyContentReferences,
             })}
             onChange={() => {}}
-            onNavigate={cantNavigate}
         />,
     );
 
@@ -405,7 +383,6 @@ test("heading is converted into an integer", () => {
                 references: emptyContentReferences,
             })}
             onChange={() => {}}
-            onNavigate={cantNavigate}
         />,
     );
 
@@ -430,7 +407,6 @@ test("link with a non-HTTP scheme is blocked", () => {
                 references: emptyContentReferences,
             })}
             onChange={() => {}}
-            onNavigate={cantNavigate}
         />,
     );
 
@@ -452,7 +428,6 @@ test("link with a non-HTTP scheme is blocked", () => {
                 references: emptyContentReferences,
             })}
             onChange={() => {}}
-            onNavigate={cantNavigate}
         />,
     );
 
@@ -470,7 +445,6 @@ test("link with a non-HTTP scheme is blocked", () => {
                 references: emptyContentReferences,
             })}
             onChange={() => {}}
-            onNavigate={cantNavigate}
         />,
     );
 
@@ -500,7 +474,6 @@ test("bullet list with multiple items", () => {
             aria-label="Test"
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
-            onNavigate={cantNavigate}
         />,
     );
 
@@ -520,7 +493,6 @@ test("ordered list with multiple items", () => {
             aria-label="Test"
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
-            onNavigate={cantNavigate}
         />,
     );
 
@@ -552,7 +524,6 @@ test("check list with multiple items", () => {
             aria-label="Test"
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
-            onNavigate={cantNavigate}
         />,
     );
 
@@ -589,7 +560,6 @@ test("bullet list with sub-list", () => {
             aria-label="Test"
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
-            onNavigate={cantNavigate}
         />,
     );
 
@@ -626,7 +596,6 @@ test("ordered list with sub-list", () => {
             aria-label="Test"
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
-            onNavigate={cantNavigate}
         />,
     );
 
@@ -663,7 +632,6 @@ test("check list with sub-list", () => {
             aria-label="Test"
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
-            onNavigate={cantNavigate}
         />,
     );
 
@@ -700,7 +668,6 @@ test("bullet list with sub-list of another type", () => {
             aria-label="Test"
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
-            onNavigate={cantNavigate}
         />,
     );
 
@@ -737,7 +704,6 @@ test("ordered list with sub-list of another type", () => {
             aria-label="Test"
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
-            onNavigate={cantNavigate}
         />,
     );
 
@@ -774,7 +740,6 @@ test("check list with sub-list of another type", () => {
             aria-label="Test"
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
-            onNavigate={cantNavigate}
         />,
     );
 
@@ -796,7 +761,6 @@ test("can put hard breaks inside paragraphs", () => {
             aria-label="Test"
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
-            onNavigate={cantNavigate}
         />,
     );
 
@@ -820,7 +784,6 @@ test("can put hard breaks inside list items", () => {
             aria-label="Test"
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
-            onNavigate={cantNavigate}
         />,
     );
 
@@ -841,7 +804,6 @@ test("can put multiple paragraphs inside list items", () => {
             aria-label="Test"
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
-            onNavigate={cantNavigate}
         />,
     );
 

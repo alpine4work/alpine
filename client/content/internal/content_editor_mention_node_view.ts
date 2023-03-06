@@ -1,47 +1,46 @@
-import {Node} from "prosemirror-model";
-import {EditorView, NodeView} from "prosemirror-view";
+import classNames from "classnames";
+import {NodeViewConstructor} from "prosemirror-view";
 import {getContentMentionText} from "~/client/accounts/get_content_mention_text";
-import {renderAccountAvatarToHtml} from "~/client/accounts/render_account_avatar_to_html";
 import {getContentEditorReferences} from "~/client/content/content_editor_state";
 import {ContentMention} from "~/shared/content/content_mention";
-import {backgroundFontSizePercentage, contentSchemaStyles} from "~/shared/styles/styles";
+import {AccountModel} from "~/shared/models/account_model";
+import {contentSchemaStyles} from "~/shared/styles/styles";
 
-const {mentionClassName, mentionAvatarClassName} = contentSchemaStyles;
+const {mentionClassName, currentAccountMentionClassName, mentionAtClassName, mentionTextClassName} =
+    contentSchemaStyles;
 
-export function createContentEditorMentionNodeView(node: Node, view: EditorView): NodeView {
-    const mention: ContentMention = node.attrs.mention;
-    const contentReferences = getContentEditorReferences(view.state);
+export function createContentEditorMentionNodeViewConstructor({
+    getCurrentAccount,
+}: {
+    getCurrentAccount: () => AccountModel | null;
+}): NodeViewConstructor {
+    return (node, view) => {
+        const mention: ContentMention = node.attrs.mention;
+        const isCurrentAccountMention = getCurrentAccount()?.id === mention.accountId;
+        const contentReferences = getContentEditorReferences(view.state);
 
-    // We have a container element so that text selection styles apply to the
-    // container, not the element with border radius and a background color.
-    const containerElement = document.createElement("span");
+        // We need a container element for highlight styles to be applied to. Our
+        // mention element may have a background color when mentioning the
+        // current account.
+        const containerElement = document.createElement("span");
 
-    const element = document.createElement("span");
-    containerElement.appendChild(element);
-    element.className = mentionClassName;
+        const element = document.createElement("span");
+        containerElement.appendChild(element);
+        element.className = classNames(
+            mentionClassName,
+            isCurrentAccountMention && currentAccountMentionClassName,
+        );
 
-    const avatarElement = document.createElement("span");
-    element.appendChild(avatarElement);
-    avatarElement.className = mentionAvatarClassName;
-    avatarElement.innerHTML = renderAccountAvatarToHtml({
-        account: contentReferences.accountById.get(mention.accountId),
-        size: `${Math.round(backgroundFontSizePercentage * 100) / 100}em`,
-    });
+        const atElement = document.createElement("span");
+        element.appendChild(atElement);
+        atElement.className = mentionAtClassName;
+        atElement.textContent = "@";
 
-    const mentionText = getContentMentionText(contentReferences, mention);
+        const textElement = document.createElement("span");
+        element.appendChild(textElement);
+        textElement.className = mentionTextClassName;
+        textElement.textContent = getContentMentionText(contentReferences, mention);
 
-    // We use non-breaking spaces instead of horizontal padding so that
-    // browser selection covers the entire mention instead of covering some of the
-    // mention and leaving `paddingLeft`/`paddingRight` areas alone. Spaces also
-    // scale up with the font size which is a nice side effect.
-    //
-    // https://graphemica.com/%C2%A0
-    //
-    // TODO(calebmer): Maybe a `<span>` with a `width` would work and allow text
-    // selection?
-    const mentionTextWithPadding = `\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0${mentionText}\u00A0\u00A0`;
-
-    element.appendChild(document.createTextNode(mentionTextWithPadding));
-
-    return {dom: containerElement};
+        return {dom: containerElement};
+    };
 }

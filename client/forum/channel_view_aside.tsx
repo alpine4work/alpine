@@ -1,4 +1,3 @@
-import {useNavigate} from "react-router-dom";
 import {ContentView} from "~/client/content/content_view";
 import {Box} from "~/client/design/box";
 import {postListViewMarginY} from "~/client/forum/post_list_view";
@@ -17,7 +16,7 @@ export function ChannelViewAside({channel}: {channel: ChannelModel}) {
             >
                 About
             </h3>
-            <ContentView content={channel.description} onNavigate={useNavigate()} />
+            <ContentView content={channel.description} />
         </Box>
     );
 }

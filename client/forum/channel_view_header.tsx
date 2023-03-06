@@ -1,4 +1,3 @@
-import {useNavigate} from "react-router-dom";
 import {ContentView} from "~/client/content/content_view";
 import {Box} from "~/client/design/box";
 import {PostEditorInline, postEditorInlineMinHeight} from "~/client/forum/post_editor_inline";
@@ -19,7 +18,6 @@ export function ChannelViewHeader({
     onCreatePost: (post: PostModel) => void;
     parentHasMargin: boolean;
 }) {
-    const navigate = useNavigate();
     const isMobile = useIsMobile();
 
     return (
@@ -38,10 +36,7 @@ export function ChannelViewHeader({
                     >
                         About
                     </h3>
-                    <ContentView
-                        content={channelHeader.channel.description}
-                        onNavigate={navigate}
-                    />
+                    <ContentView content={channelHeader.channel.description} />
                 </Box>
             )}
             <PostEditorInline

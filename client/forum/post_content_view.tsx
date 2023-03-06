@@ -1,6 +1,5 @@
 import {CaretRight, DotsThree} from "phosphor-react";
 import {useEffect, useMemo, useState} from "react";
-import {useNavigate} from "react-router-dom";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile";
 import {ContentView} from "~/client/content/content_view";
 import {useAppContext} from "~/client/context/app_context";
@@ -85,7 +84,6 @@ export function PostContentView({
             </Box>
             <ContentView
                 content={post.content}
-                onNavigate={useNavigate()}
                 className={sprinkles({paddingX: "3", paddingY: "5"})}
                 contentUpdatedTime={post.contentUpdatedTime}
             />

@@ -10,8 +10,11 @@ export function getContentMentionText(
     mention: ContentMention,
 ): string {
     const account = references.accountById.get(mention.accountId);
+
     const accountName = account
-        ? getAccountShortNameWithoutFullNameTooltip(account)
+        ? mention.isShort
+            ? getAccountShortNameWithoutFullNameTooltip(account)
+            : account.name
         : missingAccountContentMentionName;
 
     // Replace spaces in the account name with no-break spaces. We want the entire

@@ -13,7 +13,11 @@ import {
 } from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
-import {updateContentEditorReferences} from "~/client/content/content_editor_state";
+import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name";
+import {
+    setContentEditorQuickUndo,
+    updateContentEditorReferences,
+} from "~/client/content/content_editor_state";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
@@ -101,23 +105,45 @@ export function ContentEditorMentionFloater({
     const saveMention = (account: AccountModel) => {
         const view = assertExists(viewRef.current);
 
+        // If the account's short name is not ambiguous when searching all account
+        // names then we will insert a short mention by default. The user can undo
+        // (cmd-z) to get the long version of the mention.
+        const isShortNameAmbiguous = allAccounts
+            ? allAccounts.fuse.search(getAccountShortNameWithoutFullNameTooltip(account)).length > 1
+            : true;
+
         const mention: ContentMention = {
             accountId: account.id,
+            isShort: !isShortNameAmbiguous,
         };
 
-        view.dispatch(
-            updateContentEditorReferences(
-                view.state.tr.replaceRangeWith(
-                    range.from,
-                    range.to,
-                    view.state.schema.node("mention", {mention}),
-                ),
-                contentReferences => ({
-                    ...contentReferences,
-                    accountById: new Map([...contentReferences.accountById, [account.id, account]]),
-                }),
+        let transaction = updateContentEditorReferences(
+            view.state.tr.replaceRangeWith(
+                range.from,
+                range.to,
+                view.state.schema.node("mention", {mention}),
             ),
+            contentReferences => ({
+                ...contentReferences,
+                accountById: new Map([...contentReferences.accountById, [account.id, account]]),
+            }),
         );
+
+        // If, as a convenience, we shortened the mention then we want undo (cmd-z) to
+        // expand the mention back out so register a quick undo transaction.
+        if (mention.isShort) {
+            const newMention: ContentMention = {
+                ...mention,
+                isShort: false,
+            };
+
+            transaction = setContentEditorQuickUndo(
+                transaction,
+                state.apply(transaction).tr.setNodeAttribute(range.from, "mention", newMention),
+            );
+        }
+
+        view.dispatch(transaction);
 
         onCloseWithoutAnimation();
     };

@@ -7,6 +7,7 @@ import {
     headingLevel3ClassName,
     headingLevel3FontSize,
     linkClassName,
+    mentionClassName,
     paragraphFontSize,
     titleClassName,
     titleFontSize,
@@ -97,3 +98,9 @@ globalStyle(`${shiftKeyOrAltKeyDownClassName} ${linkClassName}`, {
 // it clear where the end of the mention is? Or modify the mention logic so we
 // are less forgiving of spaces and arrow key movements.
 export const inlineMentionInputClassName = style({});
+
+// Mentions must be selected all at once when in an editor. You may not select
+// in the middle of a mention.
+globalStyle(`${containerClassName} ${mentionClassName}`, {
+    userSelect: "all",
+});

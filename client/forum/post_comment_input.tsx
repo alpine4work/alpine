@@ -1,6 +1,5 @@
 import {ArrowArcLeft, ArrowUp, X} from "phosphor-react";
 import {Ref, RefObject, useEffect, useMemo, useRef, useState} from "react";
-import {useNavigate} from "react-router-dom";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountShortName} from "~/client/accounts/account_short_name";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
@@ -74,7 +73,6 @@ export function PostCommentInput({
     onClearReplyingToPostComment: () => void;
     onJumpToPostComment: (postCommentIndex: number) => void;
 }) {
-    const navigate = useNavigate();
     const showToast = useShowToast();
     const {currentAccount} = useSpaceContext();
     const editorRef = useRef<ContentEditorRef>(null);
@@ -399,7 +397,6 @@ export function PostCommentInput({
                                                 isInert={true}
                                                 isTruncated={true}
                                                 content={replyingToPostComment.truncatedContent}
-                                                onNavigate={navigate}
                                             />
                                         </Box>
                                     </Box>
@@ -437,7 +434,6 @@ export function PostCommentInput({
                                 ref={editorRef}
                                 state={state}
                                 onChange={setState}
-                                onNavigate={navigate}
                                 aria-label="New comment"
                                 placeholder="Write a comment…"
                                 className={sprinkles({

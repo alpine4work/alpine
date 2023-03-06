@@ -9,7 +9,6 @@ import {act} from "react-dom/test-utils";
 import {ContentEditor, getEditorViewForTest} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {emptyDocumentWithoutTitleContent} from "~/shared/content/document_content_schema";
-import {UnimplementedError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {emptyContentReferences} from "~/shared/models/content_references";
 
@@ -20,16 +19,7 @@ function TestContentEditor() {
             references: emptyContentReferences,
         }),
     );
-    return (
-        <ContentEditor
-            aria-label="Test"
-            state={state}
-            onChange={setState}
-            onNavigate={() => {
-                throw new UnimplementedError("Can not navigate in test");
-            }}
-        />
-    );
+    return <ContentEditor aria-label="Test" state={state} onChange={setState} />;
 }
 
 // Get the textbox `HTMLElement`.

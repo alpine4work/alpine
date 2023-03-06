@@ -1,7 +1,7 @@
 import {collab, getVersion, receiveTransaction, sendableSteps} from "prosemirror-collab";
 import {history} from "prosemirror-history";
 import {Node} from "prosemirror-model";
-import {EditorState, Plugin, PluginKey, Selection, Transaction} from "prosemirror-state";
+import {Command, EditorState, Plugin, PluginKey, Selection, Transaction} from "prosemirror-state";
 import {Step} from "prosemirror-transform";
 import {
     ContentEditorFloaterState,
@@ -36,6 +36,7 @@ function buildPlugins(schema: ContentProsemirrorSchema, contentReferences: Conte
         buildKeymapPlugin(schema),
         contentEditorFloaterStatePlugin(),
         contentEditorReferencesPlugin(contentReferences),
+        contentEditorQuickUndoPlugin(),
     ];
 }
 
@@ -540,3 +541,52 @@ export function updateContentEditorReferences(
 ): Transaction {
     return transaction.setMeta(contentEditorReferencesPluginKey, update);
 }
+
+const contentEditorQuickUndoPluginKey = new PluginKey<Transaction | null>("contentEditorQuickUndo");
+
+function contentEditorQuickUndoPlugin() {
+    return new Plugin<Transaction | null>({
+        key: contentEditorQuickUndoPluginKey,
+        state: {
+            init: () => null,
+            apply: (transaction, quickUndoTransaction) => {
+                const newQuickUndoTransaction = transaction.getMeta(
+                    contentEditorQuickUndoPluginKey,
+                );
+                if (newQuickUndoTransaction) return newQuickUndoTransaction;
+
+                // If the selection moved or document changed then throw away our quick undo.
+                // It might not work anymore on the new document.
+                return transaction.selectionSet || transaction.docChanged
+                    ? null
+                    : quickUndoTransaction;
+            },
+        },
+    });
+}
+
+/**
+ * Set a quick undo transaction in our state. Next time the user presses cmd-z
+ * (before changing the document) the quick undo transaction will run. The quick
+ * undo transaction must be executable on the document produced by the current
+ * transaction.
+ */
+export function setContentEditorQuickUndo(
+    transaction: Transaction,
+    quickUndoTransaction: Transaction,
+): Transaction {
+    return transaction.setMeta(contentEditorQuickUndoPluginKey, quickUndoTransaction);
+}
+
+/**
+ * If there is a quick undo entry then execute it.
+ */
+export const contentEditorQuickUndoCommand: Command = (state, dispatch) => {
+    const quickUndoTransaction = contentEditorQuickUndoPluginKey.getState(state);
+    if (quickUndoTransaction) {
+        dispatch?.(quickUndoTransaction);
+        return true;
+    }
+
+    return false;
+};

@@ -16,8 +16,10 @@ import {keymap} from "prosemirror-keymap";
 import {Node} from "prosemirror-model";
 import {EditorState, TextSelection, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
+import {contentEditorQuickUndoCommand} from "~/client/content/content_editor_state";
 import {createToggleMarkCommand} from "~/client/content/internal/content_editor_prosemirror_helpers";
 import {isMac} from "~/client/helpers/browser/is_mac";
+import {ContentMention} from "~/shared/content/content_mention";
 import {ContentProsemirrorSchema, maxListItemIndentation} from "~/shared/content/content_schema";
 
 type Command = (
@@ -33,7 +35,7 @@ export function buildKeymapPlugin(schema: ContentProsemirrorSchema) {
     const keys = new Map<string, Command>();
 
     // History
-    keys.set("Mod-z", chainCommands(undoInputRule, undo));
+    keys.set("Mod-z", chainCommands(contentEditorQuickUndoCommand, undoInputRule, undo));
     keys.set("Mod-shift-z", redo);
     keys.set("Mod-y", redo); // https://en.wikipedia.org/wiki/Control-Y
 
@@ -319,9 +321,51 @@ export function buildKeymapPlugin(schema: ContentProsemirrorSchema) {
         selectNodeBackward,
     );
 
-    keys.set("Backspace", backspaceCommand);
+    const wordBackspaceCommand: Command = chainCommands(
+        // If we delete before a mention and the mention is not a short mention, update
+        // the mention to a short mention. Another delete will delete the mention.
+        //
+        // For example, if the cursor is at `|`:
+        //
+        // ```
+        // @Caleb Meredith|
+        // ```
+        //
+        // Then you press backspace:
+        //
+        // ```
+        // @Caleb|
+        // ```
+        //
+        // Then you press backspace again:
+        //
+        // ```
+        // |
+        // ```
+        (state, dispatch) => {
+            const {$from, $to} = state.selection;
+
+            const isSelectionBeforeMentionNode =
+                $from.pos === $to.pos && $from.nodeBefore?.type.name === "mention";
+
+            if (!isSelectionBeforeMentionNode) return false;
+
+            const mention: ContentMention = $from.nodeBefore.attrs.mention;
+            if (mention.isShort) return false;
+
+            if (dispatch) {
+                const newMention: ContentMention = {...mention, isShort: true};
+                dispatch(state.tr.setNodeAttribute($from.pos - 1, "mention", newMention));
+            }
+            return true;
+        },
+
+        backspaceCommand,
+    );
+
+    keys.set("Backspace", wordBackspaceCommand);
+    keys.set("Shift-Backspace", wordBackspaceCommand);
     keys.set("Mod-Backspace", backspaceCommand);
-    keys.set("Shift-Backspace", backspaceCommand);
 
     const deleteCommand = chainCommands(
         // This one is simple. If there is a selection, delete it. If the
@@ -733,9 +777,9 @@ export function buildKeymapPlugin(schema: ContentProsemirrorSchema) {
     // [1]: https://github.com/ProseMirror/prosemirror-commands/blob/3126d5c625953ba590c5d3a0db7f1009f46f1571/src/commands.js#L588
     // [2]: https://support.apple.com/en-us/HT201236
     if (isMac) {
-        keys.set("Alt-Backspace", backspaceCommand);
+        keys.set("Alt-Backspace", wordBackspaceCommand);
         keys.set("Alt-Delete", deleteCommand);
-        keys.set("Ctrl-h", backspaceCommand);
+        keys.set("Ctrl-h", wordBackspaceCommand);
         keys.set("Ctrl-d", deleteCommand);
     }
 

@@ -15,7 +15,6 @@ import {
     useRef,
     useState,
 } from "react";
-import {NavigateOptions, To} from "react-router-dom";
 import {
     ContentEditorState,
     getContentEditorFloaterState,
@@ -27,7 +26,7 @@ import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/con
 import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser";
 import {ContentEditorFloater} from "~/client/content/internal/content_editor_floater";
 import {createContentEditorMarkNodeViewConstructor} from "~/client/content/internal/content_editor_link_node_view";
-import {createContentEditorMentionNodeView} from "~/client/content/internal/content_editor_mention_node_view";
+import {createContentEditorMentionNodeViewConstructor} from "~/client/content/internal/content_editor_mention_node_view";
 import {createContentEditorOrderedListItemNodeView} from "~/client/content/internal/content_editor_ordered_list_item_node_view";
 import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/content_editor_phantom_selection_cursor";
 import {trimSpacesFromRange} from "~/client/content/internal/content_editor_prosemirror_helpers";
@@ -37,7 +36,11 @@ import {isMac} from "~/client/helpers/browser/is_mac";
 import {isVirtualKeyboardEvent} from "~/client/helpers/events/is_virtual_keyboard_event";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
-import {useExpensivelyPreloadAllSpaceAccounts} from "~/client/spaces/space_context";
+import {useNavigateWithJestFallback} from "~/client/helpers/use_navigate_with_jest_fallback";
+import {
+    useExpensivelyPreloadAllSpaceAccounts,
+    useSpaceContext,
+} from "~/client/spaces/space_context";
 import {documentFallbackTitle} from "~/shared/content/document_fallback_title";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty";
 import {ThemeColor} from "~/shared/design/theme_colors";
@@ -177,11 +180,6 @@ export type ContentEditorProps<Content extends Node> = {
      * represent the cursor position of other users.
      */
     phantomSelections?: ReadonlyArray<ContentEditorPhantomSelection>;
-
-    /**
-     * Navigate to a new URL without reloading the page.
-     */
-    onNavigate: (to: To, options?: NavigateOptions) => void;
 } & (
     | {
           /**
@@ -223,7 +221,6 @@ function ContentEditorWrapper<Content extends Node>(
             <div className={classNames(containerClassName, props.containerClassName)}>
                 <ContentView
                     content={props.state.getContent()}
-                    onNavigate={props.onNavigate}
                     placeholder={props.placeholder}
                     className={props.className}
                     aria-label={props["aria-label"]}
@@ -282,8 +279,17 @@ function ContentEditor<Content extends Node>(
     // Please avoid using `propsRef` unless you can thoroughly reason through why
     // it's safe!
     const propsRef = useRef(props);
+    const navigate = useNavigateWithJestFallback();
+    const navigateRef = useRef(navigate);
+    // Don't get the current account when running in a unit test so we don't need
+    // to render a space context when testing this component.
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const currentAccount = typeof jest === "undefined" ? useSpaceContext().currentAccount : null;
+    const currentAccountRef = useRef(currentAccount);
     useLayoutEffect(() => {
         propsRef.current = props;
+        navigateRef.current = navigate;
+        currentAccountRef.current = currentAccount;
     });
 
     const elementRef = useRef<HTMLDivElement>(null);
@@ -354,7 +360,9 @@ function ContentEditor<Content extends Node>(
             nodeViews: {
                 orderedListItem: createContentEditorOrderedListItemNodeView,
                 checkListItem: createContentEditorCheckListItemNodeView,
-                mention: createContentEditorMentionNodeView,
+                mention: createContentEditorMentionNodeViewConstructor({
+                    getCurrentAccount: () => currentAccountRef.current,
+                }),
             },
 
             // IMPORTANT: If you have a custom view in `markViews` here you should also
@@ -395,7 +403,7 @@ function ContentEditor<Content extends Node>(
                             );
                         }
                     },
-                    onNavigate: to => propsRef.current.onNavigate(to),
+                    onNavigate: to => navigateRef.current(to),
                 }),
             },
 

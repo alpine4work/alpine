@@ -1,3 +1,4 @@
+import classNames from "classnames";
 import {DOMOutputSpec, Node} from "prosemirror-model";
 import {getContentMentionText} from "~/client/accounts/get_content_mention_text";
 import {contentCheckListItemIconSvg} from "~/shared/content/content_check_list_item_icon_svg";
@@ -7,6 +8,7 @@ import {documentFallbackTitle} from "~/shared/content/document_fallback_title";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty";
 import {assert} from "~/shared/helpers/control/assert";
 import {omitObject} from "~/shared/helpers/object/omit_object";
+import {AccountModel} from "~/shared/models/account_model";
 import {ContentWithReferences} from "~/shared/models/content_references";
 import {
     ElementHtmlGenerator,
@@ -23,6 +25,9 @@ const {
     checkListItemCheckboxClassName,
     checkListItemContentClassName,
     mentionClassName,
+    currentAccountMentionClassName,
+    mentionAtClassName,
+    mentionTextClassName,
 } = contentSchemaStyles;
 
 /**
@@ -32,7 +37,7 @@ const {
  */
 export function renderContentToHtml(
     content: ContentWithReferences,
-    options?: {placeholder?: string},
+    options: {currentAccount: AccountModel | null; placeholder?: string},
 ): string {
     const fragmentHtml = renderContentFragmentToHtml(content, options);
     return `<div class="${docClassName}">${fragmentHtml}</div>`;
@@ -53,14 +58,16 @@ export function renderContentToHtml(
 export function renderContentFragmentToHtml(
     content: ContentWithReferences,
     {
+        currentAccount,
         placeholder,
         isInert,
         decorations,
     }: {
+        currentAccount: AccountModel | null;
         placeholder?: string;
         isInert?: boolean;
         decorations?: ReadonlyArray<ProsemirrorHtmlSerializationDecoration>;
-    } = {},
+    },
 ): string {
     assert(content.doc.type.schema.topNodeType === content.doc.type);
 
@@ -162,13 +169,32 @@ export function renderContentFragmentToHtml(
             },
             mention: node => {
                 const mention: ContentMention = node.attrs.mention;
+                const isCurrentAccountMention = currentAccount?.id === mention.accountId;
 
+                // We need a container element for highlight styles to be applied to. Our
+                // mention element may have a background color when mentioning the
+                // current account.
                 const containerElement = new ElementHtmlGenerator("span");
 
                 const element = new ElementHtmlGenerator("span");
                 containerElement.appendChild(element);
-                element.setAttribute("class", mentionClassName);
-                element.appendChild(
+                element.setAttribute(
+                    "class",
+                    classNames(
+                        mentionClassName,
+                        isCurrentAccountMention && currentAccountMentionClassName,
+                    ),
+                );
+
+                const atElement = new ElementHtmlGenerator("span");
+                element.appendChild(atElement);
+                atElement.setAttribute("class", mentionAtClassName);
+                atElement.appendChild(new TextHtmlGenerator("@"));
+
+                const textElement = new ElementHtmlGenerator("span");
+                element.appendChild(textElement);
+                textElement.setAttribute("class", mentionTextClassName);
+                textElement.appendChild(
                     new TextHtmlGenerator(getContentMentionText(content.references, mention)),
                 );
 

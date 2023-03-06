@@ -1,5 +1,4 @@
 import {useRef, useState} from "react";
-import {useNavigate} from "react-router-dom";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {ContentView} from "~/client/content/content_view";
@@ -32,7 +31,6 @@ export function PostEditorInline({
     onCreatePost: (post: PostModel) => void;
     parentHasMargin: boolean;
 }) {
-    const navigate = useNavigate();
     const showToast = useShowToast();
     const context = useAppContext();
     const {currentAccount} = useSpaceContext();
@@ -132,7 +130,6 @@ export function PostEditorInline({
                         ref={editorRef}
                         aria-label="New post"
                         state={state}
-                        onNavigate={navigate}
                         placeholder="Share your ideas…"
                         containerClassName={sprinkles({flexGrow: "1", overflowX: "hidden"})}
                         className={sprinkles({paddingX: "3", paddingY: "4"})}
@@ -174,7 +171,6 @@ export function PostEditorInline({
                         >
                             <ContentView
                                 content={content}
-                                onNavigate={navigate}
                                 className={sprinkles({paddingX: "3", paddingY: "4"})}
                             />
                         </Box>

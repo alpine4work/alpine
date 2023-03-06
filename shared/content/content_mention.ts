@@ -8,6 +8,7 @@ export type ContentMention = SchemaType<typeof ContentMentionSchema>;
  */
 export const ContentMentionSchema = Schema.object({
     accountId: Schema.id<AccountId>(),
+    isShort: Schema.boolean.default(false),
 });
 
 /**

@@ -1,5 +1,4 @@
 import {useEffect, useRef, useState} from "react";
-import {useNavigate} from "react-router-dom";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {useAppContext} from "~/client/context/app_context";
@@ -28,7 +27,6 @@ export function PostEditorModal({
     onUpdatePost: (update: (post: PostModel) => PostModel) => void;
     onClose: () => void;
 }) {
-    const navigate = useNavigate();
     const context = useAppContext();
     const showToast = useShowToast();
     const editorRef = useRef<ContentEditorRef>(null);
@@ -120,7 +118,6 @@ export function PostEditorModal({
                     ref={editorRef}
                     aria-label="Post"
                     state={state}
-                    onNavigate={navigate}
                     placeholder="Share your ideas…"
                     className={sprinkles({paddingX: "3", paddingY: "4"})}
                     onChange={(state, transaction) => {

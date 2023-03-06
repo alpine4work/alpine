@@ -12,12 +12,7 @@ import {
     DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
 } from "~/shared/content/document_content_schema";
-import {UnimplementedError} from "~/shared/error/error";
 import {emptyContentReferences} from "~/shared/models/content_references";
-
-function cantNavigate() {
-    throw new UnimplementedError("Can not navigate in test");
-}
 
 function TestContentEditor() {
     const [state, setState] = useState(() =>
@@ -26,14 +21,7 @@ function TestContentEditor() {
             references: emptyContentReferences,
         }),
     );
-    return (
-        <ContentEditor
-            aria-label="Test"
-            state={state}
-            onChange={setState}
-            onNavigate={cantNavigate}
-        />
-    );
+    return <ContentEditor aria-label="Test" state={state} onChange={setState} />;
 }
 
 // Get the textbox `HTMLElement`.
@@ -69,7 +57,6 @@ test("renders an empty document", () => {
                 references: emptyContentReferences,
             })}
             onChange={() => {}}
-            onNavigate={cantNavigate}
         />,
     );
 
@@ -92,7 +79,6 @@ test("renders an initial editor state", () => {
             aria-label="Test"
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
-            onNavigate={cantNavigate}
         />,
     );
 
@@ -118,7 +104,6 @@ test("rerenders with a changed document", () => {
             aria-label="Test"
             state={ContentEditorState.create({doc: doc1, references: emptyContentReferences})}
             onChange={onTransaction}
-            onNavigate={cantNavigate}
         />,
     );
 
@@ -129,7 +114,6 @@ test("rerenders with a changed document", () => {
             aria-label="Test"
             state={ContentEditorState.create({doc: doc2, references: emptyContentReferences})}
             onChange={onTransaction}
-            onNavigate={cantNavigate}
         />,
     );
 
@@ -175,12 +159,7 @@ test("will revert optimistic update if it doesn't match props", () => {
             }),
         );
         return (
-            <ContentEditor
-                aria-label="Test"
-                state={state}
-                onChange={useCallback(() => {}, [])}
-                onNavigate={cantNavigate}
-            />
+            <ContentEditor aria-label="Test" state={state} onChange={useCallback(() => {}, [])} />
         );
     }
 

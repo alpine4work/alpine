@@ -1,6 +1,5 @@
 import {CaretDown} from "phosphor-react";
 import {useEffect, useRef, useState} from "react";
-import {useNavigate} from "react-router-dom";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {useAppContext} from "~/client/context/app_context";
@@ -199,7 +198,6 @@ function ChannelEditDescriptionModal({
     onUpdateChannel: (update: (channel: ChannelModel) => ChannelModel) => void;
     onClose: () => void;
 }) {
-    const navigate = useNavigate();
     const context = useAppContext();
     const modalRef = useRef<ModalWithButtonsRef>(null);
     const editorRef = useRef<ContentEditorRef>(null);
@@ -267,7 +265,6 @@ function ChannelEditDescriptionModal({
                                                 hasContentChanged || transaction.docChanged,
                                         }));
                                     }}
-                                    onNavigate={navigate}
                                     onModEnter={pressPrimaryButton}
                                     className={sprinkles({
                                         paddingX: "0.5",

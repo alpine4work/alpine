@@ -1,12 +1,12 @@
 import classNames from "classnames";
 import {useEffect, useId, useMemo, useRef, useState} from "react";
-import {To} from "react-router-dom";
 import {handleContentLinkClick} from "~/client/content/internal/handle_content_link_click";
 import {renderContentFragmentToHtml} from "~/client/content/render_content_to_html";
 import {FocusRing} from "~/client/design/focus_ring";
 import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_date";
 import {Tooltip} from "~/client/design/tooltip";
-import {useEvent} from "~/client/helpers/lifecycle/use_event";
+import {useNavigateWithJestFallback} from "~/client/helpers/use_navigate_with_jest_fallback";
+import {useSpaceContext} from "~/client/spaces/space_context";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -30,7 +30,6 @@ const {docClassName, linkClassName, emptyTitleClassName, emptyBodyClassName, par
 export function ContentView({
     content,
     contentUpdatedTime,
-    onNavigate,
     placeholder,
     className,
     "aria-label": ariaLabel,
@@ -39,7 +38,6 @@ export function ContentView({
     isTruncated,
 }: {
     content: ContentWithReferences;
-    onNavigate: (to: To) => void;
 
     /**
      * This prop puts an `(updated)` message at the end of our content with a
@@ -76,6 +74,11 @@ export function ContentView({
      */
     isTruncated?: boolean;
 }) {
+    // Don't get the current account when running in a unit test so we don't need
+    // to render a space context when testing this component.
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const currentAccount = typeof jest === "undefined" ? useSpaceContext().currentAccount : null;
+
     const ref = useRef<HTMLDivElement>(null);
 
     const [focusedLinkElement, setFocusedLinkElement] = useState<HTMLElement | null>(null);
@@ -133,13 +136,18 @@ export function ContentView({
         }
 
         return {
-            html: renderContentFragmentToHtml(content, {placeholder, isInert, decorations}),
+            html: renderContentFragmentToHtml(content, {
+                currentAccount,
+                placeholder,
+                isInert,
+                decorations,
+            }),
             isTitleEmpty: isContentTitleEmpty(content.doc),
             isBodyEmpty: isContentBodyEmpty(content.doc),
         };
-    }, [content, contentUpdatedNoteId, contentUpdatedTime, isInert, placeholder]);
+    }, [content, contentUpdatedNoteId, contentUpdatedTime, currentAccount, isInert, placeholder]);
 
-    const onNavigateEvent = useEvent(onNavigate);
+    const navigate = useNavigateWithJestFallback();
 
     useEffect(() => {
         if (isInert) return;
@@ -156,7 +164,7 @@ export function ContentView({
             assert(linkElement instanceof HTMLAnchorElement);
 
             const handleClick = (event: MouseEvent) => {
-                handleContentLinkClick(event, onNavigateEvent);
+                handleContentLinkClick(event, navigate);
             };
 
             linkElement.addEventListener("click", handleClick);
@@ -170,7 +178,7 @@ export function ContentView({
                 cleanup();
             }
         };
-    }, [html, isInert, onNavigateEvent]);
+    }, [html, isInert, navigate]);
 
     useEffect(() => {
         const element = assertExists(ref.current);

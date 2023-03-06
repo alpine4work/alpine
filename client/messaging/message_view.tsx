@@ -1,7 +1,6 @@
 import {differenceInMinutes} from "date-fns";
 import {ArrowArcLeft, SpinnerGap} from "phosphor-react";
 import {Memo, MutableRefObject, useEffect, useMemo, useRef, useState} from "react";
-import {useNavigate} from "react-router-dom";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountShortName} from "~/client/accounts/account_short_name";
 import {ContentView} from "~/client/content/content_view";
@@ -171,8 +170,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         };
     }, []);
 
-    const navigate = useNavigate();
-
     const messageEditingForThisMessage =
         messageEditing.state.isEditing &&
         messageEditing.state.messageRoomKey === message.getRoomKey() &&
@@ -269,12 +266,11 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 <ContentView
                     content={message.payload.content}
                     contentUpdatedTime={message.payload.contentUpdatedTime}
-                    onNavigate={navigate}
                     className={sprinkles({minWidth: messageViewBubbleMinWidth})}
                 />
             </div>
         );
-    }, [message.payload, navigate, shouldMergeWithNextMessage, shouldMergeWithPreviousMessage]);
+    }, [message.payload, shouldMergeWithNextMessage, shouldMergeWithPreviousMessage]);
 
     const deletedPayloadNode = useMemo(() => {
         if (message.payload.type !== "Deleted") return null;
@@ -436,7 +432,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                     isInert={true}
                                     isTruncated={true}
                                     content={truncatedContent}
-                                    onNavigate={navigate}
                                     className={sprinkles({minWidth: messageViewBubbleMinWidth})}
                                 />
                             </div>
@@ -445,7 +440,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 </OverlayScopeContextProvider>
             </div>
         );
-    }, [messageStartOfSentenceNoun, navigate, onJumpToMessage, parentMessage]);
+    }, [messageStartOfSentenceNoun, onJumpToMessage, parentMessage]);
 
     // IMPORTANT(calebmer): Be careful about what you put in this component!
     // `<MessageView>` needs to render fast for us to get good FPS when scrolling

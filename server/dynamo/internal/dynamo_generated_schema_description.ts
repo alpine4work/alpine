@@ -490,6 +490,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                     "type": "Id"
                                                                                                 },
                                                                                                 "optional": false
+                                                                                            },
+                                                                                            "isShort": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Boolean"
+                                                                                                },
+                                                                                                "optional": true
                                                                                             }
                                                                                         },
                                                                                         "referenceId": "33288d4f"
