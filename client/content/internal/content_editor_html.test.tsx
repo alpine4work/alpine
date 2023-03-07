@@ -7,7 +7,6 @@ import {
     DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
 } from "~/shared/content/document_content_schema";
-import {UnimplementedError} from "~/shared/error/error";
 import {emptyContentReferences} from "~/shared/models/content_references";
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
