@@ -137,17 +137,17 @@ test("can see a post comment edited in realtime", async ({
     const page2 = await browserContext2.newPage();
     await page2.goto(`/s/${space.id}/posts/${post.id}`);
 
+    await expect(page1.getByText("1 comment")).toBeVisible();
+    await expect(getAvatarInPileByInitials(page1, "SR")).toBeVisible();
+    await expect(page1.getByText("Test post comment content 1")).toBeVisible();
+    await expect(page1.getByText("Test post comment content 2")).toBeHidden();
+
     await page2
         .getByTestId(`MessageView:${post.id}:${comment.index}`)
         .getByRole("button", {name: "More"})
         .press("Enter");
 
     await page2.getByRole("menuitem", {name: "Edit"}).click();
-
-    await expect(page1.getByText("1 comment")).toBeVisible();
-    await expect(getAvatarInPileByInitials(page1, "SR")).toBeVisible();
-    await expect(page1.getByText("Test post comment content 1")).toBeVisible();
-    await expect(page1.getByText("Test post comment content 2")).toBeHidden();
 
     await page2.getByRole("textbox", {name: "Comment", exact: true}).press("ArrowRight");
     await page2.getByRole("textbox", {name: "Comment", exact: true}).press("Backspace");
@@ -326,13 +326,6 @@ test("will backfill an edit in realtime when comments are reopened", async ({
     const page2 = await browserContext2.newPage();
     await page2.goto(`/s/${space.id}/posts/${post.id}`);
 
-    await page2
-        .getByTestId(`MessageView:${post.id}:${comment.index}`)
-        .getByRole("button", {name: "More"})
-        .press("Enter");
-
-    await page2.getByRole("menuitem", {name: "Edit"}).click();
-
     await expect(page1.getByText("Test post comment content 1")).toBeHidden();
     await expect(page1.getByText("Test post comment content 2")).toBeHidden();
     await page1.getByRole("button", {name: "1 comment"}).click();
@@ -341,6 +334,13 @@ test("will backfill an edit in realtime when comments are reopened", async ({
     await page1.getByRole("button", {name: "1 comment"}).click();
     await expect(page1.getByText("Test post comment content 1")).toBeHidden();
     await expect(page1.getByText("Test post comment content 2")).toBeHidden();
+
+    await page2
+        .getByTestId(`MessageView:${post.id}:${comment.index}`)
+        .getByRole("button", {name: "More"})
+        .press("Enter");
+
+    await page2.getByRole("menuitem", {name: "Edit"}).click();
 
     await page2.getByRole("textbox", {name: "Comment", exact: true}).press("ArrowRight");
     await page2.getByRole("textbox", {name: "Comment", exact: true}).press("Backspace");

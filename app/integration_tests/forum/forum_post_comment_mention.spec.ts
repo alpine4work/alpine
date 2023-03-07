@@ -47,8 +47,13 @@ test("can search for an account in mention menu", async ({
     await expect(page.getByTestId("ContentEditorMentionFloater")).toBeVisible();
     await expect(page.getByText("Siobahn Roy", {exact: true})).toBeVisible();
     await expect(page.getByText("Kendall Roy", {exact: true})).toBeHidden();
-    await page.getByRole("textbox", {name: "New comment"}).press("ArrowDown");
-    await page.getByRole("textbox", {name: "New comment"}).press("Enter");
+    if (!isMobile) {
+        await page.getByRole("textbox", {name: "New comment"}).press("ArrowDown");
+        await page.getByRole("textbox", {name: "New comment"}).press("Enter");
+    } else {
+        // NOTE(calebmer): In CI mobile doesn't seem to like `ArrowDown`?
+        await page.getByTestId("ContentEditorMentionFloater").getByText("Siobahn").click();
+    }
     await expect(page.getByTestId("ContentEditorMentionFloater")).toBeHidden();
     await expect(page.getByText("Siobahn", {exact: true})).toBeVisible();
     await expect(page.getByText("Kendall", {exact: true})).toBeHidden();
@@ -106,8 +111,13 @@ test("can undo to get the full mention when a short mention was inferred", async
     await page.getByRole("textbox", {name: "New comment"}).type("@");
     await expect(page.getByTestId("ContentEditorMentionFloater")).toBeVisible();
     await page.getByRole("textbox", {name: "New comment"}).type("Siobahn");
-    await page.getByRole("textbox", {name: "New comment"}).press("ArrowDown");
-    await page.getByRole("textbox", {name: "New comment"}).press("Enter");
+    if (!isMobile) {
+        await page.getByRole("textbox", {name: "New comment"}).press("ArrowDown");
+        await page.getByRole("textbox", {name: "New comment"}).press("Enter");
+    } else {
+        // NOTE(calebmer): In CI mobile doesn't seem to like `ArrowDown`?
+        await page.getByTestId("ContentEditorMentionFloater").getByText("Siobahn").click();
+    }
     await expect(page.getByTestId("ContentEditorMentionFloater")).toBeHidden();
     await expect(page.getByText("Siobahn", {exact: true})).toBeVisible();
     await expect(page.getByText("Siobahn Roy", {exact: true})).toBeHidden();
@@ -158,8 +168,13 @@ test("if a name is ambiguous you get the full mention and pressing backspace wil
     await page.getByRole("textbox", {name: "New comment"}).type("@");
     await expect(page.getByTestId("ContentEditorMentionFloater")).toBeVisible();
     await page.getByRole("textbox", {name: "New comment"}).type("Emily 1");
-    await page.getByRole("textbox", {name: "New comment"}).press("ArrowDown");
-    await page.getByRole("textbox", {name: "New comment"}).press("Enter");
+    if (!isMobile) {
+        await page.getByRole("textbox", {name: "New comment"}).press("ArrowDown");
+        await page.getByRole("textbox", {name: "New comment"}).press("Enter");
+    } else {
+        // NOTE(calebmer): In CI mobile doesn't seem to like `ArrowDown`?
+        await page.getByTestId("ContentEditorMentionFloater").getByText("Emily 1").click();
+    }
     await expect(page.getByTestId("ContentEditorMentionFloater")).toBeHidden();
     await expect(page.getByText("Emily", {exact: true})).toBeHidden();
     await expect(page.getByText("Emily 1", {exact: true})).toBeVisible();

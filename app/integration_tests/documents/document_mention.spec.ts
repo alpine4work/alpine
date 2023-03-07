@@ -20,6 +20,7 @@ test("can search for an account in mention menu", async ({
     page,
     context: browserContext,
     viewport,
+    isMobile,
 }) => {
     assert(viewport);
 
@@ -50,8 +51,13 @@ test("can search for an account in mention menu", async ({
     await expect(page.getByTestId("ContentEditorMentionFloater")).toBeVisible();
     await expect(page.getByText("Siobahn Roy", {exact: true})).toBeVisible();
     await expect(page.getByText("Kendall Roy", {exact: true})).toBeHidden();
-    await page.getByRole("textbox", {name: "Document"}).press("ArrowDown");
-    await page.getByRole("textbox", {name: "Document"}).press("Enter");
+    if (!isMobile) {
+        await page.getByRole("textbox", {name: "New comment"}).press("ArrowDown");
+        await page.getByRole("textbox", {name: "New comment"}).press("Enter");
+    } else {
+        // NOTE(calebmer): In CI mobile doesn't seem to like `ArrowDown`?
+        await page.getByTestId("ContentEditorMentionFloater").getByText("Siobahn").click();
+    }
     await expect(page.getByTestId("ContentEditorMentionFloater")).toBeHidden();
 
     await expect(page.getByText("Siobahn", {exact: true})).toBeVisible();

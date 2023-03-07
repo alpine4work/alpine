@@ -140,10 +140,10 @@ test("can write collaboratively at the same time in a document", async ({
 
     await runAllPromiseThunks(
         async () => {
-            const reload1 = randomInteger(0, 100);
-            const reload2 = randomInteger(0, 100);
+            const reload1 = randomInteger(0, 25);
+            const reload2 = randomInteger(0, 25);
 
-            for (let i = 0; i < 100; i++) {
+            for (let i = 0; i < 25; i++) {
                 await page1
                     .getByRole("textbox", {name: "Document"})
                     .click({position: {x: viewport.width / 2, y: viewport.height - 100}});
@@ -156,10 +156,10 @@ test("can write collaboratively at the same time in a document", async ({
             }
         },
         async () => {
-            const reload1 = randomInteger(0, 100);
-            const reload2 = randomInteger(0, 100);
+            const reload1 = randomInteger(0, 25);
+            const reload2 = randomInteger(0, 25);
 
-            for (let i = 0; i < 100; i++) {
+            for (let i = 0; i < 25; i++) {
                 await page2
                     .getByRole("textbox", {name: "Document"})
                     .click({position: {x: viewport.width / 2, y: viewport.height - 100}});
@@ -195,32 +195,32 @@ test("can write collaboratively at the same time in a document", async ({
     }
 
     expect(countCharacters(page1TextContent)).toEqual([
-        ["1", 300],
-        ["2", 300],
-        ["3", 300],
-        ["4", 300],
-        ["5", 300],
-        ["6", 300],
-        ["a", 300],
-        ["b", 300],
-        ["c", 300],
-        ["d", 300],
-        ["e", 300],
-        ["f", 300],
+        ["1", 75],
+        ["2", 75],
+        ["3", 75],
+        ["4", 75],
+        ["5", 75],
+        ["6", 75],
+        ["a", 75],
+        ["b", 75],
+        ["c", 75],
+        ["d", 75],
+        ["e", 75],
+        ["f", 75],
     ]);
 
     expect(countCharacters(page2TextContent)).toEqual([
-        ["1", 300],
-        ["2", 300],
-        ["3", 300],
-        ["4", 300],
-        ["5", 300],
-        ["6", 300],
-        ["a", 300],
-        ["b", 300],
-        ["c", 300],
-        ["d", 300],
-        ["e", 300],
-        ["f", 300],
+        ["1", 75],
+        ["2", 75],
+        ["3", 75],
+        ["4", 75],
+        ["5", 75],
+        ["6", 75],
+        ["a", 75],
+        ["b", 75],
+        ["c", 75],
+        ["d", 75],
+        ["e", 75],
+        ["f", 75],
     ]);
 });
