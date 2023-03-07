@@ -55,6 +55,9 @@ export type ErrorToast = {
      * The "what happened" part of an error message according to [Adobe
      * Spectrum's][1] error content guidelines.
      *
+     * Should not include ending punctuation. Ending punctuation will be
+     * added for you.
+     *
      * [1]: https://spectrum.adobe.com/page/writing-for-errors
      */
     readonly title: string;
@@ -168,7 +171,7 @@ export function ToastContextProvider({children}: {children?: ReactNode}) {
                 type: "ShowToast",
                 toast: {
                     type: "Error",
-                    title: "Test:",
+                    title: "Test toast",
                     error: new InvalidArgumentError("Test toast"),
                 },
             }),
