@@ -86,6 +86,11 @@ function Button(
          * Control how much horizontal padding on this button. Default is `3`.
          */
         paddingX?: "2" | "3";
+
+        /**
+         * How tall is this button? Default is `7`.
+         */
+        height?: "5" | "6" | "7";
     },
     foreignRef: Ref<HTMLButtonElement>,
 ) {
@@ -101,6 +106,7 @@ function Button(
         onPress,
         pressErrorTitle,
         paddingX = "3",
+        height = "7",
     } = props;
     const showToast = useShowToast();
     const localRef = useRef<HTMLButtonElement>(null);
@@ -242,7 +248,7 @@ function Button(
                     display: "flex",
                     justifyContent: "center",
                     alignItems: "center",
-                    height: "7",
+                    height,
                     minWidth: variant !== "quiet" ? "16" : undefined,
                     width: fullWidth ? "full" : undefined,
                     paddingX,

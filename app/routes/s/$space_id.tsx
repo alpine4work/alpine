@@ -5,7 +5,7 @@ import {Box} from "~/client/design/box";
 import {attachDevConsoleForAccountInProduction} from "~/client/dev/dev_console";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {SpaceContextProvider} from "~/client/spaces/space_context";
-import {SpaceTopBar} from "~/client/spaces/space_top_bar";
+import {SpaceLayoutTopBar} from "~/client/spaces/space_layout_top_bar";
 import {getSpace} from "~/server/dynamo/spaces_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
@@ -58,6 +58,13 @@ export async function loader({context, params}: LoaderArgs) {
     return jsonWithSchema(LoaderSchema, {space, currentAccount}, {propagateEventData});
 }
 
+/**
+ * Routes that render under `/s/$space_id` should generally render
+ * `<SpaceRouteScrollView>` as their parent since it contains best practices for
+ * a space route's content area. Ideally we would make it the default but some
+ * routes need to opt-out and manage scrolling on their own
+ * (e.g. virtualized lists).
+ */
 export default function SpaceLayout() {
     const {space, currentAccount} = useLoaderDataWithSchema(LoaderSchema);
 
@@ -80,10 +87,8 @@ export default function SpaceLayout() {
                 position="relative"
                 zIndex="0"
             >
-                <SpaceTopBar space={space} />
-                <Box flexGrow="1" overflow="hidden" position="relative" zIndex="0">
-                    <Outlet />
-                </Box>
+                <SpaceLayoutTopBar space={space} />
+                <Outlet />
             </Box>
         </SpaceContextProvider>
     );

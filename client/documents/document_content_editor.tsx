@@ -1,7 +1,7 @@
 import {ContentEditor} from "~/client/content/content_editor";
+import {documentContentClassName} from "~/client/documents/document_content_view";
 import {useDocumentContentEditorState} from "~/client/documents/internal/document_content_editor_state";
 import {DocumentModel} from "~/shared/models/document_model";
-import {sprinkles} from "~/shared/styles/styles";
 
 export function DocumentContentEditor({document}: {document: DocumentModel}) {
     return (
@@ -24,7 +24,7 @@ function DocumentContentEditorStateful({initialDocument}: {initialDocument: Docu
             onChange={onChangeEditorState}
             aria-label="Document"
             placeholder="Share your ideas…"
-            className={sprinkles({paddingBottom: "24", paddingX: "2", backgroundColor: "grey-0"})}
+            className={documentContentClassName}
             phantomSelections={phantomSelections}
         />
     );

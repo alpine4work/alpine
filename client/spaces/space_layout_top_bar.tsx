@@ -9,7 +9,7 @@ import {SpaceModel} from "~/shared/models/space_model";
 
 // TODO(calebmer): Keyboard shortcuts for everything in top bar
 
-export function SpaceTopBar({space}: {space: SpaceModel}) {
+export function SpaceLayoutTopBar({space}: {space: SpaceModel}) {
     const {currentAccount} = useSpaceContext();
 
     return (
@@ -24,12 +24,11 @@ export function SpaceTopBar({space}: {space: SpaceModel}) {
             alignItems="center"
         >
             <Box
-                flexShrink="0"
                 width="48"
                 display="flex"
                 justifyContent="flex-start"
                 alignItems="center"
-                paddingX="2"
+                paddingX="1"
             >
                 <Button paddingX="2">
                     <Box fontSize="200" fontStyle="truncate-semi-bold">
@@ -39,6 +38,7 @@ export function SpaceTopBar({space}: {space: SpaceModel}) {
             </Box>
             <Box flexGrow="1" display="flex" justifyContent="center" alignItems="center">
                 <Box
+                    minWidth="48"
                     maxWidth="128"
                     width="full"
                     backgroundColor="grey-5"
@@ -53,18 +53,16 @@ export function SpaceTopBar({space}: {space: SpaceModel}) {
                     cursor="text"
                 >
                     <MagnifyingGlass size={spacing["4"]} />
-                    <Box>Search {space.name}…</Box>
+                    <Box fontStyle="truncate">Search {space.name}…</Box>
                 </Box>
             </Box>
             <Box
-                flexShrink="0"
                 width="48"
                 display="flex"
                 justifyContent="flex-end"
                 alignItems="center"
                 gap="1"
-                paddingLeft="2"
-                paddingRight="4"
+                paddingX="2"
             >
                 <IconButton size="md" description="Create" tooltipPlacement="bottom">
                     <Plus />

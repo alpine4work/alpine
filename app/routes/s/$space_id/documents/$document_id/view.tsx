@@ -1,6 +1,7 @@
-import {useId} from "react";
+import {Box} from "~/client/design/box";
 import {DocumentContentView} from "~/client/documents/document_content_view";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
+import {SpaceRouteScrollView} from "~/client/spaces/space_route_scroll_view";
 import {getDocument} from "~/server/dynamo/documents_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
@@ -8,7 +9,6 @@ import {NotFoundError} from "~/shared/error/error";
 import {DocumentId} from "~/shared/id/types/id_types";
 import {DocumentModel} from "~/shared/models/document_model";
 import {Schema} from "~/shared/schema/schema";
-import {sprinkles} from "~/shared/styles/styles";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
 
 const schema = Schema.object({
@@ -29,16 +29,15 @@ export async function loader({params, context}: LoaderArgs) {
 }
 
 export default function DocumentViewRoute() {
-    const id = useId().replace(/:/g, "_");
     const {document} = useLoaderDataWithSchema(schema);
 
-    // TODO(calebmer): Get this to work good...
     return (
-        <main
-            id={id}
-            className={sprinkles({height: "full", backgroundColor: "grey-0", overflowY: "scroll"})}
-        >
-            <DocumentContentView document={document} />
-        </main>
+        <SpaceRouteScrollView>
+            <DocumentContentView
+                // Re-render when the document changes
+                key={document.id}
+                document={document}
+            />
+        </SpaceRouteScrollView>
     );
 }

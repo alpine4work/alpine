@@ -1,3 +1,4 @@
+import {Box} from "~/client/design/box";
 import {ChannelView} from "~/client/forum/channel_view";
 import {postContentViewMinHeight} from "~/client/forum/post_content_view";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
@@ -12,7 +13,6 @@ import {ChannelModel} from "~/shared/models/channel_model";
 import {PostModel} from "~/shared/models/post_model";
 import {getChannelPosts} from "~/shared/rpc/forum_rpc_definitions";
 import {Schema} from "~/shared/schema/schema";
-import {sprinkles} from "~/shared/styles/styles";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
 
 const LoaderSchema = Schema.object({
@@ -51,13 +51,23 @@ export default function ChannelRoute() {
     const {channel, channelPostsResult} = useLoaderDataWithSchema(LoaderSchema);
 
     return (
-        <main className={sprinkles({height: "full"})}>
+        // Strange format to override the `<SpaceLayoutTopBar>` bottom border with a
+        // lighter color since our `<ChannelView>` has a top bar of its own. We use a
+        // lighter border so the two top bars look to be made of the same material.
+        <Box
+            flexGrow="1"
+            overflow="hidden"
+            position="relative"
+            zIndex="20"
+            borderTop="grey-5"
+            style={{height: "calc(100% + 1px)", marginTop: -1}}
+        >
             <ChannelView
                 // Remount when navigating to a different channel.
                 key={channel.id}
                 initialChannel={channel}
                 initialChannelPostsResult={channelPostsResult}
             />
-        </main>
+        </Box>
     );
 }

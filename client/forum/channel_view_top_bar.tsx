@@ -17,6 +17,7 @@ import {
     postViewMaxWidth,
 } from "~/client/forum/post_list_view";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard";
+import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {isContentEmpty} from "~/shared/content/is_content_empty";
 import {MessageContent} from "~/shared/content/message_content_schema";
 import {addRemLengths, spacing} from "~/shared/design/spacing";
@@ -32,6 +33,7 @@ export function ChannelViewTopBar({
     channel: ChannelModel;
     onUpdateChannel: (update: (channel: ChannelModel) => ChannelModel) => void;
 }) {
+    const isMobile = useIsMobile();
     const [shouldShowEditNameModal, setShouldShowEditNameModal] = useState(false);
     const [shouldShowEditDescriptionModal, setShouldShowEditDescriptionModal] = useState(false);
 
@@ -39,6 +41,7 @@ export function ChannelViewTopBar({
         <>
             <Box
                 flexShrink="0"
+                height="10"
                 backgroundColor="grey-0"
                 borderBottom="grey-10"
                 position="relative"
@@ -46,8 +49,8 @@ export function ChannelViewTopBar({
             >
                 <Box
                     width="full"
-                    height="10"
-                    paddingX={postListViewMarginX}
+                    height="full"
+                    paddingX={isMobile ? "1" : postListViewMarginX}
                     marginX="auto"
                     display="flex"
                     alignItems="center"

@@ -1,4 +1,5 @@
 import {useSearchParams} from "react-router-dom";
+import {Box} from "~/client/design/box";
 import {PostView} from "~/client/forum/post_view";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
@@ -9,7 +10,6 @@ import {NotFoundError} from "~/shared/error/error";
 import {PostId} from "~/shared/id/types/id_types";
 import {PostCommentModel, PostModel} from "~/shared/models/post_model";
 import {Schema} from "~/shared/schema/schema";
-import {sprinkles} from "~/shared/styles/styles";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
 
 const schema = Schema.object({
@@ -53,7 +53,7 @@ export default function PostRoute() {
     const postCommentIndex = postCommentIndexString ? parseInt(postCommentIndexString, 10) : null;
 
     return (
-        <main className={sprinkles({height: "full"})}>
+        <Box flexGrow="1" overflow="hidden">
             <PostView
                 // Remount when navigating to a different post.
                 key={post.id}
@@ -62,6 +62,6 @@ export default function PostRoute() {
                 initialOtherReferencedPostComments={otherReferencedPostComments}
                 initialScrollToPostCommentIndex={postCommentIndex}
             />
-        </main>
+        </Box>
     );
 }
