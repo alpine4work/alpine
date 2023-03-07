@@ -1,4 +1,3 @@
-import {Box} from "~/client/design/box";
 import {DocumentContentView} from "~/client/documents/document_content_view";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {SpaceRouteScrollView} from "~/client/spaces/space_route_scroll_view";
