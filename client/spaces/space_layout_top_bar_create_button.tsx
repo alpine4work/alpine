@@ -1,0 +1,165 @@
+import {ChatsCircle, EnvelopeOpen, FileText, IconContext, ListChecks, Plus} from "phosphor-react";
+import {ReactNode} from "react";
+import {useNavigate} from "react-router-dom";
+import {Box} from "~/client/design/box";
+import {IconButton} from "~/client/design/icon_button";
+import {MenuButton} from "~/client/design/menu_button";
+import {useShowToast} from "~/client/design/toast";
+import {useSpaceContext} from "~/client/spaces/space_context";
+import {spacing} from "~/shared/design/spacing";
+import {UnimplementedError} from "~/shared/error/error";
+import {errorDisplayMessage} from "~/shared/error/error_display_message";
+import {generateId} from "~/shared/id/id";
+
+export function SpaceLayoutTopBarCreateButton() {
+    const {space} = useSpaceContext();
+    const navigate = useNavigate();
+    const showToast = useShowToast();
+
+    return (
+        <MenuButton
+            actions={[
+                {
+                    withCustomLayout: true,
+                    onPress: () => {
+                        // TODO(calebmer): I'm implementing this next!
+                    },
+                    render: ({isHovered, isPressed}) => (
+                        <SpaceLayoutTopBarCreateButtonItem
+                            icon={<ChatsCircle />}
+                            label="Send a chat message"
+                            description="Start a conversation with anyone"
+                            isHovered={isHovered}
+                            isPressed={isPressed}
+                        />
+                    ),
+                },
+                {
+                    withCustomLayout: true,
+                    onPress: () => {
+                        showToast({
+                            type: "Error",
+                            title: "Can not find a channel to post in",
+                            error: new UnimplementedError(
+                                "Channel explorer has not been implemented yet",
+                                {
+                                    displayMessage: errorDisplayMessage`Channel explorer has not been implemented yet.`,
+                                },
+                            ),
+                        });
+                    },
+                    render: ({isHovered, isPressed}) => (
+                        <SpaceLayoutTopBarCreateButtonItem
+                            icon={<EnvelopeOpen />}
+                            label="Post in a channel"
+                            description="Share your ideas with everyone"
+                            isHovered={isHovered}
+                            isPressed={isPressed}
+                        />
+                    ),
+                },
+                {
+                    withCustomLayout: true,
+                    onPress: ({onCloseWithoutAnimation}) => {
+                        const documentId = generateId();
+                        navigate(`/s/${space.id}/documents/${documentId}?create`);
+
+                        // TODO(calebmer): Loading state! Though I think I'll be replacing this with
+                        // a peek?
+                        onCloseWithoutAnimation();
+                    },
+                    render: ({isHovered, isPressed}) => (
+                        <SpaceLayoutTopBarCreateButtonItem
+                            icon={<FileText />}
+                            label="Create a document"
+                            description="Write what’s on your mind"
+                            isHovered={isHovered}
+                            isPressed={isPressed}
+                        />
+                    ),
+                },
+                {
+                    withCustomLayout: true,
+                    onPress: () => {
+                        showToast({
+                            type: "Error",
+                            title: "Can not create a task",
+                            error: new UnimplementedError("Tasks have not been implemented yet", {
+                                displayMessage: errorDisplayMessage`Tasks have not been implemented yet.`,
+                            }),
+                        });
+                    },
+                    render: ({isHovered, isPressed}) => (
+                        <SpaceLayoutTopBarCreateButtonItem
+                            icon={<ListChecks />}
+                            label="Create a task"
+                            description="Keep track of work to do later"
+                            isHovered={isHovered}
+                            isPressed={isPressed}
+                        />
+                    ),
+                },
+            ]}
+        >
+            <IconButton size="md" description="Create" tooltipPlacement="bottom">
+                <Plus />
+            </IconButton>
+        </MenuButton>
+    );
+}
+
+function SpaceLayoutTopBarCreateButtonItem({
+    icon,
+    label,
+    description,
+    isHovered,
+    isPressed,
+}: {
+    icon: ReactNode;
+    label: string;
+    description: string;
+    isHovered: boolean;
+    isPressed: boolean;
+}) {
+    return (
+        <Box
+            paddingLeft="3"
+            paddingRight="8"
+            paddingY="3"
+            display="flex"
+            alignItems="center"
+            gap="3"
+        >
+            <Box
+                padding="2"
+                backgroundColor={
+                    isPressed
+                        ? {light: "grey-20", dark: "grey-30"}
+                        : isHovered
+                        ? {light: "grey-10", dark: "grey-20"}
+                        : {light: "grey-5", dark: "grey-10"}
+                }
+                color={isPressed ? "grey-90" : {light: "grey-70", dark: "grey-80"}}
+                borderRadius="full"
+            >
+                <IconContext.Provider
+                    value={{
+                        size: spacing["6"],
+                        weight: "light",
+                        color: "currentColor",
+                    }}
+                >
+                    {icon}
+                </IconContext.Provider>
+            </Box>
+            <Box>
+                <Box fontStyle="semi-bold" fontSize="100" paddingBottom="0.5">
+                    {label}
+                </Box>
+                <Box fontSize="75" color="grey-60">
+                    {description}
+                </Box>
+            </Box>
+        </Box>
+    );
+}

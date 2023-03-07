@@ -19,9 +19,11 @@ import {unwrapResult} from "~/shared/helpers/control/capture_result";
 import {Result} from "~/shared/helpers/control/result";
 import {SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
+import {SpaceModel} from "~/shared/models/space_model";
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions";
 
 const SpaceContext = createContext<{
+    readonly space: SpaceModel;
     readonly currentAccount: AccountModel;
     preloadSpaceAccounts(): void;
 } | null>(null);
@@ -96,11 +98,11 @@ export function useExpensivelyPreloadAllSpaceAccounts() {
 }
 
 export function SpaceContextProvider({
-    spaceId,
+    space,
     currentAccount,
     children,
 }: {
-    spaceId: SpaceId;
+    space: SpaceModel;
     currentAccount: AccountModel;
     children?: ReactNode;
 }) {
@@ -108,21 +110,21 @@ export function SpaceContextProvider({
     const isMounted = useIsMounted();
 
     const [_spaceAccountsState, setSpaceAccountsState] = useState<SpaceAccountsState>({
-        spaceId,
+        spaceId: space.id,
         isLoading: false,
         data: null,
     });
 
     const spaceAccountsState = useMemo(
         () =>
-            _spaceAccountsState.spaceId === spaceId
+            _spaceAccountsState.spaceId === space.id
                 ? _spaceAccountsState
                 : {
-                      spaceId,
+                      spaceId: space.id,
                       isLoading: false,
                       data: null,
                   },
-        [_spaceAccountsState, spaceId],
+        [_spaceAccountsState, space.id],
     );
 
     // If we have different state thanks to props, reflect that back in
@@ -151,7 +153,7 @@ export function SpaceContextProvider({
             if (!isMounted()) return;
 
             setSpaceAccountsState(spaceAccountsState =>
-                spaceAccountsState.spaceId === spaceId &&
+                spaceAccountsState.spaceId === space.id &&
                 !spaceAccountsState.isLoading &&
                 !spaceAccountsState.data
                     ? {...spaceAccountsState, isLoading: true}
@@ -223,8 +225,8 @@ export function SpaceContextProvider({
     return (
         <SpaceContext.Provider
             value={useMemo(
-                () => ({currentAccount, preloadSpaceAccounts}),
-                [currentAccount, preloadSpaceAccounts],
+                () => ({space, currentAccount, preloadSpaceAccounts}),
+                [currentAccount, preloadSpaceAccounts, space],
             )}
         >
             <SpaceAccountsContext.Provider

@@ -6,8 +6,6 @@ import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test
 import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
 import {emptyDocumentContent} from "~/shared/content/document_content_schema";
 import {assert} from "~/shared/helpers/control/assert";
-import {generateId} from "~/shared/id/id";
-import {DocumentId} from "~/shared/id/types/id_types";
 
 const context = createTestContext();
 const server = createTestServer(context);
@@ -24,16 +22,13 @@ test("can search for an account in mention menu", async ({
 }) => {
     assert(viewport);
 
-    const documentId = generateId<DocumentId>();
-
-    await createDocument(context.request(session1), {
-        id: documentId,
+    const document = await createDocument(context.request(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
     await server.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/documents/${documentId}`);
+    await page.goto(`/s/${space.id}/documents/${document.id}`);
 
     await page.getByRole("textbox", {name: "Document"}).focus();
     await page
@@ -67,21 +62,18 @@ test("can see a mention added by another user", async ({
 }) => {
     assert(viewport);
 
-    const documentId = generateId<DocumentId>();
-
-    await createDocument(context.request(session1), {
-        id: documentId,
+    const document = await createDocument(context.request(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
     await server.signIn(browserContext1, session1);
-    await page1.goto(`/s/${space.id}/documents/${documentId}`);
+    await page1.goto(`/s/${space.id}/documents/${document.id}`);
 
     const browserContext2 = await browser.newContext();
     await server.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space.id}/documents/${documentId}`);
+    await page2.goto(`/s/${space.id}/documents/${document.id}`);
 
     await page1.getByRole("textbox", {name: "Document"}).focus();
     await page1

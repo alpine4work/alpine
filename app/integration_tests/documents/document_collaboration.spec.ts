@@ -10,8 +10,6 @@ import {assert} from "~/shared/helpers/control/assert";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
 import {randomInteger} from "~/shared/helpers/number/random_integer";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings";
-import {generateId} from "~/shared/id/id";
-import {DocumentId} from "~/shared/id/types/id_types";
 
 const context = createTestContext();
 const server = createTestServer(context);
@@ -30,21 +28,18 @@ test("can write collaboratively in a document", async ({
 }) => {
     assert(viewport);
 
-    const documentId = generateId<DocumentId>();
-
-    await createDocument(context.request(session1), {
-        id: documentId,
+    const document = await createDocument(context.request(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
     await server.signIn(browserContext1, session1);
-    await page1.goto(`/s/${space.id}/documents/${documentId}`);
+    await page1.goto(`/s/${space.id}/documents/${document.id}`);
 
     const browserContext2 = await browser.newContext();
     await server.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space.id}/documents/${documentId}`);
+    await page2.goto(`/s/${space.id}/documents/${document.id}`);
 
     await page1.getByRole("textbox", {name: "Document"}).focus();
     await page2.getByRole("textbox", {name: "Document"}).focus();
@@ -112,21 +107,18 @@ test("can write collaboratively at the same time in a document", async ({
 }) => {
     assert(viewport);
 
-    const documentId = generateId<DocumentId>();
-
-    await createDocument(context.request(session1), {
-        id: documentId,
+    const document = await createDocument(context.request(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
     await server.signIn(browserContext1, session1);
-    await page1.goto(`/s/${space.id}/documents/${documentId}`);
+    await page1.goto(`/s/${space.id}/documents/${document.id}`);
 
     const browserContext2 = await browser.newContext();
     await server.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space.id}/documents/${documentId}`);
+    await page2.goto(`/s/${space.id}/documents/${document.id}`);
 
     await page1.getByRole("textbox", {name: "Document"}).focus();
     await page2.getByRole("textbox", {name: "Document"}).focus();

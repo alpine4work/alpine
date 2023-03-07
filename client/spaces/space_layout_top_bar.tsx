@@ -1,4 +1,4 @@
-import {Bell, MagnifyingGlass, Plus} from "phosphor-react";
+import {Bell, MagnifyingGlass} from "phosphor-react";
 import {useNavigate} from "react-router-dom";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {Box} from "~/client/design/box";
@@ -7,6 +7,7 @@ import {IconButton} from "~/client/design/icon_button";
 import {MenuButton} from "~/client/design/menu_button";
 import {useShowToast} from "~/client/design/toast";
 import {useSpaceContext} from "~/client/spaces/space_context";
+import {SpaceLayoutTopBarCreateButton} from "~/client/spaces/space_layout_top_bar_create_button";
 import {spacing} from "~/shared/design/spacing";
 import {UnimplementedError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
@@ -15,9 +16,7 @@ import {SpaceModel} from "~/shared/models/space_model";
 // TODO(calebmer): Keyboard shortcuts for everything in top bar
 
 export function SpaceLayoutTopBar({space}: {space: SpaceModel}) {
-    const navigate = useNavigate();
     const showToast = useShowToast();
-    const {currentAccount} = useSpaceContext();
 
     return (
         <Box
@@ -94,49 +93,61 @@ export function SpaceLayoutTopBar({space}: {space: SpaceModel}) {
                 gap="1"
                 paddingX="2"
             >
-                <IconButton size="md" description="Create" tooltipPlacement="bottom">
-                    <Plus />
-                </IconButton>
-                <IconButton
-                    size="md"
-                    description="Notifications"
-                    tooltipPlacement="bottom"
-                    onPress={() => {
-                        showToast({
-                            type: "Error",
-                            title: "Can not open notifications",
-                            error: new UnimplementedError(
-                                "Notifications have not been implemented yet",
-                                {
-                                    displayMessage: errorDisplayMessage`Notifications have not been implemented yet. Implementation is planned to start April 3, 2023.`,
-                                },
-                            ),
-                        });
-                    }}
-                >
-                    <Bell />
-                </IconButton>
+                <SpaceLayoutTopBarCreateButton />
+                <SpaceLayoutTopBarNotificationsButton />
                 <Box paddingLeft="1">
-                    <MenuButton
-                        placement="bottom-end"
-                        actions={[
-                            {
-                                label: "Sign out",
-                                onPress: () => navigate("/sign-out"),
-                            },
-                        ]}
-                    >
-                        <IconButton
-                            size="md"
-                            variant="accent"
-                            description="Account"
-                            tooltipPlacement="bottom-end"
-                        >
-                            <AccountAvatar account={currentAccount} size="6" />
-                        </IconButton>
-                    </MenuButton>
+                    <SpaceLayoutTopBarAccountButton />
                 </Box>
             </Box>
         </Box>
+    );
+}
+
+function SpaceLayoutTopBarNotificationsButton() {
+    const showToast = useShowToast();
+
+    return (
+        <IconButton
+            size="md"
+            description="Notifications"
+            tooltipPlacement="bottom"
+            onPress={() => {
+                showToast({
+                    type: "Error",
+                    title: "Can not open notifications",
+                    error: new UnimplementedError("Notifications have not been implemented yet", {
+                        displayMessage: errorDisplayMessage`Notifications have not been implemented yet. Implementation is planned to start April 3, 2023.`,
+                    }),
+                });
+            }}
+        >
+            <Bell />
+        </IconButton>
+    );
+}
+
+function SpaceLayoutTopBarAccountButton() {
+    const navigate = useNavigate();
+    const {currentAccount} = useSpaceContext();
+
+    return (
+        <MenuButton
+            placement="bottom-end"
+            actions={[
+                {
+                    label: "Sign out",
+                    onPress: () => navigate("/sign-out"),
+                },
+            ]}
+        >
+            <IconButton
+                size="md"
+                variant="accent"
+                description="Account"
+                tooltipPlacement="bottom-end"
+            >
+                <AccountAvatar account={currentAccount} size="6" />
+            </IconButton>
+        </MenuButton>
     );
 }

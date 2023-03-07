@@ -29,7 +29,6 @@ import {
 import {ProcessContextModule} from "~/shared/context/process_context_module";
 import {assert} from "~/shared/helpers/control/assert";
 import {generateId} from "~/shared/id/id";
-import {DocumentId} from "~/shared/id/types/id_types";
 
 const context = createTestContext();
 const space = createTestSpace(context);
@@ -53,10 +52,7 @@ afterEach(() => {
 test(
     "snapshot updates after many steps committed individually",
     async () => {
-        const documentId = generateId<DocumentId>();
-
-        await createDocument(context.request(session), {
-            id: documentId,
+        const {id: documentId} = await createDocument(context.request(session), {
             spaceId: space.id,
             content: emptyDocumentContent,
         });
@@ -173,10 +169,7 @@ test(
 test(
     "snapshot updates after many steps committed at once",
     async () => {
-        const documentId = generateId<DocumentId>();
-
-        await createDocument(context.request(session), {
-            id: documentId,
+        const {id: documentId} = await createDocument(context.request(session), {
             spaceId: space.id,
             content: emptyDocumentContent,
         });
@@ -252,10 +245,7 @@ test(
 test(
     "can read document while in the middle of updating a snapshot",
     async () => {
-        const documentId = generateId<DocumentId>();
-
-        await createDocument(context.request(session), {
-            id: documentId,
+        const {id: documentId} = await createDocument(context.request(session), {
             spaceId: space.id,
             content: emptyDocumentContent,
         });
@@ -328,10 +318,7 @@ test(
 test(
     "can update document at a version before the document snapshot",
     async () => {
-        const documentId = generateId<DocumentId>();
-
-        await createDocument(context.request(session), {
-            id: documentId,
+        const {id: documentId} = await createDocument(context.request(session), {
             spaceId: space.id,
             content: emptyDocumentContent,
         });

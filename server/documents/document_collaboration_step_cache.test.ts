@@ -15,7 +15,6 @@ import {
 } from "~/shared/content/document_content_schema";
 import {FailedPreconditionError} from "~/shared/error/error";
 import {generateId} from "~/shared/id/id";
-import {DocumentId} from "~/shared/id/types/id_types";
 
 const context = createTestContext();
 const space = createTestSpace(context);
@@ -31,10 +30,7 @@ function massageSteps(steps: Array<{step: Step}>) {
 }
 
 test("fails when the end version is greater than the last end version to be passed in", async () => {
-    const id = generateId<DocumentId>();
-
-    await createDocument(context.request(session), {
-        id,
+    const {id} = await createDocument(context.request(session), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -69,10 +65,7 @@ test("fails when the end version is greater than the last end version to be pass
 });
 
 test("gets the correct steps", async () => {
-    const id = generateId<DocumentId>();
-
-    await createDocument(context.request(session), {
-        id,
+    const {id} = await createDocument(context.request(session), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -136,10 +129,7 @@ test("gets the correct steps", async () => {
 });
 
 test("gets the correct steps in the fewest database reads", async () => {
-    const id = generateId<DocumentId>();
-
-    await createDocument(context.request(session), {
-        id,
+    const {id} = await createDocument(context.request(session), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -245,10 +235,7 @@ test("gets the correct steps in the fewest database reads", async () => {
 });
 
 test("gets the correct steps in the fewest database reads even when reading in parallel", async () => {
-    const id = generateId<DocumentId>();
-
-    await createDocument(context.request(session), {
-        id,
+    const {id} = await createDocument(context.request(session), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });

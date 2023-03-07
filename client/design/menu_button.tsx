@@ -2,6 +2,7 @@ import {setInteractionModality} from "@react-aria/interactions";
 import {SpinnerGap} from "phosphor-react";
 import React, {
     ReactElement,
+    ReactNode,
     Ref,
     createRef,
     forwardRef,
@@ -52,7 +53,9 @@ import {
 /**
  * A single action in a menu.
  */
-export type MenuAction = {
+export type MenuAction = MenuStandardAction | MenuCustomAction;
+
+type MenuStandardAction = {
     /**
      * What label do we present to the user for this action?
      *
@@ -91,6 +94,42 @@ export type MenuAction = {
      * [1]: https://spectrum.adobe.com/page/writing-for-errors
      */
     readonly pressErrorTitle?: string;
+
+    readonly withCustomLayout?: undefined;
+};
+
+type MenuCustomAction = {
+    /**
+     * If the standard action props are not enough for you then you can provide
+     * your own, custom, React renderer for menu actions.
+     *
+     * However, doing so means you lose some standard functionality! Including:
+     *
+     * - Automatic error state and loading state support
+     * - Search for action by name by pressing letter keys (e.g. "e" jumps you
+     *   to "Edit")
+     * - Disabled states
+     *
+     * Otherwise custom menu actions still have correct accessibility properties
+     * and can be keyboard navigated.
+     */
+    readonly withCustomLayout: true;
+
+    /**
+     * Called when this action is activated either by mouse or by keyboard.
+     *
+     * Does not have automatic handling for error states and loading states! You
+     * need to add this in yourself.
+     */
+    readonly onPress: (props: {
+        onCloseWithAnimation: () => void;
+        onCloseWithoutAnimation: () => void;
+    }) => void;
+
+    /**
+     * Custom renderer for your menu action.
+     */
+    readonly render: (props: {isPressed: boolean; isHovered: boolean}) => ReactNode;
 };
 
 type MenuButtonState =
@@ -609,6 +648,7 @@ const Menu = forwardRef(function Menu(
                                 const nextSearchText = searchText + event.key;
                                 const nextIndex = actions.findIndex(
                                     action =>
+                                        !action.withCustomLayout &&
                                         action.label
                                             .slice(0, nextSearchText.length)
                                             .toLowerCase() === nextSearchText.toLowerCase(),
@@ -622,7 +662,7 @@ const Menu = forwardRef(function Menu(
                 }}
             >
                 <Box
-                    width="32"
+                    minWidth="32"
                     borderRadius="md"
                     padding="1"
                     backgroundColor={{light: "grey-0", dark: "grey-5"}}
@@ -665,6 +705,21 @@ const MenuItem = forwardRef(function MenuItem(
     },
     ref: Ref<HTMLDivElement>,
 ) {
+    const id = useId();
+
+    if (action.withCustomLayout) {
+        return (
+            <MenuCustomButton
+                menuItemRef={ref}
+                menuItemId={id}
+                action={action}
+                isFadingOut={isFadingOut}
+                onCloseWithAnimation={onCloseWithAnimation}
+                onCloseWithoutAnimation={onCloseWithoutAnimation}
+            />
+        );
+    }
+
     if (action.disabledReason !== undefined) {
         return (
             <Tooltip
@@ -678,8 +733,9 @@ const MenuItem = forwardRef(function MenuItem(
                 content={action.disabledReason}
             >
                 {({skipHoverDelay}) => (
-                    <MenuButtonInner
-                        innerRef={ref}
+                    <MenuStandardButton
+                        menuItemRef={ref}
+                        menuItemId={id}
                         action={action}
                         isFadingOut={isFadingOut}
                         onCloseWithAnimation={onCloseWithAnimation}
@@ -691,8 +747,9 @@ const MenuItem = forwardRef(function MenuItem(
         );
     } else {
         return (
-            <MenuButtonInner
-                innerRef={ref}
+            <MenuStandardButton
+                menuItemRef={ref}
+                menuItemId={id}
                 action={action}
                 isFadingOut={isFadingOut}
                 onCloseWithAnimation={onCloseWithAnimation}
@@ -702,23 +759,24 @@ const MenuItem = forwardRef(function MenuItem(
     }
 });
 
-function MenuButtonInner({
-    innerRef,
+function MenuStandardButton({
+    menuItemRef,
+    menuItemId,
     action,
     isFadingOut,
     onCloseWithAnimation,
     onCloseWithoutAnimation,
     skipTooltipHoverDelay,
 }: {
-    innerRef: Ref<HTMLDivElement>;
-    action: MenuAction;
+    menuItemRef: Ref<HTMLDivElement>;
+    menuItemId: string;
+    action: MenuStandardAction;
     isFadingOut: boolean;
     onCloseWithAnimation: () => void;
     onCloseWithoutAnimation: () => void;
     skipTooltipHoverDelay?: () => void;
 }) {
     const showToast = useShowToast();
-    const menuItemId = useId();
     const [pendingState, setPendingState] = useState<
         | {isPending: false; shouldShowPendingSpinner: false}
         | {isPending: true; shouldShowPendingSpinner: boolean}
@@ -826,7 +884,7 @@ function MenuButtonInner({
         <FocusRing offset="0">
             <Box
                 {...mergeProps(hoverProps, pressProps)}
-                ref={innerRef}
+                ref={menuItemRef}
                 id={menuItemId}
                 role="menuitem"
                 // Each item in the menu has `tabindex` set to -1. (Even disabled items
@@ -834,6 +892,7 @@ function MenuButtonInner({
                 //
                 // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
                 tabIndex={-1}
+                width="32"
                 paddingX="2"
                 paddingY="1"
                 borderRadius="base"
@@ -862,6 +921,64 @@ function MenuButtonInner({
                         <SpinnerGap className={spinAnimationClassName} size={spacing["4"]} />
                     </Box>
                 )}
+            </Box>
+        </FocusRing>
+    );
+}
+
+function MenuCustomButton({
+    menuItemRef,
+    menuItemId,
+    action,
+    isFadingOut,
+    onCloseWithAnimation,
+    onCloseWithoutAnimation,
+}: {
+    menuItemRef: Ref<HTMLDivElement>;
+    menuItemId: string;
+    action: MenuCustomAction;
+    isFadingOut: boolean;
+    onCloseWithAnimation: () => void;
+    onCloseWithoutAnimation: () => void;
+}) {
+    const {isPressed, pressProps} = usePress({
+        isDisabled: isFadingOut,
+        onPress: () => action.onPress({onCloseWithAnimation, onCloseWithoutAnimation}),
+    });
+
+    const {isHovered, hoverProps} = useHover({
+        // When the mouse hovers over a menu item, we focus it so if the user
+        // then uses the keyboard (presses enter or an arrow key) we navigate
+        // using the hovered menu item.
+        onHoverStart: event => event.target.focus(),
+        onHoverEnd: event => event.target.blur(),
+    });
+
+    return (
+        <FocusRing offset="0">
+            <Box
+                {...mergeProps(hoverProps, pressProps)}
+                ref={menuItemRef}
+                id={menuItemId}
+                role="menuitem"
+                // Each item in the menu has `tabindex` set to -1. (Even disabled items
+                // are focusable.)
+                //
+                // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
+                tabIndex={-1}
+                borderRadius="base"
+                backgroundColor={
+                    isPressed
+                        ? {light: "grey-10", dark: "grey-20"}
+                        : isHovered
+                        ? {light: "grey-5", dark: "grey-10"}
+                        : undefined
+                }
+            >
+                {action.render({
+                    isPressed,
+                    isHovered,
+                })}
             </Box>
         </FocusRing>
     );

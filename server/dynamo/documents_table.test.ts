@@ -72,7 +72,6 @@ afterEach(() => {
 
 test("creates a document", async () => {
     await createDocument(context.request(session), {
-        id: generateId(),
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -103,8 +102,6 @@ test("can not create a document with the same id twice", async () => {
 });
 
 test("can not create a document with invalid format", async () => {
-    const id = generateId<DocumentId>();
-
     const content = schema.nodes.doc.create({}, [
         schema.nodes.title.create({}, [schema.text("Foo bar")]),
         schema.nodes.unorderedListItem.create({}, [schema.text("Hello, world!")]),
@@ -113,7 +110,6 @@ test("can not create a document with invalid format", async () => {
 
     await expect(
         createDocument(context.request(session), {
-            id,
             spaceId: space.id,
             content,
         }),
@@ -161,16 +157,13 @@ test("can not idempotently create a document twice if the content is different",
 });
 
 test("can read a created document", async () => {
-    const documentId = generateId<DocumentId>();
-
     const content = schema.node("doc", {}, [
         schema.node("title", {}, [schema.text("Foo bar")]),
         schema.node("paragraph", {}, [schema.text("Hello, world!")]),
     ]);
     assert(isDocumentContent(content));
 
-    await createDocument(context.request(session), {
-        id: documentId,
+    const {id: documentId} = await createDocument(context.request(session), {
         spaceId: space.id,
         content,
     });
@@ -189,10 +182,7 @@ test("can read a created document", async () => {
 });
 
 test("can update a document with a single step", async () => {
-    const documentId = generateId<DocumentId>();
-
-    await createDocument(context.request(session), {
-        id: documentId,
+    const {id: documentId} = await createDocument(context.request(session), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -250,10 +240,7 @@ test("can update a document with a single step", async () => {
 });
 
 test("can update a document with multiple steps", async () => {
-    const documentId = generateId<DocumentId>();
-
-    await createDocument(context.request(session), {
-        id: documentId,
+    const {id: documentId} = await createDocument(context.request(session), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -298,10 +285,7 @@ test("can update a document with multiple steps", async () => {
 });
 
 test("can not update a document if the version is greater than the current version", async () => {
-    const documentId = generateId<DocumentId>();
-
-    await createDocument(context.request(session), {
-        id: documentId,
+    const {id: documentId} = await createDocument(context.request(session), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -344,10 +328,7 @@ test("can not update a document if the version is greater than the current versi
 });
 
 test("can update a document if the version is one less than the current version", async () => {
-    const documentId = generateId<DocumentId>();
-
-    await createDocument(context.request(session), {
-        id: documentId,
+    const {id: documentId} = await createDocument(context.request(session), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -405,10 +386,7 @@ test("can update a document if the version is one less than the current version"
 });
 
 test("can update a document if the version is many steps behind the current version", async () => {
-    const documentId = generateId<DocumentId>();
-
-    await createDocument(context.request(session), {
-        id: documentId,
+    const {id: documentId} = await createDocument(context.request(session), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -487,10 +465,7 @@ test("can update a document if the version is many steps behind the current vers
 });
 
 test("can update a document with many steps if the version is one less than the current version", async () => {
-    const documentId = generateId<DocumentId>();
-
-    await createDocument(context.request(session), {
-        id: documentId,
+    const {id: documentId} = await createDocument(context.request(session), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -553,10 +528,7 @@ test("can update a document with many steps if the version is one less than the 
 });
 
 test("can update a document with many steps if the version is many steps behind the current version", async () => {
-    const documentId = generateId<DocumentId>();
-
-    await createDocument(context.request(session), {
-        id: documentId,
+    const {id: documentId} = await createDocument(context.request(session), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -640,10 +612,7 @@ test("can update a document with many steps if the version is many steps behind 
 });
 
 test("when two document updates race the loser will rebase", async () => {
-    const documentId = generateId<DocumentId>();
-
-    await createDocument(context.request(session), {
-        id: documentId,
+    const {id: documentId} = await createDocument(context.request(session), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -723,10 +692,7 @@ test("when two document updates race the loser will rebase", async () => {
 });
 
 test("can not apply an invalid step", async () => {
-    const documentId = generateId<DocumentId>();
-
-    await createDocument(context.request(session), {
-        id: documentId,
+    const {id: documentId} = await createDocument(context.request(session), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -769,10 +735,7 @@ test("can not apply an invalid step", async () => {
 });
 
 test("can not apply an invalid step even when rebasing", async () => {
-    const documentId = generateId<DocumentId>();
-
-    await createDocument(context.request(session), {
-        id: documentId,
+    const {id: documentId} = await createDocument(context.request(session), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -832,10 +795,7 @@ test("can not apply an invalid step even when rebasing", async () => {
 });
 
 test("a single rebased step may end up as a noop", async () => {
-    const documentId = generateId<DocumentId>();
-
-    await createDocument(context.request(session), {
-        id: documentId,
+    const {id: documentId} = await createDocument(context.request(session), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -893,10 +853,7 @@ test("a single rebased step may end up as a noop", async () => {
 });
 
 test("many rebased steps may end up as a noop", async () => {
-    const documentId = generateId<DocumentId>();
-
-    await createDocument(context.request(session), {
-        id: documentId,
+    const {id: documentId} = await createDocument(context.request(session), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -958,10 +915,7 @@ test("many rebased steps may end up as a noop", async () => {
 });
 
 test("some rebased steps may end up as a noop", async () => {
-    const documentId = generateId<DocumentId>();
-
-    await createDocument(context.request(session), {
-        id: documentId,
+    const {id: documentId} = await createDocument(context.request(session), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -1023,10 +977,7 @@ test("some rebased steps may end up as a noop", async () => {
 });
 
 test("reads the document on first update but not on subsequent updates", async () => {
-    const documentId = generateId<DocumentId>();
-
-    await createDocument(context.request(session), {
-        id: documentId,
+    const {id: documentId} = await createDocument(context.request(session), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -1162,10 +1113,7 @@ test("won't cache a document that doesn't exist when updating", async () => {
 });
 
 test("can't read a corrupted document", async () => {
-    const documentId = generateId<DocumentId>();
-
-    await createDocument(context.request(session), {
-        id: documentId,
+    const {id: documentId} = await createDocument(context.request(session), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -1182,10 +1130,7 @@ test("can't read a corrupted document", async () => {
 });
 
 test("can't update a corrupted document", async () => {
-    const documentId = generateId<DocumentId>();
-
-    await createDocument(context.request(session), {
-        id: documentId,
+    const {id: documentId} = await createDocument(context.request(session), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -1207,10 +1152,7 @@ test("can't update a corrupted document", async () => {
 });
 
 test("won't cache a corrupted document while updating", async () => {
-    const documentId = generateId<DocumentId>();
-
-    await createDocument(context.request(session), {
-        id: documentId,
+    const {id: documentId} = await createDocument(context.request(session), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -1248,10 +1190,7 @@ test("won't cache a corrupted document while updating", async () => {
 });
 
 test("updates made in parallel will only read the document once", async () => {
-    const documentId = generateId<DocumentId>();
-
-    await createDocument(context.request(session), {
-        id: documentId,
+    const {id: documentId} = await createDocument(context.request(session), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -1314,10 +1253,7 @@ test("updates made in parallel will only read the document once", async () => {
 });
 
 test("if a document was deleted in the database then the cache will pick that up", async () => {
-    const documentId = generateId<DocumentId>();
-
-    await createDocument(context.request(session), {
-        id: documentId,
+    const {id: documentId} = await createDocument(context.request(session), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -1355,10 +1291,7 @@ test("if a document was deleted in the database then the cache will pick that up
 });
 
 test("updates may happen with different caches", async () => {
-    const documentId = generateId<DocumentId>();
-
-    await createDocument(context.request(session), {
-        id: documentId,
+    const {id: documentId} = await createDocument(context.request(session), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -1497,10 +1430,7 @@ test("updates may happen with different caches", async () => {
 });
 
 test("reads the document again after an expiration timer fires", async () => {
-    const documentId = generateId<DocumentId>();
-
-    await createDocument(context.request(session), {
-        id: documentId,
+    const {id: documentId} = await createDocument(context.request(session), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -1596,10 +1526,7 @@ test("reads the document again after an expiration timer fires", async () => {
 });
 
 test("resets the timer eviction timer on every update", async () => {
-    const documentId = generateId<DocumentId>();
-
-    await createDocument(context.request(session), {
-        id: documentId,
+    const {id: documentId} = await createDocument(context.request(session), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -1753,10 +1680,7 @@ test("resets the timer eviction timer on every update", async () => {
 });
 
 test("updates the document title whenever it changes", async () => {
-    const documentId = generateId<DocumentId>();
-
-    await createDocument(context.request(session), {
-        id: documentId,
+    const {id: documentId} = await createDocument(context.request(session), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -1957,10 +1881,7 @@ test("updates the document title whenever it changes", async () => {
 });
 
 test("resolves a conflict when typing in deleted content", async () => {
-    const documentId = generateId<DocumentId>();
-
-    await createDocument(context.request(session), {
-        id: documentId,
+    const {id: documentId} = await createDocument(context.request(session), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -2012,10 +1933,7 @@ test("resolves a conflict when typing in deleted content", async () => {
 });
 
 test("resolves a conflict when typing in deleted content and the delete action itself was a conflict", async () => {
-    const documentId = generateId<DocumentId>();
-
-    await createDocument(context.request(session), {
-        id: documentId,
+    const {id: documentId} = await createDocument(context.request(session), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -2090,10 +2008,7 @@ test("resolves a conflict when typing in deleted content and the delete action i
 });
 
 test("can read steps in a single transaction with many steps", async () => {
-    const documentId = generateId<DocumentId>();
-
-    await createDocument(context.request(session), {
-        id: documentId,
+    const {id: documentId} = await createDocument(context.request(session), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -2190,10 +2105,7 @@ test("can read steps in a single transaction with many steps", async () => {
 });
 
 test("can read steps in individual transactions of single steps", async () => {
-    const documentId = generateId<DocumentId>();
-
-    await createDocument(context.request(session), {
-        id: documentId,
+    const {id: documentId} = await createDocument(context.request(session), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -2313,10 +2225,7 @@ test("can read steps in individual transactions of single steps", async () => {
 });
 
 test("can read steps in a couple multi-step transactions", async () => {
-    const documentId = generateId<DocumentId>();
-
-    await createDocument(context.request(session), {
-        id: documentId,
+    const {id: documentId} = await createDocument(context.request(session), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -2418,8 +2327,6 @@ test("can read steps in a couple multi-step transactions", async () => {
 });
 
 test("can not create a document in a different space", async () => {
-    const documentId = generateId<DocumentId>();
-
     const content = schema.node("doc", {}, [
         schema.node("title", {}, [schema.text("Foo bar")]),
         schema.node("paragraph", {}, [schema.text("Hello, world!")]),
@@ -2428,7 +2335,6 @@ test("can not create a document in a different space", async () => {
 
     await expect(
         createDocument(context.request(otherSession), {
-            id: documentId,
             spaceId: space.id,
             content,
         }),
@@ -2436,16 +2342,13 @@ test("can not create a document in a different space", async () => {
 });
 
 test("can not read a created document in a different space", async () => {
-    const documentId = generateId<DocumentId>();
-
     const content = schema.node("doc", {}, [
         schema.node("title", {}, [schema.text("Foo bar")]),
         schema.node("paragraph", {}, [schema.text("Hello, world!")]),
     ]);
     assert(isDocumentContent(content));
 
-    await createDocument(context.request(otherSession), {
-        id: documentId,
+    const {id: documentId} = await createDocument(context.request(otherSession), {
         spaceId: otherSpace.id,
         content,
     });
@@ -2459,10 +2362,7 @@ test("can not read a created document in a different space", async () => {
 });
 
 test("can not update a document in a different space", async () => {
-    const documentId = generateId<DocumentId>();
-
-    await createDocument(context.request(otherSession), {
-        id: documentId,
+    const {id: documentId} = await createDocument(context.request(otherSession), {
         spaceId: otherSpace.id,
         content: emptyDocumentContent,
     });
@@ -2485,10 +2385,7 @@ test("can not update a document in a different space", async () => {
 });
 
 test("can not update a cached document in a different space", async () => {
-    const documentId = generateId<DocumentId>();
-
-    await createDocument(context.request(otherSession), {
-        id: documentId,
+    const {id: documentId} = await createDocument(context.request(otherSession), {
         spaceId: otherSpace.id,
         content: emptyDocumentContent,
     });
@@ -2531,10 +2428,7 @@ test("can not update a cached document in a different space", async () => {
 });
 
 test("can update a cached document after rejecting an update in a different space", async () => {
-    const documentId = generateId<DocumentId>();
-
-    await createDocument(context.request(otherSession), {
-        id: documentId,
+    const {id: documentId} = await createDocument(context.request(otherSession), {
         spaceId: otherSpace.id,
         content: emptyDocumentContent,
     });
@@ -2575,10 +2469,7 @@ test("can update a cached document after rejecting an update in a different spac
 
 test("can not update a document with an invalid step", async () => {
     {
-        const id = generateId<DocumentId>();
-
-        await createDocument(context.request(session), {
-            id,
+        const {id} = await createDocument(context.request(session), {
             spaceId: space.id,
             content: emptyDocumentContent,
         });
@@ -2618,10 +2509,7 @@ test("can not update a document with an invalid step", async () => {
     }
 
     {
-        const id = generateId<DocumentId>();
-
-        await createDocument(context.request(session), {
-            id,
+        const {id} = await createDocument(context.request(session), {
             spaceId: space.id,
             content: emptyDocumentContent,
         });
@@ -2655,10 +2543,7 @@ test("can not update a document with an invalid step", async () => {
 
 test("can not update a document such that it would have invalid content", async () => {
     {
-        const id = generateId<DocumentId>();
-
-        await createDocument(context.request(session), {
-            id,
+        const {id} = await createDocument(context.request(session), {
             spaceId: space.id,
             content: emptyDocumentContent,
         });
@@ -2715,10 +2600,7 @@ test("can not update a document such that it would have invalid content", async 
     }
 
     {
-        const id = generateId<DocumentId>();
-
-        await createDocument(context.request(session), {
-            id,
+        const {id} = await createDocument(context.request(session), {
             spaceId: space.id,
             content: emptyDocumentContent,
         });
@@ -2770,10 +2652,7 @@ test("can not update a document such that it would have invalid content", async 
 });
 
 test("can not update a document with an invalid step even when there is a concurrent update", async () => {
-    const id = generateId<DocumentId>();
-
-    await createDocument(context.request(session), {
-        id,
+    const {id} = await createDocument(context.request(session), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -2810,10 +2689,7 @@ test("can not update a document with an invalid step even when there is a concur
 });
 
 test("can not update a document such that it would have invalid content even when there is a concurrent update", async () => {
-    const id = generateId<DocumentId>();
-
-    await createDocument(context.request(session), {
-        id,
+    const {id} = await createDocument(context.request(session), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });

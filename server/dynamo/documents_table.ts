@@ -33,6 +33,7 @@ import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {clamp} from "~/shared/helpers/number/clamp";
 import {Replace} from "~/shared/helpers/types/replace";
+import {generateId} from "~/shared/id/id";
 import {ContentEditorClientId, DocumentId, SpaceId} from "~/shared/id/types/id_types";
 import {
     DocumentModel,
@@ -247,9 +248,24 @@ type DocumentSnapshotItem = DynamoTableItemType<typeof DocumentsTable, "Document
  */
 export async function createDocument(
     context: RequestContext,
-    {id, spaceId, content}: {id: DocumentId; spaceId: SpaceId; content: DocumentContent},
-) {
+    {
+        id = generateId<DocumentId>(),
+        spaceId,
+        content,
+    }: {
+        id?: DocumentId;
+        spaceId: SpaceId;
+        content: DocumentContent;
+    },
+): Promise<{
+    id: DocumentId;
+    createdTime: Date;
+    version: number;
+}> {
     await authorizeSpaceAccess(context, spaceId);
+
+    const createdTime = new Date();
+    const version = 0;
 
     await DynamoTableSchema.executeTransaction(
         context,
@@ -257,17 +273,17 @@ export async function createDocument(
             DocumentsTable.transactionCreateItem({
                 partitionType: "Document",
                 sortRangeType: "Attributes",
-                createdTime: new Date(),
+                createdTime,
                 spaceId,
                 documentId: id,
-                version: 0,
+                version,
                 titleWithoutFallback: getDocumentContentTitleWithoutFallback(content),
             }),
             DocumentsTable.transactionCreateOrReplaceItem({
                 partitionType: "Document",
                 documentId: id,
                 sortRangeType: "Snapshot",
-                version: 0,
+                version,
                 content,
             }),
         ],
@@ -275,6 +291,12 @@ export async function createDocument(
             clientRequestToken: id,
         },
     );
+
+    return {
+        id,
+        createdTime,
+        version,
+    };
 }
 
 /**

@@ -76,7 +76,7 @@ export default function SpaceLayout() {
         <SpaceContextProvider
             // Re-render everything when the space changes.
             key={space.id}
-            spaceId={space.id}
+            space={space}
             currentAccount={currentAccount}
         >
             <Box
