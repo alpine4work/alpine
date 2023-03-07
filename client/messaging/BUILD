@@ -16,6 +16,7 @@ ts_project(
         "//client/spaces",
         "//client/virtualized",
         "//shared/helpers",
+        "//shared/messaging",
         "//shared/models",
         "//shared/remix",
     ],

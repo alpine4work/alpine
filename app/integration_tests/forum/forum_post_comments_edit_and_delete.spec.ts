@@ -286,9 +286,14 @@ test("can see a post comment deleted in realtime", async ({
         .getByRole("button", {name: "More"})
         .press("Enter");
 
+    await expect(page2.getByRole("menuitem", {name: "Delete"})).toBeVisible();
+    await expect(page2.getByRole("alertdialog", {name: "Delete comment"})).toBeHidden();
     await page2.getByRole("menuitem", {name: "Delete"}).click();
+    await expect(page2.getByRole("menuitem", {name: "Delete"})).toBeHidden();
     await expect(page2.getByRole("alertdialog", {name: "Delete comment"})).toBeVisible();
     await page2.getByRole("button", {name: "Delete"}).click();
+    await expect(page2.getByRole("menuitem", {name: "Delete"})).toBeHidden();
+    await expect(page2.getByRole("alertdialog", {name: "Delete comment"})).toBeHidden();
 
     await expect(page1.getByText("1 comment")).toBeVisible();
     await expect(getAvatarInPileByInitials(page1, "SR")).toBeVisible();
