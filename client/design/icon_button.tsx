@@ -35,7 +35,7 @@ function IconButton(
         description: string;
 
         /**
-         * A keybord shortcut that will display alongside the description in the tooltip.
+         * A keyboard shortcut that will display alongside the description in the tooltip.
          */
         keyboardShortcutHint?: ReactNode;
 
@@ -75,6 +75,12 @@ function IconButton(
          * Defaults to `1.5`.
          */
         tooltipOffset?: Spacing;
+
+        /**
+         * Override the icon button's tooltip content. By default we use
+         * the `description`. Optionally including a `keyboardShortcutHint`.
+         */
+        tooltipContentOverride?: ReactNode;
     },
     foreignRef: Ref<HTMLButtonElement>,
 ) {
@@ -89,6 +95,7 @@ function IconButton(
         withoutTooltip = false,
         tooltipPlacement = "bottom-start",
         tooltipOffset = defaultTooltipOffset,
+        tooltipContentOverride,
     } = props;
     const localRef = useRef<HTMLButtonElement>(null);
     const showToast = useShowToast();
@@ -176,7 +183,8 @@ function IconButton(
             placement={tooltipPlacement}
             offset={tooltipOffset}
             content={
-                keyboardShortcutHint ? (
+                tooltipContentOverride ??
+                (keyboardShortcutHint ? (
                     <Box display="flex" alignItems="center" gap="1">
                         <Box>{description}</Box>
                         <Box color="grey-50">
@@ -192,7 +200,7 @@ function IconButton(
                     </Box>
                 ) : (
                     description
-                )
+                ))
             }
             isDisabled={isDisabled || withoutTooltip}
         >

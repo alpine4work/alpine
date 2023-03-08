@@ -15,6 +15,7 @@ import {IconButton} from "~/client/design/icon_button";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {InternalError} from "~/shared/error/error";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
@@ -33,11 +34,13 @@ type PeekStackState = {
     readonly stack: ReadonlyArray<PeekStackEntry>;
     readonly unmountedStartStackIndex: number;
     readonly unmountingStack: ReadonlyArray<PeekStackEntry>;
+    readonly isUnmountingAll: boolean;
 };
 
 type PeekStackAction =
     | PeekStackPushAction
     | PeekStackPopAction
+    | PeekStackPopAllAction
     | PeekStackSetUnmountedStart
     | PeekStackFinishUnmounting;
 
@@ -48,6 +51,10 @@ type PeekStackPushAction = {
 
 type PeekStackPopAction = {
     readonly type: "Pop";
+};
+
+type PeekStackPopAllAction = {
+    readonly type: "PopAll";
 };
 
 type PeekStackSetUnmountedStart = {
@@ -82,6 +89,12 @@ function reducePeekStackState(state: PeekStackState, action: PeekStackAction): P
                 unmountingStack: [state.stack[0], ...state.unmountingStack],
             };
         }
+        case "PopAll": {
+            return {
+                ...state,
+                isUnmountingAll: true,
+            };
+        }
         case "SetUnmountedStart": {
             return {
                 ...state,
@@ -89,10 +102,24 @@ function reducePeekStackState(state: PeekStackState, action: PeekStackAction): P
             };
         }
         case "FinishUnmounting": {
-            return {
-                ...state,
-                unmountingStack: state.unmountingStack.slice(0, action.unmountingStackIndex - 1),
-            };
+            if (state.isUnmountingAll) {
+                state = {
+                    ...state,
+                    stack: [],
+                    unmountedStartStackIndex: 0,
+                    unmountingStack: [],
+                    isUnmountingAll: false,
+                };
+            }
+
+            if (action.unmountingStackIndex >= 0) {
+                state = {
+                    ...state,
+                    unmountingStack: state.unmountingStack.slice(0, action.unmountingStackIndex),
+                };
+            }
+
+            return state;
         }
         default:
             throw exhaustive(action);
@@ -109,6 +136,7 @@ const initialPeekStackState: PeekStackState = {
     stack: [],
     unmountedStartStackIndex: 0,
     unmountingStack: [],
+    isUnmountingAll: false,
 };
 
 export function PeekStackContextProvider({children}: {children?: ReactNode}) {
@@ -202,7 +230,7 @@ function PeekOverlay({
     {
         const translateY = addRemLengths(peekHeight, peekUnderlayOffset);
 
-        const isUnmounting = index < 0;
+        const isUnmounting = index < 0 || state.isUnmountingAll;
 
         const hasInitiallyRenderedRef = useRef(false);
         useLayoutEffect(() => {
@@ -237,6 +265,15 @@ function PeekOverlay({
             hasStartedUnmountingRef.current = true;
 
             const overlayContainerElement = assertExists(overlayContainerRef.current);
+
+            // If the overlay we're unmounting contains the focused element then unfocus
+            // the element while unmounting.
+            if (
+                document.activeElement instanceof HTMLElement &&
+                overlayContainerElement.contains(document.activeElement)
+            ) {
+                document.activeElement.blur();
+            }
 
             const animation = animate(
                 overlayContainerElement,
@@ -411,34 +448,8 @@ function PeekOverlay({
                     }}
                 >
                     {isRenderingContent && (
-                        <Box
-                            ref={overlayContentRef}
-                            width="full"
-                            height="full"
-                            overflow="hidden"
-                            display="flex"
-                            flexDirection="column"
-                        >
-                            <Box
-                                flexShrink="0"
-                                height="8"
-                                borderBottom="grey-10"
-                                display="flex"
-                                alignItems="center"
-                            >
-                                <Box flexGrow="1" />
-                                <Box flexShrink="0" paddingX="1">
-                                    <IconButton
-                                        size="xs"
-                                        description="Close"
-                                        withoutTooltip={true}
-                                        onPress={() => dispatch({type: "Pop"})}
-                                    >
-                                        <X />
-                                    </IconButton>
-                                </Box>
-                            </Box>
-                            <Box flexGrow="1" overflow="hidden"></Box>
+                        <Box ref={overlayContentRef} width="full" height="full" overflow="hidden">
+                            <PeekOverlayContent dispatch={dispatch} />
                         </Box>
                     )}
                 </Box>
@@ -459,6 +470,107 @@ function getPeekOverlayAnimationStyles(index: number) {
     const transform = `translate(${translateX}, ${translateY})`;
     const opacity = index < 3 ? "1" : "0";
     return {transform, opacity};
+}
+
+function PeekOverlayContent({dispatch}: {dispatch: (action: PeekStackAction) => void}) {
+    const [doubleClickTimeout, setDoubleClickTimeout] = useState<Timeout | null>(null);
+
+    // We manually implement double-click support instead of using the operating
+    // system double click. This means we aren't using the operating system double
+    // click timer! This is bad for accessibility since users with motor skill
+    // issues struggle to double click fast enough.
+    //
+    // The reason we need to manually implement double clicking is we need to delay
+    // closing the peek overlay for some amount of time to detect a double click.
+    // If we waited the max operating system double click timeout ([5s on
+    // Windows][1]) without responding to a single click that would be ridiculous.
+    // (We also can't get the double click time from JavaScript.)
+    //
+    // So we pick a reasonable delay that balances wanting to immediately respond
+    // to users in the single click case and allowing users who can to double click
+    // as a convenience. Users who can not double click in our chosen delay may use
+    // the shift keyboard shortcut. The [default double click time on Windows is
+    // 500ms][2]. We pick a delay of [300ms which is the delay mobile browsers
+    // used][3] to apply to all taps to try and detect a double tap or pinch zoom.
+    // That makes 300ms an industry standard delay for detecting double taps/clicks.
+    // Though to be fair the mobile delay was for taps and our delay is for clicks.
+    //
+    // [1]: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getdoubleclicktime
+    // [2]: https://en.wikipedia.org/wiki/Double-click
+    // [3]: https://developer.chrome.com/blog/300ms-tap-delay-gone-away/
+    const doubleClickDelay = 300;
+
+    return (
+        <Box
+            width="full"
+            height="full"
+            overflow="hidden"
+            display="flex"
+            flexDirection="column"
+            onKeyDown={event => {
+                if (event.key === "Escape") {
+                    if (event.shiftKey) {
+                        event.preventDefault();
+                        dispatch({type: "PopAll"});
+                        return;
+                    }
+
+                    event.preventDefault();
+                    dispatch({type: "Pop"});
+                    return;
+                }
+            }}
+        >
+            <Box
+                flexShrink="0"
+                height="8"
+                borderBottom="grey-10"
+                display="flex"
+                alignItems="center"
+            >
+                <Box flexGrow="1" />
+                <Box flexShrink="0" paddingX="1">
+                    <IconButton
+                        size="xs"
+                        description="Close"
+                        tooltipPlacement="top-end"
+                        tooltipContentOverride="Double-click to close all"
+                        onPress={event => {
+                            if (doubleClickTimeout) {
+                                doubleClickTimeout.clear();
+                                dispatch({type: "PopAll"});
+                                return;
+                            }
+
+                            if (event.shiftKey) {
+                                dispatch({type: "PopAll"});
+                                return;
+                            }
+
+                            // Double click to close all only works when using a mouse. On keyboards you
+                            // may use the shift keyboard modifier. For touch platforms you may swipe down.
+                            //
+                            // TODO(calebmer): Implement swipe down to close all peeks on touch devices
+                            // like iPads.
+                            if (event.pointerType === "mouse" && !doubleClickTimeout) {
+                                setDoubleClickTimeout(
+                                    createTimeout(() => {
+                                        dispatch({type: "Pop"});
+                                    }, doubleClickDelay),
+                                );
+                                return;
+                            }
+
+                            dispatch({type: "Pop"});
+                        }}
+                    >
+                        <X />
+                    </IconButton>
+                </Box>
+            </Box>
+            <Box flexGrow="1" overflow="hidden"></Box>
+        </Box>
+    );
 }
 
 const mockPeekStackContextForTest: PeekStackContext | null =
