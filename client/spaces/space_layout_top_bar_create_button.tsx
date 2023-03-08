@@ -5,6 +5,7 @@ import {Box} from "~/client/design/box";
 import {IconButton} from "~/client/design/icon_button";
 import {MenuButton} from "~/client/design/menu_button";
 import {useShowToast} from "~/client/design/toast";
+import {usePeekStackContext} from "~/client/peek/peek_stack";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {spacing} from "~/shared/design/spacing";
 import {UnimplementedError} from "~/shared/error/error";
@@ -15,6 +16,7 @@ export function SpaceLayoutTopBarCreateButton() {
     const {space} = useSpaceContext();
     const navigate = useNavigate();
     const showToast = useShowToast();
+    const peekStackContext = usePeekStackContext();
 
     return (
         <MenuButton
@@ -22,7 +24,7 @@ export function SpaceLayoutTopBarCreateButton() {
                 {
                     withCustomLayout: true,
                     onPress: () => {
-                        // TODO(calebmer): I'm implementing this next!
+                        peekStackContext.push();
                     },
                     render: ({isHovered, isPressed}) => (
                         <SpaceLayoutTopBarCreateButtonItem

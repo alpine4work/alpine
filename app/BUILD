@@ -37,6 +37,7 @@ ts_project(
         "//client/forum",
         "//client/helpers",
         "//client/messaging",
+        "//client/peek",
         "//client/remix",
         "//client/rpc",
         "//client/tracer",

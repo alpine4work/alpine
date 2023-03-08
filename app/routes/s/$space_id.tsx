@@ -3,6 +3,7 @@ import {LinkDescriptor} from "@remix-run/server-runtime";
 import {useEffect} from "react";
 import {Box} from "~/client/design/box";
 import {attachDevConsoleForAccountInProduction} from "~/client/dev/dev_console";
+import {PeekStackContextProvider} from "~/client/peek/peek_stack";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {SpaceContextProvider} from "~/client/spaces/space_context";
 import {SpaceLayoutTopBar} from "~/client/spaces/space_layout_top_bar";
@@ -87,8 +88,10 @@ export default function SpaceLayout() {
                 position="relative"
                 zIndex="0"
             >
-                <SpaceLayoutTopBar space={space} />
-                <Outlet />
+                <PeekStackContextProvider>
+                    <SpaceLayoutTopBar space={space} />
+                    <Outlet />
+                </PeekStackContextProvider>
             </Box>
         </SpaceContextProvider>
     );

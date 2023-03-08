@@ -72,7 +72,7 @@ export function useClientInfo(): ClientInfo {
         }
 
         throw new InternalError(
-            "Expected component to be rendered inside a <ClientInfoContextProvider>",
+            "Expected component to be rendered inside a `<ClientInfoContextProvider>`",
         );
     }
 

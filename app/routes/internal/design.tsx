@@ -67,7 +67,7 @@ export default function DesignPlaygroundRoute() {
                         width="32"
                         height="32"
                         borderRadius="base"
-                        boxShadow="elevation-50"
+                        boxShadow="elevation-50-keylight"
                     />
                     <Box
                         backgroundColor="grey-0"

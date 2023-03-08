@@ -1,4 +1,5 @@
 import {ReactNode, createContext, useContext, useEffect, useState} from "react";
+import {InternalError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 
 const AppInitialRenderContext = createContext<boolean | null>(null);
@@ -22,7 +23,14 @@ export function useIsInitialAppRender(): boolean {
         return false;
     }
 
-    assert(isInitialAppRender !== null);
+    if (isInitialAppRender === null) {
+        // In Jest tests, act like we are not in the initial render unless an
+        // `<AppInitialRenderContextProvider>` is explicitly used.
+        if (typeof jest !== "undefined") return false;
+
+        throw new InternalError("Must be rendered in an `<AppInitialRenderContextProvider>`");
+    }
+
     return isInitialAppRender;
 }
 

@@ -147,7 +147,7 @@ function reduce(state: ToastState, action: ToastAction): ToastState {
     }
 }
 
-const ToastContext = createContext<((action: ToastAction) => void) | null>(null);
+const ToastContext = createContext<((toast: Toast) => void) | null>(null);
 
 // TODO(calebmer): How does this work on mobile? We should maybe abstract this
 // a bit so code is not saying "show toast" but rather "show alert" with some
@@ -186,7 +186,9 @@ export function ToastContextProvider({children}: {children?: ReactNode}) {
     }, []);
 
     return (
-        <ToastContext.Provider value={dispatch}>
+        <ToastContext.Provider
+            value={useCallback((toast: Toast) => dispatch({type: "ShowToast", toast}), [])}
+        >
             {children}
             <Box pointerEvents="none" position="absolute" inset="0" zIndex="60">
                 {state.activeToast && (
@@ -222,17 +224,12 @@ export function ToastContextProvider({children}: {children?: ReactNode}) {
  * Return a function you can use to show toasts.
  */
 export function useShowToast(): (toast: Toast) => void {
-    const dispatch = useContext(ToastContext);
+    const showToast = useContext(ToastContext);
 
-    if (dispatch === null)
+    if (showToast === null)
         throw new InternalError("Must render in a `<ToastContextProvider>` to show toasts");
 
-    return useCallback(
-        toast => {
-            dispatch({type: "ShowToast", toast});
-        },
-        [dispatch],
-    );
+    return showToast;
 }
 
 function ToastView({
