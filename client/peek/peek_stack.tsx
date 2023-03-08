@@ -449,7 +449,7 @@ function PeekOverlay({
                 >
                     {isRenderingContent && (
                         <Box ref={overlayContentRef} width="full" height="full" overflow="hidden">
-                            <PeekOverlayContent dispatch={dispatch} />
+                            <PeekOverlayContent state={state} dispatch={dispatch} />
                         </Box>
                     )}
                 </Box>
@@ -472,7 +472,13 @@ function getPeekOverlayAnimationStyles(index: number) {
     return {transform, opacity};
 }
 
-function PeekOverlayContent({dispatch}: {dispatch: (action: PeekStackAction) => void}) {
+function PeekOverlayContent({
+    state,
+    dispatch,
+}: {
+    state: PeekStackState;
+    dispatch: (action: PeekStackAction) => void;
+}) {
     const [doubleClickTimeout, setDoubleClickTimeout] = useState<Timeout | null>(null);
 
     // We manually implement double-click support instead of using the operating
@@ -552,7 +558,11 @@ function PeekOverlayContent({dispatch}: {dispatch: (action: PeekStackAction) => 
                             //
                             // TODO(calebmer): Implement swipe down to close all peeks on touch devices
                             // like iPads.
-                            if (event.pointerType === "mouse" && !doubleClickTimeout) {
+                            if (
+                                event.pointerType === "mouse" &&
+                                state.stack.length > 1 &&
+                                !doubleClickTimeout
+                            ) {
                                 setDoubleClickTimeout(
                                     createTimeout(() => {
                                         dispatch({type: "Pop"});
