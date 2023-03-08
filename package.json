@@ -112,6 +112,7 @@
         "mjml": "^4.13.0",
         "mjml-parser-xml": "4.13.0",
         "mjml-react": "^2.0.8",
+        "motion": "^10.15.5",
         "murmurhash": "^2.0.1",
         "node-fetch": "2",
         "outdent": "0.8.0",

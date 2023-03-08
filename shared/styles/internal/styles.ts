@@ -24,6 +24,5 @@ export * as messageViewStyles from "~/shared/styles/internal/message_view.css";
 export * from "~/shared/styles/internal/mobile.css";
 export * as modalStyles from "~/shared/styles/internal/modal.css";
 export * from "~/shared/styles/internal/overlay_animated.css";
-export * as peekStackStyles from "~/shared/styles/internal/peek_stack.css";
 export * from "~/shared/styles/internal/sprinkles.css";
 export * as toastStyles from "~/shared/styles/internal/toast.css";
