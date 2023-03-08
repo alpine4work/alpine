@@ -1,8 +1,12 @@
+import {ClientRect, DndContext, DraggableAttributes, Modifier, useDraggable} from "@dnd-kit/core";
+import {SyntheticListenerMap} from "@dnd-kit/core/dist/hooks/utilities";
+import {PressEvent} from "@react-types/shared";
 import {animate, spring} from "motion";
-import {X} from "phosphor-react";
+import {ArrowsOutSimple, DotsSixVertical, X} from "phosphor-react";
 import {
     ReactNode,
     createContext,
+    useCallback,
     useContext,
     useLayoutEffect,
     useMemo,
@@ -10,7 +14,10 @@ import {
     useRef,
     useState,
 } from "react";
+import {createPortal} from "react-dom";
 import {Box} from "~/client/design/box";
+import {FocusRing} from "~/client/design/focus_ring";
+import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
 import {IconButton} from "~/client/design/icon_button";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
@@ -20,7 +27,9 @@ import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {Id, generateId} from "~/shared/id/id";
+import {sprinkles} from "~/shared/styles/styles";
 
+const peekWidth = spacing["128"];
 const peekHeight = spacing["160"];
 const peekRightOffset = spacing["12"];
 const peekBottomBuffer = spacing["8"];
@@ -157,30 +166,158 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
             )}
         >
             {children}
-            {[
-                ...state.stack
-                    .slice(0, state.unmountedStartStackIndex)
-                    .map((entry, index) => (
+            {(state.stack.length > 0 || state.unmountingStack.length > 0) && (
+                <PeekStack state={state} dispatch={dispatch} />
+            )}
+        </PeekStackContext.Provider>
+    );
+}
+
+function PeekStack({
+    state,
+    dispatch,
+}: {
+    state: PeekStackState;
+    dispatch: (action: PeekStackAction) => void;
+}) {
+    // Measured in percentage of our container width so when our container resizes
+    // the peek moves with it.
+    const [deltaXPercentage, setDeltaXPercentage] = useState(0);
+
+    const dndModifier: Modifier = useCallback(
+        ({containerNodeRect, draggingNodeRect, transform}) => {
+            transform = {
+                ...transform,
+                // Include the container node rect in the transform so we can use
+                // it `onDragEnd`.
+                // @ts-expect-error
+                containerNodeRect,
+                // Only allow movement on the horizontal axis.
+                y: 0,
+            };
+
+            const marginX =
+                parseRemLengthNumber(peekUnderlayOffset) * 3.5 * getRemPxWithoutListening();
+
+            // Stay within the bounds of the container and some margin.
+            if (containerNodeRect && draggingNodeRect) {
+                const minX = containerNodeRect.left + marginX;
+                const maxX = containerNodeRect.right - marginX;
+
+                if (draggingNodeRect.left + transform.x < minX) {
+                    transform = {
+                        ...transform,
+                        x: minX - draggingNodeRect.left,
+                    };
+                }
+
+                if (draggingNodeRect.right + transform.x > maxX) {
+                    transform = {
+                        ...transform,
+                        x: maxX - draggingNodeRect.right,
+                    };
+                }
+            }
+
+            return transform;
+        },
+        [],
+    );
+
+    return (
+        <DndContext
+            modifiers={[dndModifier]}
+            onDragEnd={({delta}) => {
+                const containerNodeRect: ClientRect | null =
+                    // @ts-expect-error: We added this property in our custom modifier
+                    delta.containerNodeRect;
+
+                assert(containerNodeRect);
+
+                setDeltaXPercentage(
+                    previousDeltaX =>
+                        previousDeltaX +
+                        delta.x / (containerNodeRect.right - containerNodeRect.left),
+                );
+            }}
+        >
+            <PeekStackDraggable
+                state={state}
+                dispatch={dispatch}
+                deltaXPercentage={deltaXPercentage}
+            />
+        </DndContext>
+    );
+}
+
+function PeekStackDraggable({
+    state,
+    dispatch,
+    deltaXPercentage,
+}: {
+    state: PeekStackState;
+    dispatch: (action: PeekStackAction) => void;
+    deltaXPercentage: number;
+}) {
+    const {attributes, listeners, setNodeRef, transform, isDragging, activatorEvent} = useDraggable(
+        {id: "peek"},
+    );
+
+    const isPointerDragging = isDragging && activatorEvent instanceof PointerEvent;
+    const isKeyboardDragging = isDragging && activatorEvent instanceof KeyboardEvent;
+
+    return (
+        <>
+            <Box
+                ref={setNodeRef}
+                position="absolute"
+                bottom="0"
+                zIndex="60"
+                style={{
+                    right: `calc(${peekRightOffset} + ${-deltaXPercentage * 100}%)`,
+                    width: peekWidth,
+                    height: peekHeight,
+                    transform: `translate(${transform?.x ?? 0}px, ${transform?.y ?? 0}px)`,
+                }}
+            >
+                {[
+                    ...state.stack
+                        .slice(0, state.unmountedStartStackIndex)
+                        .map((entry, index) => (
+                            <PeekOverlay
+                                key={entry.id}
+                                state={state}
+                                dispatch={dispatch}
+                                entry={entry}
+                                index={index}
+                                isDragging={isDragging}
+                                isKeyboardDragging={isKeyboardDragging}
+                                draggableAttributes={attributes}
+                                draggableListeners={listeners}
+                            />
+                        ))
+                        .reverse(),
+                    ...state.unmountingStack.map((entry, index) => (
                         <PeekOverlay
                             key={entry.id}
                             state={state}
                             dispatch={dispatch}
                             entry={entry}
-                            index={index}
+                            index={-(index + 1)}
+                            isDragging={isDragging}
+                            isKeyboardDragging={isKeyboardDragging}
+                            draggableAttributes={attributes}
+                            draggableListeners={listeners}
                         />
-                    ))
-                    .reverse(),
-                ...state.unmountingStack.map((entry, index) => (
-                    <PeekOverlay
-                        key={entry.id}
-                        state={state}
-                        dispatch={dispatch}
-                        entry={entry}
-                        index={-(index + 1)}
-                    />
-                )),
-            ]}
-        </PeekStackContext.Provider>
+                    )),
+                ]}
+            </Box>
+            {isPointerDragging &&
+                createPortal(
+                    <Box position="absolute" inset="0" zIndex="70" cursor="grabbing" />,
+                    document.body,
+                )}
+        </>
     );
 }
 
@@ -189,11 +326,19 @@ function PeekOverlay({
     dispatch,
     entry,
     index,
+    isDragging,
+    isKeyboardDragging,
+    draggableAttributes,
+    draggableListeners,
 }: {
     state: PeekStackState;
     dispatch: (action: PeekStackAction) => void;
     entry: PeekStackEntry;
     index: number;
+    isDragging: boolean;
+    isKeyboardDragging: boolean;
+    draggableAttributes: DraggableAttributes;
+    draggableListeners: SyntheticListenerMap | undefined;
 }) {
     const isMounted = useIsMounted();
     const overlayRef = useRef<HTMLDivElement>(null);
@@ -203,16 +348,12 @@ function PeekOverlay({
     const renderPopClickOverlay = (offset: number) => (
         <Box
             position="absolute"
-            zIndex="60"
             borderTopRightRadius="md"
             style={{
                 height: peekHeight,
                 width: peekUnderlayOffset,
                 bottom: `-${parseRemLengthNumber(peekUnderlayOffset) * offset}rem`,
-                right: `${
-                    parseRemLengthNumber(peekRightOffset) -
-                    parseRemLengthNumber(peekUnderlayOffset) * offset
-                }rem`,
+                right: `-${parseRemLengthNumber(peekUnderlayOffset) * offset}rem`,
             }}
             // We have no affordance that underlayed peeks are clickable so give them a
             // pointer cursor to let the user know they can click.
@@ -425,16 +566,14 @@ function PeekOverlay({
             <Box
                 ref={overlayContainerRef}
                 position="absolute"
-                zIndex="60"
+                right="0"
                 pointerEvents={index < 0 ? "none" : undefined}
                 style={{
-                    right: peekRightOffset,
                     bottom: `-${peekBottomBuffer}`,
                 }}
             >
                 <Box
                     ref={overlayRef}
-                    width="128"
                     overflow="hidden"
                     borderTopRadius="md"
                     backgroundColor="grey-0"
@@ -443,13 +582,21 @@ function PeekOverlay({
                     borderRight={{dark: "grey-10"}}
                     boxShadow={index === 0 ? "elevation-40" : "elevation-30"}
                     style={{
+                        width: peekWidth,
                         height: addRemLengths(peekHeight, peekBottomBuffer),
                         paddingBottom: peekBottomBuffer,
                     }}
                 >
                     {isRenderingContent && (
                         <Box ref={overlayContentRef} width="full" height="full" overflow="hidden">
-                            <PeekOverlayContent state={state} dispatch={dispatch} />
+                            <PeekOverlayContent
+                                state={state}
+                                dispatch={dispatch}
+                                isDragging={isDragging}
+                                isKeyboardDragging={isKeyboardDragging}
+                                draggableAttributes={draggableAttributes}
+                                draggableListeners={draggableListeners}
+                            />
                         </Box>
                     )}
                 </Box>
@@ -475,9 +622,17 @@ function getPeekOverlayAnimationStyles(index: number) {
 function PeekOverlayContent({
     state,
     dispatch,
+    isDragging,
+    isKeyboardDragging,
+    draggableAttributes,
+    draggableListeners,
 }: {
     state: PeekStackState;
     dispatch: (action: PeekStackAction) => void;
+    isDragging: boolean;
+    isKeyboardDragging: boolean;
+    draggableAttributes: DraggableAttributes;
+    draggableListeners: SyntheticListenerMap | undefined;
 }) {
     const [doubleClickTimeout, setDoubleClickTimeout] = useState<Timeout | null>(null);
 
@@ -506,6 +661,35 @@ function PeekOverlayContent({
     // [3]: https://developer.chrome.com/blog/300ms-tap-delay-gone-away/
     const doubleClickDelay = 300;
 
+    const handlePressClose = (event: PressEvent) => {
+        if (doubleClickTimeout) {
+            doubleClickTimeout.clear();
+            dispatch({type: "PopAll"});
+            return;
+        }
+
+        if (event.shiftKey) {
+            dispatch({type: "PopAll"});
+            return;
+        }
+
+        // Double click to close all only works when using a mouse. On keyboards you
+        // may use the shift keyboard modifier. For touch platforms you may swipe down.
+        //
+        // TODO(calebmer): Implement swipe down to close all peeks on touch devices
+        // like iPads.
+        if (event.pointerType === "mouse" && state.stack.length > 1 && !doubleClickTimeout) {
+            setDoubleClickTimeout(
+                createTimeout(() => {
+                    dispatch({type: "Pop"});
+                }, doubleClickDelay),
+            );
+            return;
+        }
+
+        dispatch({type: "Pop"});
+    };
+
     return (
         <Box
             width="full"
@@ -514,7 +698,7 @@ function PeekOverlayContent({
             display="flex"
             flexDirection="column"
             onKeyDown={event => {
-                if (event.key === "Escape") {
+                if (event.key === "Escape" && !isDragging) {
                     if (event.shiftKey) {
                         event.preventDefault();
                         dispatch({type: "PopAll"});
@@ -535,44 +719,39 @@ function PeekOverlayContent({
                 alignItems="center"
             >
                 <Box flexGrow="1" />
-                <Box flexShrink="0" paddingX="1">
+                <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
+                    <FocusRing>
+                        <button
+                            className={sprinkles({
+                                width: "4",
+                                height: "4",
+                                padding: "0.5",
+                                borderRadius: "full",
+                                cursor: "grab",
+                                backgroundColor: isKeyboardDragging ? "grey-10" : undefined,
+                            })}
+                            {...draggableAttributes}
+                            {...draggableListeners}
+                        >
+                            <DotsSixVertical size={spacing["3"]} />
+                        </button>
+                    </FocusRing>
+                    <IconButton
+                        size="xs"
+                        description="Expand"
+                        tooltipPlacement="top"
+                        onPress={() => {
+                            // TODO(calebmer): Implement
+                        }}
+                    >
+                        <ArrowsOutSimple />
+                    </IconButton>
                     <IconButton
                         size="xs"
                         description="Close"
                         tooltipPlacement="top-end"
                         tooltipContentOverride="Double-click to close all"
-                        onPress={event => {
-                            if (doubleClickTimeout) {
-                                doubleClickTimeout.clear();
-                                dispatch({type: "PopAll"});
-                                return;
-                            }
-
-                            if (event.shiftKey) {
-                                dispatch({type: "PopAll"});
-                                return;
-                            }
-
-                            // Double click to close all only works when using a mouse. On keyboards you
-                            // may use the shift keyboard modifier. For touch platforms you may swipe down.
-                            //
-                            // TODO(calebmer): Implement swipe down to close all peeks on touch devices
-                            // like iPads.
-                            if (
-                                event.pointerType === "mouse" &&
-                                state.stack.length > 1 &&
-                                !doubleClickTimeout
-                            ) {
-                                setDoubleClickTimeout(
-                                    createTimeout(() => {
-                                        dispatch({type: "Pop"});
-                                    }, doubleClickDelay),
-                                );
-                                return;
-                            }
-
-                            dispatch({type: "Pop"});
-                        }}
+                        onPress={handlePressClose}
                     >
                         <X />
                     </IconButton>

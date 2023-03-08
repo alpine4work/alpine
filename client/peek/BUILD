@@ -7,9 +7,12 @@ ts_project(
         "//client:__subpackages__",
     ],
     deps = [
+        "//:node_modules/@dnd-kit/core",
         "//:node_modules/@types/react",
+        "//:node_modules/@types/react-dom",
         "//:node_modules/motion",
         "//:node_modules/react",
+        "//:node_modules/react-dom",
         "//client/design",
         "//client/helpers",
         "//shared/design",
