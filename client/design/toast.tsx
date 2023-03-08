@@ -312,8 +312,8 @@ function ToastView({
                     variant="quiet-on-grey-5-dark-background"
                     size="xs"
                     description="Dismiss alert"
-                    onPress={() => onDismiss({withoutAnimation: true})}
                     withoutTooltip={true}
+                    onPress={() => onDismiss({withoutAnimation: true})}
                 >
                     <X />
                 </IconButton>

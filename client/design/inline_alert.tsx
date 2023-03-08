@@ -67,8 +67,8 @@ export function InlineAlert({
                 <IconButton
                     size="xs"
                     description="Dismiss alert"
-                    onPress={onDismiss}
                     withoutTooltip={true}
+                    onPress={onDismiss}
                 >
                     <X />
                 </IconButton>

@@ -197,10 +197,10 @@ export function Modal({
                                 <IconButton
                                     size="xs"
                                     description="Close"
+                                    withoutTooltip={true}
                                     // Our animation principle is to respond to user input immediately
                                     // without animation.
                                     onPress={onCloseWithoutAnimation}
-                                    withoutTooltip={true}
                                 >
                                     <X />
                                 </IconButton>

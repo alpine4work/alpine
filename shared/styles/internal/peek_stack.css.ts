@@ -69,7 +69,7 @@ const peekPushUnderlayContentKeyframes = keyframes({
     to: {opacity: 0},
 });
 
-const peekPushUnderlayContentAnimationDelay = 300;
+const peekPushUnderlayContentAnimationDelay = 500;
 const peekPushUnderlayContentAnimationDuration = 300;
 export const peekPushUnderlayContentAnimationTotalDuration =
     peekPushUnderlayContentAnimationDelay + peekPushUnderlayContentAnimationDuration;
@@ -82,7 +82,7 @@ const {animationKeyframes: peekPopAnimationKeyframes, animationDuration: peekPop
         endX: 0,
         endY: parseRemLengthNumber(peekHeight) + peekUnderlayOffsetRem,
         units: "rem",
-        tension: 280,
+        tension: 320,
         friction: 28,
     });
 
