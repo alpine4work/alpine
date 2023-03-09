@@ -5,7 +5,6 @@ import {Path, createMemoryHistory} from "history";
 import {Context, useContext, useEffect, useMemo, useState} from "react";
 import {UNSAFE_RouteContext as RouteContext} from "react-router";
 import {Router, useRoutes} from "react-router-dom";
-import {Take} from "~/client/peek/internal/take";
 import {InternalError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -19,7 +18,7 @@ export function PeekRemixEmbed({
     initialLoaderData,
 }: {
     initialPath: Path;
-    initialLoaderData: Take<{[key: string]: unknown}>;
+    initialLoaderData: {[key: string]: unknown};
 }) {
     const remixEntryContext = useContext(RemixEntryContext);
     assert(remixEntryContext, "Expected Remix entry context");
@@ -58,7 +57,7 @@ export function PeekRemixEmbed({
         createTransitionManager({
             routes: remixEntryContext.clientRoutes,
             location: historyState.location,
-            loaderData: initialLoaderData.take(),
+            loaderData: initialLoaderData,
             onRedirect: (to, state) => history.replace(to, state),
         }),
     );

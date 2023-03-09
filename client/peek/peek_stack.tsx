@@ -25,7 +25,6 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted";
 import {loadInitialPeekData} from "~/client/peek/internal/load_initial_peek_data";
 import {PeekRemixEmbed} from "~/client/peek/internal/peek_remix_embed";
-import {Take} from "~/client/peek/internal/take";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {InternalError} from "~/shared/error/error";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
@@ -45,7 +44,7 @@ const peekUnderlayOffset = spacing["2"];
 type PeekStackEntry = {
     readonly id: PeekId;
     readonly initialPath: Path;
-    readonly initialLoaderData: Take<{[key: string]: unknown}>;
+    readonly initialLoaderData: {[key: string]: unknown};
 };
 
 type PeekStackState = {
@@ -178,7 +177,7 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
             entry: {
                 id: generateId(),
                 initialPath: path,
-                initialLoaderData: new Take(loaderData),
+                initialLoaderData: loaderData,
             },
         });
     });
@@ -543,7 +542,7 @@ function PeekOverlay({
                 let isCancelled = false;
 
                 void animation.finished.then(() => {
-                    if (!isCancelled) return;
+                    if (isCancelled) return;
                     setIsRenderingContent(false);
                 });
 
