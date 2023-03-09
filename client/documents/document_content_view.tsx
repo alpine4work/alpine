@@ -4,7 +4,7 @@ import {sprinkles} from "~/shared/styles/styles";
 
 export const documentContentClassName = sprinkles({
     paddingBottom: "24",
-    paddingX: "2",
+    paddingX: "3",
     backgroundColor: "grey-0",
 });
 
