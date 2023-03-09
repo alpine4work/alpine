@@ -99,6 +99,7 @@
         "functional-red-black-tree": "^1.0.1",
         "fuse.js": "^6.6.2",
         "get-port": "^5.1.1",
+        "history": "^5.3.0",
         "html-entities": "^2.3.3",
         "html-minifier": "^4.0.0",
         "html-tags": "^3.2.0",
@@ -136,6 +137,7 @@
         "react": "18.2.0",
         "react-aria": "^3.20.0",
         "react-dom": "18.2.0",
+        "react-router": "^6.3.0",
         "react-router-dom": "6.3.0",
         "scheduler": "^0.23.0",
         "serve-static": "^1.15.0",
@@ -175,7 +177,8 @@
             "@miniflare/runner-vm@2.11.0": "admin/patches/@miniflare__runner-vm@2.11.0.patch",
             "@types/functional-red-black-tree@1.0.1": "admin/patches/@types__functional-red-black-tree@1.0.1.patch",
             "@playwright/test@1.31.1": "admin/patches/@playwright__test@1.31.1.patch",
-            "@react-aria/interactions@3.12.0": "admin/patches/@react-aria__interactions@3.12.0.patch"
+            "@react-aria/interactions@3.12.0": "admin/patches/@react-aria__interactions@3.12.0.patch",
+            "react-router@6.3.0": "admin/patches/react-router@6.3.0.patch"
         },
         "allowedDeprecatedVersions": {
             "@types/keyv": "4.2.0",

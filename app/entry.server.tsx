@@ -5,7 +5,9 @@ import {AppContextProvider} from "~/client/context/app_context";
 import {ReactContextModule} from "~/client/context/react_context_module";
 import {LoaderContext} from "~/server/remix/loader_context";
 import {TracerContextModule} from "~/shared/context/tracer_context_module";
+import {isErrorCode} from "~/shared/error/error_code";
 import {ErrorSchema} from "~/shared/error/error_schema";
+import {isSystemErrorCode} from "~/shared/error/is_system_error_code";
 import {assert} from "~/shared/helpers/control/assert";
 import {getExceptionTracerEventData} from "~/shared/tracer/helpers/get_exception_tracer_event_data";
 
@@ -53,6 +55,16 @@ export default async function handleRequest(
                 });
             }
         }
+
+        // Manually override the status code if an error with our codebase's
+        // `ErrorCode` was thrown.
+        const error: {[key: string]: unknown} | undefined = remixContext.appState.error;
+        responseStatusCode =
+            typeof error?.code === "number" && isErrorCode(error.code)
+                ? isSystemErrorCode(error.code)
+                    ? 500
+                    : 400
+                : responseStatusCode;
 
         responseHeaders.set("Content-Type", "text/html");
 

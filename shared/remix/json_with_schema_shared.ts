@@ -16,7 +16,6 @@ export const deserializedValueSymbol = Symbol("deserializedValue");
  *
  * We don't want code to directly accesses this property, instead use this
  * variable. That makes code related to propagating event data with
- * `jsonWithSchema()` easier to track. We include some random characters at the
- * end to discourage hardcoding this property.
+ * `jsonWithSchema()` easier to track.
  */
-export const propagatedEventDataKey = "_propagateEventData_e215dc3a";
+export const propagatedEventDataKey = "_propagateEventData";

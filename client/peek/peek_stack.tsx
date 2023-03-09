@@ -20,6 +20,7 @@ import {FocusRing} from "~/client/design/focus_ring";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
 import {IconButton} from "~/client/design/icon_button";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted";
+import {PeekRemixEmbed} from "~/client/peek/peek_remix_embed";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {InternalError} from "~/shared/error/error";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
@@ -757,7 +758,9 @@ function PeekOverlayContent({
                     </IconButton>
                 </Box>
             </Box>
-            <Box flexGrow="1" overflow="hidden"></Box>
+            <Box flexGrow="1" overflow="hidden">
+                <PeekRemixEmbed />
+            </Box>
         </Box>
     );
 }

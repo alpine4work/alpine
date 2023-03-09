@@ -1,0 +1,75 @@
+diff --git a/index.js b/index.js
+index 7f422970513cacdea0d0fc3bd8fee6839d772748..c12b256b4f37ad91876253e5ea820a5cf9547b9c 100644
+--- a/index.js
++++ b/index.js
+@@ -821,9 +821,13 @@ function Router(_ref3) {
+     location: locationProp,
+     navigationType = Action.Pop,
+     navigator,
+-    static: staticProp = false
++    static: staticProp = false,
++    dangerouslyAllowNesting = false,
+   } = _ref3;
+-  !!useInRouterContext() ? process.env.NODE_ENV !== "production" ? invariant(false, "You cannot render a <Router> inside another <Router>." + " You should never have more than one in your app.") : invariant(false) : void 0;
++  // NOTE(calebmer): We need nested router support for implementing peeks.
++  // Taking full responsibility for any nested router issues. Acknowledge this
++  // is not officially supported by calling the prop "dangerous".
++  !(!useInRouterContext() || dangerouslyAllowNesting) ? process.env.NODE_ENV !== "production" ? invariant(false, "You cannot render a <Router> inside another <Router>." + " You should never have more than one in your app.") : invariant(false) : void 0;
+   let basename = normalizePathname(basenameProp);
+   let navigationContext = useMemo(() => ({
+     basename,
+diff --git a/lib/components.d.ts b/lib/components.d.ts
+index 4f8249f0fce577dfc076477c724913c6c9ae4074..7f3baf79bb63d095f691ff3256d3d82204222f02 100644
+--- a/lib/components.d.ts
++++ b/lib/components.d.ts
+@@ -74,6 +74,10 @@ export interface RouterProps {
+     navigationType?: NavigationType;
+     navigator: Navigator;
+     static?: boolean;
++    // NOTE(calebmer): We need nested router support for implementing peeks.
++    // Taking full responsibility for any nested router issues. Acknowledge this
++    // is not officially supported by calling the prop "dangerous".
++    dangerouslyAllowNesting?: boolean;
+ }
+ /**
+  * Provides location context for the rest of the app.
+diff --git a/react-router.development.js b/react-router.development.js
+index aded81171bc5d31a5fbc56479e5d6ffa914efef3..62ce2cf5d4b601f0d5c0c83095a21de28bcd5152 100644
+--- a/react-router.development.js
++++ b/react-router.development.js
+@@ -776,9 +776,13 @@ function Router({
+   location: locationProp,
+   navigationType = Action.Pop,
+   navigator,
+-  static: staticProp = false
++  static: staticProp = false,
++  dangerouslyAllowNesting = false,
+ }) {
+-  !!useInRouterContext() ?  invariant(false, `You cannot render a <Router> inside another <Router>.` + ` You should never have more than one in your app.`)  : void 0;
++  // NOTE(calebmer): We need nested router support for implementing peeks.
++  // Taking full responsibility for any nested router issues. Acknowledge this
++  // is not officially supported by calling the prop "dangerous".
++  !(!useInRouterContext() || dangerouslyAllowNesting) ?  invariant(false, `You cannot render a <Router> inside another <Router>.` + ` You should never have more than one in your app.`)  : void 0;
+   let basename = normalizePathname(basenameProp);
+   let navigationContext = useMemo(() => ({
+     basename,
+diff --git a/umd/react-router.development.js b/umd/react-router.development.js
+index e3b65ee32f66e25c73a461edefe8ec1aea3b2e10..813ed6694a008f4431141e76fe1ac56aed3460ea 100644
+--- a/umd/react-router.development.js
++++ b/umd/react-router.development.js
+@@ -823,9 +823,13 @@
+       location: locationProp,
+       navigationType = history.Action.Pop,
+       navigator,
+-      static: staticProp = false
++      static: staticProp = false,
++      dangerouslyAllowNesting = false,
+     } = _ref3;
+-    !!useInRouterContext() ?  invariant(false, "You cannot render a <Router> inside another <Router>." + " You should never have more than one in your app.")  : void 0;
++    // NOTE(calebmer): We need nested router support for implementing peeks.
++    // Taking full responsibility for any nested router issues. Acknowledge this
++    // is not officially supported by calling the prop "dangerous".
++    !(!useInRouterContext() || dangerouslyAllowNesting) ?  invariant(false, "You cannot render a <Router> inside another <Router>." + " You should never have more than one in your app.")  : void 0;
+     let basename = normalizePathname(basenameProp);
+     let navigationContext = React.useMemo(() => ({
+       basename,

@@ -67,6 +67,9 @@ patchedDependencies:
   '@react-aria/interactions@3.12.0':
     hash: 2s5t4derzlr6pbwch3ibe7ygq4
     path: admin/patches/@react-aria__interactions@3.12.0.patch
+  react-router@6.3.0:
+    hash: 422wocmxisgbpbzt6il5lmbhd4
+    path: admin/patches/react-router@6.3.0.patch
 
 specifiers:
   '@aws-sdk/client-dynamodb': ^3.201.0
@@ -165,6 +168,7 @@ specifiers:
   functional-red-black-tree: ^1.0.1
   fuse.js: ^6.6.2
   get-port: ^5.1.1
+  history: ^5.3.0
   html-entities: ^2.3.3
   html-minifier: ^4.0.0
   html-tags: ^3.2.0
@@ -202,6 +206,7 @@ specifiers:
   react: 18.2.0
   react-aria: ^3.20.0
   react-dom: 18.2.0
+  react-router: ^6.3.0
   react-router-dom: 6.3.0
   scheduler: ^0.23.0
   serve-static: ^1.15.0
@@ -313,6 +318,7 @@ dependencies:
   functional-red-black-tree: 1.0.1
   fuse.js: 6.6.2
   get-port: 5.1.1
+  history: 5.3.0
   html-entities: 2.3.3
   html-minifier: 4.0.0
   html-tags: 3.2.0
@@ -350,6 +356,7 @@ dependencies:
   react: 18.2.0
   react-aria: 3.20.0_biqbaboplfbrettd7655fr4n2y
   react-dom: 18.2.0_react@18.2.0
+  react-router: 6.3.0_422wocmxisgbpbzt6il5lmbhd4_react@18.2.0
   react-router-dom: 6.3.0_biqbaboplfbrettd7655fr4n2y
   scheduler: 0.23.0
   serve-static: 1.15.0
@@ -13013,10 +13020,10 @@ packages:
       history: 5.3.0
       react: 18.2.0
       react-dom: 18.2.0_react@18.2.0
-      react-router: 6.3.0_react@18.2.0
+      react-router: 6.3.0_422wocmxisgbpbzt6il5lmbhd4_react@18.2.0
     dev: false
 
-  /react-router/6.3.0_react@18.2.0:
+  /react-router/6.3.0_422wocmxisgbpbzt6il5lmbhd4_react@18.2.0:
     resolution: {integrity: sha512-7Wh1DzVQ+tlFjkeo+ujvjSqSJmkt1+8JO+T5xklPlgrh70y7ogx75ODRW0ThWhY7S+6yEDks8TYrtQe/aoboBQ==}
     peerDependencies:
       react: '>=16.8 || 18'
@@ -13024,6 +13031,7 @@ packages:
       history: 5.3.0
       react: 18.2.0
     dev: false
+    patched: true
 
   /react/18.2.0:
     resolution: {integrity: sha512-/3IjMdb2L9QbBdWiW5e3P2/npwMBaU9mHCSCUzNln0ZCYbcfTsGbTJrU/kGemdH2IWmB2ioZ+zkxtmq6g09fGQ==}

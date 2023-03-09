@@ -20,6 +20,7 @@ NPM_PATCHES = {
     "mjml-parser-xml@4.13.0": ["//admin/patches:mjml-parser-xml@4.13.0.patch"],
     "outdent@0.8.0": ["//admin/patches:outdent@0.8.0.patch"],
     "prosemirror-view@1.27.2": ["//admin/patches:prosemirror-view@1.27.2.patch"],
+    "react-router@6.3.0": ["//admin/patches:react-router@6.3.0.patch"],
     "uglify-js@3.17.4": ["//admin/patches:uglify-js@3.17.4.patch"],
     "wrangler@2.4.4": ["//admin/patches:wrangler@2.4.4.patch"],
     "@react-aria/interactions@3.12.0": ["//admin/patches:@react-aria__interactions@3.12.0.patch"],
