@@ -14,10 +14,6 @@ import {tracerEventDataContextPeekMoveIntoAboveKeys} from "~/shared/tracer/helpe
 import {TracerRoot} from "~/shared/tracer/tracer_root";
 import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data";
 
-// NOCOMMIT: Test that all `/s/$space_id/peek/*` routes have a matching
-// `/s/$space_id/*` route. Since we should be able to expand peek routes to the
-// full thing.
-
 // TODO(calebmer): Write a decision log entry on the design of peeks.
 
 export default function PeekLayout() {
