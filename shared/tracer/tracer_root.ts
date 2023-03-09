@@ -165,6 +165,28 @@ export class TracerRoot extends TracerBase {
     }
 
     /**
+     * Clone this tracer with some new propagated data. Propagated data will be
+     * added to all root child spans created by the returned tracer. Propagated
+     * data will not be added to previously created spans.
+     *
+     * Propagated data will also be propagated across process boundaries. So if we
+     * make an HTTP request then we send our propagated data with us.
+     *
+     * Calling this method will ignore any propagated data previously in the
+     * tracer! Use `withPropagatedData()` to merge propagated data with the
+     * existing propagated data instead. Generally prefer using
+     * `withPropagatedData()` so you don't lose data.
+     */
+    public withReplacedPropagatedData(data: TracerEventData): TracerRoot {
+        return new TracerRoot({
+            getTime: this.getTime,
+            sendEvent: this._sendEvent,
+            sharedEventData: this.sharedEventData,
+            propagatedEventData: data,
+        });
+    }
+
+    /**
      * See documentation for this method on `TracerBase.log()`.
      */
     public log(name: string, data: TracerEventData = {}) {

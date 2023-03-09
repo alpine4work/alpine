@@ -1,6 +1,8 @@
 import {ClientRect, DndContext, DraggableAttributes, Modifier, useDraggable} from "@dnd-kit/core";
 import {SyntheticListenerMap} from "@dnd-kit/core/dist/hooks/utilities";
 import {PressEvent} from "@react-types/shared";
+import {RemixEntryContext} from "@remix-run/react/dist/esm/components";
+import {Path, To} from "history";
 import {animate, spring} from "motion";
 import {ArrowsOutSimple, DotsSixVertical, X} from "phosphor-react";
 import {
@@ -19,15 +21,19 @@ import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
 import {IconButton} from "~/client/design/icon_button";
+import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted";
-import {PeekRemixEmbed} from "~/client/peek/peek_remix_embed";
+import {loadInitialPeekData} from "~/client/peek/internal/load_initial_peek_data";
+import {PeekRemixEmbed} from "~/client/peek/internal/peek_remix_embed";
+import {Take} from "~/client/peek/internal/take";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {InternalError} from "~/shared/error/error";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {Id, generateId} from "~/shared/id/id";
+import {generateId} from "~/shared/id/id";
+import {PeekId} from "~/shared/id/types/id_types";
 import {sprinkles} from "~/shared/styles/styles";
 
 const peekWidth = spacing["128"];
@@ -37,7 +43,9 @@ const peekBottomBuffer = spacing["8"];
 const peekUnderlayOffset = spacing["2"];
 
 type PeekStackEntry = {
-    readonly id: Id;
+    readonly id: PeekId;
+    readonly initialPath: Path;
+    readonly initialLoaderData: Take<{[key: string]: unknown}>;
 };
 
 type PeekStackState = {
@@ -137,7 +145,7 @@ function reducePeekStackState(state: PeekStackState, action: PeekStackAction): P
 }
 
 type PeekStackContext = {
-    readonly push: () => void;
+    readonly push: (to: To) => Promise<void>;
 };
 
 const PeekStackContext = createContext<PeekStackContext | null>(null);
@@ -150,22 +158,33 @@ const initialPeekStackState: PeekStackState = {
 };
 
 export function PeekStackContextProvider({children}: {children?: ReactNode}) {
+    const remixEntryContext = useContext(RemixEntryContext);
+    assert(remixEntryContext, "Expected Remix entry context");
+
     const [state, dispatch] = useReducer(reducePeekStackState, initialPeekStackState);
 
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    const push = useEvent(async (to: To) => {
+        const abortController = new AbortController();
+
+        const {path, loaderData} = await loadInitialPeekData(
+            remixEntryContext.clientRoutes,
+            to,
+            abortController.signal,
+        );
+
+        dispatch({
+            type: "Push",
+            entry: {
+                id: generateId(),
+                initialPath: path,
+                initialLoaderData: new Take(loaderData),
+            },
+        });
+    });
+
     return (
-        <PeekStackContext.Provider
-            value={useMemo(
-                () => ({
-                    push: () => {
-                        dispatch({
-                            type: "Push",
-                            entry: {id: generateId()},
-                        });
-                    },
-                }),
-                [],
-            )}
-        >
+        <PeekStackContext.Provider value={useMemo(() => ({push}), [push])}>
             {children}
             {(state.stack.length > 0 || state.unmountingStack.length > 0) && (
                 <PeekStack state={state} dispatch={dispatch} />
@@ -593,6 +612,7 @@ function PeekOverlay({
                             <PeekOverlayContent
                                 state={state}
                                 dispatch={dispatch}
+                                entry={entry}
                                 isDragging={isDragging}
                                 isKeyboardDragging={isKeyboardDragging}
                                 draggableAttributes={draggableAttributes}
@@ -620,9 +640,22 @@ function getPeekOverlayAnimationStyles(index: number) {
     return {transform, opacity};
 }
 
+export type PeekContext = {readonly id: PeekId};
+
+const PeekContext = createContext<PeekContext | null>(null);
+
+/**
+ * Get the context of the peek we are rendering in if we are rendering in
+ * a peek. If we are not rendering in a peek then this will return null.
+ */
+export function usePeekContext(): PeekContext | null {
+    return useContext(PeekContext);
+}
+
 function PeekOverlayContent({
     state,
     dispatch,
+    entry,
     isDragging,
     isKeyboardDragging,
     draggableAttributes,
@@ -630,6 +663,7 @@ function PeekOverlayContent({
 }: {
     state: PeekStackState;
     dispatch: (action: PeekStackAction) => void;
+    entry: PeekStackEntry;
     isDragging: boolean;
     isKeyboardDragging: boolean;
     draggableAttributes: DraggableAttributes;
@@ -692,76 +726,81 @@ function PeekOverlayContent({
     };
 
     return (
-        <Box
-            width="full"
-            height="full"
-            overflow="hidden"
-            display="flex"
-            flexDirection="column"
-            onKeyDown={event => {
-                if (event.key === "Escape" && !isDragging) {
-                    if (event.shiftKey) {
+        <PeekContext.Provider value={useMemo(() => ({id: entry.id}), [entry.id])}>
+            <Box
+                width="full"
+                height="full"
+                overflow="hidden"
+                display="flex"
+                flexDirection="column"
+                onKeyDown={event => {
+                    if (event.key === "Escape" && !isDragging) {
+                        if (event.shiftKey) {
+                            event.preventDefault();
+                            dispatch({type: "PopAll"});
+                            return;
+                        }
+
                         event.preventDefault();
-                        dispatch({type: "PopAll"});
+                        dispatch({type: "Pop"});
                         return;
                     }
-
-                    event.preventDefault();
-                    dispatch({type: "Pop"});
-                    return;
-                }
-            }}
-        >
-            <Box
-                flexShrink="0"
-                height="8"
-                borderBottom="grey-10"
-                display="flex"
-                alignItems="center"
+                }}
             >
-                <Box flexGrow="1" />
-                <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
-                    <FocusRing>
-                        <button
-                            className={sprinkles({
-                                width: "4",
-                                height: "4",
-                                padding: "0.5",
-                                borderRadius: "full",
-                                cursor: "grab",
-                                backgroundColor: isKeyboardDragging ? "grey-10" : undefined,
-                            })}
-                            {...draggableAttributes}
-                            {...draggableListeners}
+                <Box
+                    flexShrink="0"
+                    height="8"
+                    borderBottom="grey-10"
+                    display="flex"
+                    alignItems="center"
+                >
+                    <Box flexGrow="1" />
+                    <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
+                        <FocusRing>
+                            <button
+                                className={sprinkles({
+                                    width: "4",
+                                    height: "4",
+                                    padding: "0.5",
+                                    borderRadius: "full",
+                                    cursor: "grab",
+                                    backgroundColor: isKeyboardDragging ? "grey-10" : undefined,
+                                })}
+                                {...draggableAttributes}
+                                {...draggableListeners}
+                            >
+                                <DotsSixVertical size={spacing["3"]} />
+                            </button>
+                        </FocusRing>
+                        <IconButton
+                            size="xs"
+                            description="Expand"
+                            tooltipPlacement="top"
+                            onPress={() => {
+                                // TODO(calebmer): Implement
+                            }}
                         >
-                            <DotsSixVertical size={spacing["3"]} />
-                        </button>
-                    </FocusRing>
-                    <IconButton
-                        size="xs"
-                        description="Expand"
-                        tooltipPlacement="top"
-                        onPress={() => {
-                            // TODO(calebmer): Implement
-                        }}
-                    >
-                        <ArrowsOutSimple />
-                    </IconButton>
-                    <IconButton
-                        size="xs"
-                        description="Close"
-                        tooltipPlacement="top-end"
-                        tooltipContentOverride="Double-click to close all"
-                        onPress={handlePressClose}
-                    >
-                        <X />
-                    </IconButton>
+                            <ArrowsOutSimple />
+                        </IconButton>
+                        <IconButton
+                            size="xs"
+                            description="Close"
+                            tooltipPlacement="top-end"
+                            tooltipContentOverride="Double-click to close all"
+                            onPress={handlePressClose}
+                        >
+                            <X />
+                        </IconButton>
+                    </Box>
+                </Box>
+                <Box flexGrow="1" overflow="hidden">
+                    <PeekRemixEmbed
+                        initialPath={entry.initialPath}
+                        initialLoaderData={entry.initialLoaderData}
+                    />
                 </Box>
             </Box>
-            <Box flexGrow="1" overflow="hidden">
-                <PeekRemixEmbed />
-            </Box>
-        </Box>
+        </PeekContext.Provider>
     );
 }
 

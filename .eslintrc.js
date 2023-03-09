@@ -177,6 +177,19 @@ module.exports = {
         // actually be evaluated.
         "import/newline-after-import": "warn",
 
+        "no-restricted-imports": [
+            "error",
+            {
+                patterns: [
+                    {
+                        group: ["@remix-run/react/dist/*", "!@remix-run/react/dist/esm"],
+                        message:
+                            "All Remix internal imports must be from the `esm` directory like this `@remix-run/react/dist/esm/*`",
+                    },
+                ],
+            },
+        ],
+
         // Use the exhaustive deps lint rule on some custom hooks.
         //
         // Please use this sparingly! Prefer patterns where you pass in a

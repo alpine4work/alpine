@@ -2,6 +2,7 @@ import {
     AccountId,
     ChannelId,
     DocumentId,
+    PeekId,
     PostId,
     RealmId,
     SpaceId,
@@ -297,6 +298,16 @@ export type TracerEventData = {
         /** Information about the space the event was fired while looking at. */
         readonly spaceId?: SpaceId;
 
+        /**
+         * The ID of the peek this event is coming from. May be accompanied by some
+         * `peek` properties.
+         */
+        readonly peekId?: PeekId;
+
+        // The below IDs can be rendered in a peek so they should also be included in
+        // `peek.context` to disambiguate between whether they are the primary content
+        // or peek content for our event.
+
         /** Information about the document the event was fired while looking at. */
         readonly documentId?: DocumentId;
 
@@ -305,6 +316,27 @@ export type TracerEventData = {
 
         /** Information about the post the event was fired while looking at. */
         readonly postId?: PostId;
+
+        /**
+         * If this event is coming from a peek then this object will be populated with
+         * information about the peek.
+         *
+         * IDs will be moved from the parent context into this object to disambiguate
+         * them. So if your peek is looking at a document and the peek is rendered on
+         * top of a document `context.documentId` will be the document ID in the peek
+         * you're directly interacting with whereas `context.peek.aboveDocumentId` will
+         * be the document ID the peek is rendered on top of.
+         */
+        readonly peek?: {
+            /** Information about the document the peek the event is coming from is above. */
+            readonly aboveDocumentId?: DocumentId;
+
+            /** Information about the channel the peek the event is coming from is above. */
+            readonly aboveChannelId?: ChannelId;
+
+            /** Information about the post the peek the event is coming from is above. */
+            readonly abovePostId?: PostId;
+        };
     };
 
     /**

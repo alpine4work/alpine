@@ -1,6 +1,5 @@
 import {ChatsCircle, EnvelopeOpen, FileText, IconContext, ListChecks, Plus} from "phosphor-react";
 import {ReactNode} from "react";
-import {useNavigate} from "react-router-dom";
 import {Box} from "~/client/design/box";
 import {IconButton} from "~/client/design/icon_button";
 import {MenuButton} from "~/client/design/menu_button";
@@ -14,7 +13,6 @@ import {generateId} from "~/shared/id/id";
 
 export function SpaceLayoutTopBarCreateButton() {
     const {space} = useSpaceContext();
-    const navigate = useNavigate();
     const showToast = useShowToast();
     const peekStackContext = usePeekStackContext();
 
@@ -24,7 +22,13 @@ export function SpaceLayoutTopBarCreateButton() {
                 {
                     withCustomLayout: true,
                     onPress: () => {
-                        peekStackContext.push();
+                        showToast({
+                            type: "Error",
+                            title: "Can not find a channel to post in",
+                            error: new UnimplementedError("Chat has not been implemented yet", {
+                                displayMessage: errorDisplayMessage`Chat has not been implemented yet.`,
+                            }),
+                        });
                     },
                     render: ({isHovered, isPressed}) => (
                         <SpaceLayoutTopBarCreateButtonItem
@@ -62,12 +66,11 @@ export function SpaceLayoutTopBarCreateButton() {
                 },
                 {
                     withCustomLayout: true,
-                    onPress: ({onCloseWithoutAnimation}) => {
+                    onPress: async ({onCloseWithoutAnimation}) => {
                         const documentId = generateId();
-                        navigate(`/s/${space.id}/documents/${documentId}?create`);
-
-                        // TODO(calebmer): Loading state! Though I think I'll be replacing this with
-                        // a peek?
+                        await peekStackContext.push(
+                            `/s/${space.id}/documents/${documentId}?create`,
+                        );
                         onCloseWithoutAnimation();
                     },
                     render: ({isHovered, isPressed}) => (
