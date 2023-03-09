@@ -297,3 +297,65 @@ test("can insert multiple decoration widgets provided in any order", () => {
         }),
     ).toEqual("<br><div><p>tes<br>t1</p><br><p>test2</p><br></div>");
 });
+
+test("will insert a decoration widget outside of adjacent marks", () => {
+    const doc = node("doc", {}, [
+        node("paragraph", {}, [
+            text("ab"),
+            text("cd", [mark("strong")]),
+            text("ef"),
+            text("gh", [mark("em")]),
+        ]),
+    ]);
+
+    const widgetHtml = new ElementHtmlGenerator("br");
+
+    const widget: Omit<ProsemirrorHtmlSerializationDecoration, "pos"> = {
+        type: "Widget",
+        html: widgetHtml,
+    };
+
+    expect(serializeProsemirrorNodeToHtml(doc)).toEqual(
+        "<div><p>ab<strong>cd</strong>ef<em>gh</em></p></div>",
+    );
+
+    expect(serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, pos: 0}]})).toEqual(
+        "<br><div><p>ab<strong>cd</strong>ef<em>gh</em></p></div>",
+    );
+    expect(serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, pos: 1}]})).toEqual(
+        "<div><br><p>ab<strong>cd</strong>ef<em>gh</em></p></div>",
+    );
+    expect(serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, pos: 2}]})).toEqual(
+        "<div><p><br>ab<strong>cd</strong>ef<em>gh</em></p></div>",
+    );
+    expect(serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, pos: 3}]})).toEqual(
+        "<div><p>a<br>b<strong>cd</strong>ef<em>gh</em></p></div>",
+    );
+    expect(serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, pos: 4}]})).toEqual(
+        "<div><p>ab<br><strong>cd</strong>ef<em>gh</em></p></div>",
+    );
+    expect(serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, pos: 5}]})).toEqual(
+        "<div><p>ab<strong>c<br>d</strong>ef<em>gh</em></p></div>",
+    );
+    expect(serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, pos: 6}]})).toEqual(
+        "<div><p>ab<strong>cd</strong><br>ef<em>gh</em></p></div>",
+    );
+    expect(serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, pos: 7}]})).toEqual(
+        "<div><p>ab<strong>cd</strong>e<br>f<em>gh</em></p></div>",
+    );
+    expect(serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, pos: 8}]})).toEqual(
+        "<div><p>ab<strong>cd</strong>ef<br><em>gh</em></p></div>",
+    );
+    expect(serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, pos: 9}]})).toEqual(
+        "<div><p>ab<strong>cd</strong>ef<em>g<br>h</em></p></div>",
+    );
+    expect(serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, pos: 10}]})).toEqual(
+        "<div><p>ab<strong>cd</strong>ef<em>gh</em><br></p></div>",
+    );
+    expect(serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, pos: 11}]})).toEqual(
+        "<div><p>ab<strong>cd</strong>ef<em>gh</em></p><br></div>",
+    );
+    expect(serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, pos: 12}]})).toEqual(
+        "<div><p>ab<strong>cd</strong>ef<em>gh</em></p></div><br>",
+    );
+});

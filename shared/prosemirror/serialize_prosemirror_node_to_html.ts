@@ -91,7 +91,7 @@ export function serializeProsemirrorNodeToHtml(
         ),
     };
 
-    return serializeProsemirrorNode(0, node, context).generateHtml();
+    return serializeProsemirrorRootNode(0, node, context).generateHtml();
 }
 
 /**
@@ -129,6 +129,42 @@ function isDomNode(structure: object): structure is globalThis.Node {
 }
 
 /**
+ * Same as `serializeProsemirrorNode()` but adds decorations before/after the node.
+ * For nested nodes `serializeProsemirrorFragment()` handles this but the root node
+ * is not wrapped in a fragment.
+ */
+function serializeProsemirrorRootNode(
+    pos: number, // Position at the start of the node
+    node: Node,
+    context: ProsemirrorHtmlSerializationContext,
+): HtmlGenerator {
+    let prependDecorationHtml: HtmlGenerator | undefined;
+    let appendDecorationHtml: HtmlGenerator | undefined;
+
+    if (context.decorationQueue[context.decorationQueue.length - 1]?.pos === pos) {
+        const decoration = context.decorationQueue.pop()!;
+        prependDecorationHtml = decoration.html;
+    }
+
+    let html = serializeProsemirrorNode(pos, node, context);
+
+    if (context.decorationQueue[context.decorationQueue.length - 1]?.pos === pos + node.nodeSize) {
+        const decoration = context.decorationQueue.pop()!;
+        appendDecorationHtml = decoration.html;
+    }
+
+    if (prependDecorationHtml || appendDecorationHtml) {
+        const htmlWithDecoration = new FragmentHtmlGenerator();
+        if (prependDecorationHtml) htmlWithDecoration.appendChild(prependDecorationHtml);
+        htmlWithDecoration.appendChild(html);
+        if (appendDecorationHtml) htmlWithDecoration.appendChild(appendDecorationHtml);
+        html = htmlWithDecoration;
+    }
+
+    return html;
+}
+
+/**
  * Serializes a ProseMirror node to HTML. Has the same implementation as
  * [`DOMSerializer.serializeNode()`][1] but for an HTML string instead of DOM
  * nodes.
@@ -142,13 +178,6 @@ function serializeProsemirrorNode(
 ): HtmlGenerator {
     let html: HtmlGenerator;
     let contentHtml: ElementHtmlGenerator | undefined;
-    let prependDecorationHtml: HtmlGenerator | undefined;
-    let appendDecorationHtml: HtmlGenerator | undefined;
-
-    if (context.decorationQueue[context.decorationQueue.length - 1]?.pos === pos) {
-        const decoration = context.decorationQueue.pop()!;
-        prependDecorationHtml = decoration.html;
-    }
 
     if (!node.isText) {
         const nodeRenderer = context.nodeRenderers[node.type.name];
@@ -182,7 +211,7 @@ function serializeProsemirrorNode(
                 const lastDecoration = context.decorationQueue[context.decorationQueue.length - 1];
                 if (!lastDecoration) break;
 
-                if (!(pos < lastDecoration.pos && lastDecoration.pos <= pos + text.length)) break;
+                if (!(pos < lastDecoration.pos && lastDecoration.pos < pos + text.length)) break;
 
                 context.decorationQueue.pop();
 
@@ -198,19 +227,6 @@ function serializeProsemirrorNode(
             if (lastTextSlice.length > 0)
                 fragmentHtml.appendChild(new TextHtmlGenerator(lastTextSlice));
         }
-    }
-
-    if (context.decorationQueue[context.decorationQueue.length - 1]?.pos === pos + node.nodeSize) {
-        const decoration = context.decorationQueue.pop()!;
-        appendDecorationHtml = decoration.html;
-    }
-
-    if (prependDecorationHtml || appendDecorationHtml) {
-        const htmlWithDecoration = new FragmentHtmlGenerator();
-        if (prependDecorationHtml) htmlWithDecoration.appendChild(prependDecorationHtml);
-        htmlWithDecoration.appendChild(html);
-        if (appendDecorationHtml) htmlWithDecoration.appendChild(appendDecorationHtml);
-        html = htmlWithDecoration;
     }
 
     return html;
@@ -260,8 +276,18 @@ function serializeProsemirrorFragment(
     let currentTargetContainer: ContainerHtmlGenerator = targetContainer;
     let activeMarkContainers: Array<[Mark, ContainerHtmlGenerator]> | null = null;
 
+    if (context.decorationQueue[context.decorationQueue.length - 1]?.pos === pos) {
+        const decoration = context.decorationQueue.pop()!;
+        targetContainer.appendChild(decoration.html);
+    }
+
     fragment.forEach((node, offset) => {
-        if (activeMarkContainers || node.marks.length) {
+        if (!activeMarkContainers && node.marks.length === 0) {
+            if (context.decorationQueue[context.decorationQueue.length - 1]?.pos === pos + offset) {
+                const decoration = context.decorationQueue.pop()!;
+                currentTargetContainer.appendChild(decoration.html);
+            }
+        } else {
             if (!activeMarkContainers) activeMarkContainers = [];
 
             let keepActiveMarks = 0;
@@ -281,8 +307,9 @@ function serializeProsemirrorFragment(
                 if (
                     !mark.eq(activeMarkContainers[keepActiveMarks]![0]) ||
                     mark.type.spec.spanning === false
-                )
+                ) {
                     break;
+                }
 
                 keepActiveMarks++;
                 renderedMarks++;
@@ -290,6 +317,12 @@ function serializeProsemirrorFragment(
 
             while (keepActiveMarks < activeMarkContainers.length) {
                 currentTargetContainer = activeMarkContainers.pop()![1];
+            }
+
+            // Insert decoration between nodes at the point with the fewest marks.
+            if (context.decorationQueue[context.decorationQueue.length - 1]?.pos === pos + offset) {
+                const decoration = context.decorationQueue.pop()!;
+                currentTargetContainer.appendChild(decoration.html);
             }
 
             while (renderedMarks < node.marks.length) {
@@ -306,6 +339,11 @@ function serializeProsemirrorFragment(
 
         currentTargetContainer.appendChild(serializeProsemirrorNode(pos + offset, node, context));
     });
+
+    if (context.decorationQueue[context.decorationQueue.length - 1]?.pos === pos + fragment.size) {
+        const decoration = context.decorationQueue.pop()!;
+        targetContainer.appendChild(decoration.html);
+    }
 
     return targetContainer;
 }
