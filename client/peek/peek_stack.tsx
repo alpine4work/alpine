@@ -33,7 +33,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {generateId} from "~/shared/id/id";
 import {PeekId} from "~/shared/id/types/id_types";
-import {sprinkles} from "~/shared/styles/styles";
+import {peekContainerClassName, sprinkles} from "~/shared/styles/styles";
 
 const peekWidth = spacing["128"];
 const peekHeight = spacing["160"];
@@ -590,6 +590,7 @@ function PeekOverlay({
                 style={{
                     bottom: `-${peekBottomBuffer}`,
                 }}
+                className={peekContainerClassName}
             >
                 <Box
                     ref={overlayRef}

@@ -20,6 +20,7 @@ import {
 } from "~/shared/styles/internal/color_scheme.css";
 import {fontSizes, fontStyles} from "~/shared/styles/internal/fonts.css";
 import {inputPlaceholderColor} from "~/shared/styles/internal/input_placeholder_color.css";
+import {peekContainerClassName} from "~/shared/styles/internal/peek.css";
 
 // TODO(calebmer): Running list of style tweaks to explore.
 //
@@ -75,7 +76,7 @@ const blockStyles = {
 };
 
 export const desktopTitlePaddingTop = spacing["24"];
-export const mobileTitlePaddingTop = spacing["12"];
+export const mobileOrPeekTitlePaddingTop = spacing["12"];
 
 export const titleFontSize = fontSizes["800"];
 
@@ -92,8 +93,14 @@ export const titleClassName = style({
     fontFeatureSettings: '"calt" on',
     "@media": {
         [mobilePlatformMediaQuery]: {
-            paddingTop: mobileTitlePaddingTop,
-            minHeight: `calc(${titleFontSize.lineHeight} + ${mobileTitlePaddingTop})`,
+            paddingTop: mobileOrPeekTitlePaddingTop,
+            minHeight: `calc(${titleFontSize.lineHeight} + ${mobileOrPeekTitlePaddingTop})`,
+        },
+    },
+    selectors: {
+        [`${peekContainerClassName} &`]: {
+            paddingTop: mobileOrPeekTitlePaddingTop,
+            minHeight: `calc(${titleFontSize.lineHeight} + ${mobileOrPeekTitlePaddingTop})`,
         },
     },
 });
