@@ -70,6 +70,7 @@ export function SpaceLayoutTopBarCreateButton() {
                         const documentId = generateId();
                         await peekStackContext.push(
                             `/s/${space.id}/documents/${documentId}?create`,
+                            {focus: true},
                         );
                         onCloseWithoutAnimation();
                     },

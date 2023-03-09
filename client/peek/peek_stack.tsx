@@ -7,9 +7,12 @@ import {animate, spring} from "motion";
 import {ArrowsOutSimple, DotsSixVertical, X} from "phosphor-react";
 import {
     ReactNode,
+    Ref,
     createContext,
+    forwardRef,
     useCallback,
     useContext,
+    useImperativeHandle,
     useLayoutEffect,
     useMemo,
     useReducer,
@@ -19,6 +22,7 @@ import {
 import {createPortal} from "react-dom";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
+import {getNextFocusableElement} from "~/client/design/helpers/get_next_focusable_element";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
 import {IconButton} from "~/client/design/icon_button";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
@@ -45,6 +49,7 @@ type PeekStackEntry = {
     readonly id: PeekId;
     readonly initialPath: Path;
     readonly initialLoaderData: {[key: string]: unknown};
+    readonly autoFocus: boolean;
 };
 
 type PeekStackState = {
@@ -144,7 +149,7 @@ function reducePeekStackState(state: PeekStackState, action: PeekStackAction): P
 }
 
 type PeekStackContext = {
-    readonly push: (to: To) => Promise<void>;
+    readonly push: (to: To, options?: {focus?: boolean}) => Promise<void>;
 };
 
 const PeekStackContext = createContext<PeekStackContext | null>(null);
@@ -163,7 +168,7 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
     const [state, dispatch] = useReducer(reducePeekStackState, initialPeekStackState);
 
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    const push = useEvent(async (to: To) => {
+    const push = useEvent(async (to: To, {focus = false}: {focus?: boolean} = {}) => {
         const abortController = new AbortController();
 
         const {path, loaderData} = await loadInitialPeekData(
@@ -178,6 +183,7 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
                 id: generateId(),
                 initialPath: path,
                 initialLoaderData: loaderData,
+                autoFocus: focus,
             },
         });
     });
@@ -362,7 +368,8 @@ function PeekOverlay({
     const isMounted = useIsMounted();
     const overlayRef = useRef<HTMLDivElement>(null);
     const overlayContainerRef = useRef<HTMLDivElement>(null);
-    const overlayContentRef = useRef<HTMLDivElement>(null);
+    const overlayContentContainerRef = useRef<HTMLDivElement>(null);
+    const overlayContentRef = useRef<PeekOverlayContentRef>(null);
 
     const renderPopClickOverlay = (offset: number) => (
         <Box
@@ -416,7 +423,14 @@ function PeekOverlay({
                     }),
                 },
             );
-        }, [index, translateY]);
+
+            // If auto-focus is enabled then it should happen at the same time as we
+            // animate up.
+            if (entry.autoFocus) {
+                const overlayContent = assertExists(overlayContentRef.current);
+                overlayContent.focus();
+            }
+        }, [entry.autoFocus, index, translateY]);
 
         const hasStartedUnmountingRef = useRef(false);
         useLayoutEffect(() => {
@@ -523,12 +537,13 @@ function PeekOverlay({
             if (!shouldRenderContent && lastShouldRenderContentRef.current) {
                 // If React already isn't rendering our content then we're good.
                 if (!isRenderingContent) return;
-                const overlayContentElement = assertExists(overlayContentRef.current);
+                assert(overlayContentContainerRef.current);
+                const overlayContentContainerElement = overlayContentContainerRef.current;
 
                 lastShouldRenderContentRef.current = false;
 
                 const animation = animate(
-                    overlayContentElement,
+                    overlayContentContainerElement,
                     {
                         opacity: "0",
                     },
@@ -558,15 +573,16 @@ function PeekOverlay({
                     setIsRenderingContent(true);
                     return;
                 }
-                const overlayContentElement = assertExists(overlayContentRef.current);
+                assert(overlayContentContainerRef.current);
+                const overlayContentContainerElement = overlayContentContainerRef.current;
 
                 lastShouldRenderContentRef.current = true;
 
                 // Start from an opacity of 0.
-                overlayContentElement.style.opacity = "0";
+                overlayContentContainerElement.style.opacity = "0";
 
                 animate(
-                    overlayContentElement,
+                    overlayContentContainerElement,
                     {
                         opacity: "1",
                     },
@@ -608,8 +624,14 @@ function PeekOverlay({
                     }}
                 >
                     {isRenderingContent && (
-                        <Box ref={overlayContentRef} width="full" height="full" overflow="hidden">
+                        <Box
+                            ref={overlayContentContainerRef}
+                            width="full"
+                            height="full"
+                            overflow="hidden"
+                        >
                             <PeekOverlayContent
+                                ref={overlayContentRef}
                                 state={state}
                                 dispatch={dispatch}
                                 entry={entry}
@@ -652,23 +674,49 @@ export function usePeekContext(): PeekContext | null {
     return useContext(PeekContext);
 }
 
-function PeekOverlayContent({
-    state,
-    dispatch,
-    entry,
-    isDragging,
-    isKeyboardDragging,
-    draggableAttributes,
-    draggableListeners,
-}: {
-    state: PeekStackState;
-    dispatch: (action: PeekStackAction) => void;
-    entry: PeekStackEntry;
-    isDragging: boolean;
-    isKeyboardDragging: boolean;
-    draggableAttributes: DraggableAttributes;
-    draggableListeners: SyntheticListenerMap | undefined;
-}) {
+type PeekOverlayContentRef = {
+    focus(): void;
+};
+
+const PeekOverlayContent = forwardRef(function PeekOverlayContent(
+    {
+        state,
+        dispatch,
+        entry,
+        isDragging,
+        isKeyboardDragging,
+        draggableAttributes,
+        draggableListeners,
+    }: {
+        state: PeekStackState;
+        dispatch: (action: PeekStackAction) => void;
+        entry: PeekStackEntry;
+        isDragging: boolean;
+        isKeyboardDragging: boolean;
+        draggableAttributes: DraggableAttributes;
+        draggableListeners: SyntheticListenerMap | undefined;
+    },
+    ref: Ref<PeekOverlayContentRef>,
+) {
+    const contentRef = useRef<HTMLDivElement>(null);
+    const closeButtonRef = useRef<HTMLButtonElement>(null);
+    const onExpandRef = useRef<(() => Promise<void>) | null>(null);
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            focus: () => {
+                const contentElement = assertExists(contentRef.current);
+                const closeButtonElement = assertExists(closeButtonRef.current);
+                const focusElement = getNextFocusableElement(closeButtonElement, {
+                    withinElement: contentElement,
+                });
+                focusElement?.focus({preventScroll: true});
+            },
+        }),
+        [],
+    );
+
     const [doubleClickTimeout, setDoubleClickTimeout] = useState<Timeout | null>(null);
 
     // We manually implement double-click support instead of using the operating
@@ -725,11 +773,10 @@ function PeekOverlayContent({
         dispatch({type: "Pop"});
     };
 
-    const onExpandRef = useRef<(() => Promise<void>) | null>(null);
-
     return (
         <PeekContext.Provider value={useMemo(() => ({id: entry.id}), [entry.id])}>
             <Box
+                ref={contentRef}
                 width="full"
                 height="full"
                 overflow="hidden"
@@ -788,6 +835,7 @@ function PeekOverlayContent({
                             <ArrowsOutSimple />
                         </IconButton>
                         <IconButton
+                            ref={closeButtonRef}
                             size="xs"
                             description="Close"
                             tooltipPlacement="top-end"
@@ -806,7 +854,7 @@ function PeekOverlayContent({
             </Box>
         </PeekContext.Provider>
     );
-}
+});
 
 const mockPeekStackContextForTest: PeekStackContext | null =
     typeof jest !== "undefined"

@@ -23,8 +23,10 @@ const tabbableElementSelector = tabbableElements.join(':not([tabindex="-1"]),');
 function createFocusableTreeWalker(
     element: Element,
     {
+        withinElement,
         includeElementsThatAreNotTabbable = false,
     }: {
+        withinElement?: Element;
         includeElementsThatAreNotTabbable?: boolean;
     } = {},
 ) {
@@ -32,16 +34,20 @@ function createFocusableTreeWalker(
         ? tabbableElementSelector
         : focusableElementSelector;
 
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT, {
-        acceptNode(node) {
-            // Skip nodes inside the starting node.
-            if (element.contains(node)) return NodeFilter.FILTER_REJECT;
+    const walker = document.createTreeWalker(
+        withinElement ?? document.body,
+        NodeFilter.SHOW_ELEMENT,
+        {
+            acceptNode(node) {
+                // Skip nodes inside the starting node.
+                if (element.contains(node)) return NodeFilter.FILTER_REJECT;
 
-            if ((node as HTMLElement).matches(selector)) return NodeFilter.FILTER_ACCEPT;
+                if ((node as HTMLElement).matches(selector)) return NodeFilter.FILTER_ACCEPT;
 
-            return NodeFilter.FILTER_SKIP;
+                return NodeFilter.FILTER_SKIP;
+            },
         },
-    });
+    );
 
     walker.currentNode = element;
 
@@ -57,6 +63,7 @@ function createFocusableTreeWalker(
 export function getNextFocusableElement(
     element: Element,
     options?: {
+        withinElement?: Element;
         includeElementsThatAreNotTabbable?: boolean;
     },
 ) {
@@ -73,6 +80,7 @@ export function getNextFocusableElement(
 export function getPreviousFocusableElement(
     element: Element,
     options?: {
+        withinElement?: Element;
         includeElementsThatAreNotTabbable?: boolean;
     },
 ) {
