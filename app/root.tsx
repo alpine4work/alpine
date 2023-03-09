@@ -27,6 +27,7 @@ import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use_is
 import {useStableValue} from "~/client/helpers/use_stable_value";
 import {ClientInfoContextProvider, defaultClientInfo} from "~/client/remix/client_info_context";
 import {IsMobileContextProvider} from "~/client/remix/use_is_mobile";
+import {WaitForNavigationContextProvider} from "~/client/remix/use_navigate";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
 import {spacing} from "~/shared/design/spacing";
@@ -170,11 +171,13 @@ export default function Root({error}: {error?: unknown}) {
                 >
                     <AppInitialRenderContextProvider>
                         <IsMobileContextProvider>
-                            <OverlayScopeContextProvider>
-                                <TooltipCoordinationContextProvider>
-                                    <ToastContextProvider>{children}</ToastContextProvider>
-                                </TooltipCoordinationContextProvider>
-                            </OverlayScopeContextProvider>
+                            <WaitForNavigationContextProvider>
+                                <OverlayScopeContextProvider>
+                                    <TooltipCoordinationContextProvider>
+                                        <ToastContextProvider>{children}</ToastContextProvider>
+                                    </TooltipCoordinationContextProvider>
+                                </OverlayScopeContextProvider>
+                            </WaitForNavigationContextProvider>
                         </IsMobileContextProvider>
                     </AppInitialRenderContextProvider>
                 </ClientInfoContextProvider>

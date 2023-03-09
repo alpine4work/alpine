@@ -177,9 +177,28 @@ module.exports = {
         // actually be evaluated.
         "import/newline-after-import": "warn",
 
+        // Restrict the use of some imports and recommend alternatives for our
+        // codebase.
         "no-restricted-imports": [
             "error",
             {
+                paths: [
+                    {
+                        name: "react-router",
+                        importNames: ["useNavigate"],
+                        message: "Import `useNavigate()` from `~/client/remix/use_navigate`",
+                    },
+                    {
+                        name: "react-router-dom",
+                        importNames: ["useNavigate"],
+                        message: "Import `useNavigate()` from `~/client/remix/use_navigate`",
+                    },
+                    {
+                        name: "@remix-run/react",
+                        importNames: ["useNavigate"],
+                        message: "Import `useNavigate()` from `~/client/remix/use_navigate`",
+                    },
+                ],
                 patterns: [
                     {
                         group: ["@remix-run/react/dist/*", "!@remix-run/react/dist/esm"],

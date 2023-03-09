@@ -724,6 +724,8 @@ function PeekOverlayContent({
         dispatch({type: "Pop"});
     };
 
+    const onExpandRef = useRef<(() => Promise<void>) | null>(null);
+
     return (
         <PeekContext.Provider value={useMemo(() => ({id: entry.id}), [entry.id])}>
             <Box
@@ -732,6 +734,8 @@ function PeekOverlayContent({
                 overflow="hidden"
                 display="flex"
                 flexDirection="column"
+                position="relative"
+                zIndex="0"
                 onKeyDown={event => {
                     if (event.key === "Escape" && !isDragging) {
                         if (event.shiftKey) {
@@ -775,8 +779,9 @@ function PeekOverlayContent({
                             size="xs"
                             description="Expand"
                             tooltipPlacement="top"
-                            onPress={() => {
-                                // TODO(calebmer): Implement
+                            pressErrorTitle="Couldn’t expand"
+                            onPress={async () => {
+                                await onExpandRef.current?.();
                             }}
                         >
                             <ArrowsOutSimple />
@@ -792,12 +797,11 @@ function PeekOverlayContent({
                         </IconButton>
                     </Box>
                 </Box>
-                <Box flexGrow="1" overflow="hidden">
-                    <PeekRemixEmbed
-                        initialPath={entry.initialPath}
-                        initialLoaderData={entry.initialLoaderData}
-                    />
-                </Box>
+                <PeekRemixEmbed
+                    initialPath={entry.initialPath}
+                    initialLoaderData={entry.initialLoaderData}
+                    onExpandRef={onExpandRef}
+                />
             </Box>
         </PeekContext.Provider>
     );

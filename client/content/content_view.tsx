@@ -5,7 +5,7 @@ import {renderContentFragmentToHtml} from "~/client/content/render_content_to_ht
 import {FocusRing} from "~/client/design/focus_ring";
 import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_date";
 import {Tooltip} from "~/client/design/tooltip";
-import {useNavigateWithJestFallback} from "~/client/helpers/use_navigate_with_jest_fallback";
+import {useNavigate} from "~/client/remix/use_navigate";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty";
 import {assert} from "~/shared/helpers/control/assert";
@@ -147,7 +147,7 @@ export function ContentView({
         };
     }, [content, contentUpdatedNoteId, contentUpdatedTime, currentAccount, isInert, placeholder]);
 
-    const navigate = useNavigateWithJestFallback();
+    const navigate = useNavigate();
 
     useEffect(() => {
         if (isInert) return;

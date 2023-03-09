@@ -2,9 +2,10 @@ import {RemixEntryContext} from "@remix-run/react/dist/esm/components";
 import {AppState} from "@remix-run/react/dist/esm/errors";
 import {createTransitionManager} from "@remix-run/react/dist/esm/transition";
 import {Path, createMemoryHistory} from "history";
-import {Context, useContext, useEffect, useMemo, useState} from "react";
+import {Context, Ref, useContext, useEffect, useImperativeHandle, useMemo, useState} from "react";
 import {UNSAFE_RouteContext as RouteContext} from "react-router";
 import {Router, useRoutes} from "react-router-dom";
+import {useNavigate} from "~/client/remix/use_navigate";
 import {InternalError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -16,12 +17,15 @@ type RemixEntryContextType = typeof RemixEntryContext extends Context<infer Cont
 export function PeekRemixEmbed({
     initialPath,
     initialLoaderData,
+    onExpandRef,
 }: {
     initialPath: Path;
     initialLoaderData: {[key: string]: unknown};
+    onExpandRef: Ref<(() => Promise<void>) | null>;
 }) {
     const remixEntryContext = useContext(RemixEntryContext);
     assert(remixEntryContext, "Expected Remix entry context");
+    const navigate = useNavigate();
 
     const [history] = useState(() =>
         createMemoryHistory({
@@ -33,6 +37,18 @@ export function PeekRemixEmbed({
         action: history.action,
         location: history.location,
     }));
+
+    useImperativeHandle(
+        onExpandRef,
+        () => async () => {
+            const match = historyState.location.pathname.match(/^(\/s\/[a-zA-Z0-9]+)\/peek(\/.*)/);
+            if (!match) throw new InternalError("Can only expand peek routes");
+            const pathnamePart1 = match[1]!;
+            const pathnamePart2 = match[2]!;
+            await navigate(`${pathnamePart1}${pathnamePart2}`);
+        },
+        [historyState.location.pathname, navigate],
+    );
 
     useEffect(() => {
         // Update to the latest history state before listening for updates.

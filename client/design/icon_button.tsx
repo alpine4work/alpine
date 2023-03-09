@@ -1,15 +1,18 @@
 import {PressEvent} from "@react-types/shared";
-import {IconContext} from "phosphor-react";
-import {ReactNode, Ref, forwardRef, useRef} from "react";
+import {IconContext, SpinnerGap} from "phosphor-react";
+import {ReactNode, Ref, forwardRef, useEffect, useRef, useState} from "react";
 import {AriaButtonProps, mergeProps, useButton, useHover} from "react-aria";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
 import {OverlayPlacement} from "~/client/design/overlay";
+import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {useShowToast} from "~/client/design/toast";
 import {Tooltip, defaultTooltipOffset} from "~/client/design/tooltip";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
 import {Spacing, spacing} from "~/shared/design/spacing";
-import {Sprinkles, sprinkles} from "~/shared/styles/styles";
+import {createTimeout} from "~/shared/helpers/async/timeout";
+import {assert} from "~/shared/helpers/control/assert";
+import {Sprinkles, spinAnimationClassName, sprinkles} from "~/shared/styles/styles";
 
 const IconButtonForwardRef = forwardRef(IconButton);
 export {IconButtonForwardRef as IconButton};
@@ -27,7 +30,7 @@ type IconButtonSize = "base" | "md" | "sm" | "xs";
  * [1]: https://react-spectrum.adobe.com/blog/building-a-button-part-1.html
  */
 function IconButton(
-    props: AriaButtonProps<"button"> & {
+    props: Omit<AriaButtonProps<"button">, "onPress"> & {
         /**
          * A description of the action the icon button will take when pressed.
          * Appears as a tooltip on hover and in the `aria-label`.
@@ -42,8 +45,24 @@ function IconButton(
         /**
          * When the user presses a button we fire this event. Use it to perform
          * an action in response to the button press.
+         *
+         * If a promise is returned then the button is put into a pending state until
+         * the promise resolves.
          */
-        onPress?: (event: PressEvent) => void;
+        onPress?: (event: PressEvent) => void | Promise<void>;
+
+        /**
+         * If an error occurs while running `onPress` we will report the error to the user with
+         * this title. It is the "what happened" part of an error message according to [Adobe
+         * Spectrum's][1] error content guidelines.
+         *
+         * So for example it this is a delete comment action say "Couldn’t delete comment".
+         *
+         * Optional if the `onPress` event does not return a promise.
+         *
+         * [1]: https://spectrum.adobe.com/page/writing-for-errors
+         */
+        pressErrorTitle?: string;
 
         /**
          * Which styles should we apply to the variant?
@@ -88,6 +107,7 @@ function IconButton(
         description,
         keyboardShortcutHint,
         onPress,
+        pressErrorTitle,
         variant = "quiet",
         size = "base",
         children,
@@ -100,22 +120,53 @@ function IconButton(
     const localRef = useRef<HTMLButtonElement>(null);
     const showToast = useShowToast();
 
+    const [isPending, setIsPending] = useState(false);
+
     const {buttonProps, isPressed} = useButton(
         {
             ...props,
+            isDisabled: isDisabled || isPending,
             "aria-label": description,
             onPress: event => {
                 const defaultPressErrorTitle = "The button you pressed didn’t work";
 
+                let promise;
                 try {
-                    onPress?.(event);
+                    promise = onPress?.(event);
                 } catch (error) {
                     showToast({
                         type: "Error",
-                        title: defaultPressErrorTitle,
+                        title: pressErrorTitle ?? defaultPressErrorTitle,
                         error,
                     });
                     return;
+                }
+
+                // If the press returns a promise:
+                //
+                // - Show a loading spinner after a short delay
+                // - Show a toast if there was an error
+                if (promise instanceof Promise) {
+                    setIsPending(true);
+
+                    assert(
+                        pressErrorTitle,
+                        "If `onPress` returns a promise then the `pressErrorTitle` prop is required",
+                    );
+
+                    promise.then(
+                        () => {
+                            setIsPending(false);
+                        },
+                        error => {
+                            setIsPending(false);
+                            showToast({
+                                type: "Error",
+                                title: pressErrorTitle,
+                                error,
+                            });
+                        },
+                    );
                 }
             },
         },
@@ -178,6 +229,26 @@ function IconButton(
         } as const
     )[size];
 
+    // We wait a bit before showing our pending spinner. Some actions are very fast so we
+    // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
+    const [_shouldShowPendingSpinner, setShouldShowPendingSpinner] = useState(false);
+    useEffect(() => {
+        if (!isPending) {
+            setShouldShowPendingSpinner(false);
+            return;
+        }
+
+        const timeout = createTimeout(() => {
+            setShouldShowPendingSpinner(true);
+        }, delayLoadingIndicatorLimitMs);
+        return () => {
+            timeout.clear();
+        };
+    }, [isPending]);
+
+    // Only show the pending spinner if we are actually pending.
+    const shouldShowPendingSpinner = _shouldShowPendingSpinner && isPending;
+
     return (
         <Tooltip
             placement={tooltipPlacement}
@@ -202,7 +273,7 @@ function IconButton(
                     description
                 ))
             }
-            isDisabled={isDisabled || withoutTooltip}
+            isDisabled={isDisabled || withoutTooltip || isPending}
         >
             <FocusRing>
                 <button
@@ -252,7 +323,11 @@ function IconButton(
                             size: spacing[iconSize],
                         }}
                     >
-                        {children}
+                        {shouldShowPendingSpinner ? (
+                            <SpinnerGap className={spinAnimationClassName} />
+                        ) : (
+                            children
+                        )}
                     </IconContext.Provider>
                 </button>
             </FocusRing>

@@ -1,11 +1,11 @@
 import {Bell, MagnifyingGlass} from "phosphor-react";
-import {useNavigate} from "react-router-dom";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
 import {IconButton} from "~/client/design/icon_button";
 import {MenuButton} from "~/client/design/menu_button";
 import {useShowToast} from "~/client/design/toast";
+import {useNavigate} from "~/client/remix/use_navigate";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {SpaceLayoutTopBarCreateButton} from "~/client/spaces/space_layout_top_bar_create_button";
 import {spacing} from "~/shared/design/spacing";

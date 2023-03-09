@@ -1,5 +1,6 @@
 import {useCallback, useEffect, useMemo, useRef} from "react";
-import {useLocation, useNavigate} from "react-router-dom";
+import {useLocation} from "react-router-dom";
+import {useNavigate} from "~/client/remix/use_navigate";
 
 /**
  * Convenient React-style state for a string that is persisted in the URL's
@@ -31,7 +32,7 @@ export function useUrlSearchParamState(
                 searchParams.delete(searchParamName);
             }
 
-            navigate({search: searchParams.toString()});
+            void navigate({search: searchParams.toString()});
         },
         [navigate, searchParamName],
     );

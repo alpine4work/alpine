@@ -37,7 +37,7 @@ import {isMac} from "~/client/helpers/browser/is_mac";
 import {isVirtualKeyboardEvent} from "~/client/helpers/events/is_virtual_keyboard_event";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
-import {useNavigateWithJestFallback} from "~/client/helpers/use_navigate_with_jest_fallback";
+import {useNavigate} from "~/client/remix/use_navigate";
 import {
     useExpensivelyPreloadAllSpaceAccounts,
     useSpaceContext,
@@ -280,7 +280,7 @@ function ContentEditor<Content extends Node>(
     // Please avoid using `propsRef` unless you can thoroughly reason through why
     // it's safe!
     const propsRef = useRef(props);
-    const navigate = useNavigateWithJestFallback();
+    const navigate = useNavigate();
     const navigateRef = useRef(navigate);
     // Don't get the current account when running in a unit test so we don't need
     // to render a space context when testing this component.

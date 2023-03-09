@@ -21,7 +21,7 @@ export function createContentEditorMarkNodeViewConstructor({
     onPointerEnterAfterDelay: (options: {mark: Mark; range: {from: number; to: number}}) => void;
     onPointerEnter: (mark: Mark) => void;
     onPointerLeave: (mark: Mark) => void;
-    onNavigate: (to: To) => void;
+    onNavigate: (to: To) => Promise<void>;
 }): MarkViewConstructor {
     return (mark, view, inline) => {
         const {dom, contentDOM: contentDom} = DOMSerializer.renderSpec(

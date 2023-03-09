@@ -1,7 +1,7 @@
 import {matchClientRoutes} from "@remix-run/react/dist/esm/routeMatching";
 import {ClientRoute} from "@remix-run/react/dist/esm/routes";
 import {Path, To, parsePath} from "history";
-import {InvalidArgumentError, NotFoundError} from "~/shared/error/error";
+import {InternalError, NotFoundError} from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 
 export async function loadInitialPeekData(
@@ -14,7 +14,7 @@ export async function loadInitialPeekData(
 }> {
     const path = typeof to === "string" ? parsePath(to) : to;
     const match = (path.pathname ?? "/").match(/^(\/s\/[a-zA-Z0-9]+\/)(?!peek)(.*)/);
-    if (!match) throw new InvalidArgumentError("Can only open peek for a space route");
+    if (!match) throw new InternalError("Can only open peek for a space route");
     const pathnamePart1 = match[1]!;
     const pathnamePart2 = match[2]!;
 

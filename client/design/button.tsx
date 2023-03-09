@@ -138,7 +138,6 @@ function Button(
 
                 // If the press returns a promise:
                 //
-                // - Only close the menu if the action succeeds
                 // - Show a loading spinner after a short delay
                 // - Show a toast if there was an error
                 if (promise instanceof Promise) {

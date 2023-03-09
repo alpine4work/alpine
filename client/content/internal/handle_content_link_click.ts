@@ -9,7 +9,7 @@ import {assert} from "~/shared/helpers/control/assert";
  */
 export function handleContentLinkClick(
     event: PointerEvent | MouseEvent,
-    onNavigate: (to: To) => void,
+    onNavigate: (to: To) => Promise<void>,
 ) {
     const element = event.currentTarget;
     assert(element instanceof HTMLAnchorElement);
@@ -47,7 +47,7 @@ export function handleContentLinkClick(
             newUrlSpaceIdMatch &&
             oldUrlSpaceIdMatch[1] === newUrlSpaceIdMatch[1]
         ) {
-            onNavigate({
+            void onNavigate({
                 pathname: newUrl.pathname,
                 search: newUrl.search,
                 hash: newUrl.hash,
