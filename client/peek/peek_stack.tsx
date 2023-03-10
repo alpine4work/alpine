@@ -7,7 +7,14 @@ import {matchClientRoutes} from "@remix-run/react/dist/esm/routeMatching";
 import {ClientRoute} from "@remix-run/react/dist/esm/routes";
 import {Action, Location, MemoryHistory, To, createMemoryHistory, parsePath} from "history";
 import {animate, spring} from "motion";
-import {ArrowsOutSimple, DotsSixVertical, SpinnerGap, X} from "phosphor-react";
+import {
+    ArrowLeft,
+    ArrowRight,
+    ArrowsOutSimple,
+    DotsSixVertical,
+    SpinnerGap,
+    X,
+} from "phosphor-react";
 import {
     MutableRefObject,
     ReactNode,
@@ -49,6 +56,7 @@ import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
 import {Lazy} from "~/shared/helpers/control/lazy";
 import {generateId} from "~/shared/id/id";
 import {PeekId} from "~/shared/id/types/id_types";
@@ -1085,6 +1093,28 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
         }
     }, [index, initialLoaderDataResult.isPending, state.stack]);
 
+    const [historyPosition, setHistoryPosition] = useState(() => ({
+        index: entry.history.index,
+        entriesLength: entry.history.entries.length,
+    }));
+
+    useEffect(() => {
+        const update = () =>
+            setHistoryPosition(historyPosition => {
+                const newHistoryPosition = {
+                    index: entry.history.index,
+                    entriesLength: entry.history.entries.length,
+                };
+                return !isDeepEqual(historyPosition, newHistoryPosition)
+                    ? newHistoryPosition
+                    : historyPosition;
+            });
+
+        update();
+
+        return entry.history.listen(update);
+    }, [entry.history]);
+
     return (
         <PeekContext.Provider value={useMemo(() => ({id: entry.id}), [entry.id])}>
             <Box
@@ -1117,6 +1147,28 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
                     display="flex"
                     alignItems="center"
                 >
+                    <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
+                        <IconButton
+                            size="xs"
+                            description="Back"
+                            tooltipPlacement="top"
+                            isDisabled={!(historyPosition.index > 0)}
+                            onPress={() => entry.history.go(-1)}
+                        >
+                            <ArrowLeft />
+                        </IconButton>
+                        <IconButton
+                            size="xs"
+                            description="Forwards"
+                            tooltipPlacement="top"
+                            isDisabled={
+                                !(historyPosition.index < historyPosition.entriesLength - 1)
+                            }
+                            onPress={() => entry.history.go(1)}
+                        >
+                            <ArrowRight />
+                        </IconButton>
+                    </Box>
                     <Box flexGrow="1" />
                     <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
                         <FocusRing>
