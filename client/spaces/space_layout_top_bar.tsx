@@ -140,12 +140,7 @@ function SpaceLayoutTopBarAccountButton() {
                 },
             ]}
         >
-            <IconButton
-                size="md"
-                variant="accent"
-                description="Account"
-                tooltipPlacement="bottom-end"
-            >
+            <IconButton size="md" variant="accent" description="Account" tooltipPlacement="bottom">
                 <AccountAvatar account={currentAccount} size="6" />
             </IconButton>
         </MenuButton>

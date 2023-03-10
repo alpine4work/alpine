@@ -236,6 +236,9 @@ function Overlay(
                     {
                         name: "preventOverflow",
                         enabled: preventOverflow,
+                        options: {
+                            padding: convertRemLengthToPx(spacing["1"], remPx),
+                        },
                     },
                     {
                         name: "flip",

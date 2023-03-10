@@ -89,6 +89,16 @@ export function useContentEditorTracker({
             // rect so we can correctly position our selection target in the offset parent.
             const coords = viewRef.current.coordsAtPos(pos, side);
             const offsetParentRect = localRef.current.offsetParent.getBoundingClientRect();
+            let scrollOffset = 0;
+
+            // Get our local element's offset due to scrolling.
+            {
+                let node: Node | null = localRef.current;
+                while (node !== null) {
+                    if (node instanceof HTMLElement) scrollOffset += node.scrollTop;
+                    node = node.parentNode;
+                }
+            }
 
             // Calculate the line height of the parent element if we want to use the line
             // height as the height of our tracker instead of the content height.
@@ -111,7 +121,7 @@ export function useContentEditorTracker({
                     : contentHeight;
 
             localRef.current.style.top = `${
-                coords.top - offsetParentRect.top - (finalHeight - contentHeight) / 2
+                coords.top - offsetParentRect.top + scrollOffset - (finalHeight - contentHeight) / 2
             }px`;
             localRef.current.style.height = `${finalHeight}px`;
             localRef.current.style.left = `${coords.left - offsetParentRect.left}px`;
