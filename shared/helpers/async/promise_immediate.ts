@@ -1,0 +1,218 @@
+import {isPromiseLike} from "~/shared/helpers/async/is_promise_like";
+import {PromiseState} from "~/shared/helpers/async/promise_state";
+import {assert} from "~/shared/helpers/control/assert";
+import {exhaustive} from "~/shared/helpers/control/exhaustive";
+
+/**
+ * Same as a promise except `PromiseImmediate.then()` will call its callbacks
+ * synchronously if the promise is resolved.
+ *
+ * Implements the "thenable" API so you can await these promises in async/await
+ * functions. However, awaiting the promise will turn it into a regular
+ * promise. If you want to preserve the immediate behavior you need to use
+ * `PromiseImmediate.then()`.
+ *
+ * Useful in a React Suspense world where you need async values to return
+ * synchronously if they're resolved in a render method (and otherwise throw).
+ */
+export class PromiseImmediate<Value> implements PromiseLike<Value> {
+    private _state: PromiseState<Value>;
+    private _onResolvedCallbacks: Array<(value: Value) => void> | null;
+    private _onRejectedCallbacks: Array<(error: unknown) => void> | null;
+
+    constructor(
+        executor: (
+            resolve: (value: Value | PromiseLike<Value>) => void,
+            reject: (error: unknown | PromiseLike<unknown>) => void,
+        ) => void,
+    ) {
+        this._state = {status: "pending"};
+        this._onResolvedCallbacks = [];
+        this._onRejectedCallbacks = [];
+
+        let hasCalledResolveOrReject1 = false;
+
+        try {
+            executor(
+                value => {
+                    if (hasCalledResolveOrReject1) return;
+                    hasCalledResolveOrReject1 = true;
+
+                    if (!isPromiseLike(value)) {
+                        this._setFulfilled(value);
+                    } else {
+                        let hasCalledResolveOrReject2 = false;
+                        value.then(
+                            value => {
+                                if (hasCalledResolveOrReject2) return;
+                                hasCalledResolveOrReject2 = true;
+                                this._setFulfilled(value);
+                            },
+                            value => {
+                                if (hasCalledResolveOrReject2) return;
+                                hasCalledResolveOrReject2 = true;
+                                this._setRejected(value);
+                            },
+                        );
+                    }
+                },
+                error => {
+                    if (hasCalledResolveOrReject1) return;
+                    hasCalledResolveOrReject1 = true;
+
+                    if (!isPromiseLike(error)) {
+                        this._setRejected(error);
+                    } else {
+                        let hasCalledResolveOrReject2 = false;
+                        error.then(
+                            value => {
+                                if (hasCalledResolveOrReject2) return;
+                                hasCalledResolveOrReject2 = true;
+                                this._setRejected(value);
+                            },
+                            value => {
+                                if (hasCalledResolveOrReject2) return;
+                                hasCalledResolveOrReject2 = true;
+                                this._setRejected(value);
+                            },
+                        );
+                    }
+                },
+            );
+        } catch (error) {
+            if (!hasCalledResolveOrReject1) {
+                hasCalledResolveOrReject1 = true;
+                this._setRejected(error);
+            }
+        }
+    }
+
+    private _setFulfilled(value: Value) {
+        assert(this._state.status === "pending" && this._onResolvedCallbacks !== null);
+
+        this._state = {status: "fulfilled", value};
+
+        const onResolvedCallbacks = this._onResolvedCallbacks;
+        this._onResolvedCallbacks = null;
+        this._onRejectedCallbacks = null;
+
+        for (const onResolvedCallback of onResolvedCallbacks) {
+            onResolvedCallback(value);
+        }
+    }
+
+    private _setRejected(reason: unknown) {
+        assert(this._state.status === "pending" && this._onRejectedCallbacks !== null);
+
+        this._state = {status: "rejected", reason};
+
+        const onRejectedCallbacks = this._onRejectedCallbacks;
+        this._onResolvedCallbacks = null;
+        this._onRejectedCallbacks = null;
+
+        for (const onRejectedCallback of onRejectedCallbacks) {
+            onRejectedCallback(reason);
+        }
+    }
+
+    /**
+     * Get the current internal state of the promise.
+     */
+    // NOTE(calebmer): If the `use()` React RFC is adopted we should consider
+    // exposing our promise's state in the same way this RFC specifies:
+    // https://github.com/acdlite/rfcs/blob/9c21ca1/text/0000-first-class-support-for-promises.md#reading-the-result-of-a-promise-that-was-read-previously
+    public getStateWithoutListening(): PromiseState<Value> {
+        return this._state;
+    }
+
+    static resolve<Value>(value: Value | PromiseLike<Value>): PromiseImmediate<Value> {
+        return new PromiseImmediate(resolve => {
+            resolve(value);
+        });
+    }
+
+    static reject(error: unknown | PromiseLike<unknown>): PromiseImmediate<never> {
+        return new PromiseImmediate((resolve, reject) => {
+            reject(error);
+        });
+    }
+
+    /**
+     * Same behavior as `Promise.then()` except if the promise is not pending we
+     * will synchronously call our callbacks.
+     */
+    public then<NewValue1 = Value, NewValue2 = never>(
+        onResolved?: ((value: Value) => NewValue1 | PromiseLike<NewValue1>) | null,
+        onRejected?: ((error: any) => NewValue2 | PromiseLike<NewValue2>) | null,
+    ): PromiseImmediate<NewValue1 | NewValue2> {
+        switch (this._state.status) {
+            case "fulfilled": {
+                const {value} = this._state;
+
+                if (onResolved !== undefined && onResolved !== null) {
+                    return new PromiseImmediate(resolve => {
+                        const newValue = onResolved(value);
+                        resolve(newValue);
+                    });
+                } else {
+                    return new PromiseImmediate(resolve => {
+                        resolve(value as any as NewValue1);
+                    });
+                }
+            }
+            case "rejected": {
+                const {reason} = this._state;
+
+                if (onRejected !== undefined && onRejected !== null) {
+                    return new PromiseImmediate(resolve => {
+                        const newValue = onRejected(reason);
+                        resolve(newValue);
+                    });
+                } else {
+                    return new PromiseImmediate((resolve, reject) => {
+                        reject(reason);
+                    });
+                }
+            }
+            case "pending": {
+                return new PromiseImmediate((resolve, reject) => {
+                    assert(
+                        this._onResolvedCallbacks !== null && this._onRejectedCallbacks !== null,
+                    );
+
+                    this._onResolvedCallbacks.push(value => {
+                        if (onResolved !== undefined && onResolved !== null) {
+                            try {
+                                resolve(onResolved(value));
+                            } catch (error) {
+                                reject(error);
+                            }
+                        } else {
+                            resolve(value as any as NewValue1);
+                        }
+                    });
+
+                    this._onRejectedCallbacks.push(error => {
+                        if (onRejected !== undefined && onRejected !== null) {
+                            try {
+                                resolve(onRejected(error));
+                            } catch (error) {
+                                reject(error);
+                            }
+                        } else {
+                            reject(error);
+                        }
+                    });
+                });
+            }
+            default:
+                throw exhaustive(this._state);
+        }
+    }
+
+    public catch<NewValue>(
+        onRejected?: ((error: any) => NewValue | PromiseLike<NewValue>) | null,
+    ): PromiseImmediate<Value | NewValue> {
+        return this.then(null, onRejected);
+    }
+}

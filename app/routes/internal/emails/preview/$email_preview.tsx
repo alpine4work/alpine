@@ -6,7 +6,7 @@ import {Box} from "~/client/design/box";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer";
 import {FocusRing} from "~/client/design/focus_ring";
 import {Tooltip} from "~/client/design/tooltip";
-import {useUrlSearchParamState} from "~/client/helpers/use_url_search_param_state";
+import {useUrlSearchParamState} from "~/client/remix/use_url_search_param_state";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {getEmailTemplatePreviewBySlug} from "~/server/emails/get_email_template_preview_by_slug";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";

@@ -70,6 +70,9 @@ patchedDependencies:
   react-router@6.3.0:
     hash: 422wocmxisgbpbzt6il5lmbhd4
     path: admin/patches/react-router@6.3.0.patch
+  history@5.3.0:
+    hash: 3tktwzl76qc3alrennhuishjra
+    path: admin/patches/history@5.3.0.patch
 
 specifiers:
   '@aws-sdk/client-dynamodb': ^3.201.0
@@ -318,7 +321,7 @@ dependencies:
   functional-red-black-tree: 1.0.1
   fuse.js: 6.6.2
   get-port: 5.1.1
-  history: 5.3.0
+  history: 5.3.0_3tktwzl76qc3alrennhuishjra
   html-entities: 2.3.3
   html-minifier: 4.0.0
   html-tags: 3.2.0
@@ -5341,7 +5344,7 @@ packages:
       react: '>=16.8 || 18'
       react-dom: '>=16.8 || 18'
     dependencies:
-      history: 5.3.0
+      history: 5.3.0_3tktwzl76qc3alrennhuishjra
       react: 18.2.0
       react-dom: 18.2.0_react@18.2.0
       react-router-dom: 6.3.0_biqbaboplfbrettd7655fr4n2y
@@ -9374,11 +9377,12 @@ packages:
     resolution: {integrity: sha512-COpmrF2NOg4TBWUJ5UVyaCU2A88wEMkUPK4hNqyCkqHbxT92BbvfjoSozkAIIm6XhicGlJHhFdullInrdhwU8Q==}
     dev: false
 
-  /history/5.3.0:
+  /history/5.3.0_3tktwzl76qc3alrennhuishjra:
     resolution: {integrity: sha512-ZqaKwjjrAYUYfLG+htGaIIZ4nioX2L70ZUMIFysS3xvBsSG4x/n1V6TXV3N8ZYNuFGlDirFg32T7B6WOUPDYcQ==}
     dependencies:
       '@babel/runtime': 7.20.0
     dev: false
+    patched: true
 
   /html-encoding-sniffer/3.0.0:
     resolution: {integrity: sha512-oWv4T4yJ52iKrufjnyZPkrN0CH3QnrUqdB6In1g5Fe1mia8GmF36gnfNySxoZtxD5+NmYw1EElVXiBk93UeskA==}
@@ -13017,7 +13021,7 @@ packages:
       react: '>=16.8 || 18'
       react-dom: '>=16.8 || 18'
     dependencies:
-      history: 5.3.0
+      history: 5.3.0_3tktwzl76qc3alrennhuishjra
       react: 18.2.0
       react-dom: 18.2.0_react@18.2.0
       react-router: 6.3.0_422wocmxisgbpbzt6il5lmbhd4_react@18.2.0
@@ -13028,7 +13032,7 @@ packages:
     peerDependencies:
       react: '>=16.8 || 18'
     dependencies:
-      history: 5.3.0
+      history: 5.3.0_3tktwzl76qc3alrennhuishjra
       react: 18.2.0
     dev: false
     patched: true

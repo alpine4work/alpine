@@ -22,6 +22,7 @@ ts_project(
         "//shared/design",
         "//shared/error",
         "//shared/helpers",
+        "//shared/schema",
         "//shared/styles",
     ],
 )

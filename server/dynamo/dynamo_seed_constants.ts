@@ -1,7 +1,7 @@
 import {EmailAddress} from "~/server/emails/email_address";
 import {assert} from "~/shared/helpers/control/assert";
 import {Id, isId} from "~/shared/id/id";
-import {AccountId, ChannelId, SimpleChatId, SpaceId} from "~/shared/id/types/id_types";
+import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types";
 
 function assertId<Value extends Id>(string: string): Value {
     assert(isId(string));
@@ -13,7 +13,6 @@ const seedConstants = {
     adminEmailAddress: "admin@test.cyberworlds.dev" as EmailAddress,
     defaultSpaceId: assertId<SpaceId>("ywcffewdn377x442nkxd5x41r0"),
     testChannelId: assertId<ChannelId>("qk8jepk9epmb48b3fbaykw4vk0"),
-    testSimpleChatId: assertId<SimpleChatId>("nmp6858pt567mh35x8s2wne0dc"),
 };
 
 /**

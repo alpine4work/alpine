@@ -3,8 +3,8 @@ import {Button} from "~/client/design/button";
 import {OverlayPlacement} from "~/client/design/overlay";
 import {DesignPlaygroundScrollPreview} from "~/client/design/playground/helpers/design_playground_scroll_preview";
 import {Tooltip} from "~/client/design/tooltip";
-import {useUrlSearchParamBooleanState} from "~/client/helpers/use_url_search_param_boolean_state";
-import {useUrlSearchParamState} from "~/client/helpers/use_url_search_param_state";
+import {useUrlSearchParamBooleanState} from "~/client/remix/use_url_search_param_boolean_state";
+import {useUrlSearchParamState} from "~/client/remix/use_url_search_param_state";
 
 // TODO(calebmer): Use actual design system select element
 

@@ -1,11 +1,13 @@
 import {ClientRect, DndContext, DraggableAttributes, Modifier, useDraggable} from "@dnd-kit/core";
 import {SyntheticListenerMap} from "@dnd-kit/core/dist/hooks/utilities";
 import {PressEvent} from "@react-types/shared";
+import {useTransition} from "@remix-run/react";
 import {RemixEntryContext} from "@remix-run/react/dist/esm/components";
 import {matchClientRoutes} from "@remix-run/react/dist/esm/routeMatching";
-import {MemoryHistory, Path, To, createMemoryHistory} from "history";
+import {ClientRoute} from "@remix-run/react/dist/esm/routes";
+import {Action, Location, MemoryHistory, To, createMemoryHistory, parsePath} from "history";
 import {animate, spring} from "motion";
-import {ArrowsOutSimple, DotsSixVertical, X} from "phosphor-react";
+import {ArrowsOutSimple, DotsSixVertical, SpinnerGap, X} from "phosphor-react";
 import {
     ReactNode,
     Ref,
@@ -22,6 +24,7 @@ import {
     useState,
 } from "react";
 import {createPortal} from "react-dom";
+import {useLocation, useNavigationType} from "react-router";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
 import {getNextFocusableElement} from "~/client/design/helpers/get_next_focusable_element";
@@ -29,20 +32,30 @@ import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
 import {IconButton} from "~/client/design/icon_button";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted";
-import {convertSpacePathToPeekPath} from "~/client/peek/internal/peek_path_helpers";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
+import {usePromise} from "~/client/helpers/use_promise";
 import {loadInitialPeekData} from "~/client/peek/internal/load_initial_peek_data";
+import {
+    convertPeekPathToSpacePath,
+    convertSpacePathToPeekPath,
+} from "~/client/peek/internal/peek_path_helpers";
 import {PeekRemixEmbed} from "~/client/peek/internal/peek_remix_embed";
 import {NavigationEventContextProvider} from "~/client/remix/use_navigate";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {InternalError} from "~/shared/error/error";
+import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {Lazy} from "~/shared/helpers/control/lazy";
 import {generateId} from "~/shared/id/id";
 import {PeekId} from "~/shared/id/types/id_types";
+import {Schema} from "~/shared/schema/schema";
 import {
+    colorSchemeVars,
     peekContainerClassName,
+    spinAnimationClassName,
     sprinkles,
     wiggleAnimation,
     wiggleAnimationDuration,
@@ -56,10 +69,9 @@ const peekUnderlayOffset = spacing["2"];
 
 type PeekStackEntry = {
     readonly id: PeekId;
-    readonly initialPath: Path;
-    readonly initialLoaderData: {[key: string]: unknown};
     readonly history: MemoryHistory;
     readonly autoFocus: boolean;
+    readonly initialLoaderData: Lazy<PromiseImmediate<{[key: string]: unknown}>>;
 };
 
 type PeekStackState = {
@@ -67,14 +79,18 @@ type PeekStackState = {
     readonly unmountedStartStackIndex: number;
     readonly unmountingStack: ReadonlyArray<PeekStackEntry>;
     readonly isUnmountingAll: boolean;
+    readonly disableEntranceAnimationsDuringNextRender: boolean;
 };
 
 type PeekStackAction =
     | PeekStackPushAction
     | PeekStackPopAction
     | PeekStackPopAllAction
-    | PeekStackSetUnmountedStart
-    | PeekStackFinishUnmounting;
+    | PeekStackSetUnmountedStartAction
+    | PeekStackFinishUnmountingAction
+    | PeekStackResetAction
+    | PeekStackRestoreAction
+    | PeekStackReenableEntranceAnimationsAction;
 
 type PeekStackPushAction = {
     readonly type: "Push";
@@ -89,14 +105,27 @@ type PeekStackPopAllAction = {
     readonly type: "PopAll";
 };
 
-type PeekStackSetUnmountedStart = {
+type PeekStackSetUnmountedStartAction = {
     readonly type: "SetUnmountedStart";
     readonly stackIndex: number;
 };
 
-type PeekStackFinishUnmounting = {
+type PeekStackFinishUnmountingAction = {
     readonly type: "FinishUnmounting";
     readonly unmountingStackIndex: number;
+};
+
+type PeekStackResetAction = {
+    readonly type: "Reset";
+};
+
+type PeekStackRestoreAction = {
+    readonly type: "Restore";
+    readonly stack: ReadonlyArray<PeekStackEntry>;
+};
+
+type PeekStackReenableEntranceAnimationsAction = {
+    readonly type: "ReenableEntranceAnimations";
 };
 
 function reducePeekStackState(state: PeekStackState, action: PeekStackAction): PeekStackState {
@@ -153,6 +182,22 @@ function reducePeekStackState(state: PeekStackState, action: PeekStackAction): P
 
             return state;
         }
+        case "Reset": {
+            return initialPeekStackState;
+        }
+        case "Restore": {
+            return {
+                stack: action.stack,
+                unmountedStartStackIndex: Math.min(3, action.stack.length),
+                unmountingStack: [],
+                isUnmountingAll: false,
+                disableEntranceAnimationsDuringNextRender: true,
+            };
+        }
+        case "ReenableEntranceAnimations": {
+            if (!state.disableEntranceAnimationsDuringNextRender) return state;
+            return {...state, disableEntranceAnimationsDuringNextRender: false};
+        }
         default:
             throw exhaustive(action);
     }
@@ -169,6 +214,7 @@ const initialPeekStackState: PeekStackState = {
     unmountedStartStackIndex: 0,
     unmountingStack: [],
     isUnmountingAll: false,
+    disableEntranceAnimationsDuringNextRender: false,
 };
 
 export function PeekStackContextProvider({children}: {children?: ReactNode}) {
@@ -192,15 +238,104 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
             type: "Push",
             entry: {
                 id: generateId(),
-                initialPath: path,
-                initialLoaderData: loaderData,
                 history: createMemoryHistory({
                     initialEntries: [path],
                 }),
                 autoFocus: focus,
+                initialLoaderData: new Lazy(() => PromiseImmediate.resolve(loaderData)),
             },
         });
     });
+
+    const location = useLocation();
+    const transition = useTransition();
+    const navigationType = useNavigationType();
+
+    // If we are navigating to a location with a peek stack we need to restore then
+    // start preloading the peek stack during the transition so our data is ready
+    // when we land on the page.
+    const preloadRestoreStackRef = useRef<{
+        location: Location;
+        abortController: AbortController;
+        stack: ReadonlyArray<PeekStackEntry>;
+    } | null>(null);
+    useEffect(() => {
+        if (transition.state !== "loading") {
+            preloadRestoreStackRef.current?.abortController.abort();
+            preloadRestoreStackRef.current = null;
+            return;
+        }
+
+        if (preloadRestoreStackRef.current?.location.key === transition.location.key) return;
+
+        preloadRestoreStackRef.current?.abortController.abort();
+
+        const result = restorePeekStack(transition.location.key, remixEntryContext.clientRoutes);
+        if (result === null) {
+            preloadRestoreStackRef.current = null;
+            return;
+        }
+
+        preloadRestoreStackRef.current = {
+            ...result,
+            location: transition.location,
+        };
+    }, [remixEntryContext.clientRoutes, transition.location, transition.state]);
+
+    const lastLocationKeyRef = useRef<string | null>(null);
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (lastLocationKeyRef.current === location.key) return;
+        const lastLocationKey = lastLocationKeyRef.current;
+        lastLocationKeyRef.current = location.key;
+
+        // When the location changes, store our peek stack state for our last
+        // location. So if the user navigates back to this location we can revive
+        // the peek stack.
+        if (lastLocationKey !== null) {
+            storePeekStack(lastLocationKey, state);
+        }
+
+        const result =
+            preloadRestoreStackRef.current?.location.key === location.key
+                ? preloadRestoreStackRef.current
+                : restorePeekStack(location.key, remixEntryContext.clientRoutes);
+
+        if (result === null) {
+            // If a new location was pushed then completely reset our peek stack without
+            // animating. If the user hits the back arrow we will revive the peek stack.
+            if (lastLocationKey !== null && navigationType !== Action.Replace) {
+                dispatch({type: "Reset"});
+            }
+            return;
+        }
+
+        dispatch({type: "Restore", stack: result.stack});
+    }, [location.key, navigationType, remixEntryContext.clientRoutes, state]);
+
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            // Store our peek stack state when the browser tab is hidden. If the user then
+            // closes their browser and reopens it we can restore their peek state.
+            //
+            // For why we use `visibilitychange` and not `beforeunload`, see MDN's
+            // recommendation for how to send analytics at the end of a session. While we
+            // aren't sending analytics this is a similar use case.
+            // https://developer.mozilla.org/en-US/docs/Web/API/Navigator/sendBeacon#sending_analytics_at_the_end_of_a_session
+            if (document.visibilityState === "hidden") {
+                storePeekStack(location.key, state);
+            }
+        };
+
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+        return () => {
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+        };
+    }, [location.key, state]);
+
+    useEffect(() => {
+        if (state.disableEntranceAnimationsDuringNextRender)
+            dispatch({type: "ReenableEntranceAnimations"});
+    }, [state.disableEntranceAnimationsDuringNextRender]);
 
     return (
         <PeekStackContext.Provider value={useMemo(() => ({push}), [push])}>
@@ -210,8 +345,19 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
                     // will instead push a peek.
                     if (options?.replace) return {preventDefault: false};
 
+                    const path = typeof to === "string" ? parsePath(to) : to;
+
+                    // Don't open a peek if it's the URL we're navigating to is the same as the
+                    // current URL.
+                    if (
+                        (path.pathname ?? "/") === location.pathname &&
+                        (path.search ?? "") === location.search
+                    ) {
+                        return {preventDefault: false};
+                    }
+
                     // Determine whether there is a peek route for the path we are navigating to.
-                    const peekPath = convertSpacePathToPeekPath(to);
+                    const peekPath = convertSpacePathToPeekPath(path);
                     if (!peekPath) return {preventDefault: false};
                     const routeMatches = matchClientRoutes(
                         remixEntryContext.clientRoutes,
@@ -247,6 +393,29 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
             )}
         </PeekStackContext.Provider>
     );
+}
+
+const mockPeekStackContextForTest: PeekStackContext | null =
+    typeof jest !== "undefined"
+        ? {
+              push: () => {
+                  throw new InternalError(
+                      "Can not push peeks in tests unless you render your component in `<PeekStackContext>`",
+                  );
+              },
+          }
+        : null;
+
+export function usePeekStackContext(): PeekStackContext {
+    const peekStackContext = useContext(PeekStackContext);
+
+    // Provide a mock context implementation in unit tests so components don't throw.
+    if (typeof jest !== "undefined" && mockPeekStackContextForTest)
+        return mockPeekStackContextForTest;
+
+    assert(peekStackContext, "Must render in a `<PeekStackContext>` to use peeks");
+
+    return peekStackContext;
 }
 
 type PeekStackRef = {
@@ -495,6 +664,8 @@ function PeekOverlay({
             if (hasInitiallyRenderedRef.current) return;
             hasInitiallyRenderedRef.current = true;
 
+            if (state.disableEntranceAnimationsDuringNextRender) return;
+
             // Only pull up our first peek.
             if (index > 0) return;
 
@@ -521,7 +692,7 @@ function PeekOverlay({
                 const overlayContent = assertExists(overlayContentRef.current);
                 overlayContent.focus();
             }
-        }, [entry.autoFocus, index, translateY]);
+        }, [entry.autoFocus, index, state.disableEntranceAnimationsDuringNextRender, translateY]);
 
         const hasStartedUnmountingRef = useRef(false);
         useLayoutEffect(() => {
@@ -575,13 +746,14 @@ function PeekOverlay({
 
             // Index 0 is mounted at index 0. Overlays mounted at higher indexes are being
             // remounted from the bottom of the stack.
-            const initialIndex = index > 0 ? index + 1 : index;
+            const initialIndex =
+                !state.disableEntranceAnimationsDuringNextRender && index > 0 ? index + 1 : index;
 
             const {transform, opacity} = getPeekOverlayAnimationStyles(initialIndex);
 
             overlayElement.style.transform = transform;
             overlayElement.style.opacity = opacity;
-        }, [index]);
+        }, [index, state.disableEntranceAnimationsDuringNextRender]);
 
         const {transform, opacity} = getPeekOverlayAnimationStyles(index);
 
@@ -726,6 +898,7 @@ function PeekOverlay({
                                 state={state}
                                 dispatch={dispatch}
                                 entry={entry}
+                                index={index}
                                 isDragging={isDragging}
                                 isKeyboardDragging={isKeyboardDragging}
                                 draggableAttributes={draggableAttributes}
@@ -774,6 +947,7 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
         state,
         dispatch,
         entry,
+        index,
         isDragging,
         isKeyboardDragging,
         draggableAttributes,
@@ -782,6 +956,7 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
         state: PeekStackState;
         dispatch: (action: PeekStackAction) => void;
         entry: PeekStackEntry;
+        index: number;
         isDragging: boolean;
         isKeyboardDragging: boolean;
         draggableAttributes: DraggableAttributes;
@@ -864,6 +1039,17 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
         dispatch({type: "Pop"});
     };
 
+    const initialLoaderDataResult = usePromise(entry.initialLoaderData.get());
+
+    // Once we've finished loading the data the peek whose content we're rendering,
+    // start loading the data for the next peek in the stack so that it's ready
+    // when we close our current peek.
+    useEffect(() => {
+        if (!initialLoaderDataResult.isPending) {
+            void state.stack[index + 1]?.initialLoaderData.get();
+        }
+    }, [index, initialLoaderDataResult.isPending, state.stack]);
+
     return (
         <PeekContext.Provider value={useMemo(() => ({id: entry.id}), [entry.id])}>
             <Box
@@ -937,35 +1123,128 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
                         </IconButton>
                     </Box>
                 </Box>
-                <PeekRemixEmbed
-                    initialLoaderData={entry.initialLoaderData}
-                    history={entry.history}
-                    onExpandRef={onExpandRef}
-                />
+                {!initialLoaderDataResult.isPending ? (
+                    <PeekRemixEmbed
+                        initialLoaderData={initialLoaderDataResult.value}
+                        history={entry.history}
+                        onExpandRef={onExpandRef}
+                    />
+                ) : (
+                    <Box flexGrow="1" display="flex" justifyContent="center" alignItems="center">
+                        <SpinnerGap
+                            className={spinAnimationClassName}
+                            color={colorSchemeVars["grey-70"]}
+                            size={spacing["6"]}
+                        />
+                    </Box>
+                )}
             </Box>
         </PeekContext.Provider>
     );
 });
 
-const mockPeekStackContextForTest: PeekStackContext | null =
-    typeof jest !== "undefined"
-        ? {
-              push: () => {
-                  throw new InternalError(
-                      "Can not push peeks in tests unless you render your component in `<PeekStackContext>`",
-                  );
-              },
-          }
-        : null;
+const LocationSchema: Schema<Location> = Schema.object({
+    pathname: Schema.string,
+    search: Schema.string,
+    hash: Schema.string,
+    state: Schema.unknown as Schema<unknown>,
+    key: Schema.string,
+});
 
-export function usePeekStackContext(): PeekStackContext {
-    const peekStackContext = useContext(PeekStackContext);
+const PeekStackStorageSchema = Schema.object({
+    stack: Schema.array(
+        Schema.object({
+            id: Schema.id<PeekId>(),
+            history: Schema.object({
+                index: Schema.integer,
+                entries: Schema.array(LocationSchema),
+            }),
+        }),
+    ),
+});
 
-    // Provide a mock context implementation in unit tests so components don't throw.
-    if (typeof jest !== "undefined" && mockPeekStackContextForTest)
-        return mockPeekStackContextForTest;
+function storePeekStack(locationKey: string, state: PeekStackState) {
+    if (state.stack.length === 0) {
+        sessionStorage.removeItem(`location/${locationKey}/peekStack`);
+        return;
+    }
 
-    assert(peekStackContext, "Must render in a `<PeekStackContext>` to use peeks");
+    sessionStorage.setItem(
+        `location/${locationKey}/peekStack`,
+        JSON.stringify(
+            PeekStackStorageSchema.serialize({
+                stack: state.stack.map(entry => ({
+                    id: entry.id,
+                    history: {
+                        index: entry.history.index,
+                        entries: entry.history.entries,
+                    },
+                })),
+            }),
+        ),
+    );
+}
 
-    return peekStackContext;
+function restorePeekStack(
+    locationKey: string,
+    routes: Array<ClientRoute>,
+): {
+    abortController: AbortController;
+    stack: Array<PeekStackEntry>;
+} | null {
+    const stateString = sessionStorage.getItem(`location/${locationKey}/peekStack`);
+    if (stateString === null) return null;
+
+    let state;
+    try {
+        state = PeekStackStorageSchema.deserialize(JSON.parse(stateString));
+    } catch (error) {
+        // eslint-disable-next-line no-console
+        console.warn(InternalError.from(error, "Could not deserialize peek stack state"));
+        return null;
+    }
+
+    const abortController = new AbortController();
+
+    const stack = state.stack.map((entry): PeekStackEntry => {
+        const history = createMemoryHistory({
+            initialEntries: entry.history.entries.slice(),
+            initialIndex: entry.history.index,
+        });
+
+        return {
+            id: entry.id,
+            history,
+            autoFocus: false,
+            initialLoaderData: new Lazy(() =>
+                PromiseImmediate.resolve(
+                    (async () => {
+                        const spacePath = convertPeekPathToSpacePath(history.location);
+                        if (!spacePath)
+                            throw new InternalError(
+                                "Expected restored peek stack to only have peek routes",
+                            );
+
+                        const {loaderData} = await loadInitialPeekData(
+                            routes,
+                            spacePath,
+                            abortController.signal,
+                        );
+
+                        return loaderData;
+                    })(),
+                ),
+            ),
+        };
+    });
+
+    // Start preloading the data for the first entry in the stack. So that
+    // hopefully when we render, all the data is available and the user doesn't see
+    // a loading spinner.
+    void stack[0]?.initialLoaderData.get();
+
+    return {
+        abortController,
+        stack,
+    };
 }

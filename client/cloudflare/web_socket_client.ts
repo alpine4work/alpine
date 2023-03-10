@@ -62,7 +62,7 @@ export class WebSocketClient<
     MessageFromClient extends {type: string},
     MessageFromServer extends {type: string},
 > {
-    private readonly _context: AppContext;
+    private readonly _getContext: () => AppContext;
     private readonly _messageFromClientSchema: Schema<
         WebSocketMessageFromClient<MessageFromClient>
     >;
@@ -83,14 +83,14 @@ export class WebSocketClient<
     >();
 
     constructor(
-        context: AppContext,
+        getContext: () => AppContext,
         // NOTE(calebmer): Force schemas to be union schemas so the protocol can evolve
         // in the future.
         messageFromClientSchema: UnionSchema<MessageFromClient>,
         messageFromServerSchema: UnionSchema<MessageFromServer>,
         url: string,
     ) {
-        this._context = context;
+        this._getContext = getContext;
         this._messageFromClientSchema =
             createWebSocketMessageFromClientSchema(messageFromClientSchema);
         this._messageFromServerSchema =
@@ -157,28 +157,31 @@ export class WebSocketClient<
      * the socket connects.
      */
     public sendMessage(message: MessageFromClient): Promise<void> {
-        return this._context.tracer.withSpan("Sent WebSocket message", async (context, span) => {
-            const messageId = generateId<WebSocketMessageId>();
+        return this._getContext().tracer.withSpan(
+            "Sent WebSocket message",
+            async (context, span) => {
+                const messageId = generateId<WebSocketMessageId>();
 
-            span.addData({webSocket: {messageType: message.type}});
+                span.addData({webSocket: {messageType: message.type}});
 
-            const serializedMessage = this._messageFromClientSchema.serialize({
-                type: "Message",
-                messageId,
-                message,
-                tracerContext: span.getPropagationContext(),
-            });
+                const serializedMessage = this._messageFromClientSchema.serialize({
+                    type: "Message",
+                    messageId,
+                    message,
+                    tracerContext: span.getPropagationContext(),
+                });
 
-            if (this._state.type === "connected") {
-                this._state.socket.send(JSON.stringify(serializedMessage));
-            } else {
-                this._state.pendingSerializedMessages.push(JSON.stringify(serializedMessage));
-            }
+                if (this._state.type === "connected") {
+                    this._state.socket.send(JSON.stringify(serializedMessage));
+                } else {
+                    this._state.pendingSerializedMessages.push(JSON.stringify(serializedMessage));
+                }
 
-            const promiseResolver = createPromiseResolver();
-            this._acknowledgementPromiseResolverByMessageId.set(messageId, promiseResolver);
-            return promiseResolver.promise;
-        });
+                const promiseResolver = createPromiseResolver();
+                this._acknowledgementPromiseResolverByMessageId.set(messageId, promiseResolver);
+                return promiseResolver.promise;
+            },
+        );
     }
 
     /**
@@ -219,7 +222,7 @@ export class WebSocketClient<
 
         const sendPing = () => {
             if (this._state.type === "connected" && this._state.socket === socket) {
-                void this._context.tracer.withSpan(
+                void this._getContext().tracer.withSpan(
                     "Sent WebSocket message",
                     async (context, span) => {
                         span.addData({webSocket: {messageType: "Ping"}});

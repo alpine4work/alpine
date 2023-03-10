@@ -1,7 +1,8 @@
-import {Memo, useCallback, useEffect, useMemo, useState} from "react";
+import {Memo, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {WebSocketClient} from "~/client/cloudflare/web_socket_client";
 import {useAppContext} from "~/client/context/app_context";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
 import {UnionSchema} from "~/shared/schema/schema";
 
@@ -26,10 +27,20 @@ export function useWebSocket<
     toggleShouldConnect: () => void;
 } {
     const context = useAppContext();
+    const contextRef = useRef(context);
+    useLayoutEffectWithoutServerSideWarning(() => {
+        contextRef.current = context;
+    });
 
     const client = useMemo(
-        () => new WebSocketClient(context, messageFromClientSchema, messageFromServerSchema, url),
-        [context, messageFromClientSchema, messageFromServerSchema, url],
+        () =>
+            new WebSocketClient(
+                () => contextRef.current,
+                messageFromClientSchema,
+                messageFromServerSchema,
+                url,
+            ),
+        [messageFromClientSchema, messageFromServerSchema, url],
     );
 
     const [shouldConnect, setShouldConnect] = useState(true);

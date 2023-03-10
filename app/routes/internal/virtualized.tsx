@@ -1,6 +1,6 @@
 import {useCallback} from "react";
 import {Box} from "~/client/design/box";
-import {useUrlSearchParamState} from "~/client/helpers/use_url_search_param_state";
+import {useUrlSearchParamState} from "~/client/remix/use_url_search_param_state";
 import {VirtualizedScrollView} from "~/client/virtualized/virtualized_scroll_view";
 import {StableRandom} from "~/shared/helpers/number/stable_random";
 import {sprinkles} from "~/shared/styles/styles";
