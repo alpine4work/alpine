@@ -9,6 +9,7 @@ import {Action, Location, MemoryHistory, To, createMemoryHistory, parsePath} fro
 import {animate, spring} from "motion";
 import {ArrowsOutSimple, DotsSixVertical, SpinnerGap, X} from "phosphor-react";
 import {
+    MutableRefObject,
     ReactNode,
     Ref,
     createContext,
@@ -282,6 +283,10 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
         };
     }, [remixEntryContext.clientRoutes, transition.location, transition.state]);
 
+    // If we are expanding a peek then we want to exclude it from our stored peek
+    // stack so if the user navigates back it is not open.
+    const expandingIdRef = useRef<PeekId | null>(null);
+
     const lastLocationKeyRef = useRef<string | null>(null);
     useLayoutEffectWithoutServerSideWarning(() => {
         if (lastLocationKeyRef.current === location.key) return;
@@ -292,7 +297,12 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
         // location. So if the user navigates back to this location we can revive
         // the peek stack.
         if (lastLocationKey !== null) {
-            storePeekStack(lastLocationKey, state);
+            storePeekStack(
+                lastLocationKey,
+                expandingIdRef.current !== null
+                    ? state.stack.filter(entry => entry.id !== expandingIdRef.current)
+                    : state.stack,
+            );
         }
 
         const result =
@@ -322,7 +332,12 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
             // aren't sending analytics this is a similar use case.
             // https://developer.mozilla.org/en-US/docs/Web/API/Navigator/sendBeacon#sending_analytics_at_the_end_of_a_session
             if (document.visibilityState === "hidden") {
-                storePeekStack(location.key, state);
+                storePeekStack(
+                    location.key,
+                    expandingIdRef.current !== null
+                        ? state.stack.filter(entry => entry.id !== expandingIdRef.current)
+                        : state.stack,
+                );
             }
         };
 
@@ -389,7 +404,12 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
                 {children}
             </NavigationEventContextProvider>
             {(state.stack.length > 0 || state.unmountingStack.length > 0) && (
-                <PeekStack ref={stackRef} state={state} dispatch={dispatch} />
+                <PeekStack
+                    ref={stackRef}
+                    state={state}
+                    dispatch={dispatch}
+                    expandingIdRef={expandingIdRef}
+                />
             )}
         </PeekStackContext.Provider>
     );
@@ -426,9 +446,11 @@ const PeekStack = forwardRef(function PeekStack(
     {
         state,
         dispatch,
+        expandingIdRef,
     }: {
         state: PeekStackState;
         dispatch: (action: PeekStackAction) => void;
+        expandingIdRef: MutableRefObject<PeekId | null>;
     },
     ref: Ref<PeekStackRef>,
 ) {
@@ -498,6 +520,7 @@ const PeekStack = forwardRef(function PeekStack(
                 state={state}
                 dispatch={dispatch}
                 deltaXPercentage={deltaXPercentage}
+                expandingIdRef={expandingIdRef}
             />
         </DndContext>
     );
@@ -508,11 +531,13 @@ function PeekStackDraggable({
     state,
     dispatch,
     deltaXPercentage,
+    expandingIdRef,
 }: {
     parentRef: Ref<PeekStackRef>;
     state: PeekStackState;
     dispatch: (action: PeekStackAction) => void;
     deltaXPercentage: number;
+    expandingIdRef: MutableRefObject<PeekId | null>;
 }) {
     const {
         attributes: draggableAttributes,
@@ -579,6 +604,7 @@ function PeekStackDraggable({
                                 isKeyboardDragging={isKeyboardDragging}
                                 draggableAttributes={draggableAttributes}
                                 draggableListeners={draggableListeners}
+                                expandingIdRef={expandingIdRef}
                             />
                         ))
                         .reverse(),
@@ -593,6 +619,7 @@ function PeekStackDraggable({
                             isKeyboardDragging={isKeyboardDragging}
                             draggableAttributes={draggableAttributes}
                             draggableListeners={draggableListeners}
+                            expandingIdRef={expandingIdRef}
                         />
                     )),
                 ]}
@@ -615,6 +642,7 @@ function PeekOverlay({
     isKeyboardDragging,
     draggableAttributes,
     draggableListeners,
+    expandingIdRef,
 }: {
     state: PeekStackState;
     dispatch: (action: PeekStackAction) => void;
@@ -624,6 +652,7 @@ function PeekOverlay({
     isKeyboardDragging: boolean;
     draggableAttributes: DraggableAttributes;
     draggableListeners: SyntheticListenerMap | undefined;
+    expandingIdRef: MutableRefObject<PeekId | null>;
 }) {
     const isMounted = useIsMounted();
     const overlayRef = useRef<HTMLDivElement>(null);
@@ -903,6 +932,7 @@ function PeekOverlay({
                                 isKeyboardDragging={isKeyboardDragging}
                                 draggableAttributes={draggableAttributes}
                                 draggableListeners={draggableListeners}
+                                expandingIdRef={expandingIdRef}
                             />
                         </Box>
                     )}
@@ -952,6 +982,7 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
         isKeyboardDragging,
         draggableAttributes,
         draggableListeners,
+        expandingIdRef,
     }: {
         state: PeekStackState;
         dispatch: (action: PeekStackAction) => void;
@@ -961,6 +992,7 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
         isKeyboardDragging: boolean;
         draggableAttributes: DraggableAttributes;
         draggableListeners: SyntheticListenerMap | undefined;
+        expandingIdRef: MutableRefObject<PeekId | null>;
     },
     ref: Ref<PeekOverlayContentRef>,
 ) {
@@ -1106,7 +1138,12 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
                             tooltipPlacement="top"
                             pressErrorTitle="Couldn’t expand"
                             onPress={async () => {
-                                await onExpandRef.current?.();
+                                expandingIdRef.current = entry.id;
+                                try {
+                                    await onExpandRef.current?.();
+                                } finally {
+                                    expandingIdRef.current = null;
+                                }
                             }}
                         >
                             <ArrowsOutSimple />
@@ -1163,8 +1200,8 @@ const PeekStackStorageSchema = Schema.object({
     ),
 });
 
-function storePeekStack(locationKey: string, state: PeekStackState) {
-    if (state.stack.length === 0) {
+function storePeekStack(locationKey: string, stack: ReadonlyArray<PeekStackEntry>) {
+    if (stack.length === 0) {
         sessionStorage.removeItem(`location/${locationKey}/peekStack`);
         return;
     }
@@ -1173,7 +1210,7 @@ function storePeekStack(locationKey: string, state: PeekStackState) {
         `location/${locationKey}/peekStack`,
         JSON.stringify(
             PeekStackStorageSchema.serialize({
-                stack: state.stack.map(entry => ({
+                stack: stack.map(entry => ({
                     id: entry.id,
                     history: {
                         index: entry.history.index,
