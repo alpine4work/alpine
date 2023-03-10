@@ -16,6 +16,10 @@ ts_project(
         ":app_assets",
         ":wrangler_files",
     ],
+    test_deps = [
+        "//:node_modules/@types/fs-extra",
+        "//:node_modules/fs-extra",
+    ],
     deps = [
         "//:node_modules/@axe-core/react",
         "//:node_modules/@cloudflare/workers-types",
