@@ -22,14 +22,17 @@ export interface NavigateFunction {
 /**
  * A wrapper around [`useNavigate()` from React Router][1] that:
  *
- * 1. Doesn't throw when used in Jest unit tests
- * 2. Returns a promise that resolves when the navigation has completed
+ * - Doesn't throw when used in Jest unit tests
+ * - Returns a promise that resolves when the navigation has completed
+ * - Provides hooks for hijacking navigation (e.g. the peek stack wants to open
+ *   up URLs in a peek)
  *
  * [1]: https://reactrouter.com/en/main/hooks/use-navigate
  */
 export function useNavigate(): Memo<NavigateFunction> {
-    const waitForNextNavigation = useContext(WaitForNavigationContext);
     const originalNavigate = useNavigateWithJestFallback();
+    const waitForNextNavigation = useContext(WaitForNavigationContext);
+    const onNavigate = useContext(NavigationEventContext);
 
     // Throw if we don't have our parent context unless we're in tests. In unit
     // tests we allow the component to render but throw when you try to call the
@@ -45,13 +48,16 @@ export function useNavigate(): Memo<NavigateFunction> {
 
             if (typeof to === "number") {
                 originalNavigate(to);
-            } else {
-                originalNavigate(to, options);
+                return waitForNextNavigation();
             }
 
+            const result = onNavigate?.(to, options);
+            if (result?.preventDefault) return result.promise;
+
+            originalNavigate(to, options);
             return waitForNextNavigation();
         },
-        [originalNavigate, waitForNextNavigation],
+        [onNavigate, originalNavigate, waitForNextNavigation],
     );
 
     return navigate as Memo<NavigateFunction>;
@@ -154,5 +160,46 @@ export function WaitForNavigationContextProvider({children}: {children?: ReactNo
         <WaitForNavigationContext.Provider value={waitForNextNavigation}>
             {children}
         </WaitForNavigationContext.Provider>
+    );
+}
+
+const NavigationEventContext = createContext<Memo<
+    (
+        to: To,
+        options?: NavigateOptions,
+    ) => {preventDefault: false} | {preventDefault: true; promise: Promise<void>}
+> | null>(null);
+
+/**
+ * Context provider which allows you to handle navigation events with custom
+ * behavior. For example, opening a peek instead of navigating to a new page.
+ */
+export function NavigationEventContextProvider({
+    onNavigate,
+    children,
+}: {
+    onNavigate: Memo<
+        (
+            to: To,
+            options?: NavigateOptions,
+        ) => {preventDefault: false} | {preventDefault: true; promise: Promise<void>}
+    >;
+    children?: ReactNode;
+}) {
+    const parentOnNavigate = useContext(NavigationEventContext);
+
+    return (
+        <NavigationEventContext.Provider
+            value={useCallback(
+                (to: To, options?: NavigateOptions) => {
+                    const result = parentOnNavigate?.(to, options);
+                    if (result?.preventDefault) return result;
+                    return onNavigate(to, options);
+                },
+                [onNavigate, parentOnNavigate],
+            )}
+        >
+            {children}
+        </NavigationEventContext.Provider>
     );
 }

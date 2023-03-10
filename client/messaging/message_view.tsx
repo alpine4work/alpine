@@ -40,9 +40,10 @@ import {
     contentSchemaStyles,
     contentViewStyles,
     fontSizesByPlatform,
-    messageViewStyles,
     spinAnimationClassName,
     sprinkles,
+    wiggleAnimation,
+    wiggleAnimationDuration,
 } from "~/shared/styles/styles";
 
 const {paragraphFontSize} = contentSchemaStyles;
@@ -229,7 +230,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
         const timeout = createTimeout(() => {
             setShouldHighlight(false);
-        }, messageViewStyles.messageViewHighlightAnimationDuration);
+        }, wiggleAnimationDuration);
 
         return () => {
             timeout.clear();
@@ -453,9 +454,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         <div
             className={sprinkles({position: "relative", zIndex: "0"})}
             style={{
-                animation: shouldHighlight
-                    ? messageViewStyles.messageViewHighlightAnimation
-                    : undefined,
+                animation: shouldHighlight ? wiggleAnimation : undefined,
             }}
             data-testid={`MessageView:${message.getRoomKey()}:${
                 message.isOptimistic ? "optimistic" : message.index

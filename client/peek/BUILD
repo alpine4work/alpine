@@ -18,6 +18,7 @@ ts_project(
         "//:node_modules/react-router-dom",
         "//client/design",
         "//client/helpers",
+        "//client/remix",
         "//shared/design",
         "//shared/error",
         "//shared/helpers",

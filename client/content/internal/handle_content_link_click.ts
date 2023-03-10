@@ -3,6 +3,8 @@ import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointe
 import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event";
 import {assert} from "~/shared/helpers/control/assert";
 
+const pendingUrlByElement = new Map<HTMLAnchorElement, URL>();
+
 /**
  * Handle when a link is clicked. If the link points to a URL in our space then
  * we want to navigate directly there instead of opening the link in a new tab.
@@ -39,7 +41,7 @@ export function handleContentLinkClick(
     // new tab. Unless this click was a cmd-click on MacOS or other shortcut for
     // opening links in a new tab.
     if (!isOpenLinkInSeparateTabEvent && newUrl && oldUrl.host === newUrl.host) {
-        const spaceIdRegExp = /^\/s\/([a-zA-Z0-9]{26})(?:\/|$)/;
+        const spaceIdRegExp = /^\/s\/([^/]+)(?:\/|$)/;
         const oldUrlSpaceIdMatch = oldUrl.pathname.match(spaceIdRegExp);
         const newUrlSpaceIdMatch = newUrl.pathname.match(spaceIdRegExp);
         if (
@@ -47,10 +49,22 @@ export function handleContentLinkClick(
             newUrlSpaceIdMatch &&
             oldUrlSpaceIdMatch[1] === newUrlSpaceIdMatch[1]
         ) {
-            void onNavigate({
+            // If we are already waiting on a navigation for this link, don't perform a
+            // new navigation.
+            if (pendingUrlByElement.get(element)?.toString() === newUrl.toString()) {
+                return;
+            }
+
+            // TODO(calebmer): Global loading indicator for navigation.
+            const navigationPromise = onNavigate({
                 pathname: newUrl.pathname,
                 search: newUrl.search,
                 hash: newUrl.hash,
+            });
+
+            pendingUrlByElement.set(element, newUrl);
+            navigationPromise.finally(() => {
+                pendingUrlByElement.delete(element);
             });
             return;
         }

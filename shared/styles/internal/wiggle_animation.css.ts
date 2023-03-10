@@ -11,7 +11,7 @@ const pullKeyframes = keyframes({
 
 const pullDuration = 160;
 
-const {animationKeyframes: wobbleKeyframes, animationDuration: wobbleDuration} =
+const {animationKeyframes: springKeyframes, animationDuration: springDuration} =
     createSpringAnimation({
         startX: offset,
         startY: 0,
@@ -48,7 +48,10 @@ const {animationKeyframes: wobbleKeyframes, animationDuration: wobbleDuration} =
  * To simulate a pull we use an ease-in-out animation. We need to ease-in since
  * the object needs to build momentum, then we need to ease-out since the
  * object needs to lose the momentum it gained.
+ *
+ * This animation was initially built for highlighting a message but since has
+ * been expanded for use in other places.
  */
-export const messageViewHighlightAnimation = `${pullKeyframes} ${pullDuration}ms ${easeInOutQuad.cubicBezier} forwards, ${wobbleKeyframes} ${wobbleDuration}ms linear ${pullDuration}ms forwards`;
+export const wiggleAnimation = `${pullKeyframes} ${pullDuration}ms ${easeInOutQuad.cubicBezier} forwards, ${springKeyframes} ${springDuration}ms linear ${pullDuration}ms forwards`;
 
-export const messageViewHighlightAnimationDuration = pullDuration + wobbleDuration;
+export const wiggleAnimationDuration = pullDuration + springDuration;

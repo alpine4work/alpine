@@ -1,6 +1,7 @@
 import {matchClientRoutes} from "@remix-run/react/dist/esm/routeMatching";
 import {ClientRoute} from "@remix-run/react/dist/esm/routes";
-import {Path, To, parsePath} from "history";
+import {Path, To} from "history";
+import {convertSpacePathToPeekPath} from "~/client/peek/internal/convert_space_path_to_peek_path";
 import {InternalError, NotFoundError} from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 
@@ -12,18 +13,8 @@ export async function loadInitialPeekData(
     path: Path;
     loaderData: {[key: string]: unknown};
 }> {
-    const path = typeof to === "string" ? parsePath(to) : to;
-    const match = (path.pathname ?? "/").match(/^(\/s\/[a-zA-Z0-9]+\/)(?!peek)(.*)/);
-    if (!match) throw new InternalError("Can only open peek for a space route");
-    const pathnamePart1 = match[1]!;
-    const pathnamePart2 = match[2]!;
-
-    const peekPath: Path = {
-        search: "",
-        hash: "",
-        ...path,
-        pathname: `${pathnamePart1}peek/${pathnamePart2}`,
-    };
+    const peekPath = convertSpacePathToPeekPath(to);
+    if (!peekPath) throw new InternalError("Can only open peek for a space route");
 
     const routeMatches = matchClientRoutes(routes, peekPath.pathname);
     if (!routeMatches) throw new NotFoundError("Peek route not found");

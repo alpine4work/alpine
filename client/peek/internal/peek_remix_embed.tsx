@@ -1,10 +1,11 @@
 import {RemixEntryContext} from "@remix-run/react/dist/esm/components";
 import {AppState} from "@remix-run/react/dist/esm/errors";
 import {createTransitionManager} from "@remix-run/react/dist/esm/transition";
-import {Path, createMemoryHistory} from "history";
+import {MemoryHistory} from "history";
 import {Context, Ref, useContext, useEffect, useImperativeHandle, useMemo, useState} from "react";
 import {UNSAFE_RouteContext as RouteContext} from "react-router";
 import {Router, useRoutes} from "react-router-dom";
+import {convertPeekPathToSpacePath} from "~/client/peek/internal/convert_space_path_to_peek_path";
 import {useNavigate} from "~/client/remix/use_navigate";
 import {InternalError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
@@ -20,23 +21,17 @@ type RemixEntryContextType = typeof RemixEntryContext extends Context<infer Cont
  * `<iframe>`s since the embed can still talk to the larger app.
  */
 export function PeekRemixEmbed({
-    initialPath,
     initialLoaderData,
+    history,
     onExpandRef,
 }: {
-    initialPath: Path;
     initialLoaderData: {[key: string]: unknown};
+    history: MemoryHistory;
     onExpandRef: Ref<(() => Promise<void>) | null>;
 }) {
     const remixEntryContext = useContext(RemixEntryContext);
     assert(remixEntryContext, "Expected Remix entry context");
     const navigate = useNavigate();
-
-    const [history] = useState(() =>
-        createMemoryHistory({
-            initialEntries: [initialPath],
-        }),
-    );
 
     const [historyState, setHistoryState] = useState(() => ({
         action: history.action,
@@ -164,13 +159,11 @@ export function PeekRemixEmbed({
     useImperativeHandle(
         onExpandRef,
         () => async () => {
-            const match = historyState.location.pathname.match(/^(\/s\/[a-zA-Z0-9]+)\/peek(\/.*)/);
-            if (!match) throw new InternalError("Can only expand peek routes");
-            const pathnamePart1 = match[1]!;
-            const pathnamePart2 = match[2]!;
-            await navigate(`${pathnamePart1}${pathnamePart2}`);
+            const spacePath = convertPeekPathToSpacePath(historyState.location);
+            if (!spacePath) throw new InternalError("Can only expand peek routes");
+            await navigate(spacePath);
         },
-        [historyState.location.pathname, navigate],
+        [historyState.location, navigate],
     );
 
     return (

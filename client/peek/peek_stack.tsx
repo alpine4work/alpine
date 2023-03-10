@@ -2,7 +2,8 @@ import {ClientRect, DndContext, DraggableAttributes, Modifier, useDraggable} fro
 import {SyntheticListenerMap} from "@dnd-kit/core/dist/hooks/utilities";
 import {PressEvent} from "@react-types/shared";
 import {RemixEntryContext} from "@remix-run/react/dist/esm/components";
-import {Path, To} from "history";
+import {matchClientRoutes} from "@remix-run/react/dist/esm/routeMatching";
+import {MemoryHistory, Path, To, createMemoryHistory} from "history";
 import {animate, spring} from "motion";
 import {ArrowsOutSimple, DotsSixVertical, X} from "phosphor-react";
 import {
@@ -12,6 +13,7 @@ import {
     forwardRef,
     useCallback,
     useContext,
+    useEffect,
     useImperativeHandle,
     useLayoutEffect,
     useMemo,
@@ -27,8 +29,10 @@ import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
 import {IconButton} from "~/client/design/icon_button";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted";
+import {convertSpacePathToPeekPath} from "~/client/peek/internal/convert_space_path_to_peek_path";
 import {loadInitialPeekData} from "~/client/peek/internal/load_initial_peek_data";
 import {PeekRemixEmbed} from "~/client/peek/internal/peek_remix_embed";
+import {NavigationEventContextProvider} from "~/client/remix/use_navigate";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {InternalError} from "~/shared/error/error";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
@@ -37,7 +41,12 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {generateId} from "~/shared/id/id";
 import {PeekId} from "~/shared/id/types/id_types";
-import {peekContainerClassName, sprinkles} from "~/shared/styles/styles";
+import {
+    peekContainerClassName,
+    sprinkles,
+    wiggleAnimation,
+    wiggleAnimationDuration,
+} from "~/shared/styles/styles";
 
 const peekWidth = spacing["128"];
 const peekHeight = spacing["160"];
@@ -49,6 +58,7 @@ type PeekStackEntry = {
     readonly id: PeekId;
     readonly initialPath: Path;
     readonly initialLoaderData: {[key: string]: unknown};
+    readonly history: MemoryHistory;
     readonly autoFocus: boolean;
 };
 
@@ -165,6 +175,7 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
     const remixEntryContext = useContext(RemixEntryContext);
     assert(remixEntryContext, "Expected Remix entry context");
 
+    const stackRef = useRef<PeekStackRef>(null);
     const [state, dispatch] = useReducer(reducePeekStackState, initialPeekStackState);
 
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
@@ -183,6 +194,9 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
                 id: generateId(),
                 initialPath: path,
                 initialLoaderData: loaderData,
+                history: createMemoryHistory({
+                    initialEntries: [path],
+                }),
                 autoFocus: focus,
             },
         });
@@ -190,21 +204,65 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
 
     return (
         <PeekStackContext.Provider value={useMemo(() => ({push}), [push])}>
-            {children}
+            <NavigationEventContextProvider
+                onNavigate={useEvent((to, options) => {
+                    // Only intercept navigation events that want to push a new history entry. We
+                    // will instead push a peek.
+                    if (options?.replace) return {preventDefault: false};
+
+                    // Determine whether there is a peek route for the path we are navigating to.
+                    const peekPath = convertSpacePathToPeekPath(to);
+                    if (!peekPath) return {preventDefault: false};
+                    const routeMatches = matchClientRoutes(
+                        remixEntryContext.clientRoutes,
+                        peekPath.pathname,
+                    );
+                    if (!routeMatches) return {preventDefault: false};
+
+                    // If the top of the peek stack is the URL we're navigating to then do nothing.
+                    // Wiggle the stack as a response to the user's interaction.
+                    if (
+                        state.stack[0]?.history.location.pathname === peekPath.pathname &&
+                        state.stack[0].history.location.search === peekPath.search
+                    ) {
+                        stackRef.current?.wiggle();
+                        return {
+                            preventDefault: true,
+                            promise: Promise.resolve(),
+                        };
+                    }
+
+                    // If there is a peek route then open a peek instead of navigating to the URL!
+                    // The user can then expand the peek fullscreen if desired.
+                    return {
+                        preventDefault: true,
+                        promise: push(to),
+                    };
+                })}
+            >
+                {children}
+            </NavigationEventContextProvider>
             {(state.stack.length > 0 || state.unmountingStack.length > 0) && (
-                <PeekStack state={state} dispatch={dispatch} />
+                <PeekStack ref={stackRef} state={state} dispatch={dispatch} />
             )}
         </PeekStackContext.Provider>
     );
 }
 
-function PeekStack({
-    state,
-    dispatch,
-}: {
-    state: PeekStackState;
-    dispatch: (action: PeekStackAction) => void;
-}) {
+type PeekStackRef = {
+    wiggle(): void;
+};
+
+const PeekStack = forwardRef(function PeekStack(
+    {
+        state,
+        dispatch,
+    }: {
+        state: PeekStackState;
+        dispatch: (action: PeekStackAction) => void;
+    },
+    ref: Ref<PeekStackRef>,
+) {
     // Measured in percentage of our container width so when our container resizes
     // the peek moves with it.
     const [deltaXPercentage, setDeltaXPercentage] = useState(0);
@@ -267,34 +325,64 @@ function PeekStack({
             }}
         >
             <PeekStackDraggable
+                parentRef={ref}
                 state={state}
                 dispatch={dispatch}
                 deltaXPercentage={deltaXPercentage}
             />
         </DndContext>
     );
-}
+});
 
 function PeekStackDraggable({
+    parentRef,
     state,
     dispatch,
     deltaXPercentage,
 }: {
+    parentRef: Ref<PeekStackRef>;
     state: PeekStackState;
     dispatch: (action: PeekStackAction) => void;
     deltaXPercentage: number;
 }) {
-    const {attributes, listeners, setNodeRef, transform, isDragging, activatorEvent} = useDraggable(
-        {id: "peek"},
-    );
+    const {
+        attributes: draggableAttributes,
+        listeners: draggableListeners,
+        setNodeRef: setDraggableNodeRef,
+        transform: dragTransform,
+        isDragging,
+        activatorEvent: dragActivatorEvent,
+    } = useDraggable({id: "peek"});
 
-    const isPointerDragging = isDragging && activatorEvent instanceof PointerEvent;
-    const isKeyboardDragging = isDragging && activatorEvent instanceof KeyboardEvent;
+    const isPointerDragging = isDragging && dragActivatorEvent instanceof PointerEvent;
+    const isKeyboardDragging = isDragging && dragActivatorEvent instanceof KeyboardEvent;
+
+    const [shouldWiggle, setShouldWiggle] = useState(false);
+
+    useEffect(() => {
+        if (!shouldWiggle) return;
+
+        const timeout = createTimeout(() => {
+            setShouldWiggle(false);
+        }, wiggleAnimationDuration);
+
+        return () => {
+            timeout.clear();
+        };
+    }, [shouldWiggle]);
+
+    useImperativeHandle(
+        parentRef,
+        () => ({
+            wiggle: () => setShouldWiggle(true),
+        }),
+        [],
+    );
 
     return (
         <>
             <Box
-                ref={setNodeRef}
+                ref={setDraggableNodeRef}
                 position="absolute"
                 bottom="0"
                 zIndex="60"
@@ -302,7 +390,10 @@ function PeekStackDraggable({
                     right: `calc(${peekRightOffset} + ${-deltaXPercentage * 100}%)`,
                     width: peekWidth,
                     height: peekHeight,
-                    transform: `translate(${transform?.x ?? 0}px, ${transform?.y ?? 0}px)`,
+                    transform: dragTransform
+                        ? `translate(${dragTransform.x}px, ${dragTransform.y}px)`
+                        : undefined,
+                    animation: !dragTransform && shouldWiggle ? wiggleAnimation : undefined,
                 }}
             >
                 {[
@@ -317,8 +408,8 @@ function PeekStackDraggable({
                                 index={index}
                                 isDragging={isDragging}
                                 isKeyboardDragging={isKeyboardDragging}
-                                draggableAttributes={attributes}
-                                draggableListeners={listeners}
+                                draggableAttributes={draggableAttributes}
+                                draggableListeners={draggableListeners}
                             />
                         ))
                         .reverse(),
@@ -331,8 +422,8 @@ function PeekStackDraggable({
                             index={-(index + 1)}
                             isDragging={isDragging}
                             isKeyboardDragging={isKeyboardDragging}
-                            draggableAttributes={attributes}
-                            draggableListeners={listeners}
+                            draggableAttributes={draggableAttributes}
+                            draggableListeners={draggableListeners}
                         />
                     )),
                 ]}
@@ -847,8 +938,8 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
                     </Box>
                 </Box>
                 <PeekRemixEmbed
-                    initialPath={entry.initialPath}
                     initialLoaderData={entry.initialLoaderData}
+                    history={entry.history}
                     onExpandRef={onExpandRef}
                 />
             </Box>
