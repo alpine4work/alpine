@@ -11,13 +11,18 @@ export function useLoaderDataWithSchema<Value>(schema: Schema<Value>): Value {
     const serializedValue = useLoaderData();
 
     return useMemo(() => {
-        // Optimization: When on the server, use the original deserialized value
-        // instead wasting CPU time on deserialization.
-        if (typeof window === "undefined") {
-            assert(serializedValue[deserializedValueSymbol]);
-            return serializedValue[deserializedValueSymbol];
-        } else {
-            return schema.deserialize(serializedValue);
+        try {
+            // Optimization: When on the server, use the original deserialized value
+            // instead wasting CPU time on deserialization.
+            if (typeof window === "undefined") {
+                assert(serializedValue[deserializedValueSymbol]);
+                return serializedValue[deserializedValueSymbol];
+            } else {
+                return schema.deserialize(serializedValue);
+            }
+        } catch (error) {
+            console.log(serializedValue);
+            throw error;
         }
     }, [schema, serializedValue]);
 }

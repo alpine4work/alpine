@@ -305,10 +305,13 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
             );
         }
 
-        const result =
-            preloadRestoreStackRef.current?.location.key === location.key
-                ? preloadRestoreStackRef.current
-                : restorePeekStack(location.key, remixEntryContext.clientRoutes);
+        let result;
+        if (preloadRestoreStackRef.current?.location.key === location.key) {
+            result = preloadRestoreStackRef.current;
+            preloadRestoreStackRef.current = null;
+        } else {
+            result = restorePeekStack(location.key, remixEntryContext.clientRoutes);
+        }
 
         if (result === null) {
             // If a new location was pushed then completely reset our peek stack without
