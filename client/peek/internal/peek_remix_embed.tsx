@@ -1,11 +1,16 @@
 import {RemixEntryContext} from "@remix-run/react/dist/esm/components";
 import {AppState} from "@remix-run/react/dist/esm/errors";
+import {matchClientRoutes} from "@remix-run/react/dist/esm/routeMatching";
 import {createTransitionManager} from "@remix-run/react/dist/esm/transition";
 import {MemoryHistory} from "history";
 import {Context, Ref, useContext, useEffect, useImperativeHandle, useMemo, useState} from "react";
-import {UNSAFE_RouteContext as RouteContext} from "react-router";
+import {Navigator, UNSAFE_RouteContext as RouteContext} from "react-router";
 import {Router, useRoutes} from "react-router-dom";
-import {convertPeekPathToSpacePath} from "~/client/peek/internal/convert_space_path_to_peek_path";
+import {
+    convertPeekPathToSpacePath,
+    convertSpacePathToPeekPath,
+    isPeekPath,
+} from "~/client/peek/internal/peek_path_helpers";
 import {useNavigate} from "~/client/remix/use_navigate";
 import {InternalError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
@@ -156,6 +161,55 @@ export function PeekRemixEmbed({
         [embedAppState, remixEntryContext, transitionManager, transitionState],
     );
 
+    const navigator: Navigator = useMemo(() => {
+        return {
+            go: delta => history.go(delta),
+            createHref: to => history.createHref(to),
+            push: (to, state) => {
+                // If we are navigating to a peek path, great! No change necessary.
+                if (isPeekPath(to)) return history.push(to, state);
+
+                // If the URL we are navigating to is a space path but the space path has a
+                // corresponding peek route then use the corresponding peek path instead.
+                const peekPath = convertSpacePathToPeekPath(to);
+                if (peekPath) {
+                    const routeMatches = matchClientRoutes(
+                        remixEntryContext.clientRoutes,
+                        peekPath.pathname,
+                    );
+                    if (routeMatches) {
+                        return history.push(peekPath, state);
+                    }
+                }
+
+                // Otherwise, navigate to the URL in the broader product. This should close
+                // all our peeks.
+                void navigate(to, {state});
+            },
+            replace: (to, state) => {
+                // If we are navigating to a peek path, great! No change necessary.
+                if (isPeekPath(to)) return history.replace(to, state);
+
+                // If the URL we are navigating to is a space path but the space path has a
+                // corresponding peek route then use the corresponding peek path instead.
+                const peekPath = convertSpacePathToPeekPath(to);
+                if (peekPath) {
+                    const routeMatches = matchClientRoutes(
+                        remixEntryContext.clientRoutes,
+                        peekPath.pathname,
+                    );
+                    if (routeMatches) {
+                        return history.replace(peekPath, state);
+                    }
+                }
+
+                // Otherwise, navigate to the URL in the broader product. This should close
+                // all our peeks.
+                void navigate(to, {state, replace: true});
+            },
+        };
+    }, [history, navigate, remixEntryContext.clientRoutes]);
+
     useImperativeHandle(
         onExpandRef,
         () => async () => {
@@ -187,7 +241,7 @@ export function PeekRemixEmbed({
                 <Router
                     navigationType={historyState.action}
                     location={transitionState.location}
-                    navigator={history}
+                    navigator={navigator}
                     // React Router has an assertion which bans you from rendering a `<Router>`
                     // inside of another `<Router>`. Likely to avoid developers making silly
                     // mistakes.

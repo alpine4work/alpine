@@ -1,7 +1,7 @@
 import {matchClientRoutes} from "@remix-run/react/dist/esm/routeMatching";
 import {ClientRoute} from "@remix-run/react/dist/esm/routes";
 import {Path, To} from "history";
-import {convertSpacePathToPeekPath} from "~/client/peek/internal/convert_space_path_to_peek_path";
+import {convertSpacePathToPeekPath} from "~/client/peek/internal/peek_path_helpers";
 import {InternalError, NotFoundError} from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 

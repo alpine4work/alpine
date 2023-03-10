@@ -29,7 +29,7 @@ import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
 import {IconButton} from "~/client/design/icon_button";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted";
-import {convertSpacePathToPeekPath} from "~/client/peek/internal/convert_space_path_to_peek_path";
+import {convertSpacePathToPeekPath} from "~/client/peek/internal/peek_path_helpers";
 import {loadInitialPeekData} from "~/client/peek/internal/load_initial_peek_data";
 import {PeekRemixEmbed} from "~/client/peek/internal/peek_remix_embed";
 import {NavigationEventContextProvider} from "~/client/remix/use_navigate";
