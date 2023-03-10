@@ -1,4 +1,12 @@
-import {ChatsCircle, EnvelopeOpen, FileText, IconContext, ListChecks, Plus} from "phosphor-react";
+import {
+    ChatsCircle,
+    EnvelopeOpen,
+    FileText,
+    IconContext,
+    ListChecks,
+    Plus,
+    SpinnerGap,
+} from "phosphor-react";
 import {ReactNode} from "react";
 import {Box} from "~/client/design/box";
 import {IconButton} from "~/client/design/icon_button";
@@ -10,6 +18,7 @@ import {spacing} from "~/shared/design/spacing";
 import {UnimplementedError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {generateId} from "~/shared/id/id";
+import {spinAnimationClassName} from "~/shared/styles/styles";
 
 export function SpaceLayoutTopBarCreateButton() {
     const {space} = useSpaceContext();
@@ -30,13 +39,14 @@ export function SpaceLayoutTopBarCreateButton() {
                             }),
                         });
                     },
-                    render: ({isHovered, isPressed}) => (
+                    render: ({isHovered, isPressed, shouldShowPendingSpinner}) => (
                         <SpaceLayoutTopBarCreateButtonItem
                             icon={<ChatsCircle />}
                             label="Send a chat message"
                             description="Start a conversation with anyone"
                             isHovered={isHovered}
                             isPressed={isPressed}
+                            shouldShowPendingSpinner={shouldShowPendingSpinner}
                         />
                     ),
                 },
@@ -54,33 +64,35 @@ export function SpaceLayoutTopBarCreateButton() {
                             ),
                         });
                     },
-                    render: ({isHovered, isPressed}) => (
+                    render: ({isHovered, isPressed, shouldShowPendingSpinner}) => (
                         <SpaceLayoutTopBarCreateButtonItem
                             icon={<EnvelopeOpen />}
                             label="Post in a channel"
                             description="Share your ideas with everyone"
                             isHovered={isHovered}
                             isPressed={isPressed}
+                            shouldShowPendingSpinner={shouldShowPendingSpinner}
                         />
                     ),
                 },
                 {
                     withCustomLayout: true,
-                    onPress: async ({onCloseWithoutAnimation}) => {
+                    pressErrorTitle: "Couldn’t create document",
+                    onPress: async () => {
                         const documentId = generateId();
                         await peekStackContext.push(
                             `/s/${space.id}/documents/${documentId}?create`,
                             {focus: true},
                         );
-                        onCloseWithoutAnimation();
                     },
-                    render: ({isHovered, isPressed}) => (
+                    render: ({isHovered, isPressed, shouldShowPendingSpinner}) => (
                         <SpaceLayoutTopBarCreateButtonItem
                             icon={<FileText />}
                             label="Create a document"
                             description="Write what’s on your mind"
                             isHovered={isHovered}
                             isPressed={isPressed}
+                            shouldShowPendingSpinner={shouldShowPendingSpinner}
                         />
                     ),
                 },
@@ -95,13 +107,14 @@ export function SpaceLayoutTopBarCreateButton() {
                             }),
                         });
                     },
-                    render: ({isHovered, isPressed}) => (
+                    render: ({isHovered, isPressed, shouldShowPendingSpinner}) => (
                         <SpaceLayoutTopBarCreateButtonItem
                             icon={<ListChecks />}
                             label="Create a task"
                             description="Keep track of work to do later"
                             isHovered={isHovered}
                             isPressed={isPressed}
+                            shouldShowPendingSpinner={shouldShowPendingSpinner}
                         />
                     ),
                 },
@@ -120,23 +133,26 @@ function SpaceLayoutTopBarCreateButtonItem({
     description,
     isHovered,
     isPressed,
+    shouldShowPendingSpinner,
 }: {
     icon: ReactNode;
     label: string;
     description: string;
     isHovered: boolean;
     isPressed: boolean;
+    shouldShowPendingSpinner: boolean;
 }) {
     return (
         <Box
             paddingLeft="3"
-            paddingRight="8"
+            paddingRight="3"
             paddingY="3"
             display="flex"
             alignItems="center"
             gap="3"
         >
             <Box
+                flexShrink="0"
                 padding="2"
                 backgroundColor={
                     isPressed
@@ -158,13 +174,18 @@ function SpaceLayoutTopBarCreateButtonItem({
                     {icon}
                 </IconContext.Provider>
             </Box>
-            <Box>
+            <Box flexGrow="1">
                 <Box fontStyle="semi-bold" fontSize="100" paddingBottom="0.5">
                     {label}
                 </Box>
                 <Box fontSize="75" color="grey-60">
                     {description}
                 </Box>
+            </Box>
+            <Box flexShrink="0" width="4">
+                {shouldShowPendingSpinner && (
+                    <SpinnerGap className={spinAnimationClassName} size={spacing["4"]} />
+                )}
             </Box>
         </Box>
     );

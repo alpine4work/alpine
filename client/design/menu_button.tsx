@@ -105,7 +105,6 @@ type MenuCustomAction = {
      *
      * However, doing so means you lose some standard functionality! Including:
      *
-     * - Automatic error state and loading state support
      * - Search for action by name by pressing letter keys (e.g. "e" jumps you
      *   to "Edit")
      * - Disabled states
@@ -118,18 +117,34 @@ type MenuCustomAction = {
     /**
      * Called when this action is activated either by mouse or by keyboard.
      *
-     * Does not have automatic handling for error states and loading states! You
-     * need to add this in yourself.
+     * If a promise is returned we will show a loading spinner while waiting for
+     * the promise to resolve. If you return a promise you must pass in a
+     * `pressErrorTitle` property to communicate to the user what failed after
+     * the press.
      */
-    readonly onPress: (props: {
-        onCloseWithAnimation: () => void;
-        onCloseWithoutAnimation: () => void;
-    }) => void;
+    readonly onPress: () => void | Promise<void>;
+
+    /**
+     * If an error occurs while running `onPress` we will report the error to the user with
+     * this title. It is the "what happened" part of an error message according to [Adobe
+     * Spectrum's][1] error content guidelines.
+     *
+     * So for example it this is a delete comment action say "Couldn’t delete comment".
+     *
+     * Required when the `onPress` event returns a promise.
+     *
+     * [1]: https://spectrum.adobe.com/page/writing-for-errors
+     */
+    readonly pressErrorTitle?: string;
 
     /**
      * Custom renderer for your menu action.
      */
-    readonly render: (props: {isPressed: boolean; isHovered: boolean}) => ReactNode;
+    readonly render: (props: {
+        isPressed: boolean;
+        isHovered: boolean;
+        shouldShowPendingSpinner: boolean;
+    }) => ReactNode;
 };
 
 type MenuButtonState =
@@ -689,6 +704,8 @@ const Menu = forwardRef(function Menu(
     );
 });
 
+const defaultMenuItemPressErrorTitle = "The menu option you pressed didn’t work";
+
 const MenuItem = forwardRef(function MenuItem(
     {
         action,
@@ -805,7 +822,6 @@ function MenuStandardButton({
 
             if (isDisabled) return;
 
-            const defaultPressErrorTitle = "The menu option you pressed didn’t work";
             const {pressErrorTitle} = action;
 
             let promise;
@@ -814,7 +830,7 @@ function MenuStandardButton({
             } catch (error) {
                 showToast({
                     type: "Error",
-                    title: pressErrorTitle ?? defaultPressErrorTitle,
+                    title: pressErrorTitle ?? defaultMenuItemPressErrorTitle,
                     error,
                 });
                 return;
@@ -941,9 +957,73 @@ function MenuCustomButton({
     onCloseWithAnimation: () => void;
     onCloseWithoutAnimation: () => void;
 }) {
+    const showToast = useShowToast();
+    const [pendingState, setPendingState] = useState<
+        | {isPending: false; shouldShowPendingSpinner: false}
+        | {isPending: true; shouldShowPendingSpinner: boolean}
+    >({isPending: false, shouldShowPendingSpinner: false});
+
     const {isPressed, pressProps} = usePress({
-        isDisabled: isFadingOut,
-        onPress: () => action.onPress({onCloseWithAnimation, onCloseWithoutAnimation}),
+        isDisabled: isFadingOut || pendingState.isPending,
+        onPress: () => {
+            const {pressErrorTitle} = action;
+
+            let promise;
+            try {
+                promise = action.onPress();
+            } catch (error) {
+                showToast({
+                    type: "Error",
+                    title: pressErrorTitle ?? defaultMenuItemPressErrorTitle,
+                    error,
+                });
+                return;
+            }
+
+            // If the press returns a promise:
+            //
+            // - Only close the menu if the action succeeds
+            // - Show a loading spinner after a short delay
+            // - Show a toast if there was an error
+            if (!(promise instanceof Promise)) {
+                onCloseWithoutAnimation();
+            } else {
+                const promiseStartTime = new Date();
+
+                setPendingState({isPending: true, shouldShowPendingSpinner: false});
+
+                assert(
+                    pressErrorTitle,
+                    "If `onPress` returns a promise then the `pressErrorTitle` prop is required",
+                );
+
+                promise.then(
+                    () => {
+                        // Our animation principle is to respond to user input immediately
+                        // without animation.
+                        //
+                        // If the item had to go into a loading state we consider the click long
+                        // enough ago that it is no longer a direct action.
+                        if (
+                            new Date().getTime() - promiseStartTime.getTime() >
+                            delayLoadingIndicatorLimitMs
+                        ) {
+                            onCloseWithAnimation();
+                        } else {
+                            onCloseWithoutAnimation();
+                        }
+                    },
+                    error => {
+                        setPendingState({isPending: false, shouldShowPendingSpinner: false});
+                        showToast({
+                            type: "Error",
+                            title: pressErrorTitle,
+                            error,
+                        });
+                    },
+                );
+            }
+        },
     });
 
     const {isHovered, hoverProps} = useHover({
@@ -953,6 +1033,20 @@ function MenuCustomButton({
         onHoverStart: event => event.target.focus(),
         onHoverEnd: event => event.target.blur(),
     });
+
+    // We wait a bit before showing our pending spinner. Some actions are very fast so we
+    // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
+    useEffect(() => {
+        if (!pendingState.isPending || pendingState.shouldShowPendingSpinner) return;
+
+        const timeout = createTimeout(() => {
+            setPendingState({isPending: true, shouldShowPendingSpinner: true});
+        }, delayLoadingIndicatorLimitMs);
+
+        return () => {
+            timeout.clear();
+        };
+    }, [pendingState]);
 
     return (
         <FocusRing offset="0">
@@ -974,10 +1068,15 @@ function MenuCustomButton({
                         ? {light: "grey-5", dark: "grey-10"}
                         : undefined
                 }
+                // When a menu item is disabled, `aria-disabled` is set to true.
+                //
+                // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
+                aria-disabled={pendingState.isPending ? true : undefined}
             >
                 {action.render({
                     isPressed,
                     isHovered,
+                    shouldShowPendingSpinner: pendingState.shouldShowPendingSpinner,
                 })}
             </Box>
         </FocusRing>
