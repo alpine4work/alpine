@@ -15,7 +15,7 @@ import {PostContent} from "~/shared/content/post_content_schema";
 import {RemLength} from "~/shared/design/spacing";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {ChannelId} from "~/shared/id/types/id_types";
+import {ChannelModel} from "~/shared/models/channel_model";
 import {PostModel, emptyPostContentWithReferences} from "~/shared/models/post_model";
 import {createPost} from "~/shared/rpc/forum_rpc_definitions";
 import {sprinkles} from "~/shared/styles/styles";
@@ -23,11 +23,11 @@ import {sprinkles} from "~/shared/styles/styles";
 export const postEditorInlineMinHeight: RemLength = "3.25rem";
 
 export function PostEditorInline({
-    channelId,
+    channel,
     onCreatePost,
     parentHasMargin,
 }: {
-    channelId: ChannelId;
+    channel: ChannelModel;
     onCreatePost: (post: PostModel) => void;
     parentHasMargin: boolean;
 }) {
@@ -68,7 +68,7 @@ export function PostEditorInline({
             const editor = assertExists(editorRef.current);
 
             const {post} = await createPost(context, {
-                channelId,
+                channelId: channel.id,
                 content: content.doc,
             });
 
@@ -78,7 +78,7 @@ export function PostEditorInline({
                 new PostModel({
                     id: post.id,
                     spaceId: post.spaceId,
-                    channelId,
+                    channel: channel.asPreview(),
                     createdTime: post.createdTime,
                     author: currentAccount,
                     content,

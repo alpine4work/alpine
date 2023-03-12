@@ -1,5 +1,5 @@
 import {PostContentSchema, emptyPostContent} from "~/shared/content/post_content_schema";
-import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types";
+import {PostId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
 import {ChannelPreviewModel} from "~/shared/models/channel_model";
 import {ContentReferencesSchema, emptyContentReferences} from "~/shared/models/content_references";

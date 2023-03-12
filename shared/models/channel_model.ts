@@ -12,7 +12,16 @@ export class ChannelModel extends Model(
         name: LabelStringSchema,
         description: MessageContentWithReferencesSchema,
     }),
-) {}
+) {
+    public asPreview() {
+        return new ChannelPreviewModel({
+            id: this.id,
+            spaceId: this.spaceId,
+            createdTime: this.createdTime,
+            name: this.name,
+        });
+    }
+}
 
 export class ChannelPreviewModel extends Model(
     Schema.object({

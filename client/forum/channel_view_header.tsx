@@ -40,7 +40,7 @@ export function ChannelViewHeader({
                 </Box>
             )}
             <PostEditorInline
-                channelId={channelHeader.channel.id}
+                channel={channelHeader.channel}
                 onCreatePost={onCreatePost}
                 parentHasMargin={parentHasMargin}
             />
