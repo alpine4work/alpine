@@ -11,7 +11,8 @@ def ts_playwright_tests(
         lib_srcs = None,
         deps = [],
         data = [],
-        node_options = []):
+        node_options = [],
+        skip_projects_by_src = {}):
     """
     Sets up Playwright tests for the provided test files.
 
@@ -29,6 +30,8 @@ def ts_playwright_tests(
         deps: Dependencies of the sources we're testing.
         data: Data to be made available through the file system at runtime.
         node_options: Extra options to pass to Node.js.
+        skip_projects_by_src: Skip projects for specified source files. Can not
+        skip Chromium.
     """
 
     if srcs == None:
@@ -76,6 +79,7 @@ def ts_playwright_tests(
             deps = deps,
             data = data,
             node_options = node_options,
+            skip_projects = skip_projects_by_src[src] if src in skip_projects_by_src else [],
         )
 
 def playwright_test(
@@ -83,7 +87,8 @@ def playwright_test(
         src,
         deps = [],
         data = [],
-        node_options = []):
+        node_options = [],
+        skip_projects = []):
     """
     Generate Playwright test rules for the provided source file.
 
@@ -96,6 +101,7 @@ def playwright_test(
         deps: Dependencies the test needs to run.
         data: Data to be made available at runtime in runfiles.
         node_options: Extra options to pass to Node.js.
+        skip_projects: Projects to skip when running this test. Can not skip Chromium.
     """
 
     if not src.endswith(".spec.ts") and not src.endswith(".spec.tsx"):
@@ -125,12 +131,11 @@ def playwright_test(
     # Alias that runs all platforms for this test file.
     native.test_suite(
         name = "{}_all_tests".format(name),
-        tests = [
-            "{}_chromium_test".format(name),
-            "{}_firefox_test".format(name),
-            "{}_webkit_desktop_test".format(name),
-            "{}_webkit_mobile_test".format(name),
-        ],
+        tests =
+            ["{}_chromium_test".format(name)] +
+            (["{}_firefox_test".format(name)] if not ("firefox" in skip_projects) else []) +
+            (["{}_webkit_desktop_test".format(name)] if not ("webkit_desktop" in skip_projects) else []) +
+            (["{}_webkit_mobile_test".format(name)] if not ("webkit_mobile" in skip_projects) else []),
     )
 
     _playwright_project_test(
@@ -138,20 +143,23 @@ def playwright_test(
         project = "chromium",
     )
 
-    _playwright_project_test(
-        name = name,
-        project = "firefox",
-    )
+    if not ("firefox" in skip_projects):
+        _playwright_project_test(
+            name = name,
+            project = "firefox",
+        )
 
-    _playwright_project_test(
-        name = name,
-        project = "webkit_desktop",
-    )
+    if not ("webkit_desktop" in skip_projects):
+        _playwright_project_test(
+            name = name,
+            project = "webkit_desktop",
+        )
 
-    _playwright_project_test(
-        name = name,
-        project = "webkit_mobile",
-    )
+    if not ("webkit_mobile" in skip_projects):
+        _playwright_project_test(
+            name = name,
+            project = "webkit_mobile",
+        )
 
 def _playwright_project_test(
         name,

@@ -8,6 +8,10 @@ ts_playwright_tests(
         # https://miniflare.dev/core/modules
         "--experimental-vm-modules",
     ],
+    skip_projects_by_src = {
+        # Peeks only work on desktop.
+        "peek/peek.spec.ts": ["webkit_mobile"],
+    },
     deps = [
         "//:node_modules/@types/node",
         "//:node_modules/@types/serve-static",

@@ -235,6 +235,17 @@ export function assertDocumentContent(node: Node): DocumentContent {
     return node;
 }
 
+export function createSimpleDocumentContent(text: string): DocumentContent {
+    return assertDocumentContent(
+        DocumentContentProsemirrorSchema.node("doc", {}, [
+            DocumentContentProsemirrorSchema.node("title", {}, []),
+            DocumentContentProsemirrorSchema.node("paragraph", {}, [
+                DocumentContentProsemirrorSchema.text(text),
+            ]),
+        ]),
+    );
+}
+
 export const DocumentContentProsemirrorSchema = new ProsemirrorSchema(
     documentContentProsemirrorSchemaSpec,
 );
