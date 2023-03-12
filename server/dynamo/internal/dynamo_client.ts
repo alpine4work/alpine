@@ -91,11 +91,13 @@ export class DynamoClient {
             key,
             consistency = "Eventual",
             projectionExpression,
+            expressionAttributeNames,
         }: {
             tableName: string;
             key: SchemaSerializedObjectValue;
             consistency?: DynamoReadConsistency;
             projectionExpression?: string;
+            expressionAttributeNames?: ReadonlyMap<string, string>;
         },
     ): Promise<SchemaSerializedObjectValue | null> {
         // Reads without a projection expression may be batched.
@@ -112,6 +114,12 @@ export class DynamoClient {
             Key: intoDynamoAttributeValueObject(key),
             ConsistentRead: consistency === "Strong",
             ProjectionExpression: projectionExpression,
+            ExpressionAttributeNames:
+                projectionExpression &&
+                expressionAttributeNames &&
+                expressionAttributeNames.size > 0
+                    ? Object.fromEntries(expressionAttributeNames)
+                    : undefined,
         });
 
         if (!output.Item) return null;

@@ -22,7 +22,6 @@ import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles";
 export function meta() {
     return {
         title: "Sign in to Cyberworlds",
-        robots: "noindex",
     };
 }
 

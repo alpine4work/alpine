@@ -1,0 +1,27 @@
+import {assert} from "~/shared/helpers/control/assert";
+import {deserializedValueSymbol} from "~/shared/remix/json_with_schema_shared";
+import {Schema, SchemaSerializedValue} from "~/shared/schema/schema";
+
+/**
+ * Gets data returned by a loader. Loader data is serialized with a schema so
+ * we need to deserialize it back. On the server we keep a reference to the
+ * deserialized value as an optimization so we don't need to pay
+ * deserialization costs.
+ */
+export function getLoaderDataWithSchema<Value>(
+    schema: Schema<Value>,
+    serializedValue: SchemaSerializedValue & {[deserializedValueSymbol]?: Value},
+): Value {
+    // Optimization: When on the server, use the original deserialized value
+    // instead wasting CPU time on deserialization.
+    if (typeof window === "undefined") {
+        assert(serializedValue[deserializedValueSymbol]);
+        return serializedValue[deserializedValueSymbol];
+    } else {
+        if (!serializedValue[deserializedValueSymbol]) {
+            const deserializedValue = schema.deserialize(serializedValue);
+            serializedValue[deserializedValueSymbol] = deserializedValue;
+        }
+        return serializedValue[deserializedValueSymbol];
+    }
+}

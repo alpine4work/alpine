@@ -1,7 +1,6 @@
 import {useLoaderData} from "@remix-run/react";
 import {useMemo} from "react";
-import {assert} from "~/shared/helpers/control/assert";
-import {deserializedValueSymbol} from "~/shared/remix/json_with_schema_shared";
+import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema";
 import {Schema} from "~/shared/schema/schema";
 
 /**
@@ -9,20 +8,8 @@ import {Schema} from "~/shared/schema/schema";
  */
 export function useLoaderDataWithSchema<Value>(schema: Schema<Value>): Value {
     const serializedValue = useLoaderData();
-
-    return useMemo(() => {
-        try {
-            // Optimization: When on the server, use the original deserialized value
-            // instead wasting CPU time on deserialization.
-            if (typeof window === "undefined") {
-                assert(serializedValue[deserializedValueSymbol]);
-                return serializedValue[deserializedValueSymbol];
-            } else {
-                return schema.deserialize(serializedValue);
-            }
-        } catch (error) {
-            console.log(serializedValue);
-            throw error;
-        }
-    }, [schema, serializedValue]);
+    return useMemo(
+        () => getLoaderDataWithSchema(schema, serializedValue),
+        [schema, serializedValue],
+    );
 }

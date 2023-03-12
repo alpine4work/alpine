@@ -33,7 +33,6 @@ import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles";
 export function meta() {
     return {
         title: "Request access to Cyberworlds",
-        robots: "noindex",
     };
 }
 

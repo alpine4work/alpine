@@ -1,6 +1,10 @@
+import {ShouldReloadFunction, useSearchParams} from "@remix-run/react";
+import {MetaFunction} from "@remix-run/server-runtime";
 import {useEffect} from "react";
 import {DocumentContentEditor} from "~/client/documents/document_content_editor";
+import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
+import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title";
 import {SpaceRouteScrollView} from "~/client/spaces/space_route_scroll_view";
 import {createDocument, getDocument} from "~/server/dynamo/documents_table";
 import {getContentReferencesFromNode} from "~/server/dynamo/helpers/get_content_references";
@@ -10,11 +14,11 @@ import {emptyDocumentContent} from "~/shared/content/document_content_schema";
 import {FailedPreconditionError, NotFoundError} from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {DocumentId, SpaceId} from "~/shared/id/types/id_types";
-import {DocumentModel} from "~/shared/models/document_model";
+import {DocumentModel, getDocumentContentTitle} from "~/shared/models/document_model";
 import {Schema} from "~/shared/schema/schema";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
 
-const schema = Schema.object({
+const LoaderSchema = Schema.object({
     document: DocumentModel.schema(),
 });
 
@@ -67,22 +71,41 @@ export async function loader({params, context, request}: LoaderArgs) {
         context: {documentId},
     };
 
-    return jsonWithSchema(schema, {document}, {propagateEventData});
+    return jsonWithSchema(LoaderSchema, {document}, {propagateEventData});
 }
 
-export default function DocumentRoute() {
-    const {document} = useLoaderDataWithSchema(schema);
+export const meta: MetaFunction = ({data}) => {
+    const {document} = getLoaderDataWithSchema(LoaderSchema, data);
 
-    // Silently remove the `create` query parameter. We don't invoke a function
-    // that would tell `react-router-dom` about the URL update since we don't want
-    // to re-render or re-run our loader.
+    return {
+        title: `${document.getTitle()}${metaTitlePostfix}`,
+    };
+};
+
+// If only the `create` search param on the URL changed, we don't need to reload.
+export const unstable_shouldReload: ShouldReloadFunction = ({url: _url, prevUrl: _prevUrl}) => {
+    const url = new URL(_url);
+    const prevUrl = new URL(_prevUrl);
+
+    url.searchParams.delete("create");
+    prevUrl.searchParams.delete("create");
+
+    return url.toString() !== prevUrl.toString();
+};
+
+export default function DocumentRoute() {
+    const {document} = useLoaderDataWithSchema(LoaderSchema);
+    const [searchParams, setSearchParams] = useSearchParams();
+    const updateMetaTitle = useUpdateMetaTitle();
+
+    // Remove the `create` search param.
     useEffect(() => {
-        const url = new URL(window.location.href);
-        if (url.searchParams.has("create")) {
-            url.searchParams.delete("create");
-            window.history.replaceState(null, "", url);
+        if (searchParams.has("create")) {
+            const newSearchParams = new URLSearchParams(searchParams);
+            newSearchParams.delete("create");
+            setSearchParams(newSearchParams);
         }
-    }, []);
+    }, [searchParams, setSearchParams]);
 
     return (
         <SpaceRouteScrollView>
@@ -90,6 +113,9 @@ export default function DocumentRoute() {
                 // Re-render when the document changes
                 key={document.id}
                 document={document}
+                onDocumentContentChange={content =>
+                    updateMetaTitle(`${getDocumentContentTitle(content)}${metaTitlePostfix}`)
+                }
             />
         </SpaceRouteScrollView>
     );

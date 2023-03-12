@@ -5,6 +5,7 @@ import {Button} from "~/client/design/button";
 import {Spacer} from "~/client/design/spacer";
 import {TextInput} from "~/client/design/text_input";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
+import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
 import {
     getAlphaConfiguration,
     getUndecidedAlphaAccessRequests,
@@ -25,7 +26,7 @@ import {sprinkles} from "~/shared/styles/styles";
 
 export function meta() {
     return {
-        title: "Closed Alpha Management - Cyberworlds",
+        title: `Closed Alpha Management${metaTitlePostfix}`,
     };
 }
 

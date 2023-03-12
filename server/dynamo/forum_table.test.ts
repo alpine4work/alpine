@@ -489,6 +489,32 @@ test("can not get channel posts for a different space", async () => {
     ).rejects.toThrow(PermissionDeniedError);
 });
 
+test("can not get channel posts for a different space when there are a few posts", async () => {
+    const channel = await createChannel(context.request(session1), {
+        spaceId: space.id,
+        name: "Test",
+    });
+
+    await createPost(context.request(session1), {
+        channelId: channel.id,
+        content: testContent1,
+    });
+
+    await createPost(context.request(session2), {
+        channelId: channel.id,
+        content: testContent2,
+    });
+
+    await createPost(context.request(session3), {
+        channelId: channel.id,
+        content: testContent3,
+    });
+
+    await expect(
+        getChannelPosts(context.request(otherSession), {channelId: channel.id, limit: 100}),
+    ).rejects.toThrow(PermissionDeniedError);
+});
+
 test("can get channel posts when there are none", async () => {
     const channel = await createChannel(context.request(session1), {
         spaceId: space.id,
@@ -522,7 +548,12 @@ test("can get the first few posts in a channel", async () => {
             {
                 id: post1.id,
                 spaceId: space.id,
-                channelId: channel.id,
+                channel: {
+                    id: channel.id,
+                    createdTime: channel.createdTime,
+                    name: "Test",
+                    spaceId: space.id,
+                },
                 createdTime: expect.any(Date),
                 author: session1.account,
                 content: testContent1WithReferences,
@@ -548,7 +579,12 @@ test("can get the first few posts in a channel", async () => {
             {
                 id: post2.id,
                 spaceId: space.id,
-                channelId: channel.id,
+                channel: {
+                    id: channel.id,
+                    createdTime: channel.createdTime,
+                    name: "Test",
+                    spaceId: space.id,
+                },
                 createdTime: expect.any(Date),
                 author: session2.account,
                 content: testContent2WithReferences,
@@ -561,7 +597,12 @@ test("can get the first few posts in a channel", async () => {
             {
                 id: post1.id,
                 spaceId: space.id,
-                channelId: channel.id,
+                channel: {
+                    id: channel.id,
+                    createdTime: channel.createdTime,
+                    name: "Test",
+                    spaceId: space.id,
+                },
                 createdTime: expect.any(Date),
                 author: session1.account,
                 content: testContent1WithReferences,
@@ -587,7 +628,12 @@ test("can get the first few posts in a channel", async () => {
             {
                 id: post3.id,
                 spaceId: space.id,
-                channelId: channel.id,
+                channel: {
+                    id: channel.id,
+                    createdTime: channel.createdTime,
+                    name: "Test",
+                    spaceId: space.id,
+                },
                 createdTime: expect.any(Date),
                 author: session3.account,
                 content: testContent3WithReferences,
@@ -600,7 +646,12 @@ test("can get the first few posts in a channel", async () => {
             {
                 id: post2.id,
                 spaceId: space.id,
-                channelId: channel.id,
+                channel: {
+                    id: channel.id,
+                    createdTime: channel.createdTime,
+                    name: "Test",
+                    spaceId: space.id,
+                },
                 createdTime: expect.any(Date),
                 author: session2.account,
                 content: testContent2WithReferences,
@@ -613,7 +664,12 @@ test("can get the first few posts in a channel", async () => {
             {
                 id: post1.id,
                 spaceId: space.id,
-                channelId: channel.id,
+                channel: {
+                    id: channel.id,
+                    createdTime: channel.createdTime,
+                    name: "Test",
+                    spaceId: space.id,
+                },
                 createdTime: expect.any(Date),
                 author: session1.account,
                 content: testContent1WithReferences,
@@ -666,7 +722,12 @@ test("can get the first few posts in a channel with limit and cursor", async () 
             {
                 id: post5.id,
                 spaceId: space.id,
-                channelId: channel.id,
+                channel: {
+                    id: channel.id,
+                    createdTime: channel.createdTime,
+                    name: "Test",
+                    spaceId: space.id,
+                },
                 createdTime: expect.any(Date),
                 author: session2.account,
                 content: testContent1WithReferences,
@@ -679,7 +740,12 @@ test("can get the first few posts in a channel with limit and cursor", async () 
             {
                 id: post4.id,
                 spaceId: space.id,
-                channelId: channel.id,
+                channel: {
+                    id: channel.id,
+                    createdTime: channel.createdTime,
+                    name: "Test",
+                    spaceId: space.id,
+                },
                 createdTime: expect.any(Date),
                 author: session1.account,
                 content: testContent2WithReferences,
@@ -692,7 +758,12 @@ test("can get the first few posts in a channel with limit and cursor", async () 
             {
                 id: post3.id,
                 spaceId: space.id,
-                channelId: channel.id,
+                channel: {
+                    id: channel.id,
+                    createdTime: channel.createdTime,
+                    name: "Test",
+                    spaceId: space.id,
+                },
                 createdTime: expect.any(Date),
                 author: session3.account,
                 content: testContent3WithReferences,
@@ -705,7 +776,12 @@ test("can get the first few posts in a channel with limit and cursor", async () 
             {
                 id: post2.id,
                 spaceId: space.id,
-                channelId: channel.id,
+                channel: {
+                    id: channel.id,
+                    createdTime: channel.createdTime,
+                    name: "Test",
+                    spaceId: space.id,
+                },
                 createdTime: expect.any(Date),
                 author: session2.account,
                 content: testContent2WithReferences,
@@ -718,7 +794,12 @@ test("can get the first few posts in a channel with limit and cursor", async () 
             {
                 id: post1.id,
                 spaceId: space.id,
-                channelId: channel.id,
+                channel: {
+                    id: channel.id,
+                    createdTime: channel.createdTime,
+                    name: "Test",
+                    spaceId: space.id,
+                },
                 createdTime: expect.any(Date),
                 author: session1.account,
                 content: testContent1WithReferences,
@@ -739,7 +820,12 @@ test("can get the first few posts in a channel with limit and cursor", async () 
             {
                 id: post5.id,
                 spaceId: space.id,
-                channelId: channel.id,
+                channel: {
+                    id: channel.id,
+                    createdTime: channel.createdTime,
+                    name: "Test",
+                    spaceId: space.id,
+                },
                 createdTime: expect.any(Date),
                 author: session2.account,
                 content: testContent1WithReferences,
@@ -752,7 +838,12 @@ test("can get the first few posts in a channel with limit and cursor", async () 
             {
                 id: post4.id,
                 spaceId: space.id,
-                channelId: channel.id,
+                channel: {
+                    id: channel.id,
+                    createdTime: channel.createdTime,
+                    name: "Test",
+                    spaceId: space.id,
+                },
                 createdTime: expect.any(Date),
                 author: session1.account,
                 content: testContent2WithReferences,
@@ -765,7 +856,12 @@ test("can get the first few posts in a channel with limit and cursor", async () 
             {
                 id: post3.id,
                 spaceId: space.id,
-                channelId: channel.id,
+                channel: {
+                    id: channel.id,
+                    createdTime: channel.createdTime,
+                    name: "Test",
+                    spaceId: space.id,
+                },
                 createdTime: expect.any(Date),
                 author: session3.account,
                 content: testContent3WithReferences,
@@ -786,7 +882,12 @@ test("can get the first few posts in a channel with limit and cursor", async () 
             {
                 id: post5.id,
                 spaceId: space.id,
-                channelId: channel.id,
+                channel: {
+                    id: channel.id,
+                    createdTime: channel.createdTime,
+                    name: "Test",
+                    spaceId: space.id,
+                },
                 createdTime: expect.any(Date),
                 author: session2.account,
                 content: testContent1WithReferences,
@@ -799,7 +900,12 @@ test("can get the first few posts in a channel with limit and cursor", async () 
             {
                 id: post4.id,
                 spaceId: space.id,
-                channelId: channel.id,
+                channel: {
+                    id: channel.id,
+                    createdTime: channel.createdTime,
+                    name: "Test",
+                    spaceId: space.id,
+                },
                 createdTime: expect.any(Date),
                 author: session1.account,
                 content: testContent2WithReferences,
@@ -812,7 +918,12 @@ test("can get the first few posts in a channel with limit and cursor", async () 
             {
                 id: post3.id,
                 spaceId: space.id,
-                channelId: channel.id,
+                channel: {
+                    id: channel.id,
+                    createdTime: channel.createdTime,
+                    name: "Test",
+                    spaceId: space.id,
+                },
                 createdTime: expect.any(Date),
                 author: session3.account,
                 content: testContent3WithReferences,
@@ -825,7 +936,12 @@ test("can get the first few posts in a channel with limit and cursor", async () 
             {
                 id: post2.id,
                 spaceId: space.id,
-                channelId: channel.id,
+                channel: {
+                    id: channel.id,
+                    createdTime: channel.createdTime,
+                    name: "Test",
+                    spaceId: space.id,
+                },
                 createdTime: expect.any(Date),
                 author: session2.account,
                 content: testContent2WithReferences,
@@ -846,7 +962,12 @@ test("can get the first few posts in a channel with limit and cursor", async () 
             {
                 id: post5.id,
                 spaceId: space.id,
-                channelId: channel.id,
+                channel: {
+                    id: channel.id,
+                    createdTime: channel.createdTime,
+                    name: "Test",
+                    spaceId: space.id,
+                },
                 createdTime: expect.any(Date),
                 author: session2.account,
                 content: testContent1WithReferences,
@@ -859,7 +980,12 @@ test("can get the first few posts in a channel with limit and cursor", async () 
             {
                 id: post4.id,
                 spaceId: space.id,
-                channelId: channel.id,
+                channel: {
+                    id: channel.id,
+                    createdTime: channel.createdTime,
+                    name: "Test",
+                    spaceId: space.id,
+                },
                 createdTime: expect.any(Date),
                 author: session1.account,
                 content: testContent2WithReferences,
@@ -872,7 +998,12 @@ test("can get the first few posts in a channel with limit and cursor", async () 
             {
                 id: post3.id,
                 spaceId: space.id,
-                channelId: channel.id,
+                channel: {
+                    id: channel.id,
+                    createdTime: channel.createdTime,
+                    name: "Test",
+                    spaceId: space.id,
+                },
                 createdTime: expect.any(Date),
                 author: session3.account,
                 content: testContent3WithReferences,
@@ -885,7 +1016,12 @@ test("can get the first few posts in a channel with limit and cursor", async () 
             {
                 id: post2.id,
                 spaceId: space.id,
-                channelId: channel.id,
+                channel: {
+                    id: channel.id,
+                    createdTime: channel.createdTime,
+                    name: "Test",
+                    spaceId: space.id,
+                },
                 createdTime: expect.any(Date),
                 author: session2.account,
                 content: testContent2WithReferences,
@@ -898,7 +1034,12 @@ test("can get the first few posts in a channel with limit and cursor", async () 
             {
                 id: post1.id,
                 spaceId: space.id,
-                channelId: channel.id,
+                channel: {
+                    id: channel.id,
+                    createdTime: channel.createdTime,
+                    name: "Test",
+                    spaceId: space.id,
+                },
                 createdTime: expect.any(Date),
                 author: session1.account,
                 content: testContent1WithReferences,
@@ -923,7 +1064,12 @@ test("can get the first few posts in a channel with limit and cursor", async () 
             {
                 id: post3.id,
                 spaceId: space.id,
-                channelId: channel.id,
+                channel: {
+                    id: channel.id,
+                    createdTime: channel.createdTime,
+                    name: "Test",
+                    spaceId: space.id,
+                },
                 createdTime: expect.any(Date),
                 author: session3.account,
                 content: testContent3WithReferences,
@@ -936,7 +1082,12 @@ test("can get the first few posts in a channel with limit and cursor", async () 
             {
                 id: post2.id,
                 spaceId: space.id,
-                channelId: channel.id,
+                channel: {
+                    id: channel.id,
+                    createdTime: channel.createdTime,
+                    name: "Test",
+                    spaceId: space.id,
+                },
                 createdTime: expect.any(Date),
                 author: session2.account,
                 content: testContent2WithReferences,
@@ -949,7 +1100,12 @@ test("can get the first few posts in a channel with limit and cursor", async () 
             {
                 id: post1.id,
                 spaceId: space.id,
-                channelId: channel.id,
+                channel: {
+                    id: channel.id,
+                    createdTime: channel.createdTime,
+                    name: "Test",
+                    spaceId: space.id,
+                },
                 createdTime: expect.any(Date),
                 author: session1.account,
                 content: testContent1WithReferences,
@@ -974,7 +1130,12 @@ test("can get the first few posts in a channel with limit and cursor", async () 
             {
                 id: post3.id,
                 spaceId: space.id,
-                channelId: channel.id,
+                channel: {
+                    id: channel.id,
+                    createdTime: channel.createdTime,
+                    name: "Test",
+                    spaceId: space.id,
+                },
                 createdTime: expect.any(Date),
                 author: session3.account,
                 content: testContent3WithReferences,
@@ -987,7 +1148,12 @@ test("can get the first few posts in a channel with limit and cursor", async () 
             {
                 id: post2.id,
                 spaceId: space.id,
-                channelId: channel.id,
+                channel: {
+                    id: channel.id,
+                    createdTime: channel.createdTime,
+                    name: "Test",
+                    spaceId: space.id,
+                },
                 createdTime: expect.any(Date),
                 author: session2.account,
                 content: testContent2WithReferences,
@@ -1012,7 +1178,12 @@ test("can get the first few posts in a channel with limit and cursor", async () 
             {
                 id: post2.id,
                 spaceId: space.id,
-                channelId: channel.id,
+                channel: {
+                    id: channel.id,
+                    createdTime: channel.createdTime,
+                    name: "Test",
+                    spaceId: space.id,
+                },
                 createdTime: expect.any(Date),
                 author: session2.account,
                 content: testContent2WithReferences,
@@ -1025,7 +1196,12 @@ test("can get the first few posts in a channel with limit and cursor", async () 
             {
                 id: post1.id,
                 spaceId: space.id,
-                channelId: channel.id,
+                channel: {
+                    id: channel.id,
+                    createdTime: channel.createdTime,
+                    name: "Test",
+                    spaceId: space.id,
+                },
                 createdTime: expect.any(Date),
                 author: session1.account,
                 content: testContent1WithReferences,
@@ -1053,7 +1229,12 @@ test("can update a post's contents", async () => {
     expect(await getPost(context.request(session1), post.id)).toEqual({
         id: post.id,
         spaceId: space.id,
-        channelId: channel.id,
+        channel: {
+            id: channel.id,
+            createdTime: channel.createdTime,
+            name: "Test",
+            spaceId: space.id,
+        },
         createdTime: expect.any(Date),
         author: session1.account,
         content: testContent1WithReferences,
@@ -1075,7 +1256,12 @@ test("can update a post's contents", async () => {
     expect(await getPost(context.request(session1), post.id)).toEqual({
         id: post.id,
         spaceId: space.id,
-        channelId: channel.id,
+        channel: {
+            id: channel.id,
+            createdTime: channel.createdTime,
+            name: "Test",
+            spaceId: space.id,
+        },
         createdTime: expect.any(Date),
         author: session1.account,
         content: testContent2WithReferences,
@@ -1097,7 +1283,12 @@ test("can update a post's contents", async () => {
     expect(await getPost(context.request(session1), post.id)).toEqual({
         id: post.id,
         spaceId: space.id,
-        channelId: channel.id,
+        channel: {
+            id: channel.id,
+            createdTime: channel.createdTime,
+            name: "Test",
+            spaceId: space.id,
+        },
         createdTime: expect.any(Date),
         author: session1.account,
         content: testContent3WithReferences,
@@ -1123,7 +1314,12 @@ test("can not update another account's post", async () => {
     expect(await getPost(context.request(session1), post.id)).toEqual({
         id: post.id,
         spaceId: space.id,
-        channelId: channel.id,
+        channel: {
+            id: channel.id,
+            createdTime: channel.createdTime,
+            name: "Test",
+            spaceId: space.id,
+        },
         createdTime: expect.any(Date),
         author: session1.account,
         content: testContent1WithReferences,
@@ -1144,7 +1340,12 @@ test("can not update another account's post", async () => {
     expect(await getPost(context.request(session1), post.id)).toEqual({
         id: post.id,
         spaceId: space.id,
-        channelId: channel.id,
+        channel: {
+            id: channel.id,
+            createdTime: channel.createdTime,
+            name: "Test",
+            spaceId: space.id,
+        },
         createdTime: expect.any(Date),
         author: session1.account,
         content: testContent1WithReferences,
@@ -1170,7 +1371,12 @@ test("can not update another space's post", async () => {
     expect(await getPost(context.request(session1), post.id)).toEqual({
         id: post.id,
         spaceId: space.id,
-        channelId: channel.id,
+        channel: {
+            id: channel.id,
+            createdTime: channel.createdTime,
+            name: "Test",
+            spaceId: space.id,
+        },
         createdTime: expect.any(Date),
         author: session1.account,
         content: testContent1WithReferences,
@@ -1191,7 +1397,12 @@ test("can not update another space's post", async () => {
     expect(await getPost(context.request(session1), post.id)).toEqual({
         id: post.id,
         spaceId: space.id,
-        channelId: channel.id,
+        channel: {
+            id: channel.id,
+            createdTime: channel.createdTime,
+            name: "Test",
+            spaceId: space.id,
+        },
         createdTime: expect.any(Date),
         author: session1.account,
         content: testContent1WithReferences,
@@ -1217,7 +1428,12 @@ test("can not update a post with invalid content", async () => {
     expect(await getPost(context.request(session1), post.id)).toEqual({
         id: post.id,
         spaceId: space.id,
-        channelId: channel.id,
+        channel: {
+            id: channel.id,
+            createdTime: channel.createdTime,
+            name: "Test",
+            spaceId: space.id,
+        },
         createdTime: expect.any(Date),
         author: session1.account,
         content: testContent1WithReferences,
@@ -1244,7 +1460,12 @@ test("can not update a post with invalid content", async () => {
     expect(await getPost(context.request(session1), post.id)).toEqual({
         id: post.id,
         spaceId: space.id,
-        channelId: channel.id,
+        channel: {
+            id: channel.id,
+            createdTime: channel.createdTime,
+            name: "Test",
+            spaceId: space.id,
+        },
         createdTime: expect.any(Date),
         author: session1.account,
         content: testContent1WithReferences,

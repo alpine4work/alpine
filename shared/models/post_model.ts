@@ -1,6 +1,7 @@
 import {PostContentSchema, emptyPostContent} from "~/shared/content/post_content_schema";
 import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
+import {ChannelPreviewModel} from "~/shared/models/channel_model";
 import {ContentReferencesSchema, emptyContentReferences} from "~/shared/models/content_references";
 import {MessageModel, MessagePayloadModelSchema} from "~/shared/models/message_model";
 import {Model} from "~/shared/models/model";
@@ -32,7 +33,7 @@ export class PostModel extends Model(
     Schema.object({
         id: Schema.id<PostId>(),
         spaceId: Schema.id<SpaceId>(),
-        channelId: Schema.id<ChannelId>(),
+        channel: ChannelPreviewModel.schema(),
         createdTime: Schema.date,
         author: AccountModel.schema(),
         content: PostContentWithReferencesSchema,

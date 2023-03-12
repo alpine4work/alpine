@@ -1,3 +1,4 @@
+import {dynamoReservedWords} from "~/server/dynamo/internal/dynamo_reserved_words";
 import {InternalError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
@@ -248,13 +249,6 @@ export enum DynamoConditionExpressionPrecedence {
 type DynamoConditionExpressionCompilationDefault =
     | {readonly hasDefault: false}
     | {readonly hasDefault: true; readonly value: SchemaSerializedValue};
-
-/**
- * [DynamoDB reserved words][1] we have encountered.
- *
- * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ReservedWords.html
- */
-const dynamoReservedWords = new Set(["NAME"]);
 
 /**
  * An object that maintains some state during condition compilation.

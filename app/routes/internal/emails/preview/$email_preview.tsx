@@ -6,8 +6,9 @@ import {Box} from "~/client/design/box";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer";
 import {FocusRing} from "~/client/design/focus_ring";
 import {Tooltip} from "~/client/design/tooltip";
-import {useUrlSearchParamState} from "~/client/remix/use_url_search_param_state";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
+import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
+import {useUrlSearchParamState} from "~/client/remix/use_url_search_param_state";
 import {getEmailTemplatePreviewBySlug} from "~/server/emails/get_email_template_preview_by_slug";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
@@ -20,7 +21,7 @@ import {sprinkles} from "~/shared/styles/styles";
 
 export function meta() {
     return {
-        title: "Email Playground - Cyberworlds",
+        title: `Email Playground${metaTitlePostfix}`,
     };
 }
 

@@ -33,11 +33,12 @@ import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iter
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise";
 import {generateId} from "~/shared/id/id";
 import {AccountId, ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types";
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema";
 import {AccountModel} from "~/shared/models/account_model";
-import {ChannelModel} from "~/shared/models/channel_model";
+import {ChannelModel, ChannelPreviewModel} from "~/shared/models/channel_model";
 import {MessagePayloadSchema} from "~/shared/models/message_model";
 import {
     PostCommentModel,
@@ -249,21 +250,6 @@ export async function createChannel(
     };
 }
 
-async function getChannelItem(
-    context: RequestContext,
-    id: ChannelId,
-): Promise<ChannelAttributesItem | null> {
-    const channelItem = await ForumTable.getItem(context, {
-        partitionType: "Channel",
-        sortRangeType: "Attributes",
-        channelId: id,
-    });
-    if (!channelItem) return null;
-
-    await authorizeSpaceAccess(context, channelItem.spaceId);
-    return channelItem;
-}
-
 /**
  * Gets the channel object with the provided ID. Returns null if the channel
  * doesn't exist and throws an error if the channel exists but you don't have
@@ -273,15 +259,15 @@ export async function getChannel(
     context: RequestContext,
     id: ChannelId,
 ): Promise<ChannelModel | null> {
-    const channelItem = await getChannelItem(context, id);
+    const channelItem = await ForumTable.getItem(context, {
+        partitionType: "Channel",
+        sortRangeType: "Attributes",
+        channelId: id,
+    });
     if (!channelItem) return null;
-    return createChannelModelFromItem(context, channelItem);
-}
 
-async function createChannelModelFromItem(
-    context: RequestContext,
-    channelItem: ChannelAttributesItem,
-): Promise<ChannelModel> {
+    await authorizeSpaceAccess(context, channelItem.spaceId);
+
     return new ChannelModel({
         id: channelItem.channelId,
         spaceId: channelItem.spaceId,
@@ -299,15 +285,48 @@ async function createChannelModelFromItem(
 }
 
 /**
+ * Gets a preview channel object with the provided ID. Returns null if the
+ * channel doesn't exist and throws an error if the channel exists but you
+ * don't have access to the channel.
+ */
+export async function getChannelPreview(
+    context: RequestContext,
+    id: ChannelId,
+): Promise<ChannelPreviewModel | null> {
+    const channelItem = await ForumTable.getPartialItem(
+        context,
+        {
+            partitionType: "Channel",
+            sortRangeType: "Attributes",
+            channelId: id,
+        },
+        {
+            attributes: ["spaceId", "createdTime", "name"],
+        },
+    );
+    if (!channelItem) return null;
+
+    await authorizeSpaceAccess(context, channelItem.spaceId);
+
+    return new ChannelPreviewModel({
+        id: channelItem.channelId,
+        spaceId: channelItem.spaceId,
+        createdTime: channelItem.createdTime,
+        name: channelItem.name,
+    });
+}
+
+/**
  * Authorize that the current user has access to a channel. Implicitly also authorizes
  * that the current user has access to the space the channel is in.
  */
 export async function authorizeChannelAccess(
     context: RequestContext,
     id: ChannelId,
-): Promise<void> {
-    const channelItem = await getChannelItem(context, id);
-    if (!channelItem) throw new NotFoundError("Channel not found");
+): Promise<ChannelPreviewModel> {
+    const channel = await getChannelPreview(context, id);
+    if (!channel) throw new NotFoundError("Channel not found");
+    return channel;
 }
 
 /**
@@ -401,33 +420,36 @@ export async function getChannelPosts(
     hasMorePosts: boolean;
     posts: ReadonlyArray<PostModel>;
 }> {
-    await authorizeChannelAccess(context, channelId);
+    const channelPromise = authorizeChannelAccess(context, channelId);
 
-    const queriedPosts = await parallelMapAsyncIterableToArray(
-        ChannelPostsIndex.query(context, {
-            partitionKey: {channelId},
-            endSortKey: afterCursor ? afterCursor : undefined,
-            isEndSortKeyExclusive: true,
-            // Get one more post above the limit to determine if there are more posts. We
-            // will throw the extra post away from the result set.
-            limit: limit + 1,
-            descending: true,
-        }),
-        async (item, index) => {
-            if (index >= limit) return null;
+    const [, queriedPosts] = await runAllPromises([
+        channelPromise,
+        parallelMapAsyncIterableToArray(
+            ChannelPostsIndex.query(context, {
+                partitionKey: {channelId},
+                endSortKey: afterCursor ? afterCursor : undefined,
+                isEndSortKeyExclusive: true,
+                // Get one more post above the limit to determine if there are more posts. We
+                // will throw the extra post away from the result set.
+                limit: limit + 1,
+                descending: true,
+            }),
+            async (item, index) => {
+                if (index >= limit) return null;
 
-            const postItem = await ForumTable.getItem(context, {
-                partitionType: "Post",
-                sortRangeType: "Attributes",
-                postId: item.postId,
-            });
+                const postItem = await ForumTable.getItem(context, {
+                    partitionType: "Post",
+                    sortRangeType: "Attributes",
+                    postId: item.postId,
+                });
 
-            // A post in the index may have been deleted.
-            if (!postItem) return null;
+                // A post in the index may have been deleted.
+                if (!postItem) return null;
 
-            return createPostModelFromItem(context, postItem);
-        },
-    );
+                return createPostModelFromItem(context, channelPromise, postItem);
+            },
+        ),
+    ]);
 
     const hasMorePosts = queriedPosts.length > limit;
     const posts = queriedPosts.slice(0, limit).filter(isNonNullable);
@@ -492,16 +514,20 @@ export async function getPost(context: RequestContext, id: PostId): Promise<Post
     });
     if (!postItem) return null;
 
-    await authorizeChannelAccess(context, postItem.channelId);
-
-    return createPostModelFromItem(context, postItem);
+    return createPostModelFromItem(
+        context,
+        authorizeChannelAccess(context, postItem.channelId),
+        postItem,
+    );
 }
 
 async function createPostModelFromItem(
     context: RequestContext,
+    channelPromise: MaybePromise<ChannelPreviewModel>,
     item: PostAttributesItem,
 ): Promise<PostModel> {
-    const [author, previewCommentAuthors, contentReferences] = await runAllPromises([
+    const [channel, author, previewCommentAuthors, contentReferences] = await runAllPromises([
+        channelPromise,
         getAccountOrThrow(context, item.spaceId, item.authorId),
         runAllPromises(
             Array.from(
@@ -516,10 +542,12 @@ async function createPostModelFromItem(
         getContentReferencesFromNode(context, item.spaceId, item.content),
     ]);
 
+    assert(channel.id === item.channelId);
+
     return new PostModel({
         id: item.postId,
         spaceId: item.spaceId,
-        channelId: item.channelId,
+        channel,
         createdTime: item.createdTime,
         author,
         content: {
@@ -1016,11 +1044,13 @@ export async function getPostAndCommentsFromStart(
             case "Attributes": {
                 assert(state === null);
 
-                await authorizeChannelAccess(context, item.channelId);
-
                 state = {
                     spaceId: item.spaceId,
-                    postPromise: createPostModelFromItem(context, item),
+                    postPromise: createPostModelFromItem(
+                        context,
+                        authorizeChannelAccess(context, item.channelId),
+                        item,
+                    ),
                     postCommentPromises: [],
                     lastPostCommentChangeTime: item.commentsSummary.lastChangeTime,
                 };

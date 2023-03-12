@@ -13,3 +13,12 @@ export class ChannelModel extends Model(
         description: MessageContentWithReferencesSchema,
     }),
 ) {}
+
+export class ChannelPreviewModel extends Model(
+    Schema.object({
+        id: Schema.id<ChannelId>(),
+        spaceId: Schema.id<SpaceId>(),
+        createdTime: Schema.date,
+        name: LabelStringSchema,
+    }),
+) {}

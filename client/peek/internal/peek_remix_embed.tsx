@@ -3,7 +3,16 @@ import {AppState} from "@remix-run/react/dist/esm/errors";
 import {matchClientRoutes} from "@remix-run/react/dist/esm/routeMatching";
 import {createTransitionManager} from "@remix-run/react/dist/esm/transition";
 import {MemoryHistory} from "history";
-import {Context, Ref, useContext, useEffect, useImperativeHandle, useMemo, useState} from "react";
+import {
+    Context,
+    Ref,
+    useCallback,
+    useContext,
+    useEffect,
+    useImperativeHandle,
+    useMemo,
+    useState,
+} from "react";
 import {Navigator, UNSAFE_RouteContext as RouteContext} from "react-router";
 import {Router, useRoutes} from "react-router-dom";
 import {
@@ -12,6 +21,7 @@ import {
     isPeekPath,
 } from "~/client/peek/internal/peek_path_helpers";
 import {useNavigate} from "~/client/remix/use_navigate";
+import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_title";
 import {InternalError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -221,43 +231,48 @@ export function PeekRemixEmbed({
     );
 
     return (
-        <RemixEntryContext.Provider value={embedRemixEntryContent}>
-            <RouteContext.Provider
-                // The `<Router>` component does not reset this context but it needs to be reset
-                // or else when we try to render nested routes they think they are within the
-                // context of our parent router. Initial value can be found here:
-                // https://github.com/remix-run/react-router/blob/230d9e5539c410c0c747db8670ec5de1d51558ae/packages/react-router/lib/context.ts#L143-L146
-                //
-                // See our comment below on how rendering nested `<Router>`s is not officially
-                // supported.
-                value={useMemo(
-                    () => ({
-                        outlet: null,
-                        matches: [],
-                    }),
-                    [],
-                )}
-            >
-                <Router
-                    navigationType={historyState.action}
-                    location={transitionState.location}
-                    navigator={navigator}
-                    // React Router has an assertion which bans you from rendering a `<Router>`
-                    // inside of another `<Router>`. Likely to avoid developers making silly
-                    // mistakes.
+        // Ignore title updates in a Remix embed. We currently don't render the title
+        // of a Remix embed though may in the future when allowing the user to navigate
+        // through embeds.
+        <UpdateMetaTitleContextProvider onUpdateMetaTitle={useCallback(() => {}, [])}>
+            <RemixEntryContext.Provider value={embedRemixEntryContent}>
+                <RouteContext.Provider
+                    // The `<Router>` component does not reset this context but it needs to be reset
+                    // or else when we try to render nested routes they think they are within the
+                    // context of our parent router. Initial value can be found here:
+                    // https://github.com/remix-run/react-router/blob/230d9e5539c410c0c747db8670ec5de1d51558ae/packages/react-router/lib/context.ts#L143-L146
                     //
-                    // However, we have a real use case! We want to render a `<Router>` powered by
-                    // in-memory history within our Remix `<Router>` powered by browser history.
-                    //
-                    // So we patch `react-router` to add this prop here that turns off the
-                    // assertion. Nested `<Router>`s are therefore not officially supported so we
-                    // take all responsibility for making sure it works well.
-                    dangerouslyAllowNesting={true}
+                    // See our comment below on how rendering nested `<Router>`s is not officially
+                    // supported.
+                    value={useMemo(
+                        () => ({
+                            outlet: null,
+                            matches: [],
+                        }),
+                        [],
+                    )}
                 >
-                    <PeekRemixEmbedRoutes />
-                </Router>
-            </RouteContext.Provider>
-        </RemixEntryContext.Provider>
+                    <Router
+                        navigationType={historyState.action}
+                        location={transitionState.location}
+                        navigator={navigator}
+                        // React Router has an assertion which bans you from rendering a `<Router>`
+                        // inside of another `<Router>`. Likely to avoid developers making silly
+                        // mistakes.
+                        //
+                        // However, we have a real use case! We want to render a `<Router>` powered by
+                        // in-memory history within our Remix `<Router>` powered by browser history.
+                        //
+                        // So we patch `react-router` to add this prop here that turns off the
+                        // assertion. Nested `<Router>`s are therefore not officially supported so we
+                        // take all responsibility for making sure it works well.
+                        dangerouslyAllowNesting={true}
+                    >
+                        <PeekRemixEmbedRoutes />
+                    </Router>
+                </RouteContext.Provider>
+            </RemixEntryContext.Provider>
+        </UpdateMetaTitleContextProvider>
     );
 }
 

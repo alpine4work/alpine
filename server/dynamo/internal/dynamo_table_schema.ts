@@ -18,6 +18,7 @@ import {
     DynamoKeyAttributeSchema,
     dynamoKeySeparator,
 } from "~/server/dynamo/internal/dynamo_key_attribute_schema";
+import {dynamoReservedWords} from "~/server/dynamo/internal/dynamo_reserved_words";
 import {getDynamoClient} from "~/server/dynamo/internal/get_dynamo_client";
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
 import {isDynamoResourceNotFoundError} from "~/server/dynamo/internal/is_dynamo_resource_not_found_error";
@@ -30,6 +31,7 @@ import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {assert} from "~/shared/helpers/control/assert";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
 import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order_key";
@@ -814,13 +816,28 @@ export class DynamoTableSchema<
         const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
 
         const projectionExpressionEntries = [];
+        const expressionAttributeNames = new Map<string, string>();
         for (const attribute of attributes) {
             const propertySchema = attributesSchema.propertySchemaByKey.get(attribute);
             if (!propertySchema)
                 throw new InternalError(quote`Attribute ${attribute} not found in item schema`);
 
             const serializedKey = propertySchema.serializedKey ?? attribute;
-            projectionExpressionEntries.push(serializedKey);
+
+            if (
+                isIdentifier(serializedKey) &&
+                !dynamoReservedWords.has(serializedKey.toUpperCase())
+            ) {
+                projectionExpressionEntries.push(serializedKey);
+            } else {
+                projectionExpressionEntries.push(
+                    getOrSetDefaultMapValue(
+                        expressionAttributeNames,
+                        serializedKey,
+                        () => `#n${expressionAttributeNames.size + 1}`,
+                    ),
+                );
+            }
         }
 
         const serializedItem = await client.getItem(context.tracer.getTracer(), {
@@ -831,6 +848,9 @@ export class DynamoTableSchema<
                 projectionExpressionEntries.length !== 0
                     ? projectionExpressionEntries.join(", ")
                     : "partitionKey",
+            expressionAttributeNames: new Map(
+                mapIterable(expressionAttributeNames, ([key, value]) => [value, key]),
+            ),
         });
         if (!serializedItem) return null;
 

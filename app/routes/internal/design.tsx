@@ -1,11 +1,12 @@
 import {Box} from "~/client/design/box";
 import {ColorSchemeToggleButton} from "~/client/design/playground/color_scheme_toggle_button";
 import {DesignPlaygroundTooltipPage} from "~/client/design/playground/design_playground_tooltip_page";
+import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
 import {sprinkles} from "~/shared/styles/styles";
 
 export function meta() {
     return {
-        title: "Design Playground - Cyberworlds",
+        title: `Design Playground${metaTitlePostfix}`,
     };
 }
 

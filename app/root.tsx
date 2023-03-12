@@ -12,7 +12,7 @@ import {
 import {RemixEntryContext} from "@remix-run/react/dist/esm/components";
 import {IconContext} from "phosphor-react";
 import prosemirrorStylesHref from "prosemirror-view/style/prosemirror.css";
-import {useContext, useEffect, useMemo} from "react";
+import {useCallback, useContext, useEffect, useMemo} from "react";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer";
@@ -28,6 +28,7 @@ import {useStableValue} from "~/client/helpers/use_stable_value";
 import {ClientInfoContextProvider, defaultClientInfo} from "~/client/remix/client_info_context";
 import {IsMobileContextProvider} from "~/client/remix/use_is_mobile";
 import {WaitForNavigationContextProvider} from "~/client/remix/use_navigate";
+import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_title";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
 import {spacing} from "~/shared/design/spacing";
@@ -48,14 +49,7 @@ import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data";
 
 export function meta() {
     return {
-        charset: "utf-8",
         title: "Cyberworlds",
-        viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no",
-        // Ask Google to not index any of our routes.
-        // https://developers.google.com/search/docs/crawling-indexing/block-indexing
-        //
-        // We should have individual routes opt-in to indexing.
-        robots: "noindex",
     };
 }
 
@@ -164,30 +158,50 @@ export default function Root({error}: {error?: unknown}) {
         );
 
     const wrappedChildren = (
-        <IconContext.Provider value={{color: "currentColor", size: spacing["5"]}}>
-            <AppContextProvider value={context}>
-                <ClientInfoContextProvider
-                    initialClientInfo={loaderData?.clientInfo ?? defaultClientInfo}
-                >
-                    <AppInitialRenderContextProvider>
-                        <IsMobileContextProvider>
-                            <WaitForNavigationContextProvider>
-                                <OverlayScopeContextProvider>
-                                    <TooltipCoordinationContextProvider>
-                                        <ToastContextProvider>{children}</ToastContextProvider>
-                                    </TooltipCoordinationContextProvider>
-                                </OverlayScopeContextProvider>
-                            </WaitForNavigationContextProvider>
-                        </IsMobileContextProvider>
-                    </AppInitialRenderContextProvider>
-                </ClientInfoContextProvider>
-            </AppContextProvider>
-        </IconContext.Provider>
+        <UpdateMetaTitleContextProvider
+            onUpdateMetaTitle={useCallback(title => {
+                document.title = title;
+            }, [])}
+        >
+            <IconContext.Provider value={{color: "currentColor", size: spacing["5"]}}>
+                <AppContextProvider value={context}>
+                    <ClientInfoContextProvider
+                        initialClientInfo={loaderData?.clientInfo ?? defaultClientInfo}
+                    >
+                        <AppInitialRenderContextProvider>
+                            <IsMobileContextProvider>
+                                <WaitForNavigationContextProvider>
+                                    <OverlayScopeContextProvider>
+                                        <TooltipCoordinationContextProvider>
+                                            <ToastContextProvider>{children}</ToastContextProvider>
+                                        </TooltipCoordinationContextProvider>
+                                    </OverlayScopeContextProvider>
+                                </WaitForNavigationContextProvider>
+                            </IsMobileContextProvider>
+                        </AppInitialRenderContextProvider>
+                    </ClientInfoContextProvider>
+                </AppContextProvider>
+            </IconContext.Provider>
+        </UpdateMetaTitleContextProvider>
     );
 
     return (
         <html lang="en" data-color-scheme={getColorSchemeWithoutListening()}>
             <head>
+                <meta charSet="utf-8" />
+                <meta
+                    name="viewport"
+                    content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+                />
+                <meta
+                    // Ask Google to not index any of our routes.
+                    // https://developers.google.com/search/docs/crawling-indexing/block-indexing
+                    //
+                    // TODO(calebmer): This should be decided on a route-by-route basis instead of
+                    // global configuration that can't be configured.
+                    name="robots"
+                    content="noindex"
+                />
                 <Meta />
                 <Links />
                 <InitializeColorSchemeScript />

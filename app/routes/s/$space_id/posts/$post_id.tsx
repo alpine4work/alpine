@@ -1,8 +1,12 @@
+import {MetaFunction} from "@remix-run/server-runtime";
 import {useSearchParams} from "react-router-dom";
+import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name";
 import {Box} from "~/client/design/box";
 import {PostView} from "~/client/forum/post_view";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
+import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
+import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
 import {getPostAndCommentsFromStart} from "~/server/dynamo/forum_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
@@ -12,7 +16,7 @@ import {PostCommentModel, PostModel} from "~/shared/models/post_model";
 import {Schema} from "~/shared/schema/schema";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
 
-const schema = Schema.object({
+const LoaderSchema = Schema.object({
     post: PostModel.schema(),
     postComments: Schema.array(PostCommentModel.schema()),
     otherReferencedPostComments: Schema.array(PostCommentModel.schema()),
@@ -34,20 +38,30 @@ export async function loader({params, context}: LoaderArgs) {
     const propagateEventData: TracerEventData = {
         context: {
             postId,
-            channelId: post.channelId,
+            channelId: post.channel.id,
         },
     };
 
     return jsonWithSchema(
-        schema,
+        LoaderSchema,
         {post, postComments, otherReferencedPostComments},
         {propagateEventData},
     );
 }
 
+export const meta: MetaFunction = ({data}) => {
+    const {post} = getLoaderDataWithSchema(LoaderSchema, data);
+
+    return {
+        title: `Post by ${getAccountShortNameWithoutFullNameTooltip(post.author)} in ${
+            post.channel.name
+        }${metaTitlePostfix}`,
+    };
+};
+
 export default function PostRoute({isPeek}: {isPeek?: boolean}) {
     const [searchParams] = useSearchParams();
-    const {post, postComments, otherReferencedPostComments} = useLoaderDataWithSchema(schema);
+    const {post, postComments, otherReferencedPostComments} = useLoaderDataWithSchema(LoaderSchema);
 
     const postCommentIndexString = searchParams.get("comment");
     const postCommentIndex = postCommentIndexString ? parseInt(postCommentIndexString, 10) : null;
