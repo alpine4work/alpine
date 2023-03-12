@@ -562,6 +562,14 @@ function PeekStackDraggable({
     const isPointerDragging = isDragging && dragActivatorEvent instanceof PointerEvent;
     const isKeyboardDragging = isDragging && dragActivatorEvent instanceof KeyboardEvent;
 
+    const dragActivatorCursor = useMemo(
+        () =>
+            dragActivatorEvent?.target
+                ? getComputedStyle(dragActivatorEvent.target as Element).cursor
+                : null,
+        [dragActivatorEvent],
+    );
+
     const [shouldWiggle, setShouldWiggle] = useState(false);
 
     useEffect(() => {
@@ -637,7 +645,12 @@ function PeekStackDraggable({
             </Box>
             {isPointerDragging &&
                 createPortal(
-                    <Box position="absolute" inset="0" zIndex="70" cursor="grabbing" />,
+                    <Box
+                        position="absolute"
+                        inset="0"
+                        zIndex="70"
+                        cursor={dragActivatorCursor === "grab" ? "grabbing" : "default"}
+                    />,
                     document.body,
                 )}
         </>
@@ -1193,7 +1206,13 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
                                 <ArrowRight />
                             </IconButton>
                         </Box>
-                        <Box flexGrow="1" />
+                        <Box
+                            flexGrow="1"
+                            height="full"
+                            // As a convenience, allow dragging to start by clicking anywhere on the peek overlay header. This
+                            // is not accessible the only accessible way to drag is the drag handle.
+                            onPointerDown={draggableListeners?.onPointerDown as any}
+                        />
                         <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
                             <FocusRing>
                                 <button
