@@ -48,6 +48,7 @@ import {
     convertSpacePathToPeekPath,
 } from "~/client/peek/internal/peek_path_helpers";
 import {PeekRemixEmbed} from "~/client/peek/internal/peek_remix_embed";
+import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {NavigationEventContextProvider} from "~/client/remix/use_navigate";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {InternalError} from "~/shared/error/error";
@@ -229,9 +230,20 @@ const initialPeekStackState: PeekStackState = {
 export function PeekStackContextProvider({children}: {children?: ReactNode}) {
     const remixEntryContext = useContext(RemixEntryContext);
     assert(remixEntryContext, "Expected Remix entry context");
+    const isMobile = useIsMobile();
 
     const stackRef = useRef<PeekStackRef>(null);
-    const [state, dispatch] = useReducer(reducePeekStackState, initialPeekStackState);
+    const [_state, dispatch] = useReducer(reducePeekStackState, initialPeekStackState);
+
+    const state = isMobile ? initialPeekStackState : _state;
+
+    // If we enter mobile mode with peeks open then immediately close all of them.
+    // Peeks are not allowed in mobile.
+    useEffect(() => {
+        if (_state !== initialPeekStackState && isMobile) {
+            dispatch({type: "Reset"});
+        }
+    }, [isMobile, _state]);
 
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     const push = useEvent(async (to: To, {focus = false}: {focus?: boolean} = {}) => {
@@ -367,6 +379,9 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
         <PeekStackContext.Provider value={useMemo(() => ({push}), [push])}>
             <NavigationEventContextProvider
                 onNavigate={useEvent((to, options) => {
+                    // Always perform full page navigations on mobile.
+                    if (isMobile) return {preventDefault: false};
+
                     // Only intercept navigation events that want to push a new history entry. We
                     // will instead push a peek.
                     if (options?.replace) return {preventDefault: false};
