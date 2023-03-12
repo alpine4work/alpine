@@ -40,6 +40,8 @@ import {peekContainerClassName} from "~/shared/styles/internal/peek.css";
 // - On mobile, does hitting enter to create a new line capitalize? With
 //   auto-capitalization on and off.
 // - Yasmin's suggestions
+// - Bold labels in dark mode don't have enough contrast? See
+//   https://cyberworlds.dev/s/111hc413nfdxa6vwspnhm3ejsc/documents/wshttcjr5egq22e11k92tq1z7m
 
 const paragraphMargin = spacing["2"];
 const headerTopMargin = "1.5em";

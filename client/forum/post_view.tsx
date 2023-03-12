@@ -1,20 +1,20 @@
 import {useEffect, useRef} from "react";
-import {Box} from "~/client/design/box";
 import {PostListView, PostListViewRef} from "~/client/forum/post_list_view";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {PostCommentModel, PostModel} from "~/shared/models/post_model";
-import {mobileGrey0BackgroundColorClassName} from "~/shared/styles/styles";
 
 export function PostView({
     initialPost,
     initialPostComments,
     initialOtherReferencedPostComments,
     initialScrollToPostCommentIndex,
+    withMobileLayout,
 }: {
     initialPost: PostModel;
     initialPostComments: ReadonlyArray<PostCommentModel>;
     initialOtherReferencedPostComments: ReadonlyArray<PostCommentModel>;
     initialScrollToPostCommentIndex: number | null;
+    withMobileLayout?: boolean;
 }) {
     const postListRef = useRef<PostListViewRef>(null);
     const hasInitializedRef = useRef(false);
@@ -33,19 +33,18 @@ export function PostView({
     }, [initialPost.id, initialScrollToPostCommentIndex]);
 
     return (
-        <Box height="full" className={mobileGrey0BackgroundColorClassName}>
-            <PostListView
-                ref={postListRef}
-                initialPostsResult={{
-                    type: "One",
-                    post: initialPost,
-                    postCommentsState: "AlwaysOpen",
-                    initialLoadPostComments: {
-                        comments: initialPostComments,
-                        otherReferencedComments: initialOtherReferencedPostComments,
-                    },
-                }}
-            />
-        </Box>
+        <PostListView
+            ref={postListRef}
+            initialPostsResult={{
+                type: "One",
+                post: initialPost,
+                postCommentsState: "AlwaysOpen",
+                initialLoadPostComments: {
+                    comments: initialPostComments,
+                    otherReferencedComments: initialOtherReferencedPostComments,
+                },
+            }}
+            withMobileLayout={withMobileLayout}
+        />
     );
 }

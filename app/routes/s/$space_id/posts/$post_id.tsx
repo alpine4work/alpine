@@ -45,7 +45,7 @@ export async function loader({params, context}: LoaderArgs) {
     );
 }
 
-export default function PostRoute() {
+export default function PostRoute({isPeek}: {isPeek?: boolean}) {
     const [searchParams] = useSearchParams();
     const {post, postComments, otherReferencedPostComments} = useLoaderDataWithSchema(schema);
 
@@ -61,6 +61,7 @@ export default function PostRoute() {
                 initialPostComments={postComments}
                 initialOtherReferencedPostComments={otherReferencedPostComments}
                 initialScrollToPostCommentIndex={postCommentIndex}
+                withMobileLayout={isPeek}
             />
         </Box>
     );

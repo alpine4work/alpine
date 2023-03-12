@@ -1154,6 +1154,7 @@ function VirtualizedScrollView(
             <div
                 ref={scrollRef}
                 className={sprinkles({
+                    flexGrow: "1",
                     position: "relative",
                     height: "full",
                     overflowX: "hidden",

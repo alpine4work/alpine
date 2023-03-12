@@ -169,6 +169,13 @@ export class PostList {
     }
 
     /**
+     * Get the number of posts in this list.
+     */
+    public getPostCount() {
+        return this._postByOrderKey.size;
+    }
+
+    /**
      * Get the total number of items before this post id.
      */
     public getPostById(postId: PostId): {

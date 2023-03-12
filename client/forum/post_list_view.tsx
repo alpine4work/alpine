@@ -123,14 +123,34 @@ export type PostListViewRef = {
     jumpToPostComment(postId: PostId, postCommentIndex: number): void;
 };
 
+/**
+ * Renders a virtualized list of posts which can expand their comments inline.
+ *
+ * This component handles all rendering for a post unit. Including rendering an
+ * individual post on a post route. Since even when rendering an individual
+ * post you still need to virtualize the list of comments. This means there is
+ * some confusing overloading because features like `channelHeader` and `aside`
+ * which are important in the context of a channel are not important in the
+ * context of rendering a single post.
+ */
 function PostListView(
     {
         channelHeader,
         initialPostsResult,
         onLoadMorePosts,
         aside,
+        withMobileLayout = false,
     }: {
+        /**
+         * If this post list is rendering a channel, you may provide this prop and we
+         * will render an area at the top of the list describing the channel.
+         */
         channelHeader?: Memo<PostListChannelHeader>;
+
+        /**
+         * The initial posts loaded to populate this post list view. We will use this
+         * to construct a `PostList` class.
+         */
         initialPostsResult:
             | {
                   type: "Many";
@@ -146,6 +166,13 @@ function PostListView(
                       otherReferencedComments: ReadonlyArray<PostCommentModel>;
                   };
               };
+
+        /**
+         * If the post list has more posts then this function should load those posts.
+         * This function is required if you initialize the component with many posts
+         * and set `hasMorePosts` to true. Not providing it will throw an error when
+         * the user reaches the end of the list.
+         */
         onLoadMorePosts?: (options: {
             limit: number;
             afterCursor?: {createdTime: Date; postId: PostId};
@@ -153,11 +180,47 @@ function PostListView(
             hasMorePosts: boolean;
             posts: ReadonlyArray<PostModel>;
         }>;
+
+        /**
+         * An element we render to the side of the post list but still within the
+         * scroll view. The aside is sticky so it will always be visible as you
+         * scroll.
+         *
+         * If the aside's height is larger than the window then we you scroll down the
+         * aside will scroll down. Once you reach the bottom of the aside it will stop
+         * scrolling and stick to the bottom. Then when you scroll back up the aside
+         * will scroll up until you reach the aside's top, then it will stick again.
+         *
+         * This deep integration with the positioning of posts and the scroll view is
+         * why it needs to be a prop on this element.
+         *
+         * On mobile the aside will not be rendered.
+         */
         aside?: ReactNode;
+
+        /**
+         * Use the mobile layout for a post list view even on desktop.
+         *
+         * The mobile layout doesn't have margins and will pin the comment input for
+         * single posts to the bottom of the screen.
+         *
+         * If you set this to true you may not pass in `aside` since `aside` can
+         * not render on mobile.
+         */
+        withMobileLayout?: boolean;
     },
     ref: Ref<PostListViewRef>,
 ) {
-    const isMobile = useIsMobile();
+    if (withMobileLayout) {
+        assert(
+            !aside,
+            "Can't set both `withMobileLayout` and `aside` props since `aside` can't be rendered in a mobile layout",
+        );
+    }
+
+    const isActuallyMobile = useIsMobile();
+    const isMobile = isActuallyMobile || withMobileLayout;
+
     const context = useAppContext();
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const [viewContainerRef, viewSize] = useResizeObserver();
@@ -198,6 +261,14 @@ function PostListView(
     useEffect(() => {
         setPosts(posts);
     }, [posts]);
+
+    // Always pin the post comment input to the bottom of the list view on mobile
+    // layout of a single post. We use a heuristic of one post with always open
+    // comments to determine if we're in a single post context.
+    const isSingleMobilePostWithPinnedCommentInput =
+        isMobile &&
+        posts.getPostCount() === 1 &&
+        posts.getLastPostContentItem()?.postCommentsState === "AlwaysOpen";
 
     const isLoadingRef = useRef(false);
     const [errorState, setErrorState] = useState<
@@ -672,7 +743,8 @@ function PostListView(
                             </div>
                         ),
                         renderAdditionalItemIndexes:
-                            item.postCommentInputItemIndex !== null
+                            item.postCommentInputItemIndex !== null &&
+                            !isSingleMobilePostWithPinnedCommentInput
                                 ? [item.postCommentInputItemIndex]
                                 : undefined,
                     };
@@ -845,7 +917,9 @@ function PostListView(
                                 ? `PostComment:${item.post.id}:${item.postCommentIndex}`
                                 : `UnloadedPostComment:${item.post.id}:${item.postCommentIndex}`,
                         minHeight: messageViewMinHeight,
-                        renderAdditionalItemIndexes: [item.postCommentInputItemIndex],
+                        renderAdditionalItemIndexes: !isSingleMobilePostWithPinnedCommentInput
+                            ? [item.postCommentInputItemIndex]
+                            : [],
                         withManualLayout: true,
                         render: ({
                             ref,
@@ -1347,6 +1421,7 @@ function PostListView(
             posts,
             hasMargin,
             hasAside,
+            isSingleMobilePostWithPinnedCommentInput,
             loadInitialPostComments,
             messageEditing,
             highlightPostComment,
@@ -1364,12 +1439,21 @@ function PostListView(
                     height: "full",
                     overflow: "hidden",
                     position: "relative",
+                    display: "flex",
+                    flexDirection: "column",
+                    backgroundColor: isSingleMobilePostWithPinnedCommentInput
+                        ? "grey-0"
+                        : undefined,
                 })}
             >
                 <VirtualizedScrollView
                     ref={viewRef}
                     bufferedItemHeight={bufferedPostViewHeight}
-                    itemCount={posts.getItemCount()}
+                    itemCount={
+                        // Don't render the post comment input (which should be the last item) if we are
+                        // pinning the comment input to the bottom of the view.
+                        posts.getItemCount() - (isSingleMobilePostWithPinnedCommentInput ? 1 : 0)
+                    }
                     renderItem={renderItem}
                     onRenderedRangeChange={tryLoadingMoreData}
                     onScroll={scrollOffset => {
@@ -1491,6 +1575,76 @@ function PostListView(
                         )
                     }
                 />
+                {isSingleMobilePostWithPinnedCommentInput &&
+                    (() => {
+                        const lastPostContentItem = assertExists(posts.getLastPostContentItem());
+
+                        const replyingToPostCommentIndex = replyingToPostCommentIndexByPostId.get(
+                            lastPostContentItem.post.id,
+                        );
+                        const replyingToPostComment =
+                            replyingToPostCommentIndex !== undefined
+                                ? lastPostContentItem.postComments.getLoadedMessageIfExists(
+                                      replyingToPostCommentIndex,
+                                  )
+                                : null;
+
+                        return (
+                            <div
+                                className={sprinkles({
+                                    flexShrink: "0",
+                                    borderTop: "grey-10",
+                                })}
+                                style={{
+                                    // Remove one pixel from top to make space for for border.
+                                    paddingTop: `calc(${spacing["3"]} - 1px)`,
+                                    paddingBottom: spacing["3"],
+                                }}
+                            >
+                                <PostCommentInput
+                                    post={lastPostContentItem.post}
+                                    viewRef={viewRef}
+                                    actionsRef={actions => {
+                                        if (actions) {
+                                            actionsByPostIdRef.current.set(
+                                                lastPostContentItem.post.id,
+                                                actions,
+                                            );
+                                        } else {
+                                            actionsByPostIdRef.current.delete(
+                                                lastPostContentItem.post.id,
+                                            );
+                                        }
+                                    }}
+                                    postComments={lastPostContentItem.postComments}
+                                    onUpdatePostComments={update =>
+                                        setPosts(posts =>
+                                            posts.updatePostComments(
+                                                lastPostContentItem.post.id,
+                                                update,
+                                            ),
+                                        )
+                                    }
+                                    replyingToPostComment={replyingToPostComment}
+                                    onClearReplyingToPostComment={() => {
+                                        setReplyingToPostCommentIndexByPostId(
+                                            replyingToPostCommentIndexByPostId => {
+                                                const newReplyingToPostCommentIndexByPostId =
+                                                    new Map(replyingToPostCommentIndexByPostId);
+                                                newReplyingToPostCommentIndexByPostId.delete(
+                                                    lastPostContentItem.post.id,
+                                                );
+                                                return newReplyingToPostCommentIndexByPostId;
+                                            },
+                                        );
+                                    }}
+                                    onJumpToPostComment={index =>
+                                        handleJumpToPostComment(lastPostContentItem.post.id, index)
+                                    }
+                                />
+                            </div>
+                        );
+                    })()}
             </div>
             {editingPost && (
                 <PostEditorModal
