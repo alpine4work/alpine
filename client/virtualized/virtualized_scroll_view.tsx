@@ -32,6 +32,7 @@ import {
 } from "~/client/virtualized/virtualized_scroll_view_state";
 import {RemLength, convertRemLengthToPx, getRemPxFromWindowWidth} from "~/shared/design/spacing";
 import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_after_next_browser_paint";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -445,7 +446,7 @@ function VirtualizedScrollView(
         [_bufferedItemHeight, remPx],
     );
 
-    const [actualState, setActualState] = useState<VirtualizedScrollViewActualState>(() => {
+    const [actualState, setActualState] = useState((): VirtualizedScrollViewActualState => {
         if (initialScrollOffset === "top") {
             return {
                 state: VirtualizedScrollViewState.initializeFromTop({
@@ -804,14 +805,14 @@ function VirtualizedScrollView(
                     return {...actualState};
                 }
 
-                return {
-                    ...updateVirtualizedScrollViewActualStateRenderedRange(actualState, {
+                return updateVirtualizedScrollViewActualStateRenderedRange(
+                    !actualState.isScrolling ? {...actualState, isScrolling: true} : actualState,
+                    {
                         itemCount,
                         getItemWithoutRender,
                         scrollTop,
-                    }),
-                    isScrolling: true,
-                };
+                    },
+                );
             }
         });
 
@@ -1044,76 +1045,101 @@ function VirtualizedScrollView(
             getContentHeight: () => assertExists(scrollRef.current).scrollHeight,
             getRenderedRange: () => renderedRangeRef.current,
             scrollToIndex: index => {
-                const state = stateRef.current.state;
-                const scrollElement = assertExists(scrollRef.current);
-                const contentElement = assertExists(contentRef.current);
-
-                const {scrollOffset, position} = getVirtualizedScrollViewOffsetForScrollToIndex({
-                    state,
-                    index,
-                    scrollOffset: scrollElement.scrollTop,
-                });
-
-                let renderedItem: {key: Key; element: HTMLElement} | null = null;
-
-                // Anchor to the item we are scrolling to. At first when the item hasn't
-                // rendered we use the position we found in our state. Then once we find the
-                // item was rendered in the DOM we use the position of the related DOM node.
+                // Scheduled in a microtask so that if there is a pending immediate React state
+                // update it can be applied before we perform the scroll.
                 //
-                // The position we initially render our item in the DOM may be different from
-                // the computed position which is why we need to capture the computed
-                // position here.
-                scrollAnchorRef.current = {
-                    shouldAnchorWhileVisible: true,
-                    lastPosition: position,
-                    getPosition: () => {
-                        const state = stateRef.current.state;
+                // To repro the bug this fixes: open a peek for a link to a comment in a post
+                // near the bottom of the post.
+                //
+                // What happens here is:
+                //
+                // 1. We run an initial layout effect in `<VirtualizedScrollView>` with the
+                //    correct view height and initially rendered item heights.
+                // 2. This schedules an immediate, synchronous, React update for
+                //    `<VirtualizedScrollView>`.
+                // 3. React synchronously flushes all parent component `useEffect()`s.
+                //    Including the `useEffect()` in `<PostView>` that scrolls to a comment.
+                // 4. `scrollToIndex()` is called but `stateRef` does not match what is in the
+                //    DOM. While in the DOM we have elements with the correct measurements, in
+                //    React we haven't run our second immediate scheduled update which will
+                //    update state.
+                // 5. `scrollToIndex()` scrolls to the wrong location unless we have the
+                //    `scheduleMicrotask()` wrapper which runs `scrollToIndex()` after the
+                //    React immediately scheduled re-render that updates state.
+                scheduleMicrotask(() => {
+                    const {state} = stateRef.current;
+                    const scrollElement = assertExists(scrollRef.current);
+                    const contentElement = assertExists(contentRef.current);
 
-                        if (
-                            renderedItem === null ||
-                            !document.body.contains(renderedItem.element)
-                        ) {
-                            // Search for the rendered element in our refs first by looking for an element
-                            // ref at the same index. This will tell us the key of the item. In the future
-                            // we will use the item key in case the item moves.
-                            for (const [key, elementRef] of iterateItemRefs()) {
-                                if (
-                                    (renderedItem
-                                        ? renderedItem.key === key
-                                        : elementRef.index === index) &&
-                                    elementRef.element.offsetParent === contentElement
-                                ) {
-                                    renderedItem = {key, element: elementRef.element};
-                                    break;
+                    const {scrollOffset, position} = getVirtualizedScrollViewOffsetForScrollToIndex(
+                        {
+                            state,
+                            index,
+                            scrollOffset: scrollElement.scrollTop,
+                        },
+                    );
+
+                    let renderedItem: {key: Key; element: HTMLElement} | null = null;
+
+                    // Anchor to the item we are scrolling to. At first when the item hasn't
+                    // rendered we use the position we found in our state. Then once we find the
+                    // item was rendered in the DOM we use the position of the related DOM node.
+                    //
+                    // The position we initially render our item in the DOM may be different from
+                    // the computed position which is why we need to capture the computed
+                    // position here.
+                    scrollAnchorRef.current = {
+                        shouldAnchorWhileVisible: true,
+                        lastPosition: position,
+                        getPosition: () => {
+                            const state = stateRef.current.state;
+
+                            if (
+                                renderedItem === null ||
+                                !document.body.contains(renderedItem.element)
+                            ) {
+                                // Search for the rendered element in our refs first by looking for an element
+                                // ref at the same index. This will tell us the key of the item. In the future
+                                // we will use the item key in case the item moves.
+                                for (const [key, elementRef] of iterateItemRefs()) {
+                                    if (
+                                        (renderedItem
+                                            ? renderedItem.key === key
+                                            : elementRef.index === index) &&
+                                        elementRef.element.offsetParent === contentElement
+                                    ) {
+                                        renderedItem = {key, element: elementRef.element};
+                                        break;
+                                    }
+                                }
+
+                                // If the item hasn't rendered yet, get the current position in state for
+                                // the index.
+                                if (renderedItem === null) {
+                                    if (index >= state.getItemCount()) return null;
+                                    return state.getPositionByIndex(index);
+                                }
+
+                                // If the item was unmounted, look for the position by key in our state.
+                                // We use key instead of index in case the item moved.
+                                if (!document.body.contains(renderedItem.element)) {
+                                    return state.getPositionByKeyIfExists(renderedItem.key);
                                 }
                             }
 
-                            // If the item hasn't rendered yet, get the current position in state for
-                            // the index.
-                            if (renderedItem === null) {
-                                if (index >= state.getItemCount()) return null;
-                                return state.getPositionByIndex(index);
-                            }
+                            return {
+                                offset: renderedItem.element.offsetTop,
+                                height: renderedItem.element.clientHeight,
+                            };
+                        },
+                    };
 
-                            // If the item was unmounted, look for the position by key in our state.
-                            // We use key instead of index in case the item moved.
-                            if (!document.body.contains(renderedItem.element)) {
-                                return state.getPositionByKeyIfExists(renderedItem.key);
-                            }
-                        }
-
-                        return {
-                            offset: renderedItem.element.offsetTop,
-                            height: renderedItem.element.clientHeight,
-                        };
-                    },
-                };
-
-                // Actually perform the scroll.
-                //
-                // We perform this after setting the scroll anchor to make sure any event
-                // listeners see the new scroll anchor.
-                scrollElement.scrollTop = scrollOffset;
+                    // Actually perform the scroll.
+                    //
+                    // We perform this after setting the scroll anchor to make sure any event
+                    // listeners see the new scroll anchor.
+                    scrollElement.scrollTop = scrollOffset;
+                });
             },
             peekRenderedRangeAfterScrollToIndex: index => {
                 const state = stateRef.current.state;
