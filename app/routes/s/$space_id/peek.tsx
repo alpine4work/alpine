@@ -14,8 +14,6 @@ import {tracerEventDataContextPeekMoveIntoAboveKeys} from "~/shared/tracer/helpe
 import {TracerRoot} from "~/shared/tracer/tracer_root";
 import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data";
 
-// TODO(calebmer): Write a decision log entry on the design of peeks.
-
 export default function PeekLayout() {
     // Navigating to this route via URL will show you an error! This route can only
     // be rendered as a child component of a peek renderer like `<PeekRemixEmbed>`.
