@@ -694,26 +694,26 @@ function PeekOverlay({
     });
 
     // Animation 1: Spring the overlay up from below the screen.
+    const [isAnimatingOpen, setIsAnimatingOpen] = useState(
+        !state.disableEntranceAnimationsDuringNextRender && index === 0,
+    );
     {
         const translateY = addRemLengths(peekHeight, peekUnderlayOffset);
 
         const isUnmounting = index < 0 || state.isUnmountingAll;
 
-        const hasInitiallyRenderedRef = useRef(false);
+        const isAnimatingOpenRef = useRef(false);
         useLayoutEffect(() => {
-            if (hasInitiallyRenderedRef.current) return;
-            hasInitiallyRenderedRef.current = true;
+            if (!isAnimatingOpen) return;
 
-            if (state.disableEntranceAnimationsDuringNextRender) return;
-
-            // Only pull up our first peek.
-            if (index > 0) return;
+            if (isAnimatingOpenRef.current) return;
+            isAnimatingOpenRef.current = true;
 
             const overlayContainerElement = assertExists(overlayContainerRef.current);
 
             overlayContainerElement.style.transform = `translateY(${translateY})`;
 
-            animate(
+            const animation = animate(
                 overlayContainerElement,
                 {
                     transform: "translateY(0)",
@@ -726,13 +726,25 @@ function PeekOverlay({
                 },
             );
 
+            void animation.finished.finally(() => {
+                isAnimatingOpenRef.current = false;
+                if (isMounted()) setIsAnimatingOpen(false);
+            });
+
             // If auto-focus is enabled then it should happen at the same time as we
             // animate up.
             if (entry.autoFocus) {
                 const overlayContent = assertExists(overlayContentRef.current);
                 overlayContent.focus();
             }
-        }, [entry.autoFocus, index, state.disableEntranceAnimationsDuringNextRender, translateY]);
+        }, [
+            entry.autoFocus,
+            index,
+            isAnimatingOpen,
+            isMounted,
+            state.disableEntranceAnimationsDuringNextRender,
+            translateY,
+        ]);
 
         const hasStartedUnmountingRef = useRef(false);
         useLayoutEffect(() => {
@@ -944,6 +956,7 @@ function PeekOverlay({
                                 draggableAttributes={draggableAttributes}
                                 draggableListeners={draggableListeners}
                                 expandingIdRef={expandingIdRef}
+                                isAnimatingOpen={isAnimatingOpen}
                             />
                         </Box>
                     )}
@@ -970,6 +983,7 @@ function getPeekOverlayAnimationStyles(index: number) {
 export type PeekContext = {readonly id: PeekId};
 
 const PeekContext = createContext<PeekContext | null>(null);
+const PeekIsAnimatingOpenContext = createContext<boolean>(false);
 
 /**
  * Get the context of the peek we are rendering in if we are rendering in
@@ -977,6 +991,13 @@ const PeekContext = createContext<PeekContext | null>(null);
  */
 export function usePeekContext(): PeekContext | null {
     return useContext(PeekContext);
+}
+
+/**
+ * Is the peek we are in animating open?
+ */
+export function useIsPeekAnimatingOpen(): boolean {
+    return useContext(PeekIsAnimatingOpenContext);
 }
 
 type PeekOverlayContentRef = {
@@ -994,6 +1015,7 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
         draggableAttributes,
         draggableListeners,
         expandingIdRef,
+        isAnimatingOpen,
     }: {
         state: PeekStackState;
         dispatch: (action: PeekStackAction) => void;
@@ -1004,6 +1026,7 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
         draggableAttributes: DraggableAttributes;
         draggableListeners: SyntheticListenerMap | undefined;
         expandingIdRef: MutableRefObject<PeekId | null>;
+        isAnimatingOpen: boolean;
     },
     ref: Ref<PeekOverlayContentRef>,
 ) {
@@ -1117,120 +1140,127 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
 
     return (
         <PeekContext.Provider value={useMemo(() => ({id: entry.id}), [entry.id])}>
-            <Box
-                ref={contentRef}
-                width="full"
-                height="full"
-                overflow="hidden"
-                display="flex"
-                flexDirection="column"
-                position="relative"
-                zIndex="0"
-                onKeyDown={event => {
-                    if (event.key === "Escape" && !isDragging) {
-                        if (event.shiftKey) {
+            <PeekIsAnimatingOpenContext.Provider value={isAnimatingOpen}>
+                <Box
+                    ref={contentRef}
+                    width="full"
+                    height="full"
+                    overflow="hidden"
+                    display="flex"
+                    flexDirection="column"
+                    position="relative"
+                    zIndex="0"
+                    onKeyDown={event => {
+                        if (event.key === "Escape" && !isDragging) {
+                            if (event.shiftKey) {
+                                event.preventDefault();
+                                dispatch({type: "PopAll"});
+                                return;
+                            }
+
                             event.preventDefault();
-                            dispatch({type: "PopAll"});
+                            dispatch({type: "Pop"});
                             return;
                         }
-
-                        event.preventDefault();
-                        dispatch({type: "Pop"});
-                        return;
-                    }
-                }}
-            >
-                <Box
-                    flexShrink="0"
-                    height="8"
-                    borderBottom="grey-10"
-                    display="flex"
-                    alignItems="center"
+                    }}
                 >
-                    <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
-                        <IconButton
-                            size="xs"
-                            description="Back"
-                            tooltipPlacement="top"
-                            isDisabled={!(historyPosition.index > 0)}
-                            onPress={() => entry.history.go(-1)}
-                        >
-                            <ArrowLeft />
-                        </IconButton>
-                        <IconButton
-                            size="xs"
-                            description="Forwards"
-                            tooltipPlacement="top"
-                            isDisabled={
-                                !(historyPosition.index < historyPosition.entriesLength - 1)
-                            }
-                            onPress={() => entry.history.go(1)}
-                        >
-                            <ArrowRight />
-                        </IconButton>
-                    </Box>
-                    <Box flexGrow="1" />
-                    <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
-                        <FocusRing>
-                            <button
-                                className={sprinkles({
-                                    width: "4",
-                                    height: "4",
-                                    padding: "0.5",
-                                    borderRadius: "full",
-                                    cursor: "grab",
-                                    backgroundColor: isKeyboardDragging ? "grey-10" : undefined,
-                                })}
-                                {...draggableAttributes}
-                                {...draggableListeners}
+                    <Box
+                        flexShrink="0"
+                        height="8"
+                        borderBottom="grey-10"
+                        display="flex"
+                        alignItems="center"
+                    >
+                        <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
+                            <IconButton
+                                size="xs"
+                                description="Back"
+                                tooltipPlacement="top"
+                                isDisabled={!(historyPosition.index > 0)}
+                                onPress={() => entry.history.go(-1)}
                             >
-                                <DotsSixVertical size={spacing["3"]} />
-                            </button>
-                        </FocusRing>
-                        <IconButton
-                            size="xs"
-                            description="Expand"
-                            tooltipPlacement="top"
-                            pressErrorTitle="Couldn’t expand"
-                            onPress={async () => {
-                                expandingIdRef.current = entry.id;
-                                try {
-                                    await onExpandRef.current?.();
-                                } finally {
-                                    expandingIdRef.current = null;
+                                <ArrowLeft />
+                            </IconButton>
+                            <IconButton
+                                size="xs"
+                                description="Forwards"
+                                tooltipPlacement="top"
+                                isDisabled={
+                                    !(historyPosition.index < historyPosition.entriesLength - 1)
                                 }
-                            }}
-                        >
-                            <ArrowsOutSimple />
-                        </IconButton>
-                        <IconButton
-                            ref={closeButtonRef}
-                            size="xs"
-                            description="Close"
-                            tooltipPlacement="top"
-                            tooltipContentOverride="Double-click to close all"
-                            onPress={handlePressClose}
-                        >
-                            <X />
-                        </IconButton>
+                                onPress={() => entry.history.go(1)}
+                            >
+                                <ArrowRight />
+                            </IconButton>
+                        </Box>
+                        <Box flexGrow="1" />
+                        <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
+                            <FocusRing>
+                                <button
+                                    className={sprinkles({
+                                        width: "4",
+                                        height: "4",
+                                        padding: "0.5",
+                                        borderRadius: "full",
+                                        cursor: "grab",
+                                        backgroundColor: isKeyboardDragging ? "grey-10" : undefined,
+                                    })}
+                                    {...draggableAttributes}
+                                    {...draggableListeners}
+                                >
+                                    <DotsSixVertical size={spacing["3"]} />
+                                </button>
+                            </FocusRing>
+                            <IconButton
+                                size="xs"
+                                description="Expand"
+                                tooltipPlacement="top"
+                                pressErrorTitle="Couldn’t expand"
+                                onPress={async () => {
+                                    expandingIdRef.current = entry.id;
+                                    try {
+                                        await onExpandRef.current?.();
+                                    } finally {
+                                        expandingIdRef.current = null;
+                                    }
+                                }}
+                            >
+                                <ArrowsOutSimple />
+                            </IconButton>
+                            <IconButton
+                                ref={closeButtonRef}
+                                size="xs"
+                                description="Close"
+                                tooltipPlacement="top"
+                                tooltipContentOverride="Double-click to close all"
+                                onPress={handlePressClose}
+                            >
+                                <X />
+                            </IconButton>
+                        </Box>
                     </Box>
-                </Box>
-                {!initialLoaderDataResult.isPending ? (
-                    <PeekRemixEmbed
-                        initialLoaderData={initialLoaderDataResult.value}
-                        history={entry.history}
-                        onExpandRef={onExpandRef}
-                    />
-                ) : (
-                    <Box flexGrow="1" display="flex" justifyContent="center" alignItems="center">
-                        <SpinnerGap
-                            className={spinAnimationClassName}
-                            color={colorSchemeVars["grey-70"]}
-                            size={spacing["6"]}
+                    {!initialLoaderDataResult.isPending ? (
+                        <PeekRemixEmbed
+                            initialLoaderData={initialLoaderDataResult.value}
+                            history={entry.history}
+                            onExpandRef={onExpandRef}
                         />
-                    </Box>
-                )}
-            </Box>
+                    ) : (
+                        <Box
+                            flexGrow="1"
+                            display="flex"
+                            justifyContent="center"
+                            alignItems="center"
+                        >
+                            <SpinnerGap
+                                className={spinAnimationClassName}
+                                color={colorSchemeVars["grey-70"]}
+                                size={spacing["6"]}
+                            />
+                        </Box>
+                    )}
+                </Box>
+            </PeekIsAnimatingOpenContext.Provider>
         </PeekContext.Provider>
     );
 });

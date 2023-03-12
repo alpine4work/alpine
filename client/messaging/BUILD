@@ -13,6 +13,7 @@ ts_project(
         "//:node_modules/react",
         "//client/accounts",
         "//client/content",
+        "//client/peek",
         "//client/spaces",
         "//client/virtualized",
         "//shared/helpers",

@@ -14,6 +14,7 @@ import {MessageEditing} from "~/client/messaging/message_editing";
 import {MessageList} from "~/client/messaging/message_list";
 import {MessageViewActions} from "~/client/messaging/message_view_actions";
 import {MessageViewEditor} from "~/client/messaging/message_view_editor";
+import {useIsPeekAnimatingOpen} from "~/client/peek/peek_stack";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -205,10 +206,14 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     }, [shouldShowOptimisticLoadingIndicatorAfterDelay]);
 
     const [shouldHighlight, setShouldHighlight] = useState(false);
+    const isPeekAnimatingOpen = useIsPeekAnimatingOpen();
 
     // If the ref we were provided told us to highlight then update our state and
     // clear the ref so we only highlight once for the ref.
     useEffect(() => {
+        // Delay our message highlight animation until after the peek is open.
+        if (isPeekAnimatingOpen) return;
+
         if (!shouldHighlightRef?.current) return;
 
         // Wait a bit before highlighting in case this component is immediately
@@ -223,7 +228,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         }, 10);
 
         return () => timeout.clear();
-    }, [shouldHighlightRef]);
+    }, [isPeekAnimatingOpen, shouldHighlightRef]);
 
     useEffect(() => {
         if (!shouldHighlight) return;
