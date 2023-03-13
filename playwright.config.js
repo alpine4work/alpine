@@ -16,7 +16,7 @@ const isExecutedByBazelTest = !process.env.BUILD_WORKSPACE_DIRECTORY;
 // timeouts hide real issues! Or use better machines for CI so they can use the
 // same timeouts we use locally.
 const timeout = isExecutedByBazelTest ? 300 * 1000 : 20 * 1000;
-const actionTimeout = isExecutedByBazelTest ? 60 * 1000 : 3 * 1000;
+const actionTimeout = isExecutedByBazelTest ? 10 * 1000 : 3 * 1000;
 
 module.exports = defineConfig({
     testDir: "./app/integration_tests",

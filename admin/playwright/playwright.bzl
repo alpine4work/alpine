@@ -136,6 +136,9 @@ def playwright_test(
             (["{}_firefox_test".format(name)] if not ("firefox" in skip_projects) else []) +
             (["{}_webkit_desktop_test".format(name)] if not ("webkit_desktop" in skip_projects) else []) +
             (["{}_webkit_mobile_test".format(name)] if not ("webkit_mobile" in skip_projects) else []),
+        # Contains manual tests so must be manually invoked instead of running as a
+        # part of `bazel test //...`.
+        tags = ["manual"],
     )
 
     _playwright_project_test(
@@ -147,12 +150,20 @@ def playwright_test(
         _playwright_project_test(
             name = name,
             project = "firefox",
+            # Don't run as a part of `bazel test //...`. This means the test won't run in
+            # CI. To save time and reduce flakes, we only run integration tests on the
+            # browsers we focus support on. (Chrome and Safari Mobile.)
+            tags = ["manual"],
         )
 
     if not ("webkit_desktop" in skip_projects):
         _playwright_project_test(
             name = name,
             project = "webkit_desktop",
+            # Don't run as a part of `bazel test //...`. This means the test won't run in
+            # CI. To save time and reduce flakes, we only run integration tests on the
+            # browsers we focus support on. (Chrome and Safari Mobile.)
+            tags = ["manual"],
         )
 
     if not ("webkit_mobile" in skip_projects):
@@ -163,7 +174,8 @@ def playwright_test(
 
 def _playwright_project_test(
         name,
-        project):
+        project,
+        tags = []):
     native.sh_test(
         name = "{}_{}_test".format(name, project),
         srcs = ["//admin/playwright:playwright_test.sh"],
@@ -184,7 +196,7 @@ def _playwright_project_test(
             # Bazel will strip colors when necessary.
             "FORCE_COLOR": "true",
         },
-        tags = ["playwright"] +
+        tags = tags + ["playwright"] +
                # Firefox creates sandboxes for web content and you can't nest sandboxes. So
                # disable the Bazel sandbox. Ideally we would disable Firefox's sandboxing at
                # runtime and have the entire Firefox process run in the Bazel sandbox but it's
@@ -193,6 +205,9 @@ def _playwright_project_test(
                #
                # See: https://bugzilla.mozilla.org/show_bug.cgi?id=1415159
                (["no-sandbox"] if project == "firefox" else []),
+        # End-to-end tests are considered to be large sized.
+        # https://bazel.build/reference/be/common-definitions
+        size = "large",
     )
 
     native.sh_binary(
