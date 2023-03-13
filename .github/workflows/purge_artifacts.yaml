@@ -1,0 +1,13 @@
+name: Purge artifacts
+on: workflow_dispatch
+
+jobs:
+    purge:
+        name: Purge
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Purge all artifacts
+              uses: c-hive/gha-remove-artifacts@v1
+              with:
+                  age: "1 second"
