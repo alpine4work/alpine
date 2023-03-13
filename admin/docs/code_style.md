@@ -423,3 +423,115 @@ the `ReadonlyArray<T>` type in this case if you want to ensure that's the case.
 **Why?** Immutable objects are generally easier to reason about than mutable objects. It's easier to
 reason about how data flows through a program and easier to think about how sharing a value may
 behave.
+
+## React
+
+### Avoid React context
+
+Generally avoid
+[React’s context feature](https://beta.reactjs.org/learn/passing-data-deeply-with-context)
+(`createContext()` and `useContext()`) and prefer passing props manually through many layers of
+components (known as “prop drilling”). You are recommended to use React context for system level
+functionality. (Explained later.)
+
+So instead of components like this:
+
+```tsx
+const TimelineContext = createContext();
+
+function Timeline() {
+    const [state, dispatch] = useReducer();
+
+    return (
+        // ...
+        <TimelineContext.Provider value={state}>
+            <TimelineScrollView />
+        </TimelineContext.Provider>
+        // ...
+    );
+}
+
+function TimelineScrollView() {
+    return (
+        // ...
+        entries.map(() => {
+            <TimelineEntry />;
+        })
+        // ...
+    );
+}
+
+function TimelineEntry() {
+    return (
+        // ...
+        <TimelineEntryInput />
+        // ...
+    );
+}
+
+function TimelineEntryInput() {
+    const {state} = useContext(TimelineContext);
+
+    // ...
+}
+```
+
+Write your components like this:
+
+```tsx
+function Timeline() {
+    const [state, dispatch] = useReducer();
+
+    return (
+        // ...
+        <TimelineScrollView state={state} />
+        // ...
+    );
+}
+
+function TimelineScrollView({state}) {
+    return (
+        // ...
+        entries.map(() => {
+            <TimelineEntry state={state} />;
+        })
+        // ...
+    );
+}
+
+function TimelineEntry({state}) {
+    return (
+        // ...
+        <TimelineEntryInput state={state} />
+        // ...
+    );
+}
+
+function TimelineEntryInput({state}) {
+    // ...
+}
+```
+
+**Why?** React context creates an implicit dependency between a component and some data or state. By
+explicitly passing that data/state down through props you explicitly document what the component
+needs to run. TypeScript will then check that the component actually receives the data/state it
+needs to.
+
+This code takes a little more time to write since you have to dig through many layers of components.
+However, it makes the code easier to read, verify, and maintain in the long run. The exercise of
+forcing yourself to go through all levels of the component hierarchy is also useful for discovering
+edge cases. Maybe one place the component is rendered should behave differently? If you use context
+and skipped auditing the code you might have missed such call sites.
+
+**Exception:** The exception to this guidance is when implementing system level functionality.
+System level functionality is functionality which needs to be shared by _every_ React component in
+our app (or the vast majority). An example of this is tooltips. Any component in our app may render
+a tooltip and tooltips need to globally coordinate to make sure only one is showing at a time. You
+may use React context for tooltips.
+
+A useful rule of thumb is that if you could have a reasonable context implementation in Jest unit
+tests _without_ a context provider then your context implements system level functionality. In our
+timeline example above, you could hardcode some mock state for Jest but it wouldn’t be interactive
+and your state wouldn’t be located with the test which needs to reference the state to make
+assertions. A timeline component’s context does not have a reasonable implementation in a Jest unit
+test so you shouldn’t use context.
