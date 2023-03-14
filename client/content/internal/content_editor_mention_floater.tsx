@@ -298,7 +298,6 @@ export function ContentEditorMentionFloater({
                     borderRadius="md"
                     padding="1"
                     backgroundColor={{light: "grey-0", dark: "grey-5"}}
-                    border={{dark: "grey-10"}}
                     boxShadow="elevation-20"
                 >
                     {isLoading && shouldShowLoadingIndicatorIfLoading ? (

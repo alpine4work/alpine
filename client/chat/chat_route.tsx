@@ -7,7 +7,7 @@ export function ChatRoute() {
             flexGrow="1"
             width="full"
             overflow="hidden"
-            padding={{desktop: "3"}}
+            padding={{desktop: "4"}}
             display="flex"
             justifyContent="center"
         >
@@ -16,8 +16,6 @@ export function ChatRoute() {
                 width="full"
                 height="full"
                 backgroundColor="grey-0"
-                border={{dark: "grey-5"}}
-                borderWidth={{mobile: "none"}}
                 borderRadius={{desktop: "md"}}
                 boxShadow="elevation-5"
             >

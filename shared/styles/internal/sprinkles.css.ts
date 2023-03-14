@@ -250,23 +250,27 @@ const colorProperties = defineProperties({
         borderTop: mapObjectValues(colorSchemeVarsWithTransparent, colorSchemeVar => ({
             borderStyle: "solid",
             borderTopWidth: 1,
-            borderColor: colorSchemeVar,
+            borderTopColor: colorSchemeVar,
         })),
         borderBottom: mapObjectValues(colorSchemeVarsWithTransparent, colorSchemeVar => ({
             borderStyle: "solid",
             borderBottomWidth: 1,
-            borderColor: colorSchemeVar,
+            borderBottomColor: colorSchemeVar,
         })),
         borderLeft: mapObjectValues(colorSchemeVarsWithTransparent, colorSchemeVar => ({
             borderStyle: "solid",
             borderLeftWidth: 1,
-            borderColor: colorSchemeVar,
+            borderLeftColor: colorSchemeVar,
         })),
         borderRight: mapObjectValues(colorSchemeVarsWithTransparent, colorSchemeVar => ({
             borderStyle: "solid",
             borderRightWidth: 1,
-            borderColor: colorSchemeVar,
+            borderRightColor: colorSchemeVar,
         })),
+    },
+    shorthands: {
+        borderX: ["borderLeft", "borderRight"],
+        borderY: ["borderTop", "borderBottom"],
     },
 });
 

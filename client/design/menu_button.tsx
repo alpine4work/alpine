@@ -681,7 +681,6 @@ const Menu = forwardRef(function Menu(
                     borderRadius="md"
                     padding="1"
                     backgroundColor={{light: "grey-0", dark: "grey-5"}}
-                    border={{light: "grey-0", dark: "grey-10"}}
                     boxShadow="elevation-20"
                     className={isFadingOut ? overlayAnimateFadeOutClassName : undefined}
                 >

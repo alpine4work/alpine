@@ -277,7 +277,6 @@ function ToastView({
             position="relative"
             maxWidth="128"
             backgroundColor={{light: "grey-0", dark: "grey-5"}}
-            border={{light: "grey-0", dark: "grey-10"}}
             borderRadius="base"
             boxShadow="elevation-30"
             display="flex"

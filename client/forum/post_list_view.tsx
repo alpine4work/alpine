@@ -61,15 +61,13 @@ import {PostCommentModel, PostModel} from "~/shared/models/post_model";
 import {getPostCommentsFromEnd, getPostCommentsFromStart} from "~/shared/rpc/forum_rpc_definitions";
 import {spinAnimationClassName, sprinkles} from "~/shared/styles/styles";
 
-export const postListViewMarginX: Spacing = "3";
+export const postListViewMarginX: Spacing = "4";
 
 // We want our Y margin to be the same as our X margin. We want to give items
 // some margin top and some margin bottom so that the shadows don't overflow.
-// We split up the top and bottom margin into 1 and 2 instead of 1.5 and 1.5 to
-// avoid dealing with subpixel measurements.
-const postListViewMarginTop: Spacing = "1";
+const postListViewMarginTop: Spacing = "2";
 const postListViewMarginBottom: Spacing = "2";
-export const postListViewMarginY: Spacing = "3";
+export const postListViewMarginY: Spacing = "4";
 
 export const postViewMaxWidth: Spacing = "160";
 

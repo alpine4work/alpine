@@ -956,9 +956,6 @@ function PeekOverlay({
                     overflow="hidden"
                     borderTopRadius="md"
                     backgroundColor="grey-0"
-                    borderTop={{dark: "grey-10"}}
-                    borderLeft={{dark: "grey-10"}}
-                    borderRight={{dark: "grey-10"}}
                     boxShadow={index === 0 ? "elevation-40" : "elevation-30"}
                     style={{
                         width: peekWidth,
