@@ -91,7 +91,7 @@ export type OverlayProps = {
      *
      * [1]: https://popper.js.org/docs/v2/modifiers/offset/#demo
      */
-    offset?: Spacing;
+    offset?: Spacing | `-${Spacing}`;
 
     /**
      * How far the offset should move along the reference.
@@ -286,7 +286,17 @@ function Overlay(
                                                     remPx,
                                                 )
                                           : 0,
-                                      offset ? convertRemLengthToPx(spacing[offset], remPx) : 0,
+                                      offset
+                                          ? offset.startsWith("-")
+                                              ? -convertRemLengthToPx(
+                                                    spacing[offset.slice(1) as Spacing],
+                                                    remPx,
+                                                )
+                                              : convertRemLengthToPx(
+                                                    spacing[offset as Spacing],
+                                                    remPx,
+                                                )
+                                          : 0,
                                   ],
                               },
                           },

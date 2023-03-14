@@ -18,6 +18,7 @@
         "@playwright/test": "^1.31.1",
         "@popperjs/core": "^2.11.6",
         "@react-aria/interactions": "^3.12.0",
+        "@react-aria/ssr": "^3.3.0",
         "@react-types/shared": "^3.16.0",
         "@remix-run/cloudflare": "^1.7.5",
         "@remix-run/cloudflare-workers": "^1.7.5",
@@ -139,6 +140,7 @@
         "react-dom": "18.2.0",
         "react-router": "^6.3.0",
         "react-router-dom": "6.3.0",
+        "react-stately": "3.16.0",
         "scheduler": "^0.23.0",
         "serve-static": "^1.15.0",
         "set-cookie-parser": "^2.5.1",
@@ -179,7 +181,8 @@
             "@playwright/test@1.31.1": "admin/patches/@playwright__test@1.31.1.patch",
             "@react-aria/interactions@3.12.0": "admin/patches/@react-aria__interactions@3.12.0.patch",
             "react-router@6.3.0": "admin/patches/react-router@6.3.0.patch",
-            "history@5.3.0": "admin/patches/history@5.3.0.patch"
+            "history@5.3.0": "admin/patches/history@5.3.0.patch",
+            "@react-aria/ssr@3.3.0": "admin/patches/@react-aria__ssr@3.3.0.patch"
         },
         "allowedDeprecatedVersions": {
             "@types/keyv": "4.2.0",

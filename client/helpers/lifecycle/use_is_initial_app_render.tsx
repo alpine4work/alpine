@@ -1,3 +1,4 @@
+import {injectUseIsSSRImplementation} from "@react-aria/ssr";
 import {ReactNode, createContext, useContext, useEffect, useState} from "react";
 import {InternalError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
@@ -27,6 +28,10 @@ export function useIsInitialAppRender(): boolean {
 
     return isInitialAppRender;
 }
+
+// Use our `useIsInitialAppRender()` hook as the implementation of `react-aria`'s
+// `useIsSSR()` hook so we don't need to render `react-aria`'s SSR context.
+injectUseIsSSRImplementation(useIsInitialAppRender);
 
 export function AppInitialRenderContextProvider({children}: {children: ReactNode}) {
     // There should only be one `<AppInitialRenderContextProvider>` at the root of

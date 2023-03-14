@@ -10,7 +10,11 @@
  */
 
 import {createSprinkles, defineProperties} from "@vanilla-extract/sprinkles";
-import {mobilePlatformMediaQuery, spacing} from "~/shared/design/spacing";
+import {
+    desktopPlatformMediaQuery,
+    mobilePlatformMediaQuery,
+    spacing,
+} from "~/shared/design/spacing";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
 import {borderRadius} from "~/shared/styles/internal/border_radius.css";
 import {
@@ -63,26 +67,10 @@ const properties = defineProperties({
         },
         pointerEvents: {auto: "auto", none: "none"},
         userSelect: {auto: "auto", none: "none", text: "text", all: "all"},
-        borderTopLeftRadius: borderRadius,
-        borderTopRightRadius: borderRadius,
-        borderBottomLeftRadius: borderRadius,
-        borderBottomRightRadius: borderRadius,
         boxShadow: elevationVars,
         textAlign: {left: "left", center: "center", right: "right", justify: "justify"},
         fontSize: fontSizes,
         fontStyle: fontStyles,
-    },
-    shorthands: {
-        borderRadius: [
-            "borderTopLeftRadius",
-            "borderTopRightRadius",
-            "borderBottomLeftRadius",
-            "borderBottomRightRadius",
-        ],
-        borderTopRadius: ["borderTopLeftRadius", "borderTopRightRadius"],
-        borderBottomRadius: ["borderBottomLeftRadius", "borderBottomRightRadius"],
-        borderLeftRadius: ["borderTopLeftRadius", "borderBottomLeftRadius"],
-        borderRightRadius: ["borderTopRightRadius", "borderBottomRightRadius"],
     },
 });
 
@@ -128,10 +116,11 @@ const spacingWithNegatives = {
 
 const responsiveProperties = defineProperties({
     conditions: {
+        default: {},
         mobile: {"@media": mobilePlatformMediaQuery},
-        desktop: {},
+        desktop: {"@media": desktopPlatformMediaQuery},
     },
-    defaultCondition: "desktop",
+    defaultCondition: "default",
     properties: {
         display: {
             none: "none",
@@ -198,6 +187,19 @@ const responsiveProperties = defineProperties({
         height: spacingWithPercentages,
         minHeight: spacingWithPercentages,
         maxHeight: spacingWithPercentages,
+        borderTopLeftRadius: borderRadius,
+        borderTopRightRadius: borderRadius,
+        borderBottomLeftRadius: borderRadius,
+        borderBottomRightRadius: borderRadius,
+        borderWidth: {
+            // Use a triple selector so that this border width overrides the border width
+            // of a `colorProperties` border with a condition. Border width in
+            // `colorProperties` with condition has a specificity of 2. One for the
+            // selector and one for the condition. So triple selector beats it.
+            none: {selectors: {"&&&": {borderWidth: 0}}},
+            base: {selectors: {"&&&": {borderWidth: 1}}},
+            thick: {selectors: {"&&&": {borderWidth: 2}}},
+        },
     },
     shorthands: {
         inset: ["top", "bottom", "left", "right"],
@@ -207,6 +209,16 @@ const responsiveProperties = defineProperties({
         margin: ["marginTop", "marginBottom", "marginLeft", "marginRight"],
         marginX: ["marginLeft", "marginRight"],
         marginY: ["marginTop", "marginBottom"],
+        borderRadius: [
+            "borderTopLeftRadius",
+            "borderTopRightRadius",
+            "borderBottomLeftRadius",
+            "borderBottomRightRadius",
+        ],
+        borderTopRadius: ["borderTopLeftRadius", "borderTopRightRadius"],
+        borderBottomRadius: ["borderBottomLeftRadius", "borderBottomRightRadius"],
+        borderLeftRadius: ["borderTopLeftRadius", "borderBottomLeftRadius"],
+        borderRightRadius: ["borderTopRightRadius", "borderBottomRightRadius"],
     },
 });
 
@@ -230,27 +242,31 @@ const colorProperties = defineProperties({
         backgroundColor: colorSchemeVarsWithTransparent,
 
         // Default to thin 1px borders over chunky borders.
-        border: mapObjectValues(
-            colorSchemeVarsWithTransparent,
-            colorSchemeVar => `solid 1px ${colorSchemeVar}`,
-        ),
-        borderTop: mapObjectValues(
-            colorSchemeVarsWithTransparent,
-            colorSchemeVar => `solid 1px ${colorSchemeVar}`,
-        ),
-        borderBottom: mapObjectValues(
-            colorSchemeVarsWithTransparent,
-            colorSchemeVar => `solid 1px ${colorSchemeVar}`,
-        ),
-        borderLeft: mapObjectValues(
-            colorSchemeVarsWithTransparent,
-            colorSchemeVar => `solid 1px ${colorSchemeVar}`,
-        ),
-        borderRight: mapObjectValues(
-            colorSchemeVarsWithTransparent,
-            colorSchemeVar => `solid 1px ${colorSchemeVar}`,
-        ),
-        borderWidth: {base: 1, thick: 2},
+        border: mapObjectValues(colorSchemeVarsWithTransparent, colorSchemeVar => ({
+            borderStyle: "solid",
+            borderWidth: 1,
+            borderColor: colorSchemeVar,
+        })),
+        borderTop: mapObjectValues(colorSchemeVarsWithTransparent, colorSchemeVar => ({
+            borderStyle: "solid",
+            borderTopWidth: 1,
+            borderColor: colorSchemeVar,
+        })),
+        borderBottom: mapObjectValues(colorSchemeVarsWithTransparent, colorSchemeVar => ({
+            borderStyle: "solid",
+            borderBottomWidth: 1,
+            borderColor: colorSchemeVar,
+        })),
+        borderLeft: mapObjectValues(colorSchemeVarsWithTransparent, colorSchemeVar => ({
+            borderStyle: "solid",
+            borderLeftWidth: 1,
+            borderColor: colorSchemeVar,
+        })),
+        borderRight: mapObjectValues(colorSchemeVarsWithTransparent, colorSchemeVar => ({
+            borderStyle: "solid",
+            borderRightWidth: 1,
+            borderColor: colorSchemeVar,
+        })),
     },
 });
 

@@ -73,6 +73,9 @@ patchedDependencies:
   history@5.3.0:
     hash: 3tktwzl76qc3alrennhuishjra
     path: admin/patches/history@5.3.0.patch
+  '@react-aria/ssr@3.3.0':
+    hash: stsdfpy5crzid2ixw2fh72n3cm
+    path: admin/patches/@react-aria__ssr@3.3.0.patch
 
 specifiers:
   '@aws-sdk/client-dynamodb': ^3.201.0
@@ -90,6 +93,7 @@ specifiers:
   '@playwright/test': ^1.31.1
   '@popperjs/core': ^2.11.6
   '@react-aria/interactions': ^3.12.0
+  '@react-aria/ssr': ^3.3.0
   '@react-types/shared': ^3.16.0
   '@remix-run/cloudflare': ^1.7.5
   '@remix-run/cloudflare-workers': ^1.7.5
@@ -211,6 +215,7 @@ specifiers:
   react-dom: 18.2.0
   react-router: ^6.3.0
   react-router-dom: 6.3.0
+  react-stately: 3.16.0
   scheduler: ^0.23.0
   serve-static: ^1.15.0
   set-cookie-parser: ^2.5.1
@@ -240,6 +245,7 @@ dependencies:
   '@playwright/test': 1.31.1_645z6zzf2yttz7gk24haek5rhi
   '@popperjs/core': 2.11.6
   '@react-aria/interactions': 3.12.0_2s5t4derzlr6pbwch3ibe7ygq4_react@18.2.0
+  '@react-aria/ssr': 3.3.0_stsdfpy5crzid2ixw2fh72n3cm_react@18.2.0
   '@react-types/shared': 3.16.0_react@18.2.0
   '@remix-run/cloudflare': 1.7.5_dp7lsxfcjoxmh2gy56a7syibgu
   '@remix-run/cloudflare-workers': 1.7.5_dp7lsxfcjoxmh2gy56a7syibgu
@@ -361,6 +367,7 @@ dependencies:
   react-dom: 18.2.0_react@18.2.0
   react-router: 6.3.0_422wocmxisgbpbzt6il5lmbhd4_react@18.2.0
   react-router-dom: 6.3.0_biqbaboplfbrettd7655fr4n2y
+  react-stately: 3.16.0_react@18.2.0
   scheduler: 0.23.0
   serve-static: 1.15.0
   set-cookie-parser: 2.5.1
@@ -4263,7 +4270,7 @@ packages:
       '@internationalized/message': 3.0.9
       '@internationalized/number': 3.1.1
       '@internationalized/string': 3.0.0
-      '@react-aria/ssr': 3.3.0_react@18.2.0
+      '@react-aria/ssr': 3.3.0_stsdfpy5crzid2ixw2fh72n3cm_react@18.2.0
       '@react-aria/utils': 3.14.0_react@18.2.0
       '@react-types/shared': 3.16.0_react@18.2.0
       react: 18.2.0
@@ -4397,7 +4404,7 @@ packages:
       '@react-aria/focus': 3.9.0_react@18.2.0
       '@react-aria/i18n': 3.6.1_react@18.2.0
       '@react-aria/interactions': 3.12.0_2s5t4derzlr6pbwch3ibe7ygq4_react@18.2.0
-      '@react-aria/ssr': 3.3.0_react@18.2.0
+      '@react-aria/ssr': 3.3.0_stsdfpy5crzid2ixw2fh72n3cm_react@18.2.0
       '@react-aria/utils': 3.14.0_react@18.2.0
       '@react-aria/visually-hidden': 3.5.0_react@18.2.0
       '@react-stately/overlays': 3.4.2_react@18.2.0
@@ -4541,7 +4548,7 @@ packages:
       react-dom: 18.2.0_react@18.2.0
     dev: false
 
-  /@react-aria/ssr/3.3.0_react@18.2.0:
+  /@react-aria/ssr/3.3.0_stsdfpy5crzid2ixw2fh72n3cm_react@18.2.0:
     resolution: {integrity: sha512-yNqUDuOVZIUGP81R87BJVi/ZUZp/nYOBXbPsRe7oltJOfErQZD+UezMpw4vM2KRz18cURffvmC8tJ6JTeyDtaQ==}
     peerDependencies:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
@@ -4549,6 +4556,7 @@ packages:
       '@babel/runtime': 7.20.0
       react: 18.2.0
     dev: false
+    patched: true
 
   /@react-aria/switch/3.2.4_react@18.2.0:
     resolution: {integrity: sha512-nXEzXmSs+vTTDyI8YmJVVDEyxSmjkXCdMlPNZJfCO3Bf8PV7V1dt3brKWD7MYOnUKUqzjZU61+A9eC2TG5hkfw==}
@@ -4655,7 +4663,7 @@ packages:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
     dependencies:
       '@babel/runtime': 7.20.0
-      '@react-aria/ssr': 3.3.0_react@18.2.0
+      '@react-aria/ssr': 3.3.0_stsdfpy5crzid2ixw2fh72n3cm_react@18.2.0
       '@react-stately/utils': 3.5.1_react@18.2.0
       '@react-types/shared': 3.16.0_react@18.2.0
       clsx: 1.2.1
@@ -4723,6 +4731,16 @@ packages:
       '@react-stately/select': 3.3.2_react@18.2.0
       '@react-stately/utils': 3.5.1_react@18.2.0
       '@react-types/combobox': 3.5.4_react@18.2.0
+      '@react-types/shared': 3.16.0_react@18.2.0
+      react: 18.2.0
+    dev: false
+
+  /@react-stately/data/3.6.0_react@18.2.0:
+    resolution: {integrity: sha512-psuc5nziuPWYdxIFhXEt9DBT+cuhOCyGPz8cOP5RuWFfSM4r583M0SYrsi5YXCvUwhZEFFQNbapxJFfMpAHPtw==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
+    dependencies:
+      '@babel/runtime': 7.20.0
       '@react-types/shared': 3.16.0_react@18.2.0
       react: 18.2.0
     dev: false
@@ -12969,7 +12987,7 @@ packages:
       '@react-aria/select': 3.8.2_biqbaboplfbrettd7655fr4n2y
       '@react-aria/separator': 3.2.4_react@18.2.0
       '@react-aria/slider': 3.2.2_react@18.2.0
-      '@react-aria/ssr': 3.3.0_react@18.2.0
+      '@react-aria/ssr': 3.3.0_stsdfpy5crzid2ixw2fh72n3cm_react@18.2.0
       '@react-aria/switch': 3.2.4_react@18.2.0
       '@react-aria/table': 3.5.0_biqbaboplfbrettd7655fr4n2y
       '@react-aria/tabs': 3.3.2_react@18.2.0
@@ -13036,6 +13054,35 @@ packages:
       react: 18.2.0
     dev: false
     patched: true
+
+  /react-stately/3.16.0_react@18.2.0:
+    resolution: {integrity: sha512-V+/sIjSt8xui0axxJ0DbiV3KiozCiynF1zCjroJBCaO9qUw/LL4yJoRK80YwQa6Ami9u7y+Ti7Q4Gu7XsMmZ6w==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
+    dependencies:
+      '@react-stately/calendar': 3.0.3_react@18.2.0
+      '@react-stately/checkbox': 3.3.0_react@18.2.0
+      '@react-stately/collections': 3.4.4_react@18.2.0
+      '@react-stately/combobox': 3.2.2_react@18.2.0
+      '@react-stately/data': 3.6.0_react@18.2.0
+      '@react-stately/datepicker': 3.1.0_react@18.2.0
+      '@react-stately/list': 3.5.4_react@18.2.0
+      '@react-stately/menu': 3.4.2_react@18.2.0
+      '@react-stately/numberfield': 3.2.2_react@18.2.0
+      '@react-stately/overlays': 3.4.2_react@18.2.0
+      '@react-stately/radio': 3.6.0_react@18.2.0
+      '@react-stately/searchfield': 3.3.2_react@18.2.0
+      '@react-stately/select': 3.3.2_react@18.2.0
+      '@react-stately/selection': 3.11.0_react@18.2.0
+      '@react-stately/slider': 3.2.2_react@18.2.0
+      '@react-stately/table': 3.5.0_react@18.2.0
+      '@react-stately/tabs': 3.2.2_react@18.2.0
+      '@react-stately/toggle': 3.4.2_react@18.2.0
+      '@react-stately/tooltip': 3.2.2_react@18.2.0
+      '@react-stately/tree': 3.3.4_react@18.2.0
+      '@react-types/shared': 3.16.0_react@18.2.0
+      react: 18.2.0
+    dev: false
 
   /react/18.2.0:
     resolution: {integrity: sha512-/3IjMdb2L9QbBdWiW5e3P2/npwMBaU9mHCSCUzNln0ZCYbcfTsGbTJrU/kGemdH2IWmB2ioZ+zkxtmq6g09fGQ==}

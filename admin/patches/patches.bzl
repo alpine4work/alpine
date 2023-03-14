@@ -6,6 +6,8 @@ NPM_PATCHES = {
     "@miniflare/http-server@2.11.0": ["//admin/patches:@miniflare__http-server@2.11.0.patch"],
     "@miniflare/runner-vm@2.11.0": ["//admin/patches:@miniflare__runner-vm@2.11.0.patch"],
     "@playwright/test@1.31.1": ["//admin/patches:@playwright__test@1.31.1.patch"],
+    "@react-aria/interactions@3.12.0": ["//admin/patches:@react-aria__interactions@3.12.0.patch"],
+    "@react-aria/ssr@3.3.0": ["//admin/patches:@react-aria__ssr@3.3.0.patch"],
     "@remix-run/dev@1.7.5": ["//admin/patches:@remix-run__dev@1.7.5.patch"],
     "@remix-run/react@1.7.5": ["//admin/patches:@remix-run__react@1.7.5.patch"],
     "@remix-run/server-runtime@1.7.5": ["//admin/patches:@remix-run__server-runtime@1.7.5.patch"],
@@ -24,5 +26,4 @@ NPM_PATCHES = {
     "react-router@6.3.0": ["//admin/patches:react-router@6.3.0.patch"],
     "uglify-js@3.17.4": ["//admin/patches:uglify-js@3.17.4.patch"],
     "wrangler@2.4.4": ["//admin/patches:wrangler@2.4.4.patch"],
-    "@react-aria/interactions@3.12.0": ["//admin/patches:@react-aria__interactions@3.12.0.patch"],
 }

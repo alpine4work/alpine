@@ -34,6 +34,7 @@ ts_project(
         "//:node_modules/mjml-react",
         "//:node_modules/react",
         "//client/blob_factory",
+        "//client/chat",
         "//client/context",
         "//client/design",
         "//client/dev",

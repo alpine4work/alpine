@@ -28,6 +28,15 @@ export function getRemPxFromWindowWidth(windowWidth: number) {
  */
 export const mobilePlatformMediaQuery = `screen and (max-width: ${mobileMaxScreenWidth}px)`;
 
+/**
+ * CSS media query which will match desktop and not mobile.
+ */
+export const desktopPlatformMediaQuery = `screen and (min-width: ${
+    // `min-width` is inclusive but we don't want to include the mobile max width.
+    // In case there are fractional pixels add a small fraction.
+    mobileMaxScreenWidth + 0.1
+}px)`;
+
 export type Spacing = keyof typeof spacing;
 
 /**

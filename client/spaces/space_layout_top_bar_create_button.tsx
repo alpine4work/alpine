@@ -33,7 +33,7 @@ export function SpaceLayoutTopBarCreateButton() {
                     onPress: () => {
                         showToast({
                             type: "Error",
-                            title: "Can not find a channel to post in",
+                            title: "Can not send a chat message",
                             error: new UnimplementedError("Chat has not been implemented yet", {
                                 displayMessage: errorDisplayMessage`Chat has not been implemented yet.`,
                             }),
