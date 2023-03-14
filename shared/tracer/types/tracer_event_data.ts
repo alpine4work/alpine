@@ -383,10 +383,21 @@ export type TracerEventData = {
          * table in the action that consumed capacity.
          */
         readonly consumedCapacity?: {
-            readonly [tableName: string]: {
-                readonly readCapacityUnits?: number;
-                readonly writeCapacityUnits?: number;
-            };
+            readonly [tableName: string]:
+                | {
+                      readonly readCapacityUnits?: number;
+                      readonly writeCapacityUnits?: number;
+                  }
+                // TypeScript needs this to consider `readCapacityUnits` and
+                // `writeCapacityUnits` when indexing.
+                | number
+                | undefined;
+
+            /** The total number of read capacity units consumed by this operation. */
+            readonly totalReadCapacityUnits?: number;
+
+            /** The total number of write capacity units consumed by this operation. */
+            readonly totalWriteCapacityUnits?: number;
         };
 
         /**

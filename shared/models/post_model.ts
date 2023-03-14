@@ -61,8 +61,6 @@ export class PostModel extends Model(
 
 /**
  * A comment on a post.
- *
- * The `postId` for the comment should be known based on context.
  */
 export class PostCommentModel
     extends Model(

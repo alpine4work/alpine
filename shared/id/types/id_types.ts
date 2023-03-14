@@ -29,3 +29,4 @@ export type WebSocketConnectionId = NominalIdType<"WebSocketConnection">;
 export type WebSocketMessageId = NominalIdType<"WebSocketMessage">;
 export type ContentEditorClientId = NominalIdType<"ContentEditorClient">;
 export type PeekId = NominalIdType<"Peek">;
+export type ChatId = NominalIdType<"Chat">;

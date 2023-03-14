@@ -3,7 +3,7 @@ import fs from "fs-extra";
 import getPort from "get-port";
 import path from "path";
 import {DynamoLocal, startDynamoLocal} from "~/admin/dynamo/local/start_dynamo_local";
-import {Session} from "~/server/dynamo/accounts_table";
+import {Session, SessionItem} from "~/server/dynamo/accounts_table";
 import {
     AuthenticatedAuthContextModule,
     UnauthenticatedAuthContextModule,
@@ -14,7 +14,6 @@ import {
     UnauthenticatedRequestContext,
 } from "~/server/dynamo/context/request_context";
 import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
-import {TestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
 import {testSharedHooks} from "~/server/dynamo/test_helpers/shared/test_shared_hooks";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module";
 import {CacheContextModule} from "~/shared/context/cache_context_module";
@@ -34,7 +33,7 @@ assert(process.env.NODE_ENV === "test");
 export type TestContext = ProcessContext & {
     getDynamoLocalPort(): number;
     unauthenticatedRequest(): UnauthenticatedRequestContext;
-    request(session: TestSession): RequestContext;
+    request(session: {item: SessionItem}): RequestContext;
 };
 
 /**
@@ -86,10 +85,10 @@ export function createTestContext(): TestContext {
         });
     };
 
-    const createRequestContext = (session: TestSession): RequestContext => {
+    const createRequestContext = (session: {item: SessionItem}): RequestContext => {
         return context.clone({
             cache: new CacheContextModule(),
-            auth: new AuthenticatedAuthContextModule(Session.test(session.id, session.item)),
+            auth: new AuthenticatedAuthContextModule(Session.test(session.item)),
         });
     };
 

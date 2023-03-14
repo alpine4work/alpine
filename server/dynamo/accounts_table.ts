@@ -656,9 +656,9 @@ export class Session {
      * Allow creating a session class directly from ID and database item object
      * in tests. Can only run in test environments.
      */
-    public static test(sessionId: SessionId, sessionItem: SessionItem) {
+    public static test(sessionItem: SessionItem) {
         assert(process.env.NODE_ENV === "test");
-        return new Session(sessionId, sessionItem, null);
+        return new Session(sessionItem.sessionId, sessionItem, null);
     }
 
     private _accountPromise: Promise<AccountModel> | null = null;

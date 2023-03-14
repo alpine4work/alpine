@@ -33,6 +33,7 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
 import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order_key";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings";
@@ -1986,6 +1987,24 @@ export class DynamoTableSchema<
 
             assert(!itemTypeSet.has(itemType), "Item types must be unique");
             itemTypeSet.add(itemType);
+
+            for (const attributeKey of Object.keys(partitionKeyAttributes)) {
+                assert(
+                    hasOwnProperty(partitionConfig.partitionKeyAttributes, attributeKey) ||
+                        hasOwnProperty(sortRangeConfig.sortKeyAttributes, attributeKey) ||
+                        sortRangeConfig.attributes.propertySchemaByKey.has(attributeKey),
+                    quote`Attribute ${attributeKey} does not exist in sort range ${sortRangeType} of partition ${partitionType}`,
+                );
+            }
+
+            for (const attributeKey of Object.keys(sortKeyAttributes)) {
+                assert(
+                    hasOwnProperty(partitionConfig.partitionKeyAttributes, attributeKey) ||
+                        hasOwnProperty(sortRangeConfig.sortKeyAttributes, attributeKey) ||
+                        sortRangeConfig.attributes.propertySchemaByKey.has(attributeKey),
+                    quote`Attribute ${attributeKey} does not exist in sort range ${sortRangeType} of partition ${partitionType}`,
+                );
+            }
         }
 
         const indexOverloadDescription: DynamoTableSchemaTypes.Index.OverloadDescription = {
@@ -2215,7 +2234,8 @@ function serializeDynamoTableSchemaIndexPartitionKey(
     for (const [attributeKey, attributeSchema] of Object.entries(
         indexConfig.partitionKeyAttributes,
     )) {
-        indexPartitionKeyEntries.push(attributeSchema.serialize(item[attributeKey]));
+        const attributeValue = item[attributeKey];
+        indexPartitionKeyEntries.push(attributeSchema.serialize(attributeValue));
     }
 
     return indexPartitionKeyEntries.join(dynamoKeySeparator);
@@ -2231,7 +2251,8 @@ function serializeDynamoTableSchemaIndexSortKey(
 ) {
     const itemSortKeyEntries = [];
     for (const [attributeKey, attributeSchema] of Object.entries(indexConfig.sortKeyAttributes)) {
-        itemSortKeyEntries.push(attributeSchema.serialize(item[attributeKey]));
+        const attributeValue = item[attributeKey];
+        itemSortKeyEntries.push(attributeSchema.serialize(attributeValue));
     }
 
     return itemSortKeyEntries.join(dynamoKeySeparator);

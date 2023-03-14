@@ -17,7 +17,7 @@ import {TracerEventDataBase, TracerEventFullData} from "~/shared/tracer/types/tr
 type TracerEventDataSchemaType<Data extends TracerEventDataBase> = {
     [Key in keyof Data]-?: NonNullable<Data[Key]> extends TracerEventDataBase
         ? TracerEventDataSchemaType<NonNullable<Data[Key]>>
-        : Schema<NonNullable<Data[Key]>>;
+        : SchemaWithOnlyDeserialization<NonNullable<Data[Key]>>;
 };
 
 type TracerEventDataSchemaBase = {
@@ -129,15 +129,19 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         action: IdentifierStringSchema,
         tableName: LabelStringSchema,
         consistentRead: Schema.boolean,
-        consumedCapacity: Object.fromEntries(
-            getAllDynamoTableSchemas().map(tableSchema => [
-                tableSchema.getName(),
-                {
-                    readCapacityUnits: Schema.float,
-                    writeCapacityUnits: Schema.float,
-                },
-            ]),
-        ),
+        consumedCapacity: {
+            ...Object.fromEntries(
+                getAllDynamoTableSchemas().map(tableSchema => [
+                    tableSchema.getName(),
+                    {
+                        readCapacityUnits: Schema.float,
+                        writeCapacityUnits: Schema.float,
+                    },
+                ]),
+            ),
+            totalReadCapacityUnits: Schema.float,
+            totalWriteCapacityUnits: Schema.float,
+        },
         conditionExpression: Schema.string,
         batchSize: Schema.integer,
         query: {

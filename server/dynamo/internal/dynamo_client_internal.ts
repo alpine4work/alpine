@@ -105,7 +105,10 @@ export class DynamoClientInternal {
 
             span.addData({
                 dynamodb: {
-                    consumedCapacity: getConsumedCapacityTracerEventData(output.ConsumedCapacity),
+                    consumedCapacity: getConsumedCapacityTracerEventData(
+                        output.ConsumedCapacity,
+                        "Read",
+                    ),
                 },
             });
 
@@ -169,7 +172,10 @@ export class DynamoClientInternal {
 
             span.addData({
                 dynamodb: {
-                    consumedCapacity: getConsumedCapacityTracerEventData(output.ConsumedCapacity),
+                    consumedCapacity: getConsumedCapacityTracerEventData(
+                        output.ConsumedCapacity,
+                        "Read",
+                    ),
                 },
             });
 
@@ -203,7 +209,10 @@ export class DynamoClientInternal {
 
             span.addData({
                 dynamodb: {
-                    consumedCapacity: getConsumedCapacityTracerEventData(output.ConsumedCapacity),
+                    consumedCapacity: getConsumedCapacityTracerEventData(
+                        output.ConsumedCapacity,
+                        "Write",
+                    ),
                 },
             });
 
@@ -240,7 +249,10 @@ export class DynamoClientInternal {
 
             span.addData({
                 dynamodb: {
-                    consumedCapacity: getConsumedCapacityTracerEventData(output.ConsumedCapacity),
+                    consumedCapacity: getConsumedCapacityTracerEventData(
+                        output.ConsumedCapacity,
+                        "Write",
+                    ),
                 },
             });
 
@@ -300,7 +312,10 @@ export class DynamoClientInternal {
 
             span.addData({
                 dynamodb: {
-                    consumedCapacity: getConsumedCapacityTracerEventData(output.ConsumedCapacity),
+                    consumedCapacity: getConsumedCapacityTracerEventData(
+                        output.ConsumedCapacity,
+                        "Write",
+                    ),
                 },
             });
 
@@ -392,7 +407,10 @@ export class DynamoClientInternal {
 
             span.addData({
                 dynamodb: {
-                    consumedCapacity: getConsumedCapacityTracerEventData(output.ConsumedCapacity),
+                    consumedCapacity: getConsumedCapacityTracerEventData(
+                        output.ConsumedCapacity,
+                        "Read",
+                    ),
                 },
             });
 
@@ -433,7 +451,10 @@ export class DynamoClientInternal {
 
             span.addData({
                 dynamodb: {
-                    consumedCapacity: getConsumedCapacityTracerEventData(output.ConsumedCapacity),
+                    consumedCapacity: getConsumedCapacityTracerEventData(
+                        output.ConsumedCapacity,
+                        "Read",
+                    ),
                     query: {
                         scannedCount: output.ScannedCount ?? 0,
                     },
@@ -475,7 +496,10 @@ export class DynamoClientInternal {
 
             span.addData({
                 dynamodb: {
-                    consumedCapacity: getConsumedCapacityTracerEventData(output.ConsumedCapacity),
+                    consumedCapacity: getConsumedCapacityTracerEventData(
+                        output.ConsumedCapacity,
+                        "Read",
+                    ),
                     scan: {
                         scannedCount: output.ScannedCount ?? 0,
                     },
@@ -595,6 +619,7 @@ export class DynamoClientInternal {
 
 function getConsumedCapacityTracerEventData(
     consumedCapacities: types.ConsumedCapacity | Array<types.ConsumedCapacity> | undefined,
+    capacityUnitsHint: "Read" | "Write",
 ): NonNullable<TracerEventData["dynamodb"]>["consumedCapacity"] {
     if (!consumedCapacities) return undefined;
 
@@ -604,9 +629,25 @@ function getConsumedCapacityTracerEventData(
         >[string];
     } = {};
 
-    let hasConsumedCapacityEventData = false;
+    let totalReadCapacityUnits = 0;
+    let totalWriteCapacityUnits = 0;
 
     const add = (consumedCapacity: types.ConsumedCapacity) => {
+        // DynamoDB appears to use `CapacityUnits` to mean something different
+        // depending on the action. So we depend on the action giving us a hint on how
+        // to interpret an unqualified `CapacityUnits`.
+        const readCapacityUnits =
+            consumedCapacity.ReadCapacityUnits ??
+            (capacityUnitsHint === "Read" ? consumedCapacity.CapacityUnits : undefined) ??
+            0;
+        const writeCapacityUnits =
+            consumedCapacity.WriteCapacityUnits ??
+            (capacityUnitsHint === "Write" ? consumedCapacity.CapacityUnits : undefined) ??
+            0;
+
+        totalReadCapacityUnits += readCapacityUnits;
+        totalWriteCapacityUnits += writeCapacityUnits;
+
         // If our event data schema does not support consumed capacity for this table
         // name then don't return any consumed capacity info.
         if (
@@ -616,19 +657,15 @@ function getConsumedCapacityTracerEventData(
             return;
         }
 
-        hasConsumedCapacityEventData = true;
-
         consumedCapacityEventData[consumedCapacity.TableName] = {
-            // DynamoDB appears to be returning read capacity units with the
-            // `CapacityUnits` key? This is strange. Since we appear to get the correct
-            // results let's support it, I guess.
-            readCapacityUnits:
-                consumedCapacity.ReadCapacityUnits ?? consumedCapacity.CapacityUnits ?? 0,
-            writeCapacityUnits: consumedCapacity.WriteCapacityUnits ?? 0,
+            readCapacityUnits,
+            writeCapacityUnits,
         };
     };
 
     if (Array.isArray(consumedCapacities)) {
+        if (consumedCapacities.length === 0) return undefined;
+
         for (const consumedCapacity of consumedCapacities) {
             add(consumedCapacity);
         }
@@ -636,6 +673,8 @@ function getConsumedCapacityTracerEventData(
         add(consumedCapacities);
     }
 
-    if (!hasConsumedCapacityEventData) return undefined;
+    consumedCapacityEventData.totalReadCapacityUnits = totalReadCapacityUnits;
+    consumedCapacityEventData.totalWriteCapacityUnits = totalWriteCapacityUnits;
+
     return consumedCapacityEventData;
 }

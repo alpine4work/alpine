@@ -17,12 +17,6 @@ const AppInitialRenderContext = createContext<boolean | null>(null);
 export function useIsInitialAppRender(): boolean {
     const isInitialAppRender = useContext(AppInitialRenderContext);
 
-    // In Jest tests, act like we are not in the initial render unless an
-    // `<AppInitialRenderContextProvider>` is explicitly used.
-    if (typeof jest !== "undefined" && isInitialAppRender === null) {
-        return false;
-    }
-
     if (isInitialAppRender === null) {
         // In Jest tests, act like we are not in the initial render unless an
         // `<AppInitialRenderContextProvider>` is explicitly used.

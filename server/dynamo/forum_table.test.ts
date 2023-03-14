@@ -1538,6 +1538,10 @@ testMessagingImplementation<PostId>(context, {
             messageCount: 0,
         };
     },
+
+    // TODO(calebmer): Implement when we can have private channels!
+    createPrivateRoom: "Unimplemented",
+
     async getRoom(context, postId) {
         const post = await getPost(context, postId);
         if (!post) return null;

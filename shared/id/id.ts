@@ -1,3 +1,5 @@
+import {assert} from "~/shared/helpers/control/assert";
+
 /**
  * Ids in our system are 128 bits of randomness encoded in 26 base-32
  * characters.
@@ -17,9 +19,10 @@ export type Id = string & {readonly _Id: never};
 const alphabet = "0123456789abcdefghjkmnpqrstvwxyz";
 
 let alphabetSet: Set<string>;
+let alphabetReverseMap: Map<string, number>;
 
 /**
- * The length of an ID.
+ * The length of an `Id`.
  */
 export const idLength = 26;
 
@@ -73,12 +76,20 @@ export function isId<Value extends Id>(string: string): string is Value {
 }
 
 /**
- * Generate a new random id using a cryptographically secure source of
+ * Generate a new random `Id` using a cryptographically secure source of
  * randomness.
  */
 export function generateId<Value extends Id>(): Value {
     const bytes = new Uint8Array(16);
     crypto.getRandomValues(bytes);
+    return encodeId(bytes) as Value;
+}
+
+/**
+ * Encodes 128 bits (16 bytes) into an `Id`.
+ */
+export function encodeId(bytes: Uint8Array): Id {
+    assert(bytes.length >= 16);
 
     let bits = 0;
     let value = 0;
@@ -98,5 +109,56 @@ export function generateId<Value extends Id>(): Value {
         id += alphabet[(value << (5 - bits)) & 31];
     }
 
-    return id as Value;
+    return id as Id;
+}
+
+/**
+ * Decodes an `Id` into 128 bytes (16 bytes).
+ */
+export function decodeId(id: Id): Uint8Array {
+    const bytes = new Uint8Array(16);
+    decodeIdInto(id, bytes);
+    return bytes;
+}
+
+/**
+ * Decodes an `Id` into 128 bytes (16 bytes) by mutating an existing typed
+ * array. Useful if you want to decode an `Id` into an existing buffer.
+ */
+export function decodeIdInto(id: Id, bytes: Uint8Array): void {
+    assert(bytes.length >= 16);
+
+    // Lazily initialize the alphabet reverse map.
+    if (!alphabetReverseMap) {
+        alphabetReverseMap = new Map();
+        for (let i = 0; i < alphabet.length; i++) {
+            alphabetReverseMap.set(alphabet[i]!, i);
+        }
+    }
+
+    let idIndex = 0;
+    let byteIndex = 0;
+
+    const iterations = (idLength >> 3) << 3;
+    while (idIndex < iterations) {
+        const v1 = alphabetReverseMap.get(id.charAt(idIndex++))!;
+        const v2 = alphabetReverseMap.get(id.charAt(idIndex++))!;
+        const v3 = alphabetReverseMap.get(id.charAt(idIndex++))!;
+        const v4 = alphabetReverseMap.get(id.charAt(idIndex++))!;
+        const v5 = alphabetReverseMap.get(id.charAt(idIndex++))!;
+        const v6 = alphabetReverseMap.get(id.charAt(idIndex++))!;
+        const v7 = alphabetReverseMap.get(id.charAt(idIndex++))!;
+        const v8 = alphabetReverseMap.get(id.charAt(idIndex++))!;
+        bytes[byteIndex++] = ((v1 << 3) | (v2 >>> 2)) & 255;
+        bytes[byteIndex++] = ((v2 << 6) | (v3 << 1) | (v4 >>> 4)) & 255;
+        bytes[byteIndex++] = ((v4 << 4) | (v5 >>> 1)) & 255;
+        bytes[byteIndex++] = ((v5 << 7) | (v6 << 2) | (v7 >>> 3)) & 255;
+        bytes[byteIndex++] = ((v7 << 5) | v8) & 255;
+    }
+
+    {
+        const v1 = alphabetReverseMap.get(id.charAt(idIndex++))!;
+        const v2 = alphabetReverseMap.get(id.charAt(idIndex++))!;
+        bytes[byteIndex++] = ((v1 << 3) | (v2 >>> 2)) & 255;
+    }
 }

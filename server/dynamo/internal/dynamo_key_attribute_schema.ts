@@ -19,7 +19,7 @@ import {
     encodeElenInteger,
 } from "~/shared/helpers/number/elen_integer";
 import {OrderKey, isOrderKey} from "~/shared/helpers/sort/order_key";
-import {Id, isId} from "~/shared/id/id";
+import {Id, getMaxId, isId} from "~/shared/id/id";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
 
 /**
@@ -156,9 +156,12 @@ export class DynamoKeyAttributeSchema<Value> {
     /**
      * IDs are fully random and have no useful order.
      */
-    public static id<Value extends Id>(): DynamoKeyAttributeSchema<Value> {
-        return this._id as any;
-    }
+    public static readonly id = Object.assign(
+        <Value extends Id>(): DynamoKeyAttributeSchema<Value> => this._id as any,
+        {
+            getMaxValue: getMaxId,
+        },
+    );
 
     private static _id = new DynamoKeyAttributeSchema<Id>({
         description: {type: "Id"},
