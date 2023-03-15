@@ -1,7 +1,7 @@
 import {isFocusVisible} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
 import {CaretDown, MagnifyingGlass} from "phosphor-react";
-import {Key, RefObject, useMemo, useRef, useState} from "react";
+import {Key, RefObject, useEffect, useMemo, useRef, useState} from "react";
 import {
     AriaListBoxOptions,
     mergeProps,
@@ -19,8 +19,13 @@ import {OverlayAnimated} from "~/client/design/overlay_animated";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/space_context";
 import {addRemLengths, spacing} from "~/shared/design/spacing";
+import {createTimeout} from "~/shared/helpers/async/timeout";
 import {AccountModel} from "~/shared/models/account_model";
-import {sprinkles} from "~/shared/styles/styles";
+import {
+    overlayFadeInAnimationDurationMs,
+    overlayFadeOutAnimationDurationMs,
+    sprinkles,
+} from "~/shared/styles/styles";
 
 type ChatAccountPickerItem = {
     readonly key: Key;
@@ -36,6 +41,21 @@ export function ChatAccountPicker() {
         if (searchText === "") return allAccounts.accounts;
         return allAccounts.fuse.search(searchText).map(({item}) => item);
     }, [allAccounts, searchText]);
+
+    // When this is set to true we allow the next animation then no more
+    // animations. Most interactions that control whether the picker is open/close
+    // are direct interactions that shouldn't be animated.
+    const [shouldOverlayAnimate, setShouldOverlayAnimate] = useState(false);
+    useEffect(() => {
+        if (!shouldOverlayAnimate) return;
+
+        const timeout = createTimeout(() => {
+            setShouldOverlayAnimate(false);
+        }, Math.max(overlayFadeInAnimationDurationMs, overlayFadeOutAnimationDurationMs));
+        return () => {
+            timeout.clear();
+        };
+    }, [shouldOverlayAnimate]);
 
     const comboBoxProps: ComboBoxStateOptions<ChatAccountPickerItem> = {
         label: "To:",
@@ -53,6 +73,12 @@ export function ChatAccountPicker() {
                 </Box>
             </Item>
         ),
+
+        // Animate when the combobox loses focus. Losing focus is typically not a
+        // direct user interaction. e.g. Clicking outside of the text box. Tabbing out
+        // of the text box we consider an indirect interaction since the animation can
+        // highlight to the user that their state is going away.
+        onBlur: () => setShouldOverlayAnimate(true),
     };
 
     const state = useComboBoxState(comboBoxProps);
@@ -76,6 +102,7 @@ export function ChatAccountPicker() {
     return (
         <OverlayAnimated
             isVisible={state.isOpen}
+            disableAnimation={!shouldOverlayAnimate}
             placement="bottom-start"
             sameWidth={true}
             offset="-1"
