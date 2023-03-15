@@ -45,19 +45,21 @@ import {Schema} from "~/shared/schema/schema";
 
 const DocumentsTable = DynamoTableSchema.new({
     name: "Documents",
-    partitions: {
-        Document: {
+    partitions: [
+        {
+            name: "Document",
             partitionKeyAttributes: {
                 documentId: DynamoKeyAttributeSchema.id<DocumentId>(),
             },
-            sortRanges: {
+            sortRanges: [
                 /**
                  * Any information about the document not stored in its content.
                  *
                  * The content of a document is the document snapshot and any steps in the
                  * `StepsAfterSnapshot` range.
                  */
-                Attributes: {
+                {
+                    name: "Attributes",
                     sortKeyAttributes: {},
                     attributes: Schema.object({
                         createdTime: Schema.date,
@@ -102,7 +104,8 @@ const DocumentsTable = DynamoTableSchema.new({
                  * - Steps may temporarily exist in both `StepTransactionsAfterSnapshot` and
                  *   `StepTransactionsBeforeSnapshot`.
                  */
-                StepTransactionsAfterSnapshot: {
+                {
+                    name: "StepTransactionsAfterSnapshot",
                     sortKeyAttributes: {
                         /**
                          * The version this step transaction is applied onto.
@@ -145,7 +148,8 @@ const DocumentsTable = DynamoTableSchema.new({
                 /**
                  * The last full snapshot we took of the document.
                  */
-                Snapshot: {
+                {
+                    name: "Snapshot",
                     sortKeyAttributes: {},
                     attributes: Schema.object({
                         /**
@@ -170,7 +174,8 @@ const DocumentsTable = DynamoTableSchema.new({
                 // TODO(calebmer): Maybe we should create a new table with an infrequent access
                 // mode for step transactions before the snapshot. Since they're only used when
                 // rendering history which is rare?
-                StepTransactionsBeforeSnapshot: {
+                {
+                    name: "StepTransactionsBeforeSnapshot",
                     sortKeyAttributes: {
                         /**
                          * The version this step transaction is applied onto.
@@ -209,10 +214,10 @@ const DocumentsTable = DynamoTableSchema.new({
                         clientId: Schema.id<ContentEditorClientId>(),
                     }),
                 },
-            },
+            ],
         },
-    },
-});
+    ],
+} as const);
 
 /**
  * We are not allowed to export our DynamoDB tables so instead export a

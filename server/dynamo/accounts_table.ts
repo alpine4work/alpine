@@ -31,13 +31,15 @@ import {Schema} from "~/shared/schema/schema";
 
 const AccountsTable = DynamoTableSchema.new({
     name: "Accounts",
-    partitions: {
-        Account: {
+    partitions: [
+        {
+            name: "Account",
             partitionKeyAttributes: {
                 accountId: DynamoKeyAttributeSchema.id<AccountId>(),
             },
-            sortRanges: {
-                Attributes: {
+            sortRanges: [
+                {
+                    name: "Attributes",
                     sortKeyAttributes: {},
                     attributes: Schema.object({
                         /**
@@ -56,7 +58,7 @@ const AccountsTable = DynamoTableSchema.new({
                         hasInternalAccess: Schema.boolean.optional(),
                     }),
                 },
-            },
+            ],
         },
 
         /**
@@ -68,12 +70,14 @@ const AccountsTable = DynamoTableSchema.new({
          * So to maintain global uniqueness of email addresses across our entire
          * service we have a separate account email address partition.
          */
-        AccountEmailAddress: {
+        {
+            name: "AccountEmailAddress",
             partitionKeyAttributes: {
                 emailAddress: DynamoKeyAttributeSchema.emailAddressString,
             },
-            sortRanges: {
-                Attributes: {
+            sortRanges: [
+                {
+                    name: "Attributes",
                     sortKeyAttributes: {},
                     attributes: Schema.object({
                         /**
@@ -145,7 +149,7 @@ const AccountsTable = DynamoTableSchema.new({
                         }).optional(),
                     }),
                 },
-            },
+            ],
         },
 
         /**
@@ -153,12 +157,14 @@ const AccountsTable = DynamoTableSchema.new({
          * saved in a location that can't be tampered (signed browser cookie). Having a
          * valid session id in a secure location identifies a user with our services.
          */
-        Session: {
+        {
+            name: "Session",
             partitionKeyAttributes: {
                 sessionId: DynamoKeyAttributeSchema.id<SessionId>(),
             },
-            sortRanges: {
-                Attributes: {
+            sortRanges: [
+                {
+                    name: "Attributes",
                     sortKeyAttributes: {},
                     attributes: Schema.object({
                         /**
@@ -185,10 +191,10 @@ const AccountsTable = DynamoTableSchema.new({
                         initialUserAgent: Schema.string.nullable(),
                     }),
                 },
-            },
+            ],
         },
-    },
-});
+    ],
+} as const);
 
 /**
  * We are not allowed to export our DynamoDB tables so instead export a

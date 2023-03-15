@@ -23,7 +23,7 @@ import {Schema} from "~/shared/schema/schema";
 
 const SpacesTable = DynamoTableSchema.new({
     name: "Spaces",
-    partitions: {
+    partitions: [
         /**
          * We organize all content in our product into spaces. Many accounts may be
          * members of a space and our entities must have a parent space.
@@ -42,12 +42,14 @@ const SpacesTable = DynamoTableSchema.new({
          * - Eventually, to comply to EU regulations we will choose a home region for a
          *   space and all data associated with a space will live there.
          */
-        Space: {
+        {
+            name: "Space",
             partitionKeyAttributes: {
                 spaceId: DynamoKeyAttributeSchema.id<SpaceId>(),
             },
-            sortRanges: {
-                Attributes: {
+            sortRanges: [
+                {
+                    name: "Attributes",
                     sortKeyAttributes: {},
                     attributes: Schema.object({
                         name: LabelStringSchema,
@@ -58,7 +60,8 @@ const SpacesTable = DynamoTableSchema.new({
                 /**
                  * Represents an account that is a member of this space.
                  */
-                Account: {
+                {
+                    name: "Account",
                     sortKeyAttributes: {
                         accountId: DynamoKeyAttributeSchema.id<AccountId>(),
                     },
@@ -69,10 +72,10 @@ const SpacesTable = DynamoTableSchema.new({
                         joinedTime: Schema.date,
                     }),
                 },
-            },
+            ],
         },
-    },
-});
+    ],
+} as const);
 
 type SpaceAccountItem = DynamoTableItemType<typeof SpacesTable, "Space", "Account">;
 

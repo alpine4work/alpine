@@ -14,7 +14,6 @@ import {
     sendChatMessageToAccountsBeforeCreateChatTestCheckpoint,
     updateChatMessageContent,
 } from "~/server/dynamo/chat_table";
-import {backfillPostComments} from "~/server/dynamo/forum_table";
 import {getSpacesTableForTest} from "~/server/dynamo/spaces_table";
 import {testMessagingImplementation} from "~/server/dynamo/test_helpers/jest/test_messaging_implementation";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";

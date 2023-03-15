@@ -50,13 +50,15 @@ import {Schema} from "~/shared/schema/schema";
 
 const ForumTable = DynamoTableSchema.new({
     name: "Forum",
-    partitions: {
-        Channel: {
+    partitions: [
+        {
+            name: "Channel",
             partitionKeyAttributes: {
                 channelId: DynamoKeyAttributeSchema.id<ChannelId>(),
             },
-            sortRanges: {
-                Attributes: {
+            sortRanges: [
+                {
+                    name: "Attributes",
                     sortKeyAttributes: {},
                     attributes: Schema.object({
                         spaceId: Schema.id<SpaceId>(),
@@ -71,14 +73,16 @@ const ForumTable = DynamoTableSchema.new({
                         description: MessageContentSchema.default(emptyMessageContent),
                     }),
                 },
-            },
+            ],
         },
-        Post: {
+        {
+            name: "Post",
             partitionKeyAttributes: {
                 postId: DynamoKeyAttributeSchema.id<PostId>(),
             },
-            sortRanges: {
-                Attributes: {
+            sortRanges: [
+                {
+                    name: "Attributes",
                     sortKeyAttributes: {},
                     attributes: Schema.object({
                         spaceId: Schema.id<SpaceId>(),
@@ -135,11 +139,13 @@ const ForumTable = DynamoTableSchema.new({
                         }),
                     }),
                 },
+
                 /**
                  * Comments on a post. Has all the attributes needed for a message in
                  * `MessageInterface`.
                  */
-                Comments: {
+                {
+                    name: "Comments",
                     sortKeyAttributes: {
                         commentIndex: DynamoKeyAttributeSchema.integer,
                     },
@@ -149,6 +155,7 @@ const ForumTable = DynamoTableSchema.new({
                         payload: MessagePayloadSchema,
                     }),
                 },
+
                 /**
                  * We keep a log of changes to comments so that when backfilling for realtime
                  * we can send any missed updates between the last time data was loaded and
@@ -163,7 +170,8 @@ const ForumTable = DynamoTableSchema.new({
                  *
                  * Log items will expire after a certain amount of time.
                  */
-                CommentChangeLog: {
+                {
+                    name: "CommentChangeLog",
                     sortKeyAttributes: {
                         changeTime: DynamoKeyAttributeSchema.date,
                     },
@@ -182,10 +190,10 @@ const ForumTable = DynamoTableSchema.new({
                         }),
                     }),
                 },
-            },
+            ],
         },
-    },
-});
+    ],
+} as const);
 
 const ChannelPostsIndex = ForumTable.addIndex({
     name: "ChannelPosts",

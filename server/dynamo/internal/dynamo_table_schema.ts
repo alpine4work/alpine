@@ -42,6 +42,7 @@ import {quote} from "~/shared/helpers/string/quote";
 import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection";
+import {Replace} from "~/shared/helpers/types/replace";
 import {
     ObjectSchema,
     Schema,
@@ -192,8 +193,16 @@ type DynamoTableSchemaInitializationState =
  * - Queries use async iterators to transparently paginate.
  */
 export class DynamoTableSchema<
-    Types extends DynamoTableSchemaTypes.Types<DynamoTableSchemaTypes.ConfigBase>,
+    Types extends Replace<
+        DynamoTableSchemaTypes.Types<DynamoTableSchemaTypes.ConfigBase>,
+        // This types give TypeScript trouble when dealing with generics (try removing,
+        // the `new()` function should have errors). So any them out to not deal with
+        // it since we know it's safe.
+        {SortKeyMap: any; QueryKeyMap: any}
+    >,
 > {
+    private readonly _name: string;
+
     /**
      * The config is the object you pass into the constructor when initializing the
      * table.
@@ -206,7 +215,12 @@ export class DynamoTableSchema<
      *   object. So we pick shorter names like `partitions` instead of longer,
      *   explicit names like `partitionByType`.
      */
-    private readonly _config: DynamoTableSchemaTypes.ConfigBase;
+    private readonly _partitionConfigByName: Map<
+        string,
+        DynamoTableSchemaTypes.Partition.ConfigBase & {
+            readonly sortRangeByName: Map<string, DynamoTableSchemaTypes.SortRange.ConfigBase>;
+        }
+    >;
 
     /**
      * Our DynamoDB table schema initializes a little after construction since we
@@ -225,6 +239,8 @@ export class DynamoTableSchema<
     }
 
     private constructor(config: DynamoTableSchemaTypes.ConfigBase) {
+        const partitionNames = new Set<string>();
+
         // Validate that attribute names are identifiers that do not start with
         // underscores and that attribute names are unique. We do not allow identifiers
         // to start with underscores so we can reserve underscore names for framework
@@ -234,9 +250,22 @@ export class DynamoTableSchema<
         // serialize/deserialize with the schema we pick up those private attributes.
         config = {
             ...config,
-            partitions: mapObjectValues(
-                config.partitions,
+            partitions: config.partitions.map(
                 (partitionConfig): DynamoTableSchemaTypes.Partition.ConfigBase => {
+                    assert(
+                        isIdentifier(partitionConfig.name),
+                        "Partition name must be an identifier",
+                    );
+                    assert(
+                        partitionConfig.name[0] === partitionConfig.name[0]?.toUpperCase(),
+                        "Partition name must start with an uppercase letter",
+                    );
+                    assert(
+                        !partitionNames.has(partitionConfig.name),
+                        "Partition names must be unique within a table",
+                    );
+                    partitionNames.add(partitionConfig.name);
+
                     // Use the type system to make sure we write out all the shared attribute names.
                     const sharedAttributeNames: {
                         [K in keyof DynamoTableSchemaTypes.ItemSharedAttributes]: true;
@@ -279,11 +308,27 @@ export class DynamoTableSchema<
                         partitionAttributeNames.add(attributeName);
                     }
 
+                    const sortRangeNames = new Set<string>();
+
                     return {
                         ...partitionConfig,
-                        sortRanges: mapObjectValues(
-                            partitionConfig.sortRanges,
+                        sortRanges: partitionConfig.sortRanges.map(
                             (sortRangeConfig): DynamoTableSchemaTypes.SortRange.ConfigBase => {
+                                assert(
+                                    isIdentifier(sortRangeConfig.name),
+                                    "Sort range name must be an identifier",
+                                );
+                                assert(
+                                    sortRangeConfig.name[0] ===
+                                        sortRangeConfig.name[0]?.toUpperCase(),
+                                    "Sort range name must start with an uppercase letter",
+                                );
+                                assert(
+                                    !sortRangeNames.has(sortRangeConfig.name),
+                                    "Sort range names must be unique within a partition",
+                                );
+                                sortRangeNames.add(sortRangeConfig.name);
+
                                 const sortRangeAttributeNames = new Set(partitionAttributeNames);
 
                                 for (const attributeName of Object.keys(
@@ -340,13 +385,22 @@ export class DynamoTableSchema<
             ),
         };
 
-        this._config = config;
+        this._name = config.name;
 
-        assert(
-            !allConstructedDynamoTableSchemas.has(this._config.name),
-            "Table names must be unique",
+        this._partitionConfigByName = new Map(
+            config.partitions.map(partitionConfig => [
+                partitionConfig.name,
+                {
+                    ...partitionConfig,
+                    sortRangeByName: new Map(
+                        partitionConfig.sortRanges.map(sortRange => [sortRange.name, sortRange]),
+                    ),
+                },
+            ]),
         );
-        allConstructedDynamoTableSchemas.set(this._config.name, this);
+
+        assert(!allConstructedDynamoTableSchemas.has(this._name), "Table names must be unique");
+        allConstructedDynamoTableSchemas.set(this._name, this);
 
         // We need to initialize DynamoDB table schemas at the end of module
         // initialization because functions like `addIndex()` will extend the table
@@ -377,7 +431,7 @@ export class DynamoTableSchema<
             assert(!this._initializationState.isInitialized);
             const {description, readCompatibilityError, writeCompatibilityError} =
                 getAndCheckDynamoTableSchemaDescriptions(
-                    this._config,
+                    config,
                     this._initializationState.indexDescriptions,
                 );
 
@@ -392,7 +446,7 @@ export class DynamoTableSchema<
     }
 
     public getName() {
-        return this._config.name;
+        return this._name;
     }
 
     /**
@@ -560,7 +614,7 @@ export class DynamoTableSchema<
 
     private _serializePartitionKey(key: Types["PartitionKey"]): string {
         assert(this._initializationState.isInitialized, "Schema has not finished initializing");
-        const partitionConfig = this._config.partitions[key.partitionType];
+        const partitionConfig = this._partitionConfigByName.get(key.partitionType);
         const partitionDescription =
             this._initializationState.description.partitionByType[key.partitionType];
         assert(partitionConfig && partitionDescription, "Invalid partition");
@@ -580,11 +634,11 @@ export class DynamoTableSchema<
         sortKey: Types["SortKeyMap"][PartitionKey["partitionType"]],
     ) {
         assert(this._initializationState.isInitialized, "Schema has not finished initializing");
-        const partitionConfig = this._config.partitions[partitionKey.partitionType];
+        const partitionConfig = this._partitionConfigByName.get(partitionKey.partitionType);
         const partitionDescription =
             this._initializationState.description.partitionByType[partitionKey.partitionType];
         assert(partitionConfig && partitionDescription, "Invalid partition");
-        const sortRangeConfig = partitionConfig.sortRanges[sortKey.sortRangeType];
+        const sortRangeConfig = partitionConfig.sortRangeByName.get(sortKey.sortRangeType);
         const sortRangeDescription = partitionDescription.sortRangeByType[sortKey.sortRangeType];
         assert(sortRangeConfig && sortRangeDescription, "Invalid sort range");
 
@@ -604,11 +658,11 @@ export class DynamoTableSchema<
         attributesSchema: DynamoTableSchemaTypes.SortRange.ConfigBase["attributes"];
     } {
         assert(this._initializationState.isInitialized, "Schema has not finished initializing");
-        const partitionConfig = this._config.partitions[key.partitionType];
+        const partitionConfig = this._partitionConfigByName.get(key.partitionType);
         const partitionDescription =
             this._initializationState.description.partitionByType[key.partitionType];
         assert(partitionConfig && partitionDescription, "Invalid partition");
-        const sortRangeConfig = partitionConfig.sortRanges[key.sortRangeType];
+        const sortRangeConfig = partitionConfig.sortRangeByName.get(key.sortRangeType);
         const sortRangeDescription = partitionDescription.sortRangeByType[key.sortRangeType];
         assert(sortRangeConfig && sortRangeDescription, "Invalid sort range");
 
@@ -658,11 +712,11 @@ export class DynamoTableSchema<
         assert(sortRangeType, "Invalid sort key");
 
         assert(this._initializationState.isInitialized, "Schema has not finished initializing");
-        const partitionConfig = this._config.partitions[partitionType];
+        const partitionConfig = this._partitionConfigByName.get(partitionType);
         const partitionDescription =
             this._initializationState.description.partitionByType[partitionType];
         assert(partitionConfig && partitionDescription, "Invalid partition key");
-        const sortRangeConfig = partitionConfig.sortRanges[sortRangeType];
+        const sortRangeConfig = partitionConfig.sortRangeByName.get(sortRangeType);
         const sortRangeDescription = partitionDescription.sortRangeByType[sortRangeType];
         assert(sortRangeConfig && sortRangeDescription, "Invalid sort key");
 
@@ -769,7 +823,7 @@ export class DynamoTableSchema<
         const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
 
         const serializedItem = await client.getItem(context.tracer.getTracer(), {
-            tableName: this._config.name,
+            tableName: this._name,
             key: {partitionKey, sortKey},
             consistency,
         });
@@ -842,7 +896,7 @@ export class DynamoTableSchema<
         }
 
         const serializedItem = await client.getItem(context.tracer.getTracer(), {
-            tableName: this._config.name,
+            tableName: this._name,
             key: {partitionKey, sortKey},
             consistency,
             projectionExpression:
@@ -1156,7 +1210,7 @@ export class DynamoTableSchema<
 
         if (condition === undefined) {
             return client.putItem(context.tracer.getTracer(), {
-                tableName: this._config.name,
+                tableName: this._name,
                 key: {partitionKey, sortKey},
                 item: serializedItem,
             });
@@ -1169,7 +1223,7 @@ export class DynamoTableSchema<
             );
 
             return client.putItem(context.tracer.getTracer(), {
-                tableName: this._config.name,
+                tableName: this._name,
                 key: {partitionKey, sortKey},
                 item: serializedItem,
                 conditionExpression: conditionExpressionString,
@@ -1264,7 +1318,7 @@ export class DynamoTableSchema<
 
         if (condition === undefined) {
             return client.deleteItem(context.tracer.getTracer(), {
-                tableName: this._config.name,
+                tableName: this._name,
                 key: {partitionKey, sortKey},
             });
         } else {
@@ -1276,7 +1330,7 @@ export class DynamoTableSchema<
             );
 
             return client.deleteItem(context.tracer.getTracer(), {
-                tableName: this._config.name,
+                tableName: this._name,
                 key: {partitionKey, sortKey},
                 conditionExpression: conditionExpressionString,
                 expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
@@ -1463,7 +1517,7 @@ export class DynamoTableSchema<
 
         if (condition === undefined) {
             return DynamoClient.transactionPutItem({
-                tableName: this._config.name,
+                tableName: this._name,
                 item: serializedItem,
             });
         } else {
@@ -1475,7 +1529,7 @@ export class DynamoTableSchema<
             );
 
             return DynamoClient.transactionPutItem({
-                tableName: this._config.name,
+                tableName: this._name,
                 item: serializedItem,
                 conditionExpression: conditionExpressionString,
                 expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
@@ -1554,7 +1608,7 @@ export class DynamoTableSchema<
 
         if (condition === undefined) {
             return DynamoClient.transactionDeleteItem({
-                tableName: this._config.name,
+                tableName: this._name,
                 key: {partitionKey, sortKey},
             });
         } else {
@@ -1566,7 +1620,7 @@ export class DynamoTableSchema<
             );
 
             return DynamoClient.transactionDeleteItem({
-                tableName: this._config.name,
+                tableName: this._name,
                 key: {partitionKey, sortKey},
                 conditionExpression: conditionExpressionString,
                 expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
@@ -1612,7 +1666,7 @@ export class DynamoTableSchema<
         );
 
         return DynamoClient.transactionConditionCheck({
-            tableName: this._config.name,
+            tableName: this._name,
             key: {partitionKey, sortKey},
             conditionExpression: conditionExpressionString,
             expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
@@ -1643,7 +1697,7 @@ export class DynamoTableSchema<
         );
 
         return DynamoClient.transactionConditionCheck({
-            tableName: this._config.name,
+            tableName: this._name,
             key: {partitionKey, sortKey},
             conditionExpression: conditionExpressionString,
             expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
@@ -1724,7 +1778,7 @@ export class DynamoTableSchema<
 
         return DynamoTransactionEntry._newFromClient(DynamoClient, {
             Update: {
-                TableName: this._config.name,
+                TableName: this._name,
                 Key: intoDynamoAttributeValueObject({partitionKey, sortKey}),
                 UpdateExpression:
                     serializedValue === undefined
@@ -1798,7 +1852,7 @@ export class DynamoTableSchema<
             : undefined;
 
         const iterator = client.query(context.tracer.getTracer(), {
-            tableName: this._config.name,
+            tableName: this._name,
             partitionKey: {
                 name: "partitionKey",
                 value: serializedPartitionKey,
@@ -1861,7 +1915,7 @@ export class DynamoTableSchema<
         const client = await this._getClient(context, false);
 
         const iterator = client.expensiveScan(context.tracer.getTracer(), {
-            tableName: this._config.name,
+            tableName: this._name,
             consistency,
             limit,
         });
@@ -1978,9 +2032,9 @@ export class DynamoTableSchema<
         const itemTypeSet = new Set<string>();
 
         for (const {partitionType, sortRangeType} of itemTypes) {
-            const partitionConfig = this._config.partitions[partitionType];
+            const partitionConfig = this._partitionConfigByName.get(partitionType);
             assert(partitionConfig, "Invalid partition");
-            const sortRangeConfig = partitionConfig.sortRanges[sortRangeType];
+            const sortRangeConfig = partitionConfig.sortRangeByName.get(sortRangeType);
             assert(sortRangeConfig, "Invalid sort range");
 
             const itemType = `${partitionType}#${sortRangeType}`;
@@ -2114,7 +2168,7 @@ export class DynamoTableSchema<
                 const sortKeyAttributeName = `index${indexConfig.indexNumber}SortKey`;
 
                 const iterator = client.query(context.tracer.getTracer(), {
-                    tableName: schema._config.name,
+                    tableName: schema._name,
                     indexName: `Index${indexConfig.indexNumber}`,
                     partitionKey: {
                         name: partitionKeyAttributeName,
@@ -2324,9 +2378,8 @@ function getAndCheckDynamoTableSchemaDescriptions(
 
     const description: DynamoTableSchemaTypes.Description = {
         name: config.name,
-        partitionByType: mapObjectValues(
-            config.partitions,
-            (partitionConfig, partitionType): DynamoTableSchemaTypes.Partition.Description => {
+        partitionByType: Object.fromEntries(
+            config.partitions.map(partitionConfig => {
                 // Iterate through all our sort ranges, in order, finding contiguous subsets of
                 // the list which do not have an `OrderKey` in the last description. For these
                 // sort ranges generate new `OrderKey`s for our new description.
@@ -2334,14 +2387,14 @@ function getAndCheckDynamoTableSchemaDescriptions(
                 let lastExistingSortRangeOrderKey: OrderKey | null = null;
                 let sortRangeTypesWithoutExistingOrderKey = [];
 
-                for (const sortRangeType of Object.keys(partitionConfig.sortRanges)) {
+                for (const sortRangeConfig of partitionConfig.sortRanges) {
                     const existingSortRangeOrderKey =
-                        lastDescription?.partitionByType[partitionType]?.sortRangeByType[
-                            sortRangeType
+                        lastDescription?.partitionByType[partitionConfig.name]?.sortRangeByType[
+                            sortRangeConfig.name
                         ]?.orderKey;
 
                     if (!existingSortRangeOrderKey) {
-                        sortRangeTypesWithoutExistingOrderKey.push(sortRangeType);
+                        sortRangeTypesWithoutExistingOrderKey.push(sortRangeConfig.name);
                     } else {
                         // The order of `sortRanges` in our config object matters! It must be the same
                         // as the order key order. Throw an error if we detect the developer may have
@@ -2351,7 +2404,7 @@ function getAndCheckDynamoTableSchemaDescriptions(
                             lastExistingSortRangeOrderKey >= existingSortRangeOrderKey
                         ) {
                             throw new InvalidArgumentError(
-                                `Order key for sort range \`${sortRangeType}\` is less than a previous sort range order key. Did you reorder your sort range object?`,
+                                `Order key for sort range \`${sortRangeConfig.name}\` is less than a previous sort range order key. Did you reorder your sort range object?`,
                             );
                         }
 
@@ -2374,7 +2427,10 @@ function getAndCheckDynamoTableSchemaDescriptions(
 
                         lastExistingSortRangeOrderKey = existingSortRangeOrderKey;
                         sortRangeTypesWithoutExistingOrderKey = [];
-                        sortRangeOrderKeyByType.set(sortRangeType, existingSortRangeOrderKey);
+                        sortRangeOrderKeyByType.set(
+                            sortRangeConfig.name,
+                            existingSortRangeOrderKey,
+                        );
                     }
                 }
 
@@ -2391,27 +2447,30 @@ function getAndCheckDynamoTableSchemaDescriptions(
                     );
                 }
 
-                return {
+                const partitionDescription: DynamoTableSchemaTypes.Partition.Description = {
                     partitionKeyAttributeByKey: mapObjectValues(
                         partitionConfig.partitionKeyAttributes,
                         keyAttribute => keyAttribute.description,
                     ),
-                    sortRangeByType: mapObjectValues(
-                        partitionConfig.sortRanges,
-                        (
-                            sortRangeConfig,
-                            sortRangeType,
-                        ): DynamoTableSchemaTypes.SortRange.Description => ({
-                            orderKey: sortRangeOrderKeyByType.get(sortRangeType)!,
-                            sortKeyAttributeByKey: mapObjectValues(
-                                sortRangeConfig.sortKeyAttributes,
-                                keyAttribute => keyAttribute.description,
-                            ),
-                            attributesSchema: sortRangeConfig.attributes.getDescription(),
+                    sortRangeByType: Object.fromEntries(
+                        partitionConfig.sortRanges.map(sortRangeConfig => {
+                            const sortRangeDescription: DynamoTableSchemaTypes.SortRange.Description =
+                                {
+                                    orderKey: sortRangeOrderKeyByType.get(sortRangeConfig.name)!,
+                                    sortKeyAttributeByKey: mapObjectValues(
+                                        sortRangeConfig.sortKeyAttributes,
+                                        keyAttribute => keyAttribute.description,
+                                    ),
+                                    attributesSchema: sortRangeConfig.attributes.getDescription(),
+                                };
+
+                            return [sortRangeConfig.name, sortRangeDescription];
                         }),
                     ),
                 };
-            },
+
+                return [partitionConfig.name, partitionDescription];
+            }),
         ),
         indexes: indexDescriptions,
     };

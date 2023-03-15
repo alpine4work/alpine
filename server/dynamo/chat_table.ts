@@ -45,21 +45,23 @@ import {Schema} from "~/shared/schema/schema";
 
 const ChatTable = DynamoTableSchema.new({
     name: "Chat",
-    partitions: {
+    partitions: [
         /**
          * A chat is a long series of messages over time. It conforms to our
          * messaging implementation so we can render consistent messaging UI across
          * the product.
          */
-        Chat: {
+        {
+            name: "Chat",
             partitionKeyAttributes: {
                 chatId: DynamoKeyAttributeSchema.id<ChatId>(),
             },
-            sortRanges: {
+            sortRanges: [
                 /**
                  * Information about the chat itself.
                  */
-                Attributes: {
+                {
+                    name: "Attributes",
                     sortKeyAttributes: {},
                     attributes: Schema.object({
                         /** The space a chat lives in. */
@@ -96,7 +98,8 @@ const ChatTable = DynamoTableSchema.new({
                  * Accounts that are members of the chat. We have a reverse index of accounts
                  * to chats the account is a member of.
                  */
-                Account: {
+                {
+                    name: "Account",
                     sortKeyAttributes: {
                         accountId: DynamoKeyAttributeSchema.id<AccountId>(),
                     },
@@ -115,7 +118,8 @@ const ChatTable = DynamoTableSchema.new({
                 /**
                  * All the messages in our chat.
                  */
-                Messages: {
+                {
+                    name: "Messages",
                     sortKeyAttributes: {
                         messageIndex: DynamoKeyAttributeSchema.integer,
                     },
@@ -140,7 +144,8 @@ const ChatTable = DynamoTableSchema.new({
                  *
                  * Log items will expire after a certain amount of time.
                  */
-                MessageChangeLog: {
+                {
+                    name: "MessageChangeLog",
                     sortKeyAttributes: {
                         changeTime: DynamoKeyAttributeSchema.date,
                     },
@@ -159,10 +164,10 @@ const ChatTable = DynamoTableSchema.new({
                         }),
                     }),
                 },
-            },
+            ],
         },
-    },
-});
+    ],
+} as const);
 
 const AccountChatsIndex = ChatTable.addIndex({
     name: "AccountChats",
@@ -298,8 +303,16 @@ export async function getOptimisticChatId(
     // applications! However, we do not need security guarantees here, this is a
     // performance optimization. We use MD5 since it is fast and it outputs as
     // 128-bit value. Our `Id`s our 128-bit so this aligns quite well.
+    //
+    // We don't have `@types/node` for this package so TypeScript doesn't know
+    // about the `require()` function. We can't expect the error since when type
+    // checking globally TypeScript does know about the `require()` function.
+    // eslint-disable-next-line @typescript-eslint/prefer-ts-expect-error
+    // @ts-ignore
     if (typeof require !== "undefined") {
         // If we are in Node.js use the `crypto` module.
+        // eslint-disable-next-line @typescript-eslint/prefer-ts-expect-error
+        // @ts-ignore
         const crypto = require("crypto");
         return encodeId(
             new Uint8Array(

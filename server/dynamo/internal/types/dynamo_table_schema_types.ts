@@ -4,8 +4,9 @@ import type {
     DynamoKeyAttributeSchemaType,
 } from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import type {OrderKey} from "~/shared/helpers/sort/order_key";
+import {IdentityType} from "~/shared/helpers/types/identity_type";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection";
-import {UnionToTuple} from "~/shared/helpers/types/union_to_tuple";
+import {UnionToIntersection} from "~/shared/helpers/types/union_to_intersection";
 import type {ObjectSchema, SchemaType} from "~/shared/schema/schema";
 import {SchemaSerializedValueDescription} from "~/shared/schema/types/schema_description_types";
 
@@ -54,9 +55,7 @@ export namespace DynamoTableSchemaTypes {
      */
     export type ConfigBase = {
         readonly name: string;
-        readonly partitions: {
-            readonly [type: string]: Partition.ConfigBase;
-        };
+        readonly partitions: ReadonlyArray<Partition.ConfigBase>;
     };
 
     /**
@@ -88,134 +87,13 @@ export namespace DynamoTableSchemaTypes {
      * purpose is.
      */
     export type Types<Config extends ConfigBase> = {
-        PartitionKey: PartitionKeyType<Config>;
-        SortKeyMap: SortKeyMapType<Config>;
-        ItemType: ItemTypeType<Config>;
-        ItemKey: ItemKeyType<Config>;
-        Item: ItemType<Config>;
-        QueryKeyMap: QueryKeyMapType<Config>;
+        PartitionKey: Partition.PartitionKeyTypes<Config["partitions"]>;
+        SortKeyMap: Partition.SortKeyMapTypes<Config["partitions"]>;
+        ItemType: Partition.ItemTypeTypes<Config["partitions"]>;
+        ItemKey: Partition.ItemKeyTypes<Config["partitions"]>;
+        Item: Partition.ItemTypes<Config["partitions"]>;
+        QueryKeyMap: Partition.QueryKeyMapType<Config["partitions"]>;
     };
-
-    /**
-     * The type of a partition key for our table.
-     *
-     * A table could have multiple types of partitions, in this case the type is a
-     * union of they key type for all partitions.
-     *
-     * You can use `partitionType` to narrow down to an individual partition type.
-     *
-     * Attributes come from `partitionKeyAttributes`.
-     *
-     * Example:
-     *
-     * ```ts
-     * type PartitionKey =
-     *     | {partitionType: "A", a: number}
-     *     | {partitionType: "B", b: number};
-     * ```
-     */
-    export type PartitionKeyType<Config extends ConfigBase> = {
-        [Type in keyof Config["partitions"]]: MergeObjectIntersection<
-            {
-                readonly partitionType: Type;
-            } & KeyAttributes.Type<Config["partitions"][Type]["partitionKeyAttributes"]>
-        >;
-    }[keyof Config["partitions"]];
-
-    /**
-     * A map of partition type to the sort key type union for that partition.
-     */
-    export type SortKeyMapType<Config extends ConfigBase> = {
-        [PartitionType in keyof Config["partitions"] & string]: Partition.SortKeyType<
-            Config["partitions"][PartitionType]
-        >;
-    };
-
-    /**
-     * The type of items in our table.
-     *
-     * An `ItemKey` is also a valid `ItemType`.
-     *
-     * There is a different type for every sort range in our table. This type
-     * is a union of all types for all sort ranges.
-     *
-     * Excludes attributes from `partitionKeyAttributes` and `sortKeyAttributes`.
-     *
-     * Example:
-     *
-     * ```ts
-     * type ItemType =
-     *     | {partitionType: "A", sortRangeType: "X"}
-     *     | {partitionType: "A", sortRangeType: "Y"}
-     *     | {partitionType: "B", sortRangeType: "X"}
-     *     | {partitionType: "B", sortRangeType: "Y"}
-     *     | {partitionType: "B", sortRangeType: "Z"};
-     * ```
-     */
-    export type ItemTypeType<Config extends ConfigBase> = {
-        [Type in keyof Config["partitions"] & string]: MergeObjectIntersection<
-            {
-                readonly partitionType: Type;
-            } & Partition.ItemTypeType<Config["partitions"][Type]>
-        >;
-    }[keyof Config["partitions"] & string];
-
-    /**
-     * The type of key for our type. A key identifies an item in the table.
-     *
-     * An `ItemKey` is also a valid `PartitionKey`.
-     *
-     * There is a different key type for every sort range in our table. This type
-     * is a union of all key types for all sort ranges.
-     *
-     * You can use `partitionType` to narrow down to an individual partition type
-     * and then `sortRangeType` to narrow down to an individual sort range within
-     * that partition.
-     *
-     * Attributes come from `partitionKeyAttributes` and `sortKeyAttributes`.
-     *
-     * Example:
-     *
-     * ```ts
-     * type ItemKey =
-     *     | {partitionType: "A", a: number, sortRangeType: "X", x: number}
-     *     | {partitionType: "A", a: number, sortRangeType: "Y", y: number}
-     *     | {partitionType: "B", b: number, sortRangeType: "X", x: number}
-     *     | {partitionType: "B", b: number, sortRangeType: "Y", y: number}
-     *     | {partitionType: "B", b: number, sortRangeType: "Z", z: number};
-     * ```
-     */
-    export type ItemKeyType<Config extends ConfigBase> = {
-        [Type in keyof Config["partitions"] & string]: MergeObjectIntersection<
-            {
-                readonly partitionType: Type;
-            } & KeyAttributes.Type<Config["partitions"][Type]["partitionKeyAttributes"]> &
-                Partition.ItemKeyType<Config["partitions"][Type]>
-        >;
-    }[keyof Config["partitions"] & string];
-
-    /**
-     * The type of an item in our table.
-     *
-     * An `Item` is also a valid `Key` since the `Item` contains the `Key` which
-     * identifies it.
-     *
-     * Each sort range stores different item data. This type is a union of all sort
-     * range item types.
-     *
-     * You can use `partitionType` to narrow down to an individual partition type
-     * and then `sortRangeType` to narrow down to an individual sort range within
-     * that partition.
-     */
-    export type ItemType<Config extends ConfigBase> = {
-        [Type in keyof Config["partitions"] & string]: MergeObjectIntersection<
-            {
-                readonly partitionType: Type;
-            } & KeyAttributes.Type<Config["partitions"][Type]["partitionKeyAttributes"]> &
-                Partition.ItemType<Config["partitions"][Type]> &
-                ItemSharedAttributes
-        >;
-    }[keyof Config["partitions"] & string];
 
     /**
      * Internal properties shared across all items.
@@ -236,31 +114,6 @@ export namespace DynamoTableSchemaTypes {
     };
 
     /**
-     * A map we use for determining the return type of the `query()` function.
-     *
-     * It is a map of partition types to sort range types to sort range types
-     * (again) to a tuple of sort range types.
-     *
-     * The first sort range type is the "start" sort range type. Or the sort range
-     * type of the start key in a query. The second sort range type is the "end"
-     * sort range type. Or the sort range type of the end key in a query.
-     *
-     * The tuple of sort range types represents all sort ranges between the start
-     * sort range type and the end sort range type.
-     *
-     * So by doing `QueryKeyMap[PartitionType][StartSortRangeType][EndSortRangeType]`
-     * you will get a tuple of sort range types between start and end. The
-     * `query()` function returns an item type that only includes items from those
-     * sort ranges.
-     */
-    export type QueryKeyMapType<Config extends ConfigBase> = {
-        [PartitionType in keyof Config["partitions"]]: Partition.QueryKeyMapType<
-            Config["partitions"][PartitionType],
-            UnionToTuple<keyof Config["partitions"][PartitionType]["sortRanges"] & string>
-        >;
-    };
-
-    /**
      * Types shared by both `partitionKeyAttributes` and `sortKeyAttributes`.
      */
     export namespace KeyAttributes {
@@ -268,17 +121,16 @@ export namespace DynamoTableSchemaTypes {
             readonly [key: string]: DynamoKeyAttributeSchema<any>;
         };
 
-        export type Type<Config extends ConfigBase> = {
+        export type Type<Config extends ConfigBase> = IdentityType<{
             readonly [Key in keyof Config]: DynamoKeyAttributeSchemaType<Config[Key]>;
-        };
+        }>;
     }
 
     export namespace Partition {
         export type ConfigBase = {
+            readonly name: string;
             readonly partitionKeyAttributes: KeyAttributes.ConfigBase;
-            readonly sortRanges: {
-                readonly [type: string]: SortRange.ConfigBase;
-            };
+            readonly sortRanges: ReadonlyArray<SortRange.ConfigBase>;
         };
 
         export type Description = {
@@ -290,46 +142,212 @@ export namespace DynamoTableSchemaTypes {
             };
         };
 
-        export type SortKeyType<Config extends ConfigBase> = {
-            [Type in keyof Config["sortRanges"] & string]: {
-                readonly sortRangeType: Type;
-            } & SortRange.ItemKeyType<Config["sortRanges"][Type]>;
-        }[keyof Config["sortRanges"] & string];
+        /**
+         * The type of a partition key for our table.
+         *
+         * A table could have multiple types of partitions, in this case the type is a
+         * union of they key type for all partitions.
+         *
+         * You can use `partitionType` to narrow down to an individual partition type.
+         *
+         * Attributes come from `partitionKeyAttributes`.
+         *
+         * Example:
+         *
+         * ```ts
+         * type PartitionKey =
+         *     | {partitionType: "A", a: number}
+         *     | {partitionType: "B", b: number};
+         * ```
+         */
+        export type PartitionKeyTypes<Config extends ReadonlyArray<ConfigBase>> = {
+            [Index in keyof Config]: PartitionKeyType<Config[Index]>;
+        }[number];
 
-        export type ItemTypeType<Config extends ConfigBase> = {
-            [Type in keyof Config["sortRanges"] & string]: {
-                readonly sortRangeType: Type;
-            };
-        }[keyof Config["sortRanges"] & string];
-
-        export type ItemKeyType<Config extends ConfigBase> = KeyAttributes.Type<
-            Config["partitionKeyAttributes"]
-        > &
+        type PartitionKeyType<Config extends ConfigBase> = MergeObjectIntersection<
             {
-                [Type in keyof Config["sortRanges"] & string]: {
-                    readonly sortRangeType: Type;
-                } & SortRange.ItemKeyType<Config["sortRanges"][Type]>;
-            }[keyof Config["sortRanges"] & string];
+                readonly partitionType: Config["name"];
+            } & KeyAttributes.Type<Config["partitionKeyAttributes"]>
+        >;
 
-        export type ItemType<Config extends ConfigBase> = KeyAttributes.Type<
-            Config["partitionKeyAttributes"]
-        > &
+        /**
+         * A map of partition type to the sort key type union for that partition.
+         */
+        export type SortKeyMapTypes<Config extends ReadonlyArray<ConfigBase>> =
+            MergeObjectIntersection<
+                UnionToIntersection<
+                    {
+                        [Index in keyof Config]: {
+                            [Key in Config[Index]["name"]]: SortRange.SortKeyTypes<
+                                Config[Index]["sortRanges"]
+                            >;
+                        };
+                    }[number]
+                >
+            >;
+
+        /**
+         * The type of items in our table.
+         *
+         * An `ItemKey` is also a valid `ItemType`.
+         *
+         * There is a different type for every sort range in our table. This type
+         * is a union of all types for all sort ranges.
+         *
+         * Excludes attributes from `partitionKeyAttributes` and `sortKeyAttributes`.
+         *
+         * Example:
+         *
+         * ```ts
+         * type ItemType =
+         *     | {partitionType: "A", sortRangeType: "X"}
+         *     | {partitionType: "A", sortRangeType: "Y"}
+         *     | {partitionType: "B", sortRangeType: "X"}
+         *     | {partitionType: "B", sortRangeType: "Y"}
+         *     | {partitionType: "B", sortRangeType: "Z"};
+         * ```
+         */
+        export type ItemTypeTypes<Config extends ReadonlyArray<ConfigBase>> = {
+            [Index in keyof Config]: ItemTypeType<Config[Index]>;
+        }[number];
+
+        type ItemTypeType<Config extends ConfigBase> = MergeObjectIntersection<
             {
-                [Type in keyof Config["sortRanges"] & string]: {
-                    readonly sortRangeType: Type;
-                } & SortRange.ItemType<Config["sortRanges"][Type]>;
-            }[keyof Config["sortRanges"] & string];
+                readonly partitionType: Config["name"];
+            } & SortRange.ItemTypeTypes<Config["sortRanges"]>
+        >;
 
-        export type QueryKeyMapType<Config extends ConfigBase, Tuple extends Array<unknown>> = {
-            [StartPartitionSortType in keyof Config["sortRanges"] & string]: {
-                [EndPartitionSortType in keyof Config["sortRanges"] &
-                    string]: TupleDropBeforeAndTakeUntil<
-                    Tuple,
-                    StartPartitionSortType,
-                    EndPartitionSortType
-                >[number];
-            };
+        /**
+         * The type of key for our type. A key identifies an item in the table.
+         *
+         * An `ItemKey` is also a valid `PartitionKey`.
+         *
+         * There is a different key type for every sort range in our table. This type
+         * is a union of all key types for all sort ranges.
+         *
+         * You can use `partitionType` to narrow down to an individual partition type
+         * and then `sortRangeType` to narrow down to an individual sort range within
+         * that partition.
+         *
+         * Attributes come from `partitionKeyAttributes` and `sortKeyAttributes`.
+         *
+         * Example:
+         *
+         * ```ts
+         * type ItemKey =
+         *     | {partitionType: "A", a: number, sortRangeType: "X", x: number}
+         *     | {partitionType: "A", a: number, sortRangeType: "Y", y: number}
+         *     | {partitionType: "B", b: number, sortRangeType: "X", x: number}
+         *     | {partitionType: "B", b: number, sortRangeType: "Y", y: number}
+         *     | {partitionType: "B", b: number, sortRangeType: "Z", z: number};
+         * ```
+         */
+        export type ItemKeyTypes<Config extends ReadonlyArray<ConfigBase>> = {
+            [Index in keyof Config]: ItemKeyType<Config[Index]>;
+        }[number];
+
+        type ItemKeyType<Config extends ConfigBase> = MergeObjectIntersection<
+            {
+                readonly partitionType: Config["name"];
+            } & KeyAttributes.Type<Config["partitionKeyAttributes"]> &
+                SortRange.ItemKeyTypes<Config["sortRanges"]>
+        >;
+
+        /**
+         * The type of an item in our table.
+         *
+         * An `Item` is also a valid `Key` since the `Item` contains the `Key` which
+         * identifies it.
+         *
+         * Each sort range stores different item data. This type is a union of all sort
+         * range item types.
+         *
+         * You can use `partitionType` to narrow down to an individual partition type
+         * and then `sortRangeType` to narrow down to an individual sort range within
+         * that partition.
+         */
+        export type ItemTypes<Config extends ReadonlyArray<ConfigBase>> = {
+            [Index in keyof Config]: ItemType<Config[Index]>;
+        }[number];
+
+        type ItemType<Config extends ConfigBase> = MergeObjectIntersection<
+            {
+                readonly partitionType: Config["name"];
+            } & KeyAttributes.Type<Config["partitionKeyAttributes"]> &
+                SortRange.ItemTypes<Config["sortRanges"]> &
+                ItemSharedAttributes
+        >;
+
+        /**
+         * A map we use for determining the return type of the `query()` function.
+         *
+         * It is a map of partition types to sort range types to sort range types
+         * (again) to a tuple of sort range types.
+         *
+         * The first sort range type is the "start" sort range type. Or the sort range
+         * type of the start key in a query. The second sort range type is the "end"
+         * sort range type. Or the sort range type of the end key in a query.
+         *
+         * The tuple of sort range types represents all sort ranges between the start
+         * sort range type and the end sort range type.
+         *
+         * So by doing `QueryKeyMap[PartitionType][StartSortRangeType][EndSortRangeType]`
+         * you will get a tuple of sort range types between start and end. The
+         * `query()` function returns an item type that only includes items from those
+         * sort ranges.
+         */
+        export type QueryKeyMapType<Config extends ReadonlyArray<ConfigBase>> =
+            MergeObjectIntersection<
+                UnionToIntersection<
+                    {
+                        [Index in keyof Config]: {
+                            [Key in Config[Index]["name"]]: QueryKeyMapTypeStartMap<
+                                Config[Index]["sortRanges"],
+                                SortRangeTypeTuple<Config[Index]["sortRanges"]>
+                            >;
+                        };
+                    }[number]
+                >
+            >;
+
+        type SortRangeTypeTuple<Config extends ConfigBase["sortRanges"]> = {
+            [Index in keyof Config]: Config[Index]["name"];
         };
+
+        type QueryKeyMapTypeStartMap<
+            Config extends ConfigBase["sortRanges"],
+            SortTypes,
+        > = MergeObjectIntersection<
+            UnionToIntersection<
+                {
+                    [StartIndex in keyof Config]: {
+                        [Key in Config[StartIndex]["name"]]: QueryKeyMapTypeEndMap<
+                            Config,
+                            SortTypes,
+                            Config[StartIndex]["name"]
+                        >;
+                    };
+                }[number]
+            >
+        >;
+
+        type QueryKeyMapTypeEndMap<
+            Config extends ConfigBase["sortRanges"],
+            SortTypes,
+            StartSortType extends string,
+        > = MergeObjectIntersection<
+            UnionToIntersection<
+                {
+                    [EndIndex in keyof Config]: {
+                        [Key in Config[EndIndex]["name"]]: TupleDropBeforeAndTakeUntil<
+                            SortTypes,
+                            StartSortType,
+                            Config[EndIndex]["name"]
+                        >[number];
+                    };
+                }[number]
+            >
+        >;
 
         /**
          * Take a `Tuple` and return values between `DropBefore` and `TakeUntil`.
@@ -337,26 +355,23 @@ export namespace DynamoTableSchemaTypes {
          * So `TakeDropBeforeAndTakeUntil<["a", "b", "c", "d"], "b", "d">` is the
          * same as `["b", "c", "d"]`.
          */
-        export type TupleDropBeforeAndTakeUntil<
-            Tuple extends Array<any>,
-            DropBefore extends any,
-            TakeUntil extends any,
-        > = Tuple extends [DropBefore, ...any]
-            ? TupleTakeUntil<Tuple, TakeUntil, []>
-            : Tuple extends [any, ...infer Tail]
-            ? TupleDropBeforeAndTakeUntil<Tail, DropBefore, TakeUntil>
-            : Tuple extends []
-            ? // If don't find `DropBefore` in the tuple then return `never`.
-              never
-            : never;
+        export type TupleDropBeforeAndTakeUntil<Tuple, DropBefore, TakeUntil> =
+            Tuple extends readonly [DropBefore, ...any]
+                ? TupleTakeUntil<Tuple, TakeUntil, []>
+                : Tuple extends readonly [any, ...infer Tail]
+                ? TupleDropBeforeAndTakeUntil<Tail, DropBefore, TakeUntil>
+                : Tuple extends readonly []
+                ? // If don't find `DropBefore` in the tuple then return `never`.
+                  never
+                : never;
 
         type TupleTakeUntil<
-            Tuple extends Array<any>,
-            TakeUntil extends any,
-            AccTuple extends Array<any>,
-        > = Tuple extends [TakeUntil, ...any]
+            Tuple,
+            TakeUntil,
+            AccTuple extends ReadonlyArray<any>,
+        > = Tuple extends readonly [TakeUntil, ...any]
             ? [TakeUntil, ...AccTuple]
-            : Tuple extends [infer Head, ...infer Tail]
+            : Tuple extends readonly [infer Head, ...infer Tail]
             ? // Optimization: We use tail recursion to optimize this type. Linked list
               // iteration can typically be written in a tail recursive fashion but it
               // reverses the order of the list.
@@ -372,7 +387,7 @@ export namespace DynamoTableSchemaTypes {
               // efficient here:
               // https://devblogs.microsoft.com/typescript/announcing-typescript-4-5/#tailrec-conditional
               TupleTakeUntil<Tail, TakeUntil, [Head, ...AccTuple]>
-            : Tuple extends []
+            : Tuple extends readonly []
             ? // If we don't find `TakeUntil` in the tuple then return `never`.
               never
             : never;
@@ -380,6 +395,7 @@ export namespace DynamoTableSchemaTypes {
 
     export namespace SortRange {
         export type ConfigBase = {
+            readonly name: string;
             readonly sortKeyAttributes: KeyAttributes.ConfigBase;
             readonly attributes: ObjectSchema<any>;
             /**
@@ -404,13 +420,37 @@ export namespace DynamoTableSchemaTypes {
             readonly attributesSchema: SchemaSerializedValueDescription;
         };
 
-        export type ItemKeyType<Config extends ConfigBase> = KeyAttributes.Type<
-            Config["sortKeyAttributes"]
+        export type SortKeyTypes<Config extends ReadonlyArray<ConfigBase>> = {
+            [Index in keyof Config]: SortKeyType<Config[Index]>;
+        }[number];
+
+        type SortKeyType<Config extends ConfigBase> = MergeObjectIntersection<
+            {
+                readonly sortRangeType: Config["name"];
+            } & KeyAttributes.Type<Config["sortKeyAttributes"]>
         >;
 
-        export type ItemType<Config extends ConfigBase> = KeyAttributes.Type<
-            Config["sortKeyAttributes"]
-        > &
+        export type ItemTypeTypes<Config extends ReadonlyArray<ConfigBase>> = {
+            [Index in keyof Config]: {
+                readonly sortRangeType: Config[Index]["name"];
+            };
+        }[number];
+
+        export type ItemKeyTypes<Config extends ReadonlyArray<ConfigBase>> = {
+            [Index in keyof Config]: ItemKeyType<Config[Index]>;
+        }[number];
+
+        type ItemKeyType<Config extends ConfigBase> = {
+            readonly sortRangeType: Config["name"];
+        } & KeyAttributes.Type<Config["sortKeyAttributes"]>;
+
+        export type ItemTypes<Config extends ReadonlyArray<ConfigBase>> = {
+            [Index in keyof Config]: ItemType<Config[Index]>;
+        }[number];
+
+        type ItemType<Config extends ConfigBase> = {
+            readonly sortRangeType: Config["name"];
+        } & KeyAttributes.Type<Config["sortKeyAttributes"]> &
             SchemaType<Config["attributes"]> &
             ExpirationTimeType<Config["withExpirationTime"]>;
 

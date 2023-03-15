@@ -37,19 +37,21 @@ import {Schema} from "~/shared/schema/schema";
 
 const AlphaAccessTable = DynamoTableSchema.new({
     name: "AlphaAccess",
-    partitions: {
+    partitions: [
         /**
          * We include one item in our alpha access table with some configuration
          * options that we can change on the fly.
          */
-        AlphaConfiguration: {
+        {
+            name: "AlphaConfiguration",
             partitionKeyAttributes: {},
-            sortRanges: {
-                Configuration: {
+            sortRanges: [
+                {
+                    name: "Configuration",
                     sortKeyAttributes: {},
                     attributes: AlphaConfigurationSchema,
                 },
-            },
+            ],
         },
 
         /**
@@ -58,10 +60,12 @@ const AlphaAccessTable = DynamoTableSchema.new({
          *
          * We expect a small number of alpha access requests.
          */
-        AlphaAccessRequests: {
+        {
+            name: "AlphaAccessRequests",
             partitionKeyAttributes: {},
-            sortRanges: {
-                Request: {
+            sortRanges: [
+                {
+                    name: "Request",
                     sortKeyAttributes: {
                         /**
                          * Can only have one access request per email address.
@@ -89,10 +93,10 @@ const AlphaAccessTable = DynamoTableSchema.new({
                         decision: AlphaAccessRequestDecisionSchema.nullable(),
                     }),
                 },
-            },
+            ],
         },
-    },
-});
+    ],
+} as const);
 
 export async function seedTestAlphaConfiguration(context: DynamoContext) {
     assert(process.env.NODE_ENV !== "production");

@@ -6,6 +6,7 @@ ts_project(
     visibility = ["//visibility:public"],
     deps = [
         "//:node_modules/@types/functional-red-black-tree",
+        "//:node_modules/@types/jest",
         "//:node_modules/date-fns",
         "//:node_modules/functional-red-black-tree",
         "//shared/error:error_core",
