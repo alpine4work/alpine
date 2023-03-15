@@ -7,48 +7,51 @@ overrides:
   esbuild: 0.17.10
 
 patchedDependencies:
-  media-query-parser@2.0.2:
-    hash: saj64dz6s226nfs27aiqrqatfi
-    path: admin/patches/media-query-parser@2.0.2.patch
   '@types/react@18.0.15':
     hash: eitozuphd7tv5mmhqkwd7vh76e
     path: admin/patches/@types__react@18.0.15.patch
+  media-query-parser@2.0.2:
+    hash: saj64dz6s226nfs27aiqrqatfi
+    path: admin/patches/media-query-parser@2.0.2.patch
+  outdent@0.8.0:
+    hash: ybnbpvk42g5zpvi2kytcsdr4wu
+    path: admin/patches/outdent@0.8.0.patch
   esbuild-jest@0.5.0:
     hash: ngae2o7jbonwtjb5i3flctr4hq
     path: admin/patches/esbuild-jest@0.5.0.patch
   prosemirror-view@1.27.2:
     hash: jcawbabvrnkvntr42xpvsf5n7y
     path: admin/patches/prosemirror-view@1.27.2.patch
-  browserify-zlib@0.1.4:
-    hash: lhhf4zowvg4ngxldsy5aala7hu
-    path: admin/patches/browserify-zlib@0.1.4.patch
-  '@vanilla-extract/integration@5.0.1':
-    hash: 47jehzj4xj72gvnvadwkoykrme
-    path: admin/patches/@vanilla-extract__integration@5.0.1.patch
-  outdent@0.8.0:
-    hash: ybnbpvk42g5zpvi2kytcsdr4wu
-    path: admin/patches/outdent@0.8.0.patch
+  '@vanilla-extract/sprinkles@1.5.0':
+    hash: njeywewejjkyja35mwody6s2pu
+    path: admin/patches/@vanilla-extract__sprinkles@1.5.0.patch
+  '@miniflare/http-server@2.11.0':
+    hash: ztiuxzlbgxjc73nj5w24no6ar4
+    path: admin/patches/@miniflare__http-server@2.11.0.patch
   '@remix-run/dev@1.7.5':
     hash: 4olztkg4l7wnk6vzdbfg2xh6pa
     path: admin/patches/@remix-run__dev@1.7.5.patch
+  browserify-zlib@0.1.4:
+    hash: lhhf4zowvg4ngxldsy5aala7hu
+    path: admin/patches/browserify-zlib@0.1.4.patch
   '@remix-run/react@1.7.5':
     hash: vccgcdy3rs4uooyoa2fkdurpna
     path: admin/patches/@remix-run__react@1.7.5.patch
   '@remix-run/server-runtime@1.7.5':
     hash: czxhikmhicrxddslnvwyip3rii
     path: admin/patches/@remix-run__server-runtime@1.7.5.patch
-  '@miniflare/http-server@2.11.0':
-    hash: ztiuxzlbgxjc73nj5w24no6ar4
-    path: admin/patches/@miniflare__http-server@2.11.0.patch
-  '@vanilla-extract/sprinkles@1.5.0':
-    hash: njeywewejjkyja35mwody6s2pu
-    path: admin/patches/@vanilla-extract__sprinkles@1.5.0.patch
+  '@vanilla-extract/integration@5.0.1':
+    hash: 47jehzj4xj72gvnvadwkoykrme
+    path: admin/patches/@vanilla-extract__integration@5.0.1.patch
   clean-css@4.2.4:
     hash: n3d2r36xwr47tsyk4dqv5u5mbq
     path: admin/patches/clean-css@4.2.4.patch
-  wrangler@2.4.4:
-    hash: 4uscheeliswsj24qo4bgc7mb6m
-    path: admin/patches/wrangler@2.4.4.patch
+  uglify-js@3.17.4:
+    hash: bqi7bgi4a6wcjt6ky5jy76rsrm
+    path: admin/patches/uglify-js@3.17.4.patch
+  '@miniflare/runner-vm@2.11.0':
+    hash: 4sqfyt26snkgfwger7zzuolyhm
+    path: admin/patches/@miniflare__runner-vm@2.11.0.patch
   mjml-parser-xml@4.13.0:
     hash: rdjh57cizesp5jd5a5v3n76apa
     path: admin/patches/mjml-parser-xml@4.13.0.patch
@@ -58,24 +61,24 @@ patchedDependencies:
   '@playwright/test@1.31.1':
     hash: 645z6zzf2yttz7gk24haek5rhi
     path: admin/patches/@playwright__test@1.31.1.patch
-  uglify-js@3.17.4:
-    hash: bqi7bgi4a6wcjt6ky5jy76rsrm
-    path: admin/patches/uglify-js@3.17.4.patch
   '@react-aria/interactions@3.12.0':
     hash: 2s5t4derzlr6pbwch3ibe7ygq4
     path: admin/patches/@react-aria__interactions@3.12.0.patch
-  '@miniflare/runner-vm@2.11.0':
-    hash: 4sqfyt26snkgfwger7zzuolyhm
-    path: admin/patches/@miniflare__runner-vm@2.11.0.patch
   react-router@6.3.0:
     hash: 422wocmxisgbpbzt6il5lmbhd4
     path: admin/patches/react-router@6.3.0.patch
-  history@5.3.0:
-    hash: 3tktwzl76qc3alrennhuishjra
-    path: admin/patches/history@5.3.0.patch
+  '@react-aria/selection@3.11.0':
+    hash: efw4sigcsm4ik2szgtkptekf2y
+    path: admin/patches/@react-aria__selection@3.11.0.patch
+  wrangler@2.4.4:
+    hash: 4uscheeliswsj24qo4bgc7mb6m
+    path: admin/patches/wrangler@2.4.4.patch
   '@react-aria/ssr@3.3.0':
     hash: stsdfpy5crzid2ixw2fh72n3cm
     path: admin/patches/@react-aria__ssr@3.3.0.patch
+  history@5.3.0:
+    hash: 3tktwzl76qc3alrennhuishjra
+    path: admin/patches/history@5.3.0.patch
 
 specifiers:
   '@aws-sdk/client-dynamodb': ^3.201.0
@@ -93,6 +96,7 @@ specifiers:
   '@playwright/test': ^1.31.1
   '@popperjs/core': ^2.11.6
   '@react-aria/interactions': ^3.12.0
+  '@react-aria/selection': 3.11.0
   '@react-aria/ssr': ^3.3.0
   '@react-types/shared': ^3.16.0
   '@remix-run/cloudflare': ^1.7.5
@@ -245,6 +249,7 @@ dependencies:
   '@playwright/test': 1.31.1_645z6zzf2yttz7gk24haek5rhi
   '@popperjs/core': 2.11.6
   '@react-aria/interactions': 3.12.0_2s5t4derzlr6pbwch3ibe7ygq4_react@18.2.0
+  '@react-aria/selection': 3.11.0_efw4sigcsm4ik2szgtkptekf2y_react@18.2.0
   '@react-aria/ssr': 3.3.0_stsdfpy5crzid2ixw2fh72n3cm_react@18.2.0
   '@react-types/shared': 3.16.0_react@18.2.0
   '@remix-run/cloudflare': 1.7.5_dp7lsxfcjoxmh2gy56a7syibgu
@@ -4361,7 +4366,7 @@ packages:
       '@react-aria/live-announcer': 3.1.1
       '@react-aria/menu': 3.6.2_biqbaboplfbrettd7655fr4n2y
       '@react-aria/overlays': 3.11.0_biqbaboplfbrettd7655fr4n2y
-      '@react-aria/selection': 3.11.0_react@18.2.0
+      '@react-aria/selection': 3.11.0_efw4sigcsm4ik2szgtkptekf2y_react@18.2.0
       '@react-aria/textfield': 3.7.2_react@18.2.0
       '@react-aria/utils': 3.14.0_react@18.2.0
       '@react-stately/collections': 3.4.4_react@18.2.0
@@ -4441,7 +4446,7 @@ packages:
       '@react-aria/i18n': 3.6.1_react@18.2.0
       '@react-aria/interactions': 3.12.0_2s5t4derzlr6pbwch3ibe7ygq4_react@18.2.0
       '@react-aria/live-announcer': 3.1.1
-      '@react-aria/selection': 3.11.0_react@18.2.0
+      '@react-aria/selection': 3.11.0_efw4sigcsm4ik2szgtkptekf2y_react@18.2.0
       '@react-aria/utils': 3.14.0_react@18.2.0
       '@react-stately/grid': 3.4.0_react@18.2.0
       '@react-stately/selection': 3.11.0_react@18.2.0
@@ -4463,7 +4468,7 @@ packages:
       '@react-aria/grid': 3.5.0_biqbaboplfbrettd7655fr4n2y
       '@react-aria/i18n': 3.6.1_react@18.2.0
       '@react-aria/interactions': 3.12.0_2s5t4derzlr6pbwch3ibe7ygq4_react@18.2.0
-      '@react-aria/selection': 3.11.0_react@18.2.0
+      '@react-aria/selection': 3.11.0_efw4sigcsm4ik2szgtkptekf2y_react@18.2.0
       '@react-aria/utils': 3.14.0_react@18.2.0
       '@react-stately/list': 3.5.4_react@18.2.0
       '@react-types/checkbox': 3.4.0_react@18.2.0
@@ -4536,7 +4541,7 @@ packages:
       '@react-aria/focus': 3.9.0_react@18.2.0
       '@react-aria/interactions': 3.12.0_2s5t4derzlr6pbwch3ibe7ygq4_react@18.2.0
       '@react-aria/label': 3.4.2_react@18.2.0
-      '@react-aria/selection': 3.11.0_react@18.2.0
+      '@react-aria/selection': 3.11.0_efw4sigcsm4ik2szgtkptekf2y_react@18.2.0
       '@react-aria/utils': 3.14.0_react@18.2.0
       '@react-stately/collections': 3.4.4_react@18.2.0
       '@react-stately/list': 3.5.4_react@18.2.0
@@ -4561,7 +4566,7 @@ packages:
       '@react-aria/i18n': 3.6.1_react@18.2.0
       '@react-aria/interactions': 3.12.0_2s5t4derzlr6pbwch3ibe7ygq4_react@18.2.0
       '@react-aria/overlays': 3.11.0_biqbaboplfbrettd7655fr4n2y
-      '@react-aria/selection': 3.11.0_react@18.2.0
+      '@react-aria/selection': 3.11.0_efw4sigcsm4ik2szgtkptekf2y_react@18.2.0
       '@react-aria/utils': 3.14.0_react@18.2.0
       '@react-stately/collections': 3.4.4_react@18.2.0
       '@react-stately/menu': 3.4.2_react@18.2.0
@@ -4688,7 +4693,7 @@ packages:
       '@react-aria/label': 3.4.2_react@18.2.0
       '@react-aria/listbox': 3.7.0_react@18.2.0
       '@react-aria/menu': 3.6.2_biqbaboplfbrettd7655fr4n2y
-      '@react-aria/selection': 3.11.0_react@18.2.0
+      '@react-aria/selection': 3.11.0_efw4sigcsm4ik2szgtkptekf2y_react@18.2.0
       '@react-aria/utils': 3.14.0_react@18.2.0
       '@react-aria/visually-hidden': 3.5.0_react@18.2.0
       '@react-stately/select': 3.3.2_react@18.2.0
@@ -4699,7 +4704,7 @@ packages:
       react-dom: 18.2.0_react@18.2.0
     dev: false
 
-  /@react-aria/selection/3.11.0_react@18.2.0:
+  /@react-aria/selection/3.11.0_efw4sigcsm4ik2szgtkptekf2y_react@18.2.0:
     resolution: {integrity: sha512-2Qcv0PxXqOrYYT1oL+TOaB+lE/jhIPzVEPHVmf8HYzEMP5WBYP8Q+R9no5s8x++b1W0DsbUVwmk9szY48O9Bmw==}
     peerDependencies:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
@@ -4714,6 +4719,7 @@ packages:
       '@react-types/shared': 3.16.0_react@18.2.0
       react: 18.2.0
     dev: false
+    patched: true
 
   /@react-aria/separator/3.2.4_react@18.2.0:
     resolution: {integrity: sha512-uB2AEA6UJ+lnBvARFcmT4FRXNDfbgaZYGfwPZbEP4B9brp0tWEmL0MEI2tWF/XvXAzOD8AopweqH/u33s6aq8w==}
@@ -4795,7 +4801,7 @@ packages:
       '@react-aria/i18n': 3.6.1_react@18.2.0
       '@react-aria/interactions': 3.12.0_2s5t4derzlr6pbwch3ibe7ygq4_react@18.2.0
       '@react-aria/live-announcer': 3.1.1
-      '@react-aria/selection': 3.11.0_react@18.2.0
+      '@react-aria/selection': 3.11.0_efw4sigcsm4ik2szgtkptekf2y_react@18.2.0
       '@react-aria/utils': 3.14.0_react@18.2.0
       '@react-stately/table': 3.5.0_react@18.2.0
       '@react-stately/virtualizer': 3.3.1_react@18.2.0
@@ -4816,7 +4822,7 @@ packages:
       '@react-aria/focus': 3.9.0_react@18.2.0
       '@react-aria/i18n': 3.6.1_react@18.2.0
       '@react-aria/interactions': 3.12.0_2s5t4derzlr6pbwch3ibe7ygq4_react@18.2.0
-      '@react-aria/selection': 3.11.0_react@18.2.0
+      '@react-aria/selection': 3.11.0_efw4sigcsm4ik2szgtkptekf2y_react@18.2.0
       '@react-aria/utils': 3.14.0_react@18.2.0
       '@react-stately/list': 3.5.4_react@18.2.0
       '@react-stately/tabs': 3.2.2_react@18.2.0
