@@ -18,6 +18,7 @@ import {useOutsidePress} from "~/client/design/helpers/use_outside_press";
 import {OverlayRef} from "~/client/design/overlay";
 import {OverlayAnimated} from "~/client/design/overlay_animated";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
+import {ContentProsemirrorSchema} from "~/shared/content/content_schema";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
@@ -104,7 +105,7 @@ export function ContentEditorFloater({
     isFocused,
     lastSelectionChangeTransactionTime,
 }: {
-    state: EditorState;
+    state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<EditorView | null>;
     floaterState: ContentEditorFloaterState;
     setFloaterState: (floaterState: ContentEditorFloaterState) => void;

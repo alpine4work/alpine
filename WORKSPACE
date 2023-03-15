@@ -32,7 +32,10 @@ http_archive(
 
 load("@aspect_rules_ts//ts:repositories.bzl", "rules_ts_dependencies")
 
-rules_ts_dependencies(ts_version = "4.8.2")
+rules_ts_dependencies(
+    ts_integrity = "sha512-zh75jY8gPo/y7fpmlTVN2bb2MigoLx4hGk+Cla9pY6lgSTvzJrmQQrRt5S80VTsEt6biWPZJgLK2nm6f0Ya+mA==",
+    ts_version = "5.0.1-rc",
+)
 
 # =========================================================================== #
 #                                  Node.js                                    #

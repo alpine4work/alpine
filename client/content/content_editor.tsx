@@ -42,6 +42,7 @@ import {
     useExpensivelyPreloadAllSpaceAccounts,
     useSpaceContext,
 } from "~/client/spaces/space_context";
+import {ContentProsemirrorSchema} from "~/shared/content/content_schema";
 import {documentFallbackTitle} from "~/shared/content/document_fallback_title";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty";
 import {ThemeColor} from "~/shared/design/theme_colors";
@@ -75,7 +76,7 @@ function wrap<Content extends Node>(state: EditorState): ContentEditorState<Cont
     return new ContentEditorState(state);
 }
 
-function unwrap(state: ContentEditorState<Node>): EditorState {
+function unwrap(state: ContentEditorState<Node>): EditorState & {schema: ContentProsemirrorSchema} {
     // @ts-expect-error it's ok to wrap/unwrap editor state in this file.
     return state._state;
 }

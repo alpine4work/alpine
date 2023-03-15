@@ -58,7 +58,7 @@ export function ContentEditorPointerToolbar({
     isFocused,
     lastSelectionChangeTransactionTime,
 }: {
-    state: EditorState;
+    state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<EditorView | null>;
     isFocused: boolean;
     lastSelectionChangeTransactionTime: number | null;
@@ -279,7 +279,7 @@ function ContentEditorPointerToolbarOverlay({
     onHighlightSelectorOpen,
     onHighlightSelectorClose,
 }: {
-    state: EditorState;
+    state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<EditorView | null>;
     pos: number;
     animation: "FadingIn" | "FadingOut" | null;
