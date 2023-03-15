@@ -20,6 +20,7 @@ import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
 import {Spacing} from "~/shared/design/spacing";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {assert} from "~/shared/helpers/control/assert";
+import {Sprinkles} from "~/shared/styles/styles";
 
 const FocusRingForwardRef = forwardRef(FocusRing);
 export {FocusRingForwardRef as FocusRing};
@@ -38,9 +39,11 @@ function FocusRing(
     {
         offset,
         isVisible = false,
+        isDisabled = false,
         shouldIgnoreFocusEvents = false,
         isVisibleWhenFocusWithin = false,
         isVisibleFromAnyFocus = false,
+        overlayZIndex,
         children,
         targetElement,
     }: {
@@ -67,6 +70,15 @@ function FocusRing(
         isVisible?: boolean;
 
         /**
+         * Is the focus ring hidden regardless of whether the target is focused?
+         *
+         * We have logic that only one focus ring may be visible at a time but this
+         * prop does not affect it. So another ring may be hidden due to focus inside
+         * of this.
+         */
+        isDisabled?: boolean;
+
+        /**
          * Should ignore focus events on our target element. If this is true then only
          * `isVisible` controls whether the focus ring is visible or not.
          */
@@ -84,6 +96,13 @@ function FocusRing(
          * focus ring on keyboard focus.
          */
         isVisibleFromAnyFocus?: boolean;
+
+        /**
+         * The z-index to render our overlay at. By default it renders at 0. Only
+         * affects z-index relative to other overlays since our overlay container
+         * creates a z-index stacking context.
+         */
+        overlayZIndex?: Sprinkles["zIndex"];
 
         /**
          * The focusable element we draw a ring around.
@@ -164,13 +183,13 @@ function FocusRing(
 
     return (
         <Overlay
-            isVisible={isVisible || isActive}
+            isVisible={(isVisible || isActive) && !isDisabled}
             placement="center"
             preventOverflow={false}
             sameWidth={true}
             sameHeight={true}
             overlay={
-                <Box pointerEvents="none">
+                <Box pointerEvents="none" position="relative" zIndex={overlayZIndex}>
                     <FocusRingBox offset={offset} targetRef={targetRef} />
                 </Box>
             }

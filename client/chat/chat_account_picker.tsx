@@ -1,7 +1,7 @@
 import {isFocusVisible} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
 import {CaretDown, MagnifyingGlass} from "phosphor-react";
-import {Key, RefObject, useEffect, useMemo, useRef, useState} from "react";
+import {RefObject, useEffect, useMemo, useRef, useState} from "react";
 import {
     AriaListBoxOptions,
     mergeProps,
@@ -20,6 +20,8 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/space_context";
 import {addRemLengths, spacing} from "~/shared/design/spacing";
 import {createTimeout} from "~/shared/helpers/async/timeout";
+import {isId} from "~/shared/id/id";
+import {AccountId, ChatId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
 import {
     overlayFadeInAnimationDurationMs,
@@ -28,19 +30,44 @@ import {
 } from "~/shared/styles/styles";
 
 type ChatAccountPickerItem = {
-    readonly key: Key;
+    readonly key: string;
     readonly account: AccountModel;
 };
 
 export function ChatAccountPicker() {
+    const [selection, setSelection] = useState<{
+        readonly chatId: ChatId | null;
+        readonly accounts: ReadonlyArray<AccountModel>;
+    } | null>(null);
+
     const allAccounts = useExpensivelyLoadAllSpaceAccounts();
-    const [searchText, setSearchText] = useState("");
+
+    const accountById = useMemo(
+        () => new Map((allAccounts?.accounts ?? []).map(account => [account.id, account])),
+        [allAccounts?.accounts],
+    );
+
+    const [{searchQuery, shouldCloseComboBox}, setSearchQuery] = useState<{
+        searchQuery: string;
+        shouldCloseComboBox: boolean;
+    }>({searchQuery: "", shouldCloseComboBox: false});
 
     const searchedAccounts: ReadonlyArray<AccountModel> = useMemo(() => {
         if (!allAccounts) return [];
-        if (searchText === "") return allAccounts.accounts;
-        return allAccounts.fuse.search(searchText).map(({item}) => item);
-    }, [allAccounts, searchText]);
+
+        let searchedAccounts =
+            searchQuery === ""
+                ? allAccounts.accounts
+                : allAccounts.fuse.search(searchQuery).map(({item}) => item);
+
+        // Remove accounts that were already selected from the search.
+        if (selection)
+            searchedAccounts = searchedAccounts.filter(account1 =>
+                selection.accounts.every(account2 => account1.id !== account2.id),
+            );
+
+        return searchedAccounts;
+    }, [allAccounts, searchQuery, selection]);
 
     // When this is set to true we allow the next animation then no more
     // animations. Most interactions that control whether the picker is open/close
@@ -63,8 +90,10 @@ export function ChatAccountPicker() {
         // Don't close when there are no items.
         allowsEmptyCollection: true,
 
+        inputValue: searchQuery,
+        onInputChange: searchQuery => setSearchQuery({searchQuery, shouldCloseComboBox: false}),
+
         items: searchedAccounts.map(account => ({key: account.id, account})) ?? [],
-        onInputChange: setSearchText,
         children: ({account}) => (
             <Item textValue={account.name}>
                 <Box display="flex" alignItems="center" gap="2">
@@ -79,9 +108,44 @@ export function ChatAccountPicker() {
         // of the text box we consider an indirect interaction since the animation can
         // highlight to the user that their state is going away.
         onBlur: () => setShouldOverlayAnimate(true),
+
+        // No key is ever selected by the combobox. Instead when a selection occurs we
+        // add it to a list of selected values.
+        selectedKey: null,
+        onSelectionChange: key => {
+            setSearchQuery({searchQuery: "", shouldCloseComboBox: true});
+
+            if (typeof key === "string" && isId<AccountId>(key)) {
+                const account = accountById.get(key);
+
+                if (account) {
+                    setSelection(selection => {
+                        // If the account already exists in the selection, don't add it a second time.
+                        if (
+                            selection?.accounts.some(otherAccount => otherAccount.id === account.id)
+                        ) {
+                            return selection;
+                        }
+
+                        return {
+                            chatId: null,
+                            accounts: [...(selection?.accounts ?? []), account],
+                        };
+                    });
+                }
+            }
+        },
     };
 
-    const state = useComboBoxState(comboBoxProps);
+    const comboBoxState = useComboBoxState(comboBoxProps);
+
+    // We can only close the combobox after we render with our new search query. So
+    // watch our state for when a close is requested and perform it.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (!shouldCloseComboBox) return;
+        comboBoxState.close();
+        setSearchQuery({searchQuery, shouldCloseComboBox: false});
+    }, [comboBoxState, searchQuery, shouldCloseComboBox]);
 
     const inputRef = useRef<HTMLInputElement>(null);
     const buttonRef = useRef<HTMLButtonElement>(null);
@@ -96,86 +160,101 @@ export function ChatAccountPicker() {
             popoverRef,
             listBoxRef,
         },
-        state,
+        comboBoxState,
     );
 
     return (
         <OverlayAnimated
-            isVisible={state.isOpen}
+            isVisible={comboBoxState.isOpen}
             disableAnimation={!shouldOverlayAnimate}
             placement="bottom-start"
             sameWidth={true}
             offset="-1"
             overlay={
-                <Box ref={popoverRef}>
+                <Box ref={popoverRef} position="relative">
                     <ChatAccountMemberPickerListBox
-                        state={state}
+                        comboBoxState={comboBoxState}
                         listBoxRef={listBoxRef}
                         listBoxProps={listBoxProps}
                     />
                 </Box>
             }
         >
-            <Box position="relative">
-                <label
-                    {...labelProps}
-                    className={sprinkles({
-                        position: "absolute",
-                        left: "4",
-                        paddingY: "3",
-                        fontSize: "100",
-                        color: "grey-50",
-                        pointerEvents: "none",
-                    })}
-                >
-                    {comboBoxProps.label}
-                </label>
-                <input
-                    {...inputProps}
-                    ref={inputRef}
-                    className={sprinkles({
-                        width: "full",
-                        fontSize: "100",
-                        paddingY: "3",
-                        paddingLeft: "12",
-                        paddingRight: "10",
-                    })}
-                    style={{background: "none"}}
-                    placeholder="Who do you want to send a message to?"
-                />
+            <FocusRing
+                isVisibleWhenFocusWithin={true}
+                // Render below the listbox overlay.
+                overlayZIndex="-10"
+                // If we are selecting an item within the combobox show a focus ring there,
+                // not here.
+                isDisabled={
+                    comboBoxState.isOpen && comboBoxState.selectionManager.focusedKey !== null
+                }
+            >
                 <Box
-                    position="absolute"
-                    right="3"
-                    // Really tiny detail: Click boundaries of the container should be the same as
-                    // the button so that clicking the corners selects the text box.
-                    borderRadius="full"
-                    style={{top: addRemLengths(spacing["3"], spacing["0.5"])}}
+                    position="relative"
+                    // Border radius for the focus ring
+                    borderTopRadius={{desktop: "md"}}
                 >
-                    <IconButton
-                        {...buttonProps}
-                        ref={buttonRef}
-                        size="xs"
-                        description="Toggle"
-                        withoutTooltip={true}
+                    <label
+                        {...labelProps}
+                        className={sprinkles({
+                            position: "absolute",
+                            left: "4",
+                            paddingY: "3",
+                            fontSize: "100",
+                            color: "grey-50",
+                            pointerEvents: "none",
+                        })}
                     >
-                        <CaretDown />
-                    </IconButton>
+                        {comboBoxProps.label}
+                    </label>
+                    <input
+                        {...inputProps}
+                        ref={inputRef}
+                        className={sprinkles({
+                            width: "full",
+                            fontSize: "100",
+                            paddingY: "3",
+                            paddingLeft: "12",
+                            paddingRight: "10",
+                        })}
+                        style={{background: "none"}}
+                        placeholder="Who do you want to send a message to?"
+                    />
+                    <Box
+                        position="absolute"
+                        right="3"
+                        // Really tiny detail: Click boundaries of the container should be the same as
+                        // the button so that clicking the corners selects the text box.
+                        borderRadius="full"
+                        style={{top: addRemLengths(spacing["3"], spacing["0.5"])}}
+                    >
+                        <IconButton
+                            {...buttonProps}
+                            ref={buttonRef}
+                            size="xs"
+                            description="Toggle"
+                            withoutTooltip={true}
+                        >
+                            <CaretDown />
+                        </IconButton>
+                    </Box>
                 </Box>
-            </Box>
+            </FocusRing>
         </OverlayAnimated>
     );
 }
 
 function ChatAccountMemberPickerListBox({
-    state,
+    comboBoxState,
     listBoxRef,
     listBoxProps: _listBoxProps,
 }: {
-    state: ComboBoxState<ChatAccountPickerItem>;
+    comboBoxState: ComboBoxState<ChatAccountPickerItem>;
     listBoxRef: RefObject<HTMLUListElement>;
     listBoxProps: AriaListBoxOptions<ChatAccountPickerItem>;
 }) {
-    const {listBoxProps} = useListBox(_listBoxProps, state, listBoxRef);
+    const {listBoxProps} = useListBox(_listBoxProps, comboBoxState, listBoxRef);
 
     return (
         <ul
@@ -192,7 +271,7 @@ function ChatAccountMemberPickerListBox({
                 overflowY: "scroll",
             })}
         >
-            {state.collection.size === 0 ? (
+            {comboBoxState.collection.size === 0 ? (
                 <Box
                     paddingX="1.5"
                     paddingY="1.5"
@@ -207,10 +286,10 @@ function ChatAccountMemberPickerListBox({
                     <Box>No results</Box>
                 </Box>
             ) : (
-                Array.from(state.collection, item => (
+                Array.from(comboBoxState.collection, item => (
                     <ChatAccountMemberPickerListBoxOption
                         key={item.key}
-                        state={state}
+                        comboBoxState={comboBoxState}
                         item={item}
                     />
                 ))
@@ -220,15 +299,19 @@ function ChatAccountMemberPickerListBox({
 }
 
 function ChatAccountMemberPickerListBoxOption({
-    state,
+    comboBoxState,
     item,
 }: {
-    state: ComboBoxState<ChatAccountPickerItem>;
+    comboBoxState: ComboBoxState<ChatAccountPickerItem>;
     item: Node<ChatAccountPickerItem>;
 }) {
     const optionRef = useRef(null);
     const {isHovered, hoverProps} = useHover({});
-    const {optionProps, isFocused, isPressed} = useOption({key: item.key}, state, optionRef);
+    const {optionProps, isFocused, isPressed} = useOption(
+        {key: item.key},
+        comboBoxState,
+        optionRef,
+    );
 
     const [wasFocusVisibleWhenFocused, setWasFocusVisibleWhenFocused] = useState(false);
     useLayoutEffectWithoutServerSideWarning(() => {
