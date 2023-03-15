@@ -3,7 +3,7 @@ Macros for building TypeScript projects in the style of our codebase. Along
 with any related tests for the project.
 """
 
-load("@aspect_rules_swc//swc:defs.bzl", _swc_transpiler = "swc_transpiler")
+load("@aspect_rules_swc//swc:defs.bzl", _swc_compile = "swc_compile")
 load("@aspect_rules_ts//ts:defs.bzl", _ts_project = "ts_project")
 load("@aspect_rules_js//js:providers.bzl", "JsInfo")
 load("@npm//:prettier/package_json.bzl", prettier_bin = "bin")
@@ -52,7 +52,7 @@ def ts_project(
         srcs = srcs,
         deps = deps,
         tsconfig = "//:tsconfig",
-        transpiler = swc_transpiler,
+        transpiler = swc_compile,
         declaration = True,
         resolve_json_module = True,
         allow_js = True,
@@ -84,7 +84,7 @@ def ts_project(
             test_src_js = "{}.js".format(test_src[:len(test_src) - 4] if test_src.endswith(".test.tsx") else test_src[:len(test_src) - 3])
             test_name = "{}_test".format(test_src_js[:len(test_src_js) - 8])
 
-            swc_transpiler(
+            swc_compile(
                 name = "{}_src".format(test_name),
                 srcs = [test_src],
                 js_outs = [test_src_js],
@@ -132,10 +132,10 @@ def ts_project(
                 size = "small",
             )
 
-def swc_transpiler(**kwargs):
+def swc_compile(**kwargs):
     kwargs["map_outs"] = ["{}.map".format(js_out) for js_out in kwargs["js_outs"]]
     kwargs["source_maps"] = "true"
-    return _swc_transpiler(
+    return _swc_compile(
         swcrc = "//admin/typescript:typescript_swc_config",
         **kwargs
     )

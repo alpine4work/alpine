@@ -75,7 +75,7 @@ const SpacesTable = DynamoTableSchema.new({
             ],
         },
     ],
-} as const);
+});
 
 type SpaceAccountItem = DynamoTableItemType<typeof SpacesTable, "Space", "Account">;
 

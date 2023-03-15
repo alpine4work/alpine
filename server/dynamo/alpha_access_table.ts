@@ -96,7 +96,7 @@ const AlphaAccessTable = DynamoTableSchema.new({
             ],
         },
     ],
-} as const);
+});
 
 export async function seedTestAlphaConfiguration(context: DynamoContext) {
     assert(process.env.NODE_ENV !== "production");

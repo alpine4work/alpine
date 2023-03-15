@@ -3,7 +3,7 @@ Rules for generating Playwright tests.
 """
 
 load("@npm//:@playwright/test/package_json.bzl", "bin")
-load("//admin/typescript:typescript.bzl", "swc_transpiler", "ts_lint_and_format_test", "ts_project", "ts_typecheck_test")
+load("//admin/typescript:typescript.bzl", "swc_compile", "ts_lint_and_format_test", "ts_project", "ts_typecheck_test")
 
 def ts_playwright_tests(
         name,
@@ -109,7 +109,7 @@ def playwright_test(
 
     src_js = "{}.js".format(src[:len(src) - 4] if src.endswith(".spec.tsx") else src[:len(src) - 3])
 
-    swc_transpiler(
+    swc_compile(
         name = "{}_src".format(name),
         srcs = [src],
         js_outs = [src_js],

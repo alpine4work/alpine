@@ -110,7 +110,7 @@ const spacingWithNegatives = {
     ...(Object.fromEntries(
         Object.entries(spacing).map(([key, value]) => [`-${key}`, `-${value}`]),
     ) as any as {
-        [K in keyof typeof spacing as `-${K}`]: `-${typeof spacing[K]}`;
+        [K in keyof typeof spacing as `-${K}`]: `-${(typeof spacing)[K]}`;
     }),
 };
 

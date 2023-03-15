@@ -6,3 +6,7 @@
 
 # CDK
 /admin/aws/output
+
+# TODO(calebmer): This file uses the new `const` type parameter TypeScript syntax
+# which Prettier doesn't support yet! Remove this ignore once Prettier supports it.
+/server/dynamo/internal/dynamo_table_schema.ts

@@ -194,7 +194,7 @@ const AccountsTable = DynamoTableSchema.new({
             ],
         },
     ],
-} as const);
+});
 
 /**
  * We are not allowed to export our DynamoDB tables so instead export a

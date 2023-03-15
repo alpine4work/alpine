@@ -193,7 +193,7 @@ const ForumTable = DynamoTableSchema.new({
             ],
         },
     ],
-} as const);
+});
 
 const ChannelPostsIndex = ForumTable.addIndex({
     name: "ChannelPosts",

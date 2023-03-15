@@ -232,7 +232,7 @@ export class DynamoTableSchema<
         indexConfigsByItemType: new Map(),
     };
 
-    public static new<Config extends DynamoTableSchemaTypes.ConfigBase>(
+    public static new<const Config extends DynamoTableSchemaTypes.ConfigBase>(
         config: Config,
     ): DynamoTableSchema<DynamoTableSchemaTypes.Types<Config>> {
         return new DynamoTableSchema(config);

@@ -54,8 +54,8 @@ export function createProsemirrorSchemaSpec<Schema extends SchemaSpec<string, st
 }
 
 export type ContentProsemirrorSchema = ProsemirrorSchema<
-    keyof typeof contentBaseProsemirrorSchemaSpec["nodes"],
-    keyof typeof contentBaseProsemirrorSchemaSpec["marks"]
+    keyof (typeof contentBaseProsemirrorSchemaSpec)["nodes"],
+    keyof (typeof contentBaseProsemirrorSchemaSpec)["marks"]
 >;
 
 export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({

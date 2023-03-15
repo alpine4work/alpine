@@ -167,7 +167,7 @@ const ChatTable = DynamoTableSchema.new({
             ],
         },
     ],
-} as const);
+});
 
 const AccountChatsIndex = ChatTable.addIndex({
     name: "AccountChats",

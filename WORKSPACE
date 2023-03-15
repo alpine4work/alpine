@@ -20,6 +20,21 @@ load("@bazel_skylib//:workspace.bzl", "bazel_skylib_workspace")
 bazel_skylib_workspace()
 
 # =========================================================================== #
+#                                 JavaScript                                  #
+# =========================================================================== #
+
+http_archive(
+    name = "aspect_rules_js",
+    sha256 = "00e7b97b696af63812df0ca9e9dbd18579f3edd3ab9a56f227238b8405e4051c",
+    strip_prefix = "rules_js-1.23.0",
+    url = "https://github.com/aspect-build/rules_js/releases/download/v1.23.0/rules_js-v1.23.0.tar.gz",
+)
+
+load("@aspect_rules_js//js:repositories.bzl", "rules_js_dependencies")
+
+rules_js_dependencies()
+
+# =========================================================================== #
 #                                 TypeScript                                  #
 # =========================================================================== #
 
@@ -53,15 +68,10 @@ nodejs_register_toolchains(
 # =========================================================================== #
 
 load("@aspect_rules_js//npm:npm_import.bzl", "npm_translate_lock")
-load("//admin/patches:patches.bzl", "NPM_PATCHES")
 
 npm_translate_lock(
     name = "npm",
-    patch_args = {
-        package: ["-p1"]
-        for package in NPM_PATCHES
-    },
-    patches = NPM_PATCHES,
+    patch_args = {},
     pnpm_lock = "//:pnpm-lock.yaml",
     verify_node_modules_ignored = "//:.bazelignore",
 )
@@ -78,9 +88,9 @@ http_archive(
     name = "aspect_rules_swc",
     patch_args = ["-p1"],
     patches = ["//admin/patches:aspect_rules_swc.patch"],
-    sha256 = "313307136cb6369f3c9d2992209c1e354b3e2c9989877ee67c688917320fba1f",
-    strip_prefix = "rules_swc-0.17.1",
-    url = "https://github.com/aspect-build/rules_swc/archive/refs/tags/v0.17.1.tar.gz",
+    sha256 = "5d13b0123d91d4297f60d8da0ab5771615f6ad6829bdfe69e7dcda9e5c01bc54",
+    strip_prefix = "rules_swc-1.0.0-rc0",
+    url = "https://github.com/aspect-build/rules_swc/archive/refs/tags/v1.0.0-rc0.tar.gz",
 )
 
 load("@aspect_rules_swc//swc:dependencies.bzl", "rules_swc_dependencies")
@@ -100,9 +110,9 @@ swc_register_toolchains(
 
 http_archive(
     name = "aspect_rules_esbuild",
-    sha256 = "1e365451341ffb2490193292dfd9953f2ca009586c2381cb4dc08d01e48866b7",
-    strip_prefix = "rules_esbuild-0.12.0",
-    url = "https://github.com/aspect-build/rules_esbuild/archive/refs/tags/v0.12.0.tar.gz",
+    sha256 = "a9e11d33bd79791586e562d0c9960e330a9e58860019d79b1bd45438266d78c9",
+    strip_prefix = "rules_esbuild-0.14.3",
+    url = "https://github.com/aspect-build/rules_esbuild/archive/refs/tags/v0.14.3.tar.gz",
 )
 
 load("@aspect_rules_esbuild//esbuild:dependencies.bzl", "rules_esbuild_dependencies")
@@ -113,7 +123,7 @@ load("@aspect_rules_esbuild//esbuild:repositories.bzl", "esbuild_register_toolch
 
 esbuild_register_toolchains(
     name = "esbuild",
-    esbuild_version = "0.14.51",
+    esbuild_version = "0.17.10",
 )
 
 # =========================================================================== #
