@@ -405,6 +405,12 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "chatAccountCount": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
                                     "updateLockVersion": {
                                         "valueSchema": {
                                             "type": "Integer"
@@ -933,6 +939,9 @@ export const dynamoGeneratedSchemaDescription: {
                                 }
                             },
                             "sortKeyAttributeByKey": {
+                                "chatAccountCount": {
+                                    "type": "Integer"
+                                },
                                 "chatId": {
                                     "type": "Id"
                                 }

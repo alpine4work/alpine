@@ -366,20 +366,22 @@ function massageMessages(result: {
 }
 
 function sortSharedChats(
-    sharedChats: Array<{includesAccountIds: Array<AccountId>; chatId: ChatId}>,
+    sharedChats: Array<{
+        includedAccountIds: Array<AccountId>;
+        chatId: ChatId;
+        chatAccountCount: number;
+    }>,
 ) {
     return sharedChats
         .map(sharedChat => ({
             ...sharedChat,
-            includesAccountIds: sharedChat.includesAccountIds.slice().sort(),
+            includedAccountIds: sharedChat.includedAccountIds.slice().sort(),
         }))
         .sort(
             (a, b) =>
-                // Put shared chats with more accounts in common first
-                (a.includesAccountIds.length - b.includesAccountIds.length) * -1 ||
-                // Then
-                compareArrays(a.includesAccountIds, b.includesAccountIds, defaultCompareStrings) ||
-                // Sort by `ChatId` if the `AccountId` array is equal.
+                (a.includedAccountIds.length - b.includedAccountIds.length) * -1 ||
+                a.chatAccountCount - b.chatAccountCount ||
+                compareArrays(a.includedAccountIds, b.includedAccountIds, defaultCompareStrings) ||
                 defaultCompareStrings(a.chatId, b.chatId),
         );
 }
@@ -3346,17 +3348,17 @@ test("can get chats shared between an account and other accounts", async () => {
         }),
     ).toEqual(
         sortSharedChats([
-            {includesAccountIds: [], chatId: message1.chatId},
-            {includesAccountIds: [], chatId: message2.chatId},
-            {includesAccountIds: [], chatId: message3.chatId},
-            {includesAccountIds: [], chatId: message4.chatId},
-            {includesAccountIds: [], chatId: message5.chatId},
-            {includesAccountIds: [], chatId: message6.chatId},
-            {includesAccountIds: [], chatId: message7.chatId},
-            {includesAccountIds: [], chatId: message8.chatId},
-            {includesAccountIds: [], chatId: message9.chatId},
-            {includesAccountIds: [], chatId: message10.chatId},
-            {includesAccountIds: [], chatId: message11.chatId},
+            {includedAccountIds: [], chatId: message1.chatId, chatAccountCount: 1},
+            {includedAccountIds: [], chatId: message2.chatId, chatAccountCount: 2},
+            {includedAccountIds: [], chatId: message3.chatId, chatAccountCount: 2},
+            {includedAccountIds: [], chatId: message4.chatId, chatAccountCount: 2},
+            {includedAccountIds: [], chatId: message5.chatId, chatAccountCount: 2},
+            {includedAccountIds: [], chatId: message6.chatId, chatAccountCount: 2},
+            {includedAccountIds: [], chatId: message7.chatId, chatAccountCount: 3},
+            {includedAccountIds: [], chatId: message8.chatId, chatAccountCount: 3},
+            {includedAccountIds: [], chatId: message9.chatId, chatAccountCount: 4},
+            {includedAccountIds: [], chatId: message10.chatId, chatAccountCount: 5},
+            {includedAccountIds: [], chatId: message11.chatId, chatAccountCount: 3},
         ]),
     );
 
@@ -3367,11 +3369,31 @@ test("can get chats shared between an account and other accounts", async () => {
         }),
     ).toEqual(
         sortSharedChats([
-            {includesAccountIds: [scenario.sessionA2.accountId], chatId: message2.chatId},
-            {includesAccountIds: [scenario.sessionA2.accountId], chatId: message7.chatId},
-            {includesAccountIds: [scenario.sessionA2.accountId], chatId: message9.chatId},
-            {includesAccountIds: [scenario.sessionA2.accountId], chatId: message10.chatId},
-            {includesAccountIds: [scenario.sessionA2.accountId], chatId: message11.chatId},
+            {
+                includedAccountIds: [scenario.sessionA2.accountId],
+                chatId: message2.chatId,
+                chatAccountCount: 2,
+            },
+            {
+                includedAccountIds: [scenario.sessionA2.accountId],
+                chatId: message7.chatId,
+                chatAccountCount: 3,
+            },
+            {
+                includedAccountIds: [scenario.sessionA2.accountId],
+                chatId: message9.chatId,
+                chatAccountCount: 4,
+            },
+            {
+                includedAccountIds: [scenario.sessionA2.accountId],
+                chatId: message10.chatId,
+                chatAccountCount: 5,
+            },
+            {
+                includedAccountIds: [scenario.sessionA2.accountId],
+                chatId: message11.chatId,
+                chatAccountCount: 3,
+            },
         ]),
     );
 
@@ -3382,11 +3404,31 @@ test("can get chats shared between an account and other accounts", async () => {
         }),
     ).toEqual(
         sortSharedChats([
-            {includesAccountIds: [scenario.sessionA1.accountId], chatId: message2.chatId},
-            {includesAccountIds: [scenario.sessionA1.accountId], chatId: message7.chatId},
-            {includesAccountIds: [scenario.sessionA1.accountId], chatId: message9.chatId},
-            {includesAccountIds: [scenario.sessionA1.accountId], chatId: message10.chatId},
-            {includesAccountIds: [scenario.sessionA1.accountId], chatId: message11.chatId},
+            {
+                includedAccountIds: [scenario.sessionA1.accountId],
+                chatId: message2.chatId,
+                chatAccountCount: 2,
+            },
+            {
+                includedAccountIds: [scenario.sessionA1.accountId],
+                chatId: message7.chatId,
+                chatAccountCount: 3,
+            },
+            {
+                includedAccountIds: [scenario.sessionA1.accountId],
+                chatId: message9.chatId,
+                chatAccountCount: 4,
+            },
+            {
+                includedAccountIds: [scenario.sessionA1.accountId],
+                chatId: message10.chatId,
+                chatAccountCount: 5,
+            },
+            {
+                includedAccountIds: [scenario.sessionA1.accountId],
+                chatId: message11.chatId,
+                chatAccountCount: 3,
+            },
         ]),
     );
 
@@ -3397,10 +3439,26 @@ test("can get chats shared between an account and other accounts", async () => {
         }),
     ).toEqual(
         sortSharedChats([
-            {includesAccountIds: [scenario.sessionA3.accountId], chatId: message3.chatId},
-            {includesAccountIds: [scenario.sessionA3.accountId], chatId: message7.chatId},
-            {includesAccountIds: [scenario.sessionA3.accountId], chatId: message9.chatId},
-            {includesAccountIds: [scenario.sessionA3.accountId], chatId: message10.chatId},
+            {
+                includedAccountIds: [scenario.sessionA3.accountId],
+                chatId: message3.chatId,
+                chatAccountCount: 2,
+            },
+            {
+                includedAccountIds: [scenario.sessionA3.accountId],
+                chatId: message7.chatId,
+                chatAccountCount: 3,
+            },
+            {
+                includedAccountIds: [scenario.sessionA3.accountId],
+                chatId: message9.chatId,
+                chatAccountCount: 4,
+            },
+            {
+                includedAccountIds: [scenario.sessionA3.accountId],
+                chatId: message10.chatId,
+                chatAccountCount: 5,
+            },
         ]),
     );
 
@@ -3411,21 +3469,36 @@ test("can get chats shared between an account and other accounts", async () => {
         }),
     ).toEqual(
         sortSharedChats([
-            {includesAccountIds: [scenario.sessionA2.accountId], chatId: message2.chatId},
-            {includesAccountIds: [scenario.sessionA3.accountId], chatId: message3.chatId},
             {
-                includesAccountIds: [scenario.sessionA2.accountId, scenario.sessionA3.accountId],
+                includedAccountIds: [scenario.sessionA2.accountId],
+                chatId: message2.chatId,
+                chatAccountCount: 2,
+            },
+            {
+                includedAccountIds: [scenario.sessionA3.accountId],
+                chatId: message3.chatId,
+                chatAccountCount: 2,
+            },
+            {
+                includedAccountIds: [scenario.sessionA2.accountId, scenario.sessionA3.accountId],
                 chatId: message7.chatId,
+                chatAccountCount: 3,
             },
             {
-                includesAccountIds: [scenario.sessionA2.accountId, scenario.sessionA3.accountId],
+                includedAccountIds: [scenario.sessionA2.accountId, scenario.sessionA3.accountId],
                 chatId: message9.chatId,
+                chatAccountCount: 4,
             },
             {
-                includesAccountIds: [scenario.sessionA2.accountId, scenario.sessionA3.accountId],
+                includedAccountIds: [scenario.sessionA2.accountId, scenario.sessionA3.accountId],
                 chatId: message10.chatId,
+                chatAccountCount: 5,
             },
-            {includesAccountIds: [scenario.sessionA2.accountId], chatId: message11.chatId},
+            {
+                includedAccountIds: [scenario.sessionA2.accountId],
+                chatId: message11.chatId,
+                chatAccountCount: 3,
+            },
         ]),
     );
 
@@ -3440,33 +3513,53 @@ test("can get chats shared between an account and other accounts", async () => {
         }),
     ).toEqual(
         sortSharedChats([
-            {includesAccountIds: [scenario.sessionA2.accountId], chatId: message2.chatId},
-            {includesAccountIds: [scenario.sessionA3.accountId], chatId: message3.chatId},
-            {includesAccountIds: [scenario.sessionX1.accountId], chatId: message4.chatId},
             {
-                includesAccountIds: [scenario.sessionA2.accountId, scenario.sessionA3.accountId],
-                chatId: message7.chatId,
+                includedAccountIds: [scenario.sessionA2.accountId],
+                chatId: message2.chatId,
+                chatAccountCount: 2,
             },
-            {includesAccountIds: [scenario.sessionX1.accountId], chatId: message8.chatId},
             {
-                includesAccountIds: [
+                includedAccountIds: [scenario.sessionA3.accountId],
+                chatId: message3.chatId,
+                chatAccountCount: 2,
+            },
+            {
+                includedAccountIds: [scenario.sessionX1.accountId],
+                chatId: message4.chatId,
+                chatAccountCount: 2,
+            },
+            {
+                includedAccountIds: [scenario.sessionA2.accountId, scenario.sessionA3.accountId],
+                chatId: message7.chatId,
+                chatAccountCount: 3,
+            },
+            {
+                includedAccountIds: [scenario.sessionX1.accountId],
+                chatId: message8.chatId,
+                chatAccountCount: 3,
+            },
+            {
+                includedAccountIds: [
                     scenario.sessionA2.accountId,
                     scenario.sessionA3.accountId,
                     scenario.sessionX1.accountId,
                 ],
                 chatId: message9.chatId,
+                chatAccountCount: 4,
             },
             {
-                includesAccountIds: [
+                includedAccountIds: [
                     scenario.sessionA2.accountId,
                     scenario.sessionA3.accountId,
                     scenario.sessionX1.accountId,
                 ],
                 chatId: message10.chatId,
+                chatAccountCount: 5,
             },
             {
-                includesAccountIds: [scenario.sessionA2.accountId, scenario.sessionX1.accountId],
+                includedAccountIds: [scenario.sessionA2.accountId, scenario.sessionX1.accountId],
                 chatId: message11.chatId,
+                chatAccountCount: 3,
             },
         ]),
     );
@@ -3478,11 +3571,11 @@ test("can get chats shared between an account and other accounts", async () => {
         }),
     ).toEqual(
         sortSharedChats([
-            {includesAccountIds: [], chatId: message4.chatId},
-            {includesAccountIds: [], chatId: message8.chatId},
-            {includesAccountIds: [], chatId: message9.chatId},
-            {includesAccountIds: [], chatId: message10.chatId},
-            {includesAccountIds: [], chatId: message11.chatId},
+            {includedAccountIds: [], chatId: message4.chatId, chatAccountCount: 2},
+            {includedAccountIds: [], chatId: message8.chatId, chatAccountCount: 3},
+            {includedAccountIds: [], chatId: message9.chatId, chatAccountCount: 4},
+            {includedAccountIds: [], chatId: message10.chatId, chatAccountCount: 5},
+            {includedAccountIds: [], chatId: message11.chatId, chatAccountCount: 3},
         ]),
     );
 
@@ -3493,8 +3586,8 @@ test("can get chats shared between an account and other accounts", async () => {
         }),
     ).toEqual(
         sortSharedChats([
-            {includesAccountIds: [], chatId: message12.chatId},
-            {includesAccountIds: [], chatId: message13.chatId},
+            {includedAccountIds: [], chatId: message12.chatId, chatAccountCount: 2},
+            {includedAccountIds: [], chatId: message13.chatId, chatAccountCount: 3},
         ]),
     );
 
@@ -3505,8 +3598,16 @@ test("can get chats shared between an account and other accounts", async () => {
         }),
     ).toEqual(
         sortSharedChats([
-            {includesAccountIds: [scenario.sessionX2.accountId], chatId: message8.chatId},
-            {includesAccountIds: [scenario.sessionX2.accountId], chatId: message10.chatId},
+            {
+                includedAccountIds: [scenario.sessionX2.accountId],
+                chatId: message8.chatId,
+                chatAccountCount: 3,
+            },
+            {
+                includedAccountIds: [scenario.sessionX2.accountId],
+                chatId: message10.chatId,
+                chatAccountCount: 5,
+            },
         ]),
     );
 
@@ -3517,7 +3618,11 @@ test("can get chats shared between an account and other accounts", async () => {
         }),
     ).toEqual(
         sortSharedChats([
-            {includesAccountIds: [scenario.sessionX2.accountId], chatId: message13.chatId},
+            {
+                includedAccountIds: [scenario.sessionX2.accountId],
+                chatId: message13.chatId,
+                chatAccountCount: 3,
+            },
         ]),
     );
 

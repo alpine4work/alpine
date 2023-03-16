@@ -25,14 +25,12 @@ import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_al
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
-import {isNonNullable} from "~/shared/helpers/control/is_non_nullable";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable";
 import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array";
-import {DefaultMap} from "~/shared/helpers/map/default_map";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings";
 import {decodeIdInto, encodeId, generateId} from "~/shared/id/id";
@@ -112,6 +110,16 @@ const ChatTable = DynamoTableSchema.new({
 
                         /** The time at which the account joined the chat. */
                         joinedTime: Schema.date,
+
+                        /**
+                         * The number of accounts total in the chat.
+                         *
+                         * While you could get this by querying account items in the chat partition,
+                         * it's really convenient to duplicate that number here so it's present in
+                         * `AccountChatsIndex`. This does mean we have to take care to update this
+                         * property whenever the number of accounts in a chat changes!
+                         */
+                        chatAccountCount: Schema.integer,
                     }),
                 },
 
@@ -177,6 +185,7 @@ const AccountChatsIndex = ChatTable.addIndex({
         accountId: DynamoKeyAttributeSchema.id<AccountId>(),
     },
     sortKeyAttributes: {
+        chatAccountCount: DynamoKeyAttributeSchema.integer,
         chatId: DynamoKeyAttributeSchema.id<ChatId>(),
     },
 });
@@ -253,6 +262,7 @@ export async function createChatForTest(
                 chatId: id,
                 accountId,
                 joinedTime: createdTime,
+                chatAccountCount: accountIds.length,
             }),
         ),
     ]);
@@ -453,6 +463,7 @@ export function sendChatMessageToAccounts(
                                 chatId,
                                 accountId,
                                 joinedTime: createdTime,
+                                chatAccountCount: allSortedAccountIds.length,
                             }),
                         ),
                     ],
@@ -540,34 +551,21 @@ export function sendChatMessageToAccounts(
                     accountIds,
                 });
 
-                const matchingSharedChats = (
-                    await runAllPromises(
-                        sharedChats
-                            // Discard shared chats that do not include all of our requested accounts.
-                            .filter(
-                                sharedChat =>
-                                    sharedChat.includesAccountIds.length === accountIds.size,
-                            )
-                            // Load the shared chats and make sure they do not contain more accounts than
-                            // the ones we want to send messages to.
-                            .map(async sharedChat => {
-                                const sharedChatAndAccounts = await getChatAndAccounts(
-                                    sharedChat.chatId,
-                                );
-                                if (!sharedChatAndAccounts?.isMatchingChat) return null;
-                                return sharedChatAndAccounts;
-                            }),
-                    )
-                ).filter(isNonNullable);
+                // Filter shared chats down to only include exact matches for the
+                // request account IDs.
+                const matchingSharedChats = sharedChats.filter(
+                    sharedChat =>
+                        sharedChat.includedAccountIds.length === accountIds.size &&
+                        sharedChat.chatAccountCount === accountIds.size + 1,
+                );
 
                 // We found a chat that exactly matches the accounts we want to message! Send a
                 // message to that chat.
                 if (matchingSharedChats[0]) {
                     return actuallySendChatMessage(context, {
-                        chatId: matchingSharedChats[0].chatItem.chatId,
+                        chatId: matchingSharedChats[0].chatId,
                         parentMessageIndex,
                         content,
-                        initialAuthorizedChatItem: matchingSharedChats[0].chatItem,
                     });
                 }
 
@@ -789,15 +787,19 @@ export async function getSharedChats(
          * function. The chat may include more accounts! This is not the exclusive list
          * of accounts in the chat.
          */
-        includesAccountIds: ReadonlyArray<AccountId>;
+        includedAccountIds: ReadonlyArray<AccountId>;
         chatId: ChatId;
+        chatAccountCount: number;
     }>
 > {
     const accountIds = new Set(
         filterIterable(_accountIds, accountId => accountId !== context.auth.getAccountId()),
     );
 
-    const accountIdsByChatId = new DefaultMap<ChatId, Set<AccountId>>(() => new Set());
+    const accountsByChatId = new Map<
+        ChatId,
+        {accountCount: number; includedAccountIds: Set<AccountId>}
+    >();
 
     await runAllPromiseThunks(
         async () => {
@@ -809,9 +811,16 @@ export async function getSharedChats(
             );
 
             for (const accountChat of ourAccountChats) {
-                accountIdsByChatId
-                    .getOrSetDefault(accountChat.chatId)
-                    .add(context.auth.getAccountId());
+                const accounts = getOrSetDefaultMapValue(
+                    accountsByChatId,
+                    accountChat.chatId,
+                    () => ({
+                        accountCount: accountChat.chatAccountCount,
+                        includedAccountIds: new Set<AccountId>(),
+                    }),
+                );
+
+                accounts.includedAccountIds.add(context.auth.getAccountId());
             }
         },
         async () => {
@@ -829,49 +838,70 @@ export async function getSharedChats(
 
             for (const [accountId, otherAccountChats] of otherAccountChatsByAccountId) {
                 for (const accountChat of otherAccountChats) {
-                    accountIdsByChatId.getOrSetDefault(accountChat.chatId).add(accountId);
+                    const accounts = getOrSetDefaultMapValue(
+                        accountsByChatId,
+                        accountChat.chatId,
+                        () => ({
+                            accountCount: accountChat.chatAccountCount,
+                            includedAccountIds: new Set<AccountId>(),
+                        }),
+                    );
+
+                    accounts.includedAccountIds.add(accountId);
                 }
             }
         },
     );
 
-    const chatIdsByAccountIds = new Map<
+    const chatsByIncludedAccountIds = new Map<
         string,
-        {readonly accountIds: ReadonlyArray<AccountId>; chatIds: Array<ChatId>}
+        {
+            readonly includedAccountIds: ReadonlyArray<AccountId>;
+            chats: Array<{id: ChatId; accountCount: number}>;
+        }
     >();
 
-    for (const [chatId, chatAccountIdsSet] of accountIdsByChatId) {
+    for (const [chatId, chatAccounts] of accountsByChatId) {
         // We only want to include chats that are shared between multiple users in our
         // final result.
-        if (accountIds.size > 0 && chatAccountIdsSet.size <= 1) continue;
+        if (accountIds.size > 0 && chatAccounts.includedAccountIds.size <= 1) continue;
 
         // Do not include chats that do not include the authenticated account! You are
         // not allowed to see what chats other accounts are members of.
-        if (!chatAccountIdsSet.has(context.auth.getAccountId())) continue;
+        if (!chatAccounts.includedAccountIds.has(context.auth.getAccountId())) continue;
 
-        const chatAccountIds = Array.from(
+        const includedAccountIds = Array.from(
             filterIterable(
-                chatAccountIdsSet,
+                chatAccounts.includedAccountIds,
                 accountId => accountId !== context.auth.getAccountId(),
             ),
         ).sort(defaultCompareStrings);
 
-        getOrSetDefaultMapValue(chatIdsByAccountIds, chatAccountIds.join("-"), () => ({
-            accountIds: chatAccountIds,
-            chatIds: [],
-        })).chatIds.push(chatId);
+        getOrSetDefaultMapValue(chatsByIncludedAccountIds, includedAccountIds.join("-"), () => ({
+            includedAccountIds,
+            chats: [],
+        })).chats.push({
+            id: chatId,
+            accountCount: chatAccounts.accountCount,
+        });
     }
 
     return Array.from(
-        flatMapIterable(chatIdsByAccountIds.values(), ({accountIds, chatIds}) =>
-            chatIds.map(chatId => ({includesAccountIds: accountIds, chatId})),
+        flatMapIterable(chatsByIncludedAccountIds.values(), ({includedAccountIds, chats}) =>
+            chats.map(chat => ({
+                includedAccountIds,
+                chatId: chat.id,
+                chatAccountCount: chat.accountCount,
+            })),
         ),
     ).sort(
         (a, b) =>
             // Put shared chats with more accounts in common first
-            (a.includesAccountIds.length - b.includesAccountIds.length) * -1 ||
-            // Then
-            compareArrays(a.includesAccountIds, b.includesAccountIds, defaultCompareStrings) ||
+            (a.includedAccountIds.length - b.includedAccountIds.length) * -1 ||
+            // Then sort by accounts with fewer members (an exact matching chat should be first!)
+            a.chatAccountCount - b.chatAccountCount ||
+            // Then sort by account id order to be deterministic
+            compareArrays(a.includedAccountIds, b.includedAccountIds, defaultCompareStrings) ||
             // Sort by `ChatId` if the `AccountId` array is equal.
             defaultCompareStrings(a.chatId, b.chatId),
     );
