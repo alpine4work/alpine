@@ -1,6 +1,6 @@
 import {isFocusVisible} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
-import {CaretDown, MagnifyingGlass} from "phosphor-react";
+import {CaretDown, MagnifyingGlass, X} from "phosphor-react";
 import {RefObject, useEffect, useMemo, useRef, useState} from "react";
 import {
     AriaListBoxOptions,
@@ -18,12 +18,14 @@ import {IconButton} from "~/client/design/icon_button";
 import {OverlayAnimated} from "~/client/design/overlay_animated";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/space_context";
-import {addRemLengths, spacing} from "~/shared/design/spacing";
+import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {createTimeout} from "~/shared/helpers/async/timeout";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {isId} from "~/shared/id/id";
 import {AccountId, ChatId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
 import {
+    fontSizes,
     overlayFadeInAnimationDurationMs,
     overlayFadeOutAnimationDurationMs,
     sprinkles,
@@ -181,6 +183,7 @@ export function ChatAccountPicker() {
             }
         >
             <FocusRing
+                offset="inset"
                 isVisibleWhenFocusWithin={true}
                 // Render below the listbox overlay.
                 overlayZIndex="-10"
@@ -191,44 +194,117 @@ export function ChatAccountPicker() {
                 }
             >
                 <Box
-                    position="relative"
                     // Border radius for the focus ring
                     borderTopRadius={{desktop: "md"}}
+                    display="flex"
+                    alignItems="flex-start"
                 >
                     <label
                         {...labelProps}
                         className={sprinkles({
-                            position: "absolute",
-                            left: "4",
-                            paddingY: "3",
+                            flexShrink: "0",
+                            display: "flex",
+                            alignItems: "center",
+                            height: "10",
+                            paddingLeft: "4",
+                            paddingRight: "3",
                             fontSize: "100",
                             color: "grey-50",
-                            pointerEvents: "none",
                         })}
                     >
                         {comboBoxProps.label}
                     </label>
-                    <input
-                        {...inputProps}
-                        ref={inputRef}
-                        className={sprinkles({
-                            width: "full",
-                            fontSize: "100",
-                            paddingY: "3",
-                            paddingLeft: "12",
-                            paddingRight: "10",
-                        })}
-                        style={{background: "none"}}
-                        placeholder="Who do you want to send a message to?"
-                    />
                     <Box
-                        position="absolute"
-                        right="3"
-                        // Really tiny detail: Click boundaries of the container should be the same as
-                        // the button so that clicking the corners selects the text box.
-                        borderRadius="full"
-                        style={{top: addRemLengths(spacing["3"], spacing["0.5"])}}
+                        flexGrow="1"
+                        display="flex"
+                        flexWrap="wrap"
+                        gap="1.5"
+                        paddingY="2"
+                        cursor="text"
+                        onClick={event => {
+                            if (event.currentTarget === event.target) {
+                                assertExists(inputRef.current).focus();
+                            }
+                        }}
                     >
+                        {selection?.accounts.map(account => (
+                            <Box
+                                key={account.id}
+                                cursor="default"
+                                height="6"
+                                backgroundColor="grey-5"
+                                borderRadius="full"
+                                display="flex"
+                                alignItems="center"
+                            >
+                                <Box paddingLeft="0.5">
+                                    <AccountAvatar size="5" account={account} />
+                                </Box>
+                                <Box paddingLeft="1.5" paddingRight="0.5" fontSize="100">
+                                    {account.name}
+                                </Box>
+                                <Box paddingRight="1">
+                                    <IconButton
+                                        size="xs"
+                                        variant="quiet-on-grey-5-background"
+                                        description="Remove"
+                                        withoutTooltip={true}
+                                        onPress={() => {
+                                            setSelection(selection => {
+                                                if (!selection) return selection;
+
+                                                const newAccounts = selection.accounts.filter(
+                                                    otherAccount => otherAccount.id !== account.id,
+                                                );
+
+                                                if (
+                                                    newAccounts.length === selection.accounts.length
+                                                ) {
+                                                    return selection;
+                                                }
+
+                                                return {
+                                                    chatId: null,
+                                                    accounts: newAccounts,
+                                                };
+                                            });
+                                        }}
+                                    >
+                                        <X size={addRemLengths(spacing["2"], spacing["0.5"])} />
+                                    </IconButton>
+                                </Box>
+                            </Box>
+                        ))}
+                        <input
+                            {...inputProps}
+                            ref={inputRef}
+                            className={sprinkles({
+                                flexGrow: "1",
+                                display: "block",
+                                minWidth: searchQuery.length > 0 ? "48" : "4",
+                                fontSize: "100",
+                            })}
+                            style={{
+                                background: "none",
+                                paddingTop: `${
+                                    (parseRemLengthNumber(spacing["6"]) -
+                                        parseRemLengthNumber(fontSizes["100"].lineHeight)) /
+                                    2
+                                }rem`,
+                                paddingBottom: `${
+                                    (parseRemLengthNumber(spacing["6"]) -
+                                        parseRemLengthNumber(fontSizes["100"].lineHeight)) /
+                                    2
+                                }rem`,
+                            }}
+                            placeholder={
+                                !selection || selection.accounts.length === 0
+                                    ? "Who do you want to send a message to?"
+                                    : undefined
+                            }
+                        />
+                    </Box>
+                    <Box flexShrink="0" paddingY="3" paddingX="3">
                         <IconButton
                             {...buttonProps}
                             ref={buttonRef}

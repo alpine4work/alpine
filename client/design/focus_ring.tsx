@@ -121,6 +121,8 @@ function FocusRing(
     const [isActive, setIsActive] = useState(false);
     const targetRef = useRef<HTMLElement | null>(null);
 
+    const hasInitiallyMountedRef = useRef(false);
+
     const targetLifecycleRef = useCallback(
         (targetElement: HTMLElement) => {
             targetRef.current = targetElement;
@@ -159,7 +161,22 @@ function FocusRing(
                 }
             };
 
-            update();
+            // Update our focus state on initial mount.
+            //
+            // This is necessary for elements that are keyboard focused on mount. For
+            // example, try editing a comment with the keyboard. It should get a
+            // focus ring.
+            //
+            // However, we don't want to update the focus state on prop change. For
+            // example, try clicking into an account picker (focus is not visible, no ring)
+            // then using arrow keys to select an account (account should get ring) then
+            // hitting enter to select the account (focus returned to text input which
+            // should not have ring, it stayed focused and maintained its inactive focus
+            // ring state).
+            if (!hasInitiallyMountedRef.current) {
+                hasInitiallyMountedRef.current = true;
+                update();
+            }
 
             // Use `focusin`/`focusout` instead of `focus`/`blur` because the
             // former bubbles.

@@ -81,7 +81,7 @@ export const spacing = {
     "320": "80rem",
 } as const;
 
-export type RemLength = `${number}rem`;
+export type RemLength = `${number}rem` | `-${number}rem`;
 
 /**
  * Is the provided string a `RemLength` string?
@@ -111,6 +111,15 @@ export function addRemLengths(...remLengths: Array<RemLength>): RemLength {
         (totalRemLength, remLength) => totalRemLength + parseRemLengthNumber(remLength),
         0,
     )}rem`;
+}
+
+/**
+ * Flips a positive `RemLength` to a negative `RemLength` and flips a negative
+ * `RemLength` to a positive `RemLength`.
+ */
+export function negateRemLength(remLength: RemLength): RemLength {
+    if (remLength.startsWith("-")) return remLength.slice(1) as RemLength;
+    return ("-" + remLength) as RemLength;
 }
 
 /**

@@ -17,7 +17,11 @@ import {Sprinkles, spinAnimationClassName, sprinkles} from "~/shared/styles/styl
 const IconButtonForwardRef = forwardRef(IconButton);
 export {IconButtonForwardRef as IconButton};
 
-type IconButtonVariant = "accent" | "quiet" | "quiet-on-grey-5-dark-background";
+type IconButtonVariant =
+    | "accent"
+    | "quiet"
+    | "quiet-on-grey-5-background"
+    | "quiet-on-grey-5-dark-background";
 
 type IconButtonSize = "base" | "md" | "sm" | "xs";
 
@@ -193,6 +197,15 @@ function IconButton(
                   backgroundColor: undefined,
                   color: "grey-30",
               },
+        "quiet-on-grey-5-background": !isDisabled
+            ? {
+                  backgroundColor: isPressed ? "grey-20" : isHovered ? "grey-10" : undefined,
+                  color: isPressed ? "grey-text" : "grey-70",
+              }
+            : {
+                  backgroundColor: undefined,
+                  color: "grey-30",
+              },
         "quiet-on-grey-5-dark-background": !isDisabled
             ? {
                   backgroundColor: isPressed
@@ -211,20 +224,20 @@ function IconButton(
     const {buttonSize, iconSize} = (
         {
             base: {
-                buttonSize: "7",
-                iconSize: "5",
+                buttonSize: spacing["7"],
+                iconSize: spacing["5"],
             },
             md: {
-                buttonSize: "6",
-                iconSize: "4",
+                buttonSize: spacing["6"],
+                iconSize: spacing["4"],
             },
             sm: {
-                buttonSize: "5",
-                iconSize: "4",
+                buttonSize: spacing["5"],
+                iconSize: spacing["4"],
             },
             xs: {
-                buttonSize: "4",
-                iconSize: "3",
+                buttonSize: spacing["4"],
+                iconSize: spacing["3"],
             },
         } as const
     )[size];
@@ -280,8 +293,6 @@ function IconButton(
                     {...mergeProps(buttonProps, hoverProps)}
                     ref={useMergedRefs(foreignRef, localRef)}
                     className={sprinkles({
-                        width: buttonSize,
-                        height: buttonSize,
                         display: "flex",
                         justifyContent: "center",
                         alignItems: "center",
@@ -294,6 +305,10 @@ function IconButton(
                         zIndex: "0",
                         ...stylesByVariant[variant],
                     })}
+                    style={{
+                        width: buttonSize,
+                        height: buttonSize,
+                    }}
                 >
                     {isPressed && variant === "accent" && (
                         // For accent buttons, instead of choosing a darker background color shade when
@@ -320,7 +335,7 @@ function IconButton(
                     <IconContext.Provider
                         value={{
                             color: "currentColor",
-                            size: spacing[iconSize],
+                            size: iconSize,
                         }}
                     >
                         {shouldShowPendingSpinner ? (
