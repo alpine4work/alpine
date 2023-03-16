@@ -133,7 +133,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     messageEditing: MessageEditing<RoomKey>;
     disableExpensiveFeaturesDuringScroll: boolean;
     shouldHighlightRef: MutableRefObject<boolean> | null;
-    onJumpToMessage: Memo<(roomKey: RoomKey, messageIndex: number) => void>;
+    onJumpToMessage: Memo<(message: Message) => void>;
     onReplyToMessage: () => void;
     onDeleteMessage: () => Promise<void>;
     getCopyLinkUrl: (messageIndex: number) => URL;
@@ -174,8 +174,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
     const messageEditingForThisMessage =
         messageEditing.state.isEditing &&
-        messageEditing.state.messageRoomKey === message.getRoomKey() &&
         !message.isOptimistic &&
+        messageEditing.state.messageRoomKey === message.getRoomKey() &&
         messageEditing.state.messageIndex === message.index
             ? messageEditing
             : null;
@@ -397,25 +397,11 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                 transform: `scale(${messageViewPreviewScale})`,
                                 transformOrigin: "0% 0% 0",
                             }}
-                            onClick={() =>
-                                onJumpToMessage(parentMessage.getRoomKey(), parentMessage.index)
-                            }
+                            onClick={() => onJumpToMessage(parentMessage)}
                             onKeyDown={event => {
-                                if (event.key === "Enter") {
+                                if (event.key === "Enter" || event.key === " ") {
                                     event.preventDefault();
-                                    onJumpToMessage(
-                                        parentMessage.getRoomKey(),
-                                        parentMessage.index,
-                                    );
-                                    return;
-                                }
-
-                                if (event.key === " ") {
-                                    event.preventDefault();
-                                    onJumpToMessage(
-                                        parentMessage.getRoomKey(),
-                                        parentMessage.index,
-                                    );
+                                    onJumpToMessage(parentMessage);
                                     return;
                                 }
                             }}
@@ -461,8 +447,10 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             style={{
                 animation: shouldHighlight ? wiggleAnimation : undefined,
             }}
-            data-testid={`MessageView:${message.getRoomKey()}:${
-                message.isOptimistic ? "optimistic" : message.index
+            data-testid={`MessageView:${
+                message.isOptimistic
+                    ? `optimistic:${message.optimisticId}`
+                    : `${message.getRoomKey()}:${message.index}`
             }`}
         >
             {useMemo(

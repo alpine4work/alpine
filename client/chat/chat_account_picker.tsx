@@ -38,9 +38,17 @@ type ChatAccountPickerItem = {
     readonly account: AccountModel;
 };
 
-export function ChatAccountPicker() {
-    const [selectedAccounts, setSelectedAccounts] = useState<ReadonlyArray<AccountModel>>([]);
-
+export function ChatAccountPicker({
+    selectedAccounts,
+    setSelectedAccounts,
+}: {
+    selectedAccounts: ReadonlyArray<AccountModel>;
+    setSelectedAccounts: (
+        update:
+            | ReadonlyArray<AccountModel>
+            | ((selectedAccounts: ReadonlyArray<AccountModel>) => ReadonlyArray<AccountModel>),
+    ) => void;
+}) {
     const allAccounts = useExpensivelyLoadAllSpaceAccounts();
 
     const accountById = useMemo(

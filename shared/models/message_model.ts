@@ -23,30 +23,28 @@ export type MessageRoomKeyType<Message extends MessageModelBase> = Message exten
     ? RoomKey
     : never;
 
-export interface MessageModelBase<RoomKey extends string = string> {
+export interface MessageModelBase {
     /**
      * The account who created this message.
      */
     readonly author: AccountModel;
+
     /**
      * The time at which the message was created.
      */
     readonly createdTime: Date;
+
     /**
      * The message payload. Determines the contents of the message and how it
      * will be rendered.
      */
     readonly payload: MessagePayloadModel;
-    /**
-     * Get a key for the room the message is in.
-     */
-    getRoomKey(): RoomKey;
 }
 
 /**
  * The interface for a message to be rendered by our messaging UI.
  */
-export interface MessageModel<RoomKey extends string = string> extends MessageModelBase<RoomKey> {
+export interface MessageModel<RoomKey extends string = string> extends MessageModelBase {
     /**
      * Message indexes are positive integers that are unique within a room and are
      * incremented sequentially.
@@ -62,13 +60,23 @@ export interface MessageModel<RoomKey extends string = string> extends MessageMo
      * a notification and a message is no longer there.
      */
     readonly index: number;
-    // Available for TypeScript to access this property on a union.
-    readonly isOptimistic?: undefined;
+
+    /**
+     * Get a key for the room the message is in.
+     *
+     * Room keys are not available in optimistic messages since we may be
+     * optimistically creating a room and not have a room yet.
+     */
+    getRoomKey(): RoomKey;
+
     /**
      * Clone the model object, replacing any values with those provided in the
      * partial value.
      */
     clone(partialValue: {payload?: MessagePayloadModel}): this;
+
+    // Available for TypeScript to access this property on a union.
+    readonly isOptimistic?: undefined;
 }
 
 /**
@@ -76,13 +84,14 @@ export interface MessageModel<RoomKey extends string = string> extends MessageMo
  * not yet been confirmed on the server. Which means the server has not yet
  * assigned it an index.
  */
-export interface OptimisticMessageModel<RoomKey extends string = string>
-    extends MessageModelBase<RoomKey> {
+export interface OptimisticMessageModel extends MessageModelBase {
     readonly isOptimistic: true;
+
     /**
      * An identifier for an optimistic message on the client.
      */
     readonly optimisticId: Id;
+
     /**
      * Was there an error when trying to send this optimistic message to the
      * server? If true we tell the user and let them retry.

@@ -257,8 +257,11 @@ function PostListView(
 
     const posts = postsWithoutChannelHeader.setChannelHeader(channelHeader ?? null);
     useEffect(() => {
-        setPosts(posts);
-    }, [posts]);
+        setPosts(previousPosts => {
+            if (previousPosts === postsWithoutChannelHeader) return posts;
+            return previousPosts.setChannelHeader(channelHeader ?? null);
+        });
+    }, [channelHeader, posts, postsWithoutChannelHeader]);
 
     // Always pin the post comment input to the bottom of the list view on mobile
     // layout of a single post. We use a heuristic of one post with always open
@@ -543,9 +546,9 @@ function PostListView(
     >(new Map());
 
     // A comment to highlight for the user. We currently highlight comments with a
-    // little wiggle animation (see `message_view.css.ts` for more information). We
-    // highlight comments when initially loading a page with a comment index in the
-    // URL and when the user clicks on a reply preview to jump to it.
+    // little wiggle animation (see `wiggle_animation.css.ts` for more information).
+    // We highlight comments when initially loading a page with a comment index in
+    // the URL and when the user clicks on a reply preview to jump to it.
     const [highlightPostComment, setHighlightPostComment] = useState<{
         postId: PostId;
         postCommentIndex: number;
@@ -558,7 +561,7 @@ function PostListView(
     //
     // 1. We scroll to the comment
     // 2. We highlight the comment to the user
-    const handleJumpToPostComment = useEvent((postId: PostId, postCommentIndex: number) => {
+    const jumpToPostCommentIfExists = useEvent((postId: PostId, postCommentIndex: number) => {
         // If we are in the process of jumping, don't start another jump
         if (isJumpingToPostCommentRef.current) return;
 
@@ -594,12 +597,19 @@ function PostListView(
         }
     });
 
+    const handleJumpToPostComment = useCallback(
+        (postComment: PostCommentModel) => {
+            jumpToPostCommentIfExists(postComment.postId, postComment.index);
+        },
+        [jumpToPostCommentIfExists],
+    );
+
     useImperativeHandle(
         ref,
         () => ({
-            jumpToPostComment: handleJumpToPostComment,
+            jumpToPostComment: jumpToPostCommentIfExists,
         }),
-        [handleJumpToPostComment],
+        [jumpToPostCommentIfExists],
     );
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
@@ -995,9 +1005,8 @@ function PostListView(
                                     },
                                 );
                             }}
-                            onJumpToPostComment={index =>
-                                handleJumpToPostComment(item.post.id, index)
-                            }
+                            onJumpToPostComment={handleJumpToPostComment}
+                            withoutBorderTop={true}
                         />
                     );
 
@@ -1145,6 +1154,7 @@ function PostListView(
                                             >
                                                 <div
                                                     className={sprinkles({
+                                                        position: "relative",
                                                         display: "flex",
                                                         pointerEvents: "auto",
                                                         ...(shouldRenderWithRelativePositioning && {
@@ -1159,42 +1169,31 @@ function PostListView(
                                                     })}
                                                     style={{
                                                         // Allow full-width top border to be visible until it slides under.
-                                                        paddingTop:
-                                                            !shouldRenderWithRelativePositioning
-                                                                ? 1
-                                                                : 0,
+                                                        paddingTop: 1,
                                                     }}
                                                 >
+                                                    {shouldRenderWithRelativePositioning && (
+                                                        <div
+                                                            className={sprinkles({
+                                                                position: "absolute",
+                                                                top: "0",
+                                                                left: "5",
+                                                                right: "5",
+                                                                borderTop: "grey-5",
+                                                            })}
+                                                        />
+                                                    )}
                                                     <div
                                                         className={sprinkles({
-                                                            position: "relative",
                                                             flexGrow: "1",
                                                             overflowX: "hidden",
+                                                            // Full-width border will be hidden under this background.
                                                             backgroundColor: "grey-0",
                                                             borderBottomRadius: hasMargin
                                                                 ? "md"
                                                                 : undefined,
                                                         })}
-                                                        style={{
-                                                            // Remove one pixel from top to make space for for border.
-                                                            paddingTop:
-                                                                !shouldRenderWithRelativePositioning
-                                                                    ? `calc(${spacing["3"]} - 1px)`
-                                                                    : spacing["3"],
-                                                            paddingBottom: spacing["3"],
-                                                        }}
                                                     >
-                                                        {shouldRenderWithRelativePositioning && (
-                                                            <div
-                                                                className={sprinkles({
-                                                                    position: "absolute",
-                                                                    top: "0",
-                                                                    left: "5",
-                                                                    right: "5",
-                                                                    borderTop: "grey-5",
-                                                                })}
-                                                            />
-                                                        )}
                                                         {inputNode}
                                                     </div>
                                                 </div>
@@ -1588,59 +1587,46 @@ function PostListView(
                                 : null;
 
                         return (
-                            <div
-                                className={sprinkles({
-                                    flexShrink: "0",
-                                    borderTop: "grey-10",
-                                })}
-                                style={{
-                                    // Remove one pixel from top to make space for for border.
-                                    paddingTop: `calc(${spacing["3"]} - 1px)`,
-                                    paddingBottom: spacing["3"],
-                                }}
-                            >
-                                <PostCommentInput
-                                    post={lastPostContentItem.post}
-                                    viewRef={viewRef}
-                                    actionsRef={actions => {
-                                        if (actions) {
-                                            actionsByPostIdRef.current.set(
-                                                lastPostContentItem.post.id,
-                                                actions,
-                                            );
-                                        } else {
-                                            actionsByPostIdRef.current.delete(
-                                                lastPostContentItem.post.id,
-                                            );
-                                        }
-                                    }}
-                                    postComments={lastPostContentItem.postComments}
-                                    onUpdatePostComments={update =>
-                                        setPosts(posts =>
-                                            posts.updatePostComments(
-                                                lastPostContentItem.post.id,
-                                                update,
-                                            ),
-                                        )
-                                    }
-                                    replyingToPostComment={replyingToPostComment}
-                                    onClearReplyingToPostComment={() => {
-                                        setReplyingToPostCommentIndexByPostId(
-                                            replyingToPostCommentIndexByPostId => {
-                                                const newReplyingToPostCommentIndexByPostId =
-                                                    new Map(replyingToPostCommentIndexByPostId);
-                                                newReplyingToPostCommentIndexByPostId.delete(
-                                                    lastPostContentItem.post.id,
-                                                );
-                                                return newReplyingToPostCommentIndexByPostId;
-                                            },
+                            <PostCommentInput
+                                post={lastPostContentItem.post}
+                                viewRef={viewRef}
+                                actionsRef={actions => {
+                                    if (actions) {
+                                        actionsByPostIdRef.current.set(
+                                            lastPostContentItem.post.id,
+                                            actions,
                                         );
-                                    }}
-                                    onJumpToPostComment={index =>
-                                        handleJumpToPostComment(lastPostContentItem.post.id, index)
+                                    } else {
+                                        actionsByPostIdRef.current.delete(
+                                            lastPostContentItem.post.id,
+                                        );
                                     }
-                                />
-                            </div>
+                                }}
+                                postComments={lastPostContentItem.postComments}
+                                onUpdatePostComments={update =>
+                                    setPosts(posts =>
+                                        posts.updatePostComments(
+                                            lastPostContentItem.post.id,
+                                            update,
+                                        ),
+                                    )
+                                }
+                                replyingToPostComment={replyingToPostComment}
+                                onClearReplyingToPostComment={() => {
+                                    setReplyingToPostCommentIndexByPostId(
+                                        replyingToPostCommentIndexByPostId => {
+                                            const newReplyingToPostCommentIndexByPostId = new Map(
+                                                replyingToPostCommentIndexByPostId,
+                                            );
+                                            newReplyingToPostCommentIndexByPostId.delete(
+                                                lastPostContentItem.post.id,
+                                            );
+                                            return newReplyingToPostCommentIndexByPostId;
+                                        },
+                                    );
+                                }}
+                                onJumpToPostComment={handleJumpToPostComment}
+                            />
                         );
                     })()}
             </div>

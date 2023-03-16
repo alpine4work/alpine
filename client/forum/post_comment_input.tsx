@@ -27,6 +27,7 @@ export function PostCommentInput({
     replyingToPostComment,
     onClearReplyingToPostComment,
     onJumpToPostComment,
+    withoutBorderTop,
 }: {
     post: PostModel;
     viewRef: RefObject<VirtualizedScrollViewRef>;
@@ -37,7 +38,8 @@ export function PostCommentInput({
     ) => void;
     replyingToPostComment: PostCommentModel | null;
     onClearReplyingToPostComment: () => void;
-    onJumpToPostComment: (postCommentIndex: number) => void;
+    onJumpToPostComment: (postComment: PostCommentModel) => void;
+    withoutBorderTop?: boolean;
 }) {
     // We connect to realtime in our `<PostCommentInput>` component. When comments
     // are open this component is always rendered and we only want to connect to
@@ -159,6 +161,7 @@ export function PostCommentInput({
             replyingToMessage={replyingToPostComment}
             onClearReplyingToMessage={onClearReplyingToPostComment}
             onJumpToMessage={onJumpToPostComment}
+            withoutBorderTop={withoutBorderTop}
         />
     );
 }

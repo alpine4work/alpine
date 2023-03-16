@@ -47,10 +47,11 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
     replyingToMessage: _replyingToMessage,
     onClearReplyingToMessage,
     onJumpToMessage,
+    withoutBorderTop = false,
 }: {
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
-    roomKey: RoomKey;
+    roomKey: RoomKey | null;
     messages: MessageList<Message>;
     onUpdateMessages: (update: (messages: MessageList<Message>) => MessageList<Message>) => void;
     createMessage: (input: {
@@ -59,7 +60,8 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
     }) => Promise<void>;
     replyingToMessage: Message | null;
     onClearReplyingToMessage: () => void;
-    onJumpToMessage: (messageIndex: number) => void;
+    onJumpToMessage: (message: Message) => void;
+    withoutBorderTop?: boolean;
 }) {
     const showToast = useShowToast();
     const {currentAccount} = useSpaceContext();
@@ -104,7 +106,6 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                 content,
                 contentUpdatedTime: null,
             },
-            getRoomKey: () => roomKey,
         };
 
         onUpdateMessages(messages => messages.addOptimisticMessage(optimisticMessage));
@@ -169,7 +170,17 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
     const isSendButtonDisabled = isContentEmpty(state.getDoc());
 
     return (
-        <Box data-testid={`MessageInput:${roomKey}`}>
+        <Box
+            data-testid={`MessageInput:${roomKey !== null ? roomKey : "null"}`}
+            flexShrink="0"
+            borderTop={!withoutBorderTop ? "grey-10" : undefined}
+            style={{
+                minHeight: messageInputMinHeight,
+                // Remove one pixel from top to make space for a border.
+                paddingTop: `calc(${spacing["3"]} - 1px)`,
+                paddingBottom: spacing["3"],
+            }}
+        >
             {replyingToMessage &&
                 (() => {
                     const height = addRemLengths(
@@ -247,13 +258,11 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                                             transform: `scale(${messageViewPreviewScale})`,
                                             transformOrigin: "0% 0% 0",
                                         }}
-                                        onClick={() =>
-                                            onJumpToMessage(replyingToMessage.message.index)
-                                        }
+                                        onClick={() => onJumpToMessage(replyingToMessage.message)}
                                         onKeyDown={event => {
                                             if (event.key === "Enter" || event.key === " ") {
                                                 event.preventDefault();
-                                                onJumpToMessage(replyingToMessage.message.index);
+                                                onJumpToMessage(replyingToMessage.message);
                                                 return;
                                             }
                                         }}
