@@ -1,7 +1,7 @@
 import {isFocusVisible} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
 import {CaretDown, MagnifyingGlass, X} from "phosphor-react";
-import {RefObject, useEffect, useMemo, useRef, useState} from "react";
+import {KeyboardEvent, RefObject, createRef, useEffect, useMemo, useRef, useState} from "react";
 import {
     AriaListBoxOptions,
     mergeProps,
@@ -19,7 +19,9 @@ import {OverlayAnimated} from "~/client/design/overlay_animated";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/space_context";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length";
 import {createTimeout} from "~/shared/helpers/async/timeout";
+import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {isId} from "~/shared/id/id";
 import {AccountId} from "~/shared/id/types/id_types";
@@ -152,9 +154,153 @@ export function ChatAccountPicker() {
             buttonRef,
             popoverRef,
             listBoxRef,
+            onKeyDown: event => {
+                assert(event.currentTarget instanceof HTMLInputElement);
+                switch (event.key) {
+                    // If we are at the beginning of the combobox text input, the backspace key
+                    // will delete the last selected account.
+                    case "Backspace": {
+                        if (
+                            selectedAccounts.length > 0 &&
+                            event.currentTarget.selectionStart ===
+                                event.currentTarget.selectionEnd &&
+                            event.currentTarget.selectionStart === 0
+                        ) {
+                            event.preventDefault();
+                            setSelectedAccounts(selectedAccounts => {
+                                if (selectedAccounts.length === 0) return selectedAccounts;
+                                return selectedAccounts.slice(0, -1);
+                            });
+                        }
+                        break;
+                    }
+                    // If we are at the beginning of the combobox text input, the arrow left key
+                    // will focus a previously selected account if we have one.
+                    case "ArrowLeft": {
+                        if (
+                            selectedAccountRefs.length > 0 &&
+                            event.currentTarget.selectionStart ===
+                                event.currentTarget.selectionEnd &&
+                            event.currentTarget.selectionStart === 0
+                        ) {
+                            event.preventDefault();
+                            selectedAccountRefs[selectedAccountRefs.length - 1]?.current?.focus();
+                        }
+                        break;
+                    }
+                }
+            },
         },
         comboBoxState,
     );
+
+    const selectedAccountsLength = selectedAccounts.length;
+    const selectedAccountRefs = useMemo(
+        () => createArrayWithLength(selectedAccountsLength, () => createRef<HTMLDivElement>()),
+        [selectedAccountsLength],
+    );
+
+    const selectedAccountsChildren = selectedAccounts.map((account, index) => {
+        const deleteAccount = () => {
+            setSelectedAccounts(selectedAccounts => {
+                const newSelectedAccounts = selectedAccounts.filter(
+                    otherAccount => otherAccount.id !== account.id,
+                );
+                return newSelectedAccounts.length !== selectedAccounts.length
+                    ? newSelectedAccounts
+                    : selectedAccounts;
+            });
+        };
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            switch (event.key) {
+                // Backspace or delete will remove our selected account.
+                case "Backspace":
+                case "Delete": {
+                    event.preventDefault();
+                    deleteAccount();
+                    if (index + 1 < selectedAccountRefs.length) {
+                        selectedAccountRefs[index + 1]?.current?.focus();
+                    } else {
+                        inputRef.current?.focus();
+                    }
+                    break;
+                }
+                // Arrow keys navigate through selected accounts. Only the first selected
+                // account is focusable since you use arrow keys to navigate between accounts.
+                case "ArrowLeft": {
+                    event.preventDefault();
+                    selectedAccountRefs[index - 1]?.current?.focus();
+                    break;
+                }
+                // Arrow keys navigate through selected accounts. Only the first selected
+                // account is focusable since you use arrow keys to navigate between accounts.
+                case "ArrowRight": {
+                    event.preventDefault();
+                    if (index + 1 < selectedAccountRefs.length) {
+                        selectedAccountRefs[index + 1]?.current?.focus();
+                    } else {
+                        inputRef.current?.focus();
+                    }
+                    break;
+                }
+                default: {
+                    // If the user presses a letter then interpret that as the user trying to
+                    // replace the focused account. So delete the selected account and add the text
+                    // to our search input.
+                    if (/^[0-9a-zA-Z]$/.test(event.key)) {
+                        event.preventDefault();
+                        deleteAccount();
+                        setSearchQuery(({searchQuery}) => ({
+                            searchQuery: searchQuery + event.key,
+                            shouldCloseComboBox: false,
+                        }));
+                        inputRef.current?.focus();
+                    }
+                    break;
+                }
+            }
+        };
+
+        return (
+            <FocusRing key={account.id}>
+                <Box
+                    ref={selectedAccountRefs[index]}
+                    cursor="default"
+                    height="6"
+                    backgroundColor="grey-5"
+                    borderRadius="full"
+                    display="flex"
+                    alignItems="center"
+                    // The first selected account is focusable via tab and you can use arrow keys
+                    // to focus the others.
+                    tabIndex={index === 0 ? 0 : -1}
+                    onKeyDown={handleKeyDown}
+                >
+                    <Box paddingLeft="0.5">
+                        <AccountAvatar size="5" account={account} />
+                    </Box>
+                    <Box paddingLeft="1.5" paddingRight="0.5" fontSize="100">
+                        {account.name}
+                    </Box>
+                    <Box paddingRight="1">
+                        <IconButton
+                            size="xs"
+                            variant="quiet-on-grey-5-background"
+                            // The user focuses the pill as a whole and hits the delete key to delete using
+                            // the keyboard.
+                            disableKeyboardFocus={true}
+                            description="Remove"
+                            withoutTooltip={true}
+                            onPress={deleteAccount}
+                        >
+                            <X size={addRemLengths(spacing["2"], spacing["0.5"])} />
+                        </IconButton>
+                    </Box>
+                </Box>
+            </FocusRing>
+        );
+    });
 
     return (
         <OverlayAnimated
@@ -218,45 +364,7 @@ export function ChatAccountPicker() {
                             }
                         }}
                     >
-                        {selectedAccounts.map(account => (
-                            <Box
-                                key={account.id}
-                                cursor="default"
-                                height="6"
-                                backgroundColor="grey-5"
-                                borderRadius="full"
-                                display="flex"
-                                alignItems="center"
-                            >
-                                <Box paddingLeft="0.5">
-                                    <AccountAvatar size="5" account={account} />
-                                </Box>
-                                <Box paddingLeft="1.5" paddingRight="0.5" fontSize="100">
-                                    {account.name}
-                                </Box>
-                                <Box paddingRight="1">
-                                    <IconButton
-                                        size="xs"
-                                        variant="quiet-on-grey-5-background"
-                                        description="Remove"
-                                        withoutTooltip={true}
-                                        onPress={() => {
-                                            setSelectedAccounts(selectedAccounts => {
-                                                const newSelectedAccounts = selectedAccounts.filter(
-                                                    otherAccount => otherAccount.id !== account.id,
-                                                );
-                                                return newSelectedAccounts.length !==
-                                                    selectedAccounts.length
-                                                    ? newSelectedAccounts
-                                                    : selectedAccounts;
-                                            });
-                                        }}
-                                    >
-                                        <X size={addRemLengths(spacing["2"], spacing["0.5"])} />
-                                    </IconButton>
-                                </Box>
-                            </Box>
-                        ))}
+                        {selectedAccountsChildren}
                         <input
                             {...inputProps}
                             ref={inputRef}

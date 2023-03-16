@@ -1,6 +1,6 @@
 import {PressEvent} from "@react-types/shared";
 import {IconContext, SpinnerGap} from "phosphor-react";
-import {ReactNode, Ref, forwardRef, useEffect, useRef, useState} from "react";
+import {ButtonHTMLAttributes, ReactNode, Ref, forwardRef, useEffect, useRef, useState} from "react";
 import {AriaButtonProps, mergeProps, useButton, useHover} from "react-aria";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
@@ -12,6 +12,7 @@ import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
 import {Spacing, spacing} from "~/shared/design/spacing";
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
+import {cast} from "~/shared/helpers/control/cast";
 import {Sprinkles, spinAnimationClassName, sprinkles} from "~/shared/styles/styles";
 
 const IconButtonForwardRef = forwardRef(IconButton);
@@ -104,6 +105,13 @@ function IconButton(
          * the `description`. Optionally including a `keyboardShortcutHint`.
          */
         tooltipContentOverride?: ReactNode;
+
+        /**
+         * Disable focusing this button through sequential keyboard navigation using
+         * the `Tab` button. This sets `tabindex="-1"` on the element. The element will
+         * still be programmatically focusable.
+         */
+        disableKeyboardFocus?: boolean;
     },
     foreignRef: Ref<HTMLButtonElement>,
 ) {
@@ -120,6 +128,7 @@ function IconButton(
         tooltipPlacement = "bottom-start",
         tooltipOffset = defaultTooltipOffset,
         tooltipContentOverride,
+        disableKeyboardFocus = false,
     } = props;
     const localRef = useRef<HTMLButtonElement>(null);
     const showToast = useShowToast();
@@ -290,7 +299,15 @@ function IconButton(
         >
             <FocusRing>
                 <button
-                    {...mergeProps(buttonProps, hoverProps)}
+                    {...mergeProps(
+                        buttonProps,
+                        hoverProps,
+                        // Only override `tabIndex` if `disableKeyboardFocus` is set. Otherwise let
+                        // `react-aria` control `tabIndex`.
+                        cast<ButtonHTMLAttributes<HTMLButtonElement>>(
+                            disableKeyboardFocus ? {tabIndex: -1} : {},
+                        ),
+                    )}
                     ref={useMergedRefs(foreignRef, localRef)}
                     className={sprinkles({
                         display: "flex",
