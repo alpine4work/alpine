@@ -1,4 +1,13 @@
-import {getChat, getSharedChats} from "~/server/dynamo/chat_table";
+import {
+    deleteChatMessage,
+    getChat,
+    getChatMessagesFromEnd,
+    getChatMessagesFromStart,
+    getSharedChats,
+    sendChatMessage,
+    sendChatMessageToAccounts,
+    updateChatMessageContent,
+} from "~/server/dynamo/chat_table";
 import {implementRpc} from "~/server/rpc/internal/implement_rpc";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable";
@@ -62,4 +71,28 @@ implementRpc(definition.getChatRecommendations, async (_context, input) => {
         exactMatch: exactMatchChat ? {chat: exactMatchChat} : null,
         chatRecommendations: chatRecommendations.filter(isNonNullable),
     };
+});
+
+implementRpc(definition.getChatMessagesFromStart, async (context, input) => {
+    return getChatMessagesFromStart(await context.auth.authenticate(), input);
+});
+
+implementRpc(definition.getChatMessagesFromEnd, async (context, input) => {
+    return getChatMessagesFromEnd(await context.auth.authenticate(), input);
+});
+
+implementRpc(definition.sendChatMessage, async (context, input) => {
+    return sendChatMessage(await context.auth.authenticate(), input);
+});
+
+implementRpc(definition.sendChatMessageToAccounts, async (context, input) => {
+    return sendChatMessageToAccounts(await context.auth.authenticate(), input);
+});
+
+implementRpc(definition.updateChatMessageContent, async (context, input) => {
+    return updateChatMessageContent(await context.auth.authenticate(), input);
+});
+
+implementRpc(definition.deleteChatMessage, async (context, input) => {
+    return deleteChatMessage(await context.auth.authenticate(), input);
 });

@@ -142,9 +142,10 @@ const Box = null;
 export function MessagingView<RoomKey extends string, Message extends MessageModel<RoomKey>>({
     messageNoun = "message",
     messageStartOfSentenceNoun = messageNoun.slice(0, 1).toUpperCase() + messageNoun.slice(1),
-    roomKey,
     initialScrollOffset,
     initialMessagesResult,
+    randomSeedForShimmer,
+    isMessageCreationDisabled,
     getMessagesFromStart,
     getMessagesFromEnd,
     createMessage,
@@ -154,7 +155,6 @@ export function MessagingView<RoomKey extends string, Message extends MessageMod
 }: {
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
-    roomKey: RoomKey;
     initialScrollOffset: "top" | "bottom";
     initialMessagesResult: {
         readonly messageCount: number;
@@ -162,6 +162,8 @@ export function MessagingView<RoomKey extends string, Message extends MessageMod
         readonly otherReferencedMessages: ReadonlyArray<Message>;
         readonly lastMessageChangeTime: Date | null;
     };
+    randomSeedForShimmer: string;
+    isMessageCreationDisabled?: boolean;
     getMessagesFromStart: (input: {
         limit: number;
         afterMessageIndex: number | null;
@@ -407,7 +409,7 @@ export function MessagingView<RoomKey extends string, Message extends MessageMod
                             />
                         ) : (
                             <MessageShimmer
-                                randomSeed={roomKey}
+                                randomSeed={randomSeedForShimmer}
                                 index={item.messageIndex}
                                 previousMessage={previousMessage}
                                 nextMessage={nextMessage}
@@ -439,11 +441,9 @@ export function MessagingView<RoomKey extends string, Message extends MessageMod
 
                     return {
                         key:
-                            item.type === "Loaded"
-                                ? `Message:${roomKey}:${item.messageIndex}`
-                                : item.type === "Optimistic"
-                                ? `Message:${roomKey}:${item.messageIndex}`
-                                : `UnloadedMessage:${roomKey}:${item.messageIndex}`,
+                            item.type === "Loaded" || item.type === "Optimistic"
+                                ? `Message:${item.messageIndex}`
+                                : `UnloadedMessage:${item.messageIndex}`,
                         minHeight: messageViewMinHeight,
                         withManualLayout: true,
                         render: ({
@@ -483,7 +483,7 @@ export function MessagingView<RoomKey extends string, Message extends MessageMod
             messageEditing,
             messageNoun,
             messageStartOfSentenceNoun,
-            roomKey,
+            randomSeedForShimmer,
             state,
         ],
     );
@@ -508,8 +508,8 @@ export function MessagingView<RoomKey extends string, Message extends MessageMod
                 onRenderedRangeChange={tryLoadingMoreData}
             />
             <MessageInput
-                roomKey={roomKey}
                 messages={state.messages}
+                isMessageCreationDisabled={isMessageCreationDisabled}
                 onUpdateMessages={update => setMessages(update)}
                 createMessage={createMessage}
                 replyingToMessage={replyingToMessage}

@@ -46,7 +46,9 @@ test("can reply to a comment", async ({page, context: browserContext, isMobile})
     // Reply to the first comment.
     {
         await expect(
-            page.getByTestId(`MessageInput:${post.id}`).getByText("Test post comment content 1"),
+            page
+                .getByTestId(`PostCommentInput:${post.id}`)
+                .getByText("Test post comment content 1"),
         ).toBeHidden();
 
         await page
@@ -55,7 +57,9 @@ test("can reply to a comment", async ({page, context: browserContext, isMobile})
             .press("Enter");
 
         await expect(
-            page.getByTestId(`MessageInput:${post.id}`).getByText("Test post comment content 1"),
+            page
+                .getByTestId(`PostCommentInput:${post.id}`)
+                .getByText("Test post comment content 1"),
         ).toBeVisible();
 
         await page.getByRole("textbox", {name: "New comment"}).type("Test post comment content 3");
@@ -69,7 +73,9 @@ test("can reply to a comment", async ({page, context: browserContext, isMobile})
         }
 
         await expect(
-            page.getByTestId(`MessageInput:${post.id}`).getByText("Test post comment content 1"),
+            page
+                .getByTestId(`PostCommentInput:${post.id}`)
+                .getByText("Test post comment content 1"),
         ).toBeHidden();
 
         await expect(
@@ -86,7 +92,9 @@ test("can reply to a comment", async ({page, context: browserContext, isMobile})
     // Cancel replying to the first comment.
     {
         await expect(
-            page.getByTestId(`MessageInput:${post.id}`).getByText("Test post comment content 1"),
+            page
+                .getByTestId(`PostCommentInput:${post.id}`)
+                .getByText("Test post comment content 1"),
         ).toBeHidden();
 
         await page
@@ -95,20 +103,26 @@ test("can reply to a comment", async ({page, context: browserContext, isMobile})
             .press("Enter");
 
         await expect(
-            page.getByTestId(`MessageInput:${post.id}`).getByText("Test post comment content 1"),
+            page
+                .getByTestId(`PostCommentInput:${post.id}`)
+                .getByText("Test post comment content 1"),
         ).toBeVisible();
 
         await page.getByRole("button", {name: "Cancel reply"}).click();
 
         await expect(
-            page.getByTestId(`MessageInput:${post.id}`).getByText("Test post comment content 1"),
+            page
+                .getByTestId(`PostCommentInput:${post.id}`)
+                .getByText("Test post comment content 1"),
         ).toBeHidden();
     }
 
     // Reply to the second comment.
     {
         await expect(
-            page.getByTestId(`MessageInput:${post.id}`).getByText("Test post comment content 2"),
+            page
+                .getByTestId(`PostCommentInput:${post.id}`)
+                .getByText("Test post comment content 2"),
         ).toBeHidden();
 
         await page
@@ -117,7 +131,9 @@ test("can reply to a comment", async ({page, context: browserContext, isMobile})
             .press("Enter");
 
         await expect(
-            page.getByTestId(`MessageInput:${post.id}`).getByText("Test post comment content 2"),
+            page
+                .getByTestId(`PostCommentInput:${post.id}`)
+                .getByText("Test post comment content 2"),
         ).toBeVisible();
 
         await page.getByRole("textbox", {name: "New comment"}).type("Test post comment content 4");
@@ -131,7 +147,9 @@ test("can reply to a comment", async ({page, context: browserContext, isMobile})
         }
 
         await expect(
-            page.getByTestId(`MessageInput:${post.id}`).getByText("Test post comment content 2"),
+            page
+                .getByTestId(`PostCommentInput:${post.id}`)
+                .getByText("Test post comment content 2"),
         ).toBeHidden();
 
         await expect(

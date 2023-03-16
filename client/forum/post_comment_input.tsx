@@ -148,8 +148,8 @@ export function PostCommentInput({
 
     return (
         <MessageInput
+            data-testid={`PostCommentInput:${post.id}`}
             messageNoun="comment"
-            roomKey={post.id}
             messages={postComments}
             onUpdateMessages={onUpdatePostComments}
             createMessage={input =>

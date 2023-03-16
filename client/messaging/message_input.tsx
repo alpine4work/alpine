@@ -40,19 +40,20 @@ export const messageInputMinHeight: RemLength = "3.5rem";
 export function MessageInput<RoomKey extends string, Message extends MessageModel<RoomKey>>({
     messageNoun = "message",
     messageStartOfSentenceNoun = messageNoun.slice(0, 1).toUpperCase() + messageNoun.slice(1),
-    roomKey,
     messages,
+    isMessageCreationDisabled,
     onUpdateMessages,
     createMessage,
     replyingToMessage: _replyingToMessage,
     onClearReplyingToMessage,
     onJumpToMessage,
     withoutBorderTop = false,
+    "data-testid": dataTestId,
 }: {
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
-    roomKey: RoomKey | null;
     messages: MessageList<Message>;
+    isMessageCreationDisabled?: boolean;
     onUpdateMessages: (update: (messages: MessageList<Message>) => MessageList<Message>) => void;
     createMessage: (input: {
         parentMessageIndex: number | null;
@@ -62,6 +63,7 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
     onClearReplyingToMessage: () => void;
     onJumpToMessage: (message: Message) => void;
     withoutBorderTop?: boolean;
+    "data-testid"?: string;
 }) {
     const showToast = useShowToast();
     const {currentAccount} = useSpaceContext();
@@ -167,11 +169,11 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
         tryCreatingMessage();
     };
 
-    const isSendButtonDisabled = isContentEmpty(state.getDoc());
+    const isSendButtonDisabled = isMessageCreationDisabled || isContentEmpty(state.getDoc());
 
     return (
         <Box
-            data-testid={`MessageInput:${roomKey !== null ? roomKey : "null"}`}
+            data-testid={dataTestId}
             flexShrink="0"
             borderTop={!withoutBorderTop ? "grey-10" : undefined}
             style={{
