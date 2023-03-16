@@ -28,6 +28,7 @@ import {
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {
     VirtualizedScrollViewState,
+    VirtualizedScrollViewStateRenderItemProps,
     initialVirtualizedScrollViewRenderFillWindowCount,
 } from "~/client/virtualized/virtualized_scroll_view_state";
 import {RemLength, convertRemLengthToPx, getRemPxFromWindowWidth} from "~/shared/design/spacing";
@@ -162,14 +163,13 @@ export type VirtualizedScrollViewItem =
            * don't know the heights of elements in the component so we lay items out relative to
            * each other and let the browser perform layout.
            */
-          readonly render: (props: {
-              ref: Ref<HTMLDivElement>;
-              offset: number;
-              height: number;
-              shouldRenderWithRelativePositioning: boolean;
-              getPositionByIndex: (index: number) => {offset: number; height: number};
-              isScrolling: boolean;
-          }) => ReactElement;
+          readonly render: (
+              props: VirtualizedScrollViewStateRenderItemProps & {
+                  ref: Ref<HTMLDivElement>;
+                  shouldRenderWithRelativePositioning: boolean;
+                  isScrolling: boolean;
+              },
+          ) => ReactElement;
       });
 
 export type VirtualizedScrollViewRef = {
@@ -548,7 +548,14 @@ function VirtualizedScrollView(
                 key: item.key,
                 minHeight: item.minHeight,
                 renderAdditionalItemIndexes: item.renderAdditionalItemIndexes,
-                render: ({offset, height, getPositionByIndex}) => {
+                render: ({
+                    offset,
+                    height,
+                    getPositionByIndex,
+                    itemCount,
+                    viewHeight,
+                    originalContentHeight,
+                }) => {
                     // Listen to the element's height with a resize observer so we can correctly
                     // position items. The resize observer will notify us whenever the height
                     // changes.
@@ -641,11 +648,14 @@ function VirtualizedScrollView(
                     if (item.withManualLayout) {
                         const element = item.render({
                             ref,
+                            shouldRenderWithRelativePositioning,
+                            isScrolling: actualState.isScrolling,
                             offset,
                             height,
-                            shouldRenderWithRelativePositioning,
                             getPositionByIndex,
-                            isScrolling: actualState.isScrolling,
+                            itemCount,
+                            viewHeight,
+                            originalContentHeight,
                         });
                         return cloneElement(element, {key: item.key});
                     } else {

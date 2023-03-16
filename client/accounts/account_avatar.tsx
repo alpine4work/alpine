@@ -1,18 +1,13 @@
 import {useMemo} from "react";
 import {parseAccountName} from "~/client/accounts/internal/parse_account_name";
 import {Box} from "~/client/design/box";
+import {Spacing} from "~/shared/design/spacing";
 import {AccountModel} from "~/shared/models/account_model";
 
 /**
  * A circular image representing the account.
  */
-export function AccountAvatar({
-    account,
-    size = "8",
-}: {
-    account: AccountModel;
-    size?: "5" | "6" | "7" | "8" | "10";
-}) {
+export function AccountAvatar({account, size}: {account: AccountModel; size: Spacing}) {
     const {firstInitial, lastInitial} = useMemo(() => {
         const {firstName, lastName} = parseAccountName(account);
 

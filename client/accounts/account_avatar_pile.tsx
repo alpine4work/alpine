@@ -9,49 +9,83 @@ import {PrettyNumber} from "~/client/design/pretty_number";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {Tooltip, TooltipProps} from "~/client/design/tooltip";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {spacing} from "~/shared/design/spacing";
+import {addRemLengths, negateRemLength, spacing} from "~/shared/design/spacing";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise";
 import {AccountModel} from "~/shared/models/account_model";
 import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/shared/styles/styles";
 
+export type AccountAvatarPileSize = "base" | "lg";
+
 export function AccountAvatarPile({
+    size = "base",
     previewAccounts,
     accountCount,
     getAllAccounts,
 }: {
+    size?: AccountAvatarPileSize;
     previewAccounts: ReadonlyArray<AccountModel>;
     accountCount: number;
-    getAllAccounts: (limit: number) => Promise<ReadonlyArray<AccountModel>>;
+    getAllAccounts: (limit: number) => MaybePromise<ReadonlyArray<AccountModel>>;
 }) {
     const previewAccountIds = useMemo(
         () => new Set(previewAccounts.map(account => account.id)),
         [previewAccounts],
     );
 
+    const {avatarSize, avatarOverlapWidth, borderWidth, overflowFontSize} = (
+        {
+            base: {
+                avatarSize: "6",
+                avatarOverlapWidth: "5",
+                borderWidth: 2,
+                overflowFontSize: "50",
+            },
+            lg: {
+                avatarSize: "12",
+                avatarOverlapWidth: "10",
+                borderWidth: 3,
+                overflowFontSize: "100",
+            },
+        } as const
+    )[size];
+
     return (
-        <Box display="flex" position="relative" zIndex="0" paddingRight="1">
+        <Box
+            display="flex"
+            position="relative"
+            zIndex="0"
+            style={{
+                paddingRight: addRemLengths(
+                    spacing[avatarSize],
+                    negateRemLength(spacing[avatarOverlapWidth]),
+                ),
+            }}
+        >
             {previewAccounts.map((author, index) => (
                 <Box
                     key={author.id}
-                    height="6"
-                    width="5"
+                    height={avatarSize}
+                    width={avatarOverlapWidth}
                     position="relative"
                     style={{zIndex: 1 + index}}
                 >
                     <Box
-                        height="6"
-                        width="6"
+                        height={avatarSize}
+                        width={avatarSize}
                         borderRadius="full"
-                        style={{boxShadow: `0px 0px 0px 2px ${colorSchemeVars["grey-0"]}`}}
+                        style={{
+                            boxShadow: `0px 0px 0px ${borderWidth}px ${colorSchemeVars["grey-0"]}`,
+                        }}
                     >
-                        <AccountAvatar account={author} size="6" />
+                        <AccountAvatar account={author} size={avatarSize} />
                     </Box>
                 </Box>
             ))}
             {accountCount > previewAccounts.length && (
                 <Box
-                    height="6"
-                    width="5"
+                    height={avatarSize}
+                    width={avatarOverlapWidth}
                     position="relative"
                     style={{zIndex: 1 + previewAccounts.length}}
                 >
@@ -81,14 +115,14 @@ export function AccountAvatarPile({
                         }}
                     >
                         <Box
-                            height="6"
-                            width="6"
+                            height={avatarSize}
+                            width={avatarSize}
                             borderRadius="full"
                             style={{
-                                boxShadow: `0px 0px 0px 2px ${colorSchemeVars["grey-0"]}`,
+                                boxShadow: `0px 0px 0px ${borderWidth}px ${colorSchemeVars["grey-0"]}`,
                             }}
                             backgroundColor="grey-10"
-                            fontSize="50"
+                            fontSize={overflowFontSize}
                             color="grey-70"
                             display="flex"
                             justifyContent="center"

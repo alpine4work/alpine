@@ -8,6 +8,7 @@ import {
     useRef,
     useState,
 } from "react";
+import {Spacer} from "~/client/design/spacer";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useMessageEditing} from "~/client/messaging/message_editing";
@@ -56,9 +57,12 @@ class MessagingViewState<Message extends MessageModel> {
 
     public readonly messages: MessageList<Message>;
 
-    constructor(messages: MessageList<Message>) {
+    constructor(
+        messages: MessageList<Message>,
+        header: DistributiveOmit<VirtualizedScrollViewItem, "key"> | null,
+    ) {
         this.messages = messages;
-        this._header = null;
+        this._header = header;
     }
 
     public getItemCount() {
@@ -146,6 +150,7 @@ export function MessagingView<RoomKey extends string, Message extends MessageMod
     messageStartOfSentenceNoun = messageNoun.slice(0, 1).toUpperCase() + messageNoun.slice(1),
     initialScrollOffset,
     initialMessagesResult,
+    header,
     randomSeedForShimmer,
     isMessageCreationDisabled,
     getMessagesFromStart,
@@ -188,6 +193,12 @@ export function MessagingView<RoomKey extends string, Message extends MessageMod
         readonly otherReferencedMessages: ReadonlyArray<Message>;
         readonly lastMessageChangeTime: Date | null;
     };
+
+    /**
+     * You may render a header on top of the messaging view which as an
+     * arbitrary virtualized scroll view item.
+     */
+    header?: Memo<DistributiveOmit<VirtualizedScrollViewItem, "key">>;
 
     /**
      * For unloaded messages we show a shimmer. Shimmers have a random shape based
@@ -277,8 +288,8 @@ export function MessagingView<RoomKey extends string, Message extends MessageMod
     });
 
     const state = useMemo(
-        () => new MessagingViewState(messagesWithoutHeader),
-        [messagesWithoutHeader],
+        () => new MessagingViewState(messagesWithoutHeader, header ?? null),
+        [header, messagesWithoutHeader],
     );
 
     const isLoadingRef = useRef(false);
@@ -536,6 +547,7 @@ export function MessagingView<RoomKey extends string, Message extends MessageMod
                                           }),
                                 }}
                             >
+                                {index === 0 && <Spacer space="3" />}
                                 {render(isScrolling)}
                             </div>
                         ),

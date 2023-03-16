@@ -26,6 +26,47 @@ import {
 export const initialVirtualizedScrollViewRenderFillWindowCount = 2;
 
 /**
+ * Props we pass into the `renderItem()` function for items.
+ */
+export type VirtualizedScrollViewStateRenderItemProps = {
+    offset: number;
+    height: number;
+
+    /**
+     * Get the position of an arbitrary item.
+     *
+     * For now you can only get the position of an item before the item we're
+     * rendering. That's because while we render the offsets and heights of items
+     * below us may change.
+     */
+    getPositionByIndex: (index: number) => {
+        offset: number;
+        height: number;
+    };
+
+    /**
+     * The total number of items in the view.
+     */
+    itemCount: number;
+
+    /**
+     * The height of the view.
+     *
+     * In our initial relative positioning render this value will be an
+     * overestimation of the view height.
+     */
+    viewHeight: number;
+
+    /**
+     * The content height at the beginning of the render. While we render we may
+     * discover items in our virtualized scroll view have changed and so update
+     * them. This may change the content height! If this happens we will
+     * re-render with the correct content height.
+     */
+    originalContentHeight: number;
+};
+
+/**
  * Immutable state object for a `<VirtualizedScrollView>` component. It manages the
  * logic for which items should be visible at any given time and how much buffered
  * height we should allocate.
@@ -1337,11 +1378,7 @@ export class VirtualizedScrollViewState {
             key: Key;
             minHeight: number;
             renderAdditionalItemIndexes?: ReadonlyArray<number>;
-            render: (props: {
-                offset: number;
-                height: number;
-                getPositionByIndex: (index: number) => {offset: number; height: number};
-            }) => ReactNode;
+            render: (props: VirtualizedScrollViewStateRenderItemProps) => ReactNode;
         };
     }): {
         state: VirtualizedScrollViewState;
@@ -1366,11 +1403,7 @@ export class VirtualizedScrollViewState {
                 key: Key;
                 minHeight: number;
                 renderAdditionalItemIndexes?: ReadonlyArray<number>;
-                render: (props: {
-                    offset: number;
-                    height: number;
-                    getPositionByIndex: (index: number) => {offset: number; height: number};
-                }) => ReactNode;
+                render: (props: VirtualizedScrollViewStateRenderItemProps) => ReactNode;
             };
         },
     ): {
@@ -1528,6 +1561,9 @@ export class VirtualizedScrollViewState {
 
                     return currentState.getPositionByIndex(searchIndex);
                 },
+                itemCount,
+                viewHeight: originalState.getViewHeight(),
+                originalContentHeight: originalState.getContentHeight(),
             });
 
             if (item.renderAdditionalItemIndexes)
@@ -1686,6 +1722,9 @@ export class VirtualizedScrollViewState {
 
                         return currentState.getPositionByIndex(searchIndex);
                     },
+                    itemCount,
+                    viewHeight: originalState.getViewHeight(),
+                    originalContentHeight: originalState.getContentHeight(),
                 });
 
                 children.push(renderedItem);
