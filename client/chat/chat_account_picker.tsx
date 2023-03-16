@@ -22,7 +22,7 @@ import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spac
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {isId} from "~/shared/id/id";
-import {AccountId, ChatId} from "~/shared/id/types/id_types";
+import {AccountId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
 import {
     fontSizes,
@@ -37,10 +37,7 @@ type ChatAccountPickerItem = {
 };
 
 export function ChatAccountPicker() {
-    const [selection, setSelection] = useState<{
-        readonly chatId: ChatId | null;
-        readonly accounts: ReadonlyArray<AccountModel>;
-    } | null>(null);
+    const [selectedAccounts, setSelectedAccounts] = useState<ReadonlyArray<AccountModel>>([]);
 
     const allAccounts = useExpensivelyLoadAllSpaceAccounts();
 
@@ -63,13 +60,13 @@ export function ChatAccountPicker() {
                 : allAccounts.fuse.search(searchQuery).map(({item}) => item);
 
         // Remove accounts that were already selected from the search.
-        if (selection)
+        if (selectedAccounts.length > 0)
             searchedAccounts = searchedAccounts.filter(account1 =>
-                selection.accounts.every(account2 => account1.id !== account2.id),
+                selectedAccounts.every(account2 => account1.id !== account2.id),
             );
 
         return searchedAccounts;
-    }, [allAccounts, searchQuery, selection]);
+    }, [allAccounts, searchQuery, selectedAccounts]);
 
     // When this is set to true we allow the next animation then no more
     // animations. Most interactions that control whether the picker is open/close
@@ -121,18 +118,12 @@ export function ChatAccountPicker() {
                 const account = accountById.get(key);
 
                 if (account) {
-                    setSelection(selection => {
+                    setSelectedAccounts(selectedAccounts => {
                         // If the account already exists in the selection, don't add it a second time.
-                        if (
-                            selection?.accounts.some(otherAccount => otherAccount.id === account.id)
-                        ) {
-                            return selection;
+                        if (selectedAccounts.some(otherAccount => otherAccount.id === account.id)) {
+                            return selectedAccounts;
                         }
-
-                        return {
-                            chatId: null,
-                            accounts: [...(selection?.accounts ?? []), account],
-                        };
+                        return [...selectedAccounts, account];
                     });
                 }
             }
@@ -227,7 +218,7 @@ export function ChatAccountPicker() {
                             }
                         }}
                     >
-                        {selection?.accounts.map(account => (
+                        {selectedAccounts.map(account => (
                             <Box
                                 key={account.id}
                                 cursor="default"
@@ -250,23 +241,14 @@ export function ChatAccountPicker() {
                                         description="Remove"
                                         withoutTooltip={true}
                                         onPress={() => {
-                                            setSelection(selection => {
-                                                if (!selection) return selection;
-
-                                                const newAccounts = selection.accounts.filter(
+                                            setSelectedAccounts(selectedAccounts => {
+                                                const newSelectedAccounts = selectedAccounts.filter(
                                                     otherAccount => otherAccount.id !== account.id,
                                                 );
-
-                                                if (
-                                                    newAccounts.length === selection.accounts.length
-                                                ) {
-                                                    return selection;
-                                                }
-
-                                                return {
-                                                    chatId: null,
-                                                    accounts: newAccounts,
-                                                };
+                                                return newSelectedAccounts.length !==
+                                                    selectedAccounts.length
+                                                    ? newSelectedAccounts
+                                                    : selectedAccounts;
                                             });
                                         }}
                                     >
@@ -298,7 +280,7 @@ export function ChatAccountPicker() {
                                 }rem`,
                             }}
                             placeholder={
-                                !selection || selection.accounts.length === 0
+                                selectedAccounts.length === 0
                                     ? "Who do you want to send a message to?"
                                     : undefined
                             }
