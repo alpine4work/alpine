@@ -2,7 +2,6 @@ import {
     Memo,
     MutableRefObject,
     ReactElement,
-    ReactNode,
     useCallback,
     useEffect,
     useMemo,
@@ -23,16 +22,17 @@ import {
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages";
 import {
     VirtualizedScrollView,
+    VirtualizedScrollViewItem,
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
     getInitialVirtualizedScrollViewRenderedItemCount,
 } from "~/client/virtualized/virtualized_scroll_view";
 import {MessageContent} from "~/shared/content/message_content_schema";
-import {RemLength} from "~/shared/design/spacing";
 import {wait} from "~/shared/helpers/async/wait";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit";
 import {MessageModel} from "~/shared/models/message_model";
 import {ClientInfo} from "~/shared/remix/client_info";
 import {sprinkles} from "~/shared/styles/styles";
@@ -47,40 +47,30 @@ export function getInitialLoadMessageCount(clientInfo: ClientInfo) {
 type MessagingViewStateItem<Message extends MessageModel> =
     | {
           readonly type: "Header";
-          readonly minHeight: number | RemLength;
-          readonly node: ReactNode;
+          readonly item: DistributiveOmit<VirtualizedScrollViewItem, "key">;
       }
     | (MessageListItem<Message> & {readonly messageIndex: number});
 
 class MessagingViewState<Message extends MessageModel> {
-    private readonly _header:
-        | {
-              readonly isEnabled: true;
-              readonly minHeight: number | RemLength;
-              readonly node: ReactNode;
-          }
-        | {
-              readonly isEnabled: false;
-          };
+    private readonly _header: DistributiveOmit<VirtualizedScrollViewItem, "key"> | null;
 
     public readonly messages: MessageList<Message>;
 
     constructor(messages: MessageList<Message>) {
         this.messages = messages;
-        this._header = {isEnabled: false};
+        this._header = null;
     }
 
     public getItemCount() {
-        return this.messages.getMessageCount() + (this._header.isEnabled ? 1 : 0);
+        return this.messages.getMessageCount() + (this._header ? 1 : 0);
     }
 
     public getItem(index: number): MessagingViewStateItem<Message> {
-        if (this._header.isEnabled) {
+        if (this._header) {
             if (index === 0) {
                 return {
                     type: "Header",
-                    minHeight: this._header.minHeight,
-                    node: this._header.node,
+                    item: this._header,
                 };
             }
             index -= 1;
@@ -108,7 +98,7 @@ class MessagingViewState<Message extends MessageModel> {
         assert(0 <= range.endIndex && range.endIndex < this.getItemCount());
         assert(range.startIndex <= range.endIndex);
 
-        if (!this._header.isEnabled) return range;
+        if (!this._header) return range;
 
         const startIndex = range.startIndex - 1;
         const endIndex = range.endIndex - 1;
@@ -120,7 +110,7 @@ class MessagingViewState<Message extends MessageModel> {
      * Get the index of a message in our view.
      */
     public getItemIndexForMessageIndex(messageIndex: number): number {
-        if (!this._header.isEnabled) return messageIndex;
+        if (!this._header) return messageIndex;
         return messageIndex + 1;
     }
 }
@@ -139,6 +129,18 @@ class MessagingViewState<Message extends MessageModel> {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const Box = null;
 
+/**
+ * Shared UI component for our messaging system. Wherever we have a list of
+ * messaging in the product this component is how it's (usually) rendered.
+ *
+ * Implements all sorts of standard messaging functionality like virtualized
+ * rendering of messages, lazy loading message, jumping to arbitrary messages,
+ * sending messages, editing messages, and deleting messages.
+ *
+ * Post comments are the exception! Because we render post comments embedded in
+ * a scroll view full of posts we have a separate `<PostListView>`
+ * implementation that renders messages in a post.
+ */
 export function MessagingView<RoomKey extends string, Message extends MessageModel<RoomKey>>({
     messageNoun = "message",
     messageStartOfSentenceNoun = messageNoun.slice(0, 1).toUpperCase() + messageNoun.slice(1),
@@ -153,17 +155,60 @@ export function MessagingView<RoomKey extends string, Message extends MessageMod
     deleteMessage,
     getCopyLinkUrl,
 }: {
+    /**
+     * What we call messages in UI copy. Defaults to "message". For example
+     * "Successfully deleted message". You may want that message to ready
+     * "Successfully deleted comment" if you want to refer to your messages
+     * as comments.
+     */
+    // NOTE(calebmer): This technique where we interpolate strings likely won't
+    // work when we internationalize the product. Then I imagine we'll pass in a
+    // `messageCopy` object, or something, with every string rendered by this UI
+    // for translating.
     messageNoun?: string;
+
+    /**
+     * What we call messages in UI copy at the start of sentences. By default this
+     * is `messageNoun` but with the first letter upper cased.
+     */
     messageStartOfSentenceNoun?: string;
+
+    /**
+     * Do we start by showing messages at the top or bottom of the view?
+     */
     initialScrollOffset: "top" | "bottom";
+
+    /**
+     * The initial messages we load into this view. The view knows to load more
+     * messages with the `getMessagesFromStart` and `getMessagesFromEnd` function.
+     */
     initialMessagesResult: {
         readonly messageCount: number;
         readonly messages: ReadonlyArray<Message>;
         readonly otherReferencedMessages: ReadonlyArray<Message>;
         readonly lastMessageChangeTime: Date | null;
     };
+
+    /**
+     * For unloaded messages we show a shimmer. Shimmers have a random shape based
+     * on their index in the message list and a seed. Usually the seed is the room
+     * key for this messaging view but for applications like chat we may allow
+     * sending messages before we know the room key.
+     */
     randomSeedForShimmer: string;
+
+    /**
+     * Should we disable the user's ability to create a message? The user will
+     * still be able to type in the message input but won't be able to send their
+     * message. Once this prop switches to true the user can send the message
+     * they typed.
+     */
     isMessageCreationDisabled?: boolean;
+
+    /**
+     * Load messages from the start of the list. We expect the implementation of
+     * this function passes the `testMessagingImplementation()` test suite.
+     */
     getMessagesFromStart: (input: {
         limit: number;
         afterMessageIndex: number | null;
@@ -173,6 +218,11 @@ export function MessagingView<RoomKey extends string, Message extends MessageMod
         messages: ReadonlyArray<Message>;
         otherReferencedMessages: ReadonlyArray<Message>;
     }>;
+
+    /**
+     * Load messages from the end of the list. We expect the implementation of
+     * this function passes the `testMessagingImplementation()` test suite.
+     */
     getMessagesFromEnd: (input: {
         limit: number;
         afterMessageIndex: number | null;
@@ -182,13 +232,34 @@ export function MessagingView<RoomKey extends string, Message extends MessageMod
         messages: ReadonlyArray<Message>;
         otherReferencedMessages: ReadonlyArray<Message>;
     }>;
+
+    /**
+     * Create a new message. We expect the implementation of this function passes
+     * the `testMessagingImplementation()` test suite.
+     */
     createMessage: Memo<
         (input: {parentMessageIndex: number | null; content: MessageContent}) => Promise<void>
     >;
+
+    /**
+     * Update the contents of a message. We expect the implementation of this
+     * function passes the `testMessagingImplementation()` test suite.
+     */
     updateMessageContent: Memo<
         (input: {messageIndex: number; content: MessageContent}) => Promise<void>
     >;
+
+    /**
+     * Delete a message leaving a placeholder in its place. We expect the
+     * implementation of this function passes the `testMessagingImplementation()`
+     * test suite.
+     */
     deleteMessage: Memo<(input: {messageIndex: number}) => Promise<void>>;
+
+    /**
+     * Copies a link to a message. Opening this link should scroll the messaging
+     * view to this message and highlight it.
+     */
     getCopyLinkUrl: Memo<(messageIndex: number) => URL>;
 }) {
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
@@ -352,9 +423,8 @@ export function MessagingView<RoomKey extends string, Message extends MessageMod
             switch (item.type) {
                 case "Header": {
                     return {
+                        ...item.item,
                         key: "Header",
-                        minHeight: item.minHeight,
-                        node: item.node,
                     };
                 }
                 case "Loaded":

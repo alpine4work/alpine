@@ -93,6 +93,8 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
     }, [replyingToMessageIndex]);
 
     const submitMessage = () => {
+        if (isMessageCreationDisabled) return;
+
         const content = state.getContent();
         if (isContentEmpty(content.doc)) return;
 
