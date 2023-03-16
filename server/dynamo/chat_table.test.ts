@@ -367,22 +367,26 @@ function massageMessages(result: {
 
 function sortSharedChats(
     sharedChats: Array<{
-        includedAccountIds: Array<AccountId>;
-        chatId: ChatId;
-        chatAccountCount: number;
+        includedOtherAccountIds: Array<AccountId>;
+        id: ChatId;
+        accountCount: number;
     }>,
 ) {
     return sharedChats
         .map(sharedChat => ({
             ...sharedChat,
-            includedAccountIds: sharedChat.includedAccountIds.slice().sort(),
+            includedOtherAccountIds: sharedChat.includedOtherAccountIds.slice().sort(),
         }))
         .sort(
             (a, b) =>
-                (a.includedAccountIds.length - b.includedAccountIds.length) * -1 ||
-                a.chatAccountCount - b.chatAccountCount ||
-                compareArrays(a.includedAccountIds, b.includedAccountIds, defaultCompareStrings) ||
-                defaultCompareStrings(a.chatId, b.chatId),
+                (a.includedOtherAccountIds.length - b.includedOtherAccountIds.length) * -1 ||
+                a.accountCount - b.accountCount ||
+                compareArrays(
+                    a.includedOtherAccountIds,
+                    b.includedOtherAccountIds,
+                    defaultCompareStrings,
+                ) ||
+                defaultCompareStrings(a.id, b.id),
         );
 }
 
@@ -391,7 +395,7 @@ test("can send initial messages to other accounts", async () => {
 
     const message1 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA2.accountId],
+        otherAccountIds: [scenario.sessionA2.accountId],
         parentMessageIndex: null,
         content: content1,
     });
@@ -426,7 +430,7 @@ test("can send initial messages to other accounts", async () => {
 
     const message2 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA3.accountId],
+        otherAccountIds: [scenario.sessionA3.accountId],
         parentMessageIndex: null,
         content: content2,
     });
@@ -467,7 +471,7 @@ test("can send initial messages to same account", async () => {
 
     const message1 = await sendChatMessageToAccounts(context.request(scenario.sessionA2), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA1.accountId],
+        otherAccountIds: [scenario.sessionA1.accountId],
         parentMessageIndex: null,
         content: content1,
     });
@@ -502,7 +506,7 @@ test("can send initial messages to same account", async () => {
 
     const message2 = await sendChatMessageToAccounts(context.request(scenario.sessionA3), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA1.accountId],
+        otherAccountIds: [scenario.sessionA1.accountId],
         parentMessageIndex: null,
         content: content2,
     });
@@ -543,7 +547,7 @@ test("can send message to self", async () => {
 
     const message1 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [],
+        otherAccountIds: [],
         parentMessageIndex: null,
         content: content1,
     });
@@ -575,7 +579,7 @@ test("can send message to self", async () => {
 
     const message2 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [],
+        otherAccountIds: [],
         parentMessageIndex: null,
         content: content2,
     });
@@ -615,7 +619,7 @@ test("can not get messages in a chat you don't have access to", async () => {
 
     const message1 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA2.accountId],
+        otherAccountIds: [scenario.sessionA2.accountId],
         parentMessageIndex: null,
         content: content1,
     });
@@ -638,7 +642,7 @@ test("can not get messages in a chat you don't have access to", async () => {
 
     const message2 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA3.accountId],
+        otherAccountIds: [scenario.sessionA3.accountId],
         parentMessageIndex: null,
         content: content2,
     });
@@ -663,7 +667,7 @@ test("can not get messages in a chat you don't have access to", async () => {
 
     const message3 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [],
+        otherAccountIds: [],
         parentMessageIndex: null,
         content: content3,
     });
@@ -689,7 +693,7 @@ test("can reply to message by sending to account", async () => {
 
     const message1 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA2.accountId],
+        otherAccountIds: [scenario.sessionA2.accountId],
         parentMessageIndex: null,
         content: content1,
     });
@@ -724,7 +728,7 @@ test("can reply to message by sending to account", async () => {
 
     const message2 = await sendChatMessageToAccounts(context.request(scenario.sessionA2), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA1.accountId],
+        otherAccountIds: [scenario.sessionA1.accountId],
         parentMessageIndex: null,
         content: content2,
     });
@@ -772,7 +776,7 @@ test("can not send messages to accounts in a different space", async () => {
     await expect(
         sendChatMessageToAccounts(context.request(scenario.sessionA1), {
             spaceId: scenario.spaceA.id,
-            accountIds: [scenario.sessionB1.accountId],
+            otherAccountIds: [scenario.sessionB1.accountId],
             parentMessageIndex: null,
             content: content1,
         }),
@@ -781,7 +785,7 @@ test("can not send messages to accounts in a different space", async () => {
     await expect(
         sendChatMessageToAccounts(context.request(scenario.sessionA1), {
             spaceId: scenario.spaceB.id,
-            accountIds: [scenario.sessionB1.accountId],
+            otherAccountIds: [scenario.sessionB1.accountId],
             parentMessageIndex: null,
             content: content1,
         }),
@@ -790,7 +794,7 @@ test("can not send messages to accounts in a different space", async () => {
     await expect(
         sendChatMessageToAccounts(context.request(scenario.sessionB1), {
             spaceId: scenario.spaceB.id,
-            accountIds: [scenario.sessionA1.accountId],
+            otherAccountIds: [scenario.sessionA1.accountId],
             parentMessageIndex: null,
             content: content1,
         }),
@@ -799,7 +803,7 @@ test("can not send messages to accounts in a different space", async () => {
     await expect(
         sendChatMessageToAccounts(context.request(scenario.sessionB1), {
             spaceId: scenario.spaceA.id,
-            accountIds: [scenario.sessionA1.accountId],
+            otherAccountIds: [scenario.sessionA1.accountId],
             parentMessageIndex: null,
             content: content1,
         }),
@@ -812,7 +816,7 @@ test("can not send messages to self in a different space", async () => {
     await expect(
         sendChatMessageToAccounts(context.request(scenario.sessionA1), {
             spaceId: scenario.spaceB.id,
-            accountIds: [],
+            otherAccountIds: [],
             parentMessageIndex: null,
             content: content1,
         }),
@@ -821,7 +825,7 @@ test("can not send messages to self in a different space", async () => {
     await expect(
         sendChatMessageToAccounts(context.request(scenario.sessionB1), {
             spaceId: scenario.spaceA.id,
-            accountIds: [],
+            otherAccountIds: [],
             parentMessageIndex: null,
             content: content1,
         }),
@@ -833,7 +837,7 @@ test("can send message to account in multiple spaces", async () => {
 
     const message1 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionX1.accountId],
+        otherAccountIds: [scenario.sessionX1.accountId],
         parentMessageIndex: null,
         content: content1,
     });
@@ -868,7 +872,7 @@ test("can send message to account in multiple spaces", async () => {
 
     const message2 = await sendChatMessageToAccounts(context.request(scenario.sessionX1), {
         spaceId: scenario.spaceB.id,
-        accountIds: [scenario.sessionB1.accountId],
+        otherAccountIds: [scenario.sessionB1.accountId],
         parentMessageIndex: null,
         content: content2,
     });
@@ -909,7 +913,7 @@ test("same accounts will have different chats in different spaces", async () => 
 
     const message1 = await sendChatMessageToAccounts(context.request(scenario.sessionX1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionX2.accountId],
+        otherAccountIds: [scenario.sessionX2.accountId],
         parentMessageIndex: null,
         content: content1,
     });
@@ -944,7 +948,7 @@ test("same accounts will have different chats in different spaces", async () => 
 
     const message2 = await sendChatMessageToAccounts(context.request(scenario.sessionX1), {
         spaceId: scenario.spaceB.id,
-        accountIds: [scenario.sessionX2.accountId],
+        otherAccountIds: [scenario.sessionX2.accountId],
         parentMessageIndex: null,
         content: content2,
     });
@@ -985,7 +989,7 @@ test("can send messages to multiple accounts", async () => {
 
     const message1 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [
+        otherAccountIds: [
             scenario.sessionA2.accountId,
             scenario.sessionX1.accountId,
             scenario.sessionX2.accountId,
@@ -1026,7 +1030,7 @@ test("can send messages to multiple accounts", async () => {
 
     const message2 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [
+        otherAccountIds: [
             scenario.sessionA3.accountId,
             scenario.sessionX1.accountId,
             scenario.sessionX3.accountId,
@@ -1073,7 +1077,7 @@ test("anyone the message was sent to can read the message", async () => {
 
     const message1 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [
+        otherAccountIds: [
             scenario.sessionA2.accountId,
             scenario.sessionX1.accountId,
             scenario.sessionX2.accountId,
@@ -1199,7 +1203,7 @@ test("can reply to a message sent to multiple accounts", async () => {
 
     const message1 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [
+        otherAccountIds: [
             scenario.sessionA2.accountId,
             scenario.sessionX1.accountId,
             scenario.sessionX2.accountId,
@@ -1240,7 +1244,7 @@ test("can reply to a message sent to multiple accounts", async () => {
 
     const message2 = await sendChatMessageToAccounts(context.request(scenario.sessionX1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [
+        otherAccountIds: [
             scenario.sessionA1.accountId,
             scenario.sessionA2.accountId,
             scenario.sessionX2.accountId,
@@ -1297,7 +1301,7 @@ test("race condition where two accounts try to create the same chat at the same 
 
     const message1Promise = sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA2.accountId],
+        otherAccountIds: [scenario.sessionA2.accountId],
         parentMessageIndex: null,
         content: content1,
     });
@@ -1306,7 +1310,7 @@ test("race condition where two accounts try to create the same chat at the same 
 
     const message2 = await sendChatMessageToAccounts(context.request(scenario.sessionA2), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA1.accountId],
+        otherAccountIds: [scenario.sessionA1.accountId],
         parentMessageIndex: null,
         content: content2,
     });
@@ -1382,12 +1386,12 @@ test("can send initial messages to other accounts (when a chat already has the o
             scenario.sessionA2.accountId,
         ]),
         spaceId: scenario.spaceB.id,
-        accountIds: [scenario.sessionB2.accountId],
+        otherAccountIds: [scenario.sessionB2.accountId],
     });
 
     const message1 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA2.accountId],
+        otherAccountIds: [scenario.sessionA2.accountId],
         parentMessageIndex: null,
         content: content1,
     });
@@ -1426,12 +1430,12 @@ test("can send initial messages to other accounts (when a chat already has the o
             scenario.sessionA3.accountId,
         ]),
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA2.accountId],
+        otherAccountIds: [scenario.sessionA2.accountId],
     });
 
     const message2 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA3.accountId],
+        otherAccountIds: [scenario.sessionA3.accountId],
         parentMessageIndex: null,
         content: content2,
     });
@@ -1472,12 +1476,12 @@ test("can send initial messages to other accounts (when a chat already has the o
             scenario.sessionX1.accountId,
         ]),
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA1.accountId, scenario.sessionX1.accountId],
+        otherAccountIds: [scenario.sessionA1.accountId, scenario.sessionX1.accountId],
     });
 
     const message3 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionX1.accountId],
+        otherAccountIds: [scenario.sessionX1.accountId],
         parentMessageIndex: null,
         content: content3,
     });
@@ -1522,12 +1526,12 @@ test("can send initial messages to other accounts (reusing a chat already with t
             scenario.sessionA2.accountId,
         ]),
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA2.accountId],
+        otherAccountIds: [scenario.sessionA2.accountId],
     });
 
     const message1 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA2.accountId],
+        otherAccountIds: [scenario.sessionA2.accountId],
         parentMessageIndex: null,
         content: content1,
     });
@@ -1566,12 +1570,12 @@ test("can send initial messages to other accounts (reusing a chat already with t
             scenario.sessionA3.accountId,
         ]),
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA3.accountId],
+        otherAccountIds: [scenario.sessionA3.accountId],
     });
 
     const message2 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA3.accountId],
+        otherAccountIds: [scenario.sessionA3.accountId],
         parentMessageIndex: null,
         content: content2,
     });
@@ -1616,12 +1620,12 @@ test("can send initial messages to same account (when a chat already has the opt
             scenario.sessionA2.accountId,
         ]),
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA3.accountId],
+        otherAccountIds: [scenario.sessionA3.accountId],
     });
 
     const message1 = await sendChatMessageToAccounts(context.request(scenario.sessionA2), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA1.accountId],
+        otherAccountIds: [scenario.sessionA1.accountId],
         parentMessageIndex: null,
         content: content1,
     });
@@ -1660,12 +1664,12 @@ test("can send initial messages to same account (when a chat already has the opt
             scenario.sessionA3.accountId,
         ]),
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA2.accountId],
+        otherAccountIds: [scenario.sessionA2.accountId],
     });
 
     const message2 = await sendChatMessageToAccounts(context.request(scenario.sessionA3), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA1.accountId],
+        otherAccountIds: [scenario.sessionA1.accountId],
         parentMessageIndex: null,
         content: content2,
     });
@@ -1707,12 +1711,12 @@ test("can send message to self (when a chat already has the optimistic id)", asy
     await createChatForTest(context.request(scenario.sessionB1), {
         id: await getOptimisticChatId(scenario.spaceA.id, [scenario.sessionA1.accountId]),
         spaceId: scenario.spaceB.id,
-        accountIds: [],
+        otherAccountIds: [],
     });
 
     const message1 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [],
+        otherAccountIds: [],
         parentMessageIndex: null,
         content: content1,
     });
@@ -1744,7 +1748,7 @@ test("can send message to self (when a chat already has the optimistic id)", asy
 
     const message2 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [],
+        otherAccountIds: [],
         parentMessageIndex: null,
         content: content2,
     });
@@ -1788,12 +1792,12 @@ test("can not get messages in a chat you don't have access to (when a chat alrea
             scenario.sessionA2.accountId,
         ]),
         spaceId: scenario.spaceB.id,
-        accountIds: [],
+        otherAccountIds: [],
     });
 
     const message1 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA2.accountId],
+        otherAccountIds: [scenario.sessionA2.accountId],
         parentMessageIndex: null,
         content: content1,
     });
@@ -1820,12 +1824,12 @@ test("can not get messages in a chat you don't have access to (when a chat alrea
             scenario.sessionA3.accountId,
         ]),
         spaceId: scenario.spaceB.id,
-        accountIds: [],
+        otherAccountIds: [],
     });
 
     const message2 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA3.accountId],
+        otherAccountIds: [scenario.sessionA3.accountId],
         parentMessageIndex: null,
         content: content2,
     });
@@ -1851,12 +1855,12 @@ test("can not get messages in a chat you don't have access to (when a chat alrea
     await createChatForTest(context.request(scenario.sessionB1), {
         id: await getOptimisticChatId(scenario.spaceA.id, [scenario.sessionA1.accountId]),
         spaceId: scenario.spaceB.id,
-        accountIds: [],
+        otherAccountIds: [],
     });
 
     const message3 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [],
+        otherAccountIds: [],
         parentMessageIndex: null,
         content: content3,
     });
@@ -1886,12 +1890,12 @@ test("can reply to message by sending to account (when a chat already has the op
             scenario.sessionA2.accountId,
         ]),
         spaceId: scenario.spaceB.id,
-        accountIds: [],
+        otherAccountIds: [],
     });
 
     const message1 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA2.accountId],
+        otherAccountIds: [scenario.sessionA2.accountId],
         parentMessageIndex: null,
         content: content1,
     });
@@ -1926,7 +1930,7 @@ test("can reply to message by sending to account (when a chat already has the op
 
     const message2 = await sendChatMessageToAccounts(context.request(scenario.sessionA2), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA1.accountId],
+        otherAccountIds: [scenario.sessionA1.accountId],
         parentMessageIndex: null,
         content: content2,
     });
@@ -1977,12 +1981,12 @@ test("can send message to account in multiple spaces (when a chat already has th
             scenario.sessionX1.accountId,
         ]),
         spaceId: scenario.spaceB.id,
-        accountIds: [],
+        otherAccountIds: [],
     });
 
     const message1 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionX1.accountId],
+        otherAccountIds: [scenario.sessionX1.accountId],
         parentMessageIndex: null,
         content: content1,
     });
@@ -2021,12 +2025,12 @@ test("can send message to account in multiple spaces (when a chat already has th
             scenario.sessionX1.accountId,
         ]),
         spaceId: scenario.spaceB.id,
-        accountIds: [],
+        otherAccountIds: [],
     });
 
     const message2 = await sendChatMessageToAccounts(context.request(scenario.sessionX1), {
         spaceId: scenario.spaceB.id,
-        accountIds: [scenario.sessionB1.accountId],
+        otherAccountIds: [scenario.sessionB1.accountId],
         parentMessageIndex: null,
         content: content2,
     });
@@ -2071,12 +2075,12 @@ test("same accounts will have different chats in different spaces (when a chat a
             scenario.sessionX2.accountId,
         ]),
         spaceId: scenario.spaceB.id,
-        accountIds: [],
+        otherAccountIds: [],
     });
 
     const message1 = await sendChatMessageToAccounts(context.request(scenario.sessionX1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionX2.accountId],
+        otherAccountIds: [scenario.sessionX2.accountId],
         parentMessageIndex: null,
         content: content1,
     });
@@ -2115,12 +2119,12 @@ test("same accounts will have different chats in different spaces (when a chat a
             scenario.sessionX2.accountId,
         ]),
         spaceId: scenario.spaceB.id,
-        accountIds: [],
+        otherAccountIds: [],
     });
 
     const message2 = await sendChatMessageToAccounts(context.request(scenario.sessionX1), {
         spaceId: scenario.spaceB.id,
-        accountIds: [scenario.sessionX2.accountId],
+        otherAccountIds: [scenario.sessionX2.accountId],
         parentMessageIndex: null,
         content: content2,
     });
@@ -2167,12 +2171,12 @@ test("can send messages to multiple accounts (when a chat already has the optimi
             scenario.sessionX2.accountId,
         ]),
         spaceId: scenario.spaceB.id,
-        accountIds: [],
+        otherAccountIds: [],
     });
 
     const message1 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [
+        otherAccountIds: [
             scenario.sessionA2.accountId,
             scenario.sessionX1.accountId,
             scenario.sessionX2.accountId,
@@ -2219,12 +2223,12 @@ test("can send messages to multiple accounts (when a chat already has the optimi
             scenario.sessionX3.accountId,
         ]),
         spaceId: scenario.spaceB.id,
-        accountIds: [],
+        otherAccountIds: [],
     });
 
     const message2 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [
+        otherAccountIds: [
             scenario.sessionA3.accountId,
             scenario.sessionX1.accountId,
             scenario.sessionX3.accountId,
@@ -2277,12 +2281,12 @@ test("anyone the message was sent to can read the message (when a chat already h
             scenario.sessionX2.accountId,
         ]),
         spaceId: scenario.spaceB.id,
-        accountIds: [],
+        otherAccountIds: [],
     });
 
     const message1 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [
+        otherAccountIds: [
             scenario.sessionA2.accountId,
             scenario.sessionX1.accountId,
             scenario.sessionX2.accountId,
@@ -2414,12 +2418,12 @@ test("can reply to a message sent to multiple accounts (when a chat already has 
             scenario.sessionX2.accountId,
         ]),
         spaceId: scenario.spaceB.id,
-        accountIds: [],
+        otherAccountIds: [],
     });
 
     const message1 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [
+        otherAccountIds: [
             scenario.sessionA2.accountId,
             scenario.sessionX1.accountId,
             scenario.sessionX2.accountId,
@@ -2460,7 +2464,7 @@ test("can reply to a message sent to multiple accounts (when a chat already has 
 
     const message2 = await sendChatMessageToAccounts(context.request(scenario.sessionX1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [
+        otherAccountIds: [
             scenario.sessionA1.accountId,
             scenario.sessionA2.accountId,
             scenario.sessionX2.accountId,
@@ -2517,7 +2521,7 @@ test("race condition where two accounts try to create the same chat at the same 
             scenario.sessionA2.accountId,
         ]),
         spaceId: scenario.spaceB.id,
-        accountIds: [],
+        otherAccountIds: [],
     });
 
     const pausePromise = sendChatMessageToAccountsBeforeCreateChatTestCheckpoint.pauseForTest(
@@ -2526,7 +2530,7 @@ test("race condition where two accounts try to create the same chat at the same 
 
     const message1Promise = sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA2.accountId],
+        otherAccountIds: [scenario.sessionA2.accountId],
         parentMessageIndex: null,
         content: content1,
     });
@@ -2535,7 +2539,7 @@ test("race condition where two accounts try to create the same chat at the same 
 
     const message2 = await sendChatMessageToAccounts(context.request(scenario.sessionA2), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA1.accountId],
+        otherAccountIds: [scenario.sessionA1.accountId],
         parentMessageIndex: null,
         content: content2,
     });
@@ -2607,63 +2611,63 @@ test("can find correct chat to send message to when account has a lot of chats",
 
     await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [],
+        otherAccountIds: [],
         parentMessageIndex: null,
         content: content1,
     });
 
     await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA2.accountId],
+        otherAccountIds: [scenario.sessionA2.accountId],
         parentMessageIndex: null,
         content: content1,
     });
 
     await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA3.accountId],
+        otherAccountIds: [scenario.sessionA3.accountId],
         parentMessageIndex: null,
         content: content1,
     });
 
     await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionX1.accountId],
+        otherAccountIds: [scenario.sessionX1.accountId],
         parentMessageIndex: null,
         content: content1,
     });
 
     await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionX2.accountId],
+        otherAccountIds: [scenario.sessionX2.accountId],
         parentMessageIndex: null,
         content: content1,
     });
 
     await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionX3.accountId],
+        otherAccountIds: [scenario.sessionX3.accountId],
         parentMessageIndex: null,
         content: content1,
     });
 
     await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA2.accountId, scenario.sessionA3.accountId],
+        otherAccountIds: [scenario.sessionA2.accountId, scenario.sessionA3.accountId],
         parentMessageIndex: null,
         content: content1,
     });
 
     await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionX1.accountId, scenario.sessionX2.accountId],
+        otherAccountIds: [scenario.sessionX1.accountId, scenario.sessionX2.accountId],
         parentMessageIndex: null,
         content: content1,
     });
 
     await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [
+        otherAccountIds: [
             scenario.sessionA2.accountId,
             scenario.sessionA3.accountId,
             scenario.sessionX1.accountId,
@@ -2674,7 +2678,7 @@ test("can find correct chat to send message to when account has a lot of chats",
 
     await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [
+        otherAccountIds: [
             scenario.sessionA2.accountId,
             scenario.sessionA3.accountId,
             scenario.sessionX1.accountId,
@@ -2686,35 +2690,35 @@ test("can find correct chat to send message to when account has a lot of chats",
 
     const message1 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [],
+        otherAccountIds: [],
         parentMessageIndex: null,
         content: content2,
     });
 
     const message2 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA2.accountId],
+        otherAccountIds: [scenario.sessionA2.accountId],
         parentMessageIndex: null,
         content: content2,
     });
 
     const message3 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionX1.accountId],
+        otherAccountIds: [scenario.sessionX1.accountId],
         parentMessageIndex: null,
         content: content2,
     });
 
     const message4 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA2.accountId, scenario.sessionA3.accountId],
+        otherAccountIds: [scenario.sessionA2.accountId, scenario.sessionA3.accountId],
         parentMessageIndex: null,
         content: content2,
     });
 
     const message5 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [
+        otherAccountIds: [
             scenario.sessionA2.accountId,
             scenario.sessionA3.accountId,
             scenario.sessionX1.accountId,
@@ -2900,7 +2904,7 @@ test("can find correct chat to send message to when account has a lot of chats (
     await createChatForTest(context.request(scenario.sessionB1), {
         id: await getOptimisticChatId(scenario.spaceA.id, [scenario.sessionA1.accountId]),
         spaceId: scenario.spaceB.id,
-        accountIds: [],
+        otherAccountIds: [],
     });
 
     await createChatForTest(context.request(scenario.sessionB1), {
@@ -2909,7 +2913,7 @@ test("can find correct chat to send message to when account has a lot of chats (
             scenario.sessionA2.accountId,
         ]),
         spaceId: scenario.spaceB.id,
-        accountIds: [],
+        otherAccountIds: [],
     });
 
     await createChatForTest(context.request(scenario.sessionB1), {
@@ -2918,7 +2922,7 @@ test("can find correct chat to send message to when account has a lot of chats (
             scenario.sessionX1.accountId,
         ]),
         spaceId: scenario.spaceB.id,
-        accountIds: [],
+        otherAccountIds: [],
     });
 
     await createChatForTest(context.request(scenario.sessionB1), {
@@ -2928,7 +2932,7 @@ test("can find correct chat to send message to when account has a lot of chats (
             scenario.sessionA3.accountId,
         ]),
         spaceId: scenario.spaceB.id,
-        accountIds: [],
+        otherAccountIds: [],
     });
 
     await createChatForTest(context.request(scenario.sessionB1), {
@@ -2939,68 +2943,68 @@ test("can find correct chat to send message to when account has a lot of chats (
             scenario.sessionX1.accountId,
         ]),
         spaceId: scenario.spaceB.id,
-        accountIds: [],
+        otherAccountIds: [],
     });
 
     await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [],
+        otherAccountIds: [],
         parentMessageIndex: null,
         content: content1,
     });
 
     await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA2.accountId],
+        otherAccountIds: [scenario.sessionA2.accountId],
         parentMessageIndex: null,
         content: content1,
     });
 
     await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA3.accountId],
+        otherAccountIds: [scenario.sessionA3.accountId],
         parentMessageIndex: null,
         content: content1,
     });
 
     await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionX1.accountId],
+        otherAccountIds: [scenario.sessionX1.accountId],
         parentMessageIndex: null,
         content: content1,
     });
 
     await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionX2.accountId],
+        otherAccountIds: [scenario.sessionX2.accountId],
         parentMessageIndex: null,
         content: content1,
     });
 
     await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionX3.accountId],
+        otherAccountIds: [scenario.sessionX3.accountId],
         parentMessageIndex: null,
         content: content1,
     });
 
     await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA2.accountId, scenario.sessionA3.accountId],
+        otherAccountIds: [scenario.sessionA2.accountId, scenario.sessionA3.accountId],
         parentMessageIndex: null,
         content: content1,
     });
 
     await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionX1.accountId, scenario.sessionX2.accountId],
+        otherAccountIds: [scenario.sessionX1.accountId, scenario.sessionX2.accountId],
         parentMessageIndex: null,
         content: content1,
     });
 
     await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [
+        otherAccountIds: [
             scenario.sessionA2.accountId,
             scenario.sessionA3.accountId,
             scenario.sessionX1.accountId,
@@ -3011,7 +3015,7 @@ test("can find correct chat to send message to when account has a lot of chats (
 
     await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [
+        otherAccountIds: [
             scenario.sessionA2.accountId,
             scenario.sessionA3.accountId,
             scenario.sessionX1.accountId,
@@ -3023,35 +3027,35 @@ test("can find correct chat to send message to when account has a lot of chats (
 
     const message1 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [],
+        otherAccountIds: [],
         parentMessageIndex: null,
         content: content2,
     });
 
     const message2 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA2.accountId],
+        otherAccountIds: [scenario.sessionA2.accountId],
         parentMessageIndex: null,
         content: content2,
     });
 
     const message3 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionX1.accountId],
+        otherAccountIds: [scenario.sessionX1.accountId],
         parentMessageIndex: null,
         content: content2,
     });
 
     const message4 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA2.accountId, scenario.sessionA3.accountId],
+        otherAccountIds: [scenario.sessionA2.accountId, scenario.sessionA3.accountId],
         parentMessageIndex: null,
         content: content2,
     });
 
     const message5 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [
+        otherAccountIds: [
             scenario.sessionA2.accountId,
             scenario.sessionA3.accountId,
             scenario.sessionX1.accountId,
@@ -3237,69 +3241,69 @@ test("can get chats shared between an account and other accounts", async () => {
     expect(
         await getSharedChats(context.request(scenario.sessionA1), {
             spaceId: scenario.spaceA.id,
-            accountIds: [],
+            otherAccountIds: [],
         }),
     ).toEqual(sortSharedChats([]));
 
     const message1 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [],
+        otherAccountIds: [],
         parentMessageIndex: null,
         content: content1,
     });
 
     const message2 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA2.accountId],
+        otherAccountIds: [scenario.sessionA2.accountId],
         parentMessageIndex: null,
         content: content1,
     });
 
     const message3 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA3.accountId],
+        otherAccountIds: [scenario.sessionA3.accountId],
         parentMessageIndex: null,
         content: content1,
     });
 
     const message4 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionX1.accountId],
+        otherAccountIds: [scenario.sessionX1.accountId],
         parentMessageIndex: null,
         content: content1,
     });
 
     const message5 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionX2.accountId],
+        otherAccountIds: [scenario.sessionX2.accountId],
         parentMessageIndex: null,
         content: content1,
     });
 
     const message6 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionX3.accountId],
+        otherAccountIds: [scenario.sessionX3.accountId],
         parentMessageIndex: null,
         content: content1,
     });
 
     const message7 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA2.accountId, scenario.sessionA3.accountId],
+        otherAccountIds: [scenario.sessionA2.accountId, scenario.sessionA3.accountId],
         parentMessageIndex: null,
         content: content1,
     });
 
     const message8 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionX1.accountId, scenario.sessionX2.accountId],
+        otherAccountIds: [scenario.sessionX1.accountId, scenario.sessionX2.accountId],
         parentMessageIndex: null,
         content: content1,
     });
 
     const message9 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [
+        otherAccountIds: [
             scenario.sessionA2.accountId,
             scenario.sessionA3.accountId,
             scenario.sessionX1.accountId,
@@ -3310,7 +3314,7 @@ test("can get chats shared between an account and other accounts", async () => {
 
     const message10 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [
+        otherAccountIds: [
             scenario.sessionA2.accountId,
             scenario.sessionA3.accountId,
             scenario.sessionX1.accountId,
@@ -3322,21 +3326,21 @@ test("can get chats shared between an account and other accounts", async () => {
 
     const message11 = await sendChatMessageToAccounts(context.request(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
-        accountIds: [scenario.sessionA2.accountId, scenario.sessionX1.accountId],
+        otherAccountIds: [scenario.sessionA2.accountId, scenario.sessionX1.accountId],
         parentMessageIndex: null,
         content: content1,
     });
 
     const message12 = await sendChatMessageToAccounts(context.request(scenario.sessionB1), {
         spaceId: scenario.spaceB.id,
-        accountIds: [scenario.sessionX1.accountId],
+        otherAccountIds: [scenario.sessionX1.accountId],
         parentMessageIndex: null,
         content: content1,
     });
 
     const message13 = await sendChatMessageToAccounts(context.request(scenario.sessionB1), {
         spaceId: scenario.spaceB.id,
-        accountIds: [scenario.sessionX1.accountId, scenario.sessionX2.accountId],
+        otherAccountIds: [scenario.sessionX1.accountId, scenario.sessionX2.accountId],
         parentMessageIndex: null,
         content: content1,
     });
@@ -3344,55 +3348,55 @@ test("can get chats shared between an account and other accounts", async () => {
     expect(
         await getSharedChats(context.request(scenario.sessionA1), {
             spaceId: scenario.spaceA.id,
-            accountIds: [],
+            otherAccountIds: [],
         }),
     ).toEqual(
         sortSharedChats([
-            {includedAccountIds: [], chatId: message1.chatId, chatAccountCount: 1},
-            {includedAccountIds: [], chatId: message2.chatId, chatAccountCount: 2},
-            {includedAccountIds: [], chatId: message3.chatId, chatAccountCount: 2},
-            {includedAccountIds: [], chatId: message4.chatId, chatAccountCount: 2},
-            {includedAccountIds: [], chatId: message5.chatId, chatAccountCount: 2},
-            {includedAccountIds: [], chatId: message6.chatId, chatAccountCount: 2},
-            {includedAccountIds: [], chatId: message7.chatId, chatAccountCount: 3},
-            {includedAccountIds: [], chatId: message8.chatId, chatAccountCount: 3},
-            {includedAccountIds: [], chatId: message9.chatId, chatAccountCount: 4},
-            {includedAccountIds: [], chatId: message10.chatId, chatAccountCount: 5},
-            {includedAccountIds: [], chatId: message11.chatId, chatAccountCount: 3},
+            {includedOtherAccountIds: [], id: message1.chatId, accountCount: 1},
+            {includedOtherAccountIds: [], id: message2.chatId, accountCount: 2},
+            {includedOtherAccountIds: [], id: message3.chatId, accountCount: 2},
+            {includedOtherAccountIds: [], id: message4.chatId, accountCount: 2},
+            {includedOtherAccountIds: [], id: message5.chatId, accountCount: 2},
+            {includedOtherAccountIds: [], id: message6.chatId, accountCount: 2},
+            {includedOtherAccountIds: [], id: message7.chatId, accountCount: 3},
+            {includedOtherAccountIds: [], id: message8.chatId, accountCount: 3},
+            {includedOtherAccountIds: [], id: message9.chatId, accountCount: 4},
+            {includedOtherAccountIds: [], id: message10.chatId, accountCount: 5},
+            {includedOtherAccountIds: [], id: message11.chatId, accountCount: 3},
         ]),
     );
 
     expect(
         await getSharedChats(context.request(scenario.sessionA1), {
             spaceId: scenario.spaceA.id,
-            accountIds: [scenario.sessionA2.accountId],
+            otherAccountIds: [scenario.sessionA2.accountId],
         }),
     ).toEqual(
         sortSharedChats([
             {
-                includedAccountIds: [scenario.sessionA2.accountId],
-                chatId: message2.chatId,
-                chatAccountCount: 2,
+                includedOtherAccountIds: [scenario.sessionA2.accountId],
+                id: message2.chatId,
+                accountCount: 2,
             },
             {
-                includedAccountIds: [scenario.sessionA2.accountId],
-                chatId: message7.chatId,
-                chatAccountCount: 3,
+                includedOtherAccountIds: [scenario.sessionA2.accountId],
+                id: message7.chatId,
+                accountCount: 3,
             },
             {
-                includedAccountIds: [scenario.sessionA2.accountId],
-                chatId: message9.chatId,
-                chatAccountCount: 4,
+                includedOtherAccountIds: [scenario.sessionA2.accountId],
+                id: message9.chatId,
+                accountCount: 4,
             },
             {
-                includedAccountIds: [scenario.sessionA2.accountId],
-                chatId: message10.chatId,
-                chatAccountCount: 5,
+                includedOtherAccountIds: [scenario.sessionA2.accountId],
+                id: message10.chatId,
+                accountCount: 5,
             },
             {
-                includedAccountIds: [scenario.sessionA2.accountId],
-                chatId: message11.chatId,
-                chatAccountCount: 3,
+                includedOtherAccountIds: [scenario.sessionA2.accountId],
+                id: message11.chatId,
+                accountCount: 3,
             },
         ]),
     );
@@ -3400,34 +3404,34 @@ test("can get chats shared between an account and other accounts", async () => {
     expect(
         await getSharedChats(context.request(scenario.sessionA2), {
             spaceId: scenario.spaceA.id,
-            accountIds: [scenario.sessionA1.accountId],
+            otherAccountIds: [scenario.sessionA1.accountId],
         }),
     ).toEqual(
         sortSharedChats([
             {
-                includedAccountIds: [scenario.sessionA1.accountId],
-                chatId: message2.chatId,
-                chatAccountCount: 2,
+                includedOtherAccountIds: [scenario.sessionA1.accountId],
+                id: message2.chatId,
+                accountCount: 2,
             },
             {
-                includedAccountIds: [scenario.sessionA1.accountId],
-                chatId: message7.chatId,
-                chatAccountCount: 3,
+                includedOtherAccountIds: [scenario.sessionA1.accountId],
+                id: message7.chatId,
+                accountCount: 3,
             },
             {
-                includedAccountIds: [scenario.sessionA1.accountId],
-                chatId: message9.chatId,
-                chatAccountCount: 4,
+                includedOtherAccountIds: [scenario.sessionA1.accountId],
+                id: message9.chatId,
+                accountCount: 4,
             },
             {
-                includedAccountIds: [scenario.sessionA1.accountId],
-                chatId: message10.chatId,
-                chatAccountCount: 5,
+                includedOtherAccountIds: [scenario.sessionA1.accountId],
+                id: message10.chatId,
+                accountCount: 5,
             },
             {
-                includedAccountIds: [scenario.sessionA1.accountId],
-                chatId: message11.chatId,
-                chatAccountCount: 3,
+                includedOtherAccountIds: [scenario.sessionA1.accountId],
+                id: message11.chatId,
+                accountCount: 3,
             },
         ]),
     );
@@ -3435,29 +3439,29 @@ test("can get chats shared between an account and other accounts", async () => {
     expect(
         await getSharedChats(context.request(scenario.sessionA1), {
             spaceId: scenario.spaceA.id,
-            accountIds: [scenario.sessionA3.accountId],
+            otherAccountIds: [scenario.sessionA3.accountId],
         }),
     ).toEqual(
         sortSharedChats([
             {
-                includedAccountIds: [scenario.sessionA3.accountId],
-                chatId: message3.chatId,
-                chatAccountCount: 2,
+                includedOtherAccountIds: [scenario.sessionA3.accountId],
+                id: message3.chatId,
+                accountCount: 2,
             },
             {
-                includedAccountIds: [scenario.sessionA3.accountId],
-                chatId: message7.chatId,
-                chatAccountCount: 3,
+                includedOtherAccountIds: [scenario.sessionA3.accountId],
+                id: message7.chatId,
+                accountCount: 3,
             },
             {
-                includedAccountIds: [scenario.sessionA3.accountId],
-                chatId: message9.chatId,
-                chatAccountCount: 4,
+                includedOtherAccountIds: [scenario.sessionA3.accountId],
+                id: message9.chatId,
+                accountCount: 4,
             },
             {
-                includedAccountIds: [scenario.sessionA3.accountId],
-                chatId: message10.chatId,
-                chatAccountCount: 5,
+                includedOtherAccountIds: [scenario.sessionA3.accountId],
+                id: message10.chatId,
+                accountCount: 5,
             },
         ]),
     );
@@ -3465,39 +3469,48 @@ test("can get chats shared between an account and other accounts", async () => {
     expect(
         await getSharedChats(context.request(scenario.sessionA1), {
             spaceId: scenario.spaceA.id,
-            accountIds: [scenario.sessionA2.accountId, scenario.sessionA3.accountId],
+            otherAccountIds: [scenario.sessionA2.accountId, scenario.sessionA3.accountId],
         }),
     ).toEqual(
         sortSharedChats([
             {
-                includedAccountIds: [scenario.sessionA2.accountId],
-                chatId: message2.chatId,
-                chatAccountCount: 2,
+                includedOtherAccountIds: [scenario.sessionA2.accountId],
+                id: message2.chatId,
+                accountCount: 2,
             },
             {
-                includedAccountIds: [scenario.sessionA3.accountId],
-                chatId: message3.chatId,
-                chatAccountCount: 2,
+                includedOtherAccountIds: [scenario.sessionA3.accountId],
+                id: message3.chatId,
+                accountCount: 2,
             },
             {
-                includedAccountIds: [scenario.sessionA2.accountId, scenario.sessionA3.accountId],
-                chatId: message7.chatId,
-                chatAccountCount: 3,
+                includedOtherAccountIds: [
+                    scenario.sessionA2.accountId,
+                    scenario.sessionA3.accountId,
+                ],
+                id: message7.chatId,
+                accountCount: 3,
             },
             {
-                includedAccountIds: [scenario.sessionA2.accountId, scenario.sessionA3.accountId],
-                chatId: message9.chatId,
-                chatAccountCount: 4,
+                includedOtherAccountIds: [
+                    scenario.sessionA2.accountId,
+                    scenario.sessionA3.accountId,
+                ],
+                id: message9.chatId,
+                accountCount: 4,
             },
             {
-                includedAccountIds: [scenario.sessionA2.accountId, scenario.sessionA3.accountId],
-                chatId: message10.chatId,
-                chatAccountCount: 5,
+                includedOtherAccountIds: [
+                    scenario.sessionA2.accountId,
+                    scenario.sessionA3.accountId,
+                ],
+                id: message10.chatId,
+                accountCount: 5,
             },
             {
-                includedAccountIds: [scenario.sessionA2.accountId],
-                chatId: message11.chatId,
-                chatAccountCount: 3,
+                includedOtherAccountIds: [scenario.sessionA2.accountId],
+                id: message11.chatId,
+                accountCount: 3,
             },
         ]),
     );
@@ -3505,7 +3518,7 @@ test("can get chats shared between an account and other accounts", async () => {
     expect(
         await getSharedChats(context.request(scenario.sessionA1), {
             spaceId: scenario.spaceA.id,
-            accountIds: [
+            otherAccountIds: [
                 scenario.sessionA2.accountId,
                 scenario.sessionA3.accountId,
                 scenario.sessionX1.accountId,
@@ -3514,52 +3527,58 @@ test("can get chats shared between an account and other accounts", async () => {
     ).toEqual(
         sortSharedChats([
             {
-                includedAccountIds: [scenario.sessionA2.accountId],
-                chatId: message2.chatId,
-                chatAccountCount: 2,
+                includedOtherAccountIds: [scenario.sessionA2.accountId],
+                id: message2.chatId,
+                accountCount: 2,
             },
             {
-                includedAccountIds: [scenario.sessionA3.accountId],
-                chatId: message3.chatId,
-                chatAccountCount: 2,
+                includedOtherAccountIds: [scenario.sessionA3.accountId],
+                id: message3.chatId,
+                accountCount: 2,
             },
             {
-                includedAccountIds: [scenario.sessionX1.accountId],
-                chatId: message4.chatId,
-                chatAccountCount: 2,
+                includedOtherAccountIds: [scenario.sessionX1.accountId],
+                id: message4.chatId,
+                accountCount: 2,
             },
             {
-                includedAccountIds: [scenario.sessionA2.accountId, scenario.sessionA3.accountId],
-                chatId: message7.chatId,
-                chatAccountCount: 3,
+                includedOtherAccountIds: [
+                    scenario.sessionA2.accountId,
+                    scenario.sessionA3.accountId,
+                ],
+                id: message7.chatId,
+                accountCount: 3,
             },
             {
-                includedAccountIds: [scenario.sessionX1.accountId],
-                chatId: message8.chatId,
-                chatAccountCount: 3,
+                includedOtherAccountIds: [scenario.sessionX1.accountId],
+                id: message8.chatId,
+                accountCount: 3,
             },
             {
-                includedAccountIds: [
+                includedOtherAccountIds: [
                     scenario.sessionA2.accountId,
                     scenario.sessionA3.accountId,
                     scenario.sessionX1.accountId,
                 ],
-                chatId: message9.chatId,
-                chatAccountCount: 4,
+                id: message9.chatId,
+                accountCount: 4,
             },
             {
-                includedAccountIds: [
+                includedOtherAccountIds: [
                     scenario.sessionA2.accountId,
                     scenario.sessionA3.accountId,
                     scenario.sessionX1.accountId,
                 ],
-                chatId: message10.chatId,
-                chatAccountCount: 5,
+                id: message10.chatId,
+                accountCount: 5,
             },
             {
-                includedAccountIds: [scenario.sessionA2.accountId, scenario.sessionX1.accountId],
-                chatId: message11.chatId,
-                chatAccountCount: 3,
+                includedOtherAccountIds: [
+                    scenario.sessionA2.accountId,
+                    scenario.sessionX1.accountId,
+                ],
+                id: message11.chatId,
+                accountCount: 3,
             },
         ]),
     );
@@ -3567,46 +3586,46 @@ test("can get chats shared between an account and other accounts", async () => {
     expect(
         await getSharedChats(context.request(scenario.sessionX1), {
             spaceId: scenario.spaceA.id,
-            accountIds: [],
+            otherAccountIds: [],
         }),
     ).toEqual(
         sortSharedChats([
-            {includedAccountIds: [], chatId: message4.chatId, chatAccountCount: 2},
-            {includedAccountIds: [], chatId: message8.chatId, chatAccountCount: 3},
-            {includedAccountIds: [], chatId: message9.chatId, chatAccountCount: 4},
-            {includedAccountIds: [], chatId: message10.chatId, chatAccountCount: 5},
-            {includedAccountIds: [], chatId: message11.chatId, chatAccountCount: 3},
+            {includedOtherAccountIds: [], id: message4.chatId, accountCount: 2},
+            {includedOtherAccountIds: [], id: message8.chatId, accountCount: 3},
+            {includedOtherAccountIds: [], id: message9.chatId, accountCount: 4},
+            {includedOtherAccountIds: [], id: message10.chatId, accountCount: 5},
+            {includedOtherAccountIds: [], id: message11.chatId, accountCount: 3},
         ]),
     );
 
     expect(
         await getSharedChats(context.request(scenario.sessionX1), {
             spaceId: scenario.spaceB.id,
-            accountIds: [],
+            otherAccountIds: [],
         }),
     ).toEqual(
         sortSharedChats([
-            {includedAccountIds: [], chatId: message12.chatId, chatAccountCount: 2},
-            {includedAccountIds: [], chatId: message13.chatId, chatAccountCount: 3},
+            {includedOtherAccountIds: [], id: message12.chatId, accountCount: 2},
+            {includedOtherAccountIds: [], id: message13.chatId, accountCount: 3},
         ]),
     );
 
     expect(
         await getSharedChats(context.request(scenario.sessionX1), {
             spaceId: scenario.spaceA.id,
-            accountIds: [scenario.sessionX2.accountId],
+            otherAccountIds: [scenario.sessionX2.accountId],
         }),
     ).toEqual(
         sortSharedChats([
             {
-                includedAccountIds: [scenario.sessionX2.accountId],
-                chatId: message8.chatId,
-                chatAccountCount: 3,
+                includedOtherAccountIds: [scenario.sessionX2.accountId],
+                id: message8.chatId,
+                accountCount: 3,
             },
             {
-                includedAccountIds: [scenario.sessionX2.accountId],
-                chatId: message10.chatId,
-                chatAccountCount: 5,
+                includedOtherAccountIds: [scenario.sessionX2.accountId],
+                id: message10.chatId,
+                accountCount: 5,
             },
         ]),
     );
@@ -3614,14 +3633,14 @@ test("can get chats shared between an account and other accounts", async () => {
     expect(
         await getSharedChats(context.request(scenario.sessionX1), {
             spaceId: scenario.spaceB.id,
-            accountIds: [scenario.sessionX2.accountId],
+            otherAccountIds: [scenario.sessionX2.accountId],
         }),
     ).toEqual(
         sortSharedChats([
             {
-                includedAccountIds: [scenario.sessionX2.accountId],
-                chatId: message13.chatId,
-                chatAccountCount: 3,
+                includedOtherAccountIds: [scenario.sessionX2.accountId],
+                id: message13.chatId,
+                accountCount: 3,
             },
         ]),
     );
@@ -3629,7 +3648,7 @@ test("can get chats shared between an account and other accounts", async () => {
     expect(
         await getSharedChats(context.request(scenario.sessionX1), {
             spaceId: scenario.spaceB.id,
-            accountIds: [scenario.sessionA1.accountId],
+            otherAccountIds: [scenario.sessionA1.accountId],
         }),
     ).toEqual(sortSharedChats([]));
 });
@@ -3638,7 +3657,7 @@ testMessagingImplementation<ChatId>(context, {
     async createRoom(context, spaceId, sessions) {
         const chat = await createChatForTest(context, {
             spaceId,
-            accountIds: sessions.map(session => session.accountId),
+            otherAccountIds: sessions.map(session => session.accountId),
         });
 
         return {
@@ -3651,7 +3670,7 @@ testMessagingImplementation<ChatId>(context, {
     async createPrivateRoom(context, spaceId, sessions) {
         const chat = await createChatForTest(context, {
             spaceId,
-            accountIds: sessions.map(session => session.accountId),
+            otherAccountIds: sessions.map(session => session.accountId),
         });
 
         return {

@@ -216,11 +216,11 @@ export async function createChatForTest(
     {
         id = generateId<ChatId>(),
         spaceId,
-        accountIds,
+        otherAccountIds,
     }: {
         id?: ChatId;
         spaceId: SpaceId;
-        accountIds: ReadonlyArray<AccountId>;
+        otherAccountIds: ReadonlyArray<AccountId>;
     },
 ): Promise<{
     id: ChatId;
@@ -228,7 +228,9 @@ export async function createChatForTest(
 }> {
     assert(process.env.NODE_ENV === "test");
 
-    accountIds = Array.from(new Set([...accountIds, context.auth.getAccountId()])).sort();
+    const accountIds = Array.from(
+        new Set([...otherAccountIds, context.auth.getAccountId()]),
+    ).sort();
 
     // Make sure all accounts are members of the space the chat is being
     // created in.
@@ -356,12 +358,12 @@ export function sendChatMessageToAccounts(
     context: RequestContext,
     {
         spaceId,
-        accountIds: _accountIds,
+        otherAccountIds: _otherAccountIds,
         parentMessageIndex,
         content,
     }: {
         spaceId: SpaceId;
-        accountIds: ReadonlyArray<AccountId>;
+        otherAccountIds: ReadonlyArray<AccountId>;
         parentMessageIndex: number | null;
         content: MessageContent;
     },
@@ -369,18 +371,17 @@ export function sendChatMessageToAccounts(
     return retryWithExponentialBackoff(async retry => {
         // Make sure `accountIds` is unique and doesn't include our
         // authenticated account.
-        const accountIds = new Set(
-            _accountIds.filter(accountId => accountId !== context.auth.getAccountId()),
+        const otherAccountIds = new Set(
+            _otherAccountIds.filter(accountId => accountId !== context.auth.getAccountId()),
         );
 
-        const allSortedAccountIds = [...accountIds, context.auth.getAccountId()].sort();
+        const allSortedAccountIds = [...otherAccountIds, context.auth.getAccountId()].sort();
 
         const getChatAndAccounts = async (
             chatId: ChatId,
         ): Promise<{
             chatItem: ChatAttributesItem;
             chatAccountItems: Array<ChatAccountItem>;
-            isMatchingChat: boolean;
         } | null> => {
             let chatItem: ChatAttributesItem | undefined;
             const chatAccountItems: Array<ChatAccountItem> = [];
@@ -420,13 +421,6 @@ export function sendChatMessageToAccounts(
             return {
                 chatItem,
                 chatAccountItems,
-                isMatchingChat:
-                    chatItem.spaceId === spaceId &&
-                    isDeepEqual(
-                        allSortedAccountIds,
-                        // Chat account items should be sorted by DynamoDB.
-                        chatAccountItems.map(item => item.accountId),
-                    ),
             };
         };
 
@@ -506,7 +500,9 @@ export function sendChatMessageToAccounts(
             // Make sure all accounts we are sending a message to are a part of the
             // provided space.
             runAllPromises(
-                Array.from(accountIds, accountId => getAccountOrThrow(context, spaceId, accountId)),
+                Array.from(otherAccountIds, accountId =>
+                    getAccountOrThrow(context, spaceId, accountId),
+                ),
             ),
         ]);
 
@@ -526,7 +522,14 @@ export function sendChatMessageToAccounts(
         // If the optimistic `ChatId` exists then we need to double check it matches
         // our expected space and accounts. If it does then hooray! We can send a chat
         // message here.
-        if (optimisticChatAndAccounts.isMatchingChat) {
+        if (
+            optimisticChatAndAccounts.chatItem.spaceId === spaceId &&
+            isDeepEqual(
+                allSortedAccountIds,
+                // Chat account items should be sorted by DynamoDB.
+                optimisticChatAndAccounts.chatAccountItems.map(item => item.accountId),
+            )
+        ) {
             return actuallySendChatMessage(context, {
                 chatId: optimisticChatId,
                 parentMessageIndex,
@@ -546,24 +549,24 @@ export function sendChatMessageToAccounts(
         return context.tracer.withSpan(
             "Optimistic `ChatId` conflict, searching for chat with accounts",
             async context => {
-                const sharedChats = await getSharedChats(context, {
+                const chats = await getSharedChats(context, {
                     spaceId,
-                    accountIds,
+                    otherAccountIds,
                 });
 
                 // Filter shared chats down to only include exact matches for the
                 // request account IDs.
-                const matchingSharedChats = sharedChats.filter(
-                    sharedChat =>
-                        sharedChat.includedAccountIds.length === accountIds.size &&
-                        sharedChat.chatAccountCount === accountIds.size + 1,
+                const chatsWithOnlyOtherAccounts = chats.filter(
+                    chat =>
+                        chat.includedOtherAccountIds.length === otherAccountIds.size &&
+                        chat.accountCount === otherAccountIds.size + 1,
                 );
 
                 // We found a chat that exactly matches the accounts we want to message! Send a
                 // message to that chat.
-                if (matchingSharedChats[0]) {
+                if (chatsWithOnlyOtherAccounts[0]) {
                     return actuallySendChatMessage(context, {
-                        chatId: matchingSharedChats[0].chatId,
+                        chatId: chatsWithOnlyOtherAccounts[0].id,
                         parentMessageIndex,
                         content,
                     });
@@ -779,27 +782,27 @@ async function authorizeChatAccessWithItem(
  */
 export async function getSharedChats(
     context: RequestContext,
-    {spaceId, accountIds: _accountIds}: {spaceId: SpaceId; accountIds: Iterable<AccountId>},
+    {
+        spaceId,
+        otherAccountIds: _otherAccountIds,
+    }: {spaceId: SpaceId; otherAccountIds: Iterable<AccountId>},
 ): Promise<
     Array<{
+        id: ChatId;
+        accountCount: number;
         /**
          * The chat includes these accounts that were provided when you called the
          * function. The chat may include more accounts! This is not the exclusive list
          * of accounts in the chat.
          */
-        includedAccountIds: ReadonlyArray<AccountId>;
-        chatId: ChatId;
-        chatAccountCount: number;
+        includedOtherAccountIds: ReadonlyArray<AccountId>;
     }>
 > {
-    const accountIds = new Set(
-        filterIterable(_accountIds, accountId => accountId !== context.auth.getAccountId()),
+    const otherAccountIds = new Set(
+        filterIterable(_otherAccountIds, accountId => accountId !== context.auth.getAccountId()),
     );
 
-    const accountsByChatId = new Map<
-        ChatId,
-        {accountCount: number; includedAccountIds: Set<AccountId>}
-    >();
+    const chatById = new Map<ChatId, {accountCount: number; includedAccountIds: Set<AccountId>}>();
 
     await runAllPromiseThunks(
         async () => {
@@ -811,21 +814,17 @@ export async function getSharedChats(
             );
 
             for (const accountChat of ourAccountChats) {
-                const accounts = getOrSetDefaultMapValue(
-                    accountsByChatId,
-                    accountChat.chatId,
-                    () => ({
-                        accountCount: accountChat.chatAccountCount,
-                        includedAccountIds: new Set<AccountId>(),
-                    }),
-                );
+                const chat = getOrSetDefaultMapValue(chatById, accountChat.chatId, () => ({
+                    accountCount: accountChat.chatAccountCount,
+                    includedAccountIds: new Set<AccountId>(),
+                }));
 
-                accounts.includedAccountIds.add(context.auth.getAccountId());
+                chat.includedAccountIds.add(context.auth.getAccountId());
             }
         },
         async () => {
             const otherAccountChatsByAccountId = await runAllPromises(
-                Array.from(accountIds, async accountId => {
+                Array.from(otherAccountIds, async accountId => {
                     const otherAccountChats = await arrayFromAsyncIterable(
                         AccountChatsIndex.query(context, {
                             partitionKey: {spaceId, accountId},
@@ -838,72 +837,78 @@ export async function getSharedChats(
 
             for (const [accountId, otherAccountChats] of otherAccountChatsByAccountId) {
                 for (const accountChat of otherAccountChats) {
-                    const accounts = getOrSetDefaultMapValue(
-                        accountsByChatId,
-                        accountChat.chatId,
-                        () => ({
-                            accountCount: accountChat.chatAccountCount,
-                            includedAccountIds: new Set<AccountId>(),
-                        }),
-                    );
+                    const chat = getOrSetDefaultMapValue(chatById, accountChat.chatId, () => ({
+                        accountCount: accountChat.chatAccountCount,
+                        includedAccountIds: new Set<AccountId>(),
+                    }));
 
-                    accounts.includedAccountIds.add(accountId);
+                    chat.includedAccountIds.add(accountId);
                 }
             }
         },
     );
 
-    const chatsByIncludedAccountIds = new Map<
+    const chatsByIncludedOtherAccountIds = new Map<
         string,
         {
-            readonly includedAccountIds: ReadonlyArray<AccountId>;
+            readonly includedOtherAccountIds: ReadonlyArray<AccountId>;
             chats: Array<{id: ChatId; accountCount: number}>;
         }
     >();
 
-    for (const [chatId, chatAccounts] of accountsByChatId) {
+    for (const [chatId, chat] of chatById) {
         // We only want to include chats that are shared between multiple users in our
         // final result.
-        if (accountIds.size > 0 && chatAccounts.includedAccountIds.size <= 1) continue;
+        if (otherAccountIds.size > 0 && chat.includedAccountIds.size <= 1) continue;
 
         // Do not include chats that do not include the authenticated account! You are
         // not allowed to see what chats other accounts are members of.
-        if (!chatAccounts.includedAccountIds.has(context.auth.getAccountId())) continue;
+        if (!chat.includedAccountIds.has(context.auth.getAccountId())) continue;
 
-        const includedAccountIds = Array.from(
+        const includedOtherAccountIds = Array.from(
             filterIterable(
-                chatAccounts.includedAccountIds,
+                chat.includedAccountIds,
                 accountId => accountId !== context.auth.getAccountId(),
             ),
         ).sort(defaultCompareStrings);
 
-        getOrSetDefaultMapValue(chatsByIncludedAccountIds, includedAccountIds.join("-"), () => ({
-            includedAccountIds,
-            chats: [],
-        })).chats.push({
+        getOrSetDefaultMapValue(
+            chatsByIncludedOtherAccountIds,
+            includedOtherAccountIds.join("-"),
+            () => ({
+                includedOtherAccountIds,
+                chats: [],
+            }),
+        ).chats.push({
             id: chatId,
-            accountCount: chatAccounts.accountCount,
+            accountCount: chat.accountCount,
         });
     }
 
     return Array.from(
-        flatMapIterable(chatsByIncludedAccountIds.values(), ({includedAccountIds, chats}) =>
-            chats.map(chat => ({
-                includedAccountIds,
-                chatId: chat.id,
-                chatAccountCount: chat.accountCount,
-            })),
+        flatMapIterable(
+            chatsByIncludedOtherAccountIds.values(),
+            ({includedOtherAccountIds, chats}) =>
+                chats.map(chat => ({
+                    id: chat.id,
+                    accountCount: chat.accountCount,
+                    includedOtherAccountIds,
+                })),
         ),
     ).sort(
         (a, b) =>
             // Put shared chats with more accounts in common first
-            (a.includedAccountIds.length - b.includedAccountIds.length) * -1 ||
+            (a.includedOtherAccountIds.length - b.includedOtherAccountIds.length) * -1 ||
             // Then sort by accounts with fewer members (an exact matching chat should be first!)
-            a.chatAccountCount - b.chatAccountCount ||
+            a.accountCount - b.accountCount ||
             // Then sort by account id order to be deterministic
-            compareArrays(a.includedAccountIds, b.includedAccountIds, defaultCompareStrings) ||
+            compareArrays(
+                a.includedOtherAccountIds,
+                b.includedOtherAccountIds,
+                defaultCompareStrings,
+            ) ||
             // Sort by `ChatId` if the `AccountId` array is equal.
-            defaultCompareStrings(a.chatId, b.chatId),
+            defaultCompareStrings(a.id, b.id),
     );
 }
 
