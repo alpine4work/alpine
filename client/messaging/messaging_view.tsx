@@ -247,6 +247,13 @@ export function MessagingView<RoomKey extends string, Message extends MessageMod
     /**
      * Create a new message. We expect the implementation of this function passes
      * the `testMessagingImplementation()` test suite.
+     *
+     * We will add an optimistic message to the view but we will not confirm the
+     * optimistic message until we receive the new message over realtime! The
+     * reason for this is if we confirm an optimistic message and discover there
+     * are unloaded messages between our new message and previously loaded message
+     * then those unloaded messages display as shimmers which is a weird
+     * experience. So wait for realtime which should deliver our messages in order.
      */
     createMessage: Memo<
         (input: {parentMessageIndex: number | null; content: MessageContent}) => Promise<void>

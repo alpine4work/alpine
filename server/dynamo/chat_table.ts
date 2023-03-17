@@ -32,6 +32,7 @@ import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable";
 import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
+import {isObject} from "~/shared/helpers/object/is_object";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings";
 import {decodeIdInto, encodeId, generateId} from "~/shared/id/id";
 import {AccountId, ChatId, SessionId, SpaceId} from "~/shared/id/types/id_types";
@@ -315,30 +316,42 @@ export async function getOptimisticChatId(
     // applications! However, we do not need security guarantees here, this is a
     // performance optimization. We use MD5 since it is fast and it outputs as
     // 128-bit value. Our `Id`s our 128-bit so this aligns quite well.
-    //
+    return encodeId(new Uint8Array(await hashMd5(optimisticChatIdHashKey))) as ChatId;
+}
+
+let webCryptoSupportsMd5Hash = true;
+
+async function hashMd5(data: ArrayBuffer): Promise<ArrayBuffer> {
+    if (!webCryptoSupportsMd5Hash) {
+        return hashMd5WithNodeModule(data);
+    }
+
+    try {
+        // MD5 is supported by the Cloudflare WebCrypto implementation but is
+        // non-standard because it is insecure.
+        // https://developers.cloudflare.com/workers/runtime-apis/web-crypto#supported-algorithms
+        return await crypto.subtle.digest("MD5", data);
+    } catch (error) {
+        if (
+            isObject(error) &&
+            typeof error.message === "string" &&
+            error.message.includes("Unrecognized name")
+        ) {
+            webCryptoSupportsMd5Hash = false;
+            return hashMd5WithNodeModule(data);
+        }
+        throw error;
+    }
+}
+
+function hashMd5WithNodeModule(data: ArrayBuffer): ArrayBuffer {
     // We don't have `@types/node` for this package so TypeScript doesn't know
     // about the `require()` function. We can't expect the error since when type
     // checking globally TypeScript does know about the `require()` function.
     // eslint-disable-next-line @typescript-eslint/prefer-ts-expect-error
     // @ts-ignore
-    if (typeof require !== "undefined") {
-        // If we are in Node.js use the `crypto` module.
-        // eslint-disable-next-line @typescript-eslint/prefer-ts-expect-error
-        // @ts-ignore
-        const crypto = require("crypto");
-        return encodeId(
-            new Uint8Array(
-                crypto.createHash("md5").update(new Uint8Array(optimisticChatIdHashKey)).digest(),
-            ),
-        ) as ChatId;
-    } else {
-        // MD5 is supported by the Cloudflare WebCrypto implementation but is
-        // non-standard because it is insecure.
-        // https://developers.cloudflare.com/workers/runtime-apis/web-crypto#supported-algorithms
-        return encodeId(
-            new Uint8Array(await crypto.subtle.digest("MD5", optimisticChatIdHashKey)),
-        ) as ChatId;
-    }
+    const crypto = require("crypto");
+    return crypto.createHash("md5").update(new Uint8Array(data)).digest().buffer;
 }
 
 /**

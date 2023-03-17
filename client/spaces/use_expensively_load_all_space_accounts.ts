@@ -17,8 +17,8 @@ import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definition
  */
 export function useExpensivelyLoadAllSpaceAccounts() {
     const {space} = useSpaceContext();
-    const {data} = useLazyLoadLoadRpc(expensivelyGetAllSpaceAccounts, {spaceId: space.id});
-    return data?.accounts ?? null;
+    const {output} = useLazyLoadLoadRpc(expensivelyGetAllSpaceAccounts, {spaceId: space.id});
+    return output?.accounts ?? null;
 }
 
 /**

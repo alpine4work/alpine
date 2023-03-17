@@ -9,13 +9,14 @@ import {
     updateChatMessageContent,
 } from "~/server/dynamo/chat_table";
 import {implementRpc} from "~/server/rpc/internal/implement_rpc";
+import {InternalError} from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable";
 import {ChatModel} from "~/shared/models/chat_model";
 import * as definition from "~/shared/rpc/chat_rpc_definitions";
 
-implementRpc(definition.getChatRecommendations, async (_context, input) => {
+implementRpc(definition.getRecommendedChats, async (_context, input) => {
     const context = await _context.auth.authenticate();
 
     // Make sure we uniquify `otherAccountIds` and remove our authenticated
@@ -49,27 +50,38 @@ implementRpc(definition.getChatRecommendations, async (_context, input) => {
     // affinity system I'd like to build.)
     const sharedChatRecommendations = sharedChats.slice(0, 10);
 
-    const chatRecommendationPromises = sharedChatRecommendations.map(chat => {
+    const recommendedChatPromises = sharedChatRecommendations.map(chat => {
         const chatPromise = getChat(context, chat.id);
         if (chat.id === exactMatchChatId) exactMatchChatPromise = chatPromise;
         return chatPromise;
     });
 
-    const [chatRecommendations, exactMatchChat] = await runAllPromises([
-        runAllPromises(chatRecommendationPromises),
+    const [recommendedChats, exactMatch] = await runAllPromises([
+        runAllPromises(recommendedChatPromises),
         (async () => {
-            const exactMatchChat = await exactMatchChatPromise;
-            if (!exactMatchChat) return null;
+            const chat = await exactMatchChatPromise;
+            if (!chat) return null;
 
-            // TODO(calebmer): Load initial messages somewhere around here.
+            const {messageCount, messages, otherReferencedMessages, lastMessageChangeTime} =
+                await getChatMessagesFromStart(context, {
+                    chatId: chat.id,
+                    limit: input.exactMatchInitialMessagesLimit,
+                    afterMessageIndex: null,
+                    beforeMessageIndex: null,
+                });
 
-            return exactMatchChat;
+            return {
+                // Use the latest message count and last message change time.
+                chat: chat.clone({messageCount, lastMessageChangeTime}),
+                initialMessages: messages,
+                initialOtherReferencedMessages: otherReferencedMessages,
+            };
         })(),
     ]);
 
     return {
-        exactMatch: exactMatchChat ? {chat: exactMatchChat} : null,
-        chatRecommendations: chatRecommendations.filter(isNonNullable),
+        exactMatch,
+        recommendedChats: recommendedChats.filter(isNonNullable),
     };
 });
 
@@ -86,7 +98,12 @@ implementRpc(definition.sendChatMessage, async (context, input) => {
 });
 
 implementRpc(definition.sendChatMessageToAccounts, async (context, input) => {
-    return sendChatMessageToAccounts(await context.auth.authenticate(), input);
+    const {chatId} = await sendChatMessageToAccounts(await context.auth.authenticate(), input);
+
+    const chat = await getChat(await context.auth.authenticate(), chatId);
+    if (!chat) throw new InternalError("Can't find chat that message was just sent to");
+
+    return {chat};
 });
 
 implementRpc(definition.updateChatMessageContent, async (context, input) => {

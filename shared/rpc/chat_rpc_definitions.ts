@@ -4,18 +4,31 @@ import {ChatMessageModel, ChatModel} from "~/shared/models/chat_model";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc";
 import {Schema} from "~/shared/schema/schema";
 
-export const getChatRecommendations = defineRpc({
-    name: "getChatRecommendations",
+export const getRecommendedChats = defineRpc({
+    name: "getRecommendedChats",
     input: {
         spaceId: Schema.id<SpaceId>(),
         otherAccountIds: Schema.array(Schema.id<AccountId>()),
+        exactMatchInitialMessagesLimit: Schema.integer,
     },
     output: {
+        /**
+         * If a chat exists between all the provided accounts, our current account, and
+         * no other accounts then we will populate this object with that chat.
+         * Otherwise returns null.
+         */
         exactMatch: Schema.object({
             chat: ChatModel.schema(),
-            // TODO(calebmer): Return initial messages for chat
+            initialMessages: Schema.array(ChatMessageModel.schema()),
+            initialOtherReferencedMessages: Schema.array(ChatMessageModel.schema()),
         }).nullable(),
-        chatRecommendations: Schema.array(ChatModel.schema()),
+
+        /**
+         * Some recommended chats that are shared between the current account and at
+         * least one of the provided accounts. Ranked by relevance to the current
+         * account.
+         */
+        recommendedChats: Schema.array(ChatModel.schema()),
     },
 });
 
@@ -69,7 +82,9 @@ export const sendChatMessageToAccounts = defineRpc({
         parentMessageIndex: Schema.integer.nullable(),
         content: MessageContentSchema,
     },
-    output: {},
+    output: {
+        chat: ChatModel.schema(),
+    },
 });
 
 export const updateChatMessageContent = defineRpc({

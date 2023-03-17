@@ -1,13 +1,18 @@
 import {useMemo} from "react";
 import useSwr, {preload} from "swr";
 import {AppContext, useAppContext} from "~/client/context/app_context";
+import {Replace} from "~/shared/helpers/types/replace";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition";
 
-function createFetcher<Input, Output>(context: AppContext, rpc: RpcDefinition<Input, Output>) {
-    return (key: string): Promise<Output> => {
+function createFetcher<Input, Output extends {}>(
+    context: AppContext,
+    rpc: RpcDefinition<Input, Output>,
+) {
+    return async (key: string): Promise<Replace<Output, {readonly input: Input}>> => {
         const inputString = key.slice(rpc.name.length + 1);
         const input = rpc.inputSchema.deserialize(JSON.parse(inputString));
-        return rpc(context, input);
+        const output = await rpc(context, input);
+        return Object.assign(output, {input});
     };
 }
 
@@ -18,7 +23,8 @@ function createFetcher<Input, Output>(context: AppContext, rpc: RpcDefinition<In
  * Data requests with this hook are deduplicated and the responses are cached.
  * Two hooks fetching the same data will return the same result.
  *
- * Uses [SWR][1] under the hood.
+ * Uses [SWR][1] under the hood. [This page][2] is helpful for understanding
+ * the SWR lifecycle.
  *
  * WARNING: Generally avoid using this hook since it leads to request
  * waterfalls! If your data is required to render a component, you should
@@ -27,21 +33,39 @@ function createFetcher<Input, Output>(context: AppContext, rpc: RpcDefinition<In
  * hook. Use this hook when you have a conditionally rendered component whose
  * data needs change with its state.
  *
- * We get the name from Relay's [`useLazyLoadQuery()`][2]. In the future we may
+ * We get the name from Relay's [`useLazyLoadQuery()`][3]. In the future we may
  * have a `usePreloadedRpc()` like Relay's `usePreloadedQuery()`. A
  * `usePreloadedRpc()` hook we could recommend as a good, performant solution
  * that doesn't cause request waterfalls!
  *
  * [1]: https://swr.vercel.app
- * [2]: https://relay.dev/docs/api-reference/use-lazy-load-query
+ * [2]: https://swr.vercel.app/docs/advanced/understanding
+ * [3]: https://relay.dev/docs/api-reference/use-lazy-load-query
  */
-export function useLazyLoadLoadRpc<Input, Output>(
+export function useLazyLoadLoadRpc<Input, Output extends {}>(
     rpc: RpcDefinition<Input, Output>,
     input: Input | null,
+    {
+        keepPreviousData,
+    }: {
+        /**
+         * When the input changes, continue returning the previous data until we've
+         * finished loading our new data. Helps you create better UXs around
+         * loading data.
+         *
+         * We attach the input to the output so that when we return a stale output
+         * you know what the input that created it is.
+         *
+         * [This diagram][1] is helpful for understanding the lifecycle.
+         *
+         * [1]: https://swr.vercel.app/docs/advanced/understanding#key-change--previous-data
+         */
+        keepPreviousData?: boolean;
+    } = {},
 ): {
     isLoading: boolean;
     isValidating: boolean;
-    data: Output | undefined;
+    output: Replace<Output, {input: Input}> | undefined;
 } {
     const context = useAppContext();
 
@@ -62,6 +86,7 @@ export function useLazyLoadLoadRpc<Input, Output>(
         inputString !== null ? `${rpc.name}:${inputString}` : null,
         fetcher,
         {
+            keepPreviousData: keepPreviousData && input !== null,
             // We should implement retry logic at the RPC function layer so any RPC caller
             // gets the benefit.
             shouldRetryOnError: false,
@@ -71,7 +96,11 @@ export function useLazyLoadLoadRpc<Input, Output>(
     // Handle errors at React error boundaries.
     if (error) throw error;
 
-    return {isLoading, isValidating, data};
+    return {
+        isLoading,
+        isValidating,
+        output: data,
+    };
 }
 
 /**
@@ -79,7 +108,7 @@ export function useLazyLoadLoadRpc<Input, Output>(
  * called with the same arguments we will be able to use that cached or in
  * progress request.
  */
-export function preloadRpc<Input, Output>(
+export function preloadRpc<Input, Output extends {}>(
     context: AppContext,
     rpc: RpcDefinition<Input, Output>,
     input: Input,

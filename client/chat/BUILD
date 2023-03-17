@@ -15,6 +15,8 @@ ts_project(
         "//:node_modules/react-stately",
         "//client/content",
         "//client/helpers",
+        "//client/rpc",
+        "//client/spaces",
         "//shared/design",
         "//shared/helpers",
         "//shared/id",
