@@ -7,7 +7,15 @@ import {
 } from "~/server/dynamo/test_helpers/shared/create_test_session";
 import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
 import {
-    MessageContent,
+    BackfillMessagesFunction,
+    CreateMessageFunction,
+    DeleteMessageFunction,
+    GetMessageFunction,
+    GetMessagesFromEnd,
+    GetMessagesFromStart,
+    UpdateMessageContentFunction,
+} from "~/server/messaging/messaging_implementation";
+import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
     createSimpleMessageContent,
@@ -52,7 +60,7 @@ import {MessageModel} from "~/shared/models/message_model";
  * write tests against it. These tests help us make sure our messaging
  * implementations stay consistent as we evolve them over time.
  */
-export type MessagingImplementation<RoomKey> = {
+export type MessagingImplementation<RoomKey extends string> = {
     /**
      * Create a new room in which messages will live. A room is an abstract concept
      * that varies from implementation to implementation. Some examples of rooms:
@@ -96,28 +104,12 @@ export type MessagingImplementation<RoomKey> = {
     /**
      * Create a new message in a room.
      */
-    createMessage: (
-        context: RequestContext,
-        options: {
-            roomKey: RoomKey;
-            parentMessageIndex: number | null;
-            content: MessageContent;
-        },
-    ) => Promise<{
-        index: number;
-        createdTime: Date;
-    }>;
+    createMessage: CreateMessageFunction<RoomKey>;
 
     /**
      * Get a message.
      */
-    getMessage: (
-        context: RequestContext,
-        options: {
-            roomKey: RoomKey;
-            messageIndex: number;
-        },
-    ) => Promise<MessageModel | null>;
+    getMessage: GetMessageFunction<RoomKey, MessageModel<RoomKey>>;
 
     /**
      * Update the content of a message.
@@ -125,67 +117,24 @@ export type MessagingImplementation<RoomKey> = {
      * We will record the time at which the content was updated and show that the
      * message was edited.
      */
-    updateMessageContent: (
-        context: RequestContext,
-        options: {
-            roomKey: RoomKey;
-            messageIndex: number;
-            content: MessageContent;
-        },
-    ) => Promise<{
-        contentUpdatedTime: Date;
-    }>;
+    updateMessageContent: UpdateMessageContentFunction<RoomKey>;
 
     /**
      * Delete a message.
      */
-    deleteMessage: (
-        context: RequestContext,
-        options: {
-            roomKey: RoomKey;
-            messageIndex: number;
-        },
-    ) => Promise<{
-        deletedTime: Date;
-    }>;
+    deleteMessage: DeleteMessageFunction<RoomKey>;
 
     /**
      * Load a range of messages starting from the beginning of the room (or
      * starting after a message ID) and loading forwards in time.
      */
-    getMessagesFromStart(
-        context: RequestContext,
-        options: {
-            roomKey: RoomKey;
-            limit: number;
-            afterMessageIndex: number | null;
-            beforeMessageIndex: number | null;
-        },
-    ): Promise<{
-        messageCount: number;
-        messages: Array<MessageModel>;
-        otherReferencedMessages: Array<MessageModel>;
-        lastMessageChangeTime: Date | null;
-    }>;
+    getMessagesFromStart: GetMessagesFromStart<RoomKey, MessageModel<RoomKey>>;
 
     /**
      * Load a range of messages starting from the end of the room (or
      * starting before a message ID) and loading backwards in time.
      */
-    getMessagesFromEnd(
-        context: RequestContext,
-        options: {
-            roomKey: RoomKey;
-            limit: number;
-            afterMessageIndex: number | null;
-            beforeMessageIndex: number | null;
-        },
-    ): Promise<{
-        messageCount: number;
-        messages: Array<MessageModel>;
-        otherReferencedMessages: Array<MessageModel>;
-        lastMessageChangeTime: Date | null;
-    }>;
+    getMessagesFromEnd: GetMessagesFromEnd<RoomKey, MessageModel<RoomKey>>;
 
     /**
      * Backfill messages and message changes the client is missing. Realtime could
@@ -193,28 +142,7 @@ export type MessagingImplementation<RoomKey> = {
      * important for implementing push-based realtime as it fills the gap between
      * when data was loaded and when we connected to our realtime WebSocket.
      */
-    backfillMessages(
-        context: RequestContext,
-        options: {
-            roomKey: RoomKey;
-            clientMessageCount: number;
-            clientLastMessageChangeTime: Date | null;
-            newMessageLimit: number;
-        },
-    ): Promise<{
-        messageCount: number;
-        lastMessageChangeTime: Date | null;
-        newMessages: Array<MessageModel>;
-        newOtherReferencedMessages: Array<MessageModel>;
-        messageChangesResult:
-            | {
-                  type: "Available";
-                  changes: Array<MessageChange>;
-              }
-            | {
-                  type: "Unavailable";
-              };
-    }>;
+    backfillMessages: BackfillMessagesFunction<RoomKey, MessageModel<RoomKey>>;
 };
 
 /**
@@ -240,7 +168,7 @@ export type RoomInterface<RoomKey> = {
     readonly messageCount: number;
 };
 
-export function testMessagingImplementation<RoomKey>(
+export function testMessagingImplementation<RoomKey extends string>(
     context: TestContext,
     {
         createRoom: _createRoom,

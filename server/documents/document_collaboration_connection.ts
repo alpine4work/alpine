@@ -16,7 +16,7 @@ import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {WebSocketConnectionId} from "~/shared/id/types/id_types";
 import {TracerSpan} from "~/shared/tracer/tracer_span";
 
-export class DocumentCollaborationDurableObjectConnection {
+export class DocumentCollaborationConnection {
     public readonly connectionId: WebSocketConnectionId;
 
     private readonly _contentManager: DocumentCollaborationContentManager;
@@ -28,7 +28,7 @@ export class DocumentCollaborationDurableObjectConnection {
         context: ProcessContext,
         message: DocumentCollaborationMessageFromServer,
     ) => void;
-    private readonly _iterateOtherConnections: () => Iterable<DocumentCollaborationDurableObjectConnection>;
+    private readonly _iterateOtherConnections: () => Iterable<DocumentCollaborationConnection>;
     private readonly _destroyDurableObject: (context: ProcessContext) => void;
 
     private _presenceState: DocumentCollaborationPresenceState | null = null;
@@ -52,7 +52,7 @@ export class DocumentCollaborationDurableObjectConnection {
             context: ProcessContext,
             message: DocumentCollaborationMessageFromServer,
         ) => void;
-        iterateOtherConnections: () => Iterable<DocumentCollaborationDurableObjectConnection>;
+        iterateOtherConnections: () => Iterable<DocumentCollaborationConnection>;
         destroyDurableObject: (context: ProcessContext) => void;
     }) {
         this.connectionId = connectionId;

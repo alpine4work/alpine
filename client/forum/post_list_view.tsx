@@ -27,7 +27,6 @@ import {
     PostListPostContentItem,
 } from "~/client/forum/post_list";
 import {PostShimmer} from "~/client/forum/post_shimmer";
-import {PostRealtimeActions} from "~/client/forum/use_post_realtime";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer";
 import {useMessageEditing} from "~/client/messaging/message_editing";
@@ -35,6 +34,7 @@ import {MessageShimmer} from "~/client/messaging/message_shimmer";
 import {MessageView, messageViewMinHeight} from "~/client/messaging/message_view";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages";
+import {MessagingRealtimeActions} from "~/client/messaging/use_messaging_realtime";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {
@@ -515,7 +515,7 @@ function PostListView(
     // always mounted when the post's comments are open. Since we need realtime
     // actions in every part of the post we have `usePostRealtime()` stash actions
     // in this ref so they can be called elsewhere.
-    const actionsByPostIdRef = useRef(new Map<PostId, PostRealtimeActions>());
+    const actionsByPostIdRef = useRef(new Map<PostId, MessagingRealtimeActions>());
 
     // Manages the editable message.
     //
@@ -530,8 +530,8 @@ function PostListView(
             const actions = actionsByPostIdRef.current.get(roomKey);
             if (!actions) throw new InternalError("Post realtime hook isn't mounted");
 
-            await actions.updatePostCommentContent({
-                postCommentIndex: messageIndex,
+            await actions.updateMessageContent({
+                messageIndex,
                 content,
             });
         },
@@ -822,8 +822,8 @@ function PostListView(
                                                 "Post realtime hook isn't mounted",
                                             );
 
-                                        await actions.deletePostComment({
-                                            postCommentIndex: item.postCommentIndex,
+                                        await actions.deleteMessage({
+                                            messageIndex: item.postCommentIndex,
                                         });
                                     }}
                                     disableExpensiveFeaturesDuringScroll={

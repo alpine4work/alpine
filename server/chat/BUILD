@@ -1,7 +1,7 @@
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
-    name = "posts",
+    name = "chat",
     test_deps = ["//server/dynamo/test_helpers/shared"],
     visibility = [
         "//app:__subpackages__",
@@ -10,12 +10,10 @@ ts_project(
     deps = [
         "//server/cloudflare",
         "//server/dynamo",
-        "//server/messaging",
         "//shared/error",
         "//shared/helpers",
         "//shared/id",
         "//shared/models",
-        "//shared/posts",
         "//shared/schema",
     ],
 )

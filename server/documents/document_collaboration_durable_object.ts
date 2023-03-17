@@ -1,7 +1,7 @@
 import {createDurableObject} from "~/server/cloudflare/create_durable_object";
 import {WebSocketServer} from "~/server/cloudflare/web_socket_server";
+import {DocumentCollaborationConnection} from "~/server/documents/document_collaboration_connection";
 import {DocumentCollaborationContentManager} from "~/server/documents/document_collaboration_content_manager";
-import {DocumentCollaborationDurableObjectConnection} from "~/server/documents/document_collaboration_durable_object_connection";
 import {ProcessContext} from "~/server/dynamo/context/process_context";
 import {RequestContext} from "~/server/dynamo/context/request_context";
 import {getDocument} from "~/server/dynamo/documents_table";
@@ -28,7 +28,7 @@ class DocumentCollaborationDurableObject {
     private readonly _webSocketServer: WebSocketServer<
         DocumentCollaborationMessageFromClient,
         DocumentCollaborationMessageFromServer,
-        DocumentCollaborationDurableObjectConnection
+        DocumentCollaborationConnection
     >;
 
     public static async initialize({
@@ -94,7 +94,7 @@ class DocumentCollaborationDurableObject {
             DocumentCollaborationMessageFromClientSchema,
             DocumentCollaborationMessageFromServerSchema,
             ({connectionId, sendMessage, sendMessageToOthers, iterateOtherConnections}) =>
-                new DocumentCollaborationDurableObjectConnection({
+                new DocumentCollaborationConnection({
                     connectionId,
                     contentManager: this._contentManager,
                     sendMessage,

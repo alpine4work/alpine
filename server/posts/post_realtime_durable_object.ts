@@ -3,7 +3,7 @@ import {WebSocketServer} from "~/server/cloudflare/web_socket_server";
 import {ProcessContext} from "~/server/dynamo/context/process_context";
 import {RequestContext} from "~/server/dynamo/context/request_context";
 import {authorizePostAccess} from "~/server/dynamo/forum_table";
-import {PostRealtimeDurableObjectConnection} from "~/server/posts/post_realtime_durable_object_connection";
+import {PostRealtimeConnection} from "~/server/posts/post_realtime_connection";
 import {PostId, SpaceId} from "~/shared/id/types/id_types";
 import {
     PostRealtimeMessageFromClient,
@@ -23,7 +23,7 @@ class PostRealtimeDurableObject {
     private readonly _webSocketServer: WebSocketServer<
         PostRealtimeMessageFromClient,
         PostRealtimeMessageFromServer,
-        PostRealtimeDurableObjectConnection
+        PostRealtimeConnection
     >;
 
     public static async initialize({
@@ -66,7 +66,7 @@ class PostRealtimeDurableObject {
             PostRealtimeMessageFromClientSchema,
             PostRealtimeMessageFromServerSchema,
             ({sendMessage, iterateOtherConnections}) =>
-                new PostRealtimeDurableObjectConnection({
+                new PostRealtimeConnection({
                     spaceId,
                     postId,
                     sendMessage,

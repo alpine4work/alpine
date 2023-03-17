@@ -14,6 +14,7 @@ import {colors} from "~/shared/design/colors";
 import {easeInOutSin} from "~/shared/design/easing";
 import {formatCssLinearGradient, generateEasedGradient} from "~/shared/design/gradient";
 import {themeColors} from "~/shared/design/theme_colors";
+import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {Vector2} from "~/shared/helpers/geometry/vector2";
 import {Schema} from "~/shared/schema/schema";
@@ -188,6 +189,8 @@ export function DocumentBlobFactory({
         if (!containerRect || !canvas) {
             return;
         }
+
+        assert(blobs);
 
         drawBlobFactoryToCanvas(
             canvas,

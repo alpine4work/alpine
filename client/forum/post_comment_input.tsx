@@ -1,6 +1,6 @@
-import {Ref, RefObject, useRef} from "react";
+import {Memo, Ref, RefObject, useRef} from "react";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
-import {PostRealtimeActions, usePostRealtime} from "~/client/forum/use_post_realtime";
+import {usePostRealtime} from "~/client/forum/use_post_realtime";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {MessageInput, messageInputMinHeight} from "~/client/messaging/message_input";
 import {MessageList} from "~/client/messaging/message_list";
@@ -9,6 +9,7 @@ import {
     messageViewMergedMargin,
     shouldMergeMessages,
 } from "~/client/messaging/message_view";
+import {MessagingRealtimeActions} from "~/client/messaging/use_messaging_realtime";
 import {VirtualizedScrollViewRef} from "~/client/virtualized/virtualized_scroll_view";
 import {convertRemLengthToPx, spacing} from "~/shared/design/spacing";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
@@ -31,7 +32,7 @@ export function PostCommentInput({
 }: {
     post: PostModel;
     viewRef: RefObject<VirtualizedScrollViewRef>;
-    actionsRef: Ref<PostRealtimeActions>;
+    actionsRef: Ref<MessagingRealtimeActions>;
     postComments: MessageList<PostCommentModel>;
     onUpdatePostComments: (
         update: (postComments: MessageList<PostCommentModel>) => MessageList<PostCommentModel>,
@@ -152,12 +153,7 @@ export function PostCommentInput({
             messageNoun="comment"
             messages={postComments}
             onUpdateMessages={onUpdatePostComments}
-            createMessage={input =>
-                actions.createPostComment({
-                    parentPostCommentIndex: input.parentMessageIndex,
-                    content: input.content,
-                })
-            }
+            createMessage={input => actions.createMessage(input)}
             replyingToMessage={replyingToPostComment}
             onClearReplyingToMessage={onClearReplyingToPostComment}
             onJumpToMessage={onJumpToPostComment}

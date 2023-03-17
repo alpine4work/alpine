@@ -66,7 +66,7 @@ export function useElementWithRef<T>(
     const mergedRef = useMergedRefs(elementRef, ref);
 
     return useMemo(() => {
-        if (!element) return null;
+        if (!element) return undefined;
         return cloneElement(element, {ref: mergedRef});
     }, [element, mergedRef]);
 }

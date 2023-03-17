@@ -1,5 +1,3 @@
-import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection";
-
 /**
  * Replaces properties in `T` with properties of the same name from `U`.
  *
@@ -10,4 +8,4 @@ import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_inter
  * of the same name. So `{a: number, b: number} & {b: string}` becomes
  * `{a: number, b: number & string}`.
  */
-export type Replace<T, U> = MergeObjectIntersection<Omit<T, keyof U> & U>;
+export type Replace<T, U> = Omit<T, keyof U> & U;

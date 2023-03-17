@@ -8,6 +8,7 @@ ts_project(
         "//:node_modules/@types/node",
         "//server/dynamo",
         "//server/dynamo/test_helpers/shared",
+        "//server/messaging",
         "//shared/content",
         "//shared/context",
         "//shared/helpers",
