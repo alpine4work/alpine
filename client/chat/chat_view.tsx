@@ -158,7 +158,8 @@ function ChatMessagingView({
         });
     }, [chatKey]);
 
-    const chat = chatForChatKey?.chatKey === chatKey ? chatForChatKey.chat : exactMatch?.chat;
+    const chat =
+        exactMatch?.chat ?? (chatForChatKey?.chatKey === chatKey ? chatForChatKey.chat : null);
 
     return (
         <MessagingView
