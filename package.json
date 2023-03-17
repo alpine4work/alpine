@@ -185,7 +185,8 @@
             "react-router@6.3.0": "admin/patches/react-router@6.3.0.patch",
             "history@5.3.0": "admin/patches/history@5.3.0.patch",
             "@react-aria/ssr@3.3.0": "admin/patches/@react-aria__ssr@3.3.0.patch",
-            "@react-aria/selection@3.11.0": "admin/patches/@react-aria__selection@3.11.0.patch"
+            "@react-aria/selection@3.11.0": "admin/patches/@react-aria__selection@3.11.0.patch",
+            "swr@2.1.0": "admin/patches/swr@2.1.0.patch"
         },
         "allowedDeprecatedVersions": {
             "@types/keyv": "4.2.0",

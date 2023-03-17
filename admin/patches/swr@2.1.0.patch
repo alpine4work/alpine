@@ -1,0 +1,80 @@
+diff --git a/_internal/dist/index.d.ts b/_internal/dist/index.d.ts
+index f2245af98e52bb0572812b9d69915a2cea38a5ed..7bae2a496ae4fa292f7e62c9e9f5b67f2eb0e416 100644
+--- a/_internal/dist/index.d.ts
++++ b/_internal/dist/index.d.ts
+@@ -343,6 +343,8 @@ declare const defaultConfigOptions: ProviderConfiguration;
+ 
+ declare const withMiddleware: (useSWR: SWRHook, middleware: Middleware) => SWRHook;
+ 
+-declare const preload: <Data = any>(key_: Key, fetcher: BareFetcher<Data>) => any;
++// NOTE(calebmer): Allow deduping preload requests if there is another ongoing
++// request. By default calling this function will always make the fetch.
++declare const preload: <Data = any>(key_: Key, fetcher: BareFetcher<Data>, options?: {dedupe?: boolean}) => any;
+ 
+ export { Arguments, BareFetcher, BlockingData, Broadcaster, Cache, Fetcher, FetcherResponse, FullConfiguration, GlobalState, IS_REACT_LEGACY, IS_SERVER, InternalConfiguration, Key, KeyLoader, KeyedMutator, Middleware, Mutator, MutatorCallback, MutatorConfig, MutatorFn, MutatorOptions, MutatorWrapper, OBJECT, ProviderConfiguration, PublicConfiguration, RevalidateCallback, RevalidateEvent, Revalidator, RevalidatorOptions, SWRConfig, SWRConfiguration, SWRGlobalState, SWRHook, SWRResponse, ScopedMutator, State, StateDependencies, StrictTupleKey, UNDEFINED, cache, compare, createCacheHelper, defaultConfig, defaultConfigOptions, getTimestamp, hasRequestAnimationFrame, initCache, internalMutate, isDocumentDefined, isFunction, isUndefined, isWindowDefined, mergeConfigs, mergeObjects, mutate, noop, normalize, preload, preset, rAF, constants as revalidateEvents, serialize, slowConnection, stableHash, subscribeCallback, useIsomorphicLayoutEffect, useSWRConfig, useStateWithDeps, withArgs, withMiddleware };
+diff --git a/_internal/dist/index.esm.js b/_internal/dist/index.esm.js
+index ad256ca6274c54bdb798c8016dd28ad142649194..4589f5b1d0865a4e7754cd7b21a1346aaa2019db 100644
+--- a/_internal/dist/index.esm.js
++++ b/_internal/dist/index.esm.js
+@@ -580,9 +580,15 @@ const useSWRConfig = ()=>{
+     return mergeObjects(defaultConfig, useContext(SWRConfigContext));
+ };
+ 
+-const preload = (key_, fetcher)=>{
++const preload = (key_, fetcher, options)=>{
+     const key = serialize(key_)[0];
+-    const [, , , PRELOAD] = SWRGlobalState.get(cache);
++    const [, , FETCH, PRELOAD] = SWRGlobalState.get(cache);
++    // NOTE(calebmer): Allow deduping preload requests if there is another ongoing
++    // request. By default calling this function will always make the fetch.
++    const requestInfo = FETCH[key];
++    if (options && options.dedupe && requestInfo) {
++        return requestInfo[0];
++    }
+     // Prevent preload to be called multiple times before used.
+     if (PRELOAD[key]) return PRELOAD[key];
+     const req = fetcher(key_);
+diff --git a/_internal/dist/index.js b/_internal/dist/index.js
+index 3126481d13df01fcff7a849816ed047275073003..b64a5c653b8482e329e9f21aaff1b3e4a9f0eb3e 100644
+--- a/_internal/dist/index.js
++++ b/_internal/dist/index.js
+@@ -586,9 +586,15 @@ const useSWRConfig = ()=>{
+     return mergeObjects(defaultConfig, React.useContext(SWRConfigContext));
+ };
+ 
+-const preload = (key_, fetcher)=>{
++const preload = (key_, fetcher, options)=>{
+     const key = serialize(key_)[0];
+-    const [, , , PRELOAD] = SWRGlobalState.get(cache);
++    const [, , FETCH, PRELOAD] = SWRGlobalState.get(cache);
++    // NOTE(calebmer): Allow deduping preload requests if there is another ongoing
++    // request. By default calling this function will always make the fetch.
++    const requestInfo = FETCH[key];
++    if (options && options.dedupe && requestInfo) {
++        return requestInfo[0];
++    }
+     // Prevent preload to be called multiple times before used.
+     if (PRELOAD[key]) return PRELOAD[key];
+     const req = fetcher(key_);
+diff --git a/_internal/dist/index.mjs b/_internal/dist/index.mjs
+index ad256ca6274c54bdb798c8016dd28ad142649194..4589f5b1d0865a4e7754cd7b21a1346aaa2019db 100644
+--- a/_internal/dist/index.mjs
++++ b/_internal/dist/index.mjs
+@@ -580,9 +580,15 @@ const useSWRConfig = ()=>{
+     return mergeObjects(defaultConfig, useContext(SWRConfigContext));
+ };
+ 
+-const preload = (key_, fetcher)=>{
++const preload = (key_, fetcher, options)=>{
+     const key = serialize(key_)[0];
+-    const [, , , PRELOAD] = SWRGlobalState.get(cache);
++    const [, , FETCH, PRELOAD] = SWRGlobalState.get(cache);
++    // NOTE(calebmer): Allow deduping preload requests if there is another ongoing
++    // request. By default calling this function will always make the fetch.
++    const requestInfo = FETCH[key];
++    if (options && options.dedupe && requestInfo) {
++        return requestInfo[0];
++    }
+     // Prevent preload to be called multiple times before used.
+     if (PRELOAD[key]) return PRELOAD[key];
+     const req = fetcher(key_);

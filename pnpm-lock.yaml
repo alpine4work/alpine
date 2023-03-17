@@ -7,66 +7,66 @@ overrides:
   esbuild: 0.17.10
 
 patchedDependencies:
-  media-query-parser@2.0.2:
-    hash: saj64dz6s226nfs27aiqrqatfi
-    path: admin/patches/media-query-parser@2.0.2.patch
-  outdent@0.8.0:
-    hash: ybnbpvk42g5zpvi2kytcsdr4wu
-    path: admin/patches/outdent@0.8.0.patch
+  prosemirror-view@1.27.2:
+    hash: jcawbabvrnkvntr42xpvsf5n7y
+    path: admin/patches/prosemirror-view@1.27.2.patch
   esbuild-jest@0.5.0:
     hash: ngae2o7jbonwtjb5i3flctr4hq
     path: admin/patches/esbuild-jest@0.5.0.patch
   browserify-zlib@0.1.4:
     hash: lhhf4zowvg4ngxldsy5aala7hu
     path: admin/patches/browserify-zlib@0.1.4.patch
+  outdent@0.8.0:
+    hash: ybnbpvk42g5zpvi2kytcsdr4wu
+    path: admin/patches/outdent@0.8.0.patch
   '@types/react@18.0.15':
     hash: 23ocnyc36lx4fsqepdtraunplm
     path: admin/patches/@types__react@18.0.15.patch
-  '@vanilla-extract/integration@5.0.1':
-    hash: 47jehzj4xj72gvnvadwkoykrme
-    path: admin/patches/@vanilla-extract__integration@5.0.1.patch
-  '@miniflare/http-server@2.11.0':
-    hash: ztiuxzlbgxjc73nj5w24no6ar4
-    path: admin/patches/@miniflare__http-server@2.11.0.patch
+  media-query-parser@2.0.2:
+    hash: saj64dz6s226nfs27aiqrqatfi
+    path: admin/patches/media-query-parser@2.0.2.patch
   '@vanilla-extract/sprinkles@1.5.0':
     hash: njeywewejjkyja35mwody6s2pu
     path: admin/patches/@vanilla-extract__sprinkles@1.5.0.patch
   '@remix-run/dev@1.7.5':
     hash: 4olztkg4l7wnk6vzdbfg2xh6pa
     path: admin/patches/@remix-run__dev@1.7.5.patch
+  '@vanilla-extract/integration@5.0.1':
+    hash: 47jehzj4xj72gvnvadwkoykrme
+    path: admin/patches/@vanilla-extract__integration@5.0.1.patch
   '@remix-run/server-runtime@1.7.5':
     hash: czxhikmhicrxddslnvwyip3rii
     path: admin/patches/@remix-run__server-runtime@1.7.5.patch
   '@remix-run/react@1.7.5':
     hash: vccgcdy3rs4uooyoa2fkdurpna
     path: admin/patches/@remix-run__react@1.7.5.patch
-  prosemirror-view@1.27.2:
-    hash: jcawbabvrnkvntr42xpvsf5n7y
-    path: admin/patches/prosemirror-view@1.27.2.patch
   wrangler@2.4.4:
     hash: 4uscheeliswsj24qo4bgc7mb6m
     path: admin/patches/wrangler@2.4.4.patch
+  '@miniflare/http-server@2.11.0':
+    hash: ztiuxzlbgxjc73nj5w24no6ar4
+    path: admin/patches/@miniflare__http-server@2.11.0.patch
   clean-css@4.2.4:
     hash: n3d2r36xwr47tsyk4dqv5u5mbq
     path: admin/patches/clean-css@4.2.4.patch
-  '@miniflare/runner-vm@2.11.0':
-    hash: 4sqfyt26snkgfwger7zzuolyhm
-    path: admin/patches/@miniflare__runner-vm@2.11.0.patch
   uglify-js@3.17.4:
     hash: bqi7bgi4a6wcjt6ky5jy76rsrm
     path: admin/patches/uglify-js@3.17.4.patch
-  '@types/functional-red-black-tree@1.0.1':
-    hash: zlhx626gqk2by4uqhm5vucpqwy
-    path: admin/patches/@types__functional-red-black-tree@1.0.1.patch
-  '@playwright/test@1.31.1':
-    hash: 645z6zzf2yttz7gk24haek5rhi
-    path: admin/patches/@playwright__test@1.31.1.patch
   mjml-parser-xml@4.13.0:
     hash: rdjh57cizesp5jd5a5v3n76apa
     path: admin/patches/mjml-parser-xml@4.13.0.patch
+  '@miniflare/runner-vm@2.11.0':
+    hash: 4sqfyt26snkgfwger7zzuolyhm
+    path: admin/patches/@miniflare__runner-vm@2.11.0.patch
+  '@types/functional-red-black-tree@1.0.1':
+    hash: zlhx626gqk2by4uqhm5vucpqwy
+    path: admin/patches/@types__functional-red-black-tree@1.0.1.patch
   '@react-aria/interactions@3.12.0':
     hash: 2s5t4derzlr6pbwch3ibe7ygq4
     path: admin/patches/@react-aria__interactions@3.12.0.patch
+  '@playwright/test@1.31.1':
+    hash: 645z6zzf2yttz7gk24haek5rhi
+    path: admin/patches/@playwright__test@1.31.1.patch
   react-router@6.3.0:
     hash: 422wocmxisgbpbzt6il5lmbhd4
     path: admin/patches/react-router@6.3.0.patch
@@ -79,6 +79,9 @@ patchedDependencies:
   '@react-aria/selection@3.11.0':
     hash: efw4sigcsm4ik2szgtkptekf2y
     path: admin/patches/@react-aria__selection@3.11.0.patch
+  swr@2.1.0:
+    hash: aimji5oo7eenblcnwqaif32rh4
+    path: admin/patches/swr@2.1.0.patch
 
 specifiers:
   '@aws-sdk/client-dynamodb': ^3.201.0
@@ -379,7 +382,7 @@ dependencies:
   set-cookie-parser: 2.5.1
   source-map-support: 0.5.21
   strip-ansi: 6.0.1
-  swr: 2.1.0_react@18.2.0
+  swr: 2.1.0_aimji5oo7eenblcnwqaif32rh4_react@18.2.0
   tree-kill: 1.2.2
   typescript: 5.0.1-rc
   uglify-js: 3.17.4_bqi7bgi4a6wcjt6ky5jy76rsrm
@@ -14062,7 +14065,7 @@ packages:
     engines: {node: '>= 0.4'}
     dev: false
 
-  /swr/2.1.0_react@18.2.0:
+  /swr/2.1.0_aimji5oo7eenblcnwqaif32rh4_react@18.2.0:
     resolution: {integrity: sha512-4hYl5p3/KalQ1MORealM79g/DtLohmud6yyfXw5l4wjtFksYUnocRFudvyaoUtgj3FrVNK9lS25Av9dsZYvz0g==}
     engines: {pnpm: '7'}
     peerDependencies:
@@ -14071,6 +14074,7 @@ packages:
       react: 18.2.0
       use-sync-external-store: 1.2.0_react@18.2.0
     dev: false
+    patched: true
 
   /symbol-tree/3.2.4:
     resolution: {integrity: sha512-9QNk5KwDF+Bvz+PyObkmSYjI5ksVUYtjW7AU22r2NKcfLJcXp96hkDWU3+XndOsUb+AQ9QhfzfCT2O+CNWT5Tw==}

@@ -1,7 +1,6 @@
 import {useMemo} from "react";
 import useSwr, {preload} from "swr";
 import {AppContext, useAppContext} from "~/client/context/app_context";
-import {assert} from "~/shared/helpers/control/assert";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition";
 
 function createFetcher<Input, Output>(context: AppContext, rpc: RpcDefinition<Input, Output>) {
@@ -39,17 +38,11 @@ function createFetcher<Input, Output>(context: AppContext, rpc: RpcDefinition<In
 export function useLazyLoadLoadRpc<Input, Output>(
     rpc: RpcDefinition<Input, Output>,
     input: Input | null,
-):
-    | {
-          isLoading: true;
-          isValidating: true;
-          data: undefined;
-      }
-    | {
-          isLoading: false;
-          isValidating: boolean;
-          data: Output;
-      } {
+): {
+    isLoading: boolean;
+    isValidating: boolean;
+    data: Output | undefined;
+} {
     const context = useAppContext();
 
     // NOTE(calebmer): `JSON.stringify()` preserves the order of keys. So if object
@@ -78,13 +71,7 @@ export function useLazyLoadLoadRpc<Input, Output>(
     // Handle errors at React error boundaries.
     if (error) throw error;
 
-    if (isLoading) {
-        assert(isValidating && data === undefined);
-        return {isLoading: true, isValidating: true, data: undefined};
-    } else {
-        assert(data !== undefined);
-        return {isLoading: false, isValidating, data};
-    }
+    return {isLoading, isValidating, data};
 }
 
 /**
@@ -99,5 +86,5 @@ export function preloadRpc<Input, Output>(
 ) {
     const inputString = JSON.stringify(rpc.inputSchema.serialize(input));
     const fetcher = createFetcher(context, rpc);
-    preload(`${rpc.name}:${inputString}`, fetcher);
+    preload(`${rpc.name}:${inputString}`, fetcher, {dedupe: true});
 }
