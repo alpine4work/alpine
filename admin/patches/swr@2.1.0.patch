@@ -78,3 +78,96 @@ index ad256ca6274c54bdb798c8016dd28ad142649194..4589f5b1d0865a4e7754cd7b21a1346a
      // Prevent preload to be called multiple times before used.
      if (PRELOAD[key]) return PRELOAD[key];
      const req = fetcher(key_);
+diff --git a/core/dist/index.esm.js b/core/dist/index.esm.js
+index 4d517ef611ffb7ce61b8482392c68a3ad08db47d..6a2caf2a63ab590864b417f076f4820199ba7654 100644
+--- a/core/dist/index.esm.js
++++ b/core/dist/index.esm.js
+@@ -111,7 +111,7 @@ const useSWRHandler = (_key, fetcher, config)=>{
+     const data = isUndefined(cachedData) ? fallback : cachedData;
+     const error = cached.error;
+     // Use a ref to store previously returned data. Use the initial data as its initial value.
+-    const laggyDataRef = useRef(data);
++    const laggyDataRef = useRef(keepPreviousData ? data : undefined);
+     const returnedData = keepPreviousData ? isUndefined(cachedData) ? laggyDataRef.current : cachedData : data;
+     // - Suspense mode and there's stale data for the initial render.
+     // - Not suspense mode and there is no fallback data and `revalidateIfStale` is enabled.
+@@ -334,8 +334,15 @@ const useSWRHandler = (_key, fetcher, config)=>{
+         configRef.current = config;
+         // Handle laggy data updates. If there's cached data of the current key,
+         // it'll be the correct reference.
+-        if (!isUndefined(cachedData)) {
+-            laggyDataRef.current = cachedData;
++        if (keepPreviousData) {
++            if (!isUndefined(cachedData)) {
++                laggyDataRef.current = cachedData;
++            }
++        } else {
++            // NOTE(calebmer): Don't keep laggy data around when `keepPreviousData` is set
++            // to false. If `keepPreviousData` changes from true to false then back to true
++            // we don't want data from when it was originally true.
++            laggyDataRef.current = undefined;
+         }
+     });
+     // After mounted or key changed.
+diff --git a/core/dist/index.js b/core/dist/index.js
+index 4bcb4033b8aafb129175327249f9695aebeed25f..217f2a9d4fd6c16eb1537e813b1bdf065c1c692d 100644
+--- a/core/dist/index.js
++++ b/core/dist/index.js
+@@ -112,7 +112,7 @@ const useSWRHandler = (_key, fetcher, config)=>{
+     const data = _internal.isUndefined(cachedData) ? fallback : cachedData;
+     const error = cached.error;
+     // Use a ref to store previously returned data. Use the initial data as its initial value.
+-    const laggyDataRef = react.useRef(data);
++    const laggyDataRef = react.useRef(keepPreviousData ? data : undefined);
+     const returnedData = keepPreviousData ? _internal.isUndefined(cachedData) ? laggyDataRef.current : cachedData : data;
+     // - Suspense mode and there's stale data for the initial render.
+     // - Not suspense mode and there is no fallback data and `revalidateIfStale` is enabled.
+@@ -335,8 +335,15 @@ const useSWRHandler = (_key, fetcher, config)=>{
+         configRef.current = config;
+         // Handle laggy data updates. If there's cached data of the current key,
+         // it'll be the correct reference.
+-        if (!_internal.isUndefined(cachedData)) {
+-            laggyDataRef.current = cachedData;
++        if (laggyDataRef) {
++            if (!_internal.isUndefined(cachedData)) {
++                laggyDataRef.current = cachedData;
++            }
++        } else {
++            // NOTE(calebmer): Don't keep laggy data around when `keepPreviousData` is set
++            // to false. If `keepPreviousData` changes from true to false then back to true
++            // we don't want data from when it was originally true.
++            laggyDataRef.current = undefined;
+         }
+     });
+     // After mounted or key changed.
+diff --git a/core/dist/index.mjs b/core/dist/index.mjs
+index 4d517ef611ffb7ce61b8482392c68a3ad08db47d..89ff6723b6e5eb71e9c27d99b42173459b358b81 100644
+--- a/core/dist/index.mjs
++++ b/core/dist/index.mjs
+@@ -111,7 +111,7 @@ const useSWRHandler = (_key, fetcher, config)=>{
+     const data = isUndefined(cachedData) ? fallback : cachedData;
+     const error = cached.error;
+     // Use a ref to store previously returned data. Use the initial data as its initial value.
+-    const laggyDataRef = useRef(data);
++    const laggyDataRef = useRef(keepPreviousData ? data : undefined);
+     const returnedData = keepPreviousData ? isUndefined(cachedData) ? laggyDataRef.current : cachedData : data;
+     // - Suspense mode and there's stale data for the initial render.
+     // - Not suspense mode and there is no fallback data and `revalidateIfStale` is enabled.
+@@ -334,8 +334,15 @@ const useSWRHandler = (_key, fetcher, config)=>{
+         configRef.current = config;
+         // Handle laggy data updates. If there's cached data of the current key,
+         // it'll be the correct reference.
+-        if (!isUndefined(cachedData)) {
+-            laggyDataRef.current = cachedData;
++        if (!keepPreviousData) {
++            if (!isUndefined(cachedData)) {
++                laggyDataRef.current = cachedData;
++            }
++        } else {
++            // NOTE(calebmer): Don't keep laggy data around when `keepPreviousData` is set
++            // to false. If `keepPreviousData` changes from true to false then back to true
++            // we don't want data from when it was originally true.
++            laggyDataRef.current = undefined;
+         }
+     });
+     // After mounted or key changed.
