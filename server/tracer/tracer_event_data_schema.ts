@@ -119,10 +119,12 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         documentId: Schema.id(),
         channelId: Schema.id(),
         postId: Schema.id(),
+        chatId: Schema.id(),
         peek: {
             aboveDocumentId: Schema.id(),
             aboveChannelId: Schema.id(),
             abovePostId: Schema.id(),
+            aboveChatId: Schema.id(),
         },
     },
     dynamodb: {

@@ -18,4 +18,5 @@ export const tracerEventDataContextPeekMoveIntoAboveKeys: {
     documentId: true,
     channelId: true,
     postId: true,
+    chatId: true,
 };

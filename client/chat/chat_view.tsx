@@ -2,7 +2,7 @@
 
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {ChatAccountPicker} from "~/client/chat/chat_account_picker";
-import {useAppContext} from "~/client/context/app_context";
+import {AppContextProvider, useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {MessagingView, getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
@@ -98,7 +98,6 @@ function ChatMessagingView({
         initialOtherReferencedMessages: ReadonlyArray<ChatMessageModel>;
     } | null;
 }) {
-    const context = useAppContext();
     const {space, currentAccount} = useSpaceContext();
 
     // The messaging header is empty space. It fills up the view height so your
@@ -161,80 +160,91 @@ function ChatMessagingView({
     const chat =
         exactMatch?.chat ?? (chatForChatKey?.chatKey === chatKey ? chatForChatKey.chat : null);
 
+    // Make sure we include the `ChatId` in our context's propagated data. Normally
+    // this is set by the route loader but because new chats may not know the
+    // `ChatId` in the URL we should set it again here.
+    const _context = useAppContext();
+    const context = useMemo(() => {
+        if (!chat) return _context;
+        return _context.tracer.withPropagatedData({context: {chatId: chat.id}});
+    }, [_context, chat]);
+
     return (
-        <MessagingView
-            key={chatKey}
-            initialScrollOffset="bottom"
-            initialMessagesResult={
-                exactMatch
-                    ? {
-                          messageCount: exactMatch.chat.messageCount,
-                          messages: exactMatch.initialMessages,
-                          otherReferencedMessages: exactMatch.initialOtherReferencedMessages,
-                          lastMessageChangeTime: exactMatch.chat.lastMessageChangeTime,
-                      }
-                    : {
-                          messageCount: 0,
-                          messages: [],
-                          otherReferencedMessages: [],
-                          lastMessageChangeTime: null,
-                      }
-            }
-            header={messagingHeader}
-            randomSeedForShimmer={chatKey}
-            isMessageCreationDisabled={!hasSelectedAccounts}
-            getMessagesFromStart={useEvent(input => {
-                const chatId: ChatId = (() => {
-                    throw new UnimplementedError("TODO");
-                })();
-                return getChatMessagesFromStart(context, {...input, chatId});
-            })}
-            getMessagesFromEnd={useEvent(input => {
-                const chatId: ChatId = (() => {
-                    throw new UnimplementedError("TODO");
-                })();
-                return getChatMessagesFromEnd(context, {...input, chatId});
-            })}
-            createMessage={useEvent(async input => {
-                if (!hasSelectedAccounts)
-                    throw new InternalError("Must select account to send message");
-
-                // When we don't know the `ChatId` we can use our `sendChatMessageToAccounts()`
-                // function which will create a new chat for the provided accounts. Or if a
-                // chat with the provided accounts already exists it will send to that chat.
-                if (chat) {
-                    await sendChatMessage(context, {
-                        ...input,
-                        chatId: chat.id,
-                    });
-                } else {
-                    const {chat} = await sendChatMessageToAccounts(context, {
-                        ...input,
-                        spaceId: space.id,
-                        otherAccountIds,
-                    });
-
-                    setChatForChatKey(chatForChatKey => {
-                        if (chatForChatKey.chatKey !== chatKey) return chatForChatKey;
-                        return {chatKey, chat};
-                    });
+        <AppContextProvider value={context}>
+            <MessagingView
+                key={chatKey}
+                initialScrollOffset="bottom"
+                initialMessagesResult={
+                    exactMatch
+                        ? {
+                              messageCount: exactMatch.chat.messageCount,
+                              messages: exactMatch.initialMessages,
+                              otherReferencedMessages: exactMatch.initialOtherReferencedMessages,
+                              lastMessageChangeTime: exactMatch.chat.lastMessageChangeTime,
+                          }
+                        : {
+                              messageCount: 0,
+                              messages: [],
+                              otherReferencedMessages: [],
+                              lastMessageChangeTime: null,
+                          }
                 }
-            })}
-            updateMessageContent={useEvent(async input => {
-                const chatId: ChatId = (() => {
+                header={messagingHeader}
+                randomSeedForShimmer={chatKey}
+                isMessageCreationDisabled={!hasSelectedAccounts}
+                getMessagesFromStart={useEvent(input => {
+                    const chatId: ChatId = (() => {
+                        throw new UnimplementedError("TODO");
+                    })();
+                    return getChatMessagesFromStart(context, {...input, chatId});
+                })}
+                getMessagesFromEnd={useEvent(input => {
+                    const chatId: ChatId = (() => {
+                        throw new UnimplementedError("TODO");
+                    })();
+                    return getChatMessagesFromEnd(context, {...input, chatId});
+                })}
+                createMessage={useEvent(async input => {
+                    if (!hasSelectedAccounts)
+                        throw new InternalError("Must select account to send message");
+
+                    // When we don't know the `ChatId` we can use our `sendChatMessageToAccounts()`
+                    // function which will create a new chat for the provided accounts. Or if a
+                    // chat with the provided accounts already exists it will send to that chat.
+                    if (chat) {
+                        await sendChatMessage(context, {
+                            ...input,
+                            chatId: chat.id,
+                        });
+                    } else {
+                        const {chat} = await sendChatMessageToAccounts(context, {
+                            ...input,
+                            spaceId: space.id,
+                            otherAccountIds,
+                        });
+
+                        setChatForChatKey(chatForChatKey => {
+                            if (chatForChatKey.chatKey !== chatKey) return chatForChatKey;
+                            return {chatKey, chat};
+                        });
+                    }
+                })}
+                updateMessageContent={useEvent(async input => {
+                    const chatId: ChatId = (() => {
+                        throw new UnimplementedError("TODO");
+                    })();
+                    await updateChatMessageContent(context, {...input, chatId});
+                })}
+                deleteMessage={useEvent(async input => {
+                    const chatId: ChatId = (() => {
+                        throw new UnimplementedError("TODO");
+                    })();
+                    await deleteChatMessage(context, {...input, chatId});
+                })}
+                getCopyLinkUrl={useCallback(() => {
                     throw new UnimplementedError("TODO");
-                })();
-                await updateChatMessageContent(context, {...input, chatId});
-            })}
-            deleteMessage={useEvent(async input => {
-                const chatId: ChatId = (() => {
-                    throw new UnimplementedError("TODO");
-                })();
-                await deleteChatMessage(context, {...input, chatId});
-            })}
-            getCopyLinkUrl={useCallback(() => {
-                throw new UnimplementedError("TODO");
-            }, [])}
-        />
+                }, [])}
+            />
+        </AppContextProvider>
     );
 }

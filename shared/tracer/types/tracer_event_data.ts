@@ -1,6 +1,7 @@
 import {
     AccountId,
     ChannelId,
+    ChatId,
     DocumentId,
     PeekId,
     PostId,
@@ -317,6 +318,9 @@ export type TracerEventData = {
         /** Information about the post the event was fired while looking at. */
         readonly postId?: PostId;
 
+        /** Information about the chat the event was fired while looking at. */
+        readonly chatId?: ChatId;
+
         /**
          * If this event is coming from a peek then this object will be populated with
          * information about the peek.
@@ -336,6 +340,9 @@ export type TracerEventData = {
 
             /** Information about the post the peek the event is coming from is above. */
             readonly abovePostId?: PostId;
+
+            /** Information about the chat the peek the event is coming from is above. */
+            readonly aboveChatId?: ChatId;
         };
     };
 
