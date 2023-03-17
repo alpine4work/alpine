@@ -39,7 +39,6 @@ import {getNextFocusableElement} from "~/client/design/helpers/get_next_focusabl
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
 import {IconButton} from "~/client/design/icon_button";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {usePromise} from "~/client/helpers/use_promise";
 import {loadInitialPeekData} from "~/client/peek/internal/load_initial_peek_data";
@@ -693,7 +692,6 @@ function PeekOverlay({
     draggableListeners: SyntheticListenerMap | undefined;
     expandingIdRef: MutableRefObject<PeekId | null>;
 }) {
-    const isMounted = useIsMounted();
     const overlayRef = useRef<HTMLDivElement>(null);
     const overlayContainerRef = useRef<HTMLDivElement>(null);
     const overlayContentContainerRef = useRef<HTMLDivElement>(null);
@@ -756,7 +754,7 @@ function PeekOverlay({
 
             void animation.finished.finally(() => {
                 isAnimatingOpenRef.current = false;
-                if (isMounted()) setIsAnimatingOpen(false);
+                setIsAnimatingOpen(false);
             });
 
             // If auto-focus is enabled then it should happen at the same time as we
@@ -769,7 +767,6 @@ function PeekOverlay({
             entry.autoFocus,
             index,
             isAnimatingOpen,
-            isMounted,
             state.disableEntranceAnimationsDuringNextRender,
             translateY,
         ]);
@@ -805,12 +802,10 @@ function PeekOverlay({
             );
 
             void animation.finished.then(() => {
-                if (!isMounted()) return;
-
                 // We use `indexRef` here so we don't capture an old index in this closure.
                 dispatch({type: "FinishUnmounting", unmountingStackIndex: -indexRef.current - 1});
             });
-        }, [dispatch, isMounted, isUnmounting, translateY]);
+        }, [dispatch, isUnmounting, translateY]);
     }
 
     // Animation 2: Shift overlays later in the stack right and down.

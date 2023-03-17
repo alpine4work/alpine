@@ -107,7 +107,6 @@ export function SpaceContextProvider({
     children?: ReactNode;
 }) {
     const context = useAppContext();
-    const isMounted = useIsMounted();
 
     const [_spaceAccountsState, setSpaceAccountsState] = useState<SpaceAccountsState>({
         spaceId: space.id,
@@ -150,8 +149,6 @@ export function SpaceContextProvider({
         // implemented on Safari. Generally we recommend using the React scheduler
         // since it has centralized knowledge of all our tasks.
         unstable_scheduleCallback(unstable_IdlePriority, () => {
-            if (!isMounted()) return;
-
             setSpaceAccountsState(spaceAccountsState =>
                 spaceAccountsState.spaceId === space.id &&
                 !spaceAccountsState.isLoading &&
@@ -189,38 +186,33 @@ export function SpaceContextProvider({
                 // Build Fuse search index...
                 const fuse = new Fuse(sortedAccounts, {keys: ["name"], includeScore: true});
 
-                // Don't set state if the component unmounted...
-                if (isMounted()) {
-                    setSpaceAccountsState(spaceAccountsState => {
-                        // Don't set state if the space ID changed...
-                        if (spaceAccountsState.spaceId !== spaceId) return spaceAccountsState;
-                        return {
-                            spaceId,
-                            isLoading: false,
-                            data: {
-                                ok: true,
-                                value: {accounts: sortedAccounts, fuse},
-                            },
-                        };
-                    });
-                }
+                setSpaceAccountsState(spaceAccountsState => {
+                    // Don't set state if the space ID changed...
+                    if (spaceAccountsState.spaceId !== spaceId) return spaceAccountsState;
+                    return {
+                        spaceId,
+                        isLoading: false,
+                        data: {
+                            ok: true,
+                            value: {accounts: sortedAccounts, fuse},
+                        },
+                    };
+                });
             } catch (error) {
-                if (isMounted()) {
-                    setSpaceAccountsState(spaceAccountsState => {
-                        if (spaceAccountsState.spaceId !== spaceId) return spaceAccountsState;
-                        return {
-                            spaceId,
-                            isLoading: false,
-                            data: {
-                                ok: false,
-                                error,
-                            },
-                        };
-                    });
-                }
+                setSpaceAccountsState(spaceAccountsState => {
+                    if (spaceAccountsState.spaceId !== spaceId) return spaceAccountsState;
+                    return {
+                        spaceId,
+                        isLoading: false,
+                        data: {
+                            ok: false,
+                            error,
+                        },
+                    };
+                });
             }
         });
-    }, [context, isMounted, spaceAccountsState]);
+    }, [context, spaceAccountsState]);
 
     return (
         <SpaceContext.Provider
