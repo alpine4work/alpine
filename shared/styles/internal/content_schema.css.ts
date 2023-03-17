@@ -42,6 +42,7 @@ import {peekContainerClassName} from "~/shared/styles/internal/peek.css";
 // - Yasmin's suggestions
 // - Bold labels in dark mode don't have enough contrast? See
 //   https://cyberworlds.dev/s/111hc413nfdxa6vwspnhm3ejsc/documents/wshttcjr5egq22e11k92tq1z7m
+// - Checkboxes are misaligned with new line height
 
 const paragraphMargin = spacing["2"];
 const headerTopMargin = "1.5em";

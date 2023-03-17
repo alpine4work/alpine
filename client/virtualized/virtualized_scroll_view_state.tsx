@@ -45,11 +45,6 @@ export type VirtualizedScrollViewStateRenderItemProps = {
     };
 
     /**
-     * The total number of items in the view.
-     */
-    itemCount: number;
-
-    /**
      * The height of the view.
      *
      * In our initial relative positioning render this value will be an
@@ -1561,7 +1556,6 @@ export class VirtualizedScrollViewState {
 
                     return currentState.getPositionByIndex(searchIndex);
                 },
-                itemCount,
                 viewHeight: originalState.getViewHeight(),
                 originalContentHeight: originalState.getContentHeight(),
             });
@@ -1722,7 +1716,6 @@ export class VirtualizedScrollViewState {
 
                         return currentState.getPositionByIndex(searchIndex);
                     },
-                    itemCount,
                     viewHeight: originalState.getViewHeight(),
                     originalContentHeight: originalState.getContentHeight(),
                 });

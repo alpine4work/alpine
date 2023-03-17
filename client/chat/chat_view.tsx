@@ -2,13 +2,13 @@
 
 import {useCallback, useMemo, useState} from "react";
 import {ChatAccountPicker} from "~/client/chat/chat_account_picker";
-import {ChatViewHeader, chatViewHeaderHeight} from "~/client/chat/chat_view_header";
 import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {MessagingView} from "~/client/messaging/messaging_view";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {VirtualizedScrollViewItem} from "~/client/virtualized/virtualized_scroll_view";
+import {spacing} from "~/shared/design/spacing";
 import {UnimplementedError} from "~/shared/error/error";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit";
@@ -40,42 +40,43 @@ export function ChatView() {
         );
     }, [currentAccount, selectedAccounts]);
 
-    const messagingHeader = useMemo(
-        (): DistributiveOmit<VirtualizedScrollViewItem, "key"> => ({
-            minHeight: chatViewHeaderHeight,
+    // The messaging header is empty space. It fills up the view height so your
+    // first messages are pushed to the bottom of the screen. In the future we
+    // should do something interesting with this empty space.
+    const messagingHeader = useMemo((): DistributiveOmit<VirtualizedScrollViewItem, "key"> => {
+        // When our view is full of messages this will be the top margin of the view.
+        const height = spacing["3"];
+
+        return {
+            minHeight: height,
             withManualLayout: true,
             render: ({
                 ref,
                 shouldRenderWithRelativePositioning,
                 offset,
-                height,
-                itemCount,
+                height: actualHeight,
                 viewHeight,
                 originalContentHeight,
             }) => (
                 <div
                     ref={ref}
                     style={{
-                        minHeight: chatViewHeaderHeight,
                         ...(shouldRenderWithRelativePositioning
-                            ? {position: "relative"}
+                            ? {position: "relative", height}
                             : {
                                   position: "absolute",
                                   top: offset,
                                   left: 0,
                                   right: 0,
-                                  height: `max(${chatViewHeaderHeight}, ${
-                                      viewHeight - (originalContentHeight - height)
+                                  height: `max(${height}, ${
+                                      viewHeight - (originalContentHeight - actualHeight)
                                   }px)`,
                               }),
                     }}
-                >
-                    {itemCount === 1 && <ChatViewHeader accounts={allSortedAccounts} />}
-                </div>
+                />
             ),
-        }),
-        [allSortedAccounts],
-    );
+        };
+    }, []);
 
     return (
         <Box width="full" height="full" display="flex" flexDirection="column">

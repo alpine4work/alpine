@@ -552,7 +552,6 @@ function VirtualizedScrollView(
                     offset,
                     height,
                     getPositionByIndex,
-                    itemCount,
                     viewHeight,
                     originalContentHeight,
                 }) => {
@@ -653,7 +652,6 @@ function VirtualizedScrollView(
                             offset,
                             height,
                             getPositionByIndex,
-                            itemCount,
                             viewHeight,
                             originalContentHeight,
                         });
