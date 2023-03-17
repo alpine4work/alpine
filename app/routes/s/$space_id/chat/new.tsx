@@ -9,13 +9,13 @@ export const meta: MetaFunction = () => {
     };
 };
 
-export default function NewChatRoute() {
+export default function NewChatRoute({isPeek}: {isPeek?: boolean}) {
     return (
         <Box
             flexGrow="1"
             width="full"
             overflow="hidden"
-            padding={{desktop: "4"}}
+            padding={!isPeek ? {desktop: "4"} : undefined}
             display="flex"
             justifyContent="center"
         >
@@ -24,7 +24,7 @@ export default function NewChatRoute() {
                 width="full"
                 height="full"
                 backgroundColor="grey-0"
-                borderRadius={{desktop: "md"}}
+                borderRadius={!isPeek ? {desktop: "md"} : undefined}
                 boxShadow="elevation-5"
             >
                 <ChatView />

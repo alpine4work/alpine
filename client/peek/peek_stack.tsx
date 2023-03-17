@@ -755,14 +755,13 @@ function PeekOverlay({
             void animation.finished.finally(() => {
                 isAnimatingOpenRef.current = false;
                 setIsAnimatingOpen(false);
-            });
 
-            // If auto-focus is enabled then it should happen at the same time as we
-            // animate up.
-            if (entry.autoFocus) {
-                const overlayContent = assertExists(overlayContentRef.current);
-                overlayContent.focus();
-            }
+                // If auto-focus is enabled then focus the overlay once we're done
+                // animating up.
+                if (entry.autoFocus) {
+                    overlayContentRef.current?.focus();
+                }
+            });
         }, [
             entry.autoFocus,
             index,

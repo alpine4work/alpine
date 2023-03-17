@@ -30,14 +30,9 @@ export function SpaceLayoutTopBarCreateButton() {
             actions={[
                 {
                     withCustomLayout: true,
-                    onPress: () => {
-                        showToast({
-                            type: "Error",
-                            title: "Can not send a chat message",
-                            error: new UnimplementedError("Chat has not been implemented yet", {
-                                displayMessage: errorDisplayMessage`Chat has not been implemented yet.`,
-                            }),
-                        });
+                    pressErrorTitle: "Couldn’t open new chat",
+                    onPress: async () => {
+                        await peekStackContext.push(`/s/${space.id}/chat/new`, {focus: true});
                     },
                     render: ({isHovered, isPressed, shouldShowPendingSpinner}) => (
                         <SpaceLayoutTopBarCreateButtonItem
