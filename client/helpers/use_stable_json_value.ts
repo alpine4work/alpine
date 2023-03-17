@@ -18,7 +18,8 @@ export function useStableJsonValue<Value extends JsonStringifiableValue>(
     // key order changes then we re-create the value. However if we checked
     // `isDeepEqual()` on two objects with different key orders then the key order
     // wouldn't matter. Given the browser heavily optimizes `JSON.stringify()` this
-    // is an acceptable tradeoff.
+    // is an acceptable tradeoff. If we determine key order does matter we can use
+    // a package like `json-stable-stringify`.
     const valueString = useMemo(() => JSON.stringify(value), [value]);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps

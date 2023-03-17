@@ -7,6 +7,7 @@ ts_project(
         "//client:__subpackages__",
     ],
     deps = [
+        "//:node_modules/swr",
         "//shared/context",
         "//shared/error",
         "//shared/helpers",

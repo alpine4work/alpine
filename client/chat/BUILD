@@ -9,6 +9,7 @@ ts_project(
     deps = [
         "//:node_modules/@react-types/shared",
         "//:node_modules/@types/react",
+        "//:node_modules/fuse.js",
         "//:node_modules/react",
         "//:node_modules/react-aria",
         "//:node_modules/react-stately",

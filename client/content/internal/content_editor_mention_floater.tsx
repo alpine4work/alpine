@@ -1,4 +1,5 @@
 import {isFocusVisible as getIsFocusVisible} from "@react-aria/interactions";
+import Fuse from "fuse.js";
 import {MagnifyingGlass, SpinnerGap} from "phosphor-react";
 import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
@@ -26,7 +27,7 @@ import {OverlayAnimated} from "~/client/design/overlay_animated";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/space_context";
+import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts";
 import {ContentMention} from "~/shared/content/content_mention";
 import {spacing} from "~/shared/design/spacing";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
@@ -78,7 +79,22 @@ export function ContentEditorMentionFloater({
         }
     }, [isClosing, onCloseWithoutAnimation]);
 
-    const allAccounts = useExpensivelyLoadAllSpaceAccounts();
+    const _allAccounts = useExpensivelyLoadAllSpaceAccounts();
+
+    const allAccounts = useMemo(() => {
+        if (!_allAccounts) return null;
+
+        // Sort accounts by name using the user's current locale. Ideally we would sort
+        // by relevance to the user but this is the simple thing to do for now.
+        const accounts = Array.from(_allAccounts).sort((account1, account2) =>
+            account1.name.localeCompare(account2.name),
+        );
+
+        // Build Fuse search index...
+        const fuse = new Fuse(accounts, {keys: ["name"], includeScore: true});
+
+        return {accounts, fuse};
+    }, [_allAccounts]);
 
     const searchedAccounts = useMemo(() => {
         if (!allAccounts) return null;
@@ -98,6 +114,7 @@ export function ContentEditorMentionFloater({
 
     const selectionState =
         _selectionState.searchQuery !== searchQuery ||
+        !searchedAccounts ||
         (_selectionState.index !== null && _selectionState.index >= searchedAccounts.length)
             ? {searchQuery, index: null, isFocusVisible: false}
             : _selectionState;
@@ -159,7 +176,7 @@ export function ContentEditorMentionFloater({
             // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
             case "ArrowDown": {
                 event.preventDefault(); // Don't scroll or move cursor
-                if (searchedAccounts.length > 0) {
+                if (searchedAccounts && searchedAccounts.length > 0) {
                     setSelectionState({
                         searchQuery,
                         index:
@@ -178,7 +195,7 @@ export function ContentEditorMentionFloater({
             // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
             case "ArrowUp": {
                 event.preventDefault(); // Don't scroll or move cursor
-                if (searchedAccounts.length > 0) {
+                if (searchedAccounts && searchedAccounts.length > 0) {
                     setSelectionState({
                         searchQuery,
                         index:
@@ -197,7 +214,7 @@ export function ContentEditorMentionFloater({
             // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
             case "Home": {
                 event.preventDefault(); // Don't scroll
-                if (searchedAccounts.length > 0) {
+                if (searchedAccounts && searchedAccounts.length > 0) {
                     setSelectionState({
                         searchQuery,
                         index: 0,
@@ -213,7 +230,7 @@ export function ContentEditorMentionFloater({
             // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
             case "End": {
                 event.preventDefault(); // Don't scroll
-                if (searchedAccounts.length > 0) {
+                if (searchedAccounts && searchedAccounts.length > 0) {
                     setSelectionState({
                         searchQuery,
                         index: searchedAccounts.length - 1,
@@ -241,6 +258,7 @@ export function ContentEditorMentionFloater({
             case "Enter": {
                 event.preventDefault();
                 if (
+                    searchedAccounts &&
                     selectionState.index !== null &&
                     selectionState.index < searchedAccounts.length
                 ) {

@@ -147,6 +147,7 @@
         "set-cookie-parser": "^2.5.1",
         "source-map-support": "^0.5.21",
         "strip-ansi": "6",
+        "swr": "^2.1.0",
         "tree-kill": "^1.2.2",
         "typescript": "5.0.1-rc",
         "uglify-js": "3.17.4",

@@ -1,7 +1,17 @@
 import {isFocusVisible} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
+import Fuse from "fuse.js";
 import {CaretDown, MagnifyingGlass, X} from "phosphor-react";
-import {KeyboardEvent, RefObject, createRef, useEffect, useMemo, useRef, useState} from "react";
+import {
+    KeyboardEvent,
+    Memo,
+    RefObject,
+    createRef,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {
     AriaListBoxOptions,
     mergeProps,
@@ -17,7 +27,7 @@ import {FocusRing} from "~/client/design/focus_ring";
 import {IconButton} from "~/client/design/icon_button";
 import {OverlayAnimated} from "~/client/design/overlay_animated";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/space_context";
+import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length";
 import {createTimeout} from "~/shared/helpers/async/timeout";
@@ -49,12 +59,25 @@ export function ChatAccountPicker({
             | ((selectedAccounts: ReadonlyArray<AccountModel>) => ReadonlyArray<AccountModel>),
     ) => void;
 }) {
-    const allAccounts = useExpensivelyLoadAllSpaceAccounts();
+    const _allAccounts = useExpensivelyLoadAllSpaceAccounts();
 
-    const accountById = useMemo(
-        () => new Map((allAccounts?.accounts ?? []).map(account => [account.id, account])),
-        [allAccounts?.accounts],
-    );
+    const allAccounts = useMemo(() => {
+        if (!_allAccounts) return null;
+
+        const accountById = new Map<AccountId, AccountModel>();
+
+        // Sort accounts by name using the user's current locale. Ideally we would sort
+        // by relevance to the user but this is the simple thing to do for now.
+        const accounts = Array.from(_allAccounts, account => {
+            accountById.set(account.id, account);
+            return account;
+        }).sort((account1, account2) => account1.name.localeCompare(account2.name));
+
+        // Build Fuse search index...
+        const fuse = new Fuse(accounts, {keys: ["name"], includeScore: true});
+
+        return {accountById, accounts, fuse};
+    }, [_allAccounts]);
 
     const [{searchQuery, shouldCloseComboBox}, setSearchQuery] = useState<{
         searchQuery: string;
@@ -125,7 +148,7 @@ export function ChatAccountPicker({
             setSearchQuery({searchQuery: "", shouldCloseComboBox: true});
 
             if (typeof key === "string" && isId<AccountId>(key)) {
-                const account = accountById.get(key);
+                const account = allAccounts?.accountById.get(key);
 
                 if (account) {
                     setSelectedAccounts(selectedAccounts => {

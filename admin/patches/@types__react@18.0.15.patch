@@ -17,9 +17,9 @@ index 50f1817d786262b69d1ea72fba99c37ca8169ebb..d1c167e161d8360d3d70b53e236d706c
  
 +    /**
 +     * A value that has been memoized by `useMemo()` or `useCallback()` and so is safe to use as an
-+     * effect dependency.
++     * effect dependency. `null & {}` is `never` so we leave null as-is.
 +     */
-+    type Memo<T> = T & {[MEMO]: never};
++    type Memo<T> = T extends null | undefined ? T : T & {[MEMO]: never};
 +
      // This will technically work if you give a Consumer<T> or Provider<T> but it's deprecated and warns
      /**

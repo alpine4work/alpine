@@ -38,10 +38,8 @@ import {isVirtualKeyboardEvent} from "~/client/helpers/events/is_virtual_keyboar
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
 import {useNavigate} from "~/client/remix/use_navigate";
-import {
-    useExpensivelyPreloadAllSpaceAccounts,
-    useSpaceContext,
-} from "~/client/spaces/space_context";
+import {useSpaceContext} from "~/client/spaces/space_context";
+import {useExpensivelyPreloadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema";
 import {documentFallbackTitle} from "~/shared/content/document_fallback_title";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty";

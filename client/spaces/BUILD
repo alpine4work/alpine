@@ -8,7 +8,6 @@ ts_project(
     ],
     deps = [
         "//:node_modules/@types/react",
-        "//:node_modules/fuse.js",
         "//:node_modules/react",
         "//client/accounts",
         "//client/context",
