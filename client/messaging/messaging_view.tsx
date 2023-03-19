@@ -21,6 +21,7 @@ import {
     messageViewMinHeight,
 } from "~/client/messaging/message_view";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages";
+import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewItem,
@@ -28,12 +29,15 @@ import {
     VirtualizedScrollViewRenderItem,
     getInitialVirtualizedScrollViewRenderedItemCount,
 } from "~/client/virtualized/virtualized_scroll_view";
-import {MessageContent} from "~/shared/content/message_content_schema";
 import {wait} from "~/shared/helpers/async/wait";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit";
+import {
+    MessagingRealtimeMessageFromClient,
+    MessagingRealtimeMessageFromServer,
+} from "~/shared/messaging/messaging_realtime_schema";
 import {MessageModel} from "~/shared/models/message_model";
 import {ClientInfo} from "~/shared/remix/client_info";
 import {sprinkles} from "~/shared/styles/styles";
@@ -155,9 +159,9 @@ export function MessagingView<RoomKey extends string, Message extends MessageMod
     isMessageCreationDisabled,
     getMessagesFromStart,
     getMessagesFromEnd,
-    createMessage,
-    updateMessageContent,
-    deleteMessage,
+    isRealtimeConnected,
+    sendRealtimeMessage,
+    subscribeToRealtimeMessages,
     getCopyLinkUrl,
 }: {
     /**
@@ -245,34 +249,24 @@ export function MessagingView<RoomKey extends string, Message extends MessageMod
     }>;
 
     /**
-     * Create a new message. We expect the implementation of this function passes
-     * the `testMessagingImplementation()` test suite.
-     *
-     * We will add an optimistic message to the view but we will not confirm the
-     * optimistic message until we receive the new message over realtime! The
-     * reason for this is if we confirm an optimistic message and discover there
-     * are unloaded messages between our new message and previously loaded message
-     * then those unloaded messages display as shimmers which is a weird
-     * experience. So wait for realtime which should deliver our messages in order.
+     * Do we have a realtime connection to a service implementing our realtime
+     * messaging protocol?
      */
-    createMessage: Memo<
-        (input: {parentMessageIndex: number | null; content: MessageContent}) => Promise<void>
-    >;
+    isRealtimeConnected: boolean;
 
     /**
-     * Update the contents of a message. We expect the implementation of this
-     * function passes the `testMessagingImplementation()` test suite.
+     * Send a realtime message to a service implementing our realtime messaging
+     * protocol.
      */
-    updateMessageContent: Memo<
-        (input: {messageIndex: number; content: MessageContent}) => Promise<void>
-    >;
+    sendRealtimeMessage: Memo<(message: MessagingRealtimeMessageFromClient) => Promise<void>>;
 
     /**
-     * Delete a message leaving a placeholder in its place. We expect the
-     * implementation of this function passes the `testMessagingImplementation()`
-     * test suite.
+     * Subscribe to realtime messages from a service implementing our realtime
+     * messaging protocol.
      */
-    deleteMessage: Memo<(input: {messageIndex: number}) => Promise<void>>;
+    subscribeToRealtimeMessages: Memo<
+        (subscriber: (message: MessagingRealtimeMessageFromServer<Message>) => void) => () => void
+    >;
 
     /**
      * Copies a link to a message. Opening this link should scroll the messaging
@@ -374,14 +368,6 @@ export function MessagingView<RoomKey extends string, Message extends MessageMod
         tryLoadingMoreData(view.getRenderedRange());
     }, [state, tryLoadingMoreData]);
 
-    // Manages the editable message.
-    //
-    // This is at the post list level because we want only one message to be
-    // editable at a time.
-    const messageEditing = useMessageEditing<RoomKey>({
-        onUpdateMessageContent: updateMessageContent,
-    });
-
     // Manages which comment `<MessageInput>` is currently replying to.
     const [replyingToMessage, setReplyingToMessage] = useState<Message | null>(null);
 
@@ -432,6 +418,22 @@ export function MessagingView<RoomKey extends string, Message extends MessageMod
                 });
             });
         }
+    });
+
+    const {actions} = useMessagingRealtime({
+        messages: messagesWithoutHeader,
+        onUpdateMessages: setMessages,
+        isRealtimeConnected,
+        sendRealtimeMessage,
+        subscribeToRealtimeMessages,
+    });
+
+    // Manages the editable message.
+    //
+    // This is at the post list level because we want only one message to be
+    // editable at a time.
+    const messageEditing = useMessageEditing<RoomKey>({
+        onUpdateMessageContent: input => actions.updateMessageContent(input),
     });
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
@@ -486,7 +488,7 @@ export function MessagingView<RoomKey extends string, Message extends MessageMod
                                 }}
                                 onDeleteMessage={async () => {
                                     if (item.message.isOptimistic) return;
-                                    await deleteMessage({
+                                    await actions.deleteMessage({
                                         messageIndex: item.message.index,
                                     });
                                 }}
@@ -565,7 +567,7 @@ export function MessagingView<RoomKey extends string, Message extends MessageMod
             }
         },
         [
-            deleteMessage,
+            actions,
             getCopyLinkUrl,
             handleJumpToMessage,
             highlightMessage,
@@ -600,7 +602,7 @@ export function MessagingView<RoomKey extends string, Message extends MessageMod
                 messages={state.messages}
                 isMessageCreationDisabled={isMessageCreationDisabled}
                 onUpdateMessages={update => setMessages(update)}
-                createMessage={createMessage}
+                createMessage={input => actions.createMessage(input)}
                 replyingToMessage={replyingToMessage}
                 onClearReplyingToMessage={() => setReplyingToMessage(null)}
                 onJumpToMessage={handleJumpToMessage}

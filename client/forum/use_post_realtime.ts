@@ -1,4 +1,4 @@
-import {Ref, useCallback, useImperativeHandle, useRef} from "react";
+import {Ref, useCallback, useImperativeHandle} from "react";
 import {useWebSocket} from "~/client/cloudflare/use_web_socket";
 import {MessageList} from "~/client/messaging/message_list";
 import {
@@ -11,6 +11,7 @@ import {MessagingRealtimeMessageFromServer} from "~/shared/messaging/messaging_r
 import {PostCommentModel} from "~/shared/models/post_model";
 import {
     PostRealtimeMessageFromClientSchema,
+    PostRealtimeMessageFromServer,
     PostRealtimeMessageFromServerSchema,
 } from "~/shared/posts/post_realtime_schema";
 
@@ -31,23 +32,10 @@ export function usePostRealtime({
         update: (postComments: MessageList<PostCommentModel>) => MessageList<PostCommentModel>,
     ) => void;
 }) {
-    const subscribersRef = useRef(
-        new Set<(message: MessagingRealtimeMessageFromServer<PostCommentModel>) => void>(),
-    );
-
-    const {isConnected, sendMessage} = useWebSocket(
+    const {isConnected, sendMessage, subscribeToMessages} = useWebSocket(
         PostRealtimeMessageFromClientSchema,
         PostRealtimeMessageFromServerSchema,
         `/durable-objects/posts/${postId}`,
-        message => {
-            // TypeScript will error if we ever add other message types here. At that point
-            // this code should turn into a switch.
-            cast<"PostComments">(message.type);
-
-            for (const subscriber of subscribersRef.current) {
-                subscriber(message.message);
-            }
-        },
     );
 
     const {actions} = useMessagingRealtime({
@@ -62,12 +50,16 @@ export function usePostRealtime({
             (
                 subscriber: (message: MessagingRealtimeMessageFromServer<PostCommentModel>) => void,
             ) => {
-                subscribersRef.current.add(subscriber);
-                return () => {
-                    subscribersRef.current.delete(subscriber);
+                const actualSubscriber = (message: PostRealtimeMessageFromServer) => {
+                    // TypeScript will error if we ever add other message types here. At that point
+                    // this code should turn into a switch.
+                    cast<"PostComments">(message.type);
+                    subscriber(message.message);
                 };
+
+                return subscribeToMessages(actualSubscriber);
             },
-            [],
+            [subscribeToMessages],
         ),
     });
 

@@ -1,8 +1,8 @@
 export type PromiseResolver<T> = {
     readonly promise: Promise<T>;
-    isSettled(): boolean;
-    resolve(value: T): void;
-    reject(error: unknown): void;
+    readonly isSettled: () => boolean;
+    readonly resolve: (value: T) => void;
+    readonly reject: (error: unknown) => void;
 };
 
 /**

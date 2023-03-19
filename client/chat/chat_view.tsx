@@ -2,6 +2,7 @@
 
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {ChatAccountPicker} from "~/client/chat/chat_account_picker";
+import {useWebSocket} from "~/client/cloudflare/use_web_socket";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
@@ -10,22 +11,26 @@ import {useClientInfo} from "~/client/remix/client_info_context";
 import {useLazyLoadLoadRpc} from "~/client/rpc/use_lazy_load_rpc";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {VirtualizedScrollViewItem} from "~/client/virtualized/virtualized_scroll_view";
+import {
+    ChatRealtimeMessageFromClientSchema,
+    ChatRealtimeMessageFromServer,
+    ChatRealtimeMessageFromServerSchema,
+} from "~/shared/chat/chat_realtime_schema";
 import {spacing} from "~/shared/design/spacing";
 import {InternalError, UnimplementedError} from "~/shared/error/error";
 import {emptyArray} from "~/shared/helpers/array/empty_array";
+import {cast} from "~/shared/helpers/control/cast";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit";
-import {AccountId, ChatId} from "~/shared/id/types/id_types";
+import {AccountId} from "~/shared/id/types/id_types";
+import {MessagingRealtimeMessageFromServer} from "~/shared/messaging/messaging_realtime_schema";
 import {AccountModel} from "~/shared/models/account_model";
 import {ChatMessageModel, ChatModel} from "~/shared/models/chat_model";
 import {
-    deleteChatMessage,
     getChatMessagesFromEnd,
     getChatMessagesFromStart,
     getRecommendedChats,
-    sendChatMessage,
     sendChatMessageToAccounts,
-    updateChatMessageContent,
 } from "~/shared/rpc/chat_rpc_definitions";
 
 export function ChatView() {
@@ -169,6 +174,16 @@ function ChatMessagingView({
         return _context.tracer.withPropagatedData({context: {chatId: chat.id}});
     }, [_context, chat]);
 
+    const {
+        isConnected: isRealtimeConnected,
+        sendMessage: sendRealtimeMessage,
+        subscribeToMessages: subscribeToRealtimeMessages,
+    } = useWebSocket(
+        ChatRealtimeMessageFromClientSchema,
+        ChatRealtimeMessageFromServerSchema,
+        chat ? `/durable-objects/chat/${chat.id}` : null,
+    );
+
     return (
         <AppContextProvider value={context}>
             <MessagingView
@@ -208,43 +223,47 @@ function ChatMessagingView({
                     }
                     return getChatMessagesFromEnd(context, {...input, chatId: chat.id});
                 })}
-                createMessage={useEvent(async input => {
-                    if (!hasSelectedAccounts)
-                        throw new InternalError("Must select account to send message");
+                isRealtimeConnected={isRealtimeConnected}
+                sendRealtimeMessage={useCallback(
+                    async message => {
+                        // When we don't know the `ChatId` we can use our `sendChatMessageToAccounts()`
+                        // function which will create a new chat for the provided accounts. Or if a
+                        // chat with the provided accounts already exists it will send to that chat.
+                        if (message.type === "CreateMessage" && !chat) {
+                            const {chat} = await sendChatMessageToAccounts(context, {
+                                spaceId: space.id,
+                                otherAccountIds,
+                                parentMessageIndex: message.parentMessageIndex,
+                                content: message.content,
+                            });
 
-                    // When we don't know the `ChatId` we can use our `sendChatMessageToAccounts()`
-                    // function which will create a new chat for the provided accounts. Or if a
-                    // chat with the provided accounts already exists it will send to that chat.
-                    if (chat) {
-                        await sendChatMessage(context, {
-                            ...input,
-                            chatId: chat.id,
-                        });
-                    } else {
-                        const {chat} = await sendChatMessageToAccounts(context, {
-                            ...input,
-                            spaceId: space.id,
-                            otherAccountIds,
-                        });
+                            setChatForChatKey(chatForChatKey => {
+                                if (chatForChatKey.chatKey !== chatKey) return chatForChatKey;
+                                return {chatKey, chat};
+                            });
+                        } else {
+                            await sendRealtimeMessage({type: "ChatMessages", message});
+                        }
+                    },
+                    [chat, chatKey, context, otherAccountIds, sendRealtimeMessage, space.id],
+                )}
+                subscribeToRealtimeMessages={useCallback(
+                    (
+                        subscriber: (
+                            message: MessagingRealtimeMessageFromServer<ChatMessageModel>,
+                        ) => void,
+                    ) => {
+                        const actualSubscriber = (message: ChatRealtimeMessageFromServer) => {
+                            // TypeScript will error if we ever add other message types here. At that point
+                            // this code should turn into a switch.
+                            cast<"ChatMessages">(message.type);
+                            subscriber(message.message);
+                        };
 
-                        setChatForChatKey(chatForChatKey => {
-                            if (chatForChatKey.chatKey !== chatKey) return chatForChatKey;
-                            return {chatKey, chat};
-                        });
-                    }
-                })}
-                updateMessageContent={useEvent(async input => {
-                    const chatId: ChatId = (() => {
-                        throw new UnimplementedError("TODO");
-                    })();
-                    await updateChatMessageContent(context, {...input, chatId});
-                })}
-                deleteMessage={useEvent(async input => {
-                    const chatId: ChatId = (() => {
-                        throw new UnimplementedError("TODO");
-                    })();
-                    await deleteChatMessage(context, {...input, chatId});
-                })}
+                        return subscribeToRealtimeMessages(actualSubscriber);
+                    },
+                    [subscribeToRealtimeMessages],
+                )}
                 getCopyLinkUrl={useCallback(() => {
                     throw new UnimplementedError("TODO");
                 }, [])}

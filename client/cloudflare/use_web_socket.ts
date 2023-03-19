@@ -4,6 +4,7 @@ import {useAppContext} from "~/client/context/app_context";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {InternalError} from "~/shared/error/error";
+import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
 import {noop} from "~/shared/helpers/control/noop";
 import {UnionSchema} from "~/shared/schema/schema";
@@ -28,7 +29,7 @@ export function useWebSocket<
 >(
     messageFromClientSchema: UnionSchema<MessageFromClient>,
     messageFromServerSchema: UnionSchema<MessageFromServer>,
-    url: string,
+    maybeUrl: string | null,
     handleMessage?: (message: MessageFromServer) => void,
 ): {
     isConnected: boolean;
@@ -93,7 +94,11 @@ export function useWebSocket<
 
     // If the `url` changes our effect will reset our client state. Make sure in
     // the render function we do the same.
-    const clientState = !_clientState || _clientState.url === url ? _clientState : null;
+    const clientState = !_clientState || _clientState.url === maybeUrl ? _clientState : null;
+
+    const pendingMessagesRef = useRef<
+        Array<{message: MessageFromClient; promiseResolver: PromiseResolver<void>}>
+    >([]);
 
     // Escalate WebSocket network errors to component errors which crash the UI.
     // Some WebSocket errors are transient and ok to ignore. Like temporarily
@@ -110,11 +115,12 @@ export function useWebSocket<
     // visible, disconnect when the page is hidden, and attempt to reconnect the
     // client on network failures.
     useEffect(() => {
-        if (!actuallyShouldConnect) {
+        if (!actuallyShouldConnect || maybeUrl === null) {
             setClientState(null);
             return;
         }
 
+        const url = maybeUrl;
         let reconnectAttempts = 0;
         let isCancelled = false;
 
@@ -135,6 +141,13 @@ export function useWebSocket<
                 isConnected: false,
                 hasError: false,
             });
+
+            // Send any pending messages that were queued when client state was set to null.
+            const pendingMessages = pendingMessagesRef.current;
+            pendingMessagesRef.current = [];
+            for (const {message, promiseResolver} of pendingMessages) {
+                client.sendMessage(message).then(promiseResolver.resolve, promiseResolver.reject);
+            }
 
             client.waitForOpen().then(
                 () => {
@@ -203,7 +216,7 @@ export function useWebSocket<
 
         // IMPORTANT: Be careful about what goes into this dependency array! Whenever
         // one of these values changes we will disconnect and reconnect our WebSocket.
-    }, [actuallyShouldConnect, messageFromClientSchema, messageFromServerSchema, url]);
+    }, [actuallyShouldConnect, maybeUrl, messageFromClientSchema, messageFromServerSchema]);
 
     // Subscribe to any messages coming from our client.
     const actuallyHandleMessage = useEvent(handleMessage);
@@ -214,7 +227,14 @@ export function useWebSocket<
     return {
         isConnected: clientState?.isConnected ?? false,
         sendMessage: useCallback(
-            message => clientState?.client.sendMessage(message) ?? Promise.resolve(),
+            message => {
+                if (!clientState?.client) {
+                    const promiseResolver = createPromiseResolver();
+                    pendingMessagesRef.current.push({message, promiseResolver});
+                    return promiseResolver.promise;
+                }
+                return clientState.client.sendMessage(message);
+            },
             [clientState?.client],
         ),
         subscribeToMessages: useCallback(
