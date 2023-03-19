@@ -12,7 +12,7 @@ import {
 } from "~/shared/cloudflare/web_socket_schema";
 import {CacheContextModule} from "~/shared/context/cache_context_module";
 import {TracerContextModule} from "~/shared/context/tracer_context_module";
-import {InvalidArgumentError, NotFoundError} from "~/shared/error/error";
+import {FailedPreconditionError, InvalidArgumentError, NotFoundError} from "~/shared/error/error";
 import {isSystemError} from "~/shared/error/is_system_error_code";
 import {Interval, createInterval} from "~/shared/helpers/async/interval";
 import {assert} from "~/shared/helpers/control/assert";
@@ -98,12 +98,10 @@ export class WebSocketServer<
         const response = new Response(null, {status: 101, webSocket: clientSocket});
 
         const sendMessage = (context: ProcessContext, message: MessageFromServer) => {
-            const serializedMessage = this._messageFromServerSchema.serialize({
+            connection.sendMessage(context, {
                 type: "Message",
                 message,
             });
-            const serializedMessageString = JSON.stringify(serializedMessage);
-            connection.dangerouslySendRawMessage(context, message.type, serializedMessageString);
         };
 
         const sendMessageToOthers = (context: ProcessContext, message: MessageFromServer) => {
@@ -127,7 +125,11 @@ export class WebSocketServer<
 
                 for (const otherConnection of this._connections.values()) {
                     if (otherConnection.id === connection.id) continue;
-                    otherConnection.dangerouslySendRawMessage(
+
+                    // Don't send new messages to soft closed connections.
+                    if (connection.isSoftClosed()) continue;
+
+                    otherConnection.dangerouslySendRawMessageEvenWhenSoftClosed(
                         context,
                         message.type,
                         serializedMessageString,
@@ -144,7 +146,9 @@ export class WebSocketServer<
 
         const iterateOtherConnections = (): Iterable<Connection> => {
             return filterMapIterable(this._connections.values(), otherConnection =>
-                otherConnection.id !== connection.id ? otherConnection.connection : null,
+                otherConnection.id !== connection.id && !otherConnection.isSoftClosed()
+                    ? otherConnection.connection
+                    : null,
             );
         };
 
@@ -304,7 +308,10 @@ export class WebSocketServer<
             const serializedMessageString = JSON.stringify(serializedMessage);
 
             for (const connection of this._connections.values()) {
-                connection.dangerouslySendRawMessage(
+                // Don't send new messages to soft closed connections.
+                if (connection.isSoftClosed()) continue;
+
+                connection.dangerouslySendRawMessageEvenWhenSoftClosed(
                     context,
                     message.type,
                     serializedMessageString,
@@ -317,6 +324,15 @@ export class WebSocketServer<
             finishSpan();
             throw error;
         }
+    }
+
+    /**
+     * Iterate through all connected clients.
+     */
+    public iterateAllConnections() {
+        return filterMapIterable(this._connections.values(), connection =>
+            !connection.isSoftClosed() ? connection.connection : null,
+        );
     }
 
     /**
@@ -363,6 +379,20 @@ class WebSocketServerConnectionWrapper<
     private readonly _sessionId: SessionId;
     private readonly _sessionAccountId: AccountId;
     private _lastMessageTimeMs: number = Date.now();
+
+    /**
+     * Is the connection soft closed? While soft closed the connection can not send
+     * or receive new messages. It also stops showing up in
+     * `iterateOtherConnections()` so it's not observable by other connections.
+     * However it still receives ping/pong events and message acknowledgements.
+     * Clients will go into this state when the user requested a close but we still
+     * are waiting on some message acknowledgements.
+     *
+     * The client is expected to close the WebSocket when it is done receiving its
+     * message acknowledgements. The server does not keep track of the remaining
+     * number of unacknowledged messages.
+     */
+    private _isSoftClosed = false;
 
     constructor({
         id,
@@ -444,6 +474,18 @@ class WebSocketServerConnectionWrapper<
                                 },
                             });
 
+                            // If the client soft closed our connection we won't accept new messages. We
+                            // still process ping/pong messages since that tells us the connection is
+                            // still alive.
+                            //
+                            // It is important that this comes before any `await`s like our
+                            // `await Session.get()` below so we don't have any race conditions between the
+                            // `SoftCloseWhileWaitingForMessageAcknowledgments` message and other messages.
+                            if (this._isSoftClosed && message.type === "Message")
+                                throw new FailedPreconditionError(
+                                    "WebSocket connection can not process new messages when soft closed",
+                                );
+
                             // TODO(calebmer): Can we at least give this some kind of TTL in-memory cache??
                             const session = await Session.get(
                                 context,
@@ -495,6 +537,15 @@ class WebSocketServerConnectionWrapper<
                                     }
                                     break;
                                 }
+                                case "SoftCloseWhileWaitingForMessageAcknowledgments": {
+                                    if (this._isSoftClosed)
+                                        throw new FailedPreconditionError(
+                                            "WebSocket connection is already soft closed",
+                                        );
+
+                                    this._isSoftClosed = true;
+                                    break;
+                                }
                                 default:
                                     throw exhaustive(message);
                             }
@@ -517,6 +568,10 @@ class WebSocketServerConnectionWrapper<
         return this._socket.readyState === 2 || this._socket.readyState === 3;
     }
 
+    public isSoftClosed(): boolean {
+        return this.isClosed() || this._isSoftClosed;
+    }
+
     public maybeExpire(context: ProcessContext, currentTimeMs: number) {
         // If our socket is already closed then we don't need to expire.
         if (this.isClosed()) return;
@@ -537,9 +592,17 @@ class WebSocketServerConnectionWrapper<
         context: ProcessContext,
         message: WebSocketMessageFromServer<MessageFromServer>,
     ) {
+        // Do not send messages to a soft closed WebSocket. A soft closed WebSocket is
+        // in the process of cleaning up and only expects acknowledgements for
+        // previously sent messages and pong messages.
+        //
+        // Once the client receives all of its message acknowledgements then it closes
+        // for real.
+        if (this._isSoftClosed && message.type === "Message") return;
+
         const serializedMessage = this._messageFromServerSchema.serialize(message);
 
-        this.dangerouslySendRawMessage(
+        this.dangerouslySendRawMessageEvenWhenSoftClosed(
             context,
             message.type === "Message" ? message.message.type : message.type,
             JSON.stringify(serializedMessage),
@@ -550,10 +613,18 @@ class WebSocketServerConnectionWrapper<
      * Send a message over our WebSocket connection. Throws an error if the
      * connection is closed!
      *
+     * We let you call this function directly for performance. When sending a
+     * message to many clients at once, it is efficient to only serialize the
+     * message once.
+     *
      * Dangerous since you must guarantee the message is well-formed as this only
      * takes a string.
+     *
+     * Will send a message even when the connection is soft closed! We should only
+     * be sending ping/pong and acknowledgement messages when soft closed. If you
+     * are calling this function you should check `isSoftClosed()` before calling.
      */
-    public dangerouslySendRawMessage(
+    public dangerouslySendRawMessageEvenWhenSoftClosed(
         context: ProcessContext,
         messageType: string,
         message: string,

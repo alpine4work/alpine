@@ -19,6 +19,10 @@ export type WebSocketMessageFromClient<Message extends {type: string}> =
     | {
           readonly type: "Ping";
           readonly tracerContext: TracerSpanPropagationContext;
+      }
+    | {
+          readonly type: "SoftCloseWhileWaitingForMessageAcknowledgments";
+          readonly tracerContext: TracerSpanPropagationContext;
       };
 
 const TracerPropagationContextSchema = Schema.object({
@@ -39,6 +43,10 @@ export function createWebSocketMessageFromClientSchema<Message extends {type: st
         }),
         Ping: Schema.object({
             type: Schema.value("Ping"),
+            tracerContext: TracerPropagationContextSchema,
+        }),
+        SoftCloseWhileWaitingForMessageAcknowledgments: Schema.object({
+            type: Schema.value("SoftCloseWhileWaitingForMessageAcknowledgments"),
             tracerContext: TracerPropagationContextSchema,
         }),
     });
