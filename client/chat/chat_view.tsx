@@ -22,6 +22,7 @@ import {emptyArray} from "~/shared/helpers/array/empty_array";
 import {cast} from "~/shared/helpers/control/cast";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit";
+import {Replace} from "~/shared/helpers/types/replace";
 import {AccountId} from "~/shared/id/types/id_types";
 import {MessagingRealtimeMessageFromServer} from "~/shared/messaging/messaging_realtime_schema";
 import {AccountModel} from "~/shared/models/account_model";
@@ -32,11 +33,24 @@ import {
     getRecommendedChats,
     sendChatMessageToAccounts,
 } from "~/shared/rpc/chat_rpc_definitions";
+import {RpcDefinitionInputType, RpcDefinitionOutputType} from "~/shared/rpc/rpc_definition";
 
-export function ChatView() {
+export function ChatView({
+    selectedAccounts,
+    onUpdateSelectedAccounts,
+    initialRecommendedChats,
+}: {
+    selectedAccounts: ReadonlyArray<AccountModel>;
+    onUpdateSelectedAccounts: (
+        update: (selectedAccounts: ReadonlyArray<AccountModel>) => ReadonlyArray<AccountModel>,
+    ) => void;
+    initialRecommendedChats: Replace<
+        RpcDefinitionOutputType<typeof getRecommendedChats>,
+        {input: RpcDefinitionInputType<typeof getRecommendedChats>}
+    > | null;
+}) {
     const clientInfo = useClientInfo();
     const {space, currentAccount} = useSpaceContext();
-    const [selectedAccounts, setSelectedAccounts] = useState<ReadonlyArray<AccountModel>>([]);
 
     // Canonicalize our selected accounts by:
     //
@@ -67,7 +81,10 @@ export function ChatView() {
                   exactMatchInitialMessagesLimit: getInitialLoadMessageCount(clientInfo),
               }
             : null,
-        {keepPreviousData: true},
+        {
+            keepPreviousData: true,
+            initialOutput: initialRecommendedChats ?? undefined,
+        },
     );
 
     return (
@@ -75,7 +92,7 @@ export function ChatView() {
             <Box flexShrink="0" borderBottom="grey-10">
                 <ChatAccountPicker
                     selectedAccounts={selectedAccounts}
-                    setSelectedAccounts={setSelectedAccounts}
+                    onUpdateSelectedAccounts={onUpdateSelectedAccounts}
                 />
             </Box>
             <ChatMessagingView

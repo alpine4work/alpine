@@ -128,7 +128,7 @@ index 4bcb4033b8aafb129175327249f9695aebeed25f..217f2a9d4fd6c16eb1537e813b1bdf06
          // it'll be the correct reference.
 -        if (!_internal.isUndefined(cachedData)) {
 -            laggyDataRef.current = cachedData;
-+        if (laggyDataRef) {
++        if (keepPreviousData) {
 +            if (!_internal.isUndefined(cachedData)) {
 +                laggyDataRef.current = cachedData;
 +            }
@@ -159,7 +159,7 @@ index 4d517ef611ffb7ce61b8482392c68a3ad08db47d..89ff6723b6e5eb71e9c27d99b4217345
          // it'll be the correct reference.
 -        if (!isUndefined(cachedData)) {
 -            laggyDataRef.current = cachedData;
-+        if (!keepPreviousData) {
++        if (keepPreviousData) {
 +            if (!isUndefined(cachedData)) {
 +                laggyDataRef.current = cachedData;
 +            }

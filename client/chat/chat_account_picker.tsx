@@ -2,16 +2,7 @@ import {isFocusVisible} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
 import Fuse from "fuse.js";
 import {CaretDown, MagnifyingGlass, X} from "phosphor-react";
-import {
-    KeyboardEvent,
-    Memo,
-    RefObject,
-    createRef,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-} from "react";
+import {KeyboardEvent, RefObject, createRef, useEffect, useMemo, useRef, useState} from "react";
 import {
     AriaListBoxOptions,
     mergeProps,
@@ -50,13 +41,11 @@ type ChatAccountPickerItem = {
 
 export function ChatAccountPicker({
     selectedAccounts,
-    setSelectedAccounts,
+    onUpdateSelectedAccounts,
 }: {
     selectedAccounts: ReadonlyArray<AccountModel>;
-    setSelectedAccounts: (
-        update:
-            | ReadonlyArray<AccountModel>
-            | ((selectedAccounts: ReadonlyArray<AccountModel>) => ReadonlyArray<AccountModel>),
+    onUpdateSelectedAccounts: (
+        update: (selectedAccounts: ReadonlyArray<AccountModel>) => ReadonlyArray<AccountModel>,
     ) => void;
 }) {
     const _allAccounts = useExpensivelyLoadAllSpaceAccounts();
@@ -151,7 +140,7 @@ export function ChatAccountPicker({
                 const account = allAccounts?.accountById.get(key);
 
                 if (account) {
-                    setSelectedAccounts(selectedAccounts => {
+                    onUpdateSelectedAccounts(selectedAccounts => {
                         // If the account already exists in the selection, don't add it a second time.
                         if (selectedAccounts.some(otherAccount => otherAccount.id === account.id)) {
                             return selectedAccounts;
@@ -198,7 +187,7 @@ export function ChatAccountPicker({
                             event.currentTarget.selectionStart === 0
                         ) {
                             event.preventDefault();
-                            setSelectedAccounts(selectedAccounts => {
+                            onUpdateSelectedAccounts(selectedAccounts => {
                                 if (selectedAccounts.length === 0) return selectedAccounts;
                                 return selectedAccounts.slice(0, -1);
                             });
@@ -233,7 +222,7 @@ export function ChatAccountPicker({
 
     const selectedAccountsChildren = selectedAccounts.map((account, index) => {
         const deleteAccount = () => {
-            setSelectedAccounts(selectedAccounts => {
+            onUpdateSelectedAccounts(selectedAccounts => {
                 const newSelectedAccounts = selectedAccounts.filter(
                     otherAccount => otherAccount.id !== account.id,
                 );

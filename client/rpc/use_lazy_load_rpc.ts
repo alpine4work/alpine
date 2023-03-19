@@ -1,4 +1,4 @@
-import {useMemo} from "react";
+import {useMemo, useRef} from "react";
 import useSwr, {preload} from "swr";
 import {AppContext, useAppContext} from "~/client/context/app_context";
 import {Replace} from "~/shared/helpers/types/replace";
@@ -47,6 +47,7 @@ export function useLazyLoadLoadRpc<Input, Output extends {}>(
     input: Input | null,
     {
         keepPreviousData,
+        initialOutput: _initialOutput,
     }: {
         /**
          * When the input changes, continue returning the previous data until we've
@@ -61,6 +62,15 @@ export function useLazyLoadLoadRpc<Input, Output extends {}>(
          * [1]: https://swr.vercel.app/docs/advanced/understanding#key-change--previous-data
          */
         keepPreviousData?: boolean;
+
+        /**
+         * The initial data returned by this RPC. Use when server-side rendering and
+         * you want to load the data on the server.
+         *
+         * Different from SWC's `fallbackData` in that we will not fetch again on the
+         * client. We will wait for key change or other invalidation to refetch.
+         */
+        initialOutput?: Replace<Output, {input: Input}>;
     } = {},
 ): {
     isLoading: boolean;
@@ -80,13 +90,42 @@ export function useLazyLoadLoadRpc<Input, Output extends {}>(
         [input, rpc.inputSchema],
     );
 
-    const fetcher = useMemo(() => createFetcher(context, rpc), [context, rpc]);
+    const initialOutput = useMemo(() => {
+        if (!_initialOutput) return null;
+
+        const initialOutputInputString = JSON.stringify(
+            rpc.inputSchema.serialize(_initialOutput.input),
+        );
+
+        return {inputString: initialOutputInputString, output: _initialOutput};
+    }, [_initialOutput, rpc.inputSchema]);
+
+    const hasInitiallyFetchedRef = useRef(false);
+
+    const fetcher = useMemo(() => {
+        const fetcher = createFetcher(context, rpc);
+
+        if (!initialOutput) return fetcher;
+
+        return (key: string) => {
+            const isInitialFetch = !hasInitiallyFetchedRef.current;
+            hasInitiallyFetchedRef.current = true;
+
+            if (isInitialFetch && key === `${rpc.name}:${initialOutput.inputString}`) {
+                return initialOutput.output;
+            }
+
+            return fetcher(key);
+        };
+    }, [context, initialOutput, rpc]);
 
     const {isLoading, isValidating, data, error} = useSwr(
         inputString !== null ? `${rpc.name}:${inputString}` : null,
         fetcher,
         {
             keepPreviousData: keepPreviousData && input !== null,
+            fallbackData:
+                initialOutput?.inputString === inputString ? initialOutput.output : undefined,
             // We should implement retry logic at the RPC function layer so any RPC caller
             // gets the benefit.
             shouldRetryOnError: false,
