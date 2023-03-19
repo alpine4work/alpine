@@ -31,6 +31,7 @@ import {Schema} from "~/shared/schema/schema";
 type AppWorkerEnv = {
     DocumentCollaborationDurableObjectNamespace: DurableObjectNamespace;
     PostRealtimeDurableObjectNamespace: DurableObjectNamespace;
+    ChatRealtimeDurableObjectNamespace: DurableObjectNamespace;
     DEV_SERVER_PORT?: string;
     DYNAMO_LOCAL_PORT?: string;
     SESSION_COOKIE_SECRET?: string;
@@ -212,6 +213,20 @@ async function handleFetch(
                         span,
                     });
                 }
+                case "chat": {
+                    const chatId = Schema.id().deserialize(path[1] ?? null);
+                    const pathname = `/${path.slice(2).join("/")}`;
+
+                    return fetchFromDurableObjectStub({
+                        durableObjectNamespace: env.ChatRealtimeDurableObjectNamespace,
+                        sessionCookieSecret: resources.sessionCookieSecret,
+                        sessionCookieStorage: resources.sessionCookieStorage,
+                        request,
+                        pathname,
+                        idName: chatId,
+                        span,
+                    });
+                }
                 default:
                     return new Response("Durable object not found", {status: 404});
             }
@@ -313,3 +328,4 @@ export default {fetch: handleFetch};
 
 export {DocumentCollaborationDurableObject} from "~/server/documents/document_collaboration_durable_object";
 export {PostRealtimeDurableObject} from "~/server/posts/post_realtime_durable_object";
+export {ChatRealtimeDurableObject} from "~/server/chat/chat_realtime_durable_object";

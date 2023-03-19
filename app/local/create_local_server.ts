@@ -50,6 +50,7 @@ export function createLocalServer({
         durableObjects: {
             DocumentCollaborationDurableObjectNamespace: "DocumentCollaborationDurableObject",
             PostRealtimeDurableObjectNamespace: "PostRealtimeDurableObject",
+            ChatRealtimeDurableObjectNamespace: "ChatRealtimeDurableObject",
         },
         globals,
     });

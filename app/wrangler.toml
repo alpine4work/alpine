@@ -30,3 +30,7 @@ new_classes = ["DocumentCollaborationDurableObject"]
 [[migrations]]
 tag = "v2"
 new_classes = ["PostRealtimeDurableObject"]
+
+[[migrations]]
+tag = "v3"
+new_classes = ["ChatRealtimeDurableObject"]

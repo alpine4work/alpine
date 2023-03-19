@@ -707,7 +707,10 @@ function actuallySendChatMessage(
     });
 }
 
-async function authorizeChatAccess(
+/**
+ * Authorize that the current account is allowed to access the chat.
+ */
+export async function authorizeChatAccess(
     context: RequestContext,
     chatId: ChatId,
 ): Promise<{spaceId: SpaceId}> {

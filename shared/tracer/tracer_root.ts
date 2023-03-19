@@ -22,7 +22,10 @@ export type TracerServiceName = "Test" | "AppClient" | "AppServer" | DurableObje
 /**
  * The names of services that run as Cloudflare Durable Objects.
  */
-export type DurableObjectServiceName = "DocumentCollaborationService" | "PostRealtimeService";
+export type DurableObjectServiceName =
+    | "DocumentCollaborationService"
+    | "PostRealtimeService"
+    | "ChatRealtimeService";
 
 // TODO(calebmer): Tracer stuff
 // - Apply source map to error stack trace on server

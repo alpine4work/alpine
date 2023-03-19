@@ -60,7 +60,7 @@ import {MessageModel} from "~/shared/models/message_model";
  * write tests against it. These tests help us make sure our messaging
  * implementations stay consistent as we evolve them over time.
  */
-export type MessagingImplementation<RoomKey extends string> = {
+export type TestMessagingImplementation<RoomKey extends string> = {
     /**
      * Create a new room in which messages will live. A room is an abstract concept
      * that varies from implementation to implementation. Some examples of rooms:
@@ -182,7 +182,7 @@ export function testMessagingImplementation<RoomKey extends string>(
         updateMessageContent,
         deleteMessage,
         backfillMessages,
-    }: MessagingImplementation<RoomKey>,
+    }: TestMessagingImplementation<RoomKey>,
 ) {
     const space = createTestSpace(context);
     const session1 = createTestSession(context, space);

@@ -48,6 +48,7 @@ ts_project(
         "//client/tracer",
         "//client/virtualized",
         "//server/aws",
+        "//server/chat",
         "//server/cloudflare",
         "//server/documents",
         "//server/dynamo",
