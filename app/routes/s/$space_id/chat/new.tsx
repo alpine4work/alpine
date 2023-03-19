@@ -1,9 +1,11 @@
+import {useTransition} from "@remix-run/react";
 import {MetaFunction} from "@remix-run/server-runtime";
 import {useEffect} from "react";
 import {useLocation, useSearchParams} from "react-router-dom";
 import {ChatAccountPicker} from "~/client/chat/chat_account_picker";
 import {ChatView} from "~/client/chat/chat_view";
 import {Box} from "~/client/design/box";
+import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
@@ -12,6 +14,7 @@ import {getAccountOrThrow} from "~/server/dynamo/accounts_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
+import {createTimeout} from "~/shared/helpers/async/timeout";
 import {isObject} from "~/shared/helpers/object/is_object";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
@@ -91,6 +94,23 @@ export default function NewChatRoute({isPeek}: {isPeek?: boolean}) {
         }
     }, [location.key, searchParams, selectedAccounts, setSearchParams, stateKey]);
 
+    const transition = useTransition();
+
+    const isAccountPickerPending =
+        transition.state === "loading" && transition.location.pathname === location.pathname;
+
+    const [shouldShowAccountPickerPendingSpinner, setShouldShowAccountPickerPendingSpinner] =
+        useStateWithDependencies(false, [isAccountPickerPending]);
+
+    useEffect(() => {
+        if (!isAccountPickerPending) return;
+
+        const timeout = createTimeout(() => {
+            setShouldShowAccountPickerPendingSpinner(true);
+        }, delayLoadingIndicatorLimitMs);
+        return () => timeout.clear();
+    }, [isAccountPickerPending, setShouldShowAccountPickerPendingSpinner]);
+
     return (
         <Box
             flexGrow="1"
@@ -114,6 +134,7 @@ export default function NewChatRoute({isPeek}: {isPeek?: boolean}) {
                     <ChatAccountPicker
                         selectedAccounts={selectedAccounts}
                         onUpdateSelectedAccounts={setSelectedAccounts}
+                        shouldShowPendingSpinner={shouldShowAccountPickerPendingSpinner}
                     />
                 </Box>
                 <ChatView

@@ -1,7 +1,7 @@
 import {isFocusVisible} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
 import Fuse from "fuse.js";
-import {CaretDown, MagnifyingGlass, X} from "phosphor-react";
+import {CaretDown, MagnifyingGlass, SpinnerGap, X} from "phosphor-react";
 import {KeyboardEvent, RefObject, createRef, useEffect, useMemo, useRef, useState} from "react";
 import {
     AriaListBoxOptions,
@@ -28,9 +28,11 @@ import {isId} from "~/shared/id/id";
 import {AccountId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
 import {
+    colorSchemeVars,
     fontSizes,
     overlayFadeInAnimationDurationMs,
     overlayFadeOutAnimationDurationMs,
+    spinAnimationClassName,
     sprinkles,
 } from "~/shared/styles/styles";
 
@@ -42,11 +44,13 @@ type ChatAccountPickerItem = {
 export function ChatAccountPicker({
     selectedAccounts,
     onUpdateSelectedAccounts,
+    shouldShowPendingSpinner,
 }: {
     selectedAccounts: ReadonlyArray<AccountModel>;
     onUpdateSelectedAccounts: (
         update: (selectedAccounts: ReadonlyArray<AccountModel>) => ReadonlyArray<AccountModel>,
     ) => void;
+    shouldShowPendingSpinner: boolean;
 }) {
     const _allAccounts = useExpensivelyLoadAllSpaceAccounts();
 
@@ -415,6 +419,11 @@ export function ChatAccountPicker({
                                     ? "Who do you want to send a message to?"
                                     : undefined
                             }
+                            // By default `<input>` elements have a `min-width` determined by the `size`
+                            // property. We want our `<input>`s `min-width` to be determined by our CSS
+                            // so set it to a small value as not to matter.
+                            // https://stackoverflow.com/questions/29470676/why-doesnt-the-input-element-respect-min-width
+                            size={1}
                             // Open the combobox when the user presses on the input as an affordance for
                             // pointer users. For keyboard users you need to press an arrow key or type.
                             //
@@ -426,7 +435,16 @@ export function ChatAccountPicker({
                             }}
                         />
                     </Box>
-                    <Box flexShrink="0" paddingY="3" paddingX="3">
+                    <Box flexShrink="0" padding="3" display="flex" alignItems="center" gap="2">
+                        <Box width="4" height="4">
+                            {shouldShowPendingSpinner && (
+                                <SpinnerGap
+                                    className={spinAnimationClassName}
+                                    color={colorSchemeVars["grey-70"]}
+                                    size={spacing["4"]}
+                                />
+                            )}
+                        </Box>
                         <IconButton
                             {...buttonProps}
                             ref={buttonRef}
