@@ -80,7 +80,7 @@ type PeekStackEntry = {
     readonly id: PeekId;
     readonly history: MemoryHistory;
     readonly autoFocus: boolean;
-    readonly initialLoaderData: Lazy<PromiseImmediate<{[key: string]: unknown}>>;
+    readonly loaderDataRef: Lazy<PromiseImmediate<MutableRefObject<{[key: string]: unknown}>>>;
 };
 
 type PeekStackState = {
@@ -262,7 +262,7 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
                     initialEntries: [path],
                 }),
                 autoFocus: focus,
-                initialLoaderData: new Lazy(() => PromiseImmediate.resolve(loaderData)),
+                loaderDataRef: new Lazy(() => PromiseImmediate.resolve({current: loaderData})),
             },
         });
     });
@@ -1124,16 +1124,16 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
         dispatch({type: "Pop"});
     };
 
-    const initialLoaderDataResult = usePromise(entry.initialLoaderData.get());
+    const loaderDataRefResult = usePromise(entry.loaderDataRef.get());
 
     // Once we've finished loading the data the peek whose content we're rendering,
     // start loading the data for the next peek in the stack so that it's ready
     // when we close our current peek.
     useEffect(() => {
-        if (!initialLoaderDataResult.isPending) {
-            void state.stack[index + 1]?.initialLoaderData.get();
+        if (!loaderDataRefResult.isPending) {
+            void state.stack[index + 1]?.loaderDataRef.get();
         }
-    }, [index, initialLoaderDataResult.isPending, state.stack]);
+    }, [index, loaderDataRefResult.isPending, state.stack]);
 
     const [historyPosition, setHistoryPosition] = useState(() => ({
         index: entry.history.index,
@@ -1264,9 +1264,9 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
                             </IconButton>
                         </Box>
                     </Box>
-                    {!initialLoaderDataResult.isPending ? (
+                    {!loaderDataRefResult.isPending ? (
                         <PeekRemixEmbed
-                            initialLoaderData={initialLoaderDataResult.value}
+                            loaderDataRef={loaderDataRefResult.value}
                             history={entry.history}
                             onExpandRef={onExpandRef}
                         />
@@ -1363,7 +1363,7 @@ function restorePeekStack(
             id: entry.id,
             history,
             autoFocus: false,
-            initialLoaderData: new Lazy(() =>
+            loaderDataRef: new Lazy(() =>
                 PromiseImmediate.resolve(
                     (async () => {
                         const spacePath = convertPeekPathToSpacePath(history.location);
@@ -1378,7 +1378,7 @@ function restorePeekStack(
                             abortController.signal,
                         );
 
-                        return loaderData;
+                        return {current: loaderData};
                     })(),
                 ),
             ),
@@ -1388,7 +1388,7 @@ function restorePeekStack(
     // Start preloading the data for the first entry in the stack. So that
     // hopefully when we render, all the data is available and the user doesn't see
     // a loading spinner.
-    void stack[0]?.initialLoaderData.get();
+    void stack[0]?.loaderDataRef.get();
 
     return {
         abortController,

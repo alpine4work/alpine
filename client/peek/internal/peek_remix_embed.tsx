@@ -5,6 +5,7 @@ import {createTransitionManager} from "@remix-run/react/dist/esm/transition";
 import {MemoryHistory} from "history";
 import {
     Context,
+    MutableRefObject,
     Ref,
     useCallback,
     useContext,
@@ -15,6 +16,7 @@ import {
 } from "react";
 import {Navigator, UNSAFE_RouteContext as RouteContext} from "react-router";
 import {Router, useRoutes} from "react-router-dom";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {
     convertPeekPathToSpacePath,
     convertSpacePathToPeekPath,
@@ -36,11 +38,11 @@ type RemixEntryContextType = typeof RemixEntryContext extends Context<infer Cont
  * `<iframe>`s since the embed can still talk to the larger app.
  */
 export function PeekRemixEmbed({
-    initialLoaderData,
+    loaderDataRef,
     history,
     onExpandRef,
 }: {
-    initialLoaderData: {[key: string]: unknown};
+    loaderDataRef: MutableRefObject<{[key: string]: unknown}>;
     history: MemoryHistory;
     onExpandRef: Ref<(() => Promise<void>) | null>;
 }) {
@@ -101,7 +103,8 @@ export function PeekRemixEmbed({
         createTransitionManager({
             routes: remixEntryContext.clientRoutes,
             location: historyState.location,
-            loaderData: initialLoaderData,
+            // The ref holds the initial loader data value.
+            loaderData: loaderDataRef.current,
             onRedirect: (to, state) => history.replace(to, state),
         }),
     );
@@ -112,6 +115,13 @@ export function PeekRemixEmbed({
         setTransitionState(transitionManager.getState());
         return transitionManager.subscribe(setTransitionState);
     }, [transitionManager]);
+
+    // Set the current loader data back to our ref. If we push another peek onto
+    // the stack and pop it back off we want to resume with our previous
+    // loader data.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        loaderDataRef.current = transitionState.loaderData;
+    });
 
     // The way Remix performs a navigation is the developer will push a new entry
     // to `history`, then we send `history`'s new location to `transitionManager`.

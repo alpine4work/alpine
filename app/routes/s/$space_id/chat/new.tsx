@@ -1,7 +1,7 @@
-import {ShouldReloadFunction} from "@remix-run/react";
 import {MetaFunction} from "@remix-run/server-runtime";
 import {useEffect, useState} from "react";
 import {useSearchParams} from "react-router-dom";
+import {ChatAccountPicker} from "~/client/chat/chat_account_picker";
 import {ChatView} from "~/client/chat/chat_view";
 import {Box} from "~/client/design/box";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
@@ -18,26 +18,13 @@ import {Schema} from "~/shared/schema/schema";
 
 const LoaderSchema = Schema.object({
     selectedAccounts: Schema.array(AccountModel.schema()),
-    recommendedChats: getRecommendedChats.outputSchema
-        .merge(Schema.object({input: getRecommendedChats.inputSchema}))
-        .nullable(),
+    recommendedChats: getRecommendedChats.outputSchema.nullable(),
 });
 
 export const meta: MetaFunction = () => {
     return {
         title: `New chat message${metaTitlePostfix}`,
     };
-};
-
-// If only the `accounts` search param on the URL changed, we don't need to reload.
-export const unstable_shouldReload: ShouldReloadFunction = ({url: _url, prevUrl: _prevUrl}) => {
-    const url = new URL(_url);
-    const prevUrl = new URL(_prevUrl);
-
-    url.searchParams.delete("accounts");
-    prevUrl.searchParams.delete("accounts");
-
-    return url.toString() !== prevUrl.toString();
 };
 
 export async function loader({request, context: _context, params}: LoaderArgs) {
@@ -54,22 +41,16 @@ export async function loader({request, context: _context, params}: LoaderArgs) {
         runAllPromises(
             selectedAccountIds.map(accountId => getAccountOrThrow(context, spaceId, accountId)),
         ),
+        // It's important that we check `selectedAccounts` is empty before removing the
+        // current account ID. In case the user selects their own account.
         selectedAccountIds.length > 0
-            ? (async () => {
-                  const input = {
-                      spaceId,
-                      otherAccountIds: Array.from(new Set(selectedAccountIds))
-                          .filter(accountId => accountId !== context.auth.getAccountId())
-                          .sort(),
-                      exactMatchInitialMessagesLimit: getInitialLoadMessageCount(
-                          context.loader.clientInfo,
-                      ),
-                  };
-
-                  const output = await getRecommendedChats(context, input);
-
-                  return Object.assign(output, {input});
-              })()
+            ? getRecommendedChats(context, {
+                  spaceId,
+                  otherAccountIds: selectedAccountIds,
+                  exactMatchInitialMessagesLimit: getInitialLoadMessageCount(
+                      context.loader.clientInfo,
+                  ),
+              })
             : null,
     ]);
 
@@ -77,12 +58,12 @@ export async function loader({request, context: _context, params}: LoaderArgs) {
 }
 
 export default function NewChatRoute({isPeek}: {isPeek?: boolean}) {
-    const {selectedAccounts: initialSelectedAccounts, recommendedChats: initialRecommendedChats} =
-        useLoaderDataWithSchema(LoaderSchema);
+    const loaderData = useLoaderDataWithSchema(LoaderSchema);
 
     const [searchParams, setSearchParams] = useSearchParams();
-    const [selectedAccounts, setSelectedAccounts] =
-        useState<ReadonlyArray<AccountModel>>(initialSelectedAccounts);
+    const [selectedAccounts, setSelectedAccounts] = useState<ReadonlyArray<AccountModel>>(
+        loaderData.selectedAccounts,
+    );
 
     useEffect(() => {
         const newSearchParams = new URLSearchParams(searchParams);
@@ -91,7 +72,8 @@ export default function NewChatRoute({isPeek}: {isPeek?: boolean}) {
         } else {
             newSearchParams.set("accounts", selectedAccounts.map(account => account.id).join(" "));
         }
-        setSearchParams(newSearchParams);
+        if (searchParams.toString() !== newSearchParams.toString())
+            setSearchParams(newSearchParams, {replace: true});
     }, [searchParams, selectedAccounts, setSearchParams]);
 
     return (
@@ -110,11 +92,21 @@ export default function NewChatRoute({isPeek}: {isPeek?: boolean}) {
                 backgroundColor="grey-0"
                 borderRadius={!isPeek ? {desktop: "md"} : undefined}
                 boxShadow="elevation-5"
+                display="flex"
+                flexDirection="column"
             >
+                <Box flexShrink="0" borderBottom="grey-10">
+                    <ChatAccountPicker
+                        selectedAccounts={selectedAccounts}
+                        onUpdateSelectedAccounts={setSelectedAccounts}
+                    />
+                </Box>
                 <ChatView
-                    selectedAccounts={selectedAccounts}
-                    onUpdateSelectedAccounts={setSelectedAccounts}
-                    initialRecommendedChats={initialRecommendedChats}
+                    // We use `selectedAccounts` from our loader data since the loader data might be
+                    // stale while we're fetching new recommended chats. We want all props passed to
+                    // this function to be consistent.
+                    selectedAccounts={loaderData.selectedAccounts}
+                    exactMatch={loaderData.recommendedChats?.exactMatch ?? null}
                 />
             </Box>
         </Box>

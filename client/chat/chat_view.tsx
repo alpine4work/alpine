@@ -1,14 +1,10 @@
 /* eslint-disable @typescript-eslint/no-misused-promises */
 
 import {useCallback, useEffect, useMemo, useState} from "react";
-import {ChatAccountPicker} from "~/client/chat/chat_account_picker";
 import {useWebSocket} from "~/client/cloudflare/use_web_socket";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context";
-import {Box} from "~/client/design/box";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {MessagingView, getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
-import {useClientInfo} from "~/client/remix/client_info_context";
-import {useLazyLoadLoadRpc} from "~/client/rpc/use_lazy_load_rpc";
+import {MessagingView} from "~/client/messaging/messaging_view";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {VirtualizedScrollViewItem} from "~/client/virtualized/virtualized_scroll_view";
 import {
@@ -18,102 +14,22 @@ import {
 } from "~/shared/chat/chat_realtime_schema";
 import {spacing} from "~/shared/design/spacing";
 import {InternalError, UnimplementedError} from "~/shared/error/error";
-import {emptyArray} from "~/shared/helpers/array/empty_array";
 import {cast} from "~/shared/helpers/control/cast";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit";
-import {Replace} from "~/shared/helpers/types/replace";
-import {AccountId} from "~/shared/id/types/id_types";
 import {MessagingRealtimeMessageFromServer} from "~/shared/messaging/messaging_realtime_schema";
 import {AccountModel} from "~/shared/models/account_model";
 import {ChatMessageModel, ChatModel} from "~/shared/models/chat_model";
 import {
     getChatMessagesFromEnd,
     getChatMessagesFromStart,
-    getRecommendedChats,
     sendChatMessageToAccounts,
 } from "~/shared/rpc/chat_rpc_definitions";
-import {RpcDefinitionInputType, RpcDefinitionOutputType} from "~/shared/rpc/rpc_definition";
 
 export function ChatView({
     selectedAccounts,
-    onUpdateSelectedAccounts,
-    initialRecommendedChats,
-}: {
-    selectedAccounts: ReadonlyArray<AccountModel>;
-    onUpdateSelectedAccounts: (
-        update: (selectedAccounts: ReadonlyArray<AccountModel>) => ReadonlyArray<AccountModel>,
-    ) => void;
-    initialRecommendedChats: Replace<
-        RpcDefinitionOutputType<typeof getRecommendedChats>,
-        {input: RpcDefinitionInputType<typeof getRecommendedChats>}
-    > | null;
-}) {
-    const clientInfo = useClientInfo();
-    const {space, currentAccount} = useSpaceContext();
-
-    // Canonicalize our selected accounts by:
-    //
-    // - Removing current account ID (current account is always included)
-    // - Sorting account IDs
-    // - Removing duplicate account IDs
-    const otherAccountIds = useMemo(() => {
-        const otherAccountIds = new Set(
-            filterMapIterable(selectedAccounts, account =>
-                account.id !== currentAccount.id ? account.id : null,
-            ),
-        );
-        return Array.from(otherAccountIds).sort();
-    }, [currentAccount.id, selectedAccounts]);
-
-    // It's important that we check `selectedAccounts` is empty and not
-    // `otherAccountIds`. If the user selects their own account then
-    // `otherAccountIds` will be empty but we do want to load the user's chat
-    // with themselves.
-    const hasSelectedAccounts = selectedAccounts.length !== 0;
-
-    const {output: recommendedChatsOutput} = useLazyLoadLoadRpc(
-        getRecommendedChats,
-        hasSelectedAccounts
-            ? {
-                  spaceId: space.id,
-                  otherAccountIds,
-                  exactMatchInitialMessagesLimit: getInitialLoadMessageCount(clientInfo),
-              }
-            : null,
-        {
-            keepPreviousData: true,
-            initialOutput: initialRecommendedChats ?? undefined,
-        },
-    );
-
-    return (
-        <Box width="full" height="full" display="flex" flexDirection="column">
-            <Box flexShrink="0" borderBottom="grey-10">
-                <ChatAccountPicker
-                    selectedAccounts={selectedAccounts}
-                    onUpdateSelectedAccounts={onUpdateSelectedAccounts}
-                />
-            </Box>
-            <ChatMessagingView
-                hasSelectedAccounts={hasSelectedAccounts && !!recommendedChatsOutput}
-                // We use the `otherAccountIds` from our output since the output might be stale
-                // while we're fetching new recommended chats. We want all props passed to this
-                // function to be consistent.
-                otherAccountIds={recommendedChatsOutput?.input.otherAccountIds ?? emptyArray}
-                exactMatch={recommendedChatsOutput?.exactMatch ?? null}
-            />
-        </Box>
-    );
-}
-
-function ChatMessagingView({
-    hasSelectedAccounts,
-    otherAccountIds,
     exactMatch,
 }: {
-    hasSelectedAccounts: boolean;
-    otherAccountIds: ReadonlyArray<AccountId>;
+    selectedAccounts: ReadonlyArray<AccountModel>;
     exactMatch: {
         chat: ChatModel;
         initialMessages: ReadonlyArray<ChatMessageModel>;
@@ -161,8 +77,11 @@ function ChatMessagingView({
     }, []);
 
     const chatKey = useMemo(
-        () => [currentAccount.id, ...otherAccountIds].sort().join("-"),
-        [currentAccount.id, otherAccountIds],
+        () =>
+            Array.from(
+                new Set([currentAccount.id, ...selectedAccounts.map(account => account.id)].sort()),
+            ).join("-"),
+        [currentAccount.id, selectedAccounts],
     );
 
     // We may not know the `ChatId` for this view initially but after sending a
@@ -223,7 +142,7 @@ function ChatMessagingView({
                 }
                 header={messagingHeader}
                 randomSeedForShimmer={chatKey}
-                isMessageCreationDisabled={!hasSelectedAccounts}
+                isMessageCreationDisabled={selectedAccounts.length > 0}
                 getMessagesFromStart={useEvent(input => {
                     if (!chat) {
                         throw new InternalError(
@@ -249,7 +168,7 @@ function ChatMessagingView({
                         if (message.type === "CreateMessage" && !chat) {
                             const {chat} = await sendChatMessageToAccounts(context, {
                                 spaceId: space.id,
-                                otherAccountIds,
+                                otherAccountIds: selectedAccounts.map(account => account.id),
                                 parentMessageIndex: message.parentMessageIndex,
                                 content: message.content,
                             });
@@ -262,7 +181,7 @@ function ChatMessagingView({
                             await sendRealtimeMessage({type: "ChatMessages", message});
                         }
                     },
-                    [chat, chatKey, context, otherAccountIds, sendRealtimeMessage, space.id],
+                    [chat, chatKey, context, selectedAccounts, sendRealtimeMessage, space.id],
                 )}
                 subscribeToRealtimeMessages={useCallback(
                     (
