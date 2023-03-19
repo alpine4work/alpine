@@ -1,9 +1,10 @@
 import {MetaFunction} from "@remix-run/server-runtime";
-import {useEffect, useState} from "react";
-import {useSearchParams} from "react-router-dom";
+import {useEffect} from "react";
+import {useLocation, useSearchParams} from "react-router-dom";
 import {ChatAccountPicker} from "~/client/chat/chat_account_picker";
 import {ChatView} from "~/client/chat/chat_view";
 import {Box} from "~/client/design/box";
+import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
@@ -11,6 +12,7 @@ import {getAccountOrThrow} from "~/server/dynamo/accounts_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
+import {isObject} from "~/shared/helpers/object/is_object";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
 import {getRecommendedChats} from "~/shared/rpc/chat_rpc_definitions";
@@ -60,9 +62,20 @@ export async function loader({request, context: _context, params}: LoaderArgs) {
 export default function NewChatRoute({isPeek}: {isPeek?: boolean}) {
     const loaderData = useLoaderDataWithSchema(LoaderSchema);
 
+    const location = useLocation();
+    const stateKey =
+        isObject(location.state) && typeof location.state.stateKey === "string"
+            ? location.state.stateKey
+            : location.key;
+
     const [searchParams, setSearchParams] = useSearchParams();
-    const [selectedAccounts, setSelectedAccounts] = useState<ReadonlyArray<AccountModel>>(
-        loaderData.selectedAccounts,
+
+    // Having state here allows us to optimistically update selected accounts. Then
+    // when we get a new result back from Remix (due to route transition), that
+    // always wins.
+    const [selectedAccounts, setSelectedAccounts] = useStateWithDependencies(
+        selectedAccounts => selectedAccounts,
+        [loaderData.selectedAccounts],
     );
 
     useEffect(() => {
@@ -72,9 +85,11 @@ export default function NewChatRoute({isPeek}: {isPeek?: boolean}) {
         } else {
             newSearchParams.set("accounts", selectedAccounts.map(account => account.id).join(" "));
         }
-        if (searchParams.toString() !== newSearchParams.toString())
-            setSearchParams(newSearchParams, {replace: true});
-    }, [searchParams, selectedAccounts, setSearchParams]);
+
+        if (searchParams.toString() !== newSearchParams.toString()) {
+            setSearchParams(newSearchParams, {replace: true, state: {stateKey}});
+        }
+    }, [location.key, searchParams, selectedAccounts, setSearchParams, stateKey]);
 
     return (
         <Box
