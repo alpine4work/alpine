@@ -63,7 +63,7 @@ implementRpc(definition.getRecommendedChats, async (_context, input) => {
             if (!chat) return null;
 
             const {messageCount, messages, otherReferencedMessages, lastMessageChangeTime} =
-                await getChatMessagesFromStart(context, {
+                await getChatMessagesFromEnd(context, {
                     chatId: chat.id,
                     limit: input.exactMatchInitialMessagesLimit,
                     afterMessageIndex: null,

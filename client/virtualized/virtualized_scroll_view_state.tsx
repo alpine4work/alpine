@@ -16,14 +16,21 @@ import {
 } from "~/shared/helpers/sort/order_key";
 
 /**
- * How many screens of content to fill on the first virtualized scroll
- * view render?
- *
- * We initially render enough items to fill the user's screen twice (so they
- * have space to scroll). Some of the screen is probably covered so this is
- * more than necessary but we'll never show blank content.
+ * The height of the virtualization window. Will be larger than the view height
+ * so we can render more content that's available when scrolled.
  */
-export const initialVirtualizedScrollViewRenderFillWindowCount = 2;
+export function getVirtualizationWindowHeight(viewHeight: number): number {
+    // In Jest tests, our virtualization window height is a simple constant. This
+    // makes it easier to write tests since you can correctly predict which items
+    // should be visible with mental math.
+    if (typeof jest !== "undefined") return viewHeight * 2;
+
+    // Currently implemented with a heuristic that smaller screens should have,
+    // proportionally, a larger virtualized window. 1080px tall views get half a
+    // view's worth of content on the top and bottom whereas a smaller 855px screen
+    // will get a full view's worth of content on the top and bottom.
+    return viewHeight + viewHeight * clamp(0.5, -4 * Math.log(viewHeight / 1080) + 0.5, 2) * 2;
+}
 
 /**
  * Props we pass into the `renderItem()` function for items.
@@ -236,7 +243,7 @@ export class VirtualizedScrollViewState {
         itemCount: number;
         getItem: (index: number) => {key: Key; minHeight: number};
     }): VirtualizedScrollViewState {
-        const maxRenderedHeight = windowHeight * initialVirtualizedScrollViewRenderFillWindowCount;
+        const maxRenderedHeight = getVirtualizationWindowHeight(windowHeight);
         let renderedHeight = 0;
         const renderedItems: Array<{key: Key; minHeight: number}> = [];
 
@@ -313,7 +320,7 @@ export class VirtualizedScrollViewState {
         itemCount: number;
         getItem: (index: number) => {key: Key; minHeight: number};
     }): VirtualizedScrollViewState {
-        const maxRenderedHeight = windowHeight * initialVirtualizedScrollViewRenderFillWindowCount;
+        const maxRenderedHeight = getVirtualizationWindowHeight(windowHeight);
         let renderedHeight = 0;
         const renderedItems: Array<{key: Key; minHeight: number}> = [];
 
@@ -426,26 +433,6 @@ export class VirtualizedScrollViewState {
             // changes since it affects the height of buffer entries.
             contentHeightSubtreeCache: new WeakMap(),
         });
-    }
-
-    /**
-     * The height of the virtualization window. Will be larger than the view height
-     * so we can render more content that's available when scrolled.
-     */
-    public getVirtualizationWindowHeight(): number {
-        // In Jest tests, our virtualization window height is a simple constant. This
-        // makes it easier to write tests since you can correctly predict which items
-        // should be visible with mental math.
-        if (typeof jest !== "undefined") return this._viewHeight * 2;
-
-        // Currently implemented with a heuristic that smaller screens should have,
-        // proportionally, a larger virtualized window. 1080px tall views get half a
-        // view's worth of content on the top and bottom whereas a smaller 855px screen
-        // will get a full view's worth of content on the top and bottom.
-        return (
-            this._viewHeight +
-            this._viewHeight * clamp(0.5, -4 * Math.log(this._viewHeight / 1080) + 0.5, 2) * 2
-        );
     }
 
     /**
@@ -737,7 +724,7 @@ export class VirtualizedScrollViewState {
             maxScrollEndOffset,
         );
 
-        const virtualizationWindowHeight = state.getVirtualizationWindowHeight();
+        const virtualizationWindowHeight = getVirtualizationWindowHeight(state._viewHeight);
 
         // The virtualized window is the range we expect to be filled with content. It
         // is the scroll window plus half a view in either direction so that a user

@@ -29,7 +29,7 @@ import {useClientInfo} from "~/client/remix/client_info_context";
 import {
     VirtualizedScrollViewState,
     VirtualizedScrollViewStateRenderItemProps,
-    initialVirtualizedScrollViewRenderFillWindowCount,
+    getVirtualizationWindowHeight,
 } from "~/client/virtualized/virtualized_scroll_view_state";
 import {RemLength, convertRemLengthToPx, getRemPxFromWindowWidth} from "~/shared/design/spacing";
 import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_after_next_browser_paint";
@@ -78,16 +78,15 @@ export function getInitialVirtualizedScrollViewRenderedItemCount(
     clientInfo: ClientInfo,
     minItemHeight: number | RemLength,
 ) {
+    const maxRenderedHeight = getVirtualizationWindowHeight(clientInfo.windowHeight);
+
     const remPx = getRemPxFromWindowWidth(clientInfo.windowWidth);
     const minItemHeightPx =
         typeof minItemHeight === "string"
             ? convertRemLengthToPx(minItemHeight, remPx)
             : minItemHeight;
 
-    return Math.ceil(
-        (clientInfo.windowHeight * initialVirtualizedScrollViewRenderFillWindowCount) /
-            minItemHeightPx,
-    );
+    return Math.ceil(maxRenderedHeight / minItemHeightPx);
 }
 
 type VirtualizedScrollViewItemBase = {
@@ -490,8 +489,52 @@ function VirtualizedScrollView(
 
         const scrollElement = assertExists(scrollRef.current);
 
-        if (initialScrollOffset === "bottom") {
-            scrollElement.scrollTop = scrollElement.scrollHeight - scrollElement.clientHeight;
+        if (initialScrollOffset !== "bottom") return;
+
+        scrollElement.scrollTop = scrollElement.scrollHeight - scrollElement.clientHeight;
+
+        // When we initially scroll to the bottom, use the last rendered element as our
+        // scroll anchor. That way as we measure items rendered above the content
+        // doesn't shift for the user.
+        {
+            const contentElement = assertExists(contentRef.current);
+            let element: HTMLElement | null = null;
+
+            // NOTE(calebmer): There's room to optimize this algorithm. If we keep our item
+            // refs in sorted order we can break after we find the first item within the
+            // scroll window.
+            for (const [, elementRef] of iterateItemRefs()) {
+                // Ignore elements that are positioned within an element other than our
+                // absolutely positioned content element. This could happen for items using
+                // custom layout.
+                if (elementRef.element.offsetParent !== contentElement) continue;
+
+                // Select the last element.
+                if (element === null || elementRef.element.offsetTop > element.offsetTop) {
+                    element = elementRef.element;
+                }
+            }
+
+            if (element) {
+                const scrollAnchorElement = element;
+
+                scrollAnchorRef.current = {
+                    // Use the last element as the anchor until it is scrolled offscreen. Then
+                    // resume regular anchor selection. (First visible element.)
+                    shouldAnchorWhileVisible: true,
+                    lastPosition: {
+                        offset: scrollAnchorElement.offsetTop,
+                        height: scrollAnchorElement.offsetHeight,
+                    },
+                    getPosition: () => {
+                        if (!document.body.contains(scrollAnchorElement)) return null;
+                        return {
+                            offset: scrollAnchorElement.offsetTop,
+                            height: scrollAnchorElement.offsetHeight,
+                        };
+                    },
+                };
+            }
         }
     }, [initialScrollOffset]);
 
@@ -794,7 +837,7 @@ function VirtualizedScrollView(
         const isJumpScrolling =
             lastScrollTopRef.current !== null &&
             Math.abs(lastScrollTopRef.current - scrollTop) >
-                (state.getVirtualizationWindowHeight() - state.getViewHeight()) * 2;
+                (getVirtualizationWindowHeight(state.getViewHeight()) - state.getViewHeight()) * 2;
 
         setActualState(actualState => {
             if (actualState.isJumpScrolling || isJumpScrolling) {

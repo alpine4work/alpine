@@ -193,16 +193,20 @@ function ChatMessagingView({
                 randomSeedForShimmer={chatKey}
                 isMessageCreationDisabled={!hasSelectedAccounts}
                 getMessagesFromStart={useEvent(input => {
-                    const chatId: ChatId = (() => {
-                        throw new UnimplementedError("TODO");
-                    })();
-                    return getChatMessagesFromStart(context, {...input, chatId});
+                    if (!chat) {
+                        throw new InternalError(
+                            "Can not load messages when we don't know the chat",
+                        );
+                    }
+                    return getChatMessagesFromStart(context, {...input, chatId: chat.id});
                 })}
                 getMessagesFromEnd={useEvent(input => {
-                    const chatId: ChatId = (() => {
-                        throw new UnimplementedError("TODO");
-                    })();
-                    return getChatMessagesFromEnd(context, {...input, chatId});
+                    if (!chat) {
+                        throw new InternalError(
+                            "Can not load messages when we don't know the chat",
+                        );
+                    }
+                    return getChatMessagesFromEnd(context, {...input, chatId: chat.id});
                 })}
                 createMessage={useEvent(async input => {
                     if (!hasSelectedAccounts)
