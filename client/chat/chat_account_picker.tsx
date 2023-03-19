@@ -107,7 +107,7 @@ export function ChatAccountPicker({
 
     const comboBoxProps: ComboBoxStateOptions<ChatAccountPickerItem> = {
         label: "To:",
-        menuTrigger: "focus",
+        menuTrigger: "input",
         // Don't close when there are no items.
         allowsEmptyCollection: true,
 
@@ -381,6 +381,9 @@ export function ChatAccountPicker({
                         onClick={event => {
                             if (event.currentTarget === event.target) {
                                 assertExists(inputRef.current).focus();
+
+                                // Make sure to open the combobox as well as an affordance for pointer users.
+                                comboBoxState.open();
                             }
                         }}
                     >
@@ -412,6 +415,15 @@ export function ChatAccountPicker({
                                     ? "Who do you want to send a message to?"
                                     : undefined
                             }
+                            // Open the combobox when the user presses on the input as an affordance for
+                            // pointer users. For keyboard users you need to press an arrow key or type.
+                            //
+                            // This has the added benefit of allowing the user to open the combobox again
+                            // while the input is focused if they are quickly selecting accounts to message
+                            // with their pointer.
+                            onPointerDown={() => {
+                                comboBoxState.open();
+                            }}
                         />
                     </Box>
                     <Box flexShrink="0" paddingY="3" paddingX="3">
