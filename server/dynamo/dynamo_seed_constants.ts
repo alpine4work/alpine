@@ -1,12 +1,7 @@
 import {EmailAddress} from "~/server/emails/email_address";
 import {assert} from "~/shared/helpers/control/assert";
-import {Id, isId} from "~/shared/id/id";
+import {assertId} from "~/shared/id/id";
 import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types";
-
-function assertId<Value extends Id>(string: string): Value {
-    assert(isId(string));
-    return string as any;
-}
 
 const seedConstants = {
     adminAccountId: assertId<AccountId>("27g6s1h4ygh1zqzw5h23gqtn88"),

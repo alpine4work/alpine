@@ -2,7 +2,17 @@ import {isFocusVisible} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
 import Fuse from "fuse.js";
 import {CaretDown, MagnifyingGlass, SpinnerGap, X} from "phosphor-react";
-import {KeyboardEvent, RefObject, createRef, useEffect, useMemo, useRef, useState} from "react";
+import {
+    KeyboardEvent,
+    RefObject,
+    cloneElement,
+    createRef,
+    isValidElement,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {
     AriaListBoxOptions,
     mergeProps,
@@ -13,21 +23,28 @@ import {
 } from "react-aria";
 import {ComboBoxState, ComboBoxStateOptions, Item, useComboBoxState} from "react-stately";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
+import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
 import {IconButton} from "~/client/design/icon_button";
 import {OverlayAnimated} from "~/client/design/overlay_animated";
+import {joinPrettyConjunctionList} from "~/client/design/pretty_conjunction_list";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
+import {useSpaceContext} from "~/client/spaces/space_context";
 import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length";
+import {emptyArray} from "~/shared/helpers/array/empty_array";
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {isId} from "~/shared/id/id";
-import {AccountId} from "~/shared/id/types/id_types";
+import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {assertId} from "~/shared/id/id";
+import {AccountId, ChatId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
+import {ChatModel} from "~/shared/models/chat_model";
 import {
+    backgroundColorVar,
     colorSchemeVars,
     fontSizes,
     overlayFadeInAnimationDurationMs,
@@ -36,63 +53,130 @@ import {
     sprinkles,
 } from "~/shared/styles/styles";
 
-type ChatAccountPickerItem = {
-    readonly key: string;
-    readonly account: AccountModel;
-};
+type ChatAccountPickerItem =
+    | {
+          readonly type: "Account";
+          readonly key: `Account:${AccountId}`;
+          readonly textValue: string;
+          readonly account: AccountModel;
+      }
+    | {
+          readonly type: "Chat";
+          readonly key: `Chat:${ChatId}`;
+          readonly textValue: string;
+          readonly chat: ChatModel;
+          readonly otherAccounts: ReadonlyArray<AccountModel>;
+      };
 
 export function ChatAccountPicker({
     selectedAccounts,
     onUpdateSelectedAccounts,
     shouldShowPendingSpinner,
+    recommendedChats,
 }: {
     selectedAccounts: ReadonlyArray<AccountModel>;
     onUpdateSelectedAccounts: (
         update: (selectedAccounts: ReadonlyArray<AccountModel>) => ReadonlyArray<AccountModel>,
     ) => void;
     shouldShowPendingSpinner: boolean;
+    recommendedChats: ReadonlyArray<ChatModel>;
 }) {
-    const _allAccounts = useExpensivelyLoadAllSpaceAccounts();
+    const {currentAccount} = useSpaceContext();
+    const allUnsortedAccounts = useExpensivelyLoadAllSpaceAccounts() ?? emptyArray;
 
-    const allAccounts = useMemo(() => {
-        if (!_allAccounts) return null;
+    const allAccounts = useMemo(
+        () =>
+            allUnsortedAccounts
+                .slice()
+                .sort((account1, account2) => account1.name.localeCompare(account2.name)),
+        [allUnsortedAccounts],
+    );
 
+    const accountById = useMemo(() => {
         const accountById = new Map<AccountId, AccountModel>();
+        for (const account of allAccounts) accountById.set(account.id, account);
+        return accountById;
+    }, [allAccounts]);
 
-        // Sort accounts by name using the user's current locale. Ideally we would sort
-        // by relevance to the user but this is the simple thing to do for now.
-        const accounts = Array.from(_allAccounts, account => {
-            accountById.set(account.id, account);
-            return account;
-        }).sort((account1, account2) => account1.name.localeCompare(account2.name));
+    const recommendedChatById = useMemo(() => {
+        const recommendedChatById = new Map<ChatId, ChatModel>();
+        for (const chat of recommendedChats) recommendedChatById.set(chat.id, chat);
+        return recommendedChatById;
+    }, [recommendedChats]);
 
-        // Build Fuse search index...
-        const fuse = new Fuse(accounts, {keys: ["name"], includeScore: true});
+    const allItems = useMemo(() => {
+        const items: Array<ChatAccountPickerItem> = [];
 
-        return {accountById, accounts, fuse};
-    }, [_allAccounts]);
+        for (const chat of recommendedChats) {
+            assert(chat.accounts.length > 0);
+
+            const otherAccounts = chat.accounts.filter(account => account.id !== currentAccount.id);
+
+            const otherAccountNames = joinPrettyConjunctionList(
+                otherAccounts.map(account => getAccountShortNameWithoutFullNameTooltip(account)),
+            );
+
+            items.push({
+                type: "Chat",
+                key: `Chat:${chat.id}`,
+                textValue: otherAccountNames,
+                chat,
+                otherAccounts,
+            });
+        }
+
+        for (const account of allAccounts) {
+            items.push({
+                type: "Account",
+                key: `Account:${account.id}`,
+                textValue: account.name,
+                account,
+            });
+        }
+
+        return items;
+    }, [allAccounts, currentAccount.id, recommendedChats]);
+
+    // Remove items that match our selection. Items should help the user
+    // autocomplete. Items that won't add to their selection are not useful.
+    const itemsWithoutSelection = useMemo(() => {
+        const selectedAccountIds = new Set(selectedAccounts.map(account => account.id));
+
+        return allItems.filter(item => {
+            switch (item.type) {
+                // If an account has been selected, don't show it anymore.
+                case "Account":
+                    return !selectedAccountIds.has(item.account.id);
+
+                // At least one account in the recommended chat should not already be selected
+                // for it to show up.
+                case "Chat":
+                    return item.otherAccounts.some(account => !selectedAccountIds.has(account.id));
+
+                default:
+                    throw exhaustive(item);
+            }
+        });
+    }, [allItems, selectedAccounts]);
 
     const [{searchQuery, shouldCloseComboBox}, setSearchQuery] = useState<{
         searchQuery: string;
         shouldCloseComboBox: boolean;
     }>({searchQuery: "", shouldCloseComboBox: false});
 
-    const searchedAccounts: ReadonlyArray<AccountModel> = useMemo(() => {
-        if (!allAccounts) return [];
+    const itemsSearchIndex = useMemo(
+        () => new Fuse(itemsWithoutSelection, {keys: ["textValue"]}),
+        [itemsWithoutSelection],
+    );
 
-        let searchedAccounts =
+    const searchedItems = useMemo(
+        () =>
             searchQuery === ""
-                ? allAccounts.accounts
-                : allAccounts.fuse.search(searchQuery).map(({item}) => item);
+                ? itemsWithoutSelection
+                : itemsSearchIndex.search(searchQuery).map(({item}) => item),
 
-        // Remove accounts that were already selected from the search.
-        if (selectedAccounts.length > 0)
-            searchedAccounts = searchedAccounts.filter(account1 =>
-                selectedAccounts.every(account2 => account1.id !== account2.id),
-            );
-
-        return searchedAccounts;
-    }, [allAccounts, searchQuery, selectedAccounts]);
+        [itemsSearchIndex, itemsWithoutSelection, searchQuery],
+    );
 
     // When this is set to true we allow the next animation then no more
     // animations. Most interactions that control whether the picker is open/close
@@ -118,13 +202,10 @@ export function ChatAccountPicker({
         inputValue: searchQuery,
         onInputChange: searchQuery => setSearchQuery({searchQuery, shouldCloseComboBox: false}),
 
-        items: searchedAccounts.map(account => ({key: account.id, account})) ?? [],
-        children: ({account}) => (
-            <Item textValue={account.name}>
-                <Box display="flex" alignItems="center" gap="2">
-                    <AccountAvatar account={account} size="6" />
-                    <Box fontStyle="truncate">{account.name}</Box>
-                </Box>
+        items: searchedItems,
+        children: item => (
+            <Item textValue={item.textValue}>
+                <ChatAccountMemberPickerListBoxOptionItem item={item} />
             </Item>
         ),
 
@@ -140,9 +221,10 @@ export function ChatAccountPicker({
         onSelectionChange: key => {
             setSearchQuery({searchQuery: "", shouldCloseComboBox: true});
 
-            if (typeof key === "string" && isId<AccountId>(key)) {
-                const account = allAccounts?.accountById.get(key);
+            if (typeof key !== "string") return;
 
+            if (key.startsWith("Account:")) {
+                const account = accountById.get(assertId(key.slice("Account:".length)));
                 if (account) {
                     onUpdateSelectedAccounts(selectedAccounts => {
                         // If the account already exists in the selection, don't add it a second time.
@@ -150,6 +232,27 @@ export function ChatAccountPicker({
                             return selectedAccounts;
                         }
                         return [...selectedAccounts, account];
+                    });
+                }
+            }
+
+            if (key.startsWith("Chat:")) {
+                const chat = recommendedChatById.get(assertId(key.slice("Chat:".length)));
+                if (chat) {
+                    onUpdateSelectedAccounts(selectedAccounts => {
+                        const selectedAccountIds = new Set(
+                            selectedAccounts.map(account => account.id),
+                        );
+                        return [
+                            ...selectedAccounts,
+                            // Select accounts from the chat object that haven't been selected yet,
+                            // preserving the order of already selected accounts.
+                            ...chat.accounts.filter(
+                                account =>
+                                    account.id !== currentAccount.id &&
+                                    !selectedAccountIds.has(account.id),
+                            ),
+                        ];
                     });
                 }
             }
@@ -534,6 +637,8 @@ function ChatAccountMemberPickerListBoxOption({
         if (isFocused) setWasFocusVisibleWhenFocused(isFocusVisible());
     }, [isFocused]);
 
+    assert(isValidElement(item.rendered));
+
     return (
         <FocusRing offset="0" isVisible={isFocused && wasFocusVisibleWhenFocused}>
             <li
@@ -552,8 +657,80 @@ function ChatAccountMemberPickerListBoxOption({
                         : undefined,
                 })}
             >
-                {item.rendered}
+                {cloneElement(item.rendered, {isPressed} as any)}
             </li>
         </FocusRing>
     );
+}
+
+function ChatAccountMemberPickerListBoxOptionItem({
+    item,
+    isPressed,
+}: {
+    item: ChatAccountPickerItem;
+    isPressed?: boolean;
+}) {
+    assert(
+        typeof isPressed === "boolean",
+        "Expected to be rendered by <ChatAccountMemberPickerListBoxOption> which provides extra props",
+    );
+
+    switch (item.type) {
+        case "Account": {
+            return (
+                <Box display="flex" alignItems="center" gap="2">
+                    <AccountAvatar account={item.account} size="6" />
+                    <Box fontStyle="truncate">{item.account.name}</Box>
+                </Box>
+            );
+        }
+        case "Chat": {
+            const {otherAccounts} = item;
+            assert(otherAccounts.length > 0);
+
+            return (
+                <Box display="flex" alignItems="center" gap="2">
+                    <Box position="relative" width="6" height="6">
+                        <Box position="absolute" top="0" left="-1">
+                            <AccountAvatar account={otherAccounts[0]!} size="5" />
+                        </Box>
+                        <Box
+                            position="absolute"
+                            bottom="-1"
+                            right="-1"
+                            width="5"
+                            height="5"
+                            borderRadius="full"
+                            style={{
+                                boxShadow: `0px 0px 0px 2px ${backgroundColorVar}`,
+                            }}
+                        >
+                            <Box
+                                width="5"
+                                height="5"
+                                borderRadius="full"
+                                backgroundColor={
+                                    isPressed
+                                        ? {light: "grey-20", dark: "grey-30"}
+                                        : {light: "grey-10", dark: "grey-20"}
+                                }
+                                color="grey-70"
+                                fontSize="50"
+                                display="flex"
+                                justifyContent="center"
+                                alignItems="center"
+                            >
+                                <Box style={{transform: "scale(0.8)"}}>
+                                    +{otherAccounts.length - 1}
+                                </Box>
+                            </Box>
+                        </Box>
+                    </Box>
+                    <Box fontStyle="truncate">{item.textValue}</Box>
+                </Box>
+            );
+        }
+        default:
+            throw exhaustive(item);
+    }
 }

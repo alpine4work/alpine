@@ -10,9 +10,11 @@ import {mobilePlatformMediaQuery, remPxByPlatform} from "~/shared/design/spacing
 import {colorSchemeVars} from "~/shared/styles/internal/color_scheme.css";
 import {fontSizes, fontStyles} from "~/shared/styles/internal/fonts.css";
 import {inputPlaceholderColor} from "~/shared/styles/internal/input_placeholder_color.css";
+import {backgroundColorVar} from "~/shared/styles/internal/sprinkles.css";
 
 globalStyle(":root", {
     backgroundColor: colorSchemeVars["grey-wash"],
+    vars: {[backgroundColorVar]: colorSchemeVars["grey-wash"]},
     color: colorSchemeVars["grey-text"],
     ...fontStyles.normal,
 

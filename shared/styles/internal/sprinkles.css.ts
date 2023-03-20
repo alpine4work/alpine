@@ -9,6 +9,7 @@
  * [2]: https://tailwindcss.com
  */
 
+import {createVar} from "@vanilla-extract/css";
 import {createSprinkles, defineProperties} from "@vanilla-extract/sprinkles";
 import {
     desktopPlatformMediaQuery,
@@ -224,6 +225,8 @@ const responsiveProperties = defineProperties({
 
 const colorSchemeVarsWithTransparent = {...colorSchemeVars, transparent: "transparent"};
 
+export const backgroundColorVar = createVar("background-color");
+
 const colorProperties = defineProperties({
     conditions: {
         default: {},
@@ -239,7 +242,10 @@ const colorProperties = defineProperties({
     defaultCondition: "default",
     properties: {
         color: colorSchemeVars,
-        backgroundColor: colorSchemeVarsWithTransparent,
+        backgroundColor: mapObjectValues(colorSchemeVarsWithTransparent, colorSchemeVar => ({
+            backgroundColor: colorSchemeVar,
+            vars: {[backgroundColorVar]: colorSchemeVar},
+        })),
 
         // Default to thin 1px borders over chunky borders.
         border: mapObjectValues(colorSchemeVarsWithTransparent, colorSchemeVar => ({

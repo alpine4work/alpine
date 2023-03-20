@@ -76,6 +76,14 @@ export function isId<Value extends Id>(string: string): string is Value {
 }
 
 /**
+ * Asserts that the provided string is a valid `Id`.
+ */
+export function assertId<Value extends Id>(string: string): Value {
+    assert(isId(string));
+    return string as any;
+}
+
+/**
  * Generate a new random `Id` using a cryptographically secure source of
  * randomness.
  */

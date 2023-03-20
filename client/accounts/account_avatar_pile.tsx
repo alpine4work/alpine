@@ -13,7 +13,12 @@ import {addRemLengths, negateRemLength, spacing} from "~/shared/design/spacing";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise";
 import {AccountModel} from "~/shared/models/account_model";
-import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/shared/styles/styles";
+import {
+    backgroundColorVar,
+    colorSchemeVars,
+    spinAnimationClassName,
+    sprinkles,
+} from "~/shared/styles/styles";
 
 export type AccountAvatarPileSize = "6" | "12";
 
@@ -75,7 +80,7 @@ export function AccountAvatarPile({
                         width={avatarSize}
                         borderRadius="full"
                         style={{
-                            boxShadow: `0px 0px 0px ${borderWidth}px ${colorSchemeVars["grey-0"]}`,
+                            boxShadow: `0px 0px 0px ${borderWidth}px ${backgroundColorVar}`,
                         }}
                     >
                         <AccountAvatar account={author} size={avatarSize} />
@@ -119,7 +124,7 @@ export function AccountAvatarPile({
                             width={avatarSize}
                             borderRadius="full"
                             style={{
-                                boxShadow: `0px 0px 0px ${borderWidth}px ${colorSchemeVars["grey-0"]}`,
+                                boxShadow: `0px 0px 0px ${borderWidth}px ${backgroundColorVar}`,
                             }}
                             backgroundColor="grey-10"
                             fontSize={overflowFontSize}

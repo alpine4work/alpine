@@ -13,6 +13,7 @@ import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
 import {getAccountOrThrow} from "~/server/dynamo/accounts_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
+import {emptyArray} from "~/shared/helpers/array/empty_array";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {isObject} from "~/shared/helpers/object/is_object";
@@ -135,6 +136,9 @@ export default function NewChatRoute({isPeek}: {isPeek?: boolean}) {
                         selectedAccounts={selectedAccounts}
                         onUpdateSelectedAccounts={setSelectedAccounts}
                         shouldShowPendingSpinner={shouldShowAccountPickerPendingSpinner}
+                        recommendedChats={
+                            loaderData.recommendedChats?.recommendedChats ?? emptyArray
+                        }
                     />
                 </Box>
                 <NewChatMessagingView
