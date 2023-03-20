@@ -193,3 +193,33 @@ export function areMessagePayloadModelsEqual(
             throw exhaustive(payload1);
     }
 }
+
+function getMessagePayloadChangeTime(payload: MessagePayloadModel): Date | null {
+    switch (payload.type) {
+        case "Content":
+            return payload.contentUpdatedTime;
+        case "Deleted":
+            return payload.deletedTime;
+        default:
+            throw exhaustive(payload);
+    }
+}
+
+/**
+ * Get the last message to be changed between the two messages. The last message to
+ * be changed is the most up-to-date.
+ */
+export function getLastChangedMessage<Message extends MessageModel>(
+    message1: Message,
+    message2: Message,
+): Message {
+    const changeTime1 = getMessagePayloadChangeTime(message1.payload);
+    const changeTime2 = getMessagePayloadChangeTime(message2.payload);
+
+    if (changeTime1 === null && changeTime2 === null) return message1;
+    if (changeTime1 === null) return message2;
+    if (changeTime2 === null) return message1;
+
+    if (changeTime2 > changeTime1) return message2;
+    return message1;
+}

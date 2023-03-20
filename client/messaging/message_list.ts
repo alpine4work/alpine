@@ -2,12 +2,14 @@ import createTree, {Tree} from "functional-red-black-tree";
 import {InvalidArgumentError, OutOfRangeError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
 import {Id} from "~/shared/id/id";
-import {MessageChange} from "~/shared/messaging/message_change_schema";
+import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema";
 import {
     MessageModel,
     OptimisticMessageModel,
     areMessagePayloadModelsEqual,
+    getLastChangedMessage,
 } from "~/shared/models/message_model";
 
 export type MessageListItem<Message extends MessageModel> =
@@ -46,17 +48,20 @@ export class MessageList<Message extends MessageModel> {
     private readonly _messages: Tree<number, Message>;
     private readonly _optimisticMessages: ReadonlyArray<OptimisticMessageModel>;
     private readonly _lastMessageChangeTime: Date | null;
+    private readonly _unloadedMessageChangeByIndex: ImmutableMap<number, MessageChange>;
 
     private constructor({
         messageCountExcludingOptimisticMessages,
         messages,
         optimisticMessages,
         lastMessageChangeTime,
+        unloadedMessageChangeByIndex,
     }: {
         messageCountExcludingOptimisticMessages: number;
         messages: Tree<number, Message>;
         optimisticMessages: ReadonlyArray<OptimisticMessageModel>;
         lastMessageChangeTime: Date | null;
+        unloadedMessageChangeByIndex: ImmutableMap<number, MessageChange>;
     }) {
         if (process.env.NODE_ENV !== "production") {
             assert(
@@ -74,6 +79,7 @@ export class MessageList<Message extends MessageModel> {
         this._messages = messages;
         this._optimisticMessages = optimisticMessages;
         this._lastMessageChangeTime = lastMessageChangeTime;
+        this._unloadedMessageChangeByIndex = unloadedMessageChangeByIndex;
     }
 
     public static new<Message extends MessageModel>({
@@ -88,6 +94,7 @@ export class MessageList<Message extends MessageModel> {
             messages: createTree(),
             optimisticMessages: [],
             lastMessageChangeTime,
+            unloadedMessageChangeByIndex: ImmutableMap.empty(),
         });
     }
 
@@ -231,6 +238,7 @@ export class MessageList<Message extends MessageModel> {
             messages: this._messages,
             optimisticMessages: this._optimisticMessages,
             lastMessageChangeTime: this._lastMessageChangeTime,
+            unloadedMessageChangeByIndex: this._unloadedMessageChangeByIndex,
         });
     }
 
@@ -238,7 +246,7 @@ export class MessageList<Message extends MessageModel> {
      * Increase last message change time for this list. If the last change time is
      * less than the current last change time we won't change anything.
      */
-    public setLastMessageChangeTime(lastMessageChangeTime: Date | null): MessageList<Message> {
+    private _setLastMessageChangeTime(lastMessageChangeTime: Date | null): MessageList<Message> {
         if (
             !(
                 (!lastMessageChangeTime && this._lastMessageChangeTime) ||
@@ -254,6 +262,7 @@ export class MessageList<Message extends MessageModel> {
             messages: this._messages,
             optimisticMessages: this._optimisticMessages,
             lastMessageChangeTime,
+            unloadedMessageChangeByIndex: this._unloadedMessageChangeByIndex,
         });
     }
 
@@ -268,9 +277,24 @@ export class MessageList<Message extends MessageModel> {
         let messageCount = this._messageCountExcludingOptimisticMessages;
         let messages = this._messages;
         let optimisticMessages = this._optimisticMessages;
+        let unloadedMessageChangeByIndex = this._unloadedMessageChangeByIndex;
 
-        for (const message of newMessages) {
+        for (let message of newMessages) {
+            let change: MessageChange | undefined;
+            [change, unloadedMessageChangeByIndex] = unloadedMessageChangeByIndex.getAndDelete(
+                message.index,
+            );
+
+            // If we are loading a message that was changed by realtime, apply the change
+            // now before inserting it.
+            if (change) message = changeMessage(message, change);
+
             const iterator = messages.find(message.index);
+
+            // Only override the existing message if it has a later change time. Otherwise
+            // keep the current message in the map.
+            if (iterator.value) message = getLastChangedMessage(iterator.value, message);
+
             messages = iterator.node
                 ? iterator.update(message)
                 : messages.insert(message.index, message);
@@ -295,6 +319,7 @@ export class MessageList<Message extends MessageModel> {
             messages,
             optimisticMessages,
             lastMessageChangeTime: this._lastMessageChangeTime,
+            unloadedMessageChangeByIndex,
         });
     }
 
@@ -321,6 +346,42 @@ export class MessageList<Message extends MessageModel> {
     }
 
     /**
+     * Backfills missing messages and message changes into the list. We call this
+     * after a `BackfillMessagesResponse` realtime event. The
+     * `BackfillMessagesRequest` realtime event should use
+     * `getMessageCountExcludingOptimisticMessages()` and
+     * `getLastMessageChangeTime()` from this list.
+     */
+    public backfillMessages({
+        messageCount,
+        lastMessageChangeTime,
+        newMessages,
+        newOtherReferencedMessages,
+        messageChanges,
+    }: {
+        messageCount: number;
+        lastMessageChangeTime: Date | null;
+        newMessages: ReadonlyArray<Message>;
+        newOtherReferencedMessages: ReadonlyArray<Message>;
+        messageChanges: ReadonlyArray<MessageChange>;
+    }) {
+        let self = this.loadMessages({
+            messageCount,
+            messages: newMessages,
+            otherReferencedMessages: newOtherReferencedMessages,
+        });
+
+        self = self._setLastMessageChangeTime(lastMessageChangeTime);
+
+        self = messageChanges.reduce(
+            (messages, change) => messages.changeLoadedMessage(change),
+            self,
+        );
+
+        return self;
+    }
+
+    /**
      * Adds a message in the list at its index. If the message index is greater
      * than our message count then we will extend the message count. If the message
      * with the same index already exists then it will be replaced.
@@ -341,6 +402,7 @@ export class MessageList<Message extends MessageModel> {
             messages: this._messages,
             optimisticMessages: [...this._optimisticMessages, message],
             lastMessageChangeTime: this._lastMessageChangeTime,
+            unloadedMessageChangeByIndex: this._unloadedMessageChangeByIndex,
         });
     }
 
@@ -353,31 +415,39 @@ export class MessageList<Message extends MessageModel> {
      */
     public changeLoadedMessage(change: MessageChange): MessageList<Message> {
         const iterator = this._messages.find(change.index);
-        if (!iterator.value) return this;
+
+        // If we have not loaded the message at the changed index, then stash the
+        // change in a map so that if we load the message in the future the change
+        // can be applied.
+        //
+        // This supports the (rare) race condition where we get a change from realtime
+        // that is not reflected in a `getMessagesFromEnd()` call soon to resolve after
+        // because `getMessagesFromEnd()` is using eventual consistency.
+        if (!iterator.value) {
+            return new MessageList({
+                messageCountExcludingOptimisticMessages:
+                    this._messageCountExcludingOptimisticMessages,
+                messages: this._messages,
+                optimisticMessages: this._optimisticMessages,
+                lastMessageChangeTime: this._lastMessageChangeTime,
+                unloadedMessageChangeByIndex: this._unloadedMessageChangeByIndex.update(
+                    change.index,
+                    lastChange => {
+                        if (!lastChange) return change;
+                        return getMessageChangeTime(change) < getMessageChangeTime(lastChange)
+                            ? lastChange
+                            : change;
+                    },
+                ),
+            });
+        }
+
         const message = iterator.value;
 
         switch (change.type) {
             case "UpdateContent": {
-                // Do nothing if the message is deleted or the comment was updated at a later
-                // time then our message. There are no ordering guarantees for
-                // `changeLoadedMessage()`! So we have to enforce ordering with
-                // `contentUpdatedTime`.
-                if (
-                    message.payload.type !== "Content" ||
-                    (message.payload.contentUpdatedTime !== null &&
-                        change.contentUpdatedTime.getTime() <
-                            message.payload.contentUpdatedTime.getTime())
-                ) {
-                    return this;
-                }
-
-                const newMessage = message.clone({
-                    payload: {
-                        ...message.payload,
-                        content: change.content,
-                        contentUpdatedTime: change.contentUpdatedTime,
-                    },
-                });
+                const newMessage = changeMessage(message, change);
+                if (newMessage === message) return this;
 
                 return new MessageList({
                     messageCountExcludingOptimisticMessages:
@@ -389,17 +459,12 @@ export class MessageList<Message extends MessageModel> {
                         change.contentUpdatedTime > this._lastMessageChangeTime
                             ? change.contentUpdatedTime
                             : this._lastMessageChangeTime,
+                    unloadedMessageChangeByIndex: this._unloadedMessageChangeByIndex,
                 });
             }
             case "Delete": {
-                if (message.payload.type !== "Content") return this;
-
-                const newMessage = message.clone({
-                    payload: {
-                        type: "Deleted",
-                        deletedTime: change.deletedTime,
-                    },
-                });
+                const newMessage = changeMessage(message, change);
+                if (newMessage === message) return this;
 
                 return new MessageList({
                     messageCountExcludingOptimisticMessages:
@@ -411,6 +476,7 @@ export class MessageList<Message extends MessageModel> {
                         change.deletedTime > this._lastMessageChangeTime
                             ? change.deletedTime
                             : this._lastMessageChangeTime,
+                    unloadedMessageChangeByIndex: this._unloadedMessageChangeByIndex,
                 });
             }
             default:
@@ -435,6 +501,51 @@ export class MessageList<Message extends MessageModel> {
                     : optimisticMessage,
             ),
             lastMessageChangeTime: this._lastMessageChangeTime,
+            unloadedMessageChangeByIndex: this._unloadedMessageChangeByIndex,
         });
+    }
+}
+
+function changeMessage<Message extends MessageModel>(
+    message: Message,
+    change: MessageChange,
+): Message {
+    switch (change.type) {
+        case "UpdateContent": {
+            // Do nothing if the message is deleted or the comment was updated at a later
+            // time then our message. There are no ordering guarantees for
+            // `changeLoadedMessage()`! So we have to enforce ordering with
+            // `contentUpdatedTime`.
+            if (
+                message.payload.type !== "Content" ||
+                (message.payload.contentUpdatedTime !== null &&
+                    change.contentUpdatedTime.getTime() <
+                        message.payload.contentUpdatedTime.getTime())
+            ) {
+                return message;
+            }
+
+            return message.clone({
+                payload: {
+                    ...message.payload,
+                    content: change.content,
+                    contentUpdatedTime: change.contentUpdatedTime,
+                },
+            });
+        }
+        case "Delete": {
+            // Delete messages should only happen once and should only happen to
+            // content messages.
+            if (message.payload.type !== "Content") return message;
+
+            return message.clone({
+                payload: {
+                    type: "Deleted",
+                    deletedTime: change.deletedTime,
+                },
+            });
+        }
+        default:
+            throw exhaustive(change);
     }
 }

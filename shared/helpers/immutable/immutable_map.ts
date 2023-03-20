@@ -149,7 +149,20 @@ export class ImmutableMap<Key extends string | number, Value> implements Readonl
      * Completes in O(log(n)) time.
      */
     public delete(key: Key): ImmutableMap<Key, Value> {
-        return new ImmutableMap(this._tree.remove(key));
+        const newTree = this._tree.remove(key);
+        if (newTree === this._tree) return this;
+        return new ImmutableMap(newTree);
+    }
+
+    /**
+     * Gets a value from the map and returns a new map with the entry associated
+     * removed. The old map is unchanged.
+     *
+     * Completes in O(log(n)) time.
+     */
+    public getAndDelete(key: Key): [Value | undefined, ImmutableMap<Key, Value>] {
+        const node = this._tree.find(key);
+        return node.valid ? [node.value, new ImmutableMap(node.remove())] : [undefined, this];
     }
 
     /**

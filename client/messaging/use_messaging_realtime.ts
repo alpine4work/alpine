@@ -58,23 +58,14 @@ export function useMessagingRealtime<
                     onUpdateMessages(messages => {
                         switch (realtimeMessage.messageChangesResult.type) {
                             case "Available": {
-                                messages = messages.loadMessages({
+                                return messages.backfillMessages({
                                     messageCount: realtimeMessage.messageCount,
-                                    messages: realtimeMessage.newMessages,
-                                    otherReferencedMessages:
+                                    lastMessageChangeTime: realtimeMessage.lastMessageChangeTime,
+                                    newMessages: realtimeMessage.newMessages,
+                                    newOtherReferencedMessages:
                                         realtimeMessage.newOtherReferencedMessages,
+                                    messageChanges: realtimeMessage.messageChangesResult.changes,
                                 });
-
-                                messages = messages.setLastMessageChangeTime(
-                                    realtimeMessage.lastMessageChangeTime,
-                                );
-
-                                messages = realtimeMessage.messageChangesResult.changes.reduce(
-                                    (messages, change) => messages.changeLoadedMessage(change),
-                                    messages,
-                                );
-
-                                return messages;
                             }
 
                             // If message changes are unavailable then fully reset the message list since
