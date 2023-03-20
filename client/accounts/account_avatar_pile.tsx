@@ -15,10 +15,10 @@ import {MaybePromise} from "~/shared/helpers/types/maybe_promise";
 import {AccountModel} from "~/shared/models/account_model";
 import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/shared/styles/styles";
 
-export type AccountAvatarPileSize = "base" | "lg";
+export type AccountAvatarPileSize = "6" | "12";
 
 export function AccountAvatarPile({
-    size = "base",
+    size = "6",
     previewAccounts,
     accountCount,
     getAllAccounts,
@@ -35,13 +35,13 @@ export function AccountAvatarPile({
 
     const {avatarSize, avatarOverlapWidth, borderWidth, overflowFontSize} = (
         {
-            base: {
+            "6": {
                 avatarSize: "6",
                 avatarOverlapWidth: "5",
                 borderWidth: 2,
                 overflowFontSize: "50",
             },
-            lg: {
+            "12": {
                 avatarSize: "12",
                 avatarOverlapWidth: "10",
                 borderWidth: 3,

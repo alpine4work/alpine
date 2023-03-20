@@ -47,14 +47,17 @@ export function ChatView({
                 height="12"
                 display="flex"
                 alignItems="center"
-                paddingX="3"
+                paddingX="5"
                 gap="2"
             >
-                <AccountAvatarPile
-                    previewAccounts={otherChatAccounts.slice(0, 4)}
-                    accountCount={otherChatAccounts.length}
-                    getAllAccounts={() => otherChatAccounts}
-                />
+                <Box paddingX="0.5">
+                    <AccountAvatarPile
+                        size="6"
+                        previewAccounts={otherChatAccounts.slice(0, 4)}
+                        accountCount={otherChatAccounts.length}
+                        getAllAccounts={() => otherChatAccounts}
+                    />
+                </Box>
                 <h1
                     className={sprinkles({
                         fontStyle: "truncate-semi-bold",

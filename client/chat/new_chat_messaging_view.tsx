@@ -102,7 +102,7 @@ export function NewChatMessagingView({
                 }
                 header={chatMessagingHeader}
                 randomSeedForShimmer={chat?.id ?? chatKey}
-                isMessageCreationDisabled={selectedAccounts.length > 0}
+                isMessageCreationDisabled={selectedAccounts.length === 0}
                 getMessagesFromStart={useEvent(input => {
                     if (!chat) {
                         throw new InternalError(

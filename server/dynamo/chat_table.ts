@@ -982,7 +982,9 @@ export async function getChat(context: RequestContext, chatId: ChatId): Promise<
         createdTime: chatItem.createdTime,
         messageCount: chatItem.messagesSummary.messageCount,
         lastMessageChangeTime: chatItem.messagesSummary.lastChangeTime,
-        accounts,
+        accounts: accounts
+            .slice()
+            .sort((account1, account2) => account1.name.localeCompare(account2.name)),
     });
 }
 
