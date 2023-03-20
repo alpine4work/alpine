@@ -1,39 +1,67 @@
+import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
 import {LoaderArgs} from "~/server/remix/loader_context";
 import {getRpcImplementation} from "~/server/rpc/get_rpc_implementation";
 import {InvalidArgumentError, NotFoundError} from "~/shared/error/error";
 import {isSystemError} from "~/shared/error/is_system_error_code";
+import {runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises";
+import {SpaceId} from "~/shared/id/types/id_types";
 import {
     RpcHttpCallInputSchema,
     RpcHttpCallOutputSchema,
 } from "~/shared/rpc/helpers/rpc_http_schema";
+import {Schema} from "~/shared/schema/schema";
 
 export async function action({request, context, span, params}: LoaderArgs) {
     try {
         if (request.method !== "POST") throw new InvalidArgumentError("Must use POST HTTP method");
 
-        const call = RpcHttpCallInputSchema.deserialize(await request.json());
+        const [, response] = await runAllPromiseThunks(
+            // As a performance optimization we let RPC clients tell us the current space
+            // ID so we can authorize space access in parallel with authorizing the
+            // session.
+            async () => {
+                const currentSpaceId = Schema.id<SpaceId>()
+                    .nullable()
+                    .deserialize(request.headers.get("cyberworlds-current-space-id"));
 
-        if (params.rpc_name !== call.name)
-            throw new InvalidArgumentError("Expected name in input to match name in URL");
+                if (currentSpaceId) {
+                    const sessionCookie = await context.loader.getSessionCookie();
+                    await authorizeSpaceAccess(
+                        context,
+                        currentSpaceId,
+                        sessionCookie.get().sessionAccountId,
+                    );
+                }
+            },
+            async () => {
+                const call = RpcHttpCallInputSchema.deserialize(await request.json());
 
-        const rpcImplementation = getRpcImplementation(call.name);
+                if (params.rpc_name !== call.name)
+                    throw new InvalidArgumentError("Expected name in input to match name in URL");
 
-        if (!rpcImplementation) throw new NotFoundError("Could not find an implementation for RPC");
+                const rpcImplementation = getRpcImplementation(call.name);
 
-        const output = await rpcImplementation.execute(context, call.input);
+                if (!rpcImplementation)
+                    throw new NotFoundError("Could not find an implementation for RPC");
 
-        return new Response(
-            JSON.stringify(
-                RpcHttpCallOutputSchema.serialize({
-                    ok: true,
-                    output,
-                }),
-            ),
-            {
-                status: 200,
-                headers: {"content-type": "application/json"},
+                const output = await rpcImplementation.execute(context, call.input);
+
+                return new Response(
+                    JSON.stringify(
+                        RpcHttpCallOutputSchema.serialize({
+                            ok: true,
+                            output,
+                        }),
+                    ),
+                    {
+                        status: 200,
+                        headers: {"content-type": "application/json"},
+                    },
+                );
             },
         );
+
+        return response;
     } catch (error) {
         span.addException(error);
 

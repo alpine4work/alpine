@@ -185,23 +185,26 @@ export function authorizeSpaceAccess(
     optimisticSessionAccountId?: AccountId,
 ): Promise<void> {
     return SpaceAuthorizationContextCache.get(context, spaceId, async () => {
-        const authenticatedContextPromise = context.auth.authenticate();
+        const actualAccountIdPromise = context.auth
+            .authenticate()
+            .then(context => context.auth.getAccountId());
 
-        const accountId =
-            optimisticSessionAccountId ?? (await authenticatedContextPromise).auth.getAccountId();
+        const [actualAccountId] = await runAllPromises([
+            actualAccountIdPromise,
+            (async () => {
+                const accountId = optimisticSessionAccountId ?? (await actualAccountIdPromise);
 
-        if (!(await isAccountMemberOfSpace(context, spaceId, accountId))) {
-            throw new PermissionDeniedError("Account does not have access to space", {
-                // TODO(calebmer): Add link to page that lists all spaces an account has access
-                // to in the help part of this error message.
-                displayMessage: errorDisplayMessage`You are not a member of this space.`,
-            });
-        }
+                if (!(await isAccountMemberOfSpace(context, spaceId, accountId))) {
+                    throw new PermissionDeniedError("Account does not have access to space", {
+                        // TODO(calebmer): Add link to page that lists all spaces an account has access
+                        // to in the help part of this error message.
+                        displayMessage: errorDisplayMessage`You are not a member of this space.`,
+                    });
+                }
+            })(),
+        ]);
 
-        if (
-            optimisticSessionAccountId &&
-            optimisticSessionAccountId !== (await authenticatedContextPromise).auth.getAccountId()
-        ) {
+        if (optimisticSessionAccountId && optimisticSessionAccountId !== actualAccountId) {
             throw new PermissionDeniedError(
                 "Optimistic session account ID does not match actual session account ID",
             );
