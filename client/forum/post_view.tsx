@@ -29,7 +29,7 @@ export function PostView({
         const postList = assertExists(postListRef.current);
 
         if (initialScrollToPostCommentIndex !== null)
-            postList.jumpToPostComment(initialPost.id, initialScrollToPostCommentIndex);
+            postList.jumpToPostCommentIndex(initialPost.id, initialScrollToPostCommentIndex);
     }, [initialPost.id, initialScrollToPostCommentIndex]);
 
     return (

@@ -17,7 +17,7 @@ import {SpaceModel} from "~/shared/models/space_model";
 import {Schema} from "~/shared/schema/schema";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
 
-const LoaderSchema = Schema.object({
+export const LoaderSchema = Schema.object({
     space: SpaceModel.schema(),
     currentAccount: AccountModel.schema(),
 });

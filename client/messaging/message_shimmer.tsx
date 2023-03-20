@@ -8,6 +8,9 @@ import {
     messageViewBubbleMergedBorderRadius,
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
+    messageViewMarginX,
+    messageViewMarginY,
+    messageViewMergedMarginY,
 } from "~/client/messaging/message_view";
 import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -145,8 +148,10 @@ export function MessageShimmer<Message extends MessageModel>({
             <div
                 className={sprinkles({
                     display: "flex",
-                    paddingX: "3",
-                    paddingBottom: !shouldMergeWithNextMessage ? "3" : "0.5",
+                    paddingX: messageViewMarginX,
+                    paddingBottom: !shouldMergeWithNextMessage
+                        ? messageViewMarginY
+                        : messageViewMergedMarginY,
                 })}
             >
                 <div className={sprinkles({flexShrink: "0", paddingRight: "2"})}>

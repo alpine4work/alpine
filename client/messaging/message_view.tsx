@@ -66,8 +66,6 @@ export const messageViewBubbleMinWidth: Spacing = "6";
 
 const mergeMessageMinuteLimit = 5;
 
-export const messageBubbleMarginLeft = addRemLengths(spacing["3"], spacing["7"], spacing["2"]);
-
 export const messageViewBubbleBorderRadius = "xl" as const;
 export const messageViewBubbleMergedBorderRadius = "base" as const;
 export const messageViewBubblePaddingX: Spacing = "0.5";
@@ -77,8 +75,15 @@ export const messageViewPreviewScale =
     fontSizesByPlatform["50"].desktop.fontSize / fontSizesByPlatform["100"].desktop.fontSize;
 export const messageViewReplyPreviewOpacity = 0.6;
 export const messageViewReplyPreviewBubbleOpacity = 0.7;
-export const messageViewMargin: Spacing = "3";
-export const messageViewMergedMargin: Spacing = "0.5";
+export const messageViewMarginX: Spacing = "5";
+export const messageViewMarginY: Spacing = "3";
+export const messageViewMergedMarginY: Spacing = "0.5";
+
+export const messageBubbleMarginLeft = addRemLengths(
+    spacing[messageViewMarginX],
+    spacing["7"],
+    spacing["2"],
+);
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders
@@ -353,7 +358,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     paddingRight: addRemLengths(
                         spacing["3"],
                         spacing[messageViewActionsWidth],
-                        spacing["3"],
+                        spacing[messageViewMarginX],
                     ),
                 }}
             >
@@ -462,7 +467,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                 fontStyle: "truncate",
                                 paddingTop: "0.5",
                                 paddingBottom: parentMessage === null ? "0.5" : "1",
-                                paddingRight: "3",
+                                paddingRight: messageViewMarginX,
                                 color: "grey-50",
                                 display: "flex",
                                 alignItems: "center",
@@ -496,10 +501,10 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 ref={hoverRef}
                 className={sprinkles({
                     display: "flex",
-                    paddingX: "3",
+                    paddingX: messageViewMarginX,
                     paddingBottom: !shouldMergeWithNextMessage
-                        ? messageViewMargin
-                        : messageViewMergedMargin,
+                        ? messageViewMarginY
+                        : messageViewMergedMarginY,
                 })}
             >
                 {useMemo(

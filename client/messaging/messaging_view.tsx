@@ -2,8 +2,11 @@ import {
     Memo,
     MutableRefObject,
     ReactElement,
+    Ref,
+    forwardRef,
     useCallback,
     useEffect,
+    useImperativeHandle,
     useMemo,
     useRef,
     useState,
@@ -18,6 +21,7 @@ import {MessageShimmer} from "~/client/messaging/message_shimmer";
 import {
     MessageView,
     bufferedMessageViewHeight,
+    messageViewMarginY,
     messageViewMinHeight,
 } from "~/client/messaging/message_view";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages";
@@ -108,9 +112,17 @@ class MessagingViewState<Message extends MessageModel> {
 
         if (!this._header) return range;
 
-        const startIndex = range.startIndex - 1;
-        const endIndex = range.endIndex - 1;
-        if (startIndex < 0 || endIndex < 0) return null;
+        const startIndex = Math.max(range.startIndex - 1, 0);
+        const endIndex = Math.max(range.endIndex - 1, 0);
+
+        // Make sure we didn't adjust the range to an out of bounds range.
+        if (
+            range.startIndex >= this.messages.getMessageCount() ||
+            range.endIndex >= this.messages.getMessageCount()
+        ) {
+            return null;
+        }
+
         return {startIndex, endIndex};
     }
 
@@ -137,6 +149,13 @@ class MessagingViewState<Message extends MessageModel> {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const Box = null;
 
+export type MessagingViewRef = {
+    jumpToMessageIndex(messageIndex: number): void;
+};
+
+const MessagingViewForwardRef = forwardRef(MessagingView);
+export {MessagingViewForwardRef as MessagingView};
+
 /**
  * Shared UI component for our messaging system. Wherever we have a list of
  * messaging in the product this component is how it's (usually) rendered.
@@ -149,131 +168,136 @@ const Box = null;
  * a scroll view full of posts we have a separate `<PostListView>`
  * implementation that renders messages in a post.
  */
-export function MessagingView<RoomKey extends string, Message extends MessageModel<RoomKey>>({
-    messageNoun = "message",
-    messageStartOfSentenceNoun = messageNoun.slice(0, 1).toUpperCase() + messageNoun.slice(1),
-    initialScrollOffset,
-    initialMessagesResult,
-    header,
-    randomSeedForShimmer,
-    isMessageCreationDisabled,
-    getMessagesFromStart,
-    getMessagesFromEnd,
-    isRealtimeConnected,
-    sendRealtimeMessage,
-    subscribeToRealtimeMessages,
-    getCopyLinkUrl,
-}: {
-    /**
-     * What we call messages in UI copy. Defaults to "message". For example
-     * "Successfully deleted message". You may want that message to ready
-     * "Successfully deleted comment" if you want to refer to your messages
-     * as comments.
-     */
-    // NOTE(calebmer): This technique where we interpolate strings likely won't
-    // work when we internationalize the product. Then I imagine we'll pass in a
-    // `messageCopy` object, or something, with every string rendered by this UI
-    // for translating.
-    messageNoun?: string;
+function MessagingView<RoomKey extends string, Message extends MessageModel<RoomKey>>(
+    {
+        messageNoun = "message",
+        messageStartOfSentenceNoun = messageNoun.slice(0, 1).toUpperCase() + messageNoun.slice(1),
+        initialScrollOffset,
+        initialMessagesResult,
+        header,
+        randomSeedForShimmer,
+        isMessageCreationDisabled,
+        getMessagesFromStart,
+        getMessagesFromEnd,
+        isRealtimeConnected,
+        sendRealtimeMessage,
+        subscribeToRealtimeMessages,
+        getCopyLinkUrl,
+    }: {
+        /**
+         * What we call messages in UI copy. Defaults to "message". For example
+         * "Successfully deleted message". You may want that message to ready
+         * "Successfully deleted comment" if you want to refer to your messages
+         * as comments.
+         */
+        // NOTE(calebmer): This technique where we interpolate strings likely won't
+        // work when we internationalize the product. Then I imagine we'll pass in a
+        // `messageCopy` object, or something, with every string rendered by this UI
+        // for translating.
+        messageNoun?: string;
 
-    /**
-     * What we call messages in UI copy at the start of sentences. By default this
-     * is `messageNoun` but with the first letter upper cased.
-     */
-    messageStartOfSentenceNoun?: string;
+        /**
+         * What we call messages in UI copy at the start of sentences. By default this
+         * is `messageNoun` but with the first letter upper cased.
+         */
+        messageStartOfSentenceNoun?: string;
 
-    /**
-     * Do we start by showing messages at the top or bottom of the view?
-     */
-    initialScrollOffset: "top" | "bottom";
+        /**
+         * Do we start by showing messages at the top or bottom of the view?
+         */
+        initialScrollOffset: "top" | "bottom";
 
-    /**
-     * The initial messages we load into this view. The view knows to load more
-     * messages with the `getMessagesFromStart` and `getMessagesFromEnd` function.
-     */
-    initialMessagesResult: {
-        readonly messageCount: number;
-        readonly messages: ReadonlyArray<Message>;
-        readonly otherReferencedMessages: ReadonlyArray<Message>;
-        readonly lastMessageChangeTime: Date | null;
-    };
+        /**
+         * The initial messages we load into this view. The view knows to load more
+         * messages with the `getMessagesFromStart` and `getMessagesFromEnd` function.
+         */
+        initialMessagesResult: {
+            readonly messageCount: number;
+            readonly messages: ReadonlyArray<Message>;
+            readonly otherReferencedMessages: ReadonlyArray<Message>;
+            readonly lastMessageChangeTime: Date | null;
+        };
 
-    /**
-     * You may render a header on top of the messaging view which as an
-     * arbitrary virtualized scroll view item.
-     */
-    header?: Memo<DistributiveOmit<VirtualizedScrollViewItem, "key">>;
+        /**
+         * You may render a header on top of the messaging view which as an
+         * arbitrary virtualized scroll view item.
+         */
+        header?: Memo<DistributiveOmit<VirtualizedScrollViewItem, "key">>;
 
-    /**
-     * For unloaded messages we show a shimmer. Shimmers have a random shape based
-     * on their index in the message list and a seed. Usually the seed is the room
-     * key for this messaging view but for applications like chat we may allow
-     * sending messages before we know the room key.
-     */
-    randomSeedForShimmer: string;
+        /**
+         * For unloaded messages we show a shimmer. Shimmers have a random shape based
+         * on their index in the message list and a seed. Usually the seed is the room
+         * key for this messaging view but for applications like chat we may allow
+         * sending messages before we know the room key.
+         */
+        randomSeedForShimmer: string;
 
-    /**
-     * Should we disable the user's ability to create a message? The user will
-     * still be able to type in the message input but won't be able to send their
-     * message. Once this prop switches to true the user can send the message
-     * they typed.
-     */
-    isMessageCreationDisabled?: boolean;
+        /**
+         * Should we disable the user's ability to create a message? The user will
+         * still be able to type in the message input but won't be able to send their
+         * message. Once this prop switches to true the user can send the message
+         * they typed.
+         */
+        isMessageCreationDisabled?: boolean;
 
-    /**
-     * Load messages from the start of the list. We expect the implementation of
-     * this function passes the `testMessagingImplementation()` test suite.
-     */
-    getMessagesFromStart: (input: {
-        limit: number;
-        afterMessageIndex: number | null;
-        beforeMessageIndex: number | null;
-    }) => Promise<{
-        messageCount: number;
-        messages: ReadonlyArray<Message>;
-        otherReferencedMessages: ReadonlyArray<Message>;
-    }>;
+        /**
+         * Load messages from the start of the list. We expect the implementation of
+         * this function passes the `testMessagingImplementation()` test suite.
+         */
+        getMessagesFromStart: (input: {
+            limit: number;
+            afterMessageIndex: number | null;
+            beforeMessageIndex: number | null;
+        }) => Promise<{
+            messageCount: number;
+            messages: ReadonlyArray<Message>;
+            otherReferencedMessages: ReadonlyArray<Message>;
+        }>;
 
-    /**
-     * Load messages from the end of the list. We expect the implementation of
-     * this function passes the `testMessagingImplementation()` test suite.
-     */
-    getMessagesFromEnd: (input: {
-        limit: number;
-        afterMessageIndex: number | null;
-        beforeMessageIndex: number | null;
-    }) => Promise<{
-        messageCount: number;
-        messages: ReadonlyArray<Message>;
-        otherReferencedMessages: ReadonlyArray<Message>;
-    }>;
+        /**
+         * Load messages from the end of the list. We expect the implementation of
+         * this function passes the `testMessagingImplementation()` test suite.
+         */
+        getMessagesFromEnd: (input: {
+            limit: number;
+            afterMessageIndex: number | null;
+            beforeMessageIndex: number | null;
+        }) => Promise<{
+            messageCount: number;
+            messages: ReadonlyArray<Message>;
+            otherReferencedMessages: ReadonlyArray<Message>;
+        }>;
 
-    /**
-     * Do we have a realtime connection to a service implementing our realtime
-     * messaging protocol?
-     */
-    isRealtimeConnected: boolean;
+        /**
+         * Do we have a realtime connection to a service implementing our realtime
+         * messaging protocol?
+         */
+        isRealtimeConnected: boolean;
 
-    /**
-     * Send a realtime message to a service implementing our realtime messaging
-     * protocol.
-     */
-    sendRealtimeMessage: Memo<(message: MessagingRealtimeMessageFromClient) => Promise<void>>;
+        /**
+         * Send a realtime message to a service implementing our realtime messaging
+         * protocol.
+         */
+        sendRealtimeMessage: Memo<(message: MessagingRealtimeMessageFromClient) => Promise<void>>;
 
-    /**
-     * Subscribe to realtime messages from a service implementing our realtime
-     * messaging protocol.
-     */
-    subscribeToRealtimeMessages: Memo<
-        (subscriber: (message: MessagingRealtimeMessageFromServer<Message>) => void) => () => void
-    >;
+        /**
+         * Subscribe to realtime messages from a service implementing our realtime
+         * messaging protocol.
+         */
+        subscribeToRealtimeMessages: Memo<
+            (
+                subscriber: (message: MessagingRealtimeMessageFromServer<Message>) => void,
+            ) => () => void
+        >;
 
-    /**
-     * Copies a link to a message. Opening this link should scroll the messaging
-     * view to this message and highlight it.
-     */
-    getCopyLinkUrl: Memo<(messageIndex: number) => URL>;
-}) {
+        /**
+         * Copies a link to a message. Opening this link should scroll the messaging
+         * view to this message and highlight it.
+         */
+        getCopyLinkUrl: Memo<(messageIndex: number) => URL>;
+    },
+    ref: Ref<MessagingViewRef>,
+) {
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
     const [messagesWithoutHeader, setMessages] = useState(() => {
@@ -386,13 +410,13 @@ export function MessagingView<RoomKey extends string, Message extends MessageMod
     //
     // 1. We scroll to the message
     // 2. We highlight the message to the user
-    const handleJumpToMessage = useEvent((message: Message) => {
+    const jumpToMessageIndex = useEvent((messageIndex: number) => {
         // If we are in the process of jumping, don't start another jump
         if (isJumpingToMessageRef.current) return;
 
         const view = assertExists(viewRef.current);
 
-        const scrollToIndex = state.getItemIndexForMessageIndex(message.index);
+        const scrollToIndex = state.getItemIndexForMessageIndex(messageIndex);
 
         const peekRenderedRange = view.peekRenderedRangeAfterScrollToIndex(scrollToIndex);
         const result = tryLoadingMoreData(peekRenderedRange);
@@ -401,7 +425,7 @@ export function MessagingView<RoomKey extends string, Message extends MessageMod
             view.scrollToIndex(scrollToIndex);
 
             setHighlightMessage({
-                messageIndex: message.index,
+                messageIndex,
                 shouldHighlightRef: {current: true},
             });
         } else {
@@ -413,12 +437,19 @@ export function MessagingView<RoomKey extends string, Message extends MessageMod
                 view.scrollToIndex(scrollToIndex);
 
                 setHighlightMessage({
-                    messageIndex: message.index,
+                    messageIndex,
                     shouldHighlightRef: {current: true},
                 });
             });
         }
     });
+
+    const handleJumpToMessage = useCallback(
+        (message: Message) => jumpToMessageIndex(message.index),
+        [jumpToMessageIndex],
+    );
+
+    useImperativeHandle(ref, () => ({jumpToMessageIndex}), [jumpToMessageIndex]);
 
     const {actions} = useMessagingRealtime({
         messages: messagesWithoutHeader,
@@ -556,7 +587,7 @@ export function MessagingView<RoomKey extends string, Message extends MessageMod
                                           }),
                                 }}
                             >
-                                {index === 0 && <Spacer space="3" />}
+                                {index === 0 && <Spacer space={messageViewMarginY} />}
                                 {render(isScrolling)}
                             </div>
                         ),

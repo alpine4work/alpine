@@ -31,7 +31,11 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer";
 import {useMessageEditing} from "~/client/messaging/message_editing";
 import {MessageShimmer} from "~/client/messaging/message_shimmer";
-import {MessageView, messageViewMinHeight} from "~/client/messaging/message_view";
+import {
+    MessageView,
+    messageViewMarginY,
+    messageViewMinHeight,
+} from "~/client/messaging/message_view";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages";
 import {MessagingRealtimeActions} from "~/client/messaging/use_messaging_realtime";
@@ -118,7 +122,7 @@ export type PostListViewRef = {
      * Jump to the provided post comment. If the post or post comment do
      * not exist an error will be thrown.
      */
-    jumpToPostComment(postId: PostId, postCommentIndex: number): void;
+    jumpToPostCommentIndex(postId: PostId, postCommentIndex: number): void;
 };
 
 /**
@@ -561,7 +565,7 @@ function PostListView(
     //
     // 1. We scroll to the comment
     // 2. We highlight the comment to the user
-    const jumpToPostCommentIfExists = useEvent((postId: PostId, postCommentIndex: number) => {
+    const jumpToPostCommentIndex = useEvent((postId: PostId, postCommentIndex: number) => {
         // If we are in the process of jumping, don't start another jump
         if (isJumpingToPostCommentRef.current) return;
 
@@ -599,17 +603,17 @@ function PostListView(
 
     const handleJumpToPostComment = useCallback(
         (postComment: PostCommentModel) => {
-            jumpToPostCommentIfExists(postComment.postId, postComment.index);
+            jumpToPostCommentIndex(postComment.postId, postComment.index);
         },
-        [jumpToPostCommentIfExists],
+        [jumpToPostCommentIndex],
     );
 
     useImperativeHandle(
         ref,
         () => ({
-            jumpToPostComment: jumpToPostCommentIfExists,
+            jumpToPostCommentIndex,
         }),
-        [jumpToPostCommentIfExists],
+        [jumpToPostCommentIndex],
     );
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
@@ -870,12 +874,11 @@ function PostListView(
                                             width: "full",
                                             backgroundColor: "grey-0",
                                             boxShadow: "elevation-5",
-                                            paddingX: "2",
                                         })}
                                     >
                                         {item.postCommentIndex === 0 ? (
                                             <>
-                                                <Spacer space="3" />
+                                                <Spacer space={messageViewMarginY} />
                                                 {messageNode}
                                             </>
                                         ) : (

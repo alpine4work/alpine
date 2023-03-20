@@ -3,7 +3,7 @@ import {MetaFunction} from "@remix-run/server-runtime";
 import {useEffect} from "react";
 import {useLocation, useSearchParams} from "react-router-dom";
 import {ChatAccountPicker} from "~/client/chat/chat_account_picker";
-import {ChatView} from "~/client/chat/chat_view";
+import {NewChatMessagingView} from "~/client/chat/new_chat_messaging_view";
 import {Box} from "~/client/design/box";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies";
@@ -137,7 +137,7 @@ export default function NewChatRoute({isPeek}: {isPeek?: boolean}) {
                         shouldShowPendingSpinner={shouldShowAccountPickerPendingSpinner}
                     />
                 </Box>
-                <ChatView
+                <NewChatMessagingView
                     // We use `selectedAccounts` from our loader data since the loader data might be
                     // stale while we're fetching new recommended chats. We want all props passed to
                     // this function to be consistent.

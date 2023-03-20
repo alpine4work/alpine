@@ -1,10 +1,12 @@
-/* eslint-disable @typescript-eslint/no-misused-promises */
-
-import {useCallback, useEffect, useMemo, useState} from "react";
+import {Memo, useCallback, useEffect, useRef} from "react";
+import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile";
+import {AccountShortName} from "~/client/accounts/account_short_name";
 import {useWebSocket} from "~/client/cloudflare/use_web_socket";
-import {AppContextProvider, useAppContext} from "~/client/context/app_context";
-import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {MessagingView} from "~/client/messaging/messaging_view";
+import {useAppContext} from "~/client/context/app_context";
+import {Box} from "~/client/design/box";
+import {PrettyConjunctionList} from "~/client/design/pretty_conjunction_list";
+import {messageViewMarginY} from "~/client/messaging/message_view";
+import {MessagingView, MessagingViewRef} from "~/client/messaging/messaging_view";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {VirtualizedScrollViewItem} from "~/client/virtualized/virtualized_scroll_view";
 import {
@@ -13,102 +15,126 @@ import {
     ChatRealtimeMessageFromServerSchema,
 } from "~/shared/chat/chat_realtime_schema";
 import {spacing} from "~/shared/design/spacing";
-import {InternalError, UnimplementedError} from "~/shared/error/error";
+import {assert} from "~/shared/helpers/control/assert";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {cast} from "~/shared/helpers/control/cast";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit";
 import {MessagingRealtimeMessageFromServer} from "~/shared/messaging/messaging_realtime_schema";
-import {AccountModel} from "~/shared/models/account_model";
 import {ChatMessageModel, ChatModel} from "~/shared/models/chat_model";
-import {
-    getChatMessagesFromEnd,
-    getChatMessagesFromStart,
-    sendChatMessageToAccounts,
-} from "~/shared/rpc/chat_rpc_definitions";
+import {getChatMessagesFromEnd, getChatMessagesFromStart} from "~/shared/rpc/chat_rpc_definitions";
+import {sprinkles} from "~/shared/styles/styles";
 
 export function ChatView({
-    selectedAccounts,
-    exactMatch,
+    chat,
+    initialMessages,
+    initialOtherReferencedMessages,
+    initialScrollToMessageIndex,
 }: {
-    selectedAccounts: ReadonlyArray<AccountModel>;
-    exactMatch: {
-        chat: ChatModel;
-        initialMessages: ReadonlyArray<ChatMessageModel>;
-        initialOtherReferencedMessages: ReadonlyArray<ChatMessageModel>;
-    } | null;
+    chat: ChatModel;
+    initialMessages: ReadonlyArray<ChatMessageModel>;
+    initialOtherReferencedMessages: ReadonlyArray<ChatMessageModel>;
+    initialScrollToMessageIndex: number | null;
 }) {
-    const {space, currentAccount} = useSpaceContext();
+    const {currentAccount} = useSpaceContext();
+    assert(chat.accounts.length > 0);
+    const otherChatAccounts = chat.accounts.filter(account => account.id !== currentAccount.id);
 
-    // The messaging header is empty space. It fills up the view height so your
-    // first messages are pushed to the bottom of the screen. In the future we
-    // should do something interesting with this empty space.
-    const messagingHeader = useMemo((): DistributiveOmit<VirtualizedScrollViewItem, "key"> => {
-        // When our view is full of messages this will be the top margin of the view.
-        const height = spacing["3"];
-
-        return {
-            minHeight: height,
-            withManualLayout: true,
-            render: ({
-                ref,
-                shouldRenderWithRelativePositioning,
-                offset,
-                height: actualHeight,
-                viewHeight,
-                originalContentHeight,
-            }) => (
-                <div
-                    ref={ref}
-                    style={{
-                        ...(shouldRenderWithRelativePositioning
-                            ? {position: "relative", height}
-                            : {
-                                  position: "absolute",
-                                  top: offset,
-                                  left: 0,
-                                  right: 0,
-                                  height: `max(${height}, ${
-                                      viewHeight - (originalContentHeight - actualHeight)
-                                  }px)`,
-                              }),
-                    }}
+    return (
+        <Box width="full" height="full" display="flex" flexDirection="column">
+            <Box
+                flexShrink="0"
+                borderBottom="grey-10"
+                height="12"
+                display="flex"
+                alignItems="center"
+                paddingX="3"
+                gap="2"
+            >
+                <AccountAvatarPile
+                    previewAccounts={otherChatAccounts.slice(0, 4)}
+                    accountCount={otherChatAccounts.length}
+                    getAllAccounts={() => otherChatAccounts}
                 />
-            ),
-        };
-    }, []);
-
-    const chatKey = useMemo(
-        () =>
-            Array.from(
-                new Set([currentAccount.id, ...selectedAccounts.map(account => account.id)].sort()),
-            ).join("-"),
-        [currentAccount.id, selectedAccounts],
+                <h1
+                    className={sprinkles({
+                        fontStyle: "truncate-semi-bold",
+                        fontSize: "200",
+                    })}
+                >
+                    <PrettyConjunctionList
+                        list={otherChatAccounts.map(account => (
+                            <AccountShortName key={account.id} account={account} />
+                        ))}
+                    />
+                </h1>
+            </Box>
+            <ChatMessagingView
+                chat={chat}
+                initialMessages={initialMessages}
+                initialOtherReferencedMessages={initialOtherReferencedMessages}
+                initialScrollToMessageIndex={initialScrollToMessageIndex}
+            />
+        </Box>
     );
+}
 
-    // We may not know the `ChatId` for this view initially but after sending a
-    // message we should discover the `ChatId` and put it in this state.
-    const [chatForChatKey, setChatForChatKey] = useState<{chatKey: string; chat: ChatModel | null}>(
-        {chatKey, chat: null},
-    );
+/**
+ * The messaging header is empty space. It fills up the view height so your
+ * first messages are pushed to the bottom of the screen. In the future we
+ * should do something interesting with this empty space.
+ */
+export const chatMessagingHeader = ((): DistributiveOmit<VirtualizedScrollViewItem, "key"> => {
+    // When our view is full of messages this will be the top margin of the view.
+    const height = spacing[messageViewMarginY];
 
-    // Reset the chat when `chatKey` changes.
-    useEffect(() => {
-        setChatForChatKey(chatForChatKey => {
-            if (chatForChatKey.chatKey === chatKey) return chatForChatKey;
-            return {chatKey, chat: null};
-        });
-    }, [chatKey]);
+    return {
+        minHeight: height,
+        withManualLayout: true,
+        render: ({
+            ref,
+            shouldRenderWithRelativePositioning,
+            offset,
+            height: actualHeight,
+            viewHeight,
+            originalContentHeight,
+        }) => (
+            <div
+                ref={ref}
+                style={{
+                    // NOTE(calebmer): On initial render we don't know the view height so this
+                    // header won't push other messages down. So you end up with a flash when
+                    // server-rendering a chat with few messages where messages jump down. A flash
+                    // we choose to accept since correct implementations are annoying.
+                    ...(shouldRenderWithRelativePositioning
+                        ? {position: "relative", height}
+                        : {
+                              position: "absolute",
+                              top: offset,
+                              left: 0,
+                              right: 0,
+                              height: `max(${height}, ${
+                                  viewHeight - (originalContentHeight - actualHeight)
+                              }px)`,
+                          }),
+                }}
+            />
+        ),
+    };
+})() as Memo<DistributiveOmit<VirtualizedScrollViewItem, "key">>;
 
-    const chat =
-        exactMatch?.chat ?? (chatForChatKey?.chatKey === chatKey ? chatForChatKey.chat : null);
-
-    // Make sure we include the `ChatId` in our context's propagated data. Normally
-    // this is set by the route loader but because new chats may not know the
-    // `ChatId` in the URL we should set it again here.
-    const _context = useAppContext();
-    const context = useMemo(() => {
-        if (!chat) return _context;
-        return _context.tracer.withPropagatedData({context: {chatId: chat.id}});
-    }, [_context, chat]);
+function ChatMessagingView({
+    chat,
+    initialMessages,
+    initialOtherReferencedMessages,
+    initialScrollToMessageIndex,
+}: {
+    chat: ChatModel;
+    initialMessages: ReadonlyArray<ChatMessageModel>;
+    initialOtherReferencedMessages: ReadonlyArray<ChatMessageModel>;
+    initialScrollToMessageIndex: number | null;
+}) {
+    const context = useAppContext();
+    const messagingRef = useRef<MessagingViewRef>(null);
 
     const {
         isConnected: isRealtimeConnected,
@@ -120,90 +146,71 @@ export function ChatView({
         chat ? `/durable-objects/chat/${chat.id}` : null,
     );
 
+    const hasInitializedRef = useRef(false);
+
+    // TODO(calebmer): Support server-side rendering for immediately jumping to a
+    // comment in the middle of a post. This will make transitions seamless when
+    // you click on a link to a comment.
+    useEffect(() => {
+        if (hasInitializedRef.current) return;
+        hasInitializedRef.current = true;
+
+        const messaging = assertExists(messagingRef.current);
+
+        if (initialScrollToMessageIndex !== null)
+            messaging.jumpToMessageIndex(initialScrollToMessageIndex);
+    }, [initialScrollToMessageIndex]);
+
     return (
-        <AppContextProvider value={context}>
-            <MessagingView
-                key={chatKey}
-                initialScrollOffset="bottom"
-                initialMessagesResult={
-                    exactMatch
-                        ? {
-                              messageCount: exactMatch.chat.messageCount,
-                              messages: exactMatch.initialMessages,
-                              otherReferencedMessages: exactMatch.initialOtherReferencedMessages,
-                              lastMessageChangeTime: exactMatch.chat.lastMessageChangeTime,
-                          }
-                        : {
-                              messageCount: 0,
-                              messages: [],
-                              otherReferencedMessages: [],
-                              lastMessageChangeTime: null,
-                          }
-                }
-                header={messagingHeader}
-                randomSeedForShimmer={chatKey}
-                isMessageCreationDisabled={selectedAccounts.length > 0}
-                getMessagesFromStart={useEvent(input => {
-                    if (!chat) {
-                        throw new InternalError(
-                            "Can not load messages when we don't know the chat",
-                        );
-                    }
-                    return getChatMessagesFromStart(context, {...input, chatId: chat.id});
-                })}
-                getMessagesFromEnd={useEvent(input => {
-                    if (!chat) {
-                        throw new InternalError(
-                            "Can not load messages when we don't know the chat",
-                        );
-                    }
-                    return getChatMessagesFromEnd(context, {...input, chatId: chat.id});
-                })}
-                isRealtimeConnected={isRealtimeConnected}
-                sendRealtimeMessage={useCallback(
-                    async message => {
-                        // When we don't know the `ChatId` we can use our `sendChatMessageToAccounts()`
-                        // function which will create a new chat for the provided accounts. Or if a
-                        // chat with the provided accounts already exists it will send to that chat.
-                        if (message.type === "CreateMessage" && !chat) {
-                            const {chat} = await sendChatMessageToAccounts(context, {
-                                spaceId: space.id,
-                                otherAccountIds: selectedAccounts.map(account => account.id),
-                                parentMessageIndex: message.parentMessageIndex,
-                                content: message.content,
-                            });
+        <MessagingView
+            ref={messagingRef}
+            initialScrollOffset="bottom"
+            initialMessagesResult={{
+                messageCount: chat.messageCount,
+                messages: initialMessages,
+                otherReferencedMessages: initialOtherReferencedMessages,
+                lastMessageChangeTime: chat.lastMessageChangeTime,
+            }}
+            header={chatMessagingHeader}
+            randomSeedForShimmer={chat.id}
+            getMessagesFromStart={useCallback(
+                input => getChatMessagesFromStart(context, {...input, chatId: chat.id}),
+                [chat.id, context],
+            )}
+            getMessagesFromEnd={useCallback(
+                input => getChatMessagesFromEnd(context, {...input, chatId: chat.id}),
+                [chat.id, context],
+            )}
+            isRealtimeConnected={isRealtimeConnected}
+            sendRealtimeMessage={useCallback(
+                message => sendRealtimeMessage({type: "ChatMessages", message}),
+                [sendRealtimeMessage],
+            )}
+            subscribeToRealtimeMessages={useCallback(
+                (
+                    subscriber: (
+                        message: MessagingRealtimeMessageFromServer<ChatMessageModel>,
+                    ) => void,
+                ) => {
+                    const actualSubscriber = (message: ChatRealtimeMessageFromServer) => {
+                        // TypeScript will error if we ever add other message types here. At that point
+                        // this code should turn into a switch.
+                        cast<"ChatMessages">(message.type);
+                        subscriber(message.message);
+                    };
 
-                            setChatForChatKey(chatForChatKey => {
-                                if (chatForChatKey.chatKey !== chatKey) return chatForChatKey;
-                                return {chatKey, chat};
-                            });
-                        } else {
-                            await sendRealtimeMessage({type: "ChatMessages", message});
-                        }
-                    },
-                    [chat, chatKey, context, selectedAccounts, sendRealtimeMessage, space.id],
-                )}
-                subscribeToRealtimeMessages={useCallback(
-                    (
-                        subscriber: (
-                            message: MessagingRealtimeMessageFromServer<ChatMessageModel>,
-                        ) => void,
-                    ) => {
-                        const actualSubscriber = (message: ChatRealtimeMessageFromServer) => {
-                            // TypeScript will error if we ever add other message types here. At that point
-                            // this code should turn into a switch.
-                            cast<"ChatMessages">(message.type);
-                            subscriber(message.message);
-                        };
-
-                        return subscribeToRealtimeMessages(actualSubscriber);
-                    },
-                    [subscribeToRealtimeMessages],
-                )}
-                getCopyLinkUrl={useCallback(() => {
-                    throw new UnimplementedError("TODO");
-                }, [])}
-            />
-        </AppContextProvider>
+                    return subscribeToRealtimeMessages(actualSubscriber);
+                },
+                [subscribeToRealtimeMessages],
+            )}
+            getCopyLinkUrl={useCallback(
+                messageIndex =>
+                    new URL(
+                        `/s/${chat.spaceId}/chat/${chat.id}?message=${messageIndex}`,
+                        window.location.href,
+                    ),
+                [chat.id, chat.spaceId],
+            )}
+        />
     );
 }

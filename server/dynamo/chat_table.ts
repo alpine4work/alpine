@@ -1202,6 +1202,49 @@ export function deleteChatMessage(
 }
 
 /**
+ * Get our chat and initial messages that come with it efficiently at once.
+ */
+export async function getChatAndInitialMessagesFromEnd(
+    context: RequestContext,
+    {chatId, messageLimit}: {chatId: ChatId; messageLimit: number},
+): Promise<{
+    chat: ChatModel;
+    messages: ReadonlyArray<ChatMessageModel>;
+    otherReferencedMessages: ReadonlyArray<ChatMessageModel>;
+}> {
+    const chatPromise = getChat(context, chatId).then(chat => {
+        if (!chat) throw new NotFoundError("Chat not found");
+        return chat;
+    });
+
+    const [chat, {messages, otherReferencedMessages}] = await runAllPromises([
+        chatPromise,
+        getChatMessagesFromEndAssumingAuthorizedChat(context, {
+            chatId,
+            getSpaceId: () => chatPromise.then(({spaceId}) => spaceId),
+            limit: messageLimit,
+            afterMessageIndex: null,
+            beforeMessageIndex: null,
+        }),
+    ]);
+
+    const lastMessageIndex = messages.length > 0 ? messages[messages.length - 1]!.index : -1;
+
+    return {
+        chat: chat.clone({
+            messageCount: Math.max(
+                chat.messageCount,
+                // Make sure `messageCount` is consistent with `messages` in case of eventual
+                // consistency race conditions.
+                lastMessageIndex + 1,
+            ),
+        }),
+        messages,
+        otherReferencedMessages,
+    };
+}
+
+/**
  * Paginate through chat messages from start to finish.
  */
 export async function getChatMessagesFromStart(
@@ -1382,7 +1425,7 @@ export async function getChatMessagesFromEnd(
 
     const [chatItem, {messages, otherReferencedMessages}] = await runAllPromises([
         chatItemPromise,
-        getChatMessagesFromEndAssumingAuthorizedPost(context, {
+        getChatMessagesFromEndAssumingAuthorizedChat(context, {
             chatId,
             getSpaceId: () => chatItemPromise.then(({spaceId}) => spaceId),
             limit,
@@ -1407,7 +1450,7 @@ export async function getChatMessagesFromEnd(
     };
 }
 
-async function getChatMessagesFromEndAssumingAuthorizedPost(
+async function getChatMessagesFromEndAssumingAuthorizedChat(
     context: RequestContext,
     {
         chatId,

@@ -7,7 +7,7 @@ import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
-import {getPostAndCommentsFromStart} from "~/server/dynamo/forum_table";
+import {getPostAndInitialCommentsFromStart} from "~/server/dynamo/forum_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
 import {NotFoundError} from "~/shared/error/error";
@@ -27,7 +27,7 @@ export async function loader({params, context}: LoaderArgs) {
 
     const postCommentLimit = getInitialLoadMessageCount(context.loader.clientInfo);
 
-    const postResult = await getPostAndCommentsFromStart(await context.auth.authenticate(), {
+    const postResult = await getPostAndInitialCommentsFromStart(await context.auth.authenticate(), {
         postId,
         postCommentLimit,
     });

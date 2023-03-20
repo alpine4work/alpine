@@ -5,8 +5,8 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {MessageInput, messageInputMinHeight} from "~/client/messaging/message_input";
 import {MessageList} from "~/client/messaging/message_list";
 import {
-    messageViewMargin,
-    messageViewMergedMargin,
+    messageViewMarginY,
+    messageViewMergedMarginY,
     shouldMergeMessages,
 } from "~/client/messaging/message_view";
 import {MessagingRealtimeActions} from "~/client/messaging/use_messaging_realtime";
@@ -107,8 +107,8 @@ export function PostCommentInput({
                 previousPostComment &&
                 firstNewPostComment &&
                 shouldMergeMessages(previousPostComment, firstNewPostComment)
-                    ? convertRemLengthToPx(spacing[messageViewMargin], remPx) -
-                      convertRemLengthToPx(spacing[messageViewMergedMargin], remPx)
+                    ? convertRemLengthToPx(spacing[messageViewMarginY], remPx) -
+                      convertRemLengthToPx(spacing[messageViewMergedMarginY], remPx)
                     : 0);
 
             const viewHeightWithoutCommentInput =

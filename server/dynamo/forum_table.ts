@@ -1004,7 +1004,7 @@ export function deletePostComment(
  * Gets both the post model and the first few comments for the post in
  * one request.
  */
-export async function getPostAndCommentsFromStart(
+export async function getPostAndInitialCommentsFromStart(
     context: RequestContext,
     {
         postId,

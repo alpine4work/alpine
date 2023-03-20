@@ -1,0 +1,108 @@
+import {useSearchParams} from "@remix-run/react";
+import {MetaFunction} from "@remix-run/server-runtime";
+import {LoaderSchema as SpaceRouteLoaderSchema} from "~/app/routes/s/$space_id";
+import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name";
+import {ChatView} from "~/client/chat/chat_view";
+import {Box} from "~/client/design/box";
+import {joinPrettyConjunctionList} from "~/client/design/pretty_conjunction_list";
+import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
+import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema";
+import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
+import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
+import {getChatAndInitialMessagesFromEnd} from "~/server/dynamo/chat_table";
+import {jsonWithSchema} from "~/server/remix/json_with_schema";
+import {LoaderArgs} from "~/server/remix/loader_context";
+import {assert} from "~/shared/helpers/control/assert";
+import {ChatId} from "~/shared/id/types/id_types";
+import {ChatMessageModel, ChatModel} from "~/shared/models/chat_model";
+import {Schema} from "~/shared/schema/schema";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
+
+const LoaderSchema = Schema.object({
+    chat: ChatModel.schema(),
+    messages: Schema.array(ChatMessageModel.schema()),
+    otherReferencedMessages: Schema.array(ChatMessageModel.schema()),
+});
+
+export async function loader({context: _context, params}: LoaderArgs) {
+    const context = await _context.auth.authenticate();
+    const chatId = Schema.id<ChatId>().deserialize(params.chat_id ?? null);
+
+    const {chat, messages, otherReferencedMessages} = await getChatAndInitialMessagesFromEnd(
+        context,
+        {
+            chatId,
+            messageLimit: getInitialLoadMessageCount(context.loader.clientInfo),
+        },
+    );
+
+    const propagateEventData: TracerEventData = {
+        context: {
+            chatId,
+        },
+    };
+
+    return jsonWithSchema(
+        LoaderSchema,
+        {chat, messages, otherReferencedMessages},
+        {propagateEventData},
+    );
+}
+
+export const meta: MetaFunction = ({data, parentsData}) => {
+    const {currentAccount} = getLoaderDataWithSchema(
+        SpaceRouteLoaderSchema,
+        parentsData["routes/s/$space_id"],
+    );
+    const {chat} = getLoaderDataWithSchema(LoaderSchema, data);
+    assert(chat.accounts.length > 0);
+    const otherChatAccounts = chat.accounts.filter(account => account.id !== currentAccount.id);
+
+    return {
+        title:
+            otherChatAccounts.length === 0
+                ? `Chat with yourself${metaTitlePostfix}`
+                : `Chat with ${joinPrettyConjunctionList(
+                      otherChatAccounts.map(account =>
+                          getAccountShortNameWithoutFullNameTooltip(account),
+                      ),
+                  )}${metaTitlePostfix}`,
+    };
+};
+
+export default function ChatRoute({isPeek}: {isPeek?: boolean}) {
+    const [searchParams] = useSearchParams();
+    const {chat, messages, otherReferencedMessages} = useLoaderDataWithSchema(LoaderSchema);
+
+    const messageIndexString = searchParams.get("message");
+    const messageIndex = messageIndexString ? parseInt(messageIndexString, 10) : null;
+
+    return (
+        <Box
+            flexGrow="1"
+            width="full"
+            overflow="hidden"
+            padding={!isPeek ? {desktop: "4"} : undefined}
+            display="flex"
+            justifyContent="center"
+        >
+            <Box
+                maxWidth="160"
+                width="full"
+                height="full"
+                backgroundColor="grey-0"
+                borderRadius={!isPeek ? {desktop: "md"} : undefined}
+                boxShadow="elevation-5"
+            >
+                <ChatView
+                    // Remount whenever we navigate to a different chat.
+                    key={chat.id}
+                    chat={chat}
+                    initialMessages={messages}
+                    initialOtherReferencedMessages={otherReferencedMessages}
+                    initialScrollToMessageIndex={messageIndex}
+                />
+            </Box>
+        </Box>
+    );
+}
