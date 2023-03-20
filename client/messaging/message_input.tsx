@@ -1,5 +1,5 @@
 import {ArrowArcLeft, ArrowUp, X} from "phosphor-react";
-import {useEffect, useMemo, useRef, useState} from "react";
+import {MutableRefObject, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountShortName} from "~/client/accounts/account_short_name";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
@@ -9,6 +9,7 @@ import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
 import {IconButton} from "~/client/design/icon_button";
 import {useShowToast} from "~/client/design/toast";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {MessageList} from "~/client/messaging/message_list";
 import {
     getTruncatedMessageContentForReplyPreview,
@@ -49,6 +50,7 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
     onJumpToMessage,
     withoutBorderTop = false,
     "data-testid": dataTestId,
+    stateRef,
 }: {
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
@@ -64,13 +66,20 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
     onJumpToMessage: (message: Message) => void;
     withoutBorderTop?: boolean;
     "data-testid"?: string;
+    stateRef?: MutableRefObject<ContentEditorState<MessageContent> | null>;
 }) {
     const showToast = useShowToast();
     const {currentAccount} = useSpaceContext();
     const editorRef = useRef<ContentEditorRef>(null);
-    const [state, setState] = useState(() =>
-        ContentEditorState.create<MessageContent>(emptyMessageContentWithReferences),
+    const [state, setState] = useState(
+        () =>
+            stateRef?.current ??
+            ContentEditorState.create<MessageContent>(emptyMessageContentWithReferences),
     );
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (stateRef) stateRef.current = state;
+    });
 
     const replyingToMessage = useMemo(() => {
         if (!_replyingToMessage) return null;

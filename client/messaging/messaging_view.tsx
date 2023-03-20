@@ -11,6 +11,7 @@ import {
     useRef,
     useState,
 } from "react";
+import {ContentEditorState} from "~/client/content/content_editor_state";
 import {Spacer} from "~/client/design/spacer";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
@@ -33,6 +34,7 @@ import {
     VirtualizedScrollViewRenderItem,
     getInitialVirtualizedScrollViewRenderedItemCount,
 } from "~/client/virtualized/virtualized_scroll_view";
+import {MessageContent} from "~/shared/content/message_content_schema";
 import {wait} from "~/shared/helpers/async/wait";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -183,6 +185,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         sendRealtimeMessage,
         subscribeToRealtimeMessages,
         getCopyLinkUrl,
+        inputStateRef,
     }: {
         /**
          * What we call messages in UI copy. Defaults to "message". For example
@@ -295,6 +298,14 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
          * view to this message and highlight it.
          */
         getCopyLinkUrl: Memo<(messageIndex: number) => URL>;
+
+        /**
+         * A ref that we will use to initialize the content in `<MessageInput>`. We
+         * will also write any state updates back into this ref. This was intended for
+         * preserving message input contents across remounts e.g. remounting from a
+         * React `key` change.
+         */
+        inputStateRef?: MutableRefObject<ContentEditorState<MessageContent> | null>;
     },
     ref: Ref<MessagingViewRef>,
 ) {
@@ -637,6 +648,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                 replyingToMessage={replyingToMessage}
                 onClearReplyingToMessage={() => setReplyingToMessage(null)}
                 onJumpToMessage={handleJumpToMessage}
+                stateRef={inputStateRef}
             />
         </div>
     );

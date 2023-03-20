@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-misused-promises */
 
-import {useCallback, useEffect, useMemo, useState} from "react";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {chatMessagingHeader} from "~/client/chat/chat_view";
 import {useWebSocket} from "~/client/cloudflare/use_web_socket";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context";
@@ -79,6 +79,11 @@ export function NewChatMessagingView({
         ChatRealtimeMessageFromServerSchema,
         chat ? `/durable-objects/chat/${chat.id}` : null,
     );
+
+    // This ref is used to preserve the message input state across React key
+    // changes. `<MessageInput>` will write state changes to the ref and initialize
+    // its state from the ref on remount.
+    const inputStateRef = useRef(null);
 
     return (
         <AppContextProvider value={context}>
@@ -179,6 +184,7 @@ export function NewChatMessagingView({
                     },
                     [chat],
                 )}
+                inputStateRef={inputStateRef}
             />
         </AppContextProvider>
     );
