@@ -4,12 +4,15 @@ import {WebSocketServer} from "~/server/cloudflare/web_socket_server";
 import {authorizeChatAccess} from "~/server/dynamo/chat_table";
 import {ProcessContext} from "~/server/dynamo/context/process_context";
 import {RequestContext} from "~/server/dynamo/context/request_context";
+import {ChatRealtimeServiceRpcDefinitions} from "~/server/rpc/services/chat_realtime_service_rpc_definitions";
+import {implementServiceRpcs} from "~/server/rpc/services/implement_service_rpcs";
 import {
     ChatRealtimeMessageFromClient,
     ChatRealtimeMessageFromClientSchema,
     ChatRealtimeMessageFromServer,
     ChatRealtimeMessageFromServerSchema,
 } from "~/shared/chat/chat_realtime_schema";
+import {UnimplementedError} from "~/shared/error/error";
 import {ChatId, SpaceId} from "~/shared/id/types/id_types";
 import {Schema} from "~/shared/schema/schema";
 
@@ -75,11 +78,23 @@ class ChatRealtimeDurableObject {
         );
     }
 
+    private _rpc = implementServiceRpcs(ChatRealtimeServiceRpcDefinitions, {
+        onCreateChatMessage: async () => {
+            throw new UnimplementedError("TODO");
+        },
+        onChangeChatMessage: async () => {
+            throw new UnimplementedError("TODO");
+        },
+    });
+
     public async fetch(context: RequestContext, request: Request): Promise<Response> {
         // Propagate the chat id to all logs for this durable object.
         context = context.tracer.withPropagatedData({
             context: {spaceId: this._spaceId, chatId: this._chatId},
         });
+
+        const rpcResult = this._rpc.handle(context, request);
+        if (rpcResult.handled) return rpcResult.responsePromise;
 
         return this._webSocketServer.upgrade(context, request);
     }

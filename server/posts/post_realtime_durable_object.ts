@@ -4,6 +4,8 @@ import {ProcessContext} from "~/server/dynamo/context/process_context";
 import {RequestContext} from "~/server/dynamo/context/request_context";
 import {authorizePostAccess} from "~/server/dynamo/forum_table";
 import {PostRealtimeConnection} from "~/server/posts/post_realtime_connection";
+import {implementServiceRpcs} from "~/server/rpc/services/implement_service_rpcs";
+import {PostRealtimeServiceRpcDefinitions} from "~/server/rpc/services/post_realtime_service_rpc_definitions";
 import {PostId, SpaceId} from "~/shared/id/types/id_types";
 import {
     PostRealtimeMessageFromClient,
@@ -75,11 +77,16 @@ class PostRealtimeDurableObject {
         );
     }
 
+    private _rpc = implementServiceRpcs(PostRealtimeServiceRpcDefinitions, {});
+
     public async fetch(context: RequestContext, request: Request): Promise<Response> {
         // Propagate the post id to all logs for this durable object.
         context = context.tracer.withPropagatedData({
             context: {spaceId: this._spaceId, postId: this._postId},
         });
+
+        const rpcResult = this._rpc.handle(context, request);
+        if (rpcResult.handled) return rpcResult.responsePromise;
 
         return this._webSocketServer.upgrade(context, request);
     }
