@@ -27,6 +27,7 @@ import {
 } from "~/client/messaging/message_view";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime";
+import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewItem,
@@ -463,7 +464,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     useImperativeHandle(ref, () => ({jumpToMessageIndex}), [jumpToMessageIndex]);
 
     const {actions} = useMessagingRealtime({
-        messages: messagesWithoutHeader,
+        messages: state.messages,
         onUpdateMessages: setMessages,
         isRealtimeConnected,
         sendRealtimeMessage,
@@ -476,6 +477,12 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     // editable at a time.
     const messageEditing = useMessageEditing<RoomKey>({
         onUpdateMessageContent: input => actions.updateMessageContent(input),
+    });
+
+    useScrollToNewMessages({
+        viewRef,
+        messages: state.messages,
+        getMessageViewKey: useCallback(postCommentIndex => `Message:${postCommentIndex}`, []),
     });
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
