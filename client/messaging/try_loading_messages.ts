@@ -1,6 +1,7 @@
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
 import {MessageList} from "~/client/messaging/message_list";
 import {messageViewMinHeight} from "~/client/messaging/message_view";
+import {getVirtualizationWindowHeight} from "~/client/virtualized/virtualized_scroll_view_state";
 import {convertRemLengthToPx} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
 import {MessageModel} from "~/shared/models/message_model";
@@ -58,6 +59,9 @@ export function tryLoadingMessages<Message extends MessageModel>({
     const startMessage = messages.getMessage(range.startIndex);
     const endMessage = messages.getMessage(range.endIndex);
 
+    const firstLoadedMessage = messages.getFirstLoadedMessageAfter(range.startIndex - 1);
+    const hasLoadedMessage = firstLoadedMessage && firstLoadedMessage.index <= range.endIndex;
+
     // Everything rendered is loaded. Yay! Proceed if we need to load some data.
     //
     // TODO(calebmer): If there are some unloaded messages in the middle of the
@@ -65,24 +69,27 @@ export function tryLoadingMessages<Message extends MessageModel>({
     if (startMessage.type !== "Unloaded" && endMessage.type !== "Unloaded")
         return {isLoading: false};
 
-    // The limit of items we will load is two views worth of messages. This gives
-    // the user some space to scroll and read before we need to load more messages.
+    // Load enough items to fill the virtualization window once. This gives the
+    // user some space to scroll and read before we need to load more messages.
     //
-    // If the user did a jump scroll then we will load three views worth of
-    // messages.
+    // If the user did a jump scroll then we load 50% more messages so we have some
+    // buffer above and below the virtualization window.
     const limit = Math.max(
         20,
-        Math.ceil((viewHeight * 2) / convertRemLengthToPx(messageViewMinHeight, remPx)),
+        Math.ceil(
+            getVirtualizationWindowHeight(viewHeight) /
+                convertRemLengthToPx(messageViewMinHeight, remPx),
+        ),
     );
-    const jumpLimitViewCount = 3;
     const jumpLimit = Math.max(
         20,
         Math.ceil(
-            (viewHeight * jumpLimitViewCount) / convertRemLengthToPx(messageViewMinHeight, remPx),
+            (getVirtualizationWindowHeight(viewHeight) * 1.5) /
+                convertRemLengthToPx(messageViewMinHeight, remPx),
         ),
     );
 
-    if (startMessage.type !== "Unloaded" && endMessage.type === "Unloaded") {
+    if (endMessage.type === "Unloaded" && hasLoadedMessage) {
         const afterMessageIndex =
             messages.getLastLoadedMessageBefore(range.endIndex)?.index ?? null;
 
@@ -104,7 +111,7 @@ export function tryLoadingMessages<Message extends MessageModel>({
         };
     }
 
-    if (startMessage.type === "Unloaded" && endMessage.type !== "Unloaded") {
+    if (startMessage.type === "Unloaded" && hasLoadedMessage) {
         const afterMessageIndex =
             messages.getLastLoadedMessageBefore(range.startIndex)?.index ?? null;
 
@@ -126,11 +133,11 @@ export function tryLoadingMessages<Message extends MessageModel>({
         };
     }
 
-    // If neither of the messages in our rendered range are loaded then this is a
-    // jump scroll. During a jump scroll we take advantage of the fact that message
-    // `id`s are mostly dense to pick a message `id` at roughly the same percentage
-    // the user has scrolled. We load data in at that point and scroll it
-    // into view.
+    // If our range has no loaded messages then this is a jump scroll. During a
+    // jump scroll we take advantage of the fact that message `id`s are mostly
+    // dense to pick a message `id` at roughly the same percentage the user has
+    // scrolled. We load data in at that point and scroll it into view.
+    assert(!hasLoadedMessage);
     assert(startMessage.type === "Unloaded" && endMessage.type === "Unloaded");
 
     const messageBeforeUnloadedSegment = messages.getLastLoadedMessageBefore(range.startIndex);
@@ -146,7 +153,7 @@ export function tryLoadingMessages<Message extends MessageModel>({
         isLoading: true,
         wasJump: true,
         promise: loadFromStart({
-            afterMessageIndex,
+            afterMessageIndex: afterMessageIndex >= 0 ? afterMessageIndex : null,
             beforeMessageIndex: messageAfterUnloadedSegment?.index ?? null,
             limit: jumpLimit,
         }),
