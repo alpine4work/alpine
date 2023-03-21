@@ -205,7 +205,7 @@ export function ChatAccountPicker({
         items: searchedItems,
         children: item => (
             <Item textValue={item.textValue}>
-                <ChatAccountMemberPickerListBoxOptionItem item={item} />
+                <ChatAccountPickerListBoxOptionItem item={item} />
             </Item>
         ),
 
@@ -438,7 +438,7 @@ export function ChatAccountPicker({
             offset="-1"
             overlay={
                 <Box ref={popoverRef} position="relative">
-                    <ChatAccountMemberPickerListBox
+                    <ChatAccountPickerListBox
                         comboBoxState={comboBoxState}
                         listBoxRef={listBoxRef}
                         listBoxProps={listBoxProps}
@@ -458,6 +458,7 @@ export function ChatAccountPicker({
                 }
             >
                 <Box
+                    data-testid="ChatAccountPickerInput"
                     // Border radius for the focus ring
                     borderTopRadius={{desktop: "md"}}
                     display="flex"
@@ -567,7 +568,7 @@ export function ChatAccountPicker({
     );
 }
 
-function ChatAccountMemberPickerListBox({
+function ChatAccountPickerListBox({
     comboBoxState,
     listBoxRef,
     listBoxProps: _listBoxProps,
@@ -609,7 +610,7 @@ function ChatAccountMemberPickerListBox({
                 </Box>
             ) : (
                 Array.from(comboBoxState.collection, item => (
-                    <ChatAccountMemberPickerListBoxOption
+                    <ChatAccountPickerListBoxOption
                         key={item.key}
                         comboBoxState={comboBoxState}
                         item={item}
@@ -620,7 +621,7 @@ function ChatAccountMemberPickerListBox({
     );
 }
 
-function ChatAccountMemberPickerListBoxOption({
+function ChatAccountPickerListBoxOption({
     comboBoxState,
     item,
 }: {
@@ -666,7 +667,7 @@ function ChatAccountMemberPickerListBoxOption({
     );
 }
 
-function ChatAccountMemberPickerListBoxOptionItem({
+function ChatAccountPickerListBoxOptionItem({
     item,
     isPressed,
 }: {

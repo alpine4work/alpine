@@ -19,6 +19,7 @@ import {
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
 import {borderRadius} from "~/shared/styles/internal/border_radius.css";
 import {
+    CssVarFunction,
     colorSchemeVars,
     darkColorSchemeSelector,
     elevationVars,
@@ -225,7 +226,7 @@ const responsiveProperties = defineProperties({
 
 const colorSchemeVarsWithTransparent = {...colorSchemeVars, transparent: "transparent"};
 
-export const backgroundColorVar = createVar("background-color");
+export const backgroundColorVar: CssVarFunction = createVar("background-color");
 
 const colorProperties = defineProperties({
     conditions: {

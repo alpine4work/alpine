@@ -13,12 +13,7 @@ import {addRemLengths, negateRemLength, spacing} from "~/shared/design/spacing";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise";
 import {AccountModel} from "~/shared/models/account_model";
-import {
-    backgroundColorVar,
-    colorSchemeVars,
-    spinAnimationClassName,
-    sprinkles,
-} from "~/shared/styles/styles";
+import {backgroundColorVar, spinAnimationClassName, sprinkles} from "~/shared/styles/styles";
 
 export type AccountAvatarPileSize = "6" | "12";
 

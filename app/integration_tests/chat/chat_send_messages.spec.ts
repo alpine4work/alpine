@@ -27,38 +27,32 @@ test("chat message stays when changing chat selection", async ({page, context: b
     );
     await expect(page.getByRole("button", {name: "Send message"})).toBeDisabled();
 
-    await expect(page.getByText("Siobahn Roy")).toBeHidden();
-    await expect(page.getByText("Kendall Roy")).toBeHidden();
+    await expect(page.getByTestId("ChatAccountPickerInput").getByText("Siobahn Roy")).toBeHidden();
+    await expect(page.getByTestId("ChatAccountPickerInput").getByText("Kendall Roy")).toBeHidden();
 
     await page.getByRole("combobox", {name: "To"}).click();
+    await expect(page.getByRole("listbox", {name: "Suggestions"})).toBeVisible();
     await page.getByText("Siobahn Roy").click();
+    await expect(page.getByRole("listbox", {name: "Suggestions"})).toBeHidden();
 
-    await expect(page.getByText("Siobahn Roy")).toBeVisible();
-    await expect(page.getByText("Kendall Roy")).toBeHidden();
+    await expect(page.getByTestId("ChatAccountPickerInput").getByText("Siobahn Roy")).toBeVisible();
+    await expect(page.getByTestId("ChatAccountPickerInput").getByText("Kendall Roy")).toBeHidden();
 
     await expect(page.getByRole("textbox", {name: "New message"})).toHaveText(
         "This is some message content",
     );
     await expect(page.getByRole("button", {name: "Send message"})).toBeEnabled();
 
-    await expect(page.getByText("Siobahn Roy")).toBeVisible();
-    await expect(page.getByText("Kendall Roy")).toBeHidden();
+    await expect(page.getByTestId("ChatAccountPickerInput").getByText("Siobahn Roy")).toBeVisible();
+    await expect(page.getByTestId("ChatAccountPickerInput").getByText("Kendall Roy")).toBeHidden();
 
     await page.getByRole("combobox", {name: "To"}).click();
+    await expect(page.getByRole("listbox", {name: "Suggestions"})).toBeVisible();
     await page.getByText("Kendall Roy").click();
+    await expect(page.getByRole("listbox", {name: "Suggestions"})).toBeHidden();
 
-    await expect(page.getByText("Siobahn Roy")).toBeVisible();
-    await expect(page.getByText("Kendall Roy")).toBeVisible();
-
-    await expect(page.getByRole("textbox", {name: "New message"})).toHaveText(
-        "This is some message content",
-    );
-    await expect(page.getByRole("button", {name: "Send message"})).toBeEnabled();
-
-    await page.getByRole("combobox", {name: "To"}).press("Backspace");
-
-    await expect(page.getByText("Kendall Roy")).toBeHidden();
-    await expect(page.getByText("Siobahn Roy")).toBeVisible();
+    await expect(page.getByTestId("ChatAccountPickerInput").getByText("Siobahn Roy")).toBeVisible();
+    await expect(page.getByTestId("ChatAccountPickerInput").getByText("Kendall Roy")).toBeVisible();
 
     await expect(page.getByRole("textbox", {name: "New message"})).toHaveText(
         "This is some message content",
@@ -67,8 +61,18 @@ test("chat message stays when changing chat selection", async ({page, context: b
 
     await page.getByRole("combobox", {name: "To"}).press("Backspace");
 
-    await expect(page.getByText("Siobahn Roy")).toBeHidden();
-    await expect(page.getByText("Kendall Roy")).toBeHidden();
+    await expect(page.getByTestId("ChatAccountPickerInput").getByText("Kendall Roy")).toBeHidden();
+    await expect(page.getByTestId("ChatAccountPickerInput").getByText("Siobahn Roy")).toBeVisible();
+
+    await expect(page.getByRole("textbox", {name: "New message"})).toHaveText(
+        "This is some message content",
+    );
+    await expect(page.getByRole("button", {name: "Send message"})).toBeEnabled();
+
+    await page.getByRole("combobox", {name: "To"}).press("Backspace");
+
+    await expect(page.getByTestId("ChatAccountPickerInput").getByText("Siobahn Roy")).toBeHidden();
+    await expect(page.getByTestId("ChatAccountPickerInput").getByText("Kendall Roy")).toBeHidden();
 
     await expect(page.getByRole("textbox", {name: "New message"})).toHaveText(
         "This is some message content",
@@ -98,6 +102,7 @@ test("send chat message to another account", async ({page, context: browserConte
 
     await page.getByText("Siobahn Roy").click();
 
+    await expect(page.getByRole("button", {name: "Send message"})).toBeDisabled();
     await expect(page.getByRole("textbox", {name: "New message"})).toHaveText("");
     await page.getByRole("textbox", {name: "New message"}).type("Test message content 1");
     await expect(page.getByRole("textbox", {name: "New message"})).toHaveText(
@@ -314,21 +319,45 @@ test("includes recommended group chats for autocomplete", async ({
     await expect(page.getByText("Test message content 2")).toBeHidden();
     await expect(page.getByText("Test message content 3")).toBeHidden();
 
-    await expect(page.getByText("Siobahn Roy")).toBeHidden();
-    await expect(page.getByText("Kendall Roy")).toBeHidden();
-    await expect(page.getByText("Kendall and Siobahn")).toBeHidden();
+    await expect(page.getByTestId("ChatAccountPickerInput").getByText("Siobahn Roy")).toBeHidden();
+    await expect(page.getByTestId("ChatAccountPickerInput").getByText("Kendall Roy")).toBeHidden();
+    await expect(
+        page.getByRole("listbox", {name: "Suggestions"}).getByText("Siobahn Roy"),
+    ).toBeHidden();
+    await expect(
+        page.getByRole("listbox", {name: "Suggestions"}).getByText("Kendall Roy"),
+    ).toBeHidden();
+    await expect(
+        page.getByRole("listbox", {name: "Suggestions"}).getByText("Kendall and Siobahn"),
+    ).toBeHidden();
 
     await page.getByRole("combobox", {name: "To"}).click();
 
-    await expect(page.getByText("Siobahn Roy")).toBeVisible();
-    await expect(page.getByText("Kendall Roy")).toBeVisible();
-    await expect(page.getByText("Kendall and Siobahn")).toBeHidden();
+    await expect(page.getByTestId("ChatAccountPickerInput").getByText("Siobahn Roy")).toBeHidden();
+    await expect(page.getByTestId("ChatAccountPickerInput").getByText("Kendall Roy")).toBeHidden();
+    await expect(
+        page.getByRole("listbox", {name: "Suggestions"}).getByText("Siobahn Roy"),
+    ).toBeVisible();
+    await expect(
+        page.getByRole("listbox", {name: "Suggestions"}).getByText("Kendall Roy"),
+    ).toBeVisible();
+    await expect(
+        page.getByRole("listbox", {name: "Suggestions"}).getByText("Kendall and Siobahn"),
+    ).toBeHidden();
 
     await page.getByRole("combobox", {name: "To"}).type("Siobahn");
 
-    await expect(page.getByText("Kendall Roy")).toBeHidden();
-    await expect(page.getByText("Siobahn Roy")).toBeVisible();
-    await expect(page.getByText("Kendall and Siobahn")).toBeHidden();
+    await expect(page.getByTestId("ChatAccountPickerInput").getByText("Siobahn Roy")).toBeHidden();
+    await expect(page.getByTestId("ChatAccountPickerInput").getByText("Kendall Roy")).toBeHidden();
+    await expect(
+        page.getByRole("listbox", {name: "Suggestions"}).getByText("Siobahn Roy"),
+    ).toBeVisible();
+    await expect(
+        page.getByRole("listbox", {name: "Suggestions"}).getByText("Kendall Roy"),
+    ).toBeHidden();
+    await expect(
+        page.getByRole("listbox", {name: "Suggestions"}).getByText("Kendall and Siobahn"),
+    ).toBeHidden();
 
     await expect(page.getByText("Test message content 1")).toBeHidden();
     await expect(page.getByText("Test message content 2")).toBeHidden();
@@ -342,15 +371,31 @@ test("includes recommended group chats for autocomplete", async ({
 
     await page.getByRole("combobox", {name: "To"}).click();
 
-    await expect(page.getByText("Kendall Roy")).toBeVisible();
-    await expect(page.getByText("Siobahn Roy")).toBeVisible();
-    await expect(page.getByText("Kendall and Siobahn")).toBeVisible();
+    await expect(page.getByTestId("ChatAccountPickerInput").getByText("Siobahn Roy")).toBeVisible();
+    await expect(page.getByTestId("ChatAccountPickerInput").getByText("Kendall Roy")).toBeHidden();
+    await expect(
+        page.getByRole("listbox", {name: "Suggestions"}).getByText("Siobahn Roy"),
+    ).toBeHidden();
+    await expect(
+        page.getByRole("listbox", {name: "Suggestions"}).getByText("Kendall Roy"),
+    ).toBeVisible();
+    await expect(
+        page.getByRole("listbox", {name: "Suggestions"}).getByText("Kendall and Siobahn"),
+    ).toBeVisible();
 
     await page.getByText("Kendall and Siobahn").click();
 
-    await expect(page.getByText("Kendall and Siobahn")).toBeHidden();
-    await expect(page.getByText("Siobahn Roy")).toBeVisible();
-    await expect(page.getByText("Kendall Roy")).toBeVisible();
+    await expect(page.getByTestId("ChatAccountPickerInput").getByText("Siobahn Roy")).toBeVisible();
+    await expect(page.getByTestId("ChatAccountPickerInput").getByText("Kendall Roy")).toBeVisible();
+    await expect(
+        page.getByRole("listbox", {name: "Suggestions"}).getByText("Siobahn Roy"),
+    ).toBeHidden();
+    await expect(
+        page.getByRole("listbox", {name: "Suggestions"}).getByText("Kendall Roy"),
+    ).toBeHidden();
+    await expect(
+        page.getByRole("listbox", {name: "Suggestions"}).getByText("Kendall and Siobahn"),
+    ).toBeHidden();
 
     await expect(page.getByText("Test message content 1")).toBeHidden();
     await expect(page.getByText("Test message content 2")).toBeHidden();
@@ -428,10 +473,9 @@ test("can send self a message", async ({page, context: browserContext}) => {
     await server.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/chat/new`);
 
-    await expect(page.getByText("Logan Roy")).toBeHidden();
-    await expect(page.getByText("Siobahn Roy")).toBeHidden();
-    await expect(page.getByText("Kendall Roy")).toBeHidden();
-    await expect(page.getByText("Kendall and Siobahn")).toBeHidden();
+    await expect(page.getByTestId("ChatAccountPickerInput").getByText("Logan Roy")).toBeHidden();
+    await expect(page.getByTestId("ChatAccountPickerInput").getByText("Siobahn Roy")).toBeHidden();
+    await expect(page.getByTestId("ChatAccountPickerInput").getByText("Kendall Roy")).toBeHidden();
 
     await expect(page.getByText("Test message content 1")).toBeHidden();
     await expect(page.getByText("Test message content 2")).toBeHidden();
@@ -440,11 +484,6 @@ test("can send self a message", async ({page, context: browserContext}) => {
 
     await page.getByRole("combobox", {name: "To"}).click();
 
-    await expect(page.getByText("Logan Roy")).toBeVisible();
-    await expect(page.getByText("Siobahn Roy")).toBeVisible();
-    await expect(page.getByText("Kendall Roy")).toBeVisible();
-    await expect(page.getByText("Kendall and Siobahn")).toBeHidden();
-
     await expect(page.getByText("Test message content 1")).toBeHidden();
     await expect(page.getByText("Test message content 2")).toBeHidden();
     await expect(page.getByText("Test message content 3")).toBeHidden();
@@ -452,10 +491,9 @@ test("can send self a message", async ({page, context: browserContext}) => {
 
     await page.getByText("Logan Roy").click();
 
-    await expect(page.getByText("Siobahn Roy")).toBeHidden();
-    await expect(page.getByText("Kendall Roy")).toBeHidden();
-    await expect(page.getByText("Kendall and Siobahn")).toBeHidden();
-    await expect(page.getByText("Logan Roy")).toBeVisible();
+    await expect(page.getByTestId("ChatAccountPickerInput").getByText("Logan Roy")).toBeVisible();
+    await expect(page.getByTestId("ChatAccountPickerInput").getByText("Siobahn Roy")).toBeHidden();
+    await expect(page.getByTestId("ChatAccountPickerInput").getByText("Kendall Roy")).toBeHidden();
 
     await expect(page.getByText("Test message content 1")).toBeHidden();
     await expect(page.getByText("Test message content 2")).toBeHidden();
@@ -475,8 +513,7 @@ test("can send self a message", async ({page, context: browserContext}) => {
     await expect(page.getByText("Test message content 2")).toBeHidden();
     await expect(page.getByText("Test message content 3")).toBeHidden();
 
-    await expect(page.getByText("Logan Roy")).toBeVisible();
-    await expect(page.getByText("Siobahn Roy")).toBeHidden();
-    await expect(page.getByText("Kendall Roy")).toBeHidden();
-    await expect(page.getByText("Kendall and Siobahn")).toBeHidden();
+    await expect(page.getByTestId("ChatAccountPickerInput").getByText("Logan Roy")).toBeVisible();
+    await expect(page.getByTestId("ChatAccountPickerInput").getByText("Siobahn Roy")).toBeHidden();
+    await expect(page.getByTestId("ChatAccountPickerInput").getByText("Kendall Roy")).toBeHidden();
 });

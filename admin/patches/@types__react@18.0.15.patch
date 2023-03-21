@@ -6,7 +6,7 @@ index 50f1817d786262b69d1ea72fba99c37ca8169ebb..d1c167e161d8360d3d70b53e236d706c
  export = React;
  export as namespace React;
  
-+declare const MEMO: unique symbol;
++export declare const MEMO: unique symbol;
 +
  declare namespace React {
      //

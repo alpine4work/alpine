@@ -1,4 +1,3 @@
-import {IdentityType} from "~/shared/helpers/types/identity_type";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection";
 
 /**

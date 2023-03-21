@@ -14,6 +14,7 @@ ts_project(
         "//client/design",
         "//client/helpers",
         "//client/peek",
+        "//client/rpc",
         "//shared/helpers",
         "//shared/models",
         "//shared/rpc",

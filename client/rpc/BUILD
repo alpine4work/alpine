@@ -7,7 +7,10 @@ ts_project(
         "//client:__subpackages__",
     ],
     deps = [
+        "//:node_modules/@types/react",
+        "//:node_modules/react",
         "//:node_modules/swr",
+        "//client/context",
         "//shared/context",
         "//shared/error",
         "//shared/helpers",
