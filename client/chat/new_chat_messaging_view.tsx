@@ -131,6 +131,27 @@ export function NewChatMessagingView({
                         // function which will create a new chat for the provided accounts. Or if a
                         // chat with the provided accounts already exists it will send to that chat.
                         if (message.type === "CreateMessage" && !chat) {
+                            // TODO(calebmer): There's a pretty bad bug here! Because we create this
+                            // message by calling an RPC instead of sending a realtime message, then if a
+                            // chat already exists we won't send a realtime message to that chat's durable
+                            // object. This means chat realtime for anyone looking at the chat will stall
+                            // (because messaging realtime services can't send a message N + 1 until it
+                            // sends message N but in this case message N never arrives).
+                            //
+                            // Long-term, the way I want to architect this is the the implementation of
+                            // this function on the server (and functions like it including
+                            // `updateChatMessageContent()` and `deleteChatMessage()`) invokes a durable
+                            // object stub that sends an event to connected clients. Then you directly
+                            // invoke these functions directly instead of invoking them indirectly through
+                            // a durable object message type.
+                            //
+                            // I want to think a little more carefully about our services framework before
+                            // implementing this. I'd like the chat realtime service to expose a private
+                            // interface only to the `chat_table.ts` file to force developers to go through
+                            // `chat_table.ts`. This will require some Bazel gymnastics. Given I know I
+                            // want to move RPC execution to its own service in EC2 near DynamoDB (to
+                            // improve latencies) and I know I'll probably want an attachment service at
+                            // some point I'd like to save a larger services refactor for later.
                             const {chat} = await sendChatMessageToAccounts(context, {
                                 spaceId: space.id,
                                 otherAccountIds: selectedAccounts.map(account => account.id),
