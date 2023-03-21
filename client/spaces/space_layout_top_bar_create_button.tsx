@@ -145,6 +145,7 @@ function SpaceLayoutTopBarCreateButtonItem({
             display="flex"
             alignItems="center"
             gap="3"
+            aria-label={label}
         >
             <Box
                 flexShrink="0"

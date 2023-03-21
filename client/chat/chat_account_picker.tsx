@@ -194,7 +194,7 @@ export function ChatAccountPicker({
     }, [shouldOverlayAnimate]);
 
     const comboBoxProps: ComboBoxStateOptions<ChatAccountPickerItem> = {
-        label: "To:",
+        label: "To",
         menuTrigger: "input",
         // Don't close when there are no items.
         allowsEmptyCollection: true,
@@ -477,6 +477,7 @@ export function ChatAccountPicker({
                         })}
                     >
                         {comboBoxProps.label}
+                        <span aria-hidden={true}>:</span>
                     </label>
                     <Box
                         flexGrow="1"
@@ -550,6 +551,8 @@ export function ChatAccountPicker({
                         </Box>
                         <IconButton
                             {...buttonProps}
+                            // The button has its own label so we don't need one from `react-aria`.
+                            aria-labelledby={undefined}
                             ref={buttonRef}
                             size="xs"
                             description="Toggle"

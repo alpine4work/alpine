@@ -10,7 +10,8 @@ ts_playwright_tests(
     ],
     skip_projects_by_src = {
         # Peeks only work on desktop.
-        "peek/peek.spec.ts": ["webkit_mobile"],
+        "chat/chat_peek.spec.ts": ["webkit_mobile"],
+        "documents/document_peek.spec.ts": ["webkit_mobile"],
     },
     deps = [
         "//:node_modules/@types/node",

@@ -609,6 +609,7 @@ function PeekStackDraggable({
     return (
         <>
             <Box
+                data-testid="PeekStack"
                 ref={setDraggableNodeRef}
                 position="absolute"
                 bottom="0"
