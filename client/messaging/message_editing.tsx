@@ -2,6 +2,7 @@ import {MutableRefObject, useEffect, useMemo, useReducer} from "react";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {useShowToast} from "~/client/design/toast";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
+import {isContentEmpty} from "~/shared/content/is_content_empty";
 import {MessageContent} from "~/shared/content/message_content_schema";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {omitObject} from "~/shared/helpers/object/omit_object";
@@ -17,7 +18,7 @@ export type MessageEditingState<RoomKey extends string> =
           readonly messageIndex: number;
           readonly contentEditorState: ContentEditorState<MessageContent>;
           readonly initialContent: MessageContent;
-          readonly isConfirmingSave: boolean;
+          readonly confirmationDialog: "Save" | "Delete" | null;
           readonly returnFocusAfterEditing: (() => void) | null;
       } & (
           | {
@@ -43,7 +44,14 @@ export type MessageEditingAction<RoomKey extends string> =
           readonly contentEditorState: ContentEditorState<MessageContent>;
       }
     | {
-          readonly type: "CancelEditing" | "MaybeCancelEditing" | "CancelConfirmingSave";
+          readonly type: "CancelEditing";
+      }
+    | {
+          readonly type: "MaybeCancelEditing";
+      }
+    | {
+          readonly type: "CloseConfirmingDialog";
+          readonly confirmationDialog: "Save" | "Delete";
       }
     | {
           readonly type: "SaveEditedContent";
@@ -68,7 +76,7 @@ function reduce<RoomKey extends string>(
                 initialContent: action.messagePayload.content.doc,
                 returnFocusAfterEditing: action.returnFocusAfterEditing,
                 isSaving: false,
-                isConfirmingSave: false,
+                confirmationDialog: null,
             };
         }
         case "ContentEditorStateChange": {
@@ -85,7 +93,9 @@ function reduce<RoomKey extends string>(
             };
         }
         case "MaybeCancelEditing": {
-            if (!state.isEditing || state.isSaving) return state;
+            if (!state.isEditing || state.isSaving || state.confirmationDialog !== null)
+                return state;
+
             if (state.contentEditorState.getDoc() === state.initialContent) {
                 return {
                     isEditing: false,
@@ -93,23 +103,36 @@ function reduce<RoomKey extends string>(
             } else {
                 return {
                     ...state,
-                    isConfirmingSave: true,
+                    confirmationDialog: "Save",
                 };
             }
         }
-        case "CancelConfirmingSave": {
-            if (!state.isEditing || state.isSaving || !state.isConfirmingSave) return state;
-            return {...state, isConfirmingSave: false};
+        case "CloseConfirmingDialog": {
+            if (
+                !state.isEditing ||
+                state.isSaving ||
+                state.confirmationDialog !== action.confirmationDialog
+            ) {
+                return state;
+            }
+            return {...state, confirmationDialog: null};
         }
         case "SaveEditedContent": {
             if (!state.isEditing || state.isSaving) return state;
 
-            return {
-                ...state,
-                isSaving: true,
-                isAwaitingSaveRef: {current: false},
-                messageNoun: action.messageNoun,
-            };
+            if (isContentEmpty(state.contentEditorState.getDoc())) {
+                return {
+                    ...state,
+                    confirmationDialog: "Delete",
+                };
+            } else {
+                return {
+                    ...state,
+                    isSaving: true,
+                    isAwaitingSaveRef: {current: false},
+                    messageNoun: action.messageNoun,
+                };
+            }
         }
         case "FinishedSavingContent": {
             if (!state.isEditing || !state.isSaving) return state;

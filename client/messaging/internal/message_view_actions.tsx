@@ -4,9 +4,9 @@ import {useFocusVisible, useFocusWithin} from "react-aria";
 import {Box} from "~/client/design/box";
 import {IconButton} from "~/client/design/icon_button";
 import {MenuAction, MenuButton} from "~/client/design/menu_button";
-import {ModalDialog} from "~/client/design/modal_dialog";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard";
+import {MessageDeleteConfirmationDialog} from "~/client/messaging/internal/message_delete_confirmation_dialog";
 import {MessageEditing} from "~/client/messaging/message_editing";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {spacing} from "~/shared/design/spacing";
@@ -26,6 +26,7 @@ interface MessageViewActionsProps<RoomKey extends string> {
     isEditing: boolean;
     getCopyLinkUrl: (messageIndex: number) => URL;
 }
+
 export function MessageViewActions<RoomKey extends string>(
     props: MessageViewActionsProps<RoomKey>,
 ) {
@@ -181,26 +182,5 @@ export function StandardMessageViewActions<RoomKey extends string>({
                 />
             )}
         </Box>
-    );
-}
-
-function MessageDeleteConfirmationDialog({
-    messageNoun,
-    onClose,
-    onDeleteMessage,
-}: {
-    messageNoun: string;
-    onClose: () => void;
-    onDeleteMessage: () => Promise<void>;
-}) {
-    return (
-        <ModalDialog
-            title={`Delete ${messageNoun}`}
-            description={`Everyone will still be able to see that you sent a ${messageNoun} and the time you sent it, but they will not be able to see what was in the ${messageNoun}.`}
-            onClose={onClose}
-            primaryButtonLabel="Delete"
-            primaryButtonPressErrorTitle={`Couldn’t delete ${messageNoun}`}
-            onPrimaryButtonPress={onDeleteMessage}
-        />
     );
 }

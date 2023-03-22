@@ -41,6 +41,8 @@ function MessageViewEditor<RoomKey extends string>(
 ) {
     assert(messageEditing.state.isEditing);
 
+    const state = messageEditing.state.contentEditorState;
+
     return (
         <FocusRing offset="border" isVisibleWhenFocusWithin={true} isVisibleFromAnyFocus={true}>
             <Box
@@ -69,7 +71,7 @@ function MessageViewEditor<RoomKey extends string>(
                 <MessageContentEditor
                     parentRef={ref}
                     messageStartOfSentenceNoun={messageStartOfSentenceNoun}
-                    state={messageEditing.state.contentEditorState}
+                    state={state}
                     isSaving={messageEditing.state.isSaving}
                     onChange={state => {
                         messageEditing.dispatch({
@@ -78,12 +80,12 @@ function MessageViewEditor<RoomKey extends string>(
                         });
                     }}
                     onCancel={() => messageEditing.dispatch({type: "CancelEditing"})}
-                    onSave={() =>
+                    onSave={() => {
                         messageEditing.dispatch({
                             type: "SaveEditedContent",
                             messageNoun,
-                        })
-                    }
+                        });
+                    }}
                 />
             </Box>
         </FocusRing>
