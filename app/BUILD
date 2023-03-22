@@ -96,6 +96,13 @@ opt_compilation_mode(
     src = ":app",
 )
 
+# TODO(calebmer): We will have to write our own implementation of
+# `wrangler publish` someday. It does not do deploys safely. First it deletes
+# all old assets from the asset store. We should probably keep old assets
+# around for a bit before deleting them for users currently in the product.
+# Then if the worker script deploy fails (perhaps startup speed exceeds CPU
+# time limit) the old assets will be deleted but the new ones will not
+# have uploaded!
 wrangler_bin.wrangler_binary(
     name = "wrangler_publish",
     args = ["publish"],

@@ -1,6 +1,7 @@
 import {DocumentContentSchema} from "~/shared/content/document_content_schema";
+import {Lazy} from "~/shared/helpers/control/lazy";
 
-export function dummyDocumentContent() {
+export const dummyDocumentContent = new Lazy(() => {
     return DocumentContentSchema.deserialize({
         type: "doc",
         content: [
@@ -201,4 +202,4 @@ export function dummyDocumentContent() {
             },
         ],
     });
-}
+});

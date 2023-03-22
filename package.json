@@ -159,7 +159,8 @@
     "pnpm": {
         "updateNotifier": false,
         "overrides": {
-            "esbuild": "0.17.10"
+            "@remix-run/dev@1.7.5>esbuild": "0.17.10",
+            "@vanilla-extract/integration@5.0.1>esbuild": "0.17.10"
         },
         "patchedDependencies": {
             "prosemirror-view@1.27.2": "admin/patches/prosemirror-view@1.27.2.patch",

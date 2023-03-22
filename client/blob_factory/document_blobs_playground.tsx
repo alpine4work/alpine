@@ -66,7 +66,10 @@ function DocumentBlobsPreview({settings}: {settings: DocumentBlobFactorySettings
     const [containerRef, containerRect] = useResizeObserver();
 
     const editorState = useConstant(() =>
-        ContentEditorState.create({doc: documentContent, references: emptyContentReferences}),
+        ContentEditorState.create({
+            doc: dummyDocumentContent.get(),
+            references: emptyContentReferences,
+        }),
     );
 
     return (
@@ -117,5 +120,3 @@ function DocumentBlobsPreview({settings}: {settings: DocumentBlobFactorySettings
         </Box>
     );
 }
-
-const documentContent = dummyDocumentContent();
