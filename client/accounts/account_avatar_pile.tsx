@@ -121,14 +121,20 @@ export function AccountAvatarPile({
                             style={{
                                 boxShadow: `0px 0px 0px ${borderWidth}px ${backgroundColorVar}`,
                             }}
-                            backgroundColor="grey-10"
-                            fontSize={overflowFontSize}
-                            color="grey-70"
-                            display="flex"
-                            justifyContent="center"
-                            alignItems="center"
                         >
-                            +{accountCount - previewAccounts.length}
+                            <Box
+                                height={avatarSize}
+                                width={avatarSize}
+                                borderRadius="full"
+                                backgroundColor="grey-10"
+                                fontSize={overflowFontSize}
+                                color="grey-70"
+                                display="flex"
+                                justifyContent="center"
+                                alignItems="center"
+                            >
+                                +{accountCount - previewAccounts.length}
+                            </Box>
                         </Box>
                     </AsyncTooltip>
                 </Box>
