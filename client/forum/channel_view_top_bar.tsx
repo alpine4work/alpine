@@ -268,7 +268,10 @@ function ChannelEditDescriptionModal({
                                                 hasContentChanged || transaction.docChanged,
                                         }));
                                     }}
-                                    onModEnter={pressPrimaryButton}
+                                    onModEnter={event => {
+                                        event.preventDefault();
+                                        pressPrimaryButton();
+                                    }}
                                     className={sprinkles({
                                         paddingX: "0.5",
                                         paddingY: "2",

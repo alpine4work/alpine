@@ -13,7 +13,7 @@ import {isElementOwnedBy} from "~/client/helpers/is_element_owned_by";
 import {MessageEditing} from "~/client/messaging/message_editing";
 import {MessageList} from "~/client/messaging/message_list";
 import {MessageViewActions} from "~/client/messaging/message_view_actions";
-import {MessageViewEditor} from "~/client/messaging/message_view_editor";
+import {MessageViewEditor, MessageViewEditorRef} from "~/client/messaging/message_view_editor";
 import {useIsPeekAnimatingOpen} from "~/client/peek/peek_stack";
 import {
     MessageContentProsemirrorSchema,
@@ -185,7 +185,48 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             ? messageEditing
             : null;
 
-    const shouldFocusMessageContentEditorRef = useRef(false);
+    const messageEditorRef = useRef<MessageViewEditorRef>(null);
+    const returnFocusAfterMessageEditingRef = useRef<(() => void) | null>(null);
+    const wasConfirmingMessageEditingSaveRef = useRef(false);
+
+    useEffect(() => {
+        // When we finish editing, call the return focus function if there was one on
+        // our message editing state.
+        {
+            const returnFocusAfterEditing =
+                messageEditingForThisMessage && messageEditing.state.isEditing
+                    ? messageEditing.state.returnFocusAfterEditing
+                    : null;
+
+            if (
+                returnFocusAfterMessageEditingRef.current !== null &&
+                returnFocusAfterEditing === null
+            ) {
+                returnFocusAfterMessageEditingRef.current();
+            }
+
+            returnFocusAfterMessageEditingRef.current = returnFocusAfterEditing;
+        }
+
+        // If the "confirm save" modal closes and we're still editing then return focus
+        // to the message editor.
+        {
+            const isConfirmingSave =
+                !!messageEditingForThisMessage &&
+                messageEditing.state.isEditing &&
+                messageEditing.state.isConfirmingSave;
+
+            if (
+                wasConfirmingMessageEditingSaveRef.current &&
+                !isConfirmingSave &&
+                messageEditingForThisMessage
+            ) {
+                assertExists(messageEditorRef.current).focus();
+            }
+
+            wasConfirmingMessageEditingSaveRef.current = isConfirmingSave;
+        }
+    }, [messageEditing.state, messageEditingForThisMessage]);
 
     const [shouldShowOptimisticLoadingIndicator, setShouldShowOptimisticLoadingShimmer] =
         useState(false);
@@ -555,14 +596,12 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                             contentPayloadNode
                         ) : (
                             <MessageViewEditor
+                                ref={messageEditorRef}
                                 messageNoun={messageNoun}
                                 messageStartOfSentenceNoun={messageStartOfSentenceNoun}
                                 shouldMergeWithPreviousMessage={shouldMergeWithPreviousMessage}
                                 shouldMergeWithNextMessage={shouldMergeWithNextMessage}
                                 messageEditing={messageEditing}
-                                shouldFocusMessageContentEditorRef={
-                                    shouldFocusMessageContentEditorRef
-                                }
                             />
                         )}
                         <div
@@ -612,9 +651,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                             onReplyToMessage={onReplyToMessage}
                                             onDeleteMessage={onDeleteMessage}
                                             isEditing={!!messageEditingForThisMessage}
-                                            shouldFocusMessageContentEditorRef={
-                                                shouldFocusMessageContentEditorRef
-                                            }
                                             getCopyLinkUrl={getCopyLinkUrl}
                                         />
                                     )
@@ -633,7 +669,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         title={`Save ${messageNoun}`}
                         description={`Would you like to save the changes you made to this ${messageNoun}?`}
                         onClose={() => {
-                            shouldFocusMessageContentEditorRef.current = true;
                             messageEditingForThisMessage.dispatch({type: "CancelConfirmingSave"});
                         }}
                         primaryButtonLabel="Save"

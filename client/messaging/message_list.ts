@@ -217,6 +217,18 @@ export class MessageList<Message extends MessageModel> {
     }
 
     /**
+     * Iterate loaded messages in the list starting from the last loaded message.
+     */
+    public *iterateLoadedMessagesFromEnd(): IterableIterator<Message> {
+        const iterator = this._messages.end;
+
+        while (iterator.valid) {
+            yield iterator.value!;
+            iterator.prev();
+        }
+    }
+
+    /**
      * Increase message count for this list. If the message count is less than the
      * current message count we won't change anything.
      *

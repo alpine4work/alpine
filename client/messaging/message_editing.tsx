@@ -18,6 +18,7 @@ export type MessageEditingState<RoomKey extends string> =
           readonly contentEditorState: ContentEditorState<MessageContent>;
           readonly initialContent: MessageContent;
           readonly isConfirmingSave: boolean;
+          readonly returnFocusAfterEditing: (() => void) | null;
       } & (
           | {
                 readonly isSaving: false;
@@ -35,6 +36,7 @@ export type MessageEditingAction<RoomKey extends string> =
           readonly messageRoomKey: RoomKey;
           readonly messageIndex: number;
           readonly messagePayload: MessageContentPayloadModel;
+          readonly returnFocusAfterEditing: (() => void) | null;
       }
     | {
           readonly type: "ContentEditorStateChange";
@@ -64,6 +66,7 @@ function reduce<RoomKey extends string>(
                 messageIndex: action.messageIndex,
                 contentEditorState: ContentEditorState.create(action.messagePayload.content),
                 initialContent: action.messagePayload.content.doc,
+                returnFocusAfterEditing: action.returnFocusAfterEditing,
                 isSaving: false,
                 isConfirmingSave: false,
             };

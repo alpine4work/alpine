@@ -1,5 +1,5 @@
 import {ArrowArcLeft, Check, DotsThree, KeyReturn, SpinnerGap, X} from "phosphor-react";
-import {MutableRefObject, useEffect, useState} from "react";
+import {useEffect, useState} from "react";
 import {useFocusVisible, useFocusWithin} from "react-aria";
 import {Box} from "~/client/design/box";
 import {IconButton} from "~/client/design/icon_button";
@@ -24,7 +24,6 @@ interface MessageViewActionsProps<RoomKey extends string> {
     onReplyToMessage: () => void;
     onDeleteMessage: () => Promise<void>;
     isEditing: boolean;
-    shouldFocusMessageContentEditorRef: MutableRefObject<boolean>;
     getCopyLinkUrl: (messageIndex: number) => URL;
 }
 export function MessageViewActions<RoomKey extends string>(
@@ -106,7 +105,6 @@ export function StandardMessageViewActions<RoomKey extends string>({
     isHovered,
     onReplyToMessage,
     onDeleteMessage,
-    shouldFocusMessageContentEditorRef,
     getCopyLinkUrl,
 }: MessageViewActionsProps<RoomKey>) {
     const {currentAccount} = useSpaceContext();
@@ -136,12 +134,12 @@ export function StandardMessageViewActions<RoomKey extends string>({
         actions.push({
             label: "Edit",
             onPress: () => {
-                shouldFocusMessageContentEditorRef.current = true;
                 messageEditing.dispatch({
                     type: "StartEditing",
                     messageIndex: message.index,
                     messageRoomKey: message.getRoomKey(),
                     messagePayload,
+                    returnFocusAfterEditing: null,
                 });
             },
         });

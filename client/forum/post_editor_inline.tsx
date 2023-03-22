@@ -143,7 +143,9 @@ export function PostEditorInline({
                                 setState(state);
                             });
                         }}
-                        onModEnter={() => {
+                        onModEnter={event => {
+                            event.preventDefault();
+
                             runPromiseWithoutAwaiting(async () => {
                                 try {
                                     await handleCreatePost();

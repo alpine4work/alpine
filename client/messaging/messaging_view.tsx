@@ -652,6 +652,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                 isMessageCreationDisabled={isMessageCreationDisabled}
                 onUpdateMessages={update => setMessages(update)}
                 createMessage={input => actions.createMessage(input)}
+                messageEditing={messageEditing}
                 replyingToMessage={replyingToMessage}
                 onClearReplyingToMessage={() => setReplyingToMessage(null)}
                 onJumpToMessage={handleJumpToMessage}

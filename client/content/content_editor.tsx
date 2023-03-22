@@ -132,7 +132,7 @@ export type ContentEditorProps<Content extends Node> = {
      * allows you to add multiple lines. So providing `onEnterFromPhysicalKeyboard`
      * doesn't make our editor fully single lined.
      */
-    onEnterFromPhysicalKeyboard?: () => void;
+    onEnterFromPhysicalKeyboard?: (event: KeyboardEvent) => void;
 
     /**
      * Fired when the user press cmd-enter (or ctrl-enter on non MacOS platforms)
@@ -140,7 +140,7 @@ export type ContentEditorProps<Content extends Node> = {
      *
      * Providing an `onModEnter` callback will prevent the default enter behavior.
      */
-    onModEnter?: () => void;
+    onModEnter?: (event: KeyboardEvent) => void;
 
     /**
      * Placeholder text to render in the editor when there is no other content.
@@ -173,7 +173,12 @@ export type ContentEditorProps<Content extends Node> = {
     /**
      * Fired when the user presses the escape key.
      */
-    onEscape?: () => void;
+    onEscape?: (event: KeyboardEvent) => void;
+
+    /**
+     * Fired when the user presses the up arrow key.
+     */
+    onArrowUp?: (event: KeyboardEvent) => void;
 
     /**
      * Phantom text selections decorations that render on top of the editor and
@@ -434,9 +439,8 @@ function ContentEditor<Content extends Node>(
                     // Cmd+Enter triggers this on MacOS and Ctrl-Enter triggers this elsewhere
                     (isMac ? event.metaKey : event.ctrlKey)
                 ) {
-                    event.preventDefault();
-                    propsRef.current.onModEnter();
-                    return true;
+                    propsRef.current.onModEnter(event);
+                    if (event.defaultPrevented) return true;
                 }
 
                 if (
@@ -455,15 +459,18 @@ function ContentEditor<Content extends Node>(
                     // button press.
                     !isVirtualKeyboardEvent(event)
                 ) {
-                    event.preventDefault();
-                    propsRef.current.onEnterFromPhysicalKeyboard();
-                    return true;
+                    propsRef.current.onEnterFromPhysicalKeyboard(event);
+                    if (event.defaultPrevented) return true;
                 }
 
                 if (typeof propsRef.current.onEscape === "function" && event.key === "Escape") {
-                    event.preventDefault();
-                    propsRef.current.onEscape();
-                    return true;
+                    propsRef.current.onEscape(event);
+                    if (event.defaultPrevented) return true;
+                }
+
+                if (typeof propsRef.current.onArrowUp === "function" && event.key === "ArrowUp") {
+                    propsRef.current.onArrowUp(event);
+                    if (event.defaultPrevented) return true;
                 }
 
                 return false;

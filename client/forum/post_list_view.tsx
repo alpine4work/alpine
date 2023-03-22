@@ -996,6 +996,7 @@ function PostListView(
                             onUpdatePostComments={update =>
                                 setPosts(posts => posts.updatePostComments(item.post.id, update))
                             }
+                            postCommentEditing={messageEditing}
                             replyingToPostComment={replyingToPostComment}
                             onClearReplyingToPostComment={() => {
                                 setReplyingToPostCommentIndexByPostId(
@@ -1605,6 +1606,7 @@ function PostListView(
                                         );
                                     }
                                 }}
+                                postCommentEditing={messageEditing}
                                 postComments={lastPostContentItem.postComments}
                                 onUpdatePostComments={update =>
                                     setPosts(posts =>

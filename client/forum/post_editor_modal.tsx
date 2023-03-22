@@ -129,7 +129,9 @@ export function PostEditorModal({
                             hasContentChanged: hasContentChanged || transaction.docChanged,
                         }));
                     }}
-                    onModEnter={() => {
+                    onModEnter={event => {
+                        event.preventDefault();
+
                         runPromiseWithoutAwaiting(async () => {
                             try {
                                 await handleUpdatePost();

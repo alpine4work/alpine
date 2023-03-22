@@ -1,3 +1,4 @@
+import {setInteractionModality, useInteractionModality} from "@react-aria/interactions";
 import {ArrowArcLeft, ArrowUp, X} from "phosphor-react";
 import {MutableRefObject, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
@@ -10,6 +11,7 @@ import {FocusRing} from "~/client/design/focus_ring";
 import {IconButton} from "~/client/design/icon_button";
 import {useShowToast} from "~/client/design/toast";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
+import {MessageEditing} from "~/client/messaging/message_editing";
 import {MessageList} from "~/client/messaging/message_list";
 import {
     getTruncatedMessageContentForReplyPreview,
@@ -28,6 +30,7 @@ import {MessageContent} from "~/shared/content/message_content_schema";
 import {RemLength, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable";
 import {generateId} from "~/shared/id/id";
 import {
     MessageModel,
@@ -45,6 +48,7 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
     isMessageCreationDisabled,
     onUpdateMessages,
     createMessage,
+    messageEditing,
     replyingToMessage: _replyingToMessage,
     onClearReplyingToMessage,
     onJumpToMessage,
@@ -61,6 +65,7 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
         parentMessageIndex: number | null;
         content: MessageContent;
     }) => Promise<void>;
+    messageEditing: MessageEditing<RoomKey>;
     replyingToMessage: Message | null;
     onClearReplyingToMessage: () => void;
     onJumpToMessage: (message: Message) => void;
@@ -185,6 +190,8 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
     };
 
     const isSendButtonDisabled = isMessageCreationDisabled || isContentEmpty(state.getDoc());
+
+    const interactionModality = useInteractionModality();
 
     return (
         <Box
@@ -340,7 +347,49 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                                     paddingX: messageViewBubblePaddingX,
                                     paddingY: messageViewBubblePaddingY,
                                 })}
-                                onEnterFromPhysicalKeyboard={submitMessage}
+                                onEnterFromPhysicalKeyboard={event => {
+                                    event.preventDefault();
+                                    submitMessage();
+                                }}
+                                onArrowUp={event => {
+                                    if (isContentEmpty(state.getDoc())) {
+                                        // Look at the last 10 messages. Start editing state for the last one our
+                                        // account authored.
+                                        for (const message of sliceIterable(
+                                            messages.iterateLoadedMessagesFromEnd(),
+                                            0,
+                                            10,
+                                        )) {
+                                            if (
+                                                message.author.id === currentAccount.id &&
+                                                message.payload.type === "Content"
+                                            ) {
+                                                event.preventDefault();
+
+                                                const previousInteractionModality =
+                                                    interactionModality;
+
+                                                messageEditing.dispatch({
+                                                    type: "StartEditing",
+                                                    messageRoomKey: message.getRoomKey(),
+                                                    messageIndex: message.index,
+                                                    messagePayload: message.payload,
+                                                    returnFocusAfterEditing: () => {
+                                                        // Reset the interaction modality when returning focus to our editor. So if the
+                                                        // user pressed enter to save that doesn't give us a keyboard modality if the
+                                                        // user wasn't using keyboard navigation before.
+                                                        setInteractionModality(
+                                                            previousInteractionModality,
+                                                        );
+
+                                                        editorRef.current?.focus();
+                                                    },
+                                                });
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }}
                             />
                         </Box>
                     </Box>

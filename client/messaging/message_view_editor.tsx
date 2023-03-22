@@ -1,4 +1,4 @@
-import {MutableRefObject, useRef} from "react";
+import {Ref, forwardRef, useImperativeHandle, useRef} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {Box} from "~/client/design/box";
@@ -15,21 +15,30 @@ import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {colorSchemeVars, sprinkles} from "~/shared/styles/styles";
 
-export function MessageViewEditor<RoomKey extends string>({
-    messageNoun,
-    messageStartOfSentenceNoun,
-    shouldMergeWithPreviousMessage,
-    shouldMergeWithNextMessage,
-    messageEditing,
-    shouldFocusMessageContentEditorRef,
-}: {
-    messageNoun: string;
-    messageStartOfSentenceNoun: string;
-    shouldMergeWithPreviousMessage: boolean;
-    shouldMergeWithNextMessage: boolean;
-    messageEditing: MessageEditing<RoomKey>;
-    shouldFocusMessageContentEditorRef: MutableRefObject<boolean>;
-}) {
+export type MessageViewEditorRef = {
+    focus(): void;
+};
+
+const MessageViewEditorForwardRef = forwardRef(MessageViewEditor) as typeof MessageViewEditor;
+export {MessageViewEditorForwardRef as MessageViewEditor};
+
+function MessageViewEditor<RoomKey extends string>(
+    {
+        messageNoun,
+        messageStartOfSentenceNoun,
+        shouldMergeWithPreviousMessage,
+        shouldMergeWithNextMessage,
+        messageEditing,
+    }: {
+        ref?: Ref<MessageViewEditorRef>;
+        messageNoun: string;
+        messageStartOfSentenceNoun: string;
+        shouldMergeWithPreviousMessage: boolean;
+        shouldMergeWithNextMessage: boolean;
+        messageEditing: MessageEditing<RoomKey>;
+    },
+    ref: Ref<MessageViewEditorRef>,
+) {
     assert(messageEditing.state.isEditing);
 
     return (
@@ -58,6 +67,7 @@ export function MessageViewEditor<RoomKey extends string>({
                 }}
             >
                 <MessageContentEditor
+                    parentRef={ref}
                     messageStartOfSentenceNoun={messageStartOfSentenceNoun}
                     state={messageEditing.state.contentEditorState}
                     isSaving={messageEditing.state.isSaving}
@@ -67,14 +77,13 @@ export function MessageViewEditor<RoomKey extends string>({
                             contentEditorState: state,
                         });
                     }}
-                    onEscape={() => messageEditing.dispatch({type: "CancelEditing"})}
+                    onCancel={() => messageEditing.dispatch({type: "CancelEditing"})}
                     onSave={() =>
                         messageEditing.dispatch({
                             type: "SaveEditedContent",
                             messageNoun,
                         })
                     }
-                    shouldFocusMessageContentEditorRef={shouldFocusMessageContentEditorRef}
                 />
             </Box>
         </FocusRing>
@@ -82,32 +91,45 @@ export function MessageViewEditor<RoomKey extends string>({
 }
 
 function MessageContentEditor({
+    parentRef,
     messageStartOfSentenceNoun,
     state,
     isSaving,
     onChange,
-    onEscape,
+    onCancel,
     onSave,
-    shouldFocusMessageContentEditorRef,
 }: {
+    parentRef: Ref<MessageViewEditorRef>;
     messageStartOfSentenceNoun: string;
     state: ContentEditorState<MessageContent>;
     isSaving: boolean;
     onChange: (state: ContentEditorState<MessageContent>) => void;
-    onEscape: () => void;
+    onCancel: () => void;
     onSave: () => void;
-    shouldFocusMessageContentEditorRef: MutableRefObject<boolean>;
 }) {
     const editorRef = useRef<ContentEditorRef>(null);
 
+    const hasInitiallyMountedRef = useRef(false);
+
     useLayoutEffectWithoutServerSideWarning(() => {
-        if (!shouldFocusMessageContentEditorRef.current) return;
-        shouldFocusMessageContentEditorRef.current = false;
+        if (hasInitiallyMountedRef.current) return;
+        hasInitiallyMountedRef.current = true;
 
         const editor = assertExists(editorRef.current);
         editor.focus();
         editor.selectAll();
-    });
+    }, []);
+
+    useImperativeHandle(
+        parentRef,
+        () => ({
+            focus: () => {
+                const editor = assertExists(editorRef.current);
+                editor.focus();
+            },
+        }),
+        [],
+    );
 
     return (
         <ContentEditor
@@ -122,8 +144,14 @@ function MessageContentEditor({
             // an en-dash as a placeholder.
             placeholder={"\u2013"}
             className={sprinkles({minWidth: messageViewBubbleMinWidth})}
-            onEscape={onEscape}
-            onEnterFromPhysicalKeyboard={onSave}
+            onEscape={event => {
+                event.preventDefault();
+                onCancel();
+            }}
+            onEnterFromPhysicalKeyboard={event => {
+                event.preventDefault();
+                onSave();
+            }}
         />
     );
 }
